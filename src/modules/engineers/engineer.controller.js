@@ -1,51 +1,33 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const Engineer = require("./engineer.model");
 
-// ✅ POST Engineer
+// ✅ POST: Save engineer
 exports.createEngineer = async (req, res) => {
   try {
-    const {
-      firstName,
-      lastName,
-      cell,
-      office,
-      email,
-      photoUrl,
-    } = req.body;
-
-    if (!firstName || !lastName) {
-      return res.status(400).json({
-        message: "First name and last name are required",
-      });
-    }
-
-    const engineer = await prisma.engineer.create({
-      data: {
-        firstName,
-        lastName,
-        cell,
-        office,
-        email,
-        photoUrl,
-      },
+    const engineer = await Engineer.create(req.body);
+    res.status(201).json({
+      success: true,
+      data: engineer,
     });
-
-    res.status(201).json(engineer);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
   }
 };
 
-// ✅ GET Engineers (for dropdown)
+// ✅ GET: All engineers (for dropdown)
 exports.getEngineers = async (req, res) => {
   try {
-    const engineers = await prisma.engineer.findMany({
-      orderBy: { createdAt: 'desc' },
+    const engineers = await Engineer.find().sort({ firstName: 1 });
+    res.json({
+      success: true,
+      data: engineers,
     });
-
-    res.json(engineers);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
   }
 };

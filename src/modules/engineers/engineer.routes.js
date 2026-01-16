@@ -1,12 +1,8 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
+const controller = require("./engineer.controller");
 
-const controller = require('./engineer.controller');
-
-// POST
-router.post('/', controller.createEngineer);
-
-// GET
-router.get('/', controller.getEngineers);
+router.post("/", controller.createEngineer);
+router.get("/", controller.getEngineers);
 
 module.exports = router;
