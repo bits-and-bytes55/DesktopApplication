@@ -39,3 +39,33 @@ exports.saveCompany = async (req, res) => {
     });
   }
 };
+
+
+// 🔹 UPDATE Company Details
+exports.updateCompany = async (req, res) => {
+  try {
+    const updatedCompany = await Company.findOneAndUpdate(
+      {},               // kyunki sirf ek hi company hoti hai
+      { $set: req.body },
+      { new: true }     // updated data return kare
+    );
+
+    if (!updatedCompany) {
+      return res.status(404).json({
+        success: false,
+        message: "Company not found",
+      });
+    }
+
+    res.json({
+      success: true,
+      message: "Company details updated successfully",
+      data: updatedCompany,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
