@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const controller = require("./engineer.controller");
 
-router.post("/", controller.createEngineer);
-router.get("/", controller.getEngineers);
+router.post("/add-engineers", controller.createEngineer);
+router.get("/get-engineers", controller.getEngineers);
 
 module.exports = router;
