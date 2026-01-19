@@ -1,7 +1,7 @@
-const Engineer = require("./engineer.model");
+import Engineer from "../modules/engineers/engineer.model.js";
 
 // ✅ POST: Save engineer
-exports.createEngineer = async (req, res) => {
+export async function createEngineer(req, res) {
   try {
     const engineer = await Engineer.create(req.body);
     res.status(201).json({
@@ -14,12 +14,12 @@ exports.createEngineer = async (req, res) => {
       message: error.message,
     });
   }
-};
+}
 
 // ✅ GET: All engineers (for dropdown)
-exports.getEngineers = async (req, res) => {
+export async function getEngineers(req, res) {
   try {
-    const engineers = await Engineer.find().sort({ firstName: 1 });
+    const engineers = await find().sort({ firstName: 1 });
     res.json({
       success: true,
       data: engineers,
@@ -30,4 +30,5 @@ exports.getEngineers = async (req, res) => {
       message: error.message,
     });
   }
-};
+}
+

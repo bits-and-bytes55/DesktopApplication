@@ -1,15 +1,28 @@
-const express = require("express");
-const cors = require("cors");
+import express from "express";
+import cors from "cors";
+import helmet from "helmet";
+import path from "path";
+import fs from "fs";
+import { fileURLToPath } from "url";
 
-const path = require("path");
-const fs = require("fs");
+import engineerRoutes from "./routes/engineer.routes.js";
+import companyRoutes from "./routes/company.routes.js";
 
-const engineerRoutes = require("./modules/engineers/engineer.routes");
-const companyRoutes = require("./modules/company/company.routes");
+// Product routes imports would go here
+import productRoutes from "./routes/product/product.routes.js";
+import { errorHandler } from "./middlewares/error.middleware.js";
+
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 
+
 app.use(express.urlencoded({ extended: true }));
+app.use(cors());
+app.use(helmet());
+app.use(express.json());
 
 // 🔹 Create uploads directory if it doesn't exist
 const uploadsDir = path.join(__dirname, "uploads", "company-logos");
@@ -17,16 +30,17 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
-// 🔹 Serve static files (images)
+// 🔹 Serve static files
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-app.use(cors());
-app.use(express.json());
 app.use("/api/engineers", engineerRoutes);
 app.use("/api/company", companyRoutes);
 
-// app.get("/", (req, res) => {
-//   res.send(`Server running on http://localhost:${PORT}`);
-// });
 
-module.exports = app;
+// Product routes
+app.use("/api/v1/products", productRoutes);
+
+// Error handler (ALWAYS LAST)
+app.use(errorHandler);
+
+export default app;

@@ -1,14 +1,14 @@
-const Company = require("./company.model");
-const multer = require("multer");
-const path = require("path");
+import Company from "../modules/company/company.model.js";
+import multer, { diskStorage } from "multer";
+import { extname as _extname } from "path";
 
 // 🔹 Configure Multer for Image Upload
-const storage = multer.diskStorage({
+const storage = diskStorage({
   destination: (req, file, cb) => {
     cb(null, "uploads/company-logos/"); // Make sure this folder exists
   },
   filename: (req, file, cb) => {
-    const uniqueName = `company-logo-${Date.now()}${path.extname(file.originalname)}`;
+    const uniqueName = `company-logo-${Date.now()}${_extname(file.originalname)}`;
     cb(null, uniqueName);
   },
 });
@@ -18,7 +18,7 @@ const upload = multer({
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
   fileFilter: (req, file, cb) => {
     const allowedTypes = /jpeg|jpg|png|gif/;
-    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const extname = allowedTypes.test(_extname(file.originalname).toLowerCase());
     const mimetype = allowedTypes.test(file.mimetype);
 
     if (extname && mimetype) {
@@ -30,9 +30,9 @@ const upload = multer({
 });
 
 // 🔹 GET Company Details
-exports.getCompany = async (req, res) => {
+export async function getCompany(req, res) {
   try {
-    const company = await Company.findOne();
+    const company = await findOne();
     res.json({
       success: true,
       data: company,
@@ -43,16 +43,16 @@ exports.getCompany = async (req, res) => {
       message: err.message,
     });
   }
-};
+}
 
 // 🔹 SAVE / UPDATE Company Details with Image
-exports.saveCompany = async (req, res) => {
+export async function saveCompany(req, res) {
   try {
     console.log("📌 Request body:", req.body);
     console.log("📌 Uploaded file:", req.file);
 
     // Check if company already exists
-    let company = await Company.findOne();
+    let company = await findOne();
     
     const data = {
       companyName: req.body.companyName,
@@ -96,16 +96,16 @@ exports.saveCompany = async (req, res) => {
       message: err.message || "Failed to save company details",
     });
   }
-};
+}
 
 // 🔹 UPDATE Company Details with Image
-exports.updateCompany = async (req, res) => {
+export async function updateCompany(req, res) {
   try {
     console.log("📌 Update request body:", req.body);
     console.log("📌 Update file:", req.file);
 
     // Get existing company first
-    const existingCompany = await Company.findOne();
+    const existingCompany = await findOne();
     
     if (!existingCompany) {
       return res.status(404).json({
@@ -143,7 +143,6 @@ exports.updateCompany = async (req, res) => {
       message: error.message || "Failed to update company details",
     });
   }
-};
+}
 
-// Export multer middleware
-exports.uploadLogo = upload.single("logo");
+export const uploadLogo = upload.single("logo");
