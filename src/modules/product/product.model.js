@@ -2,39 +2,101 @@ import mongoose from "mongoose";
 
 const productSchema = new mongoose.Schema(
   {
-    companyBrandName: { type: String, required: true, trim: true },
-    productCategory: { type: String, required: true },
+    /* =========================
+       UI: Product
+       Meaning: Company Brand Name
+    ========================== */
+    Product: {
+      type: String,
+      required: true,
+      trim: true
+    },
 
-    sizeValue: { type: Number, required: true },
-    sizeUnit: { type: String, required: true },
-    packagingType: { type: String, required: true },
+    /* =========================
+       UI: Code
+       Mandatory + Unique
+    ========================== */
+    Code: {
+      type: String,
+      required: true,
+      trim: true
+    },
 
-    unitDisplay: String,
-    densitySG: { type: Number, required: true },
+    /* =========================
+       UI: SG
+       Decimal allowed, mandatory
+    ========================== */
+    SG: {
+      type: Number,
+      required: true
+    },
 
-    isDeleted: { type: Boolean, default: false }
+    /* =========================
+       UI: Unit (Grouped)
+       - Num : number (e.g. 54)
+       - Class : admin custom value (e.g. KG, Gal, MT, Gel)
+    ========================== */
+    Unit: {
+      Num: {
+        type: Number,
+        required: true
+      },
+      Class: {
+        type: String,
+        required: true,
+        trim: true
+      }
+    },
+
+    /* =========================
+       UI: Group
+       Category selection
+    ========================== */
+    Group: {
+      type: String,
+      required: true,
+      trim: true
+    },
+
+    /* =========================
+       UI: Retail
+       Free text BUT value Yes / No
+    ========================== */
+    Retail: {
+      type: String,
+      enum: ["Yes", "No"],
+      default: "No"
+    },
+
+    /* =========================
+       UI: A – F Columns
+       Optional, limited input
+    ========================== */
+    A: { type: Number },
+    B: { type: Number },
+    C: { type: Number },
+    D: { type: Number },
+    E: { type: Number },
+    F: { type: Number },
+
+    /* =========================
+       System
+    ========================== */
+    isDeleted: {
+      type: Boolean,
+      default: false
+    }
   },
   { timestamps: true }
 );
 
-/**
- * DUPLICATE PREVENTION (DB LEVEL)
- * Same product + size + unit + packaging cannot repeat
- */
+/* =====================================
+   DUPLICATE PREVENTION (KEEPED AS ASKED)
+   - Code must be unique (active records)
+===================================== */
 productSchema.index(
-  {
-    companyBrandName: 1,
-    sizeValue: 1,
-    sizeUnit: 1,
-    packagingType: 1,
-    isDeleted: 1
-  },
+  { Code: 1, isDeleted: 1 },
   { unique: true }
 );
-
-productSchema.pre("save", function (next) {
-  this.unitDisplay = `${this.sizeValue} ${this.sizeUnit}`;
-  next();
-});
 
 export default mongoose.model("Product", productSchema);

@@ -3,13 +3,135 @@ import Product from "../../modules/product/product.model.js";
 import ActivityLog from "../../modules/product/activityLog.model.js";
 import { parseProductExcel } from "../../utils/excelParser.js";
 
-/**
- * EXCEL UPLOAD
- */
-export const uploadProductExcel = async (req, res, next) => {
-  console.log("📌 Hit Uploaded file info:", req.file);
+/* ======================================================
+   1️⃣ ADD SINGLE PRODUCT (UI GRID – ONE ROW)
+   ====================================================== */
+export const addProduct = async (req, res) => {
   try {
-    const { valid, errors } = parseProductExcel(req.file.path);
+    const {
+      Product: productName,
+      Code,
+      SG,
+      Unit,
+      Group,
+      Retail,
+      A, B, C, D, E, F
+    } = req.body;
+
+    // ✅ Basic validation (only required fields)
+    if (
+      !productName ||
+      !Code ||
+      SG === undefined ||
+      !Unit?.Num ||
+      !Unit?.Class ||
+      !Group
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Required fields are missing"
+      });
+    }
+
+    const product = await Product.create({
+      Product: productName,
+      Code,
+      SG,
+      Unit,
+      Group,
+      Retail,
+      A, B, C, D, E, F
+    });
+
+    await ActivityLog.create({
+      action: "CREATE",
+      referenceId: product._id,
+      description: `Product ${Code} added`
+    });
+
+    res.status(201).json({
+      success: true,
+      data: product
+    });
+  } catch (e) {
+    res.status(400).json({
+      success: false,
+      message: e.message
+    });
+  }
+};
+
+/* ======================================================
+   2️⃣ BULK ADD PRODUCTS (SAVE BUTTON / GRID SAVE)
+   ====================================================== */
+export const bulkAddProducts = async (req, res) => {
+  try {
+    if (!Array.isArray(req.body)) {
+      return res.status(400).json({
+        success: false,
+        message: "Payload must be an array"
+      });
+    }
+
+    // ✅ Sirf filled rows hi uthao
+    const validRows = req.body.filter(row =>
+      row.Product &&
+      row.Code &&
+      row.SG !== undefined &&
+      row.Unit?.Num &&
+      row.Unit?.Class &&
+      row.Group
+    );
+
+    if (!validRows.length) {
+      return res.status(400).json({
+        success: false,
+        message: "No valid rows found to save"
+      });
+    }
+
+    const inserted = await Product.insertMany(validRows, {
+      ordered: false
+    });
+
+    await ActivityLog.create({
+      action: "BULK_CREATE",
+      description: `Bulk added ${inserted.length} products`
+    });
+
+    res.status(201).json({
+      success: true,
+      saved: inserted.length
+    });
+  } catch (e) {
+    res.status(400).json({
+      success: false,
+      message: e.message
+    });
+  }
+};
+
+/* ======================================================
+   3️⃣ EXCEL UPLOAD (IMPORT)
+   ====================================================== */
+export const uploadProductExcel = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: "Excel file not received"
+      });
+    }
+
+    const result = parseProductExcel(req.file.path);
+
+    // Header error (UI friendly)
+    if (result.success === false) {
+      fs.unlinkSync(req.file.path);
+      return res.status(400).json(result);
+    }
+
+    const { valid, errors } = result;
 
     let inserted = [];
     if (valid.length) {
@@ -18,7 +140,7 @@ export const uploadProductExcel = async (req, res, next) => {
 
     await ActivityLog.create({
       action: "UPLOAD",
-      description: `Uploaded ${inserted.length} products`
+      description: `Uploaded ${inserted.length} products from Excel`
     });
 
     fs.unlinkSync(req.file.path);
@@ -26,18 +148,21 @@ export const uploadProductExcel = async (req, res, next) => {
     res.json({
       success: true,
       inserted: inserted.length,
-      validationErrors: errors
+      errors
     });
   } catch (e) {
     if (req.file?.path) fs.unlinkSync(req.file.path);
-    res.status(400).json(e);
+    res.status(400).json({
+      success: false,
+      message: e.message
+    });
   }
 };
 
-/**
- * SOFT DELETE
- */
-export const deleteProduct = async (req, res, next) => {
+/* ======================================================
+   4️⃣ SOFT DELETE
+   ====================================================== */
+export const deleteProduct = async (req, res) => {
   await Product.findByIdAndUpdate(req.params.id, { isDeleted: true });
 
   await ActivityLog.create({
@@ -49,9 +174,9 @@ export const deleteProduct = async (req, res, next) => {
   res.json({ success: true });
 };
 
-/**
- * RESTORE
- */
+/* ======================================================
+   5️⃣ RESTORE
+   ====================================================== */
 export const restoreProduct = async (req, res) => {
   await Product.findByIdAndUpdate(req.params.id, { isDeleted: false });
 
@@ -64,24 +189,26 @@ export const restoreProduct = async (req, res) => {
   res.json({ success: true });
 };
 
-/**
- * PAGINATION + SEARCH
- */
+/* ======================================================
+   6️⃣ GET PRODUCTS (PAGINATION + SEARCH – UI GRID)
+   ====================================================== */
 export const getProducts = async (req, res) => {
   const {
     page = 1,
     limit = 20,
     search,
-    category,
-    packaging
+    Group
   } = req.query;
 
   const filter = { isDeleted: false };
 
-  if (category) filter.productCategory = category;
-  if (packaging) filter.packagingType = packaging;
+  if (Group) filter.Group = Group;
+
   if (search) {
-    filter.companyBrandName = { $regex: search, $options: "i" };
+    filter.$or = [
+      { Product: { $regex: search, $options: "i" } },
+      { Code: { $regex: search, $options: "i" } }
+    ];
   }
 
   const data = await Product.find(filter)

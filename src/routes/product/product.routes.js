@@ -1,7 +1,10 @@
 import express from "express";
 import { uploadExcel } from "../../middlewares/product/upload.middleware.js";
+
 import {
-  uploadProductExcel,
+  addProduct,          // single row add
+  bulkAddProducts,     // grid save (JSON array)
+  uploadProductExcel,  // excel import
   deleteProduct,
   restoreProduct,
   getProducts
@@ -9,9 +12,27 @@ import {
 
 const router = express.Router();
 
-// ✅ THIS LINE MUST EXIST
-router.post("/bulk", uploadExcel.single("file"), uploadProductExcel);
+/* ======================================================
+   ADD PRODUCTS
+   ====================================================== */
+
+// ➕ Add single product (one row from UI)
+router.post("/", addProduct);
+
+// ➕ Bulk add products (Save button – JSON array)
+router.post("/bulk", bulkAddProducts);
+
+// 📥 Excel upload (Import button)
+router.post("/excel", uploadExcel.single("file"), uploadProductExcel);
+
+/* ======================================================
+   FETCH PRODUCTS (UI GRID)
+   ====================================================== */
 router.get("/", getProducts);
+
+/* ======================================================
+   DELETE / RESTORE
+   ====================================================== */
 router.delete("/:id", deleteProduct);
 router.put("/restore/:id", restoreProduct);
 
