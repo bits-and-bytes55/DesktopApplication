@@ -14,6 +14,8 @@ class ReturnProductController {
   
   Future<List<Map<String, dynamic>>> getReturnProducts() async {
     try {
+print("Fetching return products from: ${Uri.parse('${baseUrl}return-products')}");
+
       final response = await http.get(
         Uri.parse('${baseUrl}return-products'),
         headers: _headers,
@@ -42,6 +44,10 @@ class ReturnProductController {
     required double amount,
   }) async {
     try {
+
+      print("url: ${Uri.parse('${baseUrl}return-products')}");
+
+      
       final response = await http.post(
         Uri.parse('${baseUrl}return-products'),
         headers: _headers,

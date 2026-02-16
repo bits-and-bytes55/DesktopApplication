@@ -1,7 +1,10 @@
 import Company from "../../modules/company/company.model.js";
 import cloudinary from "../../config/cloudinary.js";
 
-// 🔹 GET company
+
+
+
+// 🔹 GET Company
 export async function getCompany(req, res) {
   try {
     const company = await Company.findOne();
@@ -11,7 +14,6 @@ export async function getCompany(req, res) {
   }
 }
 
-// 🔹 ADD / UPDATE company
 export async function saveCompany(req, res) {
   try {
     const {
@@ -21,7 +23,7 @@ export async function saveCompany(req, res) {
       email,
       currencySymbol,
       currencyFormat,
-      logoBase64, // 👈 base64 image string
+      logoBase64,
     } = req.body;
 
     if (!companyName || !address || !phone || !email) {
@@ -31,29 +33,39 @@ export async function saveCompany(req, res) {
       });
     }
 
-    let company = await Company.findOne(); // ✅ FIXED
+    let company = await Company.findOne();
 
-    let logoUrl = company?.logoUrl;
+    let logoUrl = company?.logoUrl || null;
+    let logoPublicId = company?.logoPublicId || null;
 
-    // 🔹 Upload image to Cloudinary
+    // =============================
+    // Upload New Logo
+    // =============================
     if (logoBase64) {
+      // delete old logo if exists
+      if (logoPublicId) {
+        await cloudinary.uploader.destroy(logoPublicId);
+      }
+
       const uploadRes = await cloudinary.uploader.upload(logoBase64, {
         folder: "mudpro/company",
       });
+
       logoUrl = uploadRes.secure_url;
+      logoPublicId = uploadRes.public_id;
     }
 
     if (company) {
       // update
-      Object.assign(company, {
-        companyName,
-        address,
-        phone,
-        email,
-        currencySymbol,
-        currencyFormat,
-        logoUrl,
-      });
+      company.companyName = companyName;
+      company.address = address;
+      company.phone = phone;
+      company.email = email;
+      company.currencySymbol = currencySymbol;
+      company.currencyFormat = currencyFormat;
+      company.logoUrl = logoUrl;
+      company.logoPublicId = logoPublicId;
+
       await company.save();
     } else {
       // create
@@ -65,6 +77,7 @@ export async function saveCompany(req, res) {
         currencySymbol,
         currencyFormat,
         logoUrl,
+        logoPublicId,
       });
     }
 

@@ -6,7 +6,17 @@ const companySchema = new mongoose.Schema(
     address: { type: String, required: true },
     phone: { type: String, required: true },
     email: { type: String, required: true },
-    logoUrl: String,
+
+    // 🔹 Cloudinary fields
+    logoUrl: {
+      type: String,
+      default: null,
+    },
+    logoPublicId: {
+      type: String,
+      default: null,
+    },
+
     currencySymbol: { type: String, default: "₹" },
     currencyFormat: { type: String, default: "0.00" },
   },

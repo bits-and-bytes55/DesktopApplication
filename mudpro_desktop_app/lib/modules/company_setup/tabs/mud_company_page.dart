@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/controller/company_controller.dart';
@@ -340,93 +342,138 @@ class _MudCompanyPageState extends State<MudCompanyPage> {
     );
   }
 
-  Widget _logoUploadSection() {
-    return Obx(() {
-      final logoUrl = companyController.logoUrl.value;
-      final hasLogo = logoUrl.isNotEmpty;
+ Widget _logoUploadSection() {
+  return Obx(() {
+    final logoUrl = companyController.logoUrl.value;
+    final hasLogo = logoUrl.isNotEmpty;
 
-      return Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.grey.shade300),
-        ),
-        child: Column(
-          children: [
-            Container(
-              height: 100,
-              decoration: BoxDecoration(
-                color: AppTheme.cardColor,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
-              ),
-              child: Center(
-                child: !hasLogo
-                    ? Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.image_outlined,
-                              size: 36,
-                              color: AppTheme.textSecondary.withOpacity(0.4)),
-                          const SizedBox(height: 6),
-                          const Text('No Logo Selected', style: TextStyle(fontSize: 11)),
-                        ],
-                      )
-                    : ClipRRect(
-                        borderRadius: BorderRadius.circular(6),
-                        child: Image.network(
-                          logoUrl,
-                          width: 80,
-                          height: 80,
-                          fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.broken_image,
-                                    size: 36,
-                                    color: AppTheme.textSecondary.withOpacity(0.4)),
-                                const SizedBox(height: 6),
-                                const Text('Failed to load', style: TextStyle(fontSize: 11)),
-                              ],
-                            );
-                          },
-                        ),
-                      ),
-              ),
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Column(
+        children: [
+          Container(
+            height: 100,
+            decoration: BoxDecoration(
+              color: AppTheme.cardColor,
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(8)),
             ),
-            Container(
-              height: 40,
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(8)),
-                border: Border(top: BorderSide(color: Colors.grey.shade300)),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      hasLogo ? 'Logo uploaded' : 'No file selected',
-                      style: const TextStyle(fontSize: 11),
-                      overflow: TextOverflow.ellipsis,
+            child: Center(
+              child: !hasLogo
+                  ? Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.image_outlined,
+                            size: 36,
+                            color:
+                                AppTheme.textSecondary.withOpacity(0.4)),
+                        const SizedBox(height: 6),
+                        const Text('No Logo Selected',
+                            style: TextStyle(fontSize: 11)),
+                      ],
+                    )
+                  : ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: logoUrl.startsWith('data:image')
+                          ? Image.memory(
+                              base64Decode(
+                                  logoUrl.split(',').last),
+                              width: 80,
+                              height: 80,
+                              fit: BoxFit.contain,
+                            )
+                          : Image.network(
+                              logoUrl,
+                              width: 80,
+                              height: 80,
+                              fit: BoxFit.contain,
+                              loadingBuilder:
+                                  (context, child, progress) {
+                                if (progress == null)
+                                  return child;
+                                return const SizedBox(
+                                  width: 30,
+                                  height: 30,
+                                  child:
+                                      CircularProgressIndicator(
+                                          strokeWidth: 2),
+                                );
+                              },
+                              errorBuilder:
+                                  (context, error, stackTrace) {
+                                print("IMAGE LOAD ERROR: $error");
+                                return Column(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.broken_image,
+                                        size: 36,
+                                        color: AppTheme
+                                            .textSecondary
+                                            .withOpacity(0.4)),
+                                    const SizedBox(height: 6),
+                                    const Text('Failed to load',
+                                        style: TextStyle(
+                                            fontSize: 11)),
+                                  ],
+                                );
+                              },
+                            ),
                     ),
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: () => companyController.pickLogoAndConvert(),
-                    icon: const Icon(Icons.upload_file, size: 12),
-                    label: const Text('Browse', style: TextStyle(fontSize: 11)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryColor,
-                      minimumSize: const Size(80, 28),
-                    ),
-                  ),
-                ],
-              ),
             ),
-          ],
-        ),
-      );
-    });
-  }
+          ),
+          Container(
+            height: 40,
+            padding:
+                const EdgeInsets.symmetric(horizontal: 8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius:
+                  const BorderRadius.vertical(
+                      bottom: Radius.circular(8)),
+              border: Border(
+                  top: BorderSide(
+                      color: Colors.grey.shade300)),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    hasLogo
+                        ? 'Logo uploaded'
+                        : 'No file selected',
+                    style:
+                        const TextStyle(fontSize: 11),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                ElevatedButton.icon(
+                  onPressed: () =>
+                      companyController
+                          .pickLogoAndConvert(),
+                  icon: const Icon(Icons.upload_file,
+                      size: 12),
+                  label: const Text('Browse',
+                      style: TextStyle(fontSize: 11)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor:
+                        AppTheme.primaryColor,
+                    minimumSize:
+                        const Size(80, 28),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  });
+}
+
 
   Widget _currencyRow() {
     return Container(

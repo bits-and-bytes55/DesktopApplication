@@ -178,107 +178,101 @@ Future<Map<String, dynamic>> deleteEngineer(String engineerId) async {
 
    // Add Company Details with Image
   Future<Map<String, dynamic>> addCompanyDetails(Map<String, dynamic> payload) async {
-    try {
-      final url = Uri.parse(ApiEndpoint.baseUrl + ApiEndpoint.addCompanyDetails);
-      print('🔄 API Call: addCompanyDetails');
-      print('🌐 URL: $url');
-      print('📝 Fields: $payload');
+  try {
+    final url = Uri.parse(ApiEndpoint.baseUrl + ApiEndpoint.addCompanyDetails);
 
-      var request = http.MultipartRequest('POST', url);
+    final response = await http.post(
+      url,
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: jsonEncode(payload),
+    );
 
-      // Add text fields from payload
-      payload.forEach((key, value) {
-        if (value != null) {
-          request.fields[key] = value.toString();
-        }
-      });
+    final data = jsonDecode(response.body);
 
-      print('📤 Sending multipart request...');
+    print("statuscode------${response.statusCode}");
+    print("response body------${response.body}");
 
-      // Send request with timeout
-      var streamedResponse = await request.send().timeout(
-        const Duration(seconds: 30),
-        onTimeout: () {
-          print('⏰ Request timed out after 30 seconds');
-          throw Exception('Request timed out');
-        },
-      );
-
-      print('📥 Received streamed response');
-
-      var response = await http.Response.fromStream(streamedResponse);
-      print('📄 Status Code: ${response.statusCode}');
-      print('📄 Response Body: ${response.body}');
-
-      final data = jsonDecode(response.body);
-
-      print("statuscode------${response.statusCode}");
-      print("response body------${response.body}");
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        print('✅ Request successful');
-        return {
-          'success': true,
-          'data': data['data'] != null ? Company.fromJson(data['data']) : null,
-          'message': data['message'] ?? 'Company details saved successfully',
-        };
-      } else {
-        print('❌ Request failed with status ${response.statusCode}');
-        return {
-          'success': false,
-          'message': data['message'] ?? 'Failed to save company details',
-        };
-      }
-    } catch (e) {
-      print('❌ Error in addCompanyDetails: ${e.toString()}');
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return {
+        'success': true,
+        'data': data['data'] != null ? Company.fromJson(data['data']) : null,
+        'message': data['message'] ?? 'Company saved successfully',
+      };
+    } else {
       return {
         'success': false,
-        'message': 'Error: ${e.toString()}',
+        'message': data['message'] ?? 'Failed to save company',
       };
     }
+  } catch (e) {
+    return {
+      'success': false,
+      'message': 'Error: ${e.toString()}',
+    };
   }
+}
+
 
   // Update Company Details with Image
-  Future<Map<String, dynamic>> updateCompanyDetails(Map<String, dynamic> payload) async {
-    try {
-      final url = Uri.parse(ApiEndpoint.baseUrl + ApiEndpoint.updateCompanyDetails);
+ Future<Map<String, dynamic>> updateCompanyDetails(
+    Map<String, dynamic> payload) async {
+  try {
+    final url =
+        Uri.parse(ApiEndpoint.baseUrl + ApiEndpoint.updateCompanyDetails);
 
-      var request = http.MultipartRequest('PUT', url);
+    print('🔄 API Call: updateCompanyDetails');
+    print('🌐 URL: $url');
+    print('📝 Payload: $payload');
 
-      // Add text fields from payload
-      payload.forEach((key, value) {
-        if (value != null) {
-          request.fields[key] = value.toString();
-        }
-      });
+    final response = await http
+        .put(
+          url,
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: jsonEncode(payload),
+        )
+        .timeout(
+      const Duration(seconds: 30),
+      onTimeout: () {
+        print('⏰ Request timed out after 30 seconds');
+        throw Exception('Request timed out');
+      },
+    );
 
-      // Send request
-      var streamedResponse = await request.send();
-      var response = await http.Response.fromStream(streamedResponse);
-      final data = jsonDecode(response.body);
+    print("statuscode------${response.statusCode}");
+    print("response body------${response.body}");
 
-            print("statuscode------${response.statusCode}");
-            print("response body------${response.body}");
+    final data = jsonDecode(response.body);
 
-      if (response.statusCode == 200) {
-        return {
-          'success': true,
-          'data': data['data'] != null ? Company.fromJson(data['data']) : null,
-          'message': data['message'] ?? 'Company details updated successfully',
-        };
-      } else {
-        return {
-          'success': false,
-          'message': data['message'] ?? 'Failed to update company details',
-        };
-      }
-    } catch (e) {
+    if (response.statusCode == 200) {
+      return {
+        'success': true,
+        'data': data['data'] != null
+            ? Company.fromJson(data['data'])
+            : null,
+        'message':
+            data['message'] ?? 'Company details updated successfully',
+      };
+    } else {
       return {
         'success': false,
-        'message': 'Error: ${e.toString()}',
+        'message':
+            data['message'] ?? 'Failed to update company details',
       };
     }
+  } catch (e) {
+    print('❌ Error in updateCompanyDetails: ${e.toString()}');
+
+    return {
+      'success': false,
+      'message': 'Error: ${e.toString()}',
+    };
   }
+}
+
 
   // Get Company Details
   Future<Map<String, dynamic>> getCompanyDetails() async {
