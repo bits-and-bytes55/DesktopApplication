@@ -20,6 +20,7 @@ import receivePackageRoutes from "./routes/ReceiveProduct/Package/receivePackage
 import returnProductRoutes from "./routes/ReturnProduct/Product/returnProductRoutes.js";
 import returnPackageRoutes from "./routes/ReturnProduct/Package/returnPackageRoutes.js";
 import inventorySnapshotRoutes from "./routes/FullInventory/inventorySnapshotRoutes.js";
+import exportRoutes from "./routes/Export/exportRoutes.js";
 
 
 
@@ -64,6 +65,9 @@ app.use("/api/receive-package", receivePackageRoutes);
 app.use("/api/return-product", returnProductRoutes);
 app.use("/api/return-package", returnPackageRoutes);
 app.use("/api/inventory", inventorySnapshotRoutes);
+
+//export route
+app.use("/api/export", exportRoutes);
 
 
 

@@ -4,39 +4,43 @@ import ConsumeProduct from "../../modules/Consumeproduct/ConsumeProduct.js"
  * @desc    Create Consume Product
  */
 /**
+/**
  * @desc    Create Consume Product (With Auto Calculation)
  */
 export const createConsumeProduct = async (req, res) => {
   try {
-    let {
-      initial = 0,
-      adjust = 0,
-      used = 0,
-      price = 0,
-      numberOfBags = 0,
-      weightPerBag = 0,
-      sg = 1
-    } = req.body;
 
-    // 🔥 Auto Calculations
-    const final = Number(initial) + Number(adjust) - Number(used);
-    const cost = Number(used) * Number(price);
+    // 🔥 Safe Number Conversion (Negative Allowed)
+    const initial = Number(req.body.initial ?? 0);
+    const adjust  = Number(req.body.adjust ?? 0);
+    const used    = Number(req.body.used ?? 0);
+    const price   = Number(req.body.price ?? 0);
+
+    const numberOfBags = Number(req.body.numberOfBags ?? 0);
+    const weightPerBag = Number(req.body.weightPerBag ?? 0);
+    const sg           = Number(req.body.sg ?? 1);
+
+    // 🔥 Final Calculation (Negative Allowed)
+    const final = initial + adjust - used;
+
+    // 🔥 Cost Calculation
+    const cost = used * price;
 
     // 🔥 Volume Calculation (KG → BBL)
     // Formula: volumeBbl = (N × Wb) / (SG × 158.987)
-    const totalWeight = Number(numberOfBags) * Number(weightPerBag);
+    const totalWeight = numberOfBags * weightPerBag;
 
     let volumeBbl = 0;
 
-    if (Number(sg) > 0) {
-      volumeBbl = totalWeight / (Number(sg) * 158.987);
+    if (sg > 0) {
+      volumeBbl = totalWeight / (sg * 158.987);
     }
 
     const consumeProduct = await ConsumeProduct.create({
       ...req.body,
       final,
       cost,
-      volumeBbl: +volumeBbl.toFixed(3) // 3 decimal precision
+      volumeBbl: +volumeBbl.toFixed(3)
     });
 
     res.status(201).json({
@@ -52,6 +56,7 @@ export const createConsumeProduct = async (req, res) => {
     });
   }
 };
+
 
 
 
@@ -109,6 +114,7 @@ export const getConsumeProductById = async (req, res) => {
  */
 export const updateConsumeProduct = async (req, res) => {
   try {
+
     const existing = await ConsumeProduct.findById(req.params.id);
 
     if (!existing) {
@@ -118,15 +124,30 @@ export const updateConsumeProduct = async (req, res) => {
       });
     }
 
-    // Merge old + new values
-    const initial = req.body.initial ?? existing.initial;
-    const adjust  = req.body.adjust ?? existing.adjust;
-    const used    = req.body.used ?? existing.used;
-    const price   = req.body.price ?? existing.price;
+    // 🔥 Safe Merge + Number Conversion
+    const initial = Number(req.body.initial ?? existing.initial ?? 0);
+    const adjust  = Number(req.body.adjust  ?? existing.adjust  ?? 0);
+    const used    = Number(req.body.used    ?? existing.used    ?? 0);
+    const price   = Number(req.body.price   ?? existing.price   ?? 0);
 
-    // 🔥 Recalculate
-    const final = Number(initial) + Number(adjust) - Number(used);
-    const cost = Number(used) * Number(price);
+    const numberOfBags = Number(req.body.numberOfBags ?? existing.numberOfBags ?? 0);
+    const weightPerBag = Number(req.body.weightPerBag ?? existing.weightPerBag ?? 0);
+    const sg           = Number(req.body.sg ?? existing.sg ?? 1);
+
+    // 🔥 Recalculate Final (Negative Allowed)
+    const final = initial + adjust - used;
+
+    // 🔥 Recalculate Cost
+    const cost = used * price;
+
+    // 🔥 Recalculate Volume
+    const totalWeight = numberOfBags * weightPerBag;
+
+    let volumeBbl = 0;
+
+    if (sg > 0) {
+      volumeBbl = totalWeight / (sg * 158.987);
+    }
 
     const updatedProduct = await ConsumeProduct.findByIdAndUpdate(
       req.params.id,
@@ -134,6 +155,7 @@ export const updateConsumeProduct = async (req, res) => {
         ...req.body,
         final,
         cost,
+        volumeBbl: +volumeBbl.toFixed(3)
       },
       { new: true }
     );
@@ -143,6 +165,7 @@ export const updateConsumeProduct = async (req, res) => {
       message: "Consume Product updated successfully",
       data: updatedProduct,
     });
+
   } catch (error) {
     res.status(500).json({
       success: false,
