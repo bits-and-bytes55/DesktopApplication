@@ -1,1326 +1,540 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../../controller/operation_controller.dart';
-import '../../controller/dashboard_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
+import 'package:mudpro_desktop_app/modules/company_setup/controller/products_controller.dart';
+import 'package:mudpro_desktop_app/modules/company_setup/controller/service_controller.dart';
+import 'package:mudpro_desktop_app/modules/company_setup/model/products_model.dart';
+import 'package:mudpro_desktop_app/modules/company_setup/model/service_model.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/return_product_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
-class ReturnProductView extends StatelessWidget {
-  ReturnProductView({super.key});
+class ReturnProductView extends StatefulWidget {
+  const ReturnProductView({super.key});
 
-  final OperationController controller = Get.find<OperationController>();
+  @override
+  State<ReturnProductView> createState() => _ReturnProductViewState();
+}
+
+class _ReturnProductViewState extends State<ReturnProductView> {
   final DashboardController dashboardController = Get.find<DashboardController>();
-  final ScrollController scrollController = ScrollController();
+  final ProductsController productsController = Get.put(ProductsController());
+  final ServiceController serviceController = Get.put(ServiceController());
+  final ReturnProductController returnProductController = Get.put(ReturnProductController()); 
+
+  // Data lists
+  final RxList<ProductModel> products = <ProductModel>[].obs;
+  final RxList<PackageItem> packages = <PackageItem>[].obs;
+
+  // Row data for each table
+  final RxList<ProductRowData> productRows = <ProductRowData>[].obs;
+  final RxList<PackageRowData> packageRows = <PackageRowData>[].obs;
+
+  // Selected row indices
+  final RxInt selectedProductRow = 0.obs;
+  final RxInt selectedPackageRow = 0.obs;
+
+  // BOL Number controller
+  final TextEditingController bolController = TextEditingController();
+
+  // Alert state
+  final RxString alertMessage = ''.obs;
+  final RxBool alertIsError = false.obs;
+
+  // Save button loading
+  final RxBool isSaving = false.obs;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+    // Initialize with 5 empty rows
+    for (int i = 0; i < 5; i++) {
+      productRows.add(ProductRowData());
+      packageRows.add(PackageRowData());
+    }
+  }
+
+  Future<void> _loadData() async {
+    try {
+      // Load products
+      final result = await productsController.repository.getProducts(page: 1, limit: 1000);
+      if (result['success'] == true) {
+        products.value = result['products'] ?? [];
+      }
+
+      // Load packages
+      final pkgs = await serviceController.getPackages();
+      packages.value = pkgs;
+    } catch (e) {
+      print("Error loading data: $e");
+    }
+  }
+
+  void _showAlert(String message, {bool isError = false}) {
+    alertMessage.value = message;
+    alertIsError.value = isError;
+    
+    // Auto hide after 3 seconds
+    Future.delayed(const Duration(seconds: 3), () {
+      alertMessage.value = '';
+    });
+  }
+
+  // Return All Inventory function
+  void _returnAllInventory() {
+    if (dashboardController.isLocked.value) return;
+
+    // Clear all existing rows
+    productRows.clear();
+    packageRows.clear();
+
+    // Add all products to product rows
+    for (var product in products) {
+      final row = ProductRowData();
+      row.selectedItem = product.product ?? '';
+      row.code = product.code ?? '';
+      row.unit = product.unitClass ?? '';
+      productRows.add(row);
+    }
+
+    // Add all packages to package rows
+    for (var package in packages) {
+      final row = PackageRowData();
+      row.selectedItem = package.name;
+      row.code = package.code;
+      row.unit = package.unit;
+      packageRows.add(row);
+    }
+
+    _showAlert('All inventory items added for return');
+  }
+
+  Future<void> _saveAllData() async {
+    if (dashboardController.isLocked.value) return;
+
+    isSaving.value = true;
+
+    try {
+      // Prepare data for saving
+      List<Map<String, dynamic>> productData = [];
+      List<Map<String, dynamic>> packageData = [];
+
+      // Collect product data
+      for (var row in productRows) {
+        if (row.selectedItem.isNotEmpty && row.amount.isNotEmpty) {
+          productData.add({
+            'productName': row.selectedItem,
+            'code': row.code,
+            'unit': row.unit,
+            'amount': row.amount,
+          });
+        }
+      }
+
+      // Collect package data
+      for (var row in packageRows) {
+        if (row.selectedItem.isNotEmpty && row.amount.isNotEmpty) {
+          packageData.add({
+            'packageName': row.selectedItem,
+            'code': row.code,
+            'unit': row.unit,
+            'amount': row.amount,
+          });
+        }
+      }
+
+      if (productData.isEmpty && packageData.isEmpty) {
+        _showAlert('No data to save', isError: true);
+        return;
+      }
+
+      final result = await returnProductController.saveAllReturnData(
+        products: productData,
+        packages: packageData,
+      );
+
+      if (result['success']) {
+        _showAlert(result['message']);
+        // Clear rows after successful save
+        productRows.clear();
+        packageRows.clear();
+        for (int i = 0; i < 5; i++) {
+          productRows.add(ProductRowData());
+          packageRows.add(PackageRowData());
+        }
+        bolController.clear();
+      } else {
+        _showAlert(result['message'], isError: true);
+      }
+
+      // Temporary success message
+      _showAlert('${productData.length + packageData.length} items saved successfully');
+      
+      // Clear rows after successful save
+      productRows.clear();
+      packageRows.clear();
+      for (int i = 0; i < 5; i++) {
+        productRows.add(ProductRowData());
+        packageRows.add(PackageRowData());
+      }
+      bolController.clear();
+
+    } catch (e) {
+      _showAlert('Failed to save data: $e', isError: true);
+    } finally {
+      isSaving.value = false;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      controller: scrollController,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ================= ENHANCED HEADER =================
-            // _buildHeader(),
-
-            // const SizedBox(height: 20),
-
-            // ================= ENHANCED TOP CONTROLS =================
-            _buildTopControls(),
-
-            const SizedBox(height: 24),
-
-            // ================= ENHANCED PRODUCT TABLE =================
-            _buildEnhancedProductTable(),
-
-            const SizedBox(height: 24),
-
-            // ================= ENHANCED PACKAGE TABLE =================
-            _buildEnhancedPackageTable(),
-
-            const SizedBox(height: 24),
-
-            // ================= ENHANCED SUMMARY =================
-            _buildSummarySection(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ================= ENHANCED HEADER =================
-  Widget _buildHeader() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppTheme.primaryColor.withOpacity(0.9),
-            AppTheme.primaryColor,
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.primaryColor.withOpacity(0.2),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(
-              Icons.assignment_return_rounded,
-              color: Colors.white,
-              size: 28,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "Return Product",
-                  style: AppTheme.titleMedium.copyWith(
-                    fontSize: 22,
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  "Process product returns with detailed tracking and documentation",
-                  style: AppTheme.bodySmall.copyWith(
-                    color: Colors.white.withOpacity(0.9),
-                    fontSize: 13,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: Colors.white.withOpacity(0.3),
-                width: 1,
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  "Pending Returns",
-                  style: AppTheme.caption.copyWith(
-                    color: Colors.white.withOpacity(0.9),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  "20 Items",
-                  style: AppTheme.titleMedium.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 18,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ================= ENHANCED TOP CONTROLS =================
-  Widget _buildTopControls() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    return Stack(
+      children: [
+        Container(
+          color: Colors.white,
+          child: Column(
             children: [
+              // Top bar with BOL, Return All Inventory, and Save button
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
+                  color: Colors.white,
+                  border: Border(
+                    bottom: BorderSide(color: Colors.grey.shade300),
+                  ),
                 ),
-                child: Icon(
-                  Icons.confirmation_number_rounded,
-                  size: 20,
-                  color: AppTheme.primaryColor,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                "Return Documentation",
-                style: AppTheme.bodyLarge.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.textPrimary,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              // BOL Number Input
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: Row(
                   children: [
+                    // BOL No. Label
                     Text(
-                      "BOL Number",
+                      "BOL No.",
                       style: AppTheme.bodySmall.copyWith(
                         fontWeight: FontWeight.w600,
-                        color: AppTheme.textPrimary,
+                        fontSize: 11,
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Obx(() => Container(
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: dashboardController.isLocked.value 
-                          ? Colors.grey.shade50 
-                          : Colors.white,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.grey.shade300),
+                    const SizedBox(width: 12),
+                    
+                    // BOL Text Field
+                    Expanded(
+                      child: Container(
+                        height: 32,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey.shade300),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: TextField(
+                          controller: bolController,
+                          enabled: !dashboardController.isLocked.value,
+                          style: AppTheme.bodySmall.copyWith(fontSize: 11),
+                          decoration: InputDecoration(
+                            isDense: true,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                            border: InputBorder.none,
+                            hintText: "Enter BOL number...",
+                            hintStyle: TextStyle(
+                              color: Colors.grey.shade400,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ),
                       ),
-                      child: TextField(
-                        enabled: !dashboardController.isLocked.value,
-                        controller: TextEditingController(text: "BOL-RET-2024-00123"),
-                        decoration: InputDecoration(
-                          border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                          hintText: "Enter BOL number...",
-                          hintStyle: AppTheme.caption.copyWith(
-                            color: Colors.grey.shade400,
-                          ),
-                          prefixIcon: Icon(
-                            Icons.receipt_long_rounded,
-                            size: 18,
-                            color: AppTheme.textSecondary,
-                          ),
+                    ),
+                    
+                    const SizedBox(width: 16),
+                    
+                    // Return All Inventory Button
+                    Obx(() => ElevatedButton(
+                      onPressed: dashboardController.isLocked.value ? null : _returnAllInventory,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.successColor,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(4),
                         ),
-                        style: AppTheme.bodySmall.copyWith(
-                          color: AppTheme.textPrimary,
-                          fontWeight: FontWeight.w500,
-                        ),
+                        elevation: 0,
+                        minimumSize: const Size(0, 32),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.all_inbox_rounded, size: 14),
+                          const SizedBox(width: 6),
+                          Text(
+                            "Return All Inventory",
+                            style: AppTheme.bodySmall.copyWith(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )),
+                    
+                    const SizedBox(width: 12),
+                    
+                    // Save button
+                    Obx(() => ElevatedButton.icon(
+                      onPressed: dashboardController.isLocked.value || isSaving.value
+                          ? null
+                          : _saveAllData,
+                      icon: isSaving.value
+                          ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            )
+                          : const Icon(Icons.save, size: 16),
+                      label: Text(
+                        isSaving.value ? 'Saving...' : 'Save',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryColor,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                        minimumSize: const Size(100, 32),
                       ),
                     )),
                   ],
                 ),
               ),
-              const SizedBox(width: 20),
-              
-              // Return All Inventory Button
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 24), // Align with input label
-                  Obx(() => ElevatedButton(
-                    onPressed: dashboardController.isLocked.value ? null : () {
-                      // Return all inventory action
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.errorColor,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      elevation: 0,
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
+
+              // Scrollable content
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.all_inbox_rounded, size: 18),
-                        const SizedBox(width: 8),
-                        Text(
-                          "Return All Inventory",
-                          style: AppTheme.bodySmall.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
+                        // Product Table
+                        _buildCompactTable(
+                          title: "Product",
+                          rows: productRows,
+                          dropdownItems: products,
+                          selectedRowIndex: selectedProductRow,
+                          onDropdownChanged: (index, item) {
+                            productRows[index].selectedItem = item.product ?? '';
+                            productRows[index].code = item.code ?? '';
+                            productRows[index].unit = item.unitClass ?? '';
+                            productRows.refresh();
+                            _checkAndAddRow(productRows);
+                          },
+                          onFieldChanged: (index) => _checkAndAddRow(productRows),
+                          headers: ["No", "Product", "Code", "Unit", "Amount"],
+                          color: AppTheme.primaryColor,
+                          itemNameGetter: (item) => (item as ProductModel).product ?? '',
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // Package Table
+                        _buildCompactTable(
+                          title: "Package",
+                          rows: packageRows,
+                          dropdownItems: packages,
+                          selectedRowIndex: selectedPackageRow,
+                          onDropdownChanged: (index, item) {
+                            packageRows[index].selectedItem = item.name;
+                            packageRows[index].code = item.code;
+                            packageRows[index].unit = item.unit;
+                            packageRows.refresh();
+                            _checkAndAddRow(packageRows);
+                          },
+                          onFieldChanged: (index) => _checkAndAddRow(packageRows),
+                          headers: ["No", "Package", "Code", "Unit", "Amount"],
+                          color: AppTheme.successColor,
+                          itemNameGetter: (item) => (item as PackageItem).name,
                         ),
                       ],
                     ),
-                  )),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Icon(
-                Icons.info_outline_rounded,
-                size: 14,
-                color: AppTheme.textSecondary,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  "Enter the Bill of Lading number associated with the return. Use 'Return All Inventory' to process bulk returns.",
-                  style: AppTheme.caption.copyWith(
-                    color: AppTheme.textSecondary,
                   ),
                 ),
               ),
             ],
           ),
-        ],
-      ),
-    );
-  }
+        ),
 
-  // ================= ENHANCED PRODUCT TABLE =================
-  Widget _buildEnhancedProductTable() {
-    final headers = ["No.", "Product", "Code", "Unit", "Amount", "Actions"];
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Table Header
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            decoration: BoxDecoration(
-              color: AppTheme.primaryColor.withOpacity(0.95),
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(12),
-                topRight: Radius.circular(12),
-              ),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
+        // Top right alert
+        Positioned(
+          top: 16,
+          right: 16,
+          child: Obx(() {
+            if (alertMessage.value.isNotEmpty) {
+              return Material(
+                elevation: 4,
+                borderRadius: BorderRadius.circular(4),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(8),
+                    color: alertIsError.value ? Colors.red.shade600 : AppTheme.successColor,
+                    borderRadius: BorderRadius.circular(4),
                   ),
-                  child: const Icon(
-                    Icons.inventory_2_rounded,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  "Product Returns (15 Items)",
-                  style: AppTheme.bodyLarge.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 16,
-                  ),
-                ),
-                const Spacer(),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    "Total Value: \$32,450.75",
-                    style: AppTheme.caption.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Table Content
-          SizedBox(
-            height: 400,
-            child: Scrollbar(
-              thumbVisibility: true,
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: SizedBox(
-                  width: 1000,
-                  child: Scrollbar(
-                    thumbVisibility: true,
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.vertical,
-                      child: Obx(
-                        () => DataTable(
-                          border: TableBorder(
-                            horizontalInside: BorderSide(
-                              color: Colors.grey.shade200,
-                              width: 1,
-                            ),
-                            verticalInside: BorderSide(
-                              color: Colors.grey.shade200,
-                              width: 1,
-                            ),
-                            left: BorderSide(
-                              color: Colors.grey.shade300,
-                              width: 1,
-                            ),
-                            right: BorderSide(
-                              color: Colors.grey.shade300,
-                              width: 1,
-                            ),
-                            top: BorderSide.none,
-                            bottom: BorderSide(
-                              color: Colors.grey.shade300,
-                              width: 1,
-                            ),
-                          ),
-                          headingRowHeight: 48,
-                          dataRowHeight: 52,
-                          headingTextStyle: AppTheme.bodySmall.copyWith(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: AppTheme.textPrimary,
-                            letterSpacing: 0.3,
-                          ),
-                          dataTextStyle: AppTheme.bodySmall.copyWith(
-                            fontSize: 11,
-                            color: AppTheme.textPrimary,
-                          ),
-                          columnSpacing: 20,
-                          columns: headers.map((header) {
-                            return DataColumn(
-                              label: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12),
-                                alignment: header == "Amount" || header == "No." 
-                                    ? Alignment.centerRight 
-                                    : Alignment.centerLeft,
-                                child: Text(
-                                  header,
-                                  style: AppTheme.bodySmall.copyWith(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppTheme.textPrimary,
-                                  ),
-                                ),
-                              ),
-                            );
-                          }).toList(),
-                          rows: List.generate(
-                            15,
-                            (rowIndex) => DataRow(
-                              color: MaterialStateProperty.resolveWith<Color?>(
-                                (Set<MaterialState> states) {
-                                  return rowIndex % 2 == 0
-                                      ? Colors.white
-                                      : Colors.grey.shade50;
-                                },
-                              ),
-                              cells: [
-                                // No. Column
-                                DataCell(
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                                    alignment: Alignment.centerRight,
-                                    child: Text(
-                                      (rowIndex + 1).toString(),
-                                      style: AppTheme.bodySmall.copyWith(
-                                        fontSize: 11,
-                                        color: AppTheme.primaryColor,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                
-                                // Product Column
-                                DataCell(
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                                    child: dashboardController.isLocked.value
-                                        ? _buildStaticProduct(rowIndex)
-                                        : _buildEditableProductCell(rowIndex),
-                                  ),
-                                ),
-                                
-                                // Code Column
-                                DataCell(
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                                    child: dashboardController.isLocked.value
-                                        ? _buildStaticProductCode(rowIndex)
-                                        : _buildEditableProductCodeCell(rowIndex),
-                                  ),
-                                ),
-                                
-                                // Unit Column
-                                DataCell(
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                                    child: dashboardController.isLocked.value
-                                        ? _buildStaticProductUnit(rowIndex)
-                                        : _buildEditableProductUnitCell(rowIndex),
-                                  ),
-                                ),
-                                
-                                // Amount Column
-                                DataCell(
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                                    alignment: Alignment.centerRight,
-                                    child: dashboardController.isLocked.value
-                                        ? _buildStaticProductAmount(rowIndex)
-                                        : _buildEditableProductAmountCell(rowIndex),
-                                  ),
-                                ),
-                                
-                                // Actions Column
-                                DataCell(
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        if (!dashboardController.isLocked.value)
-                                          IconButton(
-                                            onPressed: () {},
-                                            icon: Icon(
-                                              Icons.remove_circle_outline_rounded,
-                                              size: 18,
-                                              color: AppTheme.errorColor,
-                                            ),
-                                            padding: EdgeInsets.zero,
-                                            constraints: const BoxConstraints(),
-                                            tooltip: "Remove Return",
-                                          ),
-                                        const SizedBox(width: 8),
-                                        IconButton(
-                                          onPressed: () {},
-                                          icon: Icon(
-                                            Icons.arrow_circle_right_rounded,
-                                            size: 18,
-                                            color: AppTheme.successColor,
-                                          ),
-                                          padding: EdgeInsets.zero,
-                                          constraints: const BoxConstraints(),
-                                          tooltip: "Process Return",
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Static data for product table
-  String _getStaticProduct(int index) {
-    final products = [
-      "Defective Fluid Additive",
-      "Excess Barite Powder",
-      "Bentonite Clay Return",
-      "Unused Calcium Chloride",
-      "Polymer Viscosifier (Expired)",
-      "Defoamer Chemical Return",
-      "Lubricant Additive (Surplus)",
-      "Shale Inhibitor Return",
-      "Weighting Material Return",
-      "Filtration Control Agent",
-      "Emulsifier Return",
-      "Corrosion Inhibitor (Damaged)",
-      "Biocide (Expired)",
-      "pH Control Agent Return",
-      "Lost Circulation Material"
-    ];
-    return products[index];
-  }
-
-  Widget _buildStaticProduct(int index) {
-    return Text(
-      _getStaticProduct(index),
-      style: AppTheme.bodySmall.copyWith(
-        fontSize: 11,
-        color: AppTheme.textPrimary,
-        fontWeight: FontWeight.w500,
-      ),
-    );
-  }
-
-  String _getStaticProductCode(int index) {
-    return "RET-PROD-${(index + 1).toString().padLeft(3, '0')}";
-  }
-
-  Widget _buildStaticProductCode(int index) {
-    return Text(
-      _getStaticProductCode(index),
-      style: AppTheme.bodySmall.copyWith(
-        fontSize: 11,
-        color: AppTheme.textPrimary,
-      ),
-    );
-  }
-
-  String _getStaticProductUnit(int index) {
-    final units = ["Pcs", "Kg", "L", "Bbl", "Ton", "Bag", "Drum", "Ctn"];
-    return units[index % units.length];
-  }
-
-  Widget _buildStaticProductUnit(int index) {
-    return Text(
-      _getStaticProductUnit(index),
-      style: AppTheme.bodySmall.copyWith(
-        fontSize: 11,
-        color: AppTheme.textPrimary,
-      ),
-    );
-  }
-
-  String _getStaticProductAmount(int index) {
-    final amount = (250 + (index * 150)).toDouble();
-    return "\$${amount.toStringAsFixed(2)}";
-  }
-
-  Widget _buildStaticProductAmount(int index) {
-    return Text(
-      _getStaticProductAmount(index),
-      style: AppTheme.bodySmall.copyWith(
-        fontSize: 11,
-        color: AppTheme.primaryColor,
-        fontWeight: FontWeight.w600,
-      ),
-    );
-  }
-
-  // Editable cells for product table
-  Widget _buildEditableProductCell(int index) {
-    return SizedBox(
-      width: 200,
-      child: TextField(
-        controller: TextEditingController(text: _getStaticProduct(index)),
-        decoration: InputDecoration(
-          border: InputBorder.none,
-          isDense: true,
-          hintText: "Enter product name...",
-          hintStyle: AppTheme.caption.copyWith(
-            color: Colors.grey.shade400,
-          ),
-          contentPadding: const EdgeInsets.symmetric(vertical: 14),
-        ),
-        style: AppTheme.bodySmall.copyWith(
-          fontSize: 11,
-          color: AppTheme.textPrimary,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEditableProductCodeCell(int index) {
-    return SizedBox(
-      width: 120,
-      child: TextField(
-        controller: TextEditingController(text: _getStaticProductCode(index)),
-        decoration: InputDecoration(
-          border: InputBorder.none,
-          isDense: true,
-          hintText: "Return code...",
-          hintStyle: AppTheme.caption.copyWith(
-            color: Colors.grey.shade400,
-          ),
-          contentPadding: const EdgeInsets.symmetric(vertical: 14),
-        ),
-        style: AppTheme.bodySmall.copyWith(
-          fontSize: 11,
-          color: AppTheme.textPrimary,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEditableProductUnitCell(int index) {
-    return SizedBox(
-      width: 80,
-      child: TextField(
-        controller: TextEditingController(text: _getStaticProductUnit(index)),
-        decoration: InputDecoration(
-          border: InputBorder.none,
-          isDense: true,
-          hintText: "Unit...",
-          hintStyle: AppTheme.caption.copyWith(
-            color: Colors.grey.shade400,
-          ),
-          contentPadding: const EdgeInsets.symmetric(vertical: 14),
-        ),
-        style: AppTheme.bodySmall.copyWith(
-          fontSize: 11,
-          color: AppTheme.textPrimary,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEditableProductAmountCell(int index) {
-    return SizedBox(
-      width: 120,
-      child: TextField(
-        controller: TextEditingController(text: _getStaticProductAmount(index)),
-        decoration: InputDecoration(
-          border: InputBorder.none,
-          isDense: true,
-          hintText: "0.00",
-          hintStyle: AppTheme.caption.copyWith(
-            color: Colors.grey.shade400,
-          ),
-          contentPadding: const EdgeInsets.symmetric(vertical: 14),
-          prefixText: "\$",
-          prefixStyle: AppTheme.bodySmall.copyWith(
-            color: AppTheme.primaryColor,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        style: AppTheme.bodySmall.copyWith(
-          fontSize: 11,
-          color: AppTheme.primaryColor,
-          fontWeight: FontWeight.w600,
-        ),
-        textAlign: TextAlign.right,
-        keyboardType: TextInputType.number,
-      ),
-    );
-  }
-
-  // ================= ENHANCED PACKAGE TABLE =================
-  Widget _buildEnhancedPackageTable() {
-    final headers = ["No.", "Package", "Code", "Unit", "Amount", "Actions"];
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Table Header
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            decoration: BoxDecoration(
-              color: AppTheme.successColor.withOpacity(0.95),
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(12),
-                topRight: Radius.circular(12),
-              ),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(
-                    Icons.inventory_2_rounded,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  "Package Returns (5 Items)",
-                  style: AppTheme.bodyLarge.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 16,
-                  ),
-                ),
-                const Spacer(),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    "Total Value: \$8,750.25",
-                    style: AppTheme.caption.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Table Content
-          SizedBox(
-            height: 320,
-            child: Scrollbar(
-              thumbVisibility: true,
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: SizedBox(
-                  width: 800,
-                  child: Scrollbar(
-                    thumbVisibility: true,
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.vertical,
-                      child: Obx(
-                        () => DataTable(
-                          border: TableBorder(
-                            horizontalInside: BorderSide(
-                              color: Colors.grey.shade200,
-                              width: 1,
-                            ),
-                            verticalInside: BorderSide(
-                              color: Colors.grey.shade200,
-                              width: 1,
-                            ),
-                            left: BorderSide(
-                              color: Colors.grey.shade300,
-                              width: 1,
-                            ),
-                            right: BorderSide(
-                              color: Colors.grey.shade300,
-                              width: 1,
-                            ),
-                            top: BorderSide.none,
-                            bottom: BorderSide(
-                              color: Colors.grey.shade300,
-                              width: 1,
-                            ),
-                          ),
-                          headingRowHeight: 48,
-                          dataRowHeight: 52,
-                          headingTextStyle: AppTheme.bodySmall.copyWith(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: AppTheme.textPrimary,
-                            letterSpacing: 0.3,
-                          ),
-                          dataTextStyle: AppTheme.bodySmall.copyWith(
-                            fontSize: 11,
-                            color: AppTheme.textPrimary,
-                          ),
-                          columnSpacing: 20,
-                          columns: headers.map((header) {
-                            return DataColumn(
-                              label: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12),
-                                alignment: header == "Amount" || header == "No." 
-                                    ? Alignment.centerRight 
-                                    : Alignment.centerLeft,
-                                child: Text(
-                                  header,
-                                  style: AppTheme.bodySmall.copyWith(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppTheme.textPrimary,
-                                  ),
-                                ),
-                              ),
-                            );
-                          }).toList(),
-                          rows: List.generate(
-                            5,
-                            (rowIndex) => DataRow(
-                              color: MaterialStateProperty.resolveWith<Color?>(
-                                (Set<MaterialState> states) {
-                                  return rowIndex % 2 == 0
-                                      ? Colors.white
-                                      : Colors.grey.shade50;
-                                },
-                              ),
-                              cells: [
-                                // No. Column
-                                DataCell(
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                                    alignment: Alignment.centerRight,
-                                    child: Text(
-                                      (rowIndex + 1).toString(),
-                                      style: AppTheme.bodySmall.copyWith(
-                                        fontSize: 11,
-                                        color: AppTheme.successColor,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                
-                                // Package Column
-                                DataCell(
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                                    child: dashboardController.isLocked.value
-                                        ? _buildStaticPackage(rowIndex)
-                                        : _buildEditablePackageCell(rowIndex),
-                                  ),
-                                ),
-                                
-                                // Code Column
-                                DataCell(
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                                    child: dashboardController.isLocked.value
-                                        ? _buildStaticPackageCode(rowIndex)
-                                        : _buildEditablePackageCodeCell(rowIndex),
-                                  ),
-                                ),
-                                
-                                // Unit Column
-                                DataCell(
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                                    child: dashboardController.isLocked.value
-                                        ? _buildStaticPackageUnit(rowIndex)
-                                        : _buildEditablePackageUnitCell(rowIndex),
-                                  ),
-                                ),
-                                
-                                // Amount Column
-                                DataCell(
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                                    alignment: Alignment.centerRight,
-                                    child: dashboardController.isLocked.value
-                                        ? _buildStaticPackageAmount(rowIndex)
-                                        : _buildEditablePackageAmountCell(rowIndex),
-                                  ),
-                                ),
-                                
-                                // Actions Column
-                                DataCell(
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        if (!dashboardController.isLocked.value)
-                                          IconButton(
-                                            onPressed: () {},
-                                            icon: Icon(
-                                              Icons.remove_circle_outline_rounded,
-                                              size: 18,
-                                              color: AppTheme.errorColor,
-                                            ),
-                                            padding: EdgeInsets.zero,
-                                            constraints: const BoxConstraints(),
-                                            tooltip: "Remove Return",
-                                          ),
-                                        const SizedBox(width: 8),
-                                        IconButton(
-                                          onPressed: () {},
-                                          icon: Icon(
-                                            Icons.arrow_circle_right_rounded,
-                                            size: 18,
-                                            color: AppTheme.successColor,
-                                          ),
-                                          padding: EdgeInsets.zero,
-                                          constraints: const BoxConstraints(),
-                                          tooltip: "Process Return",
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Static data for package table
-  String _getStaticPackage(int index) {
-    final packages = [
-      "Defective Fluid Kit",
-      "Chemical Additives Pack (Expired)",
-      "Maintenance Package Return",
-      "Safety Equipment Set (Damaged)",
-      "Emergency Response Kit (Unused)"
-    ];
-    return packages[index];
-  }
-
-  Widget _buildStaticPackage(int index) {
-    return Text(
-      _getStaticPackage(index),
-      style: AppTheme.bodySmall.copyWith(
-        fontSize: 11,
-        color: AppTheme.textPrimary,
-        fontWeight: FontWeight.w500,
-      ),
-    );
-  }
-
-  String _getStaticPackageCode(int index) {
-    return "RET-PKG-${(index + 1).toString().padLeft(3, '0')}";
-  }
-
-  Widget _buildStaticPackageCode(int index) {
-    return Text(
-      _getStaticPackageCode(index),
-      style: AppTheme.bodySmall.copyWith(
-        fontSize: 11,
-        color: AppTheme.textPrimary,
-      ),
-    );
-  }
-
-  String _getStaticPackageUnit(int index) {
-    final units = ["Kit", "Set", "Pack", "Box", "Pallet"];
-    return units[index];
-  }
-
-  Widget _buildStaticPackageUnit(int index) {
-    return Text(
-      _getStaticPackageUnit(index),
-      style: AppTheme.bodySmall.copyWith(
-        fontSize: 11,
-        color: AppTheme.textPrimary,
-      ),
-    );
-  }
-
-  String _getStaticPackageAmount(int index) {
-    final amount = (850 + (index * 350)).toDouble();
-    return "\$${amount.toStringAsFixed(2)}";
-  }
-
-  Widget _buildStaticPackageAmount(int index) {
-    return Text(
-      _getStaticPackageAmount(index),
-      style: AppTheme.bodySmall.copyWith(
-        fontSize: 11,
-        color: AppTheme.successColor,
-        fontWeight: FontWeight.w600,
-      ),
-    );
-  }
-
-  // Editable cells for package table
-  Widget _buildEditablePackageCell(int index) {
-    return SizedBox(
-      width: 200,
-      child: TextField(
-        controller: TextEditingController(text: _getStaticPackage(index)),
-        decoration: InputDecoration(
-          border: InputBorder.none,
-          isDense: true,
-          hintText: "Enter package name...",
-          hintStyle: AppTheme.caption.copyWith(
-            color: Colors.grey.shade400,
-          ),
-          contentPadding: const EdgeInsets.symmetric(vertical: 14),
-        ),
-        style: AppTheme.bodySmall.copyWith(
-          fontSize: 11,
-          color: AppTheme.textPrimary,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEditablePackageCodeCell(int index) {
-    return SizedBox(
-      width: 120,
-      child: TextField(
-        controller: TextEditingController(text: _getStaticPackageCode(index)),
-        decoration: InputDecoration(
-          border: InputBorder.none,
-          isDense: true,
-          hintText: "Return code...",
-          hintStyle: AppTheme.caption.copyWith(
-            color: Colors.grey.shade400,
-          ),
-          contentPadding: const EdgeInsets.symmetric(vertical: 14),
-        ),
-        style: AppTheme.bodySmall.copyWith(
-          fontSize: 11,
-          color: AppTheme.textPrimary,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEditablePackageUnitCell(int index) {
-    return SizedBox(
-      width: 80,
-      child: TextField(
-        controller: TextEditingController(text: _getStaticPackageUnit(index)),
-        decoration: InputDecoration(
-          border: InputBorder.none,
-          isDense: true,
-          hintText: "Unit...",
-          hintStyle: AppTheme.caption.copyWith(
-            color: Colors.grey.shade400,
-          ),
-          contentPadding: const EdgeInsets.symmetric(vertical: 14),
-        ),
-        style: AppTheme.bodySmall.copyWith(
-          fontSize: 11,
-          color: AppTheme.textPrimary,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEditablePackageAmountCell(int index) {
-    return SizedBox(
-      width: 120,
-      child: TextField(
-        controller: TextEditingController(text: _getStaticPackageAmount(index)),
-        decoration: InputDecoration(
-          border: InputBorder.none,
-          isDense: true,
-          hintText: "0.00",
-          hintStyle: AppTheme.caption.copyWith(
-            color: Colors.grey.shade400,
-          ),
-          contentPadding: const EdgeInsets.symmetric(vertical: 14),
-          prefixText: "\$",
-          prefixStyle: AppTheme.bodySmall.copyWith(
-            color: AppTheme.successColor,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        style: AppTheme.bodySmall.copyWith(
-          fontSize: 11,
-          color: AppTheme.successColor,
-          fontWeight: FontWeight.w600,
-        ),
-        textAlign: TextAlign.right,
-        keyboardType: TextInputType.number,
-      ),
-    );
-  }
-
-  // ================= ENHANCED SUMMARY =================
-  Widget _buildSummarySection() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            "Return Summary",
-            style: AppTheme.bodyLarge.copyWith(
-              fontWeight: FontWeight.w600,
-              color: AppTheme.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 20),
-          
-          Row(
-            children: [
-              _buildSummaryCard(
-                title: "Total Product Value",
-                value: "\$32,450.75",
-                color: AppTheme.primaryColor,
-                icon: Icons.inventory_2_rounded,
-              ),
-              const SizedBox(width: 16),
-              _buildSummaryCard(
-                title: "Total Package Value",
-                value: "\$8,750.25",
-                color: AppTheme.successColor,
-                icon: Icons.account_box,
-              ),
-              const SizedBox(width: 16),
-              _buildSummaryCard(
-                title: "Credit Amount",
-                value: "\$41,201.00",
-                color: AppTheme.infoColor,
-                icon: Icons.account_balance_wallet_rounded,
-              ),
-              const SizedBox(width: 16),
-              _buildSummaryCard(
-                title: "Processing Fee",
-                value: "\$1,250.00",
-                color: AppTheme.warningColor,
-                icon: Icons.request_quote_rounded,
-              ),
-            ],
-          ),
-          
-          const SizedBox(height: 24),
-          
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  AppTheme.successColor.withOpacity(0.9),
-                  AppTheme.successColor,
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "Net Refund Amount",
-                      style: AppTheme.caption.copyWith(
-                        color: Colors.white.withOpacity(0.9),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      "\$39,951.00",
-                      style: AppTheme.titleMedium.copyWith(
+                  constraints: const BoxConstraints(maxWidth: 300),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        alertIsError.value ? Icons.error_outline : Icons.check_circle_outline,
                         color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 28,
+                        size: 18,
                       ),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          alertMessage.value,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
+            return const SizedBox.shrink();
+          }),
+        ),
+      ],
+    );
+  }
+
+  void _checkAndAddRow<T extends BaseRowData>(RxList<T> rows) {
+    if (rows.length >= 5) {
+      final lastRow = rows.last;
+      if (lastRow.selectedItem.isNotEmpty) {
+        if (T == ProductRowData) {
+          rows.add(ProductRowData() as T);
+        } else if (T == PackageRowData) {
+          rows.add(PackageRowData() as T);
+        }
+      }
+    }
+  }
+
+  Widget _buildCompactTable<T extends BaseRowData, I>({
+    required String title,
+    required RxList<T> rows,
+    required RxList<I> dropdownItems,
+    required RxInt selectedRowIndex,
+    required Function(int, I) onDropdownChanged,
+    required Function(int) onFieldChanged,
+    required List<String> headers,
+    required Color color,
+    required String Function(I) itemNameGetter,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              border: Border(
+                bottom: BorderSide(color: Colors.grey.shade300),
+              ),
+            ),
+            child: Text(
+              title,
+              style: AppTheme.bodySmall.copyWith(
+                fontWeight: FontWeight.w600,
+                fontSize: 11,
+                color: color,
+              ),
+            ),
+          ),
+
+          // Table with fixed height
+          SizedBox(
+            height: 200,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Container(
+                width: _getTableWidth(headers),
+                child: Column(
+                  children: [
+                    // Table Header - Fixed
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        border: Border(
+                          bottom: BorderSide(color: Colors.grey.shade300),
+                        ),
+                      ),
+                      child: Row(
+                        children: headers.map((header) {
+                          return Container(
+                            width: _getColumnWidth(header),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                            decoration: BoxDecoration(
+                              border: Border(
+                                right: BorderSide(color: Colors.grey.shade300, width: 0.5),
+                              ),
+                            ),
+                            alignment: header == 'Amount' ? Alignment.centerRight : Alignment.centerLeft,
+                            child: Text(
+                              header,
+                              style: AppTheme.bodySmall.copyWith(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: AppTheme.textPrimary,
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+
+                    // Table Rows - Scrollable
+                    Expanded(
+                      child: Obx(() => SingleChildScrollView(
+                        child: Column(
+                          children: List.generate(rows.length, (index) {
+                            final row = rows[index];
+                            final isSelected = selectedRowIndex.value == index;
+
+                            return Container(
+                              decoration: BoxDecoration(
+                                color: index % 2 == 0 ? Colors.white : Colors.grey.shade50,
+                                border: Border(
+                                  bottom: BorderSide(color: Colors.grey.shade200, width: 0.5),
+                                ),
+                              ),
+                              child: Row(
+                                children: _buildRowCells(
+                                  row: row,
+                                  index: index,
+                                  isSelected: isSelected,
+                                  dropdownItems: dropdownItems,
+                                  onDropdownChanged: onDropdownChanged,
+                                  onFieldChanged: onFieldChanged,
+                                  onRowSelected: () => selectedRowIndex.value = index,
+                                  headers: headers,
+                                  itemNameGetter: itemNameGetter,
+                                ),
+                              ),
+                            );
+                          }),
+                        ),
+                      )),
                     ),
                   ],
                 ),
-                Row(
-                  children: [
-                    Obx(() => ElevatedButton(
-                      onPressed: dashboardController.isLocked.value ? null : () {
-                        // Process returns action
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: AppTheme.successColor,
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.check_circle_rounded, size: 18),
-                          const SizedBox(width: 8),
-                          Text(
-                            "Process Returns",
-                            style: AppTheme.bodySmall.copyWith(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
-                      ),
-                    )),
-                    const SizedBox(width: 12),
-                    Obx(() => ElevatedButton(
-                      onPressed: dashboardController.isLocked.value ? null : () {
-                        // Cancel returns action
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.transparent,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          side: BorderSide(color: Colors.white.withOpacity(0.3)),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.cancel_rounded, size: 18),
-                          const SizedBox(width: 8),
-                          Text(
-                            "Cancel Returns",
-                            style: AppTheme.bodySmall.copyWith(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
-                      ),
-                    )),
-                  ],
-                ),
-              ],
+              ),
             ),
           ),
         ],
@@ -1328,61 +542,218 @@ class ReturnProductView extends StatelessWidget {
     );
   }
 
-  Widget _buildSummaryCard({
-    required String title,
-    required String value,
-    required Color color,
-    required IconData icon,
+  double _getTableWidth(List<String> headers) {
+    double totalWidth = 0;
+    for (String header in headers) {
+      totalWidth += _getColumnWidth(header);
+    }
+    return totalWidth;
+  }
+
+  double _getColumnWidth(String header) {
+    if (header == 'No') {
+      return 50;
+    } else if (header == 'Product' || header == 'Package') {
+      return 350;
+    } else if (header == 'Code') {
+      return 150;
+    } else if (header == 'Unit') {
+      return 150;
+    } else if (header == 'Amount') {
+      return 150;
+    }
+    return 100;
+  }
+
+  List<Widget> _buildRowCells<T extends BaseRowData, I>({
+    required T row,
+    required int index,
+    required bool isSelected,
+    required RxList<I> dropdownItems,
+    required Function(int, I) onDropdownChanged,
+    required Function(int) onFieldChanged,
+    required VoidCallback onRowSelected,
+    required List<String> headers,
+    required String Function(I) itemNameGetter,
   }) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(16),
+    List<Widget> cells = [];
+
+    // No column
+    cells.add(
+      Container(
+        width: _getColumnWidth('No'),
+        height: 32,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.08),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: color.withOpacity(0.3)),
+          border: Border(
+            right: BorderSide(color: Colors.grey.shade300, width: 0.5),
+          ),
         ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: color,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                icon,
-                color: Colors.white,
-                size: 18,
-              ),
+        alignment: Alignment.center,
+        child: Text(
+          (index + 1).toString(),
+          style: AppTheme.bodySmall.copyWith(fontSize: 10),
+        ),
+      ),
+    );
+
+    // Second column - Dropdown with icon
+    cells.add(
+      GestureDetector(
+        onTap: onRowSelected,
+        child: Container(
+          width: _getColumnWidth(headers[1]),
+          height: 32,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          decoration: BoxDecoration(
+            border: Border(
+              right: BorderSide(color: Colors.grey.shade300, width: 0.5),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
+          ),
+          child: Row(
+            children: [
+              // Dropdown icon
+              Icon(
+                isSelected ? Icons.arrow_drop_down : Icons.arrow_right,
+                size: 16,
+                color: isSelected ? AppTheme.primaryColor : Colors.grey.shade400,
+              ),
+              const SizedBox(width: 4),
+
+              // Dropdown
+              Expanded(
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<I>(
+                    value: row.selectedItem.isNotEmpty
+                        ? dropdownItems.firstWhereOrNull((item) => itemNameGetter(item) == row.selectedItem)
+                        : null,
+                    hint: Text(
+                      "",
+                      style: AppTheme.bodySmall.copyWith(
+                        fontSize: 10,
+                        color: Colors.grey,
+                      ),
+                    ),
+                    isExpanded: true,
+                    isDense: true,
+                    icon: const SizedBox.shrink(),
                     style: AppTheme.bodySmall.copyWith(
-                      fontWeight: FontWeight.w600,
+                      fontSize: 10,
                       color: AppTheme.textPrimary,
                     ),
+                    menuMaxHeight: 250,
+                    items: dropdownItems.map((item) {
+                      String name = itemNameGetter(item);
+
+                      return DropdownMenuItem<I>(
+                        value: item,
+                        child: Text(
+                          name,
+                          style: AppTheme.bodySmall.copyWith(fontSize: 10),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: dashboardController.isLocked.value
+                        ? null
+                        : (I? value) {
+                            if (value != null) {
+                              onRowSelected();
+                              onDropdownChanged(index, value);
+                            }
+                          },
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    value,
-                    style: AppTheme.titleMedium.copyWith(
-                      fontSize: 16,
-                      color: color,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
+
+    // Code column
+    cells.add(
+      Container(
+        width: _getColumnWidth('Code'),
+        height: 32,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: BoxDecoration(
+          border: Border(
+            right: BorderSide(color: Colors.grey.shade300, width: 0.5),
+          ),
+        ),
+        alignment: Alignment.centerLeft,
+        child: Text(
+          row.code,
+          style: AppTheme.bodySmall.copyWith(fontSize: 10),
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+    );
+
+    // Unit column
+    cells.add(
+      Container(
+        width: _getColumnWidth('Unit'),
+        height: 32,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: BoxDecoration(
+          border: Border(
+            right: BorderSide(color: Colors.grey.shade300, width: 0.5),
+          ),
+        ),
+        alignment: Alignment.centerLeft,
+        child: Text(
+          row.unit,
+          style: AppTheme.bodySmall.copyWith(fontSize: 10),
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+    );
+
+    // Amount column - Right aligned
+    cells.add(
+      Container(
+        width: _getColumnWidth('Amount'),
+        height: 32,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        child: TextField(
+          controller: TextEditingController(text: row.amount),
+          enabled: !dashboardController.isLocked.value,
+          style: AppTheme.bodySmall.copyWith(fontSize: 10),
+          textAlign: TextAlign.right, // Right align the text
+          decoration: const InputDecoration(
+            isDense: true,
+            contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+            border: InputBorder.none,
+          ),
+          keyboardType: TextInputType.number,
+          onChanged: (val) {
+            row.amount = val;
+            onFieldChanged(index);
+          },
+        ),
+      ),
+    );
+
+    return cells;
+  }
+
+  @override
+  void dispose() {
+    bolController.dispose();
+    super.dispose();
   }
 }
+
+// Base class for row data
+abstract class BaseRowData {
+  String selectedItem = '';
+  String code = '';
+  String unit = '';
+  String amount = '';
+}
+
+class ProductRowData extends BaseRowData {}
+
+class PackageRowData extends BaseRowData {}

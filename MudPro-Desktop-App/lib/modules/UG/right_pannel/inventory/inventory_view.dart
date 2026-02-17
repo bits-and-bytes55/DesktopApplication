@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/UG_controller.dart';
+import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/inventory_pickup/inventory_pickup_tabs.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/inventory_products_view.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/inventory_service.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
@@ -36,8 +37,8 @@ class InventoryView extends StatelessWidget {
             color: Colors.grey.shade50,
             child: Obx(() {
               return c.inventoryTab.value == 'Products'
-                  ? InventoryProductsView()
-                  : InventoryServicesView();
+                  ? const InventoryProductsView()
+                  : const InventoryServicesView();
             }),
           ),
         ),
@@ -202,12 +203,25 @@ class InventoryView extends StatelessWidget {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Text(
-                        'Inventory Pickup',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.primaryColor,
+                      OutlinedButton.icon(
+                        onPressed: () {
+                          Get.to(() => const InventoryPickupTabs());
+                        },
+                        icon: Icon(Icons.launch, size: 14, color: AppTheme.primaryColor),
+                        label: Text(
+                          'Inventory Pickup',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.primaryColor,
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(color: AppTheme.primaryColor),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(6),
+                          ),
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -330,12 +344,25 @@ class InventoryView extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        Text(
-                          'Inventory Pickup',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: AppTheme.primaryColor,
+                        OutlinedButton.icon(
+                          onPressed: () {
+                            Get.to(() => const InventoryPickupTabs());
+                          },
+                          icon: Icon(Icons.launch, size: 14, color: AppTheme.primaryColor),
+                          label: Text(
+                            'Inventory Pickup',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.primaryColor,
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(color: AppTheme.primaryColor),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(6),
+                            ),
                           ),
                         ),
                         const SizedBox(height: 8),

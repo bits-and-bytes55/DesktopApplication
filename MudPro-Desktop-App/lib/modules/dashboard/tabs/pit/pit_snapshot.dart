@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:mudpro_desktop_app/modules/dashboard/controller/pit_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_pit_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/pit_snapshot_Controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 

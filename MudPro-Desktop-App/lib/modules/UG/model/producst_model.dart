@@ -28,40 +28,7 @@ class ProductModel {
 }
 
 
-class PremixModel {
-  final String id;
-  String description;
-  String mw;
-  String leasingFee;
-  String mudType;
-  bool tax;
 
-  PremixModel({
-    required this.id,
-    required this.description,
-    required this.mw,
-    required this.leasingFee,
-    required this.mudType,
-    this.tax = false,
-  });
-}
-
-
-class ObmModel {
-  final String id;
-  String product;
-  String code;
-  String sg;
-  String conc;
-
-  ObmModel({
-    required this.id,
-    required this.product,
-    required this.code,
-    required this.sg,
-    required this.conc,
-  });
-}
 
 
 class PackageModel {

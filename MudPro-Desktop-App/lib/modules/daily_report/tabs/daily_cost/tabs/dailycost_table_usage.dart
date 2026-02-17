@@ -17,22 +17,22 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
   // EXACT SAME COLUMN ORDER
   final List<double> col = [
     60,  // #
-    160, // Category
-    200, // Item
-    80,  // Price
-    80,  // Rec
-    80,  // Ret
-    80,  // Used
-    80,  // Initial
-    80,  // Rec
-    80,  // Ret
-    80,  // Adj
-    80,  // Used
-    80,  // Final
+    150, // Category
+    150, // Item
+    75,  // Price
+    75,  // Rec
+    75,  // Ret
+    75,  // Used
+    75,  // Initial
+    75,  // Rec
+    75,  // Ret
+    75,  // Adj
+    75,  // Used
+    75,  // Final
     100, // Subtotal
-    80,  // Cost $
-    80,  // Cost %
-    80,  // Total $
+    75,  // Cost $
+    75,  // Cost %
+    75,  // Total $
     78,  // Total %
   ];
 
@@ -367,10 +367,23 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
   @override
   Widget build(BuildContext context) {
     const int productRows = 20;
+    const int premixedRows = 5;
     const int engineeringRows = 6;
 
     return Scaffold(
       backgroundColor: Color(0xffFAF9F6), // AppTheme.backgroundColor
+      appBar: AppBar(
+        title: Text(
+          'Inventory Snapshot',
+          style: TextStyle(color: Colors.blue[900]),
+        ),
+        backgroundColor: Color(0xffFAF9F6),
+        toolbarHeight: 40,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: Colors.blue),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(12),
         child: Container(
@@ -423,7 +436,7 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
                                           ),
                                           child: dataRow(i, isProduct: true),
                                         ),
-                                      for (int i = 1; i <= engineeringRows; i++)
+                                      for (int i = 1; i <= premixedRows; i++)
                                         Container(
                                           decoration: BoxDecoration(
                                             color: (productRows + i).isOdd
@@ -431,6 +444,15 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
                                                 : Color(0xffF8F9FA),
                                           ),
                                           child: dataRow(productRows + i, isProduct: false),
+                                        ),
+                                      for (int i = 1; i <= engineeringRows; i++)
+                                        Container(
+                                          decoration: BoxDecoration(
+                                            color: ((productRows + premixedRows) + i).isOdd
+                                                ? Colors.white
+                                                : Color(0xffF8F9FA),
+                                          ),
+                                          child: dataRow((productRows + premixedRows) + i, isProduct: false),
                                         ),
                                     ],
                                   ),
@@ -459,6 +481,28 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
                                   Positioned(
                                     left: col[0],
                                     top: productRows * rowHeight,
+                                    child: Container(
+                                      width: col[1],
+                                      height: premixedRows * rowHeight,
+                                      alignment: Alignment.center,
+                                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                                      decoration: BoxDecoration(
+                                        color: Color(0xffFFF3CD),
+                                        border: Border.all(color: Colors.grey.shade200, width: 0.5),
+                                      ),
+                                      child: Text(
+                                        'Premixed Mud',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          color: Color(0xff856404),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  Positioned(
+                                    left: col[0],
+                                    top: (productRows + premixedRows) * rowHeight,
                                     child: Container(
                                       width: col[1],
                                       height: engineeringRows * rowHeight,
@@ -523,6 +567,48 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
                                   Positioned(
                                     left: tableWidth - col[16] - col[17],
                                     top: productRows * rowHeight,
+                                    child: Row(children: [
+                                      Container(
+                                        width: col[16],
+                                        height: premixedRows * rowHeight,
+                                        alignment: Alignment.center,
+                                        padding: const EdgeInsets.symmetric(horizontal: 6),
+                                        decoration: BoxDecoration(
+                                          color: Color(0xffFFF3CD).withOpacity(0.7),
+                                          border: Border.all(color: Colors.grey.shade200, width: 0.5),
+                                        ),
+                                        child: Text(
+                                          '1200',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                            color: Color(0xff856404),
+                                          ),
+                                        ),
+                                      ),
+                                      Container(
+                                        width: col[17],
+                                        height: premixedRows * rowHeight,
+                                        alignment: Alignment.center,
+                                        padding: const EdgeInsets.symmetric(horizontal: 6),
+                                        decoration: BoxDecoration(
+                                          color: Color(0xffFFF3CD).withOpacity(0.7),
+                                          border: Border.all(color: Colors.grey.shade200, width: 0.5),
+                                        ),
+                                        child: Text(
+                                          '20.7',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                            color: Color(0xff856404),
+                                          ),
+                                        ),
+                                      ),
+                                    ]),
+                                  ),
+                                  Positioned(
+                                    left: tableWidth - col[16] - col[17],
+                                    top: (productRows + premixedRows) * rowHeight,
                                     child: Row(children: [
                                       Container(
                                         width: col[16],

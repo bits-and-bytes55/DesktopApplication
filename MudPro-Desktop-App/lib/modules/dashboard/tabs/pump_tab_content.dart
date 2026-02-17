@@ -1,14 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../controller/pump_controller.dart';
-import 'package:mudpro_desktop_app/theme/app_theme.dart';
-import 'package:mudpro_desktop_app/modules/dashboard/widgets/editable_cell.dart';
+import 'package:mudpro_desktop_app/modules/UG/controller/pump_controller.dart';
+import 'package:mudpro_desktop_app/modules/UG/controller/sce_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
+import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class PumpPage extends StatelessWidget {
   PumpPage({super.key});
-  final PumpController controller = Get.put(PumpController());
-  final DashboardController dashboardController = Get.find<DashboardController>();
+
+  final PumpController pumpController = Get.put(PumpController());
+  final SceController sceController = Get.put(SceController());
+  final DashboardController dashboard = Get.find<DashboardController>();
+
+  // Scroll controllers for tables
+  final ScrollController shakerScrollController = ScrollController();
+  final ScrollController sceScrollController = ScrollController();
 
   @override
   Widget build(BuildContext context) {
@@ -18,66 +24,41 @@ class PumpPage extends StatelessWidget {
         padding: const EdgeInsets.all(12),
         child: Column(
           children: [
-            _header(),
-            const SizedBox(height: 8),
+            // Pump and Summary Row - Reduced flex
+            Flexible(
+              flex: 3,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: _pumpTable()),
+                  const SizedBox(width: 12),
+                  SizedBox(width: 220, child: _summaryBox()),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            
+            // Shaker Table - Increased flex
+            Flexible(
+              flex: 3,
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: SizedBox(
+                  width: MediaQuery.of(context).size.width / 2,
+                  child: _shakerTable(),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
 
-            // Main content with scrolling
-            Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Pump Section - Responsive row
-                    LayoutBuilder(
-                      builder: (context, constraints) {
-                        if (constraints.maxWidth > 800) {
-                          // Desktop/Large Screen Layout
-                          return Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                flex: 3,
-                                child: _pumpTable(),
-                              ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                flex: 1,
-                                child: _summaryBox(),
-                              ),
-                            ],
-                          );
-                        } else {
-                          // Mobile/Small Screen Layout
-                          return Column(
-                            children: [
-                              _pumpTable(),
-                              const SizedBox(height: 16),
-                              _summaryBox(),
-                            ],
-                          );
-                        }
-                      },
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // Shaker Section
-                    _sectionTitle("Shaker"),
-                    _shakerTable(),
-
-                    const SizedBox(height: 16),
-
-                    // Other SCE Section
-                    _sectionTitle("Other SCE"),
-                    _otherSCETable(),
-
-                    const SizedBox(height: 16),
-
-                    // Remarks and JSA Section
-                    _remarksAndJSASection(),
-
-                    const SizedBox(height: 20),
-                  ],
+            // Other SCE Table - Increased flex
+            Flexible(
+              flex: 3,
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: SizedBox(
+                  width: MediaQuery.of(context).size.width / 2,
+                  child: _otherSCETable(),
                 ),
               ),
             ),
@@ -87,500 +68,793 @@ class PumpPage extends StatelessWidget {
     );
   }
 
-  // ---------------- HEADER ----------------
-  Widget _header() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        const Text(
-          "Pump",
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
+  // ========== PUMP TABLE ==========
+  Widget _pumpTable() {
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 950), // Limit table width
+      decoration: _boxStyle(),
+      child: Column(
+        children: [
+          // Header
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryColor,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(4),
+                topRight: Radius.circular(4),
+              ),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.settings, color: Colors.white, size: 12),
+                SizedBox(width: 6),
+                Text(
+                  "Pump",
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          // Column Headers with Vertical Dividers - Increased widths
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              border: Border(
+                bottom: BorderSide(color: Colors.grey.shade400, width: 1),
+              ),
+            ),
+            child: IntrinsicHeight(
+              child: Row(
+                children: [
+                  _headerCell("Model", 110),
+                  _verticalDivider(),
+                  _headerCell("Type", 95),
+                  _verticalDivider(),
+                  _headerCell("Liner ID\n(in)", 80),
+                  _verticalDivider(),
+                  _headerCell("Rod OD\n(in)", 80),
+                  _verticalDivider(),
+                  _headerCell("Stk. Length\n(in)", 95),
+                  _verticalDivider(),
+                  _headerCell("Efficiency\n(%)", 90),
+                  _verticalDivider(),
+                  _headerCell("Displ.\n(bbl/stk)", 95),
+                  _verticalDivider(),
+                  _headerCell("Stroke\n(stk/min)", 95),
+                  _verticalDivider(),
+                  _headerCell("Rate\n(gpm)", 80),
+                ],
+              ),
+            ),
+          ),
+          
+          // Scrollable Data Rows
+          Expanded(
+            child: Obx(() {
+              return ListView.builder(
+                itemCount: pumpController.pumps.length,
+                itemBuilder: (context, index) {
+                  final pump = pumpController.pumps[index];
+                  final isLast = index == pumpController.pumps.length - 1;
+                  
+                  return Container(
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: index % 2 == 0 ? Colors.white : Colors.grey.shade50,
+                      border: Border(
+                        bottom: BorderSide(color: Colors.grey.shade300, width: 0.5),
+                      ),
+                    ),
+                    child: IntrinsicHeight(
+                      child: Row(
+                        children: [
+                          _dataCell(
+                            child: Obx(() => _buildPumpDropdown(
+                              value: pump.model.value,
+                              rowIndex: index,
+                              onChanged: (val) {
+                                pump.model.value = val ?? '';
+                                if (isLast && val != null && val.isNotEmpty) {
+                                  pumpController.pumps.add(pump.clone()
+                                    ..model.value = ''
+                                    ..type.value = '');
+                                }
+                              },
+                            )),
+                            width: 110,
+                          ),
+                          _verticalDivider(),
+                          _dataCell(child: Obx(() => _plainText(pump.type.value)), width: 95),
+                          _verticalDivider(),
+                          _dataCell(child: Obx(() => _editableText(pump.linerId)), width: 80),
+                          _verticalDivider(),
+                          _dataCell(child: Obx(() => _editableText(pump.rodOd)), width: 80),
+                          _verticalDivider(),
+                          _dataCell(child: Obx(() => _editableText(pump.strokeLength)), width: 95),
+                          _verticalDivider(),
+                          _dataCell(child: Obx(() => _editableText(pump.efficiency)), width: 90),
+                          _verticalDivider(),
+                          _dataCell(child: Obx(() => _editableText(pump.displacement)), width: 95),
+                          _verticalDivider(),
+                          _dataCell(child: Obx(() => _editableText(pump.stroke)), width: 95),
+                          _verticalDivider(),
+                          _dataCell(child: Obx(() => _editableText(pump.rate)), width: 80),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              );
+            }),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ========== OTHER SCE TABLE ==========
+  Widget _otherSCETable() {
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 580), // Increased slightly
+      decoration: _boxStyle(),
+      child: Column(
+        children: [
+          // Header
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryColor,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(4),
+                topRight: Radius.circular(4),
+              ),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.build, color: Colors.white, size: 12),
+                SizedBox(width: 6),
+                Text(
+                  "Other SCE",
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          // Column Headers - Increased widths
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              border: Border(
+                bottom: BorderSide(color: Colors.grey.shade400, width: 1),
+              ),
+            ),
+            child: IntrinsicHeight(
+              child: Row(
+                children: [
+                  _headerCell("SCE", 90),
+                  _verticalDivider(),
+                  _headerCell("Model", 110),
+                  _verticalDivider(),
+                  _headerCell("U/F\n(ppg)", 70),
+                  _verticalDivider(),
+                  _headerCell("O/F\n(ppg)", 70),
+                  _verticalDivider(),
+                  _headerCell("Time\n(hr)", 70),
+                  _verticalDivider(),
+                  _headerCell("OOC Wt.\n(%)", 75),
+                ],
+              ),
+            ),
+          ),
+          
+          // Scrollable Data Rows
+          Expanded(
+            child: Obx(() {
+              return Scrollbar(
+                controller: sceScrollController,
+                thumbVisibility: true,
+                child: ListView.builder(
+                  controller: sceScrollController,
+                  itemCount: sceController.otherSce.length,
+                  itemBuilder: (context, index) {
+                    final sce = sceController.otherSce[index];
+                    final isLast = index == sceController.otherSce.length - 1;
+                    final hasSce = sce.type.value.isNotEmpty;
+                    
+                    return Container(
+                      height: 30,
+                      decoration: BoxDecoration(
+                        color: index % 2 == 0 ? Colors.white : Colors.grey.shade50,
+                        border: Border(
+                          bottom: BorderSide(color: Colors.grey.shade300, width: 0.5),
+                        ),
+                      ),
+                      child: IntrinsicHeight(
+                        child: Row(
+                          children: [
+                            _dataCell(
+                              child: Obx(() => _buildSceDropdown(
+                                value: sce.type.value,
+                                rowIndex: index,
+                                onChanged: (val) {
+                                  sce.type.value = val ?? '';
+                                  if (isLast && val != null && val.isNotEmpty) {
+                                    sceController.otherSce.add(sce.clone()
+                                      ..type.value = ''
+                                      ..model1.value = '');
+                                  }
+                                },
+                              )),
+                              width: 90,
+                            ),
+                            _verticalDivider(),
+                            _dataCell(
+                              child: Obx(() => _editableText(sce.model1)),
+                              width: 110,
+                            ),
+                            _verticalDivider(),
+                            _dataCell(
+                              child: Obx(() => _editableText(sce.uf)),
+                              width: 70,
+                            ),
+                            _verticalDivider(),
+                            _dataCell(
+                              child: Obx(() => _editableText(sce.of)),
+                              width: 70,
+                            ),
+                            _verticalDivider(),
+                            _dataCell(
+                              child: Obx(() => _editableText(sce.time)),
+                              width: 70,
+                            ),
+                            _verticalDivider(),
+                            _dataCell(
+                              child: Obx(() => _editableText(sce.oocWt)),
+                              width: 75,
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              );
+            }),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPumpDropdown({
+    required String value,
+    required Function(String?) onChanged,
+    required int rowIndex,
+  }) {
+    return Obx(() {
+      final availableModels = pumpController.availablePumpModels;
+      return DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: value.isEmpty ? null : value,
+          hint: const Text("Select", style: TextStyle(fontSize: 9, color: Colors.grey)),
+          isExpanded: true,
+          isDense: true,
+          style: const TextStyle(fontSize: 9, color: Colors.black87),
+          onChanged: dashboard.isLocked.value ? null : (selectedModel) async {
+            if (selectedModel != null) {
+              final pumpData = await pumpController.getPumpDataByModel(selectedModel);
+              if (pumpData != null && rowIndex < pumpController.pumps.length) {
+                final pump = pumpController.pumps[rowIndex];
+                pump.model.value = selectedModel;
+                pump.type.value = pumpData['type']?.toString() ?? '';
+                pump.linerId.value = pumpData['linerId']?.toString() ?? '';
+                pump.rodOd.value = pumpData['rodOd']?.toString() ?? '';
+                pump.strokeLength.value = pumpData['strokeLength']?.toString() ?? '';
+                pump.efficiency.value = pumpData['efficiency']?.toString() ?? '';
+                pump.displacement.value = pumpData['displacement']?.toString() ?? '';
+              }
+            }
+            onChanged(selectedModel);
+          },
+          items: availableModels.map((model) => DropdownMenuItem(
+            value: model,
+            child: Text(model, style: const TextStyle(fontSize: 9)),
+          )).toList(),
+        ),
+      );
+    });
+  }
+
+  // ========== SHAKER TABLE ==========
+  Widget _shakerTable() {
+    return Container(
+      decoration: _boxStyle(),
+      child: Column(
+        children: [
+          // Header
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryColor,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(4),
+                topRight: Radius.circular(4),
+              ),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.filter_alt, color: Colors.white, size: 12),
+                SizedBox(width: 6),
+                Text(
+                  "Shaker",
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          // Column Headers - Increased widths
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              border: Border(
+                bottom: BorderSide(color: Colors.grey.shade400, width: 1),
+              ),
+            ),
+            child: IntrinsicHeight(
+              child: Row(
+                children: [
+                  _headerCell("Shaker", 100),
+                  _verticalDivider(),
+                  _headerCell("Model", 120),
+                  _verticalDivider(),
+                  _headerCellWithSubheaders("Screen", [
+                    _subHeaderCell("", 55),
+                    _subHeaderCell("", 55),
+                    _subHeaderCell("", 55),
+                    _subHeaderCell("", 55),
+                  ]),
+                  _verticalDivider(),
+                  _headerCell("Time\n(hr)", 70),
+                  _verticalDivider(),
+                  _headerCell("OOC Wt.\n(%)", 75),
+                ],
+              ),
+            ),
+          ),
+          
+          // Scrollable Data Rows
+          Expanded(
+            child: Obx(() {
+              return Scrollbar(
+                controller: shakerScrollController,
+                thumbVisibility: true,
+                child: ListView.builder(
+                  controller: shakerScrollController,
+                  itemCount: sceController.shakers.length,
+                  itemBuilder: (context, index) {
+                  final shaker = sceController.shakers[index];
+                  final isLast = index == sceController.shakers.length - 1;
+                  final hasShaker = shaker.shaker.value.isNotEmpty;
+                  
+                  return Container(
+                    height: 30,
+                    decoration: BoxDecoration(
+                      color: index % 2 == 0 ? Colors.white : Colors.grey.shade50,
+                      border: Border(
+                        bottom: BorderSide(color: Colors.grey.shade300, width: 0.5),
+                      ),
+                    ),
+                    child: IntrinsicHeight(
+                      child: Row(
+                        children: [
+                          _dataCell(
+                            child: Obx(() => _buildShakerDropdown(
+                              value: shaker.shaker.value,
+                              rowIndex: index,
+                              onChanged: (val) {
+                                shaker.shaker.value = val ?? '';
+                                if (isLast && val != null && val.isNotEmpty) {
+                                  sceController.shakers.add(shaker.clone()
+                                    ..shaker.value = ''
+                                    ..model.value = '');
+                                }
+                              },
+                            )),
+                            width: 100,
+                          ),
+                          _verticalDivider(),
+                          _dataCell(
+                            child: Obx(() => _editableText(shaker.model)),
+                            width: 120,
+                          ),
+                          _verticalDivider(),
+                          _dataCell(
+                            child: Obx(() => _editableText(shaker.screen1)),
+                            width: 55,
+                          ),
+                          _verticalDivider(),
+                          _dataCell(
+                            child: Obx(() => _editableText(shaker.screen2)),
+                            width: 55,
+                          ),
+                          _verticalDivider(),
+                          _dataCell(
+                            child: Obx(() => _editableText(shaker.screen3)),
+                            width: 55,
+                          ),
+                          _verticalDivider(),
+                          _dataCell(
+                            child: Obx(() => _editableText(shaker.screen4)),
+                            width: 55,
+                          ),
+                          _verticalDivider(),
+                          _dataCell(
+                            child: Obx(() => _editableText(shaker.time)),
+                            width: 70,
+                          ),
+                          _verticalDivider(),
+                          _dataCell(
+                            child: Obx(() => _editableText(shaker.oocWt)),
+                            width: 75,
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              )
+              );
+            }),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildShakerDropdown({
+    required String value,
+    required int rowIndex,
+    required Function(String?) onChanged,
+  }) {
+    return Obx(() {
+      final availableTypes = sceController.availableShakerTypes.isNotEmpty
+          ? sceController.availableShakerTypes
+          : ['Shaker', 'Cleaner', 'Degasser'];
+      return DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: value.isEmpty ? null : value,
+          hint: const Text("Select", style: TextStyle(fontSize: 9, color: Colors.grey)),
+          isExpanded: true,
+          isDense: true,
+          style: const TextStyle(fontSize: 9, color: Colors.black87),
+          onChanged: dashboard.isLocked.value ? null : (selectedType) async {
+            if (selectedType != null) {
+              // Fetch data from API for this shaker type
+              final shakerData = await sceController.getShakerDataByType(selectedType);
+              if (shakerData != null && rowIndex < sceController.shakers.length) {
+                final shaker = sceController.shakers[rowIndex];
+                shaker.shaker.value = selectedType;
+                // Populate model from API response
+                shaker.model.value = shakerData['model']?.toString() ?? '';
+                // Populate screens from API response
+                shaker.screens.value = shakerData['screens']?.toString() ?? '';
+                // Populate any other fields available in the API response
+                if (shakerData.containsKey('plot')) {
+                  // Handle plot field if needed in your model
+                }
+              } else {
+                // If no data found in API, just set the type
+                if (rowIndex < sceController.shakers.length) {
+                  sceController.shakers[rowIndex].shaker.value = selectedType;
+                }
+              }
+            }
+            onChanged(selectedType);
+          },
+          items: availableTypes.map((type) => DropdownMenuItem(
+            value: type,
+            child: Text(type, style: const TextStyle(fontSize: 9)),
+          )).toList(),
+        ),
+      );
+    });
+  }
+
+
+
+  Widget _buildSceDropdown({
+    required String value,
+    required int rowIndex,
+    required Function(String?) onChanged,
+  }) {
+    return Obx(() {
+      final availableTypes = sceController.availableOtherSceTypes.isNotEmpty
+          ? sceController.availableOtherSceTypes
+          : ['Degasser', 'Desander', 'Desilter', 'Centrifuge'];
+      return DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: value.isEmpty ? null : value,
+          hint: const Text("Select", style: TextStyle(fontSize: 9, color: Colors.grey)),
+          isExpanded: true,
+          isDense: true,
+          style: const TextStyle(fontSize: 9, color: Colors.black87),
+          onChanged: dashboard.isLocked.value ? null : (selectedType) async {
+            if (selectedType != null) {
+              // Fetch data from API for this SCE type
+              final sceData = await sceController.getOtherSceDataByType(selectedType);
+              if (sceData != null && rowIndex < sceController.otherSce.length) {
+                final sce = sceController.otherSce[rowIndex];
+                sce.type.value = selectedType;
+                // Populate model1 from API response
+                sce.model1.value = sceData['model1']?.toString() ?? '';
+                // Populate model2 if available
+                if (sceData.containsKey('model2')) {
+                  // Handle model2 field if it exists in your model
+                }
+                // Populate model3 if available
+                if (sceData.containsKey('model3')) {
+                  // Handle model3 field if it exists in your model
+                }
+                // Populate plot field if needed
+                if (sceData.containsKey('plot')) {
+                  // Handle plot field if needed in your model
+                }
+              } else {
+                // If no data found in API, just set the type
+                if (rowIndex < sceController.otherSce.length) {
+                  sceController.otherSce[rowIndex].type.value = selectedType;
+                }
+              }
+            }
+            onChanged(selectedType);
+          },
+          items: availableTypes.map((type) => DropdownMenuItem(
+            value: type,
+            child: Text(type, style: const TextStyle(fontSize: 9)),
+          )).toList(),
+        ),
+      );
+    });
+  }
+
+  // ========== SUMMARY BOX ==========
+  Widget _summaryBox() {
+    return Container(
+      decoration: _boxStyle(),
+      child: Column(
+        children: [
+          // Header
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryColor,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(4),
+                topRight: Radius.circular(4),
+              ),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.summarize, color: Colors.white, size: 12),
+                SizedBox(width: 6),
+                Text(
+                  "Summary",
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          // Scrollable Content
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(10),
+              child: Column(
+                children: [
+                  _summaryItem("Pump Rate", "gpm"),
+                  const SizedBox(height: 8),
+                  _summaryItem("Pump Pressure", "psi"),
+                  const SizedBox(height: 8),
+                  _summaryItem("Boost Pump Rate", "gpm"),
+                  const SizedBox(height: 8),
+                  _summaryItem("Return Rate", "gpm"),
+                  const SizedBox(height: 8),
+                  _summaryItem("DH Tools P. Loss", "psi"),
+                  const SizedBox(height: 8),
+                  _summaryItem("Motor P. Loss", "psi"),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _summaryItem(String label, String unit) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 9, color: Colors.black87),
+            ),
+          ),
+          SizedBox(
+            width: 70,
+            height: 24,
+            child: Obx(() => TextField(
+              enabled: !dashboard.isLocked.value,
+              textAlign: TextAlign.right,
+              style: const TextStyle(fontSize: 9),
+              decoration: InputDecoration(
+                hintText: "0.0",
+                hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 9),
+                suffix: Text(unit, style: const TextStyle(fontSize: 8, color: Colors.grey)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                filled: true,
+                fillColor: Colors.grey.shade50,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(3),
+                  borderSide: BorderSide(color: Colors.grey.shade300, width: 0.5),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(3),
+                  borderSide: BorderSide(color: Colors.grey.shade300, width: 0.5),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(3),
+                  borderSide: BorderSide(color: AppTheme.primaryColor, width: 1),
+                ),
+              ),
+            )),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ========== HELPER WIDGETS ==========
+  Widget _headerCell(String text, double width) {
+    return SizedBox(
+      width: width,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 2),
+        child: Text(
+          text,
+          style: const TextStyle(
+            fontSize: 8,
+            fontWeight: FontWeight.w600,
             color: Colors.black87,
           ),
+          textAlign: TextAlign.center,
         ),
-        Obx(() => ElevatedButton.icon(
-              icon: Icon(
-                controller.isLocked.value ? Icons.lock : Icons.lock_open,
-                size: 20,
-              ),
-              label: Text(
-                controller.isLocked.value ? "Unlock" : "Lock",
-                style: const TextStyle(fontSize: 14),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: controller.isLocked.value
-                  ? Colors.grey[700]
-                  : Colors.blue[700],
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 10,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(6),
-                ),
-              ),
-              onPressed: controller.isLocked.toggle,
-            )),
+      ),
+    );
+  }
+
+  Widget _headerCellWithSubheaders(String mainText, List<Widget> subHeaders) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 2),
+          child: Text(
+            mainText,
+            style: const TextStyle(
+              fontSize: 8,
+              fontWeight: FontWeight.w600,
+              color: Colors.black87,
+            ),
+          ),
+        ),
+        Row(children: subHeaders),
       ],
     );
   }
 
-  Widget _sectionTitle(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+  Widget _subHeaderCell(String text, double width) {
+    return SizedBox(
+      width: width,
       child: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w600,
-          color: Colors.black87,
+        text,
+        style: const TextStyle(fontSize: 7, color: Colors.black54),
+        textAlign: TextAlign.center,
+      ),
+    );
+  }
+
+  Widget _verticalDivider() {
+    return Container(
+      width: 1,
+      color: Colors.grey.shade300,
+    );
+  }
+
+  Widget _dataCell({required Widget child, required double width}) {
+    return SizedBox(
+      width: width,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 2),
+        child: child,
+      ),
+    );
+  }
+
+  Widget _plainText(String text) {
+    return Text(
+      text,
+      style: const TextStyle(fontSize: 9, color: Colors.black87),
+      textAlign: TextAlign.center,
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+
+  Widget _editableText(RxString rxValue) {
+    return TextField(
+      enabled: !dashboard.isLocked.value,
+      controller: TextEditingController(text: rxValue.value)
+        ..selection = TextSelection.fromPosition(
+          TextPosition(offset: rxValue.value.length),
         ),
+      onChanged: (val) => rxValue.value = val,
+      textAlign: TextAlign.center,
+      style: const TextStyle(fontSize: 9),
+      decoration: const InputDecoration(
+        border: InputBorder.none,
+        contentPadding: EdgeInsets.zero,
+        isDense: true,
       ),
     );
   }
 
-  // ---------------- PUMP TABLE (Image Based Design) ----------------
-  Widget _pumpTable() {
-    return Obx(() => Container(
-          decoration: _box(),
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              child: DataTable(
-                columnSpacing: 20,
-                horizontalMargin: 12,
-                headingRowHeight: 40,
-                dataRowHeight: 40,
-                headingTextStyle: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-                dataTextStyle: const TextStyle(
-                  fontSize: 12,
-                  color: Colors.black87,
-                ),
-                columns: const [
-                  DataColumn(label: Text("Web")),
-                  DataColumn(label: Text("Nud")),
-                  DataColumn(label: Text("Pump")),
-                  DataColumn(label: Text("Operation")),
-                  DataColumn(label: Text("Pit")),
-                  DataColumn(label: Text("Safety")),
-                  DataColumn(label: Text("Remarks")),
-                  DataColumn(label: Text("JSA")),
-                  DataColumn(label: Text("")),
-                  DataColumn(label: Text("")),
-                ],
-                rows: [
-                  // Header row
-                  DataRow(
-                    cells: [
-                      DataCell(_buildPumpHeaderCell()),
-                      const DataCell(Text("")),
-                      const DataCell(Text("")),
-                      const DataCell(Text("")),
-                      const DataCell(Text("")),
-                      const DataCell(Text("")),
-                      const DataCell(Text("")),
-                      const DataCell(Text("")),
-                      const DataCell(Text("")),
-                      const DataCell(Text("")),
-                    ],
-                  ),
-                  // Data rows
-                  ..._buildPumpDataRows(),
-                ],
-              ),
-            ),
-          ),
-        ));
-  }
-
-  Widget _buildPumpHeaderCell() {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey[300]!),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          columnSpacing: 12,
-          headingRowHeight: 30,
-          dataRowHeight: 40, // Increased height
-          headingTextStyle: const TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
-          ),
-          columns: const [
-            DataColumn(label: Text("Model")),
-            DataColumn(label: Text("Type")),
-            DataColumn(label: Text("Liner ID (in)")),
-            DataColumn(label: Text("Rod OD (in)")),
-            DataColumn(label: Text("Stk. Length (in)")),
-            DataColumn(label: Text("Efficiency (%)")),
-            DataColumn(label: Text("Displ. (bbl/stk)")),
-            DataColumn(label: Text("Stroke (stk/min)")),
-            DataColumn(label: Text("Rate (gpm)")),
-            DataColumn(label: Text("Pump Pressure (psi)")),
-          ],
-          rows: [
-            DataRow(
-              cells: List.generate(
-                10,
-                (index) => DataCell(EditableCell(value: RxString(""))),
-              ),
-            ),
-          ],
-        ),
+  Widget _editableTextPlain() {
+    return TextField(
+      enabled: !dashboard.isLocked.value,
+      textAlign: TextAlign.center,
+      style: const TextStyle(fontSize: 9),
+      decoration: const InputDecoration(
+        border: InputBorder.none,
+        contentPadding: EdgeInsets.zero,
+        isDense: true,
       ),
     );
   }
 
-  List<DataRow> _buildPumpDataRows() {
-    return controller.pumpRows.map((row) {
-      return DataRow(
-        cells: [
-          DataCell(
-            Container(
-              width: 120,
-              decoration: dashboardController.isLocked.value
-                  ? null
-                  : BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade300, width: 1),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: row["model"],
-                  isExpanded: true,
-                  style: const TextStyle(fontSize: 11),
-                  onChanged: dashboardController.isLocked.value
-                      ? null
-                      : (v) => row["model"] = v!,
-                  items: controller.pumpModels
-                      .map((e) => DropdownMenuItem(
-                            value: e,
-                            child: Text(e, style: const TextStyle(fontSize: 11)),
-                          ))
-                      .toList(),
-                ),
-              ),
-            ),
-          ),
-          DataCell(EditableCell(value: RxString(row["liner"].toString()))),
-          DataCell(EditableCell(value: RxString(row["stroke"].toString()))),
-          DataCell(EditableCell(value: RxString(""))),
-          DataCell(EditableCell(value: RxString(row["eff"].toString()))),
-          DataCell(EditableCell(value: RxString("0.1018"))),
-          DataCell(EditableCell(value: RxString("0.0"))),
-          DataCell(EditableCell(value: RxString(""))),
-          DataCell(EditableCell(value: RxString(""))),
-          DataCell(EditableCell(value: RxString(""))),
-        ],
-      );
-    }).toList();
-  }
-
-  Widget _buildPumpModelCell(String model, String type) {
-    return Container(
-      width: 120,
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            model,
-            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
-            overflow: TextOverflow.ellipsis,
-          ),
-          Text(
-            type,
-            style: const TextStyle(fontSize: 10, color: Colors.grey),
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ---------------- SUMMARY BOX (Image Based) ----------------
-  Widget _summaryBox() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: _box(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            "Summary",
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
-          ),
-          const SizedBox(height: 12),
-          _buildSummaryRow("Pump Rate", "0.0 gpm"),
-          _buildSummaryRow("Pump Pressure", "0.0 psi"),
-          _buildSummaryRow("Boost Pump Rate", "0.0 gpm"),
-          _buildSummaryRow("Return Rate", "0.0 gpm"),
-          _buildSummaryRow("DH Tools P. Loss", "0.0 psi"),
-          _buildSummaryRow("Motor P. Loss", "0.0 psi"),
-          _buildSummaryRow("Pump Rate", "0.0 gpm"),
-          _buildSummaryRow("Pump Pressure", "0.0 psi"),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSummaryRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 13,
-              color: Colors.black87,
-            ),
-          ),
-          Text(
-            value,
-            style:  TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: Colors.blue[700],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ---------------- SHAKER TABLE ----------------
-  Widget _shakerTable() {
-    return Obx(() => Container(
-          decoration: _box(),
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              child: DataTable(
-                columnSpacing: 20,
-                horizontalMargin: 12,
-                headingRowHeight: 40,
-                dataRowHeight: 40,
-                columns: const [
-                  DataColumn(label: Text("Shaker")),
-                  DataColumn(label: Text("Model")),
-                  DataColumn(label: Text("Screen")),
-                ],
-                rows: controller.shakerRows.map((row) {
-                  return DataRow(
-                    cells: [
-                      DataCell(
-                        Container(
-                          width: 100,
-                          decoration: dashboardController.isLocked.value
-                              ? null
-                              : BoxDecoration(
-                                  border: Border.all(color: Colors.grey.shade300, width: 1),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                          child: DropdownButtonHideUnderline(
-                            child: DropdownButton<String>(
-                              value: row["shaker"],
-                              isExpanded: true,
-                              style: const TextStyle(fontSize: 12),
-                              onChanged: dashboardController.isLocked.value
-                                  ? null
-                                  : (v) => row["shaker"] = v!,
-                              items: controller.shakerTypes
-                                  .map((e) => DropdownMenuItem(
-                                        value: e,
-                                        child: Text(e,
-                                            style:
-                                                const TextStyle(fontSize: 12)),
-                                      ))
-                                  .toList(),
-                            ),
-                          ),
-                        ),
-                      ),
-                      DataCell(EditableCell(value: RxString(row["model"]!))),
-                      const DataCell(Text(
-                        "100 / 80 / 200",
-                        style: TextStyle(fontSize: 12),
-                      )),
-                    ],
-                  );
-                }).toList(),
-              ),
-            ),
-          ),
-        ));
-  }
-
-  // ---------------- OTHER SCE TABLE ----------------
-  Widget _otherSCETable() {
-    return Obx(() => Container(
-          decoration: _box(),
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              child: DataTable(
-                columnSpacing: 20,
-                horizontalMargin: 12,
-                headingRowHeight: 40,
-                dataRowHeight: 40,
-                columns: const [
-                  DataColumn(label: Text("SCE")),
-                  DataColumn(label: Text("Model")),
-                  DataColumn(label: Text("Time (hr)")),
-                  DataColumn(label: Text("OOC Wt (%)")),
-                ],
-                rows: controller.sceRows.map((row) {
-                  return DataRow(
-                    cells: [
-                      DataCell(
-                        Container(
-                          width: 100,
-                          decoration: dashboardController.isLocked.value
-                              ? null
-                              : BoxDecoration(
-                                  border: Border.all(color: Colors.grey.shade300, width: 1),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                          child: DropdownButtonHideUnderline(
-                            child: DropdownButton<String>(
-                              value: row["sce"],
-                              isExpanded: true,
-                              style: const TextStyle(fontSize: 12),
-                              onChanged: dashboardController.isLocked.value
-                                  ? null
-                                  : (v) => row["sce"] = v!,
-                              items: controller.sceTypes
-                                  .map((e) => DropdownMenuItem(
-                                        value: e,
-                                        child: Text(e,
-                                            style:
-                                                const TextStyle(fontSize: 12)),
-                                      ))
-                                  .toList(),
-                            ),
-                          ),
-                        ),
-                      ),
-                      DataCell(EditableCell(value: RxString(row["model"]!))),
-                      DataCell(
-                        SizedBox(
-                          width: 80,
-                          child: EditableCell(value: RxString("")),
-                        ),
-                      ),
-                      DataCell(
-                        SizedBox(
-                          width: 80,
-                          child: EditableCell(value: RxString("")),
-                        ),
-                      ),
-                    ],
-                  );
-                }).toList(),
-              ),
-            ),
-          ),
-        ));
-  }
-
-  // ---------------- REMARKS AND JSA SECTION ----------------
-  Widget _remarksAndJSASection() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: _box(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            "Remarks & JSA",
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            maxLines: 4,
-            decoration: InputDecoration(
-              hintText: "Enter remarks here...",
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(6),
-                borderSide: BorderSide(color: Colors.grey[400]!),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(6),
-                borderSide: BorderSide(color: Colors.grey[400]!),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(6),
-                borderSide: const BorderSide(color: Colors.blue),
-              ),
-              contentPadding: const EdgeInsets.all(12),
-            ),
-            style: const TextStyle(fontSize: 13),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            maxLines: 4,
-            decoration: InputDecoration(
-              hintText: "Enter JSA details here...",
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(6),
-                borderSide: BorderSide(color: Colors.grey[400]!),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(6),
-                borderSide: BorderSide(color: Colors.grey[400]!),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(6),
-                borderSide: const BorderSide(color: Colors.green),
-              ),
-              contentPadding: const EdgeInsets.all(12),
-            ),
-            style: const TextStyle(fontSize: 13),
-          ),
-        ],
-      ),
-    );
-  }
-
-  BoxDecoration _box() => BoxDecoration(
+  BoxDecoration _boxStyle() => BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(4),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 3,
+            offset: const Offset(0, 1),
           ),
         ],
-        border: Border.all(
-          color: Colors.grey[200]!,
-          width: 1,
-        ),
+        border: Border.all(color: Colors.grey.shade300, width: 0.5),
       );
 }
