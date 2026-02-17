@@ -35,4 +35,4 @@ const engineeringSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-export default mongoose.model("Engineering", engineeringSchema);
+export default mongoose.model("ConsumeEngineering", engineeringSchema);
