@@ -5,9 +5,10 @@ import {
   addProduct,          // single row add
   bulkAddProducts,     // grid save (JSON array)
   uploadProductExcel,  // excel import
-  deleteProduct,
-  restoreProduct,
-  getProducts
+  updateProduct,       // update product
+  deleteProduct,       // soft delete
+  restoreProduct,      // restore
+  getProducts          // get all products
 } from "../../controllers/product/product.controller.js";
 
 const router = express.Router();
@@ -29,6 +30,11 @@ router.post("/excel", uploadExcel.single("file"), uploadProductExcel);
    FETCH PRODUCTS (UI GRID)
    ====================================================== */
 router.get("/", getProducts);
+
+/* ======================================================
+   UPDATE PRODUCT
+   ====================================================== */
+router.put("/:id", updateProduct);
 
 /* ======================================================
    DELETE / RESTORE

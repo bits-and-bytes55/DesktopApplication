@@ -48,4 +48,4 @@ const packageSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-export default mongoose.model("Package", packageSchema);
+export default mongoose.model("ConsumePackage", packageSchema);

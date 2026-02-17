@@ -35,4 +35,4 @@ const serviceSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-export default mongoose.model("Service", serviceSchema);
+export default mongoose.model("ConsumeService", serviceSchema);
