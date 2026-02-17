@@ -25,7 +25,7 @@ class _CompanySetupPageState extends State<CompanySetupPage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 6, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
   }
 
   @override
@@ -50,13 +50,13 @@ class _CompanySetupPageState extends State<CompanySetupPage>
               ),
               child: TabBarView(
                 controller: _tabController,
-                children: const [
+                children:  [
                 MudCompanyPage(),
-                  ProductPage(),
+                  ProductsPage(),
                   ServicesPage(),
                   OperatorTab(),
                   OthersPage(),
-                  SafetyPage(),
+                  // SafetyPage(),
                 ],
               ),
             ),
@@ -213,7 +213,7 @@ class _CompanySetupPageState extends State<CompanySetupPage>
           Tab(text: 'Services'),
           Tab(text: 'Operator'),
           Tab(text: 'Others'),
-          Tab(text: 'Safety'),
+          // Tab(text: 'Safety'),
         ],
       ),
     );

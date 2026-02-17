@@ -1,39 +1,53 @@
 // lib/modules/company_setup/controller/company_controller.dart
 
-import 'dart:io';
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/model/company_model.dart';
 
 class CompanyController extends GetxController {
-  final _repository = AuthRepository();
+  final AuthRepository _repository = AuthRepository();
 
-  // Observable company data
+  // ===============================
+  // STATE
+  // ===============================
   final Rx<Company?> company = Rx<Company?>(null);
   final RxBool isLoading = false.obs;
   final RxBool isSaving = false.obs;
 
-  // Text controllers for form fields
+  // ===============================
+  // FORM CONTROLLERS
+  // ===============================
   final TextEditingController companyNameController = TextEditingController();
   final TextEditingController addressController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
-  final TextEditingController logoUrlController = TextEditingController();
 
-  // Observable for logo
-  final RxString logoUrl = ''.obs;
-  final Rx<File?> selectedLogoFile = Rx<File?>(null);
+  // ===============================
+  // LOGO (BASE64)
+  // ===============================
+  final RxString logoUrl = ''.obs;      // preview / server url
+  final RxString logoBase64 = ''.obs;   // base64 for API
 
-  // Observable for currency settings
+  // ===============================
+  // CURRENCY
+  // ===============================
   final RxString currencySymbol = '₹'.obs;
   final RxString currencyFormat = '0.00'.obs;
 
-  // Alert messages
+  // ===============================
+  // ALERTS
+  // ===============================
   final RxString alertMessage = ''.obs;
   final RxString errorMessage = ''.obs;
 
+  // ===============================
+  // LIFECYCLE
+  // ===============================
   @override
   void onInit() {
     super.onInit();
@@ -46,140 +60,133 @@ class CompanyController extends GetxController {
     addressController.dispose();
     phoneController.dispose();
     emailController.dispose();
-    logoUrlController.dispose();
     super.onClose();
   }
 
-  // Pick logo image
-  Future<void> pickLogoImage() async {
+  // ===============================
+  // PICK IMAGE → BASE64
+  // ===============================
+  Future<void> pickLogoAndConvert() async {
     try {
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
+      final result = await FilePicker.platform.pickFiles(
         type: FileType.image,
-        allowMultiple: false,
+        withData: true,
       );
 
-      if (result != null && result.files.single.path != null) {
-        selectedLogoFile.value = File(result.files.single.path!);
-        logoUrl.value = result.files.single.path!;
-        logoUrlController.text = result.files.single.name;
+      if (result != null && result.files.single.bytes != null) {
+        Uint8List bytes = result.files.single.bytes!;
+        logoBase64.value = base64Encode(bytes);
+
+        // preview in UI
+        logoUrl.value = "data:image/png;base64,${logoBase64.value}";
       }
     } catch (e) {
-      _showError('Error picking image: ${e.toString()}');
+      _showError("Image selection failed");
     }
   }
 
-  // Fetch company details
+  // ===============================
+  // GET COMPANY
+  // ===============================
   Future<void> fetchCompanyDetails() async {
     isLoading.value = true;
-    
+
     final result = await _repository.getCompanyDetails();
-    
+
     if (result['success'] == true && result['data'] != null) {
-      company.value = result['data'] as Company;
+      company.value = result['data'];
       _populateControllers();
     }
-    
+
     isLoading.value = false;
   }
 
-  // Populate controllers with fetched data
   void _populateControllers() {
-    if (company.value != null) {
-      companyNameController.text = company.value!.companyName;
-      addressController.text = company.value!.address;
-      phoneController.text = company.value!.phone;
-      emailController.text = company.value!.email;
-      
-      // Set logo URL from server
-      if (company.value!.logoUrl != null && company.value!.logoUrl!.isNotEmpty) {
-        // If logoUrl starts with /uploads, construct full URL
-        if (company.value!.logoUrl!.startsWith('/uploads')) {
-          logoUrl.value = 'https://mudpro-desktop-app.onrender.com${company.value!.logoUrl}';
-        } else {
-          logoUrl.value = company.value!.logoUrl!;
-        }
-      }
-      
-      currencySymbol.value = company.value!.currencySymbol;
-      currencyFormat.value = company.value!.currencyFormat;
-    }
+    final data = company.value;
+    if (data == null) return;
+
+    companyNameController.text = data.companyName;
+    addressController.text = data.address;
+    phoneController.text = data.phone;
+    emailController.text = data.email;
+
+    logoUrl.value = data.logoUrl ?? '';
+    currencySymbol.value = data.currencySymbol;
+    currencyFormat.value = data.currencyFormat;
   }
 
-  // Save company details
+  // ===============================
+  // SAVE / UPDATE COMPANY
+  // ===============================
   Future<void> saveCompanyDetails() async {
-    // Validation
-    if (companyNameController.text.trim().isEmpty) {
-      _showError('Company name is required');
-      return;
-    }
-    if (addressController.text.trim().isEmpty) {
-      _showError('Address is required');
-      return;
-    }
-    if (phoneController.text.trim().isEmpty) {
-      _showError('Phone is required');
-      return;
-    }
-    if (emailController.text.trim().isEmpty) {
-      _showError('Email is required');
-      return;
-    }
+    if (!_validate()) return;
 
     isSaving.value = true;
 
-    final newCompany = Company(
-      id: company.value?.id,
-      companyName: companyNameController.text.trim(),
-      address: addressController.text.trim(),
-      phone: phoneController.text.trim(),
-      email: emailController.text.trim(),
-      logoUrl: company.value?.logoUrl, // Keep existing logo URL
-      currencySymbol: currencySymbol.value,
-      currencyFormat: currencyFormat.value,
-    );
+    final Map<String, dynamic> payload = {
+      "companyName": companyNameController.text.trim(),
+      "address": addressController.text.trim(),
+      "phone": phoneController.text.trim(),
+      "email": emailController.text.trim(),
+      "currencySymbol": currencySymbol.value,
+      "currencyFormat": currencyFormat.value,
+      if (logoBase64.value.isNotEmpty)
+        "logoBase64": "data:image/png;base64,${logoBase64.value}",
+    };
 
-    Map<String, dynamic> result;
-    if (company.value != null) {
-      // Update existing company
-      result = await _repository.updateCompanyDetails(
-        newCompany, 
-        logoFile: selectedLogoFile.value,
-      );
-    } else {
-      // Add new company
-      result = await _repository.addCompanyDetails(
-        newCompany, 
-        logoFile: selectedLogoFile.value,
-      );
-    }
+    final Map<String, dynamic> result =
+        company.value == null
+            ? await _repository.addCompanyDetails(payload)
+            : await _repository.updateCompanyDetails(payload);
 
     if (result['success'] == true) {
-      company.value = result['data'] as Company?;
-      selectedLogoFile.value = null; // Clear selected file
-      _showSuccess(result['message'] ?? 'Company details saved successfully');
+      _showSuccess(result['message'] ?? "Company saved");
+      logoBase64.value = '';
       await fetchCompanyDetails();
     } else {
-      _showError(result['message'] ?? 'Failed to save company details');
+      _showError(result['message'] ?? "Failed to save company");
     }
 
     isSaving.value = false;
   }
 
-  void _showSuccess(String message) {
-    alertMessage.value = message;
+  // ===============================
+  // VALIDATION
+  // ===============================
+  bool _validate() {
+    if (companyNameController.text.trim().isEmpty) {
+      _showError("Company name is required");
+      return false;
+    }
+    if (addressController.text.trim().isEmpty) {
+      _showError("Address is required");
+      return false;
+    }
+    if (phoneController.text.trim().isEmpty) {
+      _showError("Phone is required");
+      return false;
+    }
+    if (emailController.text.trim().isEmpty) {
+      _showError("Email is required");
+      return false;
+    }
+    return true;
+  }
+
+  // ===============================
+  // ALERT HELPERS
+  // ===============================
+  void _showSuccess(String msg) {
+    alertMessage.value = msg;
     errorMessage.value = '';
-    
-    // Auto-hide after 3 seconds
     Future.delayed(const Duration(seconds: 3), () {
       alertMessage.value = '';
     });
   }
 
-  void _showError(String message) {
-    errorMessage.value = message;
+  void _showError(String msg) {
+    errorMessage.value = msg;
     alertMessage.value = '';
-    
-    // Auto-hide after 3 seconds
     Future.delayed(const Duration(seconds: 3), () {
       errorMessage.value = '';
     });

@@ -1,6 +1,6 @@
 import 'package:get/get.dart';
 
-class PitController extends GetxController {
+class DashboardPitController extends GetxController {
   RxBool isLocked = true.obs;
 
   // ---------------- ACTIVE PITS ----------------

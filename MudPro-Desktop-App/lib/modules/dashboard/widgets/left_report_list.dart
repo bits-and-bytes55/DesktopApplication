@@ -33,32 +33,32 @@ class LeftReportTree extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header with gradient
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              gradient: AppTheme.primaryGradient,
-              border: Border(
-                bottom: BorderSide(color: Colors.black.withOpacity(0.1)),
-              ),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.folder_special, color: Colors.white, size: 18),
-                SizedBox(width: 8),
-                Text(
-                  'Reports Explorer',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ],
-            ),
-          ),
+          // Container(
+          //   padding: const EdgeInsets.all(16),
+          //   decoration: BoxDecoration(
+          //     gradient: AppTheme.primaryGradient,
+          //     border: Border(
+          //       bottom: BorderSide(color: Colors.black.withOpacity(0.1)),
+          //     ),
+          //   ),
+          //   child: Row(
+          //     children: [
+          //       Icon(Icons.folder_special, color: Colors.white, size: 18),
+          //       SizedBox(width: 8),
+          //       Text(
+          //         'Reports Explorer',
+          //         style: TextStyle(
+          //           color: Colors.white,
+          //           fontSize: 14,
+          //           fontWeight: FontWeight.w600,
+          //           letterSpacing: 0.5,
+          //         ),
+          //       ),
+          //     ],
+          //   ),
+          // ),
 
-          SizedBox(height: 8),
+          // SizedBox(height: 8),
 
           // ───── UG HEADER ─────
           _clickableHeader(

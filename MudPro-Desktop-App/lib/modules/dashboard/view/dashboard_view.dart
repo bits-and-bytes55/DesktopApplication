@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/tabs/pit/pit_tab_content.dart';
-import 'package:mudpro_desktop_app/modules/dashboard/tabs/pump/pump_tab_content.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/pump_tab_content.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/tabs/remarks_tab_content.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/widgets/help_secondary_tabbar.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/widgets/report_secondary_tabbar.dart';
@@ -19,7 +19,6 @@ import 'package:mudpro_desktop_app/modules/dashboard/tabs/safety_tab_content.dar
 import 'package:mudpro_desktop_app/modules/dashboard/tabs/jsa_tab_content.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/UG_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/right_pannel_view.dart';
-import 'package:mudpro_desktop_app/modules/UG/right_pannel/pump_view.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/pit_view.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/controller/UG_ST_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/pannel_switcher.dart';
@@ -184,11 +183,11 @@ Obx(() {
                       shadowColor: Colors.black.withOpacity(0.03),
                       child: SectionNavBar(),
                     ),
-                    Material(
-                      elevation: 1,
-                      shadowColor: Colors.black.withOpacity(0.02),
-                      child: LockBar(),
-                    ),
+                    // Material(
+                    //   elevation: 1,
+                    //   shadowColor: Colors.black.withOpacity(0.02),
+                    //   child: LockBar(),
+                    // ),
                     Expanded(
                       child: Padding(
                         padding: const EdgeInsets.all(8),

@@ -1,354 +1,232 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart';
+import 'package:mudpro_desktop_app/modules/UG/model/pit_model.dart';
+import 'package:mudpro_desktop_app/modules/company_setup/controller/products_controller.dart';
+import 'package:mudpro_desktop_app/modules/company_setup/model/products_model.dart';
 import '../../controller/operation_controller.dart';
 import '../../controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
-class ConsumeProductView extends StatelessWidget {
-  ConsumeProductView({super.key});
+class ConsumeProductView extends StatefulWidget {
+  const ConsumeProductView({super.key});
 
-  final OperationController controller = Get.find<OperationController>();
+  @override
+  State<ConsumeProductView> createState() => _ConsumeProductViewState();
+}
+
+class _ConsumeProductViewState extends State<ConsumeProductView> {
+  final OperationController operationController = Get.find<OperationController>();
   final DashboardController dashboardController = Get.find<DashboardController>();
-  final ScrollController scrollController = ScrollController();
-  final ScrollController horizontalScrollController = ScrollController();
-  final ScrollController verticalScrollController = ScrollController();
+  final ProductsController productsController = Get.put(ProductsController());
+  final PitController pitController = Get.put(PitController());
   
-  // Radio button state
   final RxString selectedMethod = "Used".obs;
-  
-  // Add water checkbox state
   final RxBool addWater = false.obs;
-  
-  // Water volume controller
-  final TextEditingController waterVolumeController = TextEditingController(text: "10.5");
-  
-  // Total volume controller
-  final TextEditingController totalVolumeController = TextEditingController(text: "152.75");
+  final TextEditingController waterVolumeController = TextEditingController();
+  final TextEditingController totalVolumeController = TextEditingController(text: "2.62");
+
+  // Row data for tables
+  final RxList<ProductRowData> productRows = <ProductRowData>[].obs;
+  final RxList<DistributeRowData> distributeRows = <DistributeRowData>[].obs;
+
+  // Selected row indices
+  final RxInt selectedProductRow = 0.obs;
+  final RxInt selectedDistributeRow = 0.obs;
+
+  // Selected products for top dropdown
+  final Rx<ProductModel?> selectedTopProduct = Rx<ProductModel?>(null);
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize with 5 empty rows each
+    for (int i = 0; i < 5; i++) {
+      productRows.add(ProductRowData());
+      distributeRows.add(DistributeRowData());
+    }
+    // Fetch pits data
+    pitController.fetchAllPits();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      controller: scrollController,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ---------------- ENHANCED TITLE ----------------
-            // _buildTitleSection(),
-
-            // const SizedBox(height: 16),
-
-            // ---------------- ENHANCED TOP CONTROLS ----------------
-            _buildTopControls(),
-
-            const SizedBox(height: 20),
-
-            // ---------------- ENHANCED MAIN TABLE ----------------
-            _buildEnhancedProductTable(),
-
-            const SizedBox(height: 20),
-
-            // ---------------- ENHANCED BOTTOM SECTION IN GRID ----------------
-            _buildBottomGridSection(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ===========================================================
-  // ENHANCED TITLE SECTION
-  // ===========================================================
-  Widget _buildTitleSection() {
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppTheme.primaryColor.withOpacity(0.9),
-            AppTheme.primaryColor,
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(10),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.primaryColor.withOpacity(0.2),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(
-              Icons.inventory_rounded,
-              color: Colors.white,
-              size: 24,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "Consume Product",
-                  style: AppTheme.titleMedium.copyWith(
-                    fontSize: 20,
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  "Manage product consumption with detailed tracking",
-                  style: AppTheme.bodySmall.copyWith(
-                    color: Colors.white.withOpacity(0.9),
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: Colors.white.withOpacity(0.3),
-              ),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.warehouse_rounded,
-                  color: Colors.white,
-                  size: 16,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  "Products: 12 Active",
-                  style: AppTheme.bodySmall.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+      color: Colors.white,
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Top Controls
+              _buildTopControls(),
+              const SizedBox(height: 10),
 
-  // ===========================================================
-  // ENHANCED TOP CONTROLS
-  // ===========================================================
-  Widget _buildTopControls() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final bool isWideScreen = constraints.maxWidth > 1000;
-        
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: Colors.grey.shade200),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.04),
-                blurRadius: 6,
-                offset: const Offset(0, 2),
-              ),
+              // Main Product Table
+              _buildProductTable(),
+              const SizedBox(height: 10),
+
+              // Bottom Section: Distribute Table + Right Controls
+              _buildBottomSection(),
             ],
           ),
-          child: isWideScreen
-              ? Row(
-                  children: [
-                    // Product Selection Dropdown
-                    Expanded(
-                      child: _buildEnhancedDropdown(
-                        hintText: "Select Products",
-                        icon: Icons.search_rounded,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-
-                    // Load Previous Products
-                    Expanded(
-                      child: _buildEnhancedDropdown(
-                        hintText: "Load Previous Products",
-                        icon: Icons.history_rounded,
-                      ),
-                    ),
-                    const SizedBox(width: 24),
-
-                    // Radio Buttons
-                    Expanded(
-                      child: Obx(() => Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: dashboardController.isLocked.value 
-                            ? Colors.grey.shade100 
-                            : AppTheme.cardColor,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.grey.shade300),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              "Input Method",
-                              style: AppTheme.caption.copyWith(
-                                color: AppTheme.textSecondary,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                buildEnhancedRadio("Used", Icons.trending_up_rounded, "Used"),
-                                const SizedBox(width: 20),
-                                buildEnhancedRadio("Final", Icons.flag_rounded, "Final"),
-                              ],
-                            ),
-                          ],
-                        ),
-                      )),
-                    ),
-                  ],
-                )
-              : Column(
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildEnhancedDropdown(
-                            hintText: "Select Products",
-                            icon: Icons.search_rounded,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _buildEnhancedDropdown(
-                            hintText: "Load Previous",
-                            icon: Icons.history_rounded,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Obx(() => Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: dashboardController.isLocked.value 
-                          ? Colors.grey.shade100 
-                          : AppTheme.cardColor,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.grey.shade300),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            "Input Method",
-                            style: AppTheme.caption.copyWith(
-                              color: AppTheme.textSecondary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              buildEnhancedRadio("Used", Icons.trending_up_rounded, "Used"),
-                              const SizedBox(width: 20),
-                              buildEnhancedRadio("Final", Icons.flag_rounded, "Final"),
-                            ],
-                          ),
-                        ],
-                      ),
-                    )),
-                  ],
-                ),
-        );
-      },
+        ),
+      ),
     );
   }
 
-  Widget _buildEnhancedDropdown({required String hintText, required IconData icon}) {
-    return Obx(() => Container(
-      height: 45,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+  Widget _buildTopControls() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: dashboardController.isLocked.value ? Colors.grey.shade50 : Colors.white,
-        borderRadius: BorderRadius.circular(8),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(4),
         border: Border.all(color: Colors.grey.shade300),
       ),
       child: Row(
         children: [
-          Icon(
-            icon,
-            size: 18,
-            color: AppTheme.textSecondary,
+          // Select Products Dropdown
+          Expanded(
+            flex: 2,
+            child: _buildProductDropdown(),
+          ),
+          const SizedBox(width: 10),
+
+          // Load Previous Products
+          Expanded(
+            flex: 2,
+            child: _buildDropdown(
+              hint: "Load Previous Products",
+              icon: Icons.history,
+            ),
           ),
           const SizedBox(width: 12),
+
+          // Radio Buttons
           Expanded(
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                isExpanded: true,
-                value: null,
-                hint: Text(
-                  hintText,
+            flex: 2,
+            child: Row(
+              children: [
+                Text(
+                  "Input Method",
                   style: AppTheme.bodySmall.copyWith(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 10,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                _buildCompactRadio("Used", "Used"),
+                const SizedBox(width: 6),
+                _buildCompactRadio("Final", "Final"),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProductDropdown() {
+    return Container(
+      height: 32,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(3),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.inventory_2_outlined, size: 14, color: AppTheme.textSecondary),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Obx(() => DropdownButtonHideUnderline(
+              child: DropdownButton<ProductModel>(
+                value: selectedTopProduct.value != null &&
+                       productsController.products.any((p) => p.id == selectedTopProduct.value?.id)
+                    ? selectedTopProduct.value
+                    : null,
+                hint: Text(
+                  "Select Products",
+                  style: AppTheme.bodySmall.copyWith(
+                    fontSize: 10,
                     color: AppTheme.textSecondary,
                   ),
                 ),
-                icon: Icon(
-                  Icons.arrow_drop_down_rounded,
-                  color: AppTheme.textSecondary,
-                ),
-                onChanged: dashboardController.isLocked.value ? null : (_) {},
-                items: [
-                  DropdownMenuItem(
-                    value: "1",
+                icon: Icon(Icons.arrow_drop_down, size: 16),
+                isExpanded: true,
+                isDense: true,
+                menuMaxHeight: 300,
+                items: productsController.products.where((p) => p.id != null).map((product) {
+                  return DropdownMenuItem<ProductModel>(
+                    value: product,
                     child: Text(
-                      "Product 1",
-                      style: AppTheme.bodySmall,
+                      product.product,
+                      style: AppTheme.bodySmall.copyWith(fontSize: 10),
+                      overflow: TextOverflow.ellipsis,
                     ),
+                  );
+                }).toList(),
+                onChanged: dashboardController.isLocked.value 
+                    ? null 
+                    : (ProductModel? value) {
+                        selectedTopProduct.value = value;
+                      },
+              ),
+            )),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDropdown({required String hint, required IconData icon}) {
+    return Container(
+      height: 32,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(3),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 14, color: AppTheme.textSecondary),
+          const SizedBox(width: 6),
+          Expanded(
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                hint: Text(
+                  hint,
+                  style: AppTheme.bodySmall.copyWith(
+                    fontSize: 10,
+                    color: AppTheme.textSecondary,
                   ),
-                ],
+                ),
+                icon: Icon(Icons.arrow_drop_down, size: 16),
+                items: [],
+                onChanged: dashboardController.isLocked.value ? null : (_) {},
               ),
             ),
           ),
         ],
       ),
-    ));
+    );
   }
 
-  Widget buildEnhancedRadio(String label, IconData icon, String value) {
+  Widget _buildCompactRadio(String label, String value) {
     return Obx(() => InkWell(
       onTap: dashboardController.isLocked.value 
           ? null 
           : () => selectedMethod.value = value,
-      borderRadius: BorderRadius.circular(6),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         decoration: BoxDecoration(
           color: selectedMethod.value == value
               ? AppTheme.primaryColor.withOpacity(0.1)
               : Colors.transparent,
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(3),
           border: Border.all(
             color: selectedMethod.value == value
                 ? AppTheme.primaryColor
@@ -358,24 +236,23 @@ class ConsumeProductView extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Radio Button
             Container(
-              width: 20,
-              height: 20,
+              width: 11,
+              height: 11,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
                   color: selectedMethod.value == value
                       ? AppTheme.primaryColor
                       : Colors.grey.shade400,
-                  width: 2,
+                  width: 1.5,
                 ),
               ),
               child: selectedMethod.value == value
                   ? Center(
                       child: Container(
-                        width: 10,
-                        height: 10,
+                        width: 5,
+                        height: 5,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           color: AppTheme.primaryColor,
@@ -384,22 +261,14 @@ class ConsumeProductView extends StatelessWidget {
                     )
                   : null,
             ),
-            const SizedBox(width: 8),
-            Icon(
-              icon,
-              size: 16,
-              color: selectedMethod.value == value
-                  ? AppTheme.primaryColor
-                  : AppTheme.textSecondary,
-            ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 5),
             Text(
               label,
               style: AppTheme.bodySmall.copyWith(
+                fontSize: 10,
                 color: selectedMethod.value == value
                     ? AppTheme.primaryColor
                     : AppTheme.textSecondary,
-                fontWeight: FontWeight.w500,
               ),
             ),
           ],
@@ -408,12 +277,8 @@ class ConsumeProductView extends StatelessWidget {
     ));
   }
 
-  // ===========================================================
-  // ENHANCED MAIN PRODUCT TABLE
-  // ===========================================================
-  Widget _buildEnhancedProductTable() {
+  Widget _buildProductTable() {
     final headers = [
-      "No.",
       "Product",
       "Code",
       "SG",
@@ -427,784 +292,769 @@ class ConsumeProductView extends StatelessWidget {
       "Vol (bbl)",
     ];
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final bool isWideScreen = constraints.maxWidth > 1200;
-        final double tableHeight = isWideScreen ? 450 : 350;
-
-        return Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: Colors.grey.shade200),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.04),
-                blurRadius: 6,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Table Header
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withOpacity(0.95),
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(10),
-                    topRight: Radius.circular(10),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: const Icon(
-                        Icons.table_chart_rounded,
-                        color: Colors.white,
-                        size: 18,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      "Product Consumption Details",
-                      style: AppTheme.bodyLarge.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const Spacer(),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        "8 Records",
-                        style: AppTheme.caption.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Table Content
-              SizedBox(
-                height: tableHeight,
-                child: Scrollbar(
-                  controller: verticalScrollController,
-                  thumbVisibility: true,
-                  child: SingleChildScrollView(
-                    controller: verticalScrollController,
-                    scrollDirection: Axis.vertical,
-                    child: Scrollbar(
-                      controller: horizontalScrollController,
-                      thumbVisibility: true,
-                      child: SingleChildScrollView(
-                        controller: horizontalScrollController,
-                        scrollDirection: Axis.horizontal,
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(
-                            minWidth: isWideScreen ? 1200 : 800,
-                          ),
-                          child: Obx(() => DataTable(
-                            border: TableBorder(
-                              horizontalInside: BorderSide(
-                                color: Colors.grey.shade200,
-                                width: 1,
-                              ),
-                              verticalInside: BorderSide(
-                                color: Colors.grey.shade200,
-                                width: 1,
-                              ),
-                              left: BorderSide(
-                                color: Colors.grey.shade300,
-                                width: 1,
-                              ),
-                              right: BorderSide(
-                                color: Colors.grey.shade300,
-                                width: 1,
-                              ),
-                              top: BorderSide.none,
-                              bottom: BorderSide(
-                                color: Colors.grey.shade300,
-                                width: 1,
-                              ),
-                            ),
-                            headingRowHeight: 45,
-                            dataRowHeight: 48,
-                            headingTextStyle: AppTheme.bodySmall.copyWith(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: AppTheme.textPrimary,
-                            ),
-                            dataTextStyle: AppTheme.bodySmall.copyWith(
-                              fontSize: 11,
-                              color: AppTheme.textPrimary,
-                            ),
-                            columns: headers.map((header) {
-                              return DataColumn(
-                                label: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                                  alignment: header.contains('\$') 
-                                      ? Alignment.centerRight 
-                                      : Alignment.centerLeft,
-                                  child: Text(
-                                    header,
-                                    style: AppTheme.bodySmall.copyWith(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppTheme.textPrimary,
-                                    ),
-                                  ),
-                                ),
-                              );
-                            }).toList(),
-                            rows: List.generate(
-                              8,
-                              (rowIndex) => DataRow(
-                                color: MaterialStateProperty.resolveWith<Color?>(
-                                  (Set<MaterialState> states) {
-                                    return rowIndex % 2 == 0
-                                        ? Colors.white
-                                        : Colors.grey.shade50;
-                                  },
-                                ),
-                                cells: headers.asMap().entries.map((entry) {
-                                  final index = entry.key;
-                                  final header = entry.value;
-                                  return DataCell(
-                                    _buildTableCellContent(rowIndex, index, header),
-                                  );
-                                }).toList(),
-                              ),
-                            ),
-                          )),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildTableCellContent(int rowIndex, int columnIndex, String header) {
-    // Sample data for demonstration
-    final sampleData = [
-      "${rowIndex + 1}",
-      "Product ${rowIndex + 1}",
-      "PRD-${(rowIndex + 1).toString().padLeft(3, '0')}",
-      "${1.0 + (rowIndex * 0.1)}",
-      ["Pcs", "Kg", "Ltr", "Bbl"][rowIndex % 4],
-      "\$${(100 + rowIndex * 50).toStringAsFixed(2)}",
-      "${100 + rowIndex * 10}",
-      "${5 + rowIndex}",
-      "${20 + rowIndex * 5}",
-      "${80 + rowIndex * 10}",
-      "\$${(2500 + rowIndex * 500).toStringAsFixed(2)}",
-      "${10.5 + rowIndex * 2.5}",
-    ];
-
-    final isEditable = !dashboardController.isLocked.value && 
-                       ![0, 1].contains(columnIndex); // Don't make No. and Product columns editable
-    
-    if (columnIndex == 1) {
-      // Product column with dropdown icon
-      return InkWell(
-        onTap: dashboardController.isLocked.value ? null : () {
-          // Show product dropdown when clicked
-        },
-        borderRadius: BorderRadius.circular(4),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  sampleData[columnIndex],
-                  style: AppTheme.bodySmall.copyWith(
-                    fontSize: 11,
-                    color: AppTheme.textPrimary,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-              Icon(
-                Icons.arrow_drop_down_rounded,
-                size: 18,
-                color: AppTheme.textSecondary,
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      alignment: header.contains('\$') ? Alignment.centerRight : Alignment.centerLeft,
-      child: isEditable
-          ? TextField(
-              controller: TextEditingController(text: sampleData[columnIndex]),
-              decoration: InputDecoration(
-                border: InputBorder.none,
-                isDense: true,
-                hintText: "Enter...",
-                hintStyle: AppTheme.caption.copyWith(
-                  color: Colors.grey.shade400,
-                ),
-                contentPadding: const EdgeInsets.symmetric(vertical: 14),
-              ),
-              style: AppTheme.bodySmall.copyWith(
-                fontSize: 11,
-                color: AppTheme.textPrimary,
-                fontWeight: header.contains('\$') ? FontWeight.w500 : FontWeight.w400,
-              ),
-              textAlign: header.contains('\$') ? TextAlign.right : TextAlign.left,
-            )
-          : Text(
-              sampleData[columnIndex],
-              style: AppTheme.bodySmall.copyWith(
-                fontSize: 11,
-                color: columnIndex == 0 ? AppTheme.primaryColor : AppTheme.textPrimary,
-                fontWeight: columnIndex == 0 ? FontWeight.w600 : 
-                          header.contains('\$') ? FontWeight.w500 : FontWeight.w400,
-              ),
-              textAlign: header.contains('\$') ? TextAlign.right : TextAlign.left,
-            ),
-    );
-  }
-
-  // ===========================================================
-  // ENHANCED BOTTOM SECTION IN GRID
-  // ===========================================================
-  Widget _buildBottomGridSection() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final bool isWideScreen = constraints.maxWidth > 1000;
-        
-        if (isWideScreen) {
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Left Section - Distribute To Table (50%)
-              Expanded(
-                child: _buildEnhancedDistributeTable(),
-              ),
-              const SizedBox(width: 16),
-
-              // Right Section - Controls (50%)
-              Expanded(
-                child: _buildEnhancedRightControls(),
-              ),
-            ],
-          );
-        } else {
-          return Column(
-            children: [
-              // Distribute To Table
-              _buildEnhancedDistributeTable(),
-              const SizedBox(height: 16),
-
-              // Right Section - Controls
-              _buildEnhancedRightControls(),
-            ],
-          );
-        }
-      },
-    );
-  }
-
-  Widget _buildEnhancedDistributeTable() {
-    return Container(
-      height: 320,
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(4),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Table Header
+          // Header
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: AppTheme.successColor.withOpacity(0.95),
+              color: AppTheme.primaryColor,
               borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(10),
-                topRight: Radius.circular(10),
+                topLeft: Radius.circular(4),
+                topRight: Radius.circular(4),
               ),
             ),
             child: Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: const Icon(
-                    Icons.share_arrival_time_rounded,
+                Icon(Icons.inventory_2, color: Colors.white, size: 16),
+                const SizedBox(width: 8),
+                Text(
+                  "Consume Product",
+                  style: AppTheme.bodySmall.copyWith(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 11,
                     color: Colors.white,
-                    size: 18,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    "Distribution Points",
-                    style: AppTheme.bodyLarge.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
                   ),
                 ),
               ],
             ),
           ),
 
-          // Table Content
+          // Table with fixed height and scrollable content
+          SizedBox(
+            height: 220,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.vertical,
+                child: Obx(() => Container(
+                  decoration: BoxDecoration(
+                    border: Border(
+                      top: BorderSide(color: Colors.grey.shade300),
+                    ),
+                  ),
+                  child: DataTable(
+                    headingRowHeight: 32,
+                    dataRowHeight: 32,
+                    columnSpacing: 0,
+                    horizontalMargin: 0,
+                    dividerThickness: 0,
+                    headingRowColor: MaterialStateProperty.all(Colors.grey.shade50),
+                    border: TableBorder(
+                      verticalInside: BorderSide(color: Colors.grey.shade300, width: 1),
+                      horizontalInside: BorderSide(color: Colors.grey.shade200, width: 1),
+                    ),
+                    headingTextStyle: AppTheme.bodySmall.copyWith(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.primaryColor,
+                    ),
+                    dataTextStyle: AppTheme.bodySmall.copyWith(fontSize: 10),
+                    columns: headers.map((h) => DataColumn(
+                      label: Container(
+                        width: _getProductColumnWidth(h),
+                        alignment: h.contains('Price') || h.contains('Cost') || h.contains('Initial') || 
+                                   h.contains('Adjust') || h.contains('Used') || h.contains('Final') || h.contains('Vol')
+                            ? Alignment.centerRight
+                            : Alignment.centerLeft,
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        child: Text(h),
+                      ),
+                    )).toList(),
+                    rows: List.generate(productRows.length, (index) {
+                      final row = productRows[index];
+                      final isSelected = selectedProductRow.value == index;
+                      
+                      return DataRow(
+                        color: MaterialStateProperty.all(
+                          index % 2 == 0 ? Colors.white : Colors.grey.shade50,
+                        ),
+                        cells: _buildProductCells(row, index, isSelected),
+                      );
+                    }),
+                  ),
+                )),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  double _getProductColumnWidth(String header) {
+    if (header == 'Product') {
+      return 150;
+    } else if (header == 'Code') {
+      return 80;
+    } else if (header == 'SG' || header == 'Unit') {
+      return 70;
+    } else if (header.contains('Price') || header.contains('Cost')) {
+      return 85;
+    } else {
+      return 75;
+    }
+  }
+
+  List<DataCell> _buildProductCells(ProductRowData row, int index, bool isSelected) {
+    List<DataCell> cells = [];
+
+    // Product Dropdown with icon
+    cells.add(DataCell(
+      GestureDetector(
+        onTap: () => selectedProductRow.value = index,
+        child: Container(
+          width: 150,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          decoration: BoxDecoration(
+            border: Border(
+              right: BorderSide(color: Colors.grey.shade300, width: 1),
+            ),
+          ),
+          child: Row(
+            children: [
+              if (isSelected)
+                Icon(
+                  Icons.arrow_drop_down,
+                  size: 16,
+                  color: AppTheme.primaryColor,
+                ),
+              if (isSelected)
+                const SizedBox(width: 4),
+              
+              Expanded(
+                child: Obx(() => DropdownButtonHideUnderline(
+                  child: DropdownButton<ProductModel>(
+                    value: row.selectedProduct.value != null &&
+                           productsController.products.any((p) => p.id == row.selectedProduct.value?.id)
+                        ? row.selectedProduct.value
+                        : null,
+                    hint: Text(
+                      "Select",
+                      style: AppTheme.bodySmall.copyWith(
+                        fontSize: 10,
+                        color: Colors.grey,
+                      ),
+                    ),
+                    isExpanded: true,
+                    isDense: true,
+                    icon: const SizedBox.shrink(),
+                    menuMaxHeight: 300,
+                    items: productsController.products.where((p) => p.id != null).map((product) {
+                      return DropdownMenuItem<ProductModel>(
+                        value: product,
+                        child: Text(
+                          product.product,
+                          style: AppTheme.bodySmall.copyWith(fontSize: 10),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: dashboardController.isLocked.value 
+                        ? null 
+                        : (ProductModel? value) {
+                            if (value != null) {
+                              selectedProductRow.value = index;
+                              row.selectedProduct.value = value;
+                              row.code = value.code;
+                              row.sg = value.sg;
+                              row.unit = value.unitClass;
+                              row.price = value.a.isNotEmpty 
+                                  ? double.tryParse(value.a) ?? 0.0 
+                                  : 0.0;
+                              row.initial = value.initial;
+                              productRows.refresh();
+                              _checkAndAddProductRow();
+                              // Auto-calculate on product selection
+                              row.recalculate();
+                            }
+                          },
+                  ),
+                )),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ));
+
+    // Code
+    cells.add(_buildTableCell(row.code, 80, isEditable: false));
+
+    // SG
+    cells.add(_buildTableCell(row.sg, 70, isEditable: false));
+
+    // Unit
+    cells.add(_buildTableCell(row.unit, 70, isEditable: false));
+
+    // Price
+    cells.add(_buildTableCell(
+      row.price > 0 ? row.price.toStringAsFixed(2) : '',
+      85,
+      isEditable: false,
+      isRightAligned: true,
+    ));
+
+    // Initial
+    cells.add(_buildEditableTableCell(row.initial, (val) {
+      row.initial = val;
+      row.recalculate();
+      _checkAndAddProductRow();
+    }, 75));
+
+    // Adjust
+    cells.add(_buildEditableTableCell(row.adjust, (val) {
+      row.adjust = val;
+      row.recalculate();
+      _checkAndAddProductRow();
+    }, 75));
+
+    // Used
+    cells.add(_buildEditableTableCell(row.used, (val) {
+      row.used = val;
+      row.recalculate();
+      _checkAndAddProductRow();
+    }, 75));
+
+    // Final
+    cells.add(_buildEditableTableCell(row.final_, (val) {
+      row.final_ = val;
+      row.recalculate();
+      _checkAndAddProductRow();
+    }, 75));
+
+    // Cost (calculated, highlighted)
+    cells.add(_buildTableCell(
+      row.calculatedCost.value > 0 ? row.calculatedCost.value.toStringAsFixed(2) : '',
+      85,
+      isEditable: false,
+      isRightAligned: true,
+      isBold: true,
+      isHighlighted: true,
+    ));
+
+    // Vol (calculated, highlighted)
+    cells.add(_buildTableCell(
+      row.calculatedVolume.value > 0 ? row.calculatedVolume.value.toStringAsFixed(3) : '',
+      80,
+      isEditable: false,
+      isRightAligned: true,
+      isHighlighted: true,
+    ));
+
+    return cells;
+  }
+
+  DataCell _buildTableCell(
+    String text,
+    double width, {
+    bool isEditable = false,
+    bool isRightAligned = false,
+    bool isBold = false,
+    bool isHighlighted = false,
+  }) {
+    return DataCell(
+      Container(
+        width: width,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: isHighlighted
+            ? BoxDecoration(
+                color: AppTheme.primaryColor.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(2),
+              )
+            : null,
+        child: Text(
+          text,
+          style: AppTheme.bodySmall.copyWith(
+            fontSize: 10,
+            fontWeight: isBold ? FontWeight.w600 : FontWeight.w400,
+            color: isHighlighted ? AppTheme.primaryColor : null,
+          ),
+          textAlign: isRightAligned ? TextAlign.right : TextAlign.left,
+        ),
+      ),
+    );
+  }
+
+  DataCell _buildEditableTableCell(
+    String value,
+    Function(String) onChanged,
+    double width, {
+    bool isRightAligned = false,
+  }) {
+    return DataCell(
+      Container(
+        width: width,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        child: TextField(
+          controller: TextEditingController(text: value),
+          enabled: !dashboardController.isLocked.value,
+          style: AppTheme.bodySmall.copyWith(fontSize: 10),
+          decoration: const InputDecoration(
+            isDense: true,
+            contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+            border: InputBorder.none,
+          ),
+          keyboardType: TextInputType.number,
+          textAlign: isRightAligned ? TextAlign.right : TextAlign.left,
+          onChanged: onChanged,
+        ),
+      ),
+    );
+  }
+
+  void _checkAndAddProductRow() {
+    if (productRows.length >= 5) {
+      final lastRow = productRows.last;
+      if (lastRow.selectedProduct.value != null) {
+        productRows.add(ProductRowData());
+      }
+    }
+  }
+
+  Widget _buildBottomSection() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Distribute Table
+        SizedBox(
+          width: 280,
+          child: _buildDistributeTable(),
+        ),
+        const SizedBox(width: 12),
+
+        // Right Controls
+        Expanded(
+          child: _buildRightControls(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDistributeTable() {
+    return Container(
+      height: 240,
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Column(
+        children: [
+          // Header
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppTheme.successColor,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(4),
+                topRight: Radius.circular(4),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.share, color: Colors.white, size: 16),
+                const SizedBox(width: 8),
+                Text(
+                  "Distribute to",
+                  style: AppTheme.bodySmall.copyWith(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 11,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
           Expanded(
             child: SingleChildScrollView(
               child: Obx(() => DataTable(
+                headingRowHeight: 32,
+                dataRowHeight: 32,
+                columnSpacing: 0,
+                horizontalMargin: 0,
+                dividerThickness: 0,
+                headingRowColor: MaterialStateProperty.all(Colors.grey.shade50),
                 border: TableBorder(
-                  horizontalInside: BorderSide(
-                    color: Colors.grey.shade200,
-                    width: 1,
-                  ),
-                  verticalInside: BorderSide(
-                    color: Colors.grey.shade200,
-                    width: 1,
-                  ),
-                  left: BorderSide(
-                    color: Colors.grey.shade300,
-                    width: 1,
-                  ),
-                  right: BorderSide(
-                    color: Colors.grey.shade300,
-                    width: 1,
-                  ),
-                  top: BorderSide.none,
-                  bottom: BorderSide(
-                    color: Colors.grey.shade300,
-                    width: 1,
-                  ),
+                  verticalInside: BorderSide(color: Colors.grey.shade300, width: 1),
+                  horizontalInside: BorderSide(color: Colors.grey.shade200, width: 1),
                 ),
-                headingRowHeight: 40,
-                dataRowHeight: 52, // Increased height for dropdown
                 headingTextStyle: AppTheme.bodySmall.copyWith(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: AppTheme.textPrimary,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.successColor,
                 ),
-                dataTextStyle: AppTheme.bodySmall.copyWith(
-                  fontSize: 11,
-                  color: AppTheme.textPrimary,
-                ),
-                columns: const [
-                  DataColumn(label: Text("Pit")),
-                  DataColumn(label: Text("Vol (bbl)")),
+                dataTextStyle: AppTheme.bodySmall.copyWith(fontSize: 10),
+                columns: [
+                  DataColumn(
+                    label: Container(
+                      width: 150,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Text("Pit"),
+                    ),
+                  ),
+                  DataColumn(
+                    label: Container(
+                      width: 100,
+                      alignment: Alignment.centerRight,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Text("Vol (bbl)"),
+                    ),
+                  ),
                 ],
-                rows: List.generate(
-                  8,
-                  (rowIndex) => DataRow(
-                    color: MaterialStateProperty.resolveWith<Color?>(
-                      (Set<MaterialState> states) {
-                        return rowIndex % 2 == 0
-                            ? Colors.white
-                            : Colors.grey.shade50;
-                      },
+                rows: List.generate(distributeRows.length, (index) {
+                  final row = distributeRows[index];
+                  final isSelected = selectedDistributeRow.value == index;
+                  
+                  return DataRow(
+                    color: MaterialStateProperty.all(
+                      index % 2 == 0 ? Colors.white : Colors.grey.shade50,
                     ),
                     cells: [
-                      // Pit Column with Dropdown
                       DataCell(
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                          child: dashboardController.isLocked.value
-                              ? Text(
-                                  rowIndex == 0 
-                                    ? "Active System" 
-                                    : "Reserve ${rowIndex}",
-                                  style: AppTheme.bodySmall.copyWith(
-                                    fontSize: 11,
-                                    color: AppTheme.textPrimary,
-                                    fontWeight: FontWeight.w500,
+                        GestureDetector(
+                          onTap: () => selectedDistributeRow.value = index,
+                          child: Container(
+                            width: 150,
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            child: Row(
+                              children: [
+                                if (isSelected)
+                                  Icon(
+                                    Icons.arrow_drop_down,
+                                    size: 16,
+                                    color: AppTheme.successColor,
                                   ),
-                                )
-                              : DropdownButton<String>(
-                                  value: rowIndex == 0 ? "Active System" : "Reserve $rowIndex",
-                                  isExpanded: true,
-                                  underline: const SizedBox(),
-                                  icon: Icon(
-                                    Icons.arrow_drop_down_rounded,
-                                    size: 20,
-                                    color: AppTheme.textSecondary,
-                                  ),
-                                  items: [
-                                    "Active System",
-                                    "Reserve 1",
-                                    "Reserve 2",
-                                    "Reserve 3",
-                                    "Reserve 4",
-                                    "Reserve 5",
-                                    "Reserve 6",
-                                    "Reserve 7",
-                                    "Reserve 8",
-                                  ].map((String value) {
-                                    return DropdownMenuItem<String>(
-                                      value: value,
-                                      child: Text(
-                                        value,
+                                if (isSelected)
+                                  const SizedBox(width: 4),
+                                
+                                Expanded(
+                                  child: Obx(() => DropdownButtonHideUnderline(
+                                    child: DropdownButton<String>(
+                                      value: row.pit.isNotEmpty ? row.pit : null,
+                                      hint: Text(
+                                        "Select Pit",
                                         style: AppTheme.bodySmall.copyWith(
-                                          fontSize: 11,
-                                          color: AppTheme.textPrimary,
-                                          fontWeight: FontWeight.w500,
+                                          fontSize: 10,
+                                          color: Colors.grey,
                                         ),
                                       ),
-                                    );
-                                  }).toList(),
-                                  onChanged: (String? newValue) {
-                                    // Handle dropdown change
-                                  },
+                                      isExpanded: true,
+                                      isDense: true,
+                                      icon: const SizedBox.shrink(),
+                                      menuMaxHeight: 250,
+                                      items: pitController.pits
+                                          .where((pit) => pit.id != null && pit.pitName.isNotEmpty)
+                                          .map((pit) {
+                                        return DropdownMenuItem<String>(
+                                          value: pit.pitName,
+                                          child: Text(
+                                            pit.pitName,
+                                            style: AppTheme.bodySmall.copyWith(fontSize: 10),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        );
+                                      }).toList(),
+                                      onChanged: dashboardController.isLocked.value
+                                          ? null
+                                          : (String? newValue) {
+                                              if (newValue != null) {
+                                                selectedDistributeRow.value = index;
+                                                row.pit = newValue;
+                                                distributeRows.refresh();
+                                                _checkAndAddDistributeRow();
+                                              }
+                                            },
+                                    ),
+                                  )),
                                 ),
+                              ],
+                            ),
+                          ),
                         ),
                       ),
-                      
-                      // Volume Column
+
                       DataCell(
                         Container(
+                          width: 100,
                           padding: const EdgeInsets.symmetric(horizontal: 8),
-                          alignment: Alignment.centerRight,
-                          child: dashboardController.isLocked.value
-                              ? Text(
-                                  "${2.62 + (rowIndex * 0.5)}",
-                                  style: AppTheme.bodySmall.copyWith(
-                                    fontSize: 11,
-                                    color: AppTheme.textPrimary,
-                                  ),
-                                )
-                              : TextField(
-                                  controller: TextEditingController(
-                                    text: "${2.62 + (rowIndex * 0.5)}",
-                                  ),
-                                  decoration: InputDecoration(
-                                    border: InputBorder.none,
-                                    isDense: true,
-                                    hintText: "0.00",
-                                    hintStyle: AppTheme.caption.copyWith(
-                                      color: Colors.grey.shade400,
-                                    ),
-                                    contentPadding: const EdgeInsets.symmetric(vertical: 10),
-                                  ),
-                                  style: AppTheme.bodySmall.copyWith(
-                                    fontSize: 11,
-                                    color: AppTheme.textPrimary,
-                                  ),
-                                  textAlign: TextAlign.right,
-                                ),
+                          child: TextField(
+                            controller: TextEditingController(text: row.volume),
+                            enabled: !dashboardController.isLocked.value,
+                            style: AppTheme.bodySmall.copyWith(fontSize: 10),
+                            decoration: const InputDecoration(
+                              isDense: true,
+                              contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                              border: InputBorder.none,
+                            ),
+                            keyboardType: TextInputType.number,
+                            textAlign: TextAlign.right,
+                            onChanged: (val) {
+                              row.volume = val;
+                              _checkAndAddDistributeRow();
+                            },
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                }),
+              )),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _checkAndAddDistributeRow() {
+    if (distributeRows.length >= 5) {
+      final lastRow = distributeRows.last;
+      if (lastRow.volume.isNotEmpty) {
+        distributeRows.add(DistributeRowData());
+      }
+    }
+  }
+
+  Widget _buildRightControls() {
+    return Container(
+      height: 240,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Obx(() => Row(
+            children: [
+              InkWell(
+                onTap: dashboardController.isLocked.value 
+                    ? null 
+                    : () => addWater.value = !addWater.value,
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: addWater.value 
+                        ? AppTheme.primaryColor.withOpacity(0.1) 
+                        : Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(3),
+                    border: Border.all(
+                      color: addWater.value 
+                          ? AppTheme.primaryColor 
+                          : Colors.grey.shade300,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 16,
+                        height: 16,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(2),
+                          border: Border.all(
+                            color: addWater.value 
+                                ? AppTheme.primaryColor 
+                                : Colors.grey.shade400,
+                          ),
+                          color: addWater.value 
+                              ? AppTheme.primaryColor 
+                              : Colors.transparent,
+                        ),
+                        child: addWater.value
+                            ? Icon(Icons.check, size: 11, color: Colors.white)
+                            : null,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        "Add Water",
+                        style: AppTheme.bodySmall.copyWith(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ],
                   ),
                 ),
-              )),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEnhancedRightControls() {
-    return Container(
-      height: 320,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            "Configuration",
-            style: AppTheme.bodyLarge.copyWith(
-              fontWeight: FontWeight.w600,
-              color: AppTheme.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Add Water Checkbox
-          Obx(() => Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: dashboardController.isLocked.value 
-                ? Colors.grey.shade50 
-                : AppTheme.cardColor,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey.shade300),
-            ),
-            child: Row(
-              children: [
-                // Checkbox
-                InkWell(
-                  onTap: dashboardController.isLocked.value 
-                      ? null 
-                      : () {
-                          addWater.value = !addWater.value;
-                        },
-                  borderRadius: BorderRadius.circular(4),
-                  child: Container(
-                    width: 24,
-                    height: 24,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(
-                        color: addWater.value ? AppTheme.primaryColor : Colors.grey.shade400,
-                        width: addWater.value ? 1.5 : 1,
-                      ),
-                      color: addWater.value ? AppTheme.primaryColor.withOpacity(0.1) : Colors.transparent,
-                    ),
-                    child: addWater.value
-                        ? Icon(Icons.check, size: 16, color: AppTheme.primaryColor)
-                        : null,
+              ),
+              
+              const SizedBox(width: 10),
+              
+              if (addWater.value)
+                Expanded(
+                  child: _buildCompactInputField(
+                    controller: waterVolumeController,
+                    suffix: "bbl",
                   ),
                 ),
-                const SizedBox(width: 12),
-                Icon(
-                  Icons.water_drop_rounded,
-                  size: 18,
-                  color: AppTheme.infoColor,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  "Add Water",
-                  style: AppTheme.bodySmall.copyWith(
-                    fontWeight: FontWeight.w500,
-                    color: AppTheme.textPrimary,
-                  ),
-                ),
-              ],
-            ),
+            ],
           )),
 
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
 
-          // Add Water Input Field (shown when Add Water is checked)
-          Obx(() => addWater.value
-              ? Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "Water Volume",
-                      style: AppTheme.bodySmall.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      height: 45,
-                      decoration: BoxDecoration(
-                        color: dashboardController.isLocked.value 
-                          ? Colors.grey.shade50 
-                          : Colors.white,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.grey.shade300),
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              enabled: !dashboardController.isLocked.value,
-                              controller: waterVolumeController,
-                              decoration: const InputDecoration(
-                                border: InputBorder.none,
-                                contentPadding: EdgeInsets.symmetric(horizontal: 12),
-                                hintText: "Enter water volume...",
-                              ),
-                              style: AppTheme.bodySmall.copyWith(
-                                color: AppTheme.textPrimary,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                          Container(
-                            width: 60,
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            decoration: BoxDecoration(
-                              color: AppTheme.infoColor.withOpacity(0.1),
-                              borderRadius: const BorderRadius.only(
-                                topRight: Radius.circular(8),
-                                bottomRight: Radius.circular(8),
-                              ),
-                            ),
-                            child: Center(
-                              child: Text(
-                                "bbl",
-                                style: AppTheme.bodySmall.copyWith(
-                                  color: AppTheme.infoColor,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-                )
-              : const SizedBox.shrink()),
-
-          // Total Volume Input
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          Row(
             children: [
               Text(
-                "Total Volume",
+                "Total Vol.",
                 style: AppTheme.bodySmall.copyWith(
+                  fontSize: 10,
                   fontWeight: FontWeight.w600,
-                  color: AppTheme.textPrimary,
                 ),
               ),
-              const SizedBox(height: 8),
-              Obx(() => Container(
-                height: 45,
-                decoration: BoxDecoration(
-                  color: dashboardController.isLocked.value 
-                    ? Colors.grey.shade50 
-                    : Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.grey.shade300),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _buildCompactInputField(
+                  controller: totalVolumeController,
+                  suffix: "bbl",
                 ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        enabled: !dashboardController.isLocked.value,
-                        controller: totalVolumeController,
-                        decoration: const InputDecoration(
-                          border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(horizontal: 12),
-                          hintText: "Enter volume...",
-                        ),
-                        style: AppTheme.bodySmall.copyWith(
-                          color: AppTheme.textPrimary,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                    Container(
-                      width: 60,
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      decoration: BoxDecoration(
-                        color: AppTheme.primaryColor.withOpacity(0.1),
-                        borderRadius: const BorderRadius.only(
-                          topRight: Radius.circular(8),
-                          bottomRight: Radius.circular(8),
-                        ),
-                      ),
-                      child: Center(
-                        child: Text(
-                          "bbl",
-                          style: AppTheme.bodySmall.copyWith(
-                            color: AppTheme.primaryColor,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              )),
+              ),
             ],
           ),
 
           const Spacer(),
 
-          // Action Buttons
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: dashboardController.isLocked.value ? null : () {},
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryColor,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.amber.shade50,
+              borderRadius: BorderRadius.circular(3),
+              border: Border.all(color: Colors.amber.shade200),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline, size: 13, color: Colors.amber.shade700),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    "Products distributed evenly if multiple pits selected",
+                    style: AppTheme.bodySmall.copyWith(
+                      fontSize: 9,
+                      color: Colors.amber.shade900,
                     ),
-                    elevation: 0,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.save_alt_rounded, size: 16),
-                      const SizedBox(width: 8),
-                      Text(
-                        "Save Changes",
-                        style: AppTheme.bodySmall.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              ElevatedButton(
-                onPressed: dashboardController.isLocked.value ? null : () {},
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.cardColor,
-                  foregroundColor: AppTheme.textPrimary,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    side: BorderSide(color: Colors.grey.shade300),
-                  ),
-                  elevation: 0,
-                ),
-                child: Icon(Icons.refresh_rounded, size: 18),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
     );
   }
+
+  Widget _buildCompactInputField({
+    required TextEditingController controller,
+    required String suffix,
+  }) {
+    return Obx(() => Container(
+      height: 32,
+      decoration: BoxDecoration(
+        color: dashboardController.isLocked.value 
+            ? Colors.grey.shade50 
+            : Colors.white,
+        borderRadius: BorderRadius.circular(3),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: controller,
+              enabled: !dashboardController.isLocked.value,
+              style: AppTheme.bodySmall.copyWith(fontSize: 10),
+              decoration: const InputDecoration(
+                isDense: true,
+                contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                border: InputBorder.none,
+              ),
+              keyboardType: TextInputType.number,
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryColor.withOpacity(0.1),
+              borderRadius: const BorderRadius.only(
+                topRight: Radius.circular(3),
+                bottomRight: Radius.circular(3),
+              ),
+            ),
+            child: Center(
+              child: Text(
+                suffix,
+                style: AppTheme.bodySmall.copyWith(
+                  fontSize: 10,
+                  color: AppTheme.primaryColor,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    ));
+  }
+}
+
+// Product Row Data Model with Calculation Logic
+class ProductRowData {
+  final Rx<ProductModel?> selectedProduct = Rx<ProductModel?>(null);
+  String code = '';
+  String sg = '';
+  String unit = '';
+  double price = 0.0;
+  String initial = '';
+  String adjust = '';
+  String used = '';
+  String final_ = '';
+  
+  // Reactive calculated values
+  final RxDouble calculatedCost = 0.0.obs;
+  final RxDouble calculatedVolume = 0.0.obs;
+
+  // Recalculate cost and volume whenever inputs change
+  void recalculate() {
+    final initialVal = double.tryParse(initial) ?? 0.0;
+    final adjustVal = double.tryParse(adjust) ?? 0.0;
+    final usedVal = double.tryParse(used) ?? 0.0;
+    final finalVal = double.tryParse(final_) ?? 0.0;
+    final sgVal = double.tryParse(sg) ?? 0.0;
+
+    // Calculate cost: used * price
+    calculatedCost.value = usedVal * price;
+
+    // Calculate final if not manually entered
+    if (final_.isEmpty) {
+      final calculatedFinal = initialVal + adjustVal - usedVal;
+      final_ = calculatedFinal.toString();
+    }
+
+    // Calculate volume in BBL
+    // Using numberOfBags and weightPerBag from product selection
+    // For simplicity, assuming 1 bag per unit used if not specified
+    if (sgVal > 0 && usedVal > 0) {
+      final totalWeight = usedVal; // Assuming used is in kg or similar
+      calculatedVolume.value = double.parse(
+        (totalWeight / (sgVal * 158.987)).toStringAsFixed(3)
+      );
+    } else {
+      calculatedVolume.value = 0.0;
+    }
+  }
+
+  double calculateCost() {
+    return calculatedCost.value;
+  }
+}
+
+// Distribute Row Data Model
+class DistributeRowData {
+  String pit = '';
+  String volume = '';
 }

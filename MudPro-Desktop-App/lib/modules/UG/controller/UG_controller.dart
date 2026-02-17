@@ -1,12 +1,19 @@
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get/get_state_manager/src/simple/get_controllers.dart';
+import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/formation_row_model.dart';
+import 'package:mudpro_desktop_app/modules/UG/model/inventory_model.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/pit_model.dart';
-import 'package:mudpro_desktop_app/modules/UG/model/producst_model.dart';
+import 'package:mudpro_desktop_app/modules/UG/model/producst_model.dart' hide ProductModel;
 import 'package:mudpro_desktop_app/modules/UG/model/pump_model.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/sce_model.dart';
+import 'package:mudpro_desktop_app/modules/company_setup/controller/service_controller.dart';
+import 'package:mudpro_desktop_app/modules/company_setup/model/products_model.dart';
 
 class UgController extends GetxController {
+  final AuthRepository repository = AuthRepository();
+
   // Right panel main tab
   final activeRightTab = 'pad'.obs;
    final location = 'Land'.obs;
@@ -15,6 +22,9 @@ class UgController extends GetxController {
   final isLocked = true.obs;
 
    final inventoryTab = 'Products'.obs;
+
+  // Products
+  RxList<ProductModel> products = <ProductModel>[].obs;
 
   // Apply Changed Prices option
   final applyChangedPricesOption = 'To All'.obs;
@@ -55,179 +65,39 @@ final safetyMargin = '80.0'.obs;
     FormationRow(),
   ].obs;
 
+  /// Load premixed and OBM data from API
+  Future<void> loadInventoryData(String wellId) async {
+    try {
+      // Load Premixed
+      final premixedList = await repository.getPremixed(wellId);
+      premixed.value = premixedList;
 
-  // SAMPLE DATA (static for now)
- var products = <ProductModel>[
-  ProductModel(
-    id: 1,
-    product: 'BARITE 4.1 - BIG BAG',
-    code: '',
-    sg: '4.10',
-    unit: '1.50 Ton',
-    price: '90.00',
-    initial: '',
-    group: 'Weight Material',
-    volAdd: true,
-    calculate: true,
-    tax: false,
-  ),
-  ProductModel(
-    id: 2,
-    product: 'BENTONITE - TON',
-    code: '',
-    sg: '2.60',
-    unit: '1.00 Ton',
-    price: '42.00',
-    initial: '',
-    group: 'Viscosifier',
-    volAdd: true,
-    calculate: true,
-  ),
-  ProductModel(
-    id: 3,
-    product: 'CALCIUM CHLORIDE',
-    code: '',
-    sg: '2.16',
-    unit: '1.00 Ton',
-    price: '124.00',
-    initial: '',
-    group: 'Common Chemical',
-    volAdd: true,
-    calculate: true,
-  ),
-  ProductModel(
-    id: 4,
-    product: 'CAUSTIC SODA',
-    code: '',
-    sg: '2.16',
-    unit: '25.00 kg',
-    price: '5.92',
-    initial: '',
-    group: 'Common Chemical',
-    volAdd: true,
-    calculate: true,
-  ),
-  ProductModel(
-    id: 5,
-    product: 'CHROME FREE LIGNO SULPH.',
-    code: '',
-    sg: '1.40',
-    unit: '50.00 lb',
-    price: '10.00',
-    initial: '',
-    group: 'WBM Thinner',
-    volAdd: true,
-    calculate: true,
-  ),
-  ProductModel(
-    id: 6,
-    product: 'CITRIC ACID',
-    code: '',
-    sg: '1.54',
-    unit: '25.00 kg',
-    price: '12.54',
-    initial: '',
-    group: 'Common Chemical',
-    volAdd: true,
-    calculate: true,
-  ),
-  ProductModel(
-    id: 7,
-    product: 'DRILLING DETERGENT',
-    code: '',
-    sg: '1.04',
-    unit: '55.00 gal',
-    price: '75.00',
-    initial: '',
-    group: 'Lubricant / Surfactant',
-    volAdd: true,
-    calculate: true,
-  ),
-  ProductModel(
-    id: 8,
-    product: 'GILSONITE AQUASOL 300',
-    code: '',
-    sg: '1.06',
-    unit: '50.00 lb',
-    price: '20.00',
-    initial: '',
-    group: 'Others',
-    volAdd: true,
-    calculate: true,
-  ),
-  ProductModel(
-    id: 9,
-    product: 'GS SEAL',
-    code: '',
-    sg: '2.25',
-    unit: '25.00 kg',
-    price: '15.00',
-    initial: '',
-    group: 'Wellbore Strength',
-    volAdd: true,
-    calculate: true,
-  ),
-  ProductModel(
-    id: 10,
-    product: 'HEC',
-    code: '',
-    sg: '1.60',
-    unit: '25.00 kg',
-    price: '88.00',
-    initial: '',
-    group: 'Viscosifier',
-    volAdd: true,
-    calculate: true,
-  ),
-].obs;
+      // Load OBM
+      final obmList = await repository.getObm(wellId);
+      obm.value = obmList;
+
+      print('✅ Inventory data loaded successfully');
+      print('Premixed count: ${premixedList.length}');
+      print('OBM count: ${obmList.length}');
+    } catch (e) {
+      print('❌ Error loading inventory data: $e');
+
+      // Initialize with empty lists if loading fails
+      if (premixed.isEmpty) {
+        premixed.value = [];
+      }
+      if (obm.isEmpty) {
+        obm.value = [];
+      }
+    }
+  }
 
 
- var premixed = <PremixModel>[
-  PremixModel(
-    id: '1',
-    description: '8.0 ppg OBM (70/30) with Bar',
-    mw: '8.00',
-    leasingFee: '8.64',
-    mudType: 'Oil-based',
-  ),
-  PremixModel(
-    id: '2',
-    description: '10.6 ppg OBM (70/30) with Bar',
-    mw: '10.60',
-    leasingFee: '11.59',
-    mudType: 'Oil-based',
-  ),
-  PremixModel(
-    id: '3',
-    description: '11.0 ppg OBM (70/30) with Bar',
-    mw: '11.00',
-    leasingFee: '12.17',
-    mudType: 'Oil-based',
-  ),
-  PremixModel(
-    id: '4',
-    description: '11.5 ppg OBM (80/20) with Bar',
-    mw: '11.50',
-    leasingFee: '13.58',
-    mudType: 'Oil-based',
-  ),
-  PremixModel(
-    id: '5',
-    description: '12.8 ppg OBM (80/20) with Bar',
-    mw: '12.80',
-    leasingFee: '15.27',
-    mudType: 'Oil-based',
-  ),
-].obs;
 
 
-var obm = <ObmModel>[
-  ObmModel(id: '1', product: '', code: '', sg: '', conc: ''),
-  ObmModel(id: '2', product: '', code: '', sg: '', conc: ''),
-  ObmModel(id: '3', product: '', code: '', sg: '', conc: ''),
-  ObmModel(id: '4', product: '', code: '', sg: '', conc: ''),
-  ObmModel(id: '5', product: '', code: '', sg: '', conc: ''),
-].obs;
+
+var premixed = <PremixModel>[].obs;
+var obm = <ObmModel>[].obs;
 
 final packages = <PackageModel>[
   PackageModel('1', '', '', '', '', '', false),
@@ -245,73 +115,73 @@ final services = <ServiceModel>[
 ].obs;
 
 
-final pumps = <PumpModel>[
-  PumpModel(
-    type: 'Triplex'.obs,
-    model: 'BOMCO-F16'.obs,
-    linerId: '6.500'.obs,
-    rodOd: ''.obs,
-    strokeLength: '12.000'.obs,
-    efficiency: '95.0'.obs,
-    displacement: '0.1170'.obs,
-    maxPumpP: ''.obs,
-    maxHp: ''.obs,
-    surfaceLen: ''.obs,
-    surfaceId: ''.obs,
-  ),
-  PumpModel(
-    type: 'Triplex'.obs,
-    model: 'BOMCO-F16'.obs,
-    linerId: '6.000'.obs,
-    rodOd: ''.obs,
-    strokeLength: '12.000'.obs,
-    efficiency: '97.0'.obs,
-    displacement: '0.1018'.obs,
-    maxPumpP: ''.obs,
-    maxHp: ''.obs,
-    surfaceLen: ''.obs,
-    surfaceId: ''.obs,
-  ),
-];
+// final pumps = <PumpModel>[
+//   PumpModel(
+//     type: 'Triplex'.obs,
+//     model: 'BOMCO-F16'.obs,
+//     linerId: '6.500'.obs,
+//     rodOd: ''.obs,
+//     strokeLength: '12.000'.obs,
+//     efficiency: '95.0'.obs,
+//     displacement: '0.1170'.obs,
+//     maxPumpP: ''.obs,
+//     maxHp: ''.obs,
+//     surfaceLen: ''.obs,
+//     surfaceId: ''.obs,
+//   ),
+//   PumpModel(
+//     type: 'Triplex'.obs,
+//     model: 'BOMCO-F16'.obs,
+//     linerId: '6.000'.obs,
+//     rodOd: ''.obs,
+//     strokeLength: '12.000'.obs,
+//     efficiency: '97.0'.obs,
+//     displacement: '0.1018'.obs,
+//     maxPumpP: ''.obs,
+//     maxHp: ''.obs,
+//     surfaceLen: ''.obs,
+//     surfaceId: ''.obs,
+//   ),
+// ];
 
 
 // ================= SCE =================
-final shakers = <ShakerModel>[
-  ShakerModel(id: 1, shaker: '1', model: 'DERRICK # 1', screens: '4', plot: true),
-  ShakerModel(id: 2, shaker: '2', model: 'DERRICK # 2', screens: '4', plot: true),
-  ShakerModel(id: 10, shaker: 'Mud Cleaner', model: 'DERRICK # 3', screens: '4', plot: true),
-].obs;
+// final shakers = <ShakerModel>[
+//   ShakerModel(id: 1, shaker: '1', model: 'DERRICK # 1', screens: '4', plot: true),
+//   ShakerModel(id: 2, shaker: '2', model: 'DERRICK # 2', screens: '4', plot: true),
+//   ShakerModel(id: 10, shaker: 'Mud Cleaner', model: 'DERRICK # 3', screens: '4', plot: true),
+// ].obs;
 
-final otherSce = <OtherSceModel>[
-  OtherSceModel(type: 'Degasser', model1: 'CHENGDU', plot: true),
-  OtherSceModel(type: 'Desander', model1: 'DERRICK', plot: true),
-  OtherSceModel(type: 'Desilter', model1: 'DERRICK', plot: true),
-  OtherSceModel(type: 'Centrifuge', model1: 'KEMTRON', plot: true),
-  OtherSceModel(type: 'Barite Rec.', plot: false),
-];
+// final otherSce = <OtherSceModel>[
+//   OtherSceModel(type: 'Degasser', model1: 'CHENGDU', plot: true),
+//   OtherSceModel(type: 'Desander', model1: 'DERRICK', plot: true),
+//   OtherSceModel(type: 'Desilter', model1: 'DERRICK', plot: true),
+//   OtherSceModel(type: 'Centrifuge', model1: 'KEMTRON', plot: true),
+//   OtherSceModel(type: 'Barite Rec.', plot: false),
+// ];
 
 
 
   // ---------------- PIT DATA ----------------
   
-  final pits = <PitModel>[
-    PitModel(id: 1, pit: 'TRIP TANK', capacity: '120.00', active: true),
-    PitModel(id: 2, pit: 'SANDTRAP # 1A', capacity: '150.00', active: true),
-    PitModel(id: 3, pit: 'SETTLING # 1B', capacity: '150.00', active: true),
-    PitModel(id: 4, pit: 'DEGASSER # 1C', capacity: '150.00', active: true),
-    PitModel(id: 5, pit: 'DESANDER # 2A', capacity: '170.00', active: true),
-    PitModel(id: 6, pit: 'DESILTER # 2B', capacity: '170.00', active: true),
-    PitModel(id: 7, pit: 'INT # 2C', capacity: '190.00', active: false),
-    PitModel(id: 8, pit: 'INT # 3A', capacity: '190.00', active: false),
-    PitModel(id: 9, pit: 'INT # 3B', capacity: '190.00', active: false),
-    PitModel(id: 10, pit: 'INT # 3C', capacity: '100.00', active: false),
-    PitModel(id: 11, pit: 'SUCTION # 4A', capacity: '315.00', active: true),
-    PitModel(id: 12, pit: 'SUCTION # 4B', capacity: '315.00', active: true),
-    PitModel(id: 13, pit: 'RES # 5A', capacity: '315.00', active: false),
-    PitModel(id: 14, pit: 'RES # 5B', capacity: '315.00', active: false),
-    PitModel(id: 15, pit: 'RES # 6A', capacity: '315.00', active: false),
-    PitModel(id: 16, pit: 'RES # 6B', capacity: '315.00', active: false),
-  ].obs;
+  // final pits = <PitModel>[
+  //   PitModel(id: 1, pit: 'TRIP TANK', capacity: '120.00', active: true),
+  //   PitModel(id: 2, pit: 'SANDTRAP # 1A', capacity: '150.00', active: true),
+  //   PitModel(id: 3, pit: 'SETTLING # 1B', capacity: '150.00', active: true),
+  //   PitModel(id: 4, pit: 'DEGASSER # 1C', capacity: '150.00', active: true),
+  //   PitModel(id: 5, pit: 'DESANDER # 2A', capacity: '170.00', active: true),
+  //   PitModel(id: 6, pit: 'DESILTER # 2B', capacity: '170.00', active: true),
+  //   PitModel(id: 7, pit: 'INT # 2C', capacity: '190.00', active: false),
+  //   PitModel(id: 8, pit: 'INT # 3A', capacity: '190.00', active: false),
+  //   PitModel(id: 9, pit: 'INT # 3B', capacity: '190.00', active: false),
+  //   PitModel(id: 10, pit: 'INT # 3C', capacity: '100.00', active: false),
+  //   PitModel(id: 11, pit: 'SUCTION # 4A', capacity: '315.00', active: true),
+  //   PitModel(id: 12, pit: 'SUCTION # 4B', capacity: '315.00', active: true),
+  //   PitModel(id: 13, pit: 'RES # 5A', capacity: '315.00', active: false),
+  //   PitModel(id: 14, pit: 'RES # 5B', capacity: '315.00', active: false),
+  //   PitModel(id: 15, pit: 'RES # 6A', capacity: '315.00', active: false),
+  //   PitModel(id: 16, pit: 'RES # 6B', capacity: '315.00', active: false),
+  // ].obs;
 
   // 添加总容量响应式变量
   final totalCapacity = 0.0.obs;
@@ -319,96 +189,215 @@ final otherSce = <OtherSceModel>[
   @override
   void onInit() {
     super.onInit();
-    // 初始化时计算总容量
-    updateTotalCapacity();
+    
+    // Initialize with empty lists
+    premixed.value = [];
+    obm.value = [];
+    
+    fetchProducts();
+  }
+
+  // Fetch products from API
+  Future<void> fetchProducts({int page = 1, String? search, String? group}) async {
+    try {
+      final result = await repository.getProducts(
+        page: page,
+        limit: 100, // Get more products for inventory
+        search: search,
+        group: group,
+      );
+
+      if (result['success']) {
+        final fetchedProducts = result['products'] as List<dynamic>;
+        products.value = fetchedProducts.map((p) => p as ProductModel).toList();
+      } else {
+        Get.snackbar(
+          'Error',
+          result['message'],
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+        );
+      }
+    } catch (e) {
+      Get.snackbar(
+        'Error',
+        'Failed to fetch products: $e',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+    }
+  }
+
+  // Fetch packages from API
+  Future<void> fetchPackages() async {
+    try {
+      final serviceController = ServiceController();
+      final fetchedPackages = await serviceController.getPackages();
+      packages.value = fetchedPackages.map((item) => PackageModel(
+        item.id ?? '',
+        item.name,
+        item.code,
+        item.unit,
+        item.price.toString(),
+        '', // initial
+        false, // tax
+      )).toList();
+    } catch (e) {
+      Get.snackbar(
+        'Error',
+        'Failed to fetch packages: $e',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+    }
+  }
+
+  // Fetch engineering from API
+  Future<void> fetchEngineering() async {
+    try {
+      final serviceController = ServiceController();
+      final fetchedEngineering = await serviceController.getEngineering();
+      engineering.value = fetchedEngineering.map((item) => EngineeringModel(
+        item.id ?? '',
+        item.name,
+        item.code,
+        item.unit,
+        item.price.toString(),
+        false, // tax
+      )).toList();
+    } catch (e) {
+      Get.snackbar(
+        'Error',
+        'Failed to fetch engineering: $e',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+    }
+  }
+
+  // Fetch services from API
+  Future<void> fetchServices() async {
+    try {
+      final serviceController = ServiceController();
+      final fetchedServices = await serviceController.getServices();
+      services.value = fetchedServices.map((item) => ServiceModel(
+        item.id ?? '',
+        item.name,
+        item.code,
+        item.unit,
+        item.price.toString(),
+        false, // tax
+      )).toList();
+    } catch (e) {
+      Get.snackbar(
+        'Error',
+        'Failed to fetch services: $e',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+    }
+  }
+
+  // Fetch all services data
+  Future<void> fetchServicesData() async {
+    await Future.wait([
+      fetchPackages(),
+      fetchEngineering(),
+      fetchServices(),
+    ]);
   }
 
   // ================= 计算总容量方法 =================
-  void updateTotalCapacity() {
-    double sum = 0.0;
+  // void updateTotalCapacity() {
+  //   double sum = 0.0;
     
-    for (var pit in pits) {
-      // 解析容量字符串为数字
-      final capacityStr = pit.capacity;
-      if (capacityStr != null && capacityStr.isNotEmpty) {
-        try {
-          final capacityValue = double.tryParse(capacityStr);
-          if (capacityValue != null) {
-            sum += capacityValue;
-          }
-        } catch (e) {
-          print('解析容量时出错: ${pit.pit} - $capacityStr');
-        }
-      }
-    }
+  //   for (var pit in pits) {
+  //     // 解析容量字符串为数字
+  //     final capacityStr = pit.capacity;
+  //     if (capacityStr != null && capacityStr.isNotEmpty) {
+  //       try {
+  //         final capacityValue = double.tryParse(capacityStr);
+  //         if (capacityValue != null) {
+  //           sum += capacityValue;
+  //         }
+  //       } catch (e) {
+  //         print('解析容量时出错: ${pit.pit} - $capacityStr');
+  //       }
+  //     }
+  //   }
     
-    totalCapacity.value = sum;
-  }
+  //   totalCapacity.value = sum;
+  // }
 
-  // ================= 更新单个坑的容量 =================
-  void updatePitCapacity(int pitId, String newCapacity) {
-    final pit = pits.firstWhereOrNull((p) => p.id == pitId);
-    if (pit != null) {
-      pit.capacity = newCapacity;
-      updateTotalCapacity(); // 更新总容量
-    }
-  }
+  // // ================= 更新单个坑的容量 =================
+  // void updatePitCapacity(int pitId, String newCapacity) {
+  //   final pit = pits.firstWhereOrNull((p) => p.id == pitId);
+  //   if (pit != null) {
+  //     pit.capacity = newCapacity;
+  //     updateTotalCapacity(); // 更新总容量
+  //   }
+  // }
 
-  // ================= 切换坑的激活状态 =================
-  void togglePitActive(int pitId) {
-    final pit = pits.firstWhereOrNull((p) => p.id == pitId);
-    if (pit != null) {
-      pit.active.value = !pit.active.value;
-      // 如果需要，可以根据激活状态更新总容量
-      updateTotalCapacity();
-    }
-  }
+  // // ================= 切换坑的激活状态 =================
+  // void togglePitActive(int pitId) {
+  //   final pit = pits.firstWhereOrNull((p) => p.id == pitId);
+  //   if (pit != null) {
+  //     pit.active.value = !pit.active.value;
+  //     // 如果需要，可以根据激活状态更新总容量
+  //     updateTotalCapacity();
+  //   }
+  // }
 
-  // ================= 获取激活坑的总容量 =================
-  double getActivePitsTotalCapacity() {
-    double sum = 0.0;
+  // // ================= 获取激活坑的总容量 =================
+  // double getActivePitsTotalCapacity() {
+  //   double sum = 0.0;
     
-    for (var pit in pits) {
-      if (pit.active.value) {
-        final capacityStr = pit.capacity;
-        if (capacityStr != null && capacityStr.isNotEmpty) {
-          try {
-            final capacityValue = double.tryParse(capacityStr);
-            if (capacityValue != null) {
-              sum += capacityValue;
-            }
-          } catch (e) {
-            print('解析容量时出错: ${pit.pit} - $capacityStr');
-          }
-        }
-      }
-    }
+  //   for (var pit in pits) {
+  //     if (pit.active.value) {
+  //       final capacityStr = pit.capacity;
+  //       if (capacityStr != null && capacityStr.isNotEmpty) {
+  //         try {
+  //           final capacityValue = double.tryParse(capacityStr);
+  //           if (capacityValue != null) {
+  //             sum += capacityValue;
+  //           }
+  //         } catch (e) {
+  //           print('解析容量时出错: ${pit.pit} - $capacityStr');
+  //         }
+  //       }
+  //     }
+  //   }
     
-    return sum;
-  }
+  //   return sum;
+  // }
 
-  // ================= 获取激活坑的数量 =================
-  int getActivePitsCount() {
-    return pits.where((pit) => pit.active.value).length;
-  }
+  // // ================= 获取激活坑的数量 =================
+  // int getActivePitsCount() {
+  //   return pits.where((pit) => pit.active.value).length;
+  // }
 
-  // ================= 添加新坑 =================
-  void addNewPit(String pitName, String capacity, bool isActive) {
-    final newId = pits.isNotEmpty ? pits.last.id! + 1 : 1;
-    pits.add(PitModel(
-      id: newId,
-      pit: pitName,
-      capacity: capacity,
-      active: isActive,
-    ));
-    updateTotalCapacity();
-  }
+  // // ================= 添加新坑 =================
+  // void addNewPit(String pitName, String capacity, bool isActive) {
+  //   final newId = pits.isNotEmpty ? pits.last.id! + 1 : 1;
+  //   pits.add(PitModel(
+  //     id: newId,
+  //     pit: pitName,
+  //     capacity: capacity,
+  //     active: isActive,
+  //   ));
+  //   updateTotalCapacity();
+  // }
 
-  // ================= 删除坑 =================
-  void removePit(int pitId) {
-    pits.removeWhere((pit) => pit.id == pitId);
-    updateTotalCapacity();
-  }
+  // // ================= 删除坑 =================
+  // void removePit(int pitId) {
+  //   pits.removeWhere((pit) => pit.id == pitId);
+  //   updateTotalCapacity();
+  // }
 
 
   void switchRightTab(String tab) {

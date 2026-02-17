@@ -1,13 +1,18 @@
+import 'package:excel/excel.dart' hide Border;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/company_setup_page.dart';
+import 'package:mudpro_desktop_app/modules/company_setup/controller/company_controller.dart';
+import 'package:mudpro_desktop_app/modules/company_setup/controller/products_controller.dart';
 import 'package:mudpro_desktop_app/modules/daily_report/dailyreport_home_page.dart';
+import 'package:open_filex/open_filex.dart';
 import 'package:path/path.dart' as path;
 import 'dart:io';
 import 'dart:convert';
 import 'package:intl/intl.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
+import 'package:path_provider/path_provider.dart';
 import '../controller/dashboard_controller.dart';
 import '../../options/options_page.dart';
 
@@ -20,6 +25,10 @@ class HomeSecondaryTabbar extends StatefulWidget {
 
 class _SecondaryTabBarState extends State<HomeSecondaryTabbar> with TickerProviderStateMixin {
   final DashboardController controller = Get.find<DashboardController>();
+    final CompanyController companyController = Get.put(CompanyController());
+      final ProductsController productsController = Get.put(ProductsController(), tag: 'products_controller'); // Add this line
+
+
   late AnimationController _animationController;
   int _hoveredIndex = -1;
   TextEditingController _dateController = TextEditingController();
@@ -493,6 +502,318 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar> with TickerProvid
     );
   }
 
+
+
+
+
+
+  
+
+
+  //////////////////////////////////////////////////////////////////
+Future<void> _generateDailyInventoryExcel(BuildContext context) async {
+  try {
+    // Show loading
+    _showUploadProgress(context, "Generating Daily Inventory Report...");
+
+    // 1️⃣ FETCH COMPANY DATA
+    await companyController.fetchCompanyDetails();
+    final company = companyController.company.value;
+
+    if (company == null) {
+      Navigator.pop(context);
+      _showDesktopAlert(context, "Company data not found", isSuccess: false);
+      return;
+    }
+
+    // 2️⃣ FETCH PRODUCTS DATA
+    await productsController.loadProducts();
+    final products = productsController.products
+        .where((p) => p.id != null && p.hasData())
+        .toList();
+
+    // 3️⃣ CREATE EXCEL
+    var excel = Excel.createExcel();
+    excel.delete('Sheet1');
+    var sheet = excel['Inventory'];
+
+    // Set column widths
+    sheet.setColWidth(0, 20);
+    sheet.setColWidth(1, 12);
+    sheet.setColWidth(2, 12);
+    sheet.setColWidth(3, 10);
+    sheet.setColWidth(4, 10);
+    sheet.setColWidth(5, 10);
+    sheet.setColWidth(6, 10);
+    sheet.setColWidth(7, 10);
+    sheet.setColWidth(8, 10);
+    sheet.setColWidth(9, 10);
+    sheet.setColWidth(10, 10);
+    sheet.setColWidth(11, 12);
+    sheet.setColWidth(12, 15);
+    sheet.setColWidth(13, 15);
+
+    int currentRow = 0;
+
+    // =============================
+    // COMPANY LOGO (Row 1-5, Columns A-C)
+    // =============================
+    sheet.merge(
+      CellIndex.indexByString("A1"),
+      CellIndex.indexByString("C5"),
+    );
+    var logoCell = sheet.cell(CellIndex.indexByString("A1"));
+    logoCell.value = "LOGO";
+    logoCell.cellStyle = CellStyle(
+      horizontalAlign: HorizontalAlign.Center,
+      verticalAlign: VerticalAlign.Center,
+      fontColorHex: ExcelColor.gray,
+    );
+
+    // Title
+    sheet.merge(
+      CellIndex.indexByString("D1"),
+      CellIndex.indexByString("H3"),
+    );
+    var titleCell = sheet.cell(CellIndex.indexByString("D1"));
+    titleCell.value = "Daily Inventory Report";
+    titleCell.cellStyle = CellStyle(
+      bold: true,
+      fontSize: 18,
+      horizontalAlign: HorizontalAlign.Center,
+      verticalAlign: VerticalAlign.Center,
+    );
+
+    // Report number box (I1)
+    var reportNumCell = sheet.cell(CellIndex.indexByString("I1"));
+    reportNumCell.value = "1";
+    reportNumCell.cellStyle = CellStyle(
+      bold: true,
+      fontSize: 24,
+      horizontalAlign: HorizontalAlign.Center,
+      verticalAlign: VerticalAlign.Center,
+      backgroundColorHex: ExcelColor.lightGreen,
+    );
+
+    // Company logo on right (J1-L5)
+    sheet.merge(
+      CellIndex.indexByString("J1"),
+      CellIndex.indexByString("L5"),
+    );
+    var rightLogoCell = sheet.cell(CellIndex.indexByString("J1"));
+    rightLogoCell.value = "Company Logo";
+    rightLogoCell.cellStyle = CellStyle(
+      horizontalAlign: HorizontalAlign.Center,
+      verticalAlign: VerticalAlign.Center,
+      fontColorHex: ExcelColor.gray,
+    );
+
+    currentRow = 6;
+
+    // =============================
+    // WELL/PROJECT INFORMATION SECTION
+    // =============================
+    _setCellValue(sheet, 'A7', 'Project ID', bold: true, bgColor: ExcelColor.lightGray);
+    _setCellValue(sheet, 'B7', 'SA-1284');
+    _setCellValue(sheet, 'C7', 'Report Date', bold: true, bgColor: ExcelColor.lightGray);
+    _setCellValue(sheet, 'D7', '11/26/2025');
+    _setCellValue(sheet, 'E7', 'Report No.', bold: true, bgColor: ExcelColor.lightGray);
+    _setCellValue(sheet, 'F7', '1');
+
+    _setCellValue(sheet, 'A8', 'Rig Name', bold: true, bgColor: ExcelColor.lightGray);
+    _setCellValue(sheet, 'B8', 'SABRIYAH');
+    _setCellValue(sheet, 'C8', 'Field/Block', bold: true, bgColor: ExcelColor.lightGray);
+    _setCellValue(sheet, 'D8', 'SABRIYAH');
+    _setCellValue(sheet, 'E8', 'Location/State', bold: true, bgColor: ExcelColor.lightGray);
+    _setCellValue(sheet, 'F8', 'Kuwait');
+
+    _setCellValue(sheet, 'A9', 'Operator', bold: true, bgColor: ExcelColor.lightGray);
+    _setCellValue(sheet, 'B9', company.companyName);
+    _setCellValue(sheet, 'C9', 'Contractor', bold: true, bgColor: ExcelColor.lightGray);
+    _setCellValue(sheet, 'D9', 'Sinopec');
+    _setCellValue(sheet, 'E9', 'Formation', bold: true, bgColor: ExcelColor.lightGray);
+    _setCellValue(sheet, 'F9', 'KUWAIT SERIES');
+    _setCellValue(sheet, 'G9', 'MD (ft)', bold: true, bgColor: ExcelColor.lightGray);
+    _setCellValue(sheet, 'H9', '96.0', isNumber: true);
+
+    _setCellValue(sheet, 'A10', 'Operator Rep:', bold: true, bgColor: ExcelColor.lightGray);
+    _setCellValue(sheet, 'B10', 'Kamta Tiwari / Mohamed Nagib');
+    _setCellValue(sheet, 'C10', 'Contractor Rep', bold: true, bgColor: ExcelColor.lightGray);
+    _setCellValue(sheet, 'D10', 'Lee');
+    _setCellValue(sheet, 'E10', 'Inclination/Azimuth (°)', bold: true, bgColor: ExcelColor.lightGray);
+    _setCellValue(sheet, 'F10', '0.00/0.00');
+    _setCellValue(sheet, 'G10', 'TVD (ft)', bold: true, bgColor: ExcelColor.lightGray);
+    _setCellValue(sheet, 'H10', '96.0', isNumber: true);
+
+    _setCellValue(sheet, 'A11', 'Spud Date', bold: true, bgColor: ExcelColor.lightGray);
+    _setCellValue(sheet, 'B11', '11/25/2025');
+    _setCellValue(sheet, 'C11', 'Fluid Name', bold: true, bgColor: ExcelColor.lightGray);
+    _setCellValue(sheet, 'D11', 'GEL MUD');
+    _setCellValue(sheet, 'E11', 'Activity', bold: true, bgColor: ExcelColor.lightGray);
+    _setCellValue(sheet, 'F11', 'Testing');
+    _setCellValue(sheet, 'G11', 'Bit Depth (ft):', bold: true, bgColor: ExcelColor.lightGray);
+    _setCellValue(sheet, 'H11', '96.0', isNumber: true);
+
+    currentRow = 12;
+
+    // =============================
+    // PRODUCTS INVENTORY HEADER
+    // =============================
+    sheet.merge(
+      CellIndex.indexByString("A$currentRow"),
+      CellIndex.indexByString("N$currentRow"),
+    );
+    _setCellValue(sheet, 'A$currentRow', 'Products Inventory',
+        bold: true, fontSize: 14, bgColor: ExcelColor.green);
+
+    currentRow++;
+
+    // =============================
+    // TABLE HEADERS
+    // =============================
+    _setCellValue(sheet, 'A$currentRow', 'Product Name',
+        bold: true, bgColor: ExcelColor.gray25);
+    _setCellValue(sheet, 'B$currentRow', 'Size',
+        bold: true, bgColor: ExcelColor.gray25);
+    _setCellValue(sheet, 'C$currentRow', 'Price (Kwd)',
+        bold: true, bgColor: ExcelColor.gray25);
+    _setCellValue(sheet, 'D$currentRow', 'Start Qty',
+        bold: true, bgColor: ExcelColor.gray25);
+    _setCellValue(sheet, 'E$currentRow', 'Received',
+        bold: true, bgColor: ExcelColor.gray25);
+    _setCellValue(sheet, 'F$currentRow', 'Cum. Rec.',
+        bold: true, bgColor: ExcelColor.gray25);
+    _setCellValue(sheet, 'G$currentRow', 'Returned',
+        bold: true, bgColor: ExcelColor.gray25);
+    _setCellValue(sheet, 'H$currentRow', 'Cum. Ret.',
+        bold: true, bgColor: ExcelColor.gray25);
+    _setCellValue(sheet, 'I$currentRow', 'Used',
+        bold: true, bgColor: ExcelColor.gray25);
+    _setCellValue(sheet, 'J$currentRow', 'Cum. Used',
+        bold: true, bgColor: ExcelColor.gray25);
+    _setCellValue(sheet, 'K$currentRow', 'Final',
+        bold: true, bgColor: ExcelColor.gray25);
+    _setCellValue(sheet, 'L$currentRow', 'Cost (Kwd)',
+        bold: true, bgColor: ExcelColor.gray25);
+
+    // Concentration header with sub-columns
+    sheet.merge(
+      CellIndex.indexByString("M$currentRow"),
+      CellIndex.indexByString("N$currentRow"),
+    );
+    _setCellValue(sheet, 'M$currentRow', 'Concentration(lb/bbl)',
+        bold: true, bgColor: ExcelColor.gray25);
+
+    currentRow++;
+
+    // Sub-headers for concentration
+    _setCellValue(sheet, 'M$currentRow', 'Starting',
+        bold: true, bgColor: ExcelColor.gray25);
+    _setCellValue(sheet, 'N$currentRow', 'Ending',
+        bold: true, bgColor: ExcelColor.gray25);
+
+    currentRow++;
+
+    // =============================
+    // PRODUCTS DATA ROWS
+    // =============================
+    for (var product in products) {
+      _setCellValue(sheet, 'A$currentRow', product.product);
+      _setCellValue(sheet, 'B$currentRow', '${product.unitNum} ${product.unitClass}');
+      _setCellValue(sheet, 'C$currentRow', product.a.isNotEmpty ? product.a : '0',
+          isNumber: true);
+
+      // Empty cells for inventory data
+      _setCellValue(sheet, 'D$currentRow', '0', isNumber: true);
+      _setCellValue(sheet, 'E$currentRow', '0', isNumber: true);
+      _setCellValue(sheet, 'F$currentRow', '0', isNumber: true);
+      _setCellValue(sheet, 'G$currentRow', '0', isNumber: true);
+      _setCellValue(sheet, 'H$currentRow', '0', isNumber: true);
+      _setCellValue(sheet, 'I$currentRow', '0', isNumber: true);
+      _setCellValue(sheet, 'J$currentRow', '0', isNumber: true);
+      _setCellValue(sheet, 'K$currentRow', '0', isNumber: true);
+      _setCellValue(sheet, 'L$currentRow', '0', isNumber: true);
+      _setCellValue(sheet, 'M$currentRow', '');
+      _setCellValue(sheet, 'N$currentRow', '');
+
+      currentRow++;
+    }
+
+    // Close loading dialog
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+    }
+
+    // =============================
+    // SAVE FILE
+    // =============================
+    final dir = await getApplicationDocumentsDirectory();
+    final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
+    final filePath = "${dir.path}/Daily_Inventory_$timestamp.xlsx";
+
+    var fileBytes = excel.encode();
+    if (fileBytes == null) {
+      _showDesktopAlert(context, "Failed to generate Excel file", isSuccess: false);
+      return;
+    }
+
+    File(filePath)
+      ..createSync(recursive: true)
+      ..writeAsBytesSync(fileBytes);
+
+    // 4️⃣ OPEN FILE
+    await OpenFilex.open(filePath);
+
+    _showDesktopAlert(context, "Excel file generated successfully!");
+
+  } catch (e) {
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+    }
+    print('Excel generation error: $e');
+    _showDesktopAlert(
+      context,
+      "Failed to generate Excel: $e",
+      isSuccess: false,
+    );
+  }
+}
+
+// Helper method to set cell values with styling
+void _setCellValue(
+  Sheet sheet,
+  String cellAddress,
+  String value, {
+  bool bold = false,
+  int fontSize = 10,
+  String? bgColor,
+  bool isNumber = false,
+}) {
+  var cell = sheet.cell(CellIndex.indexByString(cellAddress));
+
+  // Simply assign value as dynamic type (no TextCellValue/DoubleCellValue needed)
+  if (isNumber && value.isNotEmpty) {
+    final numValue = double.tryParse(value);
+    cell.value = numValue ?? value;
+  } else {
+    cell.value = value;
+  }
+
+  cell.cellStyle = CellStyle(
+    bold: bold,
+    fontSize: fontSize,
+   
+    horizontalAlign: HorizontalAlign.Center,
+    verticalAlign: VerticalAlign.Center,
+  );
+}
+
+//////////////////////////////////////////////////////////////////////
+///
+///
+
+
+
   void _handleTabAction(BuildContext context, int index) async {
     controller.activeSecondaryTab.value = index;
     _playTabAnimation(index);
@@ -523,7 +844,7 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar> with TickerProvid
         _toggleLock(context);
         break;
       case 8: // Calculate
-        Get.to(() => DailyReportPage());
+        await _generateDailyInventoryExcel(context);
         break;
       case 9: // Options
         Get.to(() => OptionsPage());
@@ -2562,3 +2883,11 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar> with TickerProvid
   }
 }
 
+
+class ExcelColor {
+  static const String green = 'FF00FF00';
+  static const String lightGreen = 'FF90EE90';
+  static const String gray = 'FF808080';
+  static const String gray25 = 'FFC0C0C0';
+  static const String lightGray = 'FFD3D3D3';
+}
