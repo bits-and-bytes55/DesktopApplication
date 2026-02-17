@@ -1,0 +1,26 @@
+import mongoose from "mongoose";
+
+const companySchema = new mongoose.Schema(
+  {
+    companyName: { type: String, required: true },
+    address: { type: String, required: true },
+    phone: { type: String, required: true },
+    email: { type: String, required: true },
+
+    // 🔹 Cloudinary fields
+    logoUrl: {
+      type: String,
+      default: null,
+    },
+    logoPublicId: {
+      type: String,
+      default: null,
+    },
+
+    currencySymbol: { type: String, default: "₹" },
+    currencyFormat: { type: String, default: "0.00" },
+  },
+  { timestamps: true }
+);
+
+export default mongoose.model("Company", companySchema);
