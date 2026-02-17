@@ -1,12 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/return_product_controller.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/controller/products_controller.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/controller/service_controller.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/model/products_model.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/model/service_model.dart';
-import 'package:mudpro_desktop_app/modules/dashboard/controller/return_product_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
+
+abstract class BaseRowData {
+  String selectedItem = '';
+  String code = '';
+  String unit = '';
+  String amount = '';
+}
+
+class ProductRowData extends BaseRowData {}
+class PackageRowData extends BaseRowData {}
 
 class ReturnProductView extends StatefulWidget {
   const ReturnProductView({super.key});
@@ -19,76 +29,63 @@ class _ReturnProductViewState extends State<ReturnProductView> {
   final DashboardController dashboardController = Get.find<DashboardController>();
   final ProductsController productsController = Get.put(ProductsController());
   final ServiceController serviceController = Get.put(ServiceController());
-  final ReturnProductController returnProductController = Get.put(ReturnProductController()); 
+  final ReturnProductController returnProductController = ReturnProductController();
 
-  // Data lists
   final RxList<ProductModel> products = <ProductModel>[].obs;
   final RxList<PackageItem> packages = <PackageItem>[].obs;
 
-  // Row data for each table
   final RxList<ProductRowData> productRows = <ProductRowData>[].obs;
   final RxList<PackageRowData> packageRows = <PackageRowData>[].obs;
 
-  // Selected row indices
   final RxInt selectedProductRow = 0.obs;
   final RxInt selectedPackageRow = 0.obs;
 
-  // BOL Number controller
   final TextEditingController bolController = TextEditingController();
 
-  // Alert state
   final RxString alertMessage = ''.obs;
   final RxBool alertIsError = false.obs;
-
-  // Save button loading
   final RxBool isSaving = false.obs;
 
   @override
   void initState() {
     super.initState();
-    _loadData();
-    // Initialize with 5 empty rows
-    for (int i = 0; i < 5; i++) {
-      productRows.add(ProductRowData());
-      packageRows.add(PackageRowData());
-    }
+    _loadDropdownData();
+    // Start with 1 empty row each
+    productRows.add(ProductRowData());
+    packageRows.add(PackageRowData());
   }
 
-  Future<void> _loadData() async {
+  Future<void> _loadDropdownData() async {
     try {
-      // Load products
       final result = await productsController.repository.getProducts(page: 1, limit: 1000);
-      if (result['success'] == true) {
-        products.value = result['products'] ?? [];
-      }
-
-      // Load packages
-      final pkgs = await serviceController.getPackages();
-      packages.value = pkgs;
+      if (result['success'] == true) products.value = result['products'] ?? [];
+      packages.value = await serviceController.getPackages();
     } catch (e) {
-      print("Error loading data: $e");
+      print("Error loading dropdown data: $e");
     }
   }
 
   void _showAlert(String message, {bool isError = false}) {
     alertMessage.value = message;
     alertIsError.value = isError;
-    
-    // Auto hide after 3 seconds
-    Future.delayed(const Duration(seconds: 3), () {
-      alertMessage.value = '';
-    });
+    Future.delayed(const Duration(seconds: 3), () => alertMessage.value = '');
   }
 
-  // Return All Inventory function
+  // When last row gets an item selected → add a new empty row automatically
+  void _checkAndAddRow<T extends BaseRowData>(RxList<T> rows) {
+    if (rows.isNotEmpty && rows.last.selectedItem.isNotEmpty) {
+      if (T == ProductRowData) rows.add(ProductRowData() as T);
+      else if (T == PackageRowData) rows.add(PackageRowData() as T);
+    }
+  }
+
+  // Fill all products + packages into rows (leaves last row empty for new input)
   void _returnAllInventory() {
     if (dashboardController.isLocked.value) return;
 
-    // Clear all existing rows
     productRows.clear();
     packageRows.clear();
 
-    // Add all products to product rows
     for (var product in products) {
       final row = ProductRowData();
       row.selectedItem = product.product ?? '';
@@ -96,8 +93,9 @@ class _ReturnProductViewState extends State<ReturnProductView> {
       row.unit = product.unitClass ?? '';
       productRows.add(row);
     }
+    // Always keep one empty row at the end
+    productRows.add(ProductRowData());
 
-    // Add all packages to package rows
     for (var package in packages) {
       final row = PackageRowData();
       row.selectedItem = package.name;
@@ -105,21 +103,19 @@ class _ReturnProductViewState extends State<ReturnProductView> {
       row.unit = package.unit;
       packageRows.add(row);
     }
+    // Always keep one empty row at the end
+    packageRows.add(PackageRowData());
 
     _showAlert('All inventory items added for return');
   }
 
   Future<void> _saveAllData() async {
     if (dashboardController.isLocked.value) return;
-
     isSaving.value = true;
-
     try {
-      // Prepare data for saving
       List<Map<String, dynamic>> productData = [];
       List<Map<String, dynamic>> packageData = [];
 
-      // Collect product data
       for (var row in productRows) {
         if (row.selectedItem.isNotEmpty && row.amount.isNotEmpty) {
           productData.add({
@@ -130,8 +126,6 @@ class _ReturnProductViewState extends State<ReturnProductView> {
           });
         }
       }
-
-      // Collect package data
       for (var row in packageRows) {
         if (row.selectedItem.isNotEmpty && row.amount.isNotEmpty) {
           packageData.add({
@@ -153,34 +147,19 @@ class _ReturnProductViewState extends State<ReturnProductView> {
         packages: packageData,
       );
 
-      if (result['success']) {
-        _showAlert(result['message']);
-        // Clear rows after successful save
+      if (result['success'] == true) {
+        _showAlert(result['message'] ?? 'Saved successfully');
+        // Reset to single empty row
         productRows.clear();
         packageRows.clear();
-        for (int i = 0; i < 5; i++) {
-          productRows.add(ProductRowData());
-          packageRows.add(PackageRowData());
-        }
-        bolController.clear();
-      } else {
-        _showAlert(result['message'], isError: true);
-      }
-
-      // Temporary success message
-      _showAlert('${productData.length + packageData.length} items saved successfully');
-      
-      // Clear rows after successful save
-      productRows.clear();
-      packageRows.clear();
-      for (int i = 0; i < 5; i++) {
         productRows.add(ProductRowData());
         packageRows.add(PackageRowData());
+        bolController.clear();
+      } else {
+        _showAlert(result['message'] ?? 'Save failed', isError: true);
       }
-      bolController.clear();
-
     } catch (e) {
-      _showAlert('Failed to save data: $e', isError: true);
+      _showAlert('Failed to save: $e', isError: true);
     } finally {
       isSaving.value = false;
     }
@@ -194,28 +173,17 @@ class _ReturnProductViewState extends State<ReturnProductView> {
           color: Colors.white,
           child: Column(
             children: [
-              // Top bar with BOL, Return All Inventory, and Save button
+              // Top bar: BOL + Return All Inventory + Save
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  border: Border(
-                    bottom: BorderSide(color: Colors.grey.shade300),
-                  ),
+                  border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
                 ),
                 child: Row(
                   children: [
-                    // BOL No. Label
-                    Text(
-                      "BOL No.",
-                      style: AppTheme.bodySmall.copyWith(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 11,
-                      ),
-                    ),
+                    Text("BOL No.", style: AppTheme.bodySmall.copyWith(fontWeight: FontWeight.w600, fontSize: 11)),
                     const SizedBox(width: 12),
-                    
-                    // BOL Text Field
                     Expanded(
                       child: Container(
                         height: 32,
@@ -232,67 +200,40 @@ class _ReturnProductViewState extends State<ReturnProductView> {
                             contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                             border: InputBorder.none,
                             hintText: "Enter BOL number...",
-                            hintStyle: TextStyle(
-                              color: Colors.grey.shade400,
-                              fontSize: 11,
-                            ),
+                            hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 11),
                           ),
                         ),
                       ),
                     ),
-                    
                     const SizedBox(width: 16),
-                    
-                    // Return All Inventory Button
+                    // Return All Inventory button
                     Obx(() => ElevatedButton(
                       onPressed: dashboardController.isLocked.value ? null : _returnAllInventory,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.successColor,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(4),
-                        ),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
                         elevation: 0,
                         minimumSize: const Size(0, 32),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.all_inbox_rounded, size: 14),
+                          const Icon(Icons.all_inbox_rounded, size: 14),
                           const SizedBox(width: 6),
-                          Text(
-                            "Return All Inventory",
-                            style: AppTheme.bodySmall.copyWith(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 11,
-                            ),
-                          ),
+                          Text("Return All Inventory", style: AppTheme.bodySmall.copyWith(fontWeight: FontWeight.w600, fontSize: 11)),
                         ],
                       ),
                     )),
-                    
                     const SizedBox(width: 12),
-                    
                     // Save button
                     Obx(() => ElevatedButton.icon(
-                      onPressed: dashboardController.isLocked.value || isSaving.value
-                          ? null
-                          : _saveAllData,
+                      onPressed: dashboardController.isLocked.value || isSaving.value ? null : _saveAllData,
                       icon: isSaving.value
-                          ? const SizedBox(
-                              width: 14,
-                              height: 14,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                              ),
-                            )
+                          ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.white)))
                           : const Icon(Icons.save, size: 16),
-                      label: Text(
-                        isSaving.value ? 'Saving...' : 'Save',
-                        style: const TextStyle(fontSize: 12),
-                      ),
+                      label: Text(isSaving.value ? 'Saving...' : 'Save', style: const TextStyle(fontSize: 12)),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.primaryColor,
                         foregroundColor: Colors.white,
@@ -304,7 +245,6 @@ class _ReturnProductViewState extends State<ReturnProductView> {
                 ),
               ),
 
-              // Scrollable content
               Expanded(
                 child: SingleChildScrollView(
                   child: Padding(
@@ -312,7 +252,6 @@ class _ReturnProductViewState extends State<ReturnProductView> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Product Table
                         _buildCompactTable(
                           title: "Product",
                           rows: productRows,
@@ -330,10 +269,7 @@ class _ReturnProductViewState extends State<ReturnProductView> {
                           color: AppTheme.primaryColor,
                           itemNameGetter: (item) => (item as ProductModel).product ?? '',
                         ),
-
                         const SizedBox(height: 16),
-
-                        // Package Table
                         _buildCompactTable(
                           title: "Package",
                           rows: packageRows,
@@ -359,65 +295,9 @@ class _ReturnProductViewState extends State<ReturnProductView> {
             ],
           ),
         ),
-
-        // Top right alert
-        Positioned(
-          top: 16,
-          right: 16,
-          child: Obx(() {
-            if (alertMessage.value.isNotEmpty) {
-              return Material(
-                elevation: 4,
-                borderRadius: BorderRadius.circular(4),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: alertIsError.value ? Colors.red.shade600 : AppTheme.successColor,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  constraints: const BoxConstraints(maxWidth: 300),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        alertIsError.value ? Icons.error_outline : Icons.check_circle_outline,
-                        color: Colors.white,
-                        size: 18,
-                      ),
-                      const SizedBox(width: 8),
-                      Flexible(
-                        child: Text(
-                          alertMessage.value,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }
-            return const SizedBox.shrink();
-          }),
-        ),
+        _buildAlert(),
       ],
     );
-  }
-
-  void _checkAndAddRow<T extends BaseRowData>(RxList<T> rows) {
-    if (rows.length >= 5) {
-      final lastRow = rows.last;
-      if (lastRow.selectedItem.isNotEmpty) {
-        if (T == ProductRowData) {
-          rows.add(ProductRowData() as T);
-        } else if (T == PackageRowData) {
-          rows.add(PackageRowData() as T);
-        }
-      }
-    }
   }
 
   Widget _buildCompactTable<T extends BaseRowData, I>({
@@ -432,99 +312,38 @@ class _ReturnProductViewState extends State<ReturnProductView> {
     required String Function(I) itemNameGetter,
   }) {
     return Container(
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade300),
-        borderRadius: BorderRadius.circular(6),
-      ),
+      decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(6)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              border: Border(
-                bottom: BorderSide(color: Colors.grey.shade300),
-              ),
-            ),
-            child: Text(
-              title,
-              style: AppTheme.bodySmall.copyWith(
-                fontWeight: FontWeight.w600,
-                fontSize: 11,
-                color: color,
-              ),
-            ),
-          ),
-
-          // Table with fixed height
+          _buildTableHeader(title, color),
           SizedBox(
             height: 200,
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
-              child: Container(
+              child: SizedBox(
                 width: _getTableWidth(headers),
                 child: Column(
                   children: [
-                    // Table Header - Fixed
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade50,
-                        border: Border(
-                          bottom: BorderSide(color: Colors.grey.shade300),
-                        ),
-                      ),
-                      child: Row(
-                        children: headers.map((header) {
-                          return Container(
-                            width: _getColumnWidth(header),
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                            decoration: BoxDecoration(
-                              border: Border(
-                                right: BorderSide(color: Colors.grey.shade300, width: 0.5),
-                              ),
-                            ),
-                            alignment: header == 'Amount' ? Alignment.centerRight : Alignment.centerLeft,
-                            child: Text(
-                              header,
-                              style: AppTheme.bodySmall.copyWith(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: AppTheme.textPrimary,
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ),
-
-                    // Table Rows - Scrollable
+                    _buildColumnHeaders(headers, color),
                     Expanded(
                       child: Obx(() => SingleChildScrollView(
                         child: Column(
                           children: List.generate(rows.length, (index) {
                             final row = rows[index];
                             final isSelected = selectedRowIndex.value == index;
-
                             return Container(
                               decoration: BoxDecoration(
                                 color: index % 2 == 0 ? Colors.white : Colors.grey.shade50,
-                                border: Border(
-                                  bottom: BorderSide(color: Colors.grey.shade200, width: 0.5),
-                                ),
+                                border: Border(bottom: BorderSide(color: Colors.grey.shade200, width: 0.5)),
                               ),
                               child: Row(
-                                children: _buildRowCells(
-                                  row: row,
-                                  index: index,
-                                  isSelected: isSelected,
-                                  dropdownItems: dropdownItems,
-                                  onDropdownChanged: onDropdownChanged,
+                                children: _buildInputRowCells(
+                                  row: row, index: index, isSelected: isSelected,
+                                  dropdownItems: dropdownItems, onDropdownChanged: onDropdownChanged,
                                   onFieldChanged: onFieldChanged,
                                   onRowSelected: () => selectedRowIndex.value = index,
-                                  headers: headers,
-                                  itemNameGetter: itemNameGetter,
+                                  headers: headers, itemNameGetter: itemNameGetter,
                                 ),
                               ),
                             );
@@ -542,126 +361,42 @@ class _ReturnProductViewState extends State<ReturnProductView> {
     );
   }
 
-  double _getTableWidth(List<String> headers) {
-    double totalWidth = 0;
-    for (String header in headers) {
-      totalWidth += _getColumnWidth(header);
-    }
-    return totalWidth;
-  }
-
-  double _getColumnWidth(String header) {
-    if (header == 'No') {
-      return 50;
-    } else if (header == 'Product' || header == 'Package') {
-      return 350;
-    } else if (header == 'Code') {
-      return 150;
-    } else if (header == 'Unit') {
-      return 150;
-    } else if (header == 'Amount') {
-      return 150;
-    }
-    return 100;
-  }
-
-  List<Widget> _buildRowCells<T extends BaseRowData, I>({
-    required T row,
-    required int index,
-    required bool isSelected,
-    required RxList<I> dropdownItems,
-    required Function(int, I) onDropdownChanged,
-    required Function(int) onFieldChanged,
-    required VoidCallback onRowSelected,
-    required List<String> headers,
-    required String Function(I) itemNameGetter,
+  List<Widget> _buildInputRowCells<T extends BaseRowData, I>({
+    required T row, required int index, required bool isSelected,
+    required RxList<I> dropdownItems, required Function(int, I) onDropdownChanged,
+    required Function(int) onFieldChanged, required VoidCallback onRowSelected,
+    required List<String> headers, required String Function(I) itemNameGetter,
   }) {
-    List<Widget> cells = [];
-
-    // No column
-    cells.add(
-      Container(
-        width: _getColumnWidth('No'),
-        height: 32,
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        decoration: BoxDecoration(
-          border: Border(
-            right: BorderSide(color: Colors.grey.shade300, width: 0.5),
-          ),
-        ),
-        alignment: Alignment.center,
-        child: Text(
-          (index + 1).toString(),
-          style: AppTheme.bodySmall.copyWith(fontSize: 10),
-        ),
-      ),
-    );
-
-    // Second column - Dropdown with icon
-    cells.add(
+    return [
+      _cell(50, Text((index + 1).toString(), style: AppTheme.bodySmall.copyWith(fontSize: 10)), center: true),
       GestureDetector(
         onTap: onRowSelected,
         child: Container(
-          width: _getColumnWidth(headers[1]),
-          height: 32,
+          width: 350, height: 32,
           padding: const EdgeInsets.symmetric(horizontal: 8),
-          decoration: BoxDecoration(
-            border: Border(
-              right: BorderSide(color: Colors.grey.shade300, width: 0.5),
-            ),
-          ),
+          decoration: BoxDecoration(border: Border(right: BorderSide(color: Colors.grey.shade300, width: 0.5))),
           child: Row(
             children: [
-              // Dropdown icon
-              Icon(
-                isSelected ? Icons.arrow_drop_down : Icons.arrow_right,
-                size: 16,
-                color: isSelected ? AppTheme.primaryColor : Colors.grey.shade400,
-              ),
+              Icon(isSelected ? Icons.arrow_drop_down : Icons.arrow_right, size: 16,
+                  color: isSelected ? AppTheme.primaryColor : Colors.grey.shade400),
               const SizedBox(width: 4),
-
-              // Dropdown
               Expanded(
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<I>(
                     value: row.selectedItem.isNotEmpty
                         ? dropdownItems.firstWhereOrNull((item) => itemNameGetter(item) == row.selectedItem)
                         : null,
-                    hint: Text(
-                      "",
-                      style: AppTheme.bodySmall.copyWith(
-                        fontSize: 10,
-                        color: Colors.grey,
-                      ),
-                    ),
-                    isExpanded: true,
-                    isDense: true,
-                    icon: const SizedBox.shrink(),
-                    style: AppTheme.bodySmall.copyWith(
-                      fontSize: 10,
-                      color: AppTheme.textPrimary,
-                    ),
+                    hint: Text("", style: AppTheme.bodySmall.copyWith(fontSize: 10, color: Colors.grey)),
+                    isExpanded: true, isDense: true, icon: const SizedBox.shrink(),
+                    style: AppTheme.bodySmall.copyWith(fontSize: 10, color: AppTheme.textPrimary),
                     menuMaxHeight: 250,
-                    items: dropdownItems.map((item) {
-                      String name = itemNameGetter(item);
-
-                      return DropdownMenuItem<I>(
-                        value: item,
-                        child: Text(
-                          name,
-                          style: AppTheme.bodySmall.copyWith(fontSize: 10),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      );
-                    }).toList(),
-                    onChanged: dashboardController.isLocked.value
-                        ? null
-                        : (I? value) {
-                            if (value != null) {
-                              onRowSelected();
-                              onDropdownChanged(index, value);
-                            }
-                          },
+                    items: dropdownItems.map((item) => DropdownMenuItem<I>(
+                      value: item,
+                      child: Text(itemNameGetter(item), style: AppTheme.bodySmall.copyWith(fontSize: 10), overflow: TextOverflow.ellipsis),
+                    )).toList(),
+                    onChanged: dashboardController.isLocked.value ? null : (I? value) {
+                      if (value != null) { onRowSelected(); onDropdownChanged(index, value); }
+                    },
                   ),
                 ),
               ),
@@ -669,74 +404,91 @@ class _ReturnProductViewState extends State<ReturnProductView> {
           ),
         ),
       ),
-    );
+      _cell(150, Text(row.code, style: AppTheme.bodySmall.copyWith(fontSize: 10), overflow: TextOverflow.ellipsis)),
+      _cell(150, Text(row.unit, style: AppTheme.bodySmall.copyWith(fontSize: 10), overflow: TextOverflow.ellipsis)),
+      _cell(150, TextField(
+        controller: TextEditingController(text: row.amount),
+        enabled: !dashboardController.isLocked.value,
+        style: AppTheme.bodySmall.copyWith(fontSize: 10),
+        textAlign: TextAlign.right,
+        decoration: const InputDecoration(isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 6), border: InputBorder.none),
+        keyboardType: TextInputType.number,
+        onChanged: (val) { row.amount = val; onFieldChanged(index); },
+      ), noBorder: true),
+    ];
+  }
 
-    // Code column
-    cells.add(
-      Container(
-        width: _getColumnWidth('Code'),
-        height: 32,
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        decoration: BoxDecoration(
-          border: Border(
-            right: BorderSide(color: Colors.grey.shade300, width: 0.5),
-          ),
-        ),
-        alignment: Alignment.centerLeft,
-        child: Text(
-          row.code,
-          style: AppTheme.bodySmall.copyWith(fontSize: 10),
-          overflow: TextOverflow.ellipsis,
-        ),
+  Widget _buildTableHeader(String title, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(color: color.withOpacity(0.1), border: Border(bottom: BorderSide(color: Colors.grey.shade300))),
+      child: Text(title, style: AppTheme.bodySmall.copyWith(fontWeight: FontWeight.w600, fontSize: 11, color: color)),
+    );
+  }
+
+  Widget _buildColumnHeaders(List<String> headers, Color color) {
+    return Container(
+      decoration: BoxDecoration(color: Colors.grey.shade50, border: Border(bottom: BorderSide(color: Colors.grey.shade300))),
+      child: Row(
+        children: headers.map((h) => Container(
+          width: _getColumnWidth(h),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          decoration: BoxDecoration(border: Border(right: BorderSide(color: Colors.grey.shade300, width: 0.5))),
+          alignment: h == 'Amount' ? Alignment.centerRight : Alignment.centerLeft,
+          child: Text(h, style: AppTheme.bodySmall.copyWith(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
+        )).toList(),
       ),
     );
+  }
 
-    // Unit column
-    cells.add(
-      Container(
-        width: _getColumnWidth('Unit'),
-        height: 32,
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        decoration: BoxDecoration(
-          border: Border(
-            right: BorderSide(color: Colors.grey.shade300, width: 0.5),
-          ),
-        ),
-        alignment: Alignment.centerLeft,
-        child: Text(
-          row.unit,
-          style: AppTheme.bodySmall.copyWith(fontSize: 10),
-          overflow: TextOverflow.ellipsis,
-        ),
-      ),
+  Widget _cell(double width, Widget child, {bool center = false, bool noBorder = false}) {
+    return Container(
+      width: width, height: 32,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: noBorder ? null : BoxDecoration(border: Border(right: BorderSide(color: Colors.grey.shade300, width: 0.5))),
+      alignment: center ? Alignment.center : Alignment.centerLeft,
+      child: child,
     );
+  }
 
-    // Amount column - Right aligned
-    cells.add(
-      Container(
-        width: _getColumnWidth('Amount'),
-        height: 32,
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        child: TextField(
-          controller: TextEditingController(text: row.amount),
-          enabled: !dashboardController.isLocked.value,
-          style: AppTheme.bodySmall.copyWith(fontSize: 10),
-          textAlign: TextAlign.right, // Right align the text
-          decoration: const InputDecoration(
-            isDense: true,
-            contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-            border: InputBorder.none,
+  double _getTableWidth(List<String> headers) => headers.fold(0.0, (sum, h) => sum + _getColumnWidth(h));
+
+  double _getColumnWidth(String h) {
+    switch (h) {
+      case 'No': return 50;
+      case 'Product': case 'Package': return 350;
+      case 'Code': case 'Unit': case 'Amount': return 150;
+      default: return 100;
+    }
+  }
+
+  Widget _buildAlert() {
+    return Positioned(
+      top: 16, right: 16,
+      child: Obx(() {
+        if (alertMessage.value.isEmpty) return const SizedBox.shrink();
+        return Material(
+          elevation: 4,
+          borderRadius: BorderRadius.circular(4),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              color: alertIsError.value ? Colors.red.shade600 : AppTheme.successColor,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            constraints: const BoxConstraints(maxWidth: 300),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(alertIsError.value ? Icons.error_outline : Icons.check_circle_outline, color: Colors.white, size: 18),
+                const SizedBox(width: 8),
+                Flexible(child: Text(alertMessage.value, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500))),
+              ],
+            ),
           ),
-          keyboardType: TextInputType.number,
-          onChanged: (val) {
-            row.amount = val;
-            onFieldChanged(index);
-          },
-        ),
-      ),
+        );
+      }),
     );
-
-    return cells;
   }
 
   @override
@@ -745,15 +497,3 @@ class _ReturnProductViewState extends State<ReturnProductView> {
     super.dispose();
   }
 }
-
-// Base class for row data
-abstract class BaseRowData {
-  String selectedItem = '';
-  String code = '';
-  String unit = '';
-  String amount = '';
-}
-
-class ProductRowData extends BaseRowData {}
-
-class PackageRowData extends BaseRowData {}

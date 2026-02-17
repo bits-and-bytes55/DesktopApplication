@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/controller/service_controller.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/model/service_model.dart';
+import 'package:mudpro_desktop_app/modules/daily_report/controller/inventory_snapshot_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/consume_service_controller.dart';
 import '../../controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
-// Import your new consume service controller
-// import 'package:mudpro_desktop_app/modules/consume_services/controller/consume_service_controller.dart';
 
 class ConsumeServicesView extends StatefulWidget {
   const ConsumeServicesView({super.key});
@@ -17,378 +17,604 @@ class ConsumeServicesView extends StatefulWidget {
 class _ConsumeServicesViewState extends State<ConsumeServicesView> {
   final dashboardController = Get.find<DashboardController>();
   final serviceController = Get.put(ServiceController());
-  // final consumeServiceController = Get.put(ConsumeServiceController()); // Uncomment when file is added
+  final consumeServiceController = ConsumeServiceController();
+  final inventorySnapshotController = InventorySnapshotController();
+
   final RxString selectedMethod = "Used".obs;
 
-  // Data lists
+  // ── Dropdown source data ──
   final RxList<PackageItem> packages = <PackageItem>[].obs;
   final RxList<ServiceItem> services = <ServiceItem>[].obs;
   final RxList<EngineeringItem> engineering = <EngineeringItem>[].obs;
 
-  // Row data for each table
+  // ── Row data ──
   final RxList<PackageRowData> packageRows = <PackageRowData>[].obs;
   final RxList<ServiceRowData> serviceRows = <ServiceRowData>[].obs;
   final RxList<EngineeringRowData> engineeringRows = <EngineeringRowData>[].obs;
 
-  // Selected row indices for each table
-  final RxInt selectedPackageRow = 0.obs;
-  final RxInt selectedServiceRow = 0.obs;
-  final RxInt selectedEngineeringRow = 0.obs;
-
-  // Loading states for each row
+  // ── Per-row loading (calculate) ──
   final RxList<bool> packageRowLoading = <bool>[].obs;
   final RxList<bool> serviceRowLoading = <bool>[].obs;
   final RxList<bool> engineeringRowLoading = <bool>[].obs;
 
-  // Save button loading
+  // ── Per-row saving ──
+  final RxList<bool> packageRowSaving = <bool>[].obs;
+  final RxList<bool> serviceRowSaving = <bool>[].obs;
+  final RxList<bool> engineeringRowSaving = <bool>[].obs;
+
+  // ── Per-row deleting ──
+  final RxList<bool> packageRowDeleting = <bool>[].obs;
+  final RxList<bool> serviceRowDeleting = <bool>[].obs;
+  final RxList<bool> engineeringRowDeleting = <bool>[].obs;
+
+  // ── Selected row ──
+  final RxInt selectedPackageRow = 0.obs;
+  final RxInt selectedServiceRow = 0.obs;
+  final RxInt selectedEngineeringRow = 0.obs;
+
+  // ── Save All button ──
   final RxBool isSaving = false.obs;
 
+  // ─────────────────────────────────────────────
   @override
   void initState() {
     super.initState();
-    _loadData();
-    // Initialize with 5 empty rows each
-    for (int i = 0; i < 5; i++) {
+    print('🟡 [INIT] ConsumeServicesView initState');
+    _loadDropdownData();
+    _initRows(5);
+  }
+
+  void _initRows(int count) {
+    for (int i = 0; i < count; i++) {
       packageRows.add(PackageRowData());
       serviceRows.add(ServiceRowData());
       engineeringRows.add(EngineeringRowData());
       packageRowLoading.add(false);
       serviceRowLoading.add(false);
       engineeringRowLoading.add(false);
+      packageRowSaving.add(false);
+      serviceRowSaving.add(false);
+      engineeringRowSaving.add(false);
+      packageRowDeleting.add(false);
+      serviceRowDeleting.add(false);
+      engineeringRowDeleting.add(false);
     }
   }
 
-  Future<void> _loadData() async {
+  // ─────────────────────────────────────────────
+  //  Load dropdown source data
+  // ─────────────────────────────────────────────
+  Future<void> _loadDropdownData() async {
+    print('🔵 [LOAD] Loading dropdown data...');
     try {
       final pkgs = await serviceController.getPackages();
       final srvs = await serviceController.getServices();
       final engs = await serviceController.getEngineering();
-      
       packages.value = pkgs;
       services.value = srvs;
       engineering.value = engs;
+      print('🟢 [LOAD] packages=${pkgs.length} services=${srvs.length} engineering=${engs.length}');
     } catch (e) {
-      print("Error loading data: $e");
+      print('🔴 [LOAD] Error loading dropdown data: $e');
     }
   }
 
-  Future<void> _calculatePackageCost(int index) async {
+  // ─────────────────────────────────────────────
+  //  CALCULATION — Package
+  //  initial blank → treated as 0
+  //  final = initial - used  (can be negative)
+  //  cost  = used * price
+  // ─────────────────────────────────────────────
+  void _calculatePackage(int index) {
     if (dashboardController.isLocked.value) return;
-    
     final row = packageRows[index];
-    if (row.selectedItem.isEmpty) return;
-
-    packageRowLoading[index] = true;
-    packageRowLoading.refresh();
-
-    try {
-      final initial = double.tryParse(row.initial) ?? 0.0;
-      final used = double.tryParse(row.used) ?? 0.0;
-      
-      // Calculate locally (same as backend)
-      final finalValue = initial - used;
-      final cost = used * row.price;
-
-      setState(() {
-        row.final_ = finalValue.toStringAsFixed(2);
-        row.cost = cost;
-      });
-
-      packageRows.refresh();
-
-      // Show success message - top right alert
-      Get.rawSnackbar(
-        messageText: Row(
-          children: [
-            Icon(Icons.check_circle, color: Colors.white, size: 18),
-            SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                'Cost calculated: \$${cost.toStringAsFixed(2)}',
-                style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500),
-              ),
-            ),
-          ],
-        ),
-        backgroundColor: Color(0xff10B981),
-        borderRadius: 6,
-        margin: EdgeInsets.only(top: 8, right: 12),
-        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        snackPosition: SnackPosition.TOP,
-        duration: Duration(seconds: 2),
-        maxWidth: 350,
-      );
-    } catch (e) {
-      Get.rawSnackbar(
-        messageText: Row(
-          children: [
-            Icon(Icons.error, color: Colors.white, size: 18),
-            SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                'Failed to calculate cost',
-                style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500),
-              ),
-            ),
-          ],
-        ),
-        backgroundColor: Color(0xffEF4444),
-        borderRadius: 6,
-        margin: EdgeInsets.only(top: 8, right: 12),
-        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        snackPosition: SnackPosition.TOP,
-        duration: Duration(seconds: 2),
-        maxWidth: 350,
-      );
-    } finally {
-      packageRowLoading[index] = false;
-      packageRowLoading.refresh();
+    if (row.selectedItem.isEmpty) {
+      print('🔴 [CALC-PKG] Row $index: no item selected, skip');
+      return;
     }
+
+    final initial = double.tryParse(row.initial) ?? 0.0;
+    final used    = double.tryParse(row.used)    ?? 0.0;
+    final finalV  = initial - used;          // negative if initial < used
+    final cost    = used * row.price;
+
+    print('🔵 [CALC-PKG] Row $index → initial=$initial | used=$used | final=$finalV | cost=$cost');
+
+    row.finalValue = finalV.toStringAsFixed(2);
+    row.cost       = cost;
+    packageRows.refresh();
+    setState(() {});
   }
 
-  Future<void> _calculateServiceCost(int index) async {
+  // ─────────────────────────────────────────────
+  //  CALCULATION — Service / Engineering
+  //  cost = usage * price
+  // ─────────────────────────────────────────────
+  void _calculateService(int index) {
     if (dashboardController.isLocked.value) return;
-    
     final row = serviceRows[index];
     if (row.selectedItem.isEmpty) return;
 
-    serviceRowLoading[index] = true;
-    serviceRowLoading.refresh();
-
-    try {
-      final usage = double.tryParse(row.usage) ?? 0.0;
-      
-      // Calculate locally (same as backend)
-      final cost = usage * row.price;
-
-      setState(() {
-        row.cost = cost;
-      });
-
-      serviceRows.refresh();
-
-      // Show success message
-      Get.snackbar(
-        'Success',
-        'Cost calculated: \$${cost.toStringAsFixed(2)}',
-        snackPosition: SnackPosition.BOTTOM,
-        duration: const Duration(seconds: 2),
-        backgroundColor: AppTheme.successColor.withOpacity(0.9),
-        colorText: Colors.white,
-      );
-    } catch (e) {
-      Get.snackbar(
-        'Error',
-        'Failed to calculate cost: $e',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
-    } finally {
-      serviceRowLoading[index] = false;
-      serviceRowLoading.refresh();
-    }
+    final usage = double.tryParse(row.usage) ?? 0.0;
+    final cost  = usage * row.price;
+    print('🔵 [CALC-SRV] Row $index → usage=$usage | cost=$cost');
+    row.cost = cost;
+    serviceRows.refresh();
+    setState(() {});
   }
 
-  Future<void> _calculateEngineeringCost(int index) async {
+  void _calculateEngineering(int index) {
     if (dashboardController.isLocked.value) return;
-    
     final row = engineeringRows[index];
     if (row.selectedItem.isEmpty) return;
 
-    engineeringRowLoading[index] = true;
-    engineeringRowLoading.refresh();
+    final usage = double.tryParse(row.usage) ?? 0.0;
+    final cost  = usage * row.price;
+    print('🔵 [CALC-ENG] Row $index → usage=$usage | cost=$cost');
+    row.cost = cost;
+    engineeringRows.refresh();
+    setState(() {});
+  }
+
+  // ─────────────────────────────────────────────
+  //  INLINE SAVE (calculate → POST to API)
+  // ─────────────────────────────────────────────
+  Future<void> _savePackageRow(int index) async {
+    if (dashboardController.isLocked.value) return;
+    final row = packageRows[index];
+    if (row.selectedItem.isEmpty) {
+      print('🔴 [SAVE-PKG] Row $index empty, skip');
+      return;
+    }
+
+    // Calculate first
+    _calculatePackage(index);
+
+    packageRowSaving[index] = true;
+    packageRowSaving.refresh();
+
+    final initial = double.tryParse(row.initial) ?? 0.0;
+    final used    = double.tryParse(row.used)    ?? 0.0;
+
+    print('🔵 [SAVE-PKG] Row $index → POST packageName=${row.selectedItem} initial=$initial used=$used price=${row.price}');
 
     try {
-      final usage = double.tryParse(row.usage) ?? 0.0;
-      
-      // Calculate locally (same as backend)
-      final cost = usage * row.price;
+      Map<String, dynamic> result;
 
-      setState(() {
-        row.cost = cost;
-      });
+      if (row.savedId == null) {
+        // CREATE
+        result = await consumeServiceController.createConsumePackage(
+          packageName: row.selectedItem,
+          code:        row.code,
+          unit:        row.unit,
+          price:       row.price,
+          initial:     initial,
+          used:        used,
+        );
+      } else {
+        // UPDATE
+        result = await consumeServiceController.updateConsumePackage(
+          id:          row.savedId!,
+          packageName: row.selectedItem,
+          code:        row.code,
+          unit:        row.unit,
+          price:       row.price,
+          initial:     initial,
+          used:        used,
+        );
+      }
 
-      engineeringRows.refresh();
+      print('🟢 [SAVE-PKG] Row $index result: $result');
 
-      // Show success message
-      Get.snackbar(
-        'Success',
-        'Cost calculated: \$${cost.toStringAsFixed(2)}',
-        snackPosition: SnackPosition.BOTTOM,
-        duration: const Duration(seconds: 2),
-        backgroundColor: AppTheme.successColor.withOpacity(0.9),
-        colorText: Colors.white,
-      );
+      if (result['success'] == true) {
+        row.savedId = result['data']?['_id'] ?? row.savedId;
+        packageRows.refresh();
+        _showSuccess('Package row ${index + 1} saved!');
+        _checkAndAddRow(packageRows, packageRowLoading, packageRowSaving, packageRowDeleting);
+      } else {
+        _showError(result['message'] ?? 'Save failed');
+      }
     } catch (e) {
-      Get.snackbar(
-        'Error',
-        'Failed to calculate cost: $e',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
+      print('🔴 [SAVE-PKG] Row $index exception: $e');
+      _showError('Error: $e');
     } finally {
-      engineeringRowLoading[index] = false;
-      engineeringRowLoading.refresh();
+      packageRowSaving[index] = false;
+      packageRowSaving.refresh();
     }
   }
 
-  Future<void> _saveAllData() async {
+  Future<void> _saveServiceRow(int index) async {
     if (dashboardController.isLocked.value) return;
+    final row = serviceRows[index];
+    if (row.selectedItem.isEmpty) return;
 
-    isSaving.value = true;
+    _calculateService(index);
+
+    serviceRowSaving[index] = true;
+    serviceRowSaving.refresh();
+
+    final usage = double.tryParse(row.usage) ?? 0.0;
+    print('🔵 [SAVE-SRV] Row $index → POST serviceName=${row.selectedItem} usage=$usage price=${row.price}');
 
     try {
-      // Prepare data for saving
-      List<Map<String, dynamic>> packageData = [];
-      List<Map<String, dynamic>> serviceData = [];
-      List<Map<String, dynamic>> engineeringData = [];
-
-      // Collect package data
-      for (var row in packageRows) {
-        if (row.selectedItem.isNotEmpty) {
-          packageData.add({
-            'packageName': row.selectedItem,
-            'code': row.code,
-            'unit': row.unit,
-            'price': row.price,
-            'initial': row.initial,
-            'used': row.used,
-          });
-        }
+      Map<String, dynamic> result;
+      if (row.savedId == null) {
+        result = await consumeServiceController.createConsumeService(
+          serviceName: row.selectedItem,
+          code:        row.code,
+          unit:        row.unit,
+          price:       row.price,
+          usage:       usage,
+        );
+      } else {
+        result = await consumeServiceController.updateConsumeService(
+          id:          row.savedId!,
+          serviceName: row.selectedItem,
+          code:        row.code,
+          unit:        row.unit,
+          price:       row.price,
+          usage:       usage,
+        );
       }
 
-      // Collect service data
-      for (var row in serviceRows) {
-        if (row.selectedItem.isNotEmpty) {
-          serviceData.add({
-            'serviceName': row.selectedItem,
-            'code': row.code,
-            'unit': row.unit,
-            'price': row.price,
-            'usage': row.usage,
-          });
-        }
+      print('🟢 [SAVE-SRV] Row $index result: $result');
+
+      if (result['success'] == true) {
+        row.savedId = result['data']?['_id'] ?? row.savedId;
+        serviceRows.refresh();
+        _showSuccess('Service row ${index + 1} saved!');
+        _checkAndAddRow(serviceRows, serviceRowLoading, serviceRowSaving, serviceRowDeleting);
+      } else {
+        _showError(result['message'] ?? 'Save failed');
       }
-
-      // Collect engineering data
-      for (var row in engineeringRows) {
-        if (row.selectedItem.isNotEmpty) {
-          engineeringData.add({
-            'engineeringName': row.selectedItem,
-            'code': row.code,
-            'unit': row.unit,
-            'price': row.price,
-            'usage': row.usage,
-          });
-        }
-      }
-
-      // Uncomment when consume service controller is added
-      // final result = await consumeServiceController.saveAllConsumptions(
-      //   packages: packageData,
-      //   services: serviceData,
-      //   engineering: engineeringData,
-      // );
-
-      // Temporary success message
-      Get.snackbar(
-        'Success',
-        'All data saved successfully!',
-        snackPosition: SnackPosition.BOTTOM,
-        duration: const Duration(seconds: 2),
-        backgroundColor: AppTheme.successColor.withOpacity(0.9),
-        colorText: Colors.white,
-      );
-
-      // if (result['success']) {
-      //   Get.snackbar(
-      //     'Success',
-      //     result['message'],
-      //     snackPosition: SnackPosition.BOTTOM,
-      //     backgroundColor: AppTheme.successColor,
-      //     colorText: Colors.white,
-      //   );
-      // } else {
-      //   throw Exception(result['message']);
-      // }
     } catch (e) {
-      Get.snackbar(
-        'Error',
-        'Failed to save data: $e',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
+      print('🔴 [SAVE-SRV] Row $index exception: $e');
+      _showError('Error: $e');
+    } finally {
+      serviceRowSaving[index] = false;
+      serviceRowSaving.refresh();
+    }
+  }
+
+  Future<void> _saveEngineeringRow(int index) async {
+    if (dashboardController.isLocked.value) return;
+    final row = engineeringRows[index];
+    if (row.selectedItem.isEmpty) return;
+
+    _calculateEngineering(index);
+
+    engineeringRowSaving[index] = true;
+    engineeringRowSaving.refresh();
+
+    final usage = double.tryParse(row.usage) ?? 0.0;
+    print('🔵 [SAVE-ENG] Row $index → POST engineeringName=${row.selectedItem} usage=$usage price=${row.price}');
+
+    try {
+      Map<String, dynamic> result;
+      if (row.savedId == null) {
+        result = await consumeServiceController.createConsumeEngineering(
+          engineeringName: row.selectedItem,
+          code:            row.code,
+          unit:            row.unit,
+          price:           row.price,
+          usage:           usage,
+        );
+      } else {
+        result = await consumeServiceController.updateConsumeEngineering(
+          id:              row.savedId!,
+          engineeringName: row.selectedItem,
+          code:            row.code,
+          unit:            row.unit,
+          price:           row.price,
+          usage:           usage,
+        );
+      }
+
+      print('🟢 [SAVE-ENG] Row $index result: $result');
+
+      if (result['success'] == true) {
+        row.savedId = result['data']?['_id'] ?? row.savedId;
+        engineeringRows.refresh();
+        _showSuccess('Engineering row ${index + 1} saved!');
+        _checkAndAddRow(engineeringRows, engineeringRowLoading, engineeringRowSaving, engineeringRowDeleting);
+      } else {
+        _showError(result['message'] ?? 'Save failed');
+      }
+    } catch (e) {
+      print('🔴 [SAVE-ENG] Row $index exception: $e');
+      _showError('Error: $e');
+    } finally {
+      engineeringRowSaving[index] = false;
+      engineeringRowSaving.refresh();
+    }
+  }
+
+  // ─────────────────────────────────────────────
+  //  INLINE DELETE
+  // ─────────────────────────────────────────────
+  Future<void> _deletePackageRow(int index) async {
+    final row = packageRows[index];
+    print('🔵 [DEL-PKG] Row $index | savedId=${row.savedId}');
+
+    if (row.savedId != null) {
+      packageRowDeleting[index] = true;
+      packageRowDeleting.refresh();
+      try {
+        final result = await consumeServiceController.deleteConsumePackage(row.savedId!);
+        print('🟢 [DEL-PKG] Row $index result: $result');
+        if (result['success'] != true) {
+          _showError(result['message'] ?? 'Delete failed');
+          return;
+        }
+      } catch (e) {
+        print('🔴 [DEL-PKG] Row $index exception: $e');
+        _showError('Error: $e');
+        return;
+      } finally {
+        packageRowDeleting[index] = false;
+        packageRowDeleting.refresh();
+      }
+    }
+
+    // Remove row locally (keep at least 1)
+    if (packageRows.length > 1) {
+      packageRows.removeAt(index);
+      packageRowLoading.removeAt(index);
+      packageRowSaving.removeAt(index);
+      packageRowDeleting.removeAt(index);
+      if (selectedPackageRow.value >= packageRows.length) {
+        selectedPackageRow.value = packageRows.length - 1;
+      }
+    } else {
+      // Just reset the row
+      packageRows[index] = PackageRowData();
+      packageRows.refresh();
+    }
+  }
+
+  Future<void> _deleteServiceRow(int index) async {
+    final row = serviceRows[index];
+    print('🔵 [DEL-SRV] Row $index | savedId=${row.savedId}');
+
+    if (row.savedId != null) {
+      serviceRowDeleting[index] = true;
+      serviceRowDeleting.refresh();
+      try {
+        final result = await consumeServiceController.deleteConsumeService(row.savedId!);
+        print('🟢 [DEL-SRV] Row $index result: $result');
+        if (result['success'] != true) {
+          _showError(result['message'] ?? 'Delete failed');
+          return;
+        }
+      } catch (e) {
+        print('🔴 [DEL-SRV] Row $index exception: $e');
+        _showError('Error: $e');
+        return;
+      } finally {
+        serviceRowDeleting[index] = false;
+        serviceRowDeleting.refresh();
+      }
+    }
+
+    if (serviceRows.length > 1) {
+      serviceRows.removeAt(index);
+      serviceRowLoading.removeAt(index);
+      serviceRowSaving.removeAt(index);
+      serviceRowDeleting.removeAt(index);
+      if (selectedServiceRow.value >= serviceRows.length) {
+        selectedServiceRow.value = serviceRows.length - 1;
+      }
+    } else {
+      serviceRows[index] = ServiceRowData();
+      serviceRows.refresh();
+    }
+  }
+
+  Future<void> _deleteEngineeringRow(int index) async {
+    final row = engineeringRows[index];
+    print('🔵 [DEL-ENG] Row $index | savedId=${row.savedId}');
+
+    if (row.savedId != null) {
+      engineeringRowDeleting[index] = true;
+      engineeringRowDeleting.refresh();
+      try {
+        final result = await consumeServiceController.deleteConsumeEngineering(row.savedId!);
+        print('🟢 [DEL-ENG] Row $index result: $result');
+        if (result['success'] != true) {
+          _showError(result['message'] ?? 'Delete failed');
+          return;
+        }
+      } catch (e) {
+        print('🔴 [DEL-ENG] Row $index exception: $e');
+        _showError('Error: $e');
+        return;
+      } finally {
+        engineeringRowDeleting[index] = false;
+        engineeringRowDeleting.refresh();
+      }
+    }
+
+    if (engineeringRows.length > 1) {
+      engineeringRows.removeAt(index);
+      engineeringRowLoading.removeAt(index);
+      engineeringRowSaving.removeAt(index);
+      engineeringRowDeleting.removeAt(index);
+      if (selectedEngineeringRow.value >= engineeringRows.length) {
+        selectedEngineeringRow.value = engineeringRows.length - 1;
+      }
+    } else {
+      engineeringRows[index] = EngineeringRowData();
+      engineeringRows.refresh();
+    }
+  }
+
+  // ─────────────────────────────────────────────
+  //  SAVE ALL → generateInventorySnapshot
+  // ─────────────────────────────────────────────
+  Future<void> _saveAll() async {
+    if (dashboardController.isLocked.value) return;
+    isSaving.value = true;
+
+    print('🟡 [SAVE-ALL] Save All button pressed');
+
+    try {
+      // Step 1: Save all unsaved filled rows
+      print('🔵 [SAVE-ALL] Saving package rows...');
+      for (int i = 0; i < packageRows.length; i++) {
+        if (packageRows[i].selectedItem.isNotEmpty) {
+          await _savePackageRow(i);
+        }
+      }
+
+      print('🔵 [SAVE-ALL] Saving service rows...');
+      for (int i = 0; i < serviceRows.length; i++) {
+        if (serviceRows[i].selectedItem.isNotEmpty) {
+          await _saveServiceRow(i);
+        }
+      }
+
+      print('🔵 [SAVE-ALL] Saving engineering rows...');
+      for (int i = 0; i < engineeringRows.length; i++) {
+        if (engineeringRows[i].selectedItem.isNotEmpty) {
+          await _saveEngineeringRow(i);
+        }
+      }
+
+      // Step 2: Generate inventory snapshot
+      print('🔵 [SAVE-ALL] Calling generateInventorySnapshot...');
+      final snapResult = await inventorySnapshotController.generateInventorySnapshot();
+      print('🟢 [SAVE-ALL] generateInventorySnapshot result: $snapResult');
+
+      if (snapResult['success'] == true) {
+        _showSuccess(
+          'All saved! Snapshot generated (${snapResult['count']} items)',
+          duration: 3,
+        );
+      } else {
+        _showError('Rows saved but snapshot failed: ${snapResult['message']}');
+      }
+    } catch (e) {
+      print('🔴 [SAVE-ALL] Exception: $e');
+      _showError('Save All failed: $e');
     } finally {
       isSaving.value = false;
     }
   }
 
+  // ─────────────────────────────────────────────
+  //  Auto-add new row when last row is filled
+  // ─────────────────────────────────────────────
+  void _checkAndAddRow<T extends BaseRowData>(
+    RxList<T> rows,
+    RxList<bool> loading,
+    RxList<bool> saving,
+    RxList<bool> deleting,
+  ) {
+    if (rows.last.selectedItem.isNotEmpty) {
+      if (T == PackageRowData) {
+        rows.add(PackageRowData() as T);
+      } else if (T == ServiceRowData) {
+        rows.add(ServiceRowData() as T);
+      } else if (T == EngineeringRowData) {
+        rows.add(EngineeringRowData() as T);
+      }
+      loading.add(false);
+      saving.add(false);
+      deleting.add(false);
+      print('🟢 [ROW] New empty row added to ${T.toString()} table');
+    }
+  }
+
+  // ─────────────────────────────────────────────
+  //  Snackbar helpers
+  // ─────────────────────────────────────────────
+  void _showSuccess(String msg, {int duration = 2}) {
+    Get.rawSnackbar(
+      messageText: Row(children: [
+        const Icon(Icons.check_circle, color: Colors.white, size: 16),
+        const SizedBox(width: 8),
+        Expanded(child: Text(msg, style: const TextStyle(color: Colors.white, fontSize: 12))),
+      ]),
+      backgroundColor: const Color(0xff10B981),
+      borderRadius: 6,
+      margin: const EdgeInsets.only(top: 8, right: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      snackPosition: SnackPosition.TOP,
+      duration: Duration(seconds: duration),
+      maxWidth: 380,
+    );
+  }
+
+  void _showError(String msg) {
+    Get.rawSnackbar(
+      messageText: Row(children: [
+        const Icon(Icons.error, color: Colors.white, size: 16),
+        const SizedBox(width: 8),
+        Expanded(child: Text(msg, style: const TextStyle(color: Colors.white, fontSize: 12))),
+      ]),
+      backgroundColor: const Color(0xffEF4444),
+      borderRadius: 6,
+      margin: const EdgeInsets.only(top: 8, right: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      snackPosition: SnackPosition.TOP,
+      duration: const Duration(seconds: 3),
+      maxWidth: 380,
+    );
+  }
+
+  // ─────────────────────────────────────────────
+  //  BUILD
+  // ─────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Container(
       color: Colors.white,
       child: Column(
         children: [
-          // Top bar with radio buttons and save button
+          // ── Top bar ──
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
               color: Colors.white,
-              border: Border(
-                bottom: BorderSide(color: Colors.grey.shade300),
-              ),
+              border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
             ),
             child: Row(
               children: [
-                // Radio buttons
-                Text(
-                  "Input Method",
-                  style: AppTheme.bodySmall.copyWith(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 11,
-                  ),
-                ),
+                Text("Input Method",
+                    style: AppTheme.bodySmall
+                        .copyWith(fontWeight: FontWeight.w600, fontSize: 11)),
                 const SizedBox(width: 16),
                 _buildCompactRadio("Used", "Used"),
                 const SizedBox(width: 12),
                 _buildCompactRadio("Final", "Final"),
-                
                 const Spacer(),
-                
-                // Save button
                 Obx(() => ElevatedButton.icon(
-                  onPressed: dashboardController.isLocked.value || isSaving.value
-                      ? null
-                      : _saveAllData,
-                  icon: isSaving.value
-                      ? const SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                          ),
-                        )
-                      : const Icon(Icons.save, size: 16),
-                  label: Text(
-                    isSaving.value ? 'Saving...' : 'Save All',
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryColor,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                    minimumSize: const Size(100, 32),
-                  ),
-                )),
+                      onPressed: dashboardController.isLocked.value || isSaving.value
+                          ? null
+                          : _saveAll,
+                      icon: isSaving.value
+                          ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation(Colors.white)),
+                            )
+                          : const Icon(Icons.save, size: 16),
+                      label: Text(isSaving.value ? 'Saving...' : 'Save All',
+                          style: const TextStyle(fontSize: 12)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryColor,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                        minimumSize: const Size(100, 32),
+                      ),
+                    )),
               ],
             ),
           ),
 
-          // Scrollable content
+          // ── Tables ──
           Expanded(
             child: SingleChildScrollView(
               child: Padding(
@@ -396,71 +622,80 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Package Table
-                    _buildCompactTable(
+                    // Package
+                    _buildTableSection<PackageRowData, PackageItem>(
                       title: "Package",
+                      color: AppTheme.primaryColor,
                       rows: packageRows,
                       dropdownItems: packages,
                       selectedRowIndex: selectedPackageRow,
-                      rowLoading: packageRowLoading,
-                      onDropdownChanged: (index, item) {
-                        packageRows[index].selectedItem = item.name;
-                        packageRows[index].code = item.code;
-                        packageRows[index].unit = item.unit;
-                        packageRows[index].price = item.price;
+                      rowSaving: packageRowSaving,
+                      rowDeleting: packageRowDeleting,
+                      headers: const ["Package", "Code", "Unit", "Price (\$)", "Initial", "Used", "Final", "Cost (\$)", "", ""],
+                      onDropdownChanged: (i, item) {
+                        packageRows[i].selectedItem = item.name;
+                        packageRows[i].code  = item.code;
+                        packageRows[i].unit  = item.unit;
+                        packageRows[i].price = item.price;
                         packageRows.refresh();
-                        _checkAndAddRow(packageRows, packageRowLoading);
+                        _checkAndAddRow(packageRows, packageRowLoading, packageRowSaving, packageRowDeleting);
                       },
-                      onFieldChanged: (index) => _checkAndAddRow(packageRows, packageRowLoading),
-                      onCalculate: _calculatePackageCost,
-                      headers: ["Package", "Code", "Unit", "Price (\$)", "Initial", "Used", "Final", "Cost (\$)", ""],
-                      color: AppTheme.primaryColor,
+                      onCalculate: _calculatePackage,
+                      onSave:      _savePackageRow,
+                      onDelete:    _deletePackageRow,
+                      cellBuilder: _packageCells,
                     ),
 
                     const SizedBox(height: 12),
 
-                    // Services Table
-                    _buildCompactTable(
+                    // Services
+                    _buildTableSection<ServiceRowData, ServiceItem>(
                       title: "Services",
+                      color: AppTheme.successColor,
                       rows: serviceRows,
                       dropdownItems: services,
                       selectedRowIndex: selectedServiceRow,
-                      rowLoading: serviceRowLoading,
-                      onDropdownChanged: (index, item) {
-                        serviceRows[index].selectedItem = item.name;
-                        serviceRows[index].code = item.code;
-                        serviceRows[index].unit = item.unit;
-                        serviceRows[index].price = item.price;
+                      rowSaving: serviceRowSaving,
+                      rowDeleting: serviceRowDeleting,
+                      headers: const ["Services", "Code", "Unit", "Price (\$)", "Usage", "Cost (\$)", "", ""],
+                      onDropdownChanged: (i, item) {
+                        serviceRows[i].selectedItem = item.name;
+                        serviceRows[i].code  = item.code;
+                        serviceRows[i].unit  = item.unit;
+                        serviceRows[i].price = item.price;
                         serviceRows.refresh();
-                        _checkAndAddRow(serviceRows, serviceRowLoading);
+                        _checkAndAddRow(serviceRows, serviceRowLoading, serviceRowSaving, serviceRowDeleting);
                       },
-                      onFieldChanged: (index) => _checkAndAddRow(serviceRows, serviceRowLoading),
-                      onCalculate: _calculateServiceCost,
-                      headers: ["Services", "Code", "Unit", "Price (\$)", "Usage", "Cost (\$)", ""],
-                      color: AppTheme.successColor,
+                      onCalculate: _calculateService,
+                      onSave:      _saveServiceRow,
+                      onDelete:    _deleteServiceRow,
+                      cellBuilder: _serviceCells,
                     ),
 
                     const SizedBox(height: 12),
 
-                    // Engineering Table
-                    _buildCompactTable(
+                    // Engineering
+                    _buildTableSection<EngineeringRowData, EngineeringItem>(
                       title: "Engineering",
+                      color: AppTheme.infoColor,
                       rows: engineeringRows,
                       dropdownItems: engineering,
                       selectedRowIndex: selectedEngineeringRow,
-                      rowLoading: engineeringRowLoading,
-                      onDropdownChanged: (index, item) {
-                        engineeringRows[index].selectedItem = item.name;
-                        engineeringRows[index].code = item.code;
-                        engineeringRows[index].unit = item.unit;
-                        engineeringRows[index].price = item.price;
+                      rowSaving: engineeringRowSaving,
+                      rowDeleting: engineeringRowDeleting,
+                      headers: const ["Engineering", "Code", "Unit", "Price (\$)", "Usage", "Cost (\$)", "", ""],
+                      onDropdownChanged: (i, item) {
+                        engineeringRows[i].selectedItem = item.name;
+                        engineeringRows[i].code  = item.code;
+                        engineeringRows[i].unit  = item.unit;
+                        engineeringRows[i].price = item.price;
                         engineeringRows.refresh();
-                        _checkAndAddRow(engineeringRows, engineeringRowLoading);
+                        _checkAndAddRow(engineeringRows, engineeringRowLoading, engineeringRowSaving, engineeringRowDeleting);
                       },
-                      onFieldChanged: (index) => _checkAndAddRow(engineeringRows, engineeringRowLoading),
-                      onCalculate: _calculateEngineeringCost,
-                      headers: ["Engineering", "Code", "Unit", "Price (\$)", "Usage", "Cost (\$)", ""],
-                      color: AppTheme.infoColor,
+                      onCalculate: _calculateEngineering,
+                      onSave:      _saveEngineeringRow,
+                      onDelete:    _deleteEngineeringRow,
+                      cellBuilder: _engineeringCells,
                     ),
                   ],
                 ),
@@ -472,98 +707,35 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
     );
   }
 
-  void _checkAndAddRow<T extends BaseRowData>(RxList<T> rows, RxList<bool> loadingStates) {
-    // Check if last row (5th or beyond) is filled
-    if (rows.length >= 5) {
-      final lastRow = rows.last;
-      if (lastRow.selectedItem.isNotEmpty) {
-        if (T == PackageRowData) {
-          rows.add(PackageRowData() as T);
-          loadingStates.add(false);
-        } else if (T == ServiceRowData) {
-          rows.add(ServiceRowData() as T);
-          loadingStates.add(false);
-        } else if (T == EngineeringRowData) {
-          rows.add(EngineeringRowData() as T);
-          loadingStates.add(false);
-        }
-      }
-    }
-  }
-
-  Widget _buildCompactRadio(String label, String value) {
-    return Obx(() => InkWell(
-      onTap: dashboardController.isLocked.value 
-          ? null 
-          : () => selectedMethod.value = value,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(
-          color: selectedMethod.value == value
-              ? AppTheme.primaryColor.withOpacity(0.1)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(4),
-          border: Border.all(
-            color: selectedMethod.value == value
-                ? AppTheme.primaryColor
-                : Colors.grey.shade300,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 12,
-              height: 12,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: selectedMethod.value == value
-                      ? AppTheme.primaryColor
-                      : Colors.grey.shade400,
-                  width: 1.5,
-                ),
-              ),
-              child: selectedMethod.value == value
-                  ? Center(
-                      child: Container(
-                        width: 6,
-                        height: 6,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: AppTheme.primaryColor,
-                        ),
-                      ),
-                    )
-                  : null,
-            ),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: AppTheme.bodySmall.copyWith(
-                fontSize: 11,
-                color: selectedMethod.value == value
-                    ? AppTheme.primaryColor
-                    : AppTheme.textSecondary,
-              ),
-            ),
-          ],
-        ),
-      ),
-    ));
-  }
-
-  Widget _buildCompactTable<T extends BaseRowData, I>({
+  // ─────────────────────────────────────────────
+  //  TABLE SECTION WIDGET
+  // ─────────────────────────────────────────────
+  Widget _buildTableSection<T extends BaseRowData, I>({
     required String title,
+    required Color color,
     required RxList<T> rows,
     required RxList<I> dropdownItems,
     required RxInt selectedRowIndex,
-    required RxList<bool> rowLoading,
-    required Function(int, I) onDropdownChanged,
-    required Function(int) onFieldChanged,
-    required Function(int) onCalculate,
+    required RxList<bool> rowSaving,
+    required RxList<bool> rowDeleting,
     required List<String> headers,
-    required Color color,
+    required Function(int, I) onDropdownChanged,
+    required Function(int) onCalculate,
+    required Function(int) onSave,
+    required Function(int) onDelete,
+    required List<DataCell> Function(
+      T row,
+      int index,
+      bool isSelected,
+      RxList<I> dropdownItems,
+      Function(int, I) onDropdownChanged,
+      VoidCallback onRowSelected,
+      Function(int) onCalculate,
+      Function(int) onSave,
+      Function(int) onDelete,
+      bool isSaving,
+      bool isDeleting,
+    ) cellBuilder,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -573,7 +745,7 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
+          // Table header bar
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
             decoration: BoxDecoration(
@@ -583,82 +755,77 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
                 topRight: Radius.circular(6),
               ),
             ),
-            child: Text(
-              title,
-              style: AppTheme.bodySmall.copyWith(
-                fontWeight: FontWeight.w600,
-                fontSize: 11,
-                color: Colors.white,
-              ),
-            ),
+            child: Text(title,
+                style: AppTheme.bodySmall.copyWith(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 11,
+                    color: Colors.white)),
           ),
 
-          // Table with fixed height and scrollable content
+          // Data table
           SizedBox(
-            height: 180, // Reduced fixed height for compression
+            height: 180,
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: SingleChildScrollView(
                 scrollDirection: Axis.vertical,
-                child: Obx(() => Container(
-                  decoration: BoxDecoration(
-                    border: Border(
-                      top: BorderSide(color: Colors.grey.shade300),
-                    ),
-                  ),
-                  child: DataTable(
-                    headingRowHeight: 28, // Compressed header height
-                    dataRowHeight: 28, // Compressed row height
-                    columnSpacing: 0,
-                    horizontalMargin: 0,
-                    dividerThickness: 0,
-                    headingRowColor: MaterialStateProperty.all(Colors.grey.shade50),
-                    border: TableBorder(
-                      verticalInside: BorderSide(color: Colors.grey.shade300, width: 1),
-                      horizontalInside: BorderSide(color: Colors.grey.shade200, width: 1),
-                    ),
-                    headingTextStyle: AppTheme.bodySmall.copyWith(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: color,
-                    ),
-                    dataTextStyle: AppTheme.bodySmall.copyWith(
-                      fontSize: 9,
-                    ),
-                    columns: headers.map((h) => DataColumn(
-                      label: Container(
-                        width: _getColumnWidth(h),
-                        alignment: h.contains('Price') || h.contains('Cost') || h.contains('Initial') || h.contains('Used') || h.contains('Final') || h.contains('Usage')
-                            ? Alignment.centerRight
-                            : Alignment.centerLeft,
-                        padding: const EdgeInsets.symmetric(horizontal: 6),
-                        child: Text(h),
+                child: Obx(() => DataTable(
+                      headingRowHeight: 28,
+                      dataRowHeight: 28,
+                      columnSpacing: 0,
+                      horizontalMargin: 0,
+                      dividerThickness: 0,
+                      headingRowColor:
+                          MaterialStateProperty.all(Colors.grey.shade50),
+                      border: TableBorder(
+                        verticalInside: BorderSide(
+                            color: Colors.grey.shade300, width: 1),
+                        horizontalInside: BorderSide(
+                            color: Colors.grey.shade200, width: 1),
                       ),
-                    )).toList(),
-                    rows: List.generate(rows.length, (index) {
-                      final row = rows[index];
-                      final isSelected = selectedRowIndex.value == index;
-                      
-                      return DataRow(
-                        color: MaterialStateProperty.all(
-                          index % 2 == 0 ? Colors.white : Colors.grey.shade50,
-                        ),
-                        cells: _buildRowCells(
-                          row: row,
-                          index: index,
-                          isSelected: isSelected,
-                          dropdownItems: dropdownItems,
-                          onDropdownChanged: onDropdownChanged,
-                          onFieldChanged: onFieldChanged,
-                          onRowSelected: () => selectedRowIndex.value = index,
-                          onCalculate: onCalculate,
-                          headers: headers,
-                          isLoading: rowLoading[index],
-                        ),
-                      );
-                    }),
-                  ),
-                )),
+                      headingTextStyle: AppTheme.bodySmall.copyWith(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: color),
+                      dataTextStyle: AppTheme.bodySmall.copyWith(fontSize: 9),
+                      columns: headers
+                          .map((h) => DataColumn(
+                                label: Container(
+                                  width: _colWidth(h),
+                                  alignment: _isNumericHeader(h)
+                                      ? Alignment.centerRight
+                                      : Alignment.centerLeft,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 6),
+                                  child: Text(h),
+                                ),
+                              ))
+                          .toList(),
+                      rows: List.generate(rows.length, (i) {
+                        final row        = rows[i];
+                        final isSelected = selectedRowIndex.value == i;
+                        final saving     = rowSaving[i];
+                        final deleting   = rowDeleting[i];
+
+                        return DataRow(
+                          color: MaterialStateProperty.all(
+                              i % 2 == 0 ? Colors.white : Colors.grey.shade50),
+                          cells: cellBuilder(
+                            row,
+                            i,
+                            isSelected,
+                            dropdownItems,
+                            onDropdownChanged,
+                            () => selectedRowIndex.value = i,
+                            onCalculate,
+                            onSave,
+                            onDelete,
+                            saving,
+                            deleting,
+                          ),
+                        );
+                      }),
+                    )),
               ),
             ),
           ),
@@ -667,279 +834,480 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
     );
   }
 
-  double _getColumnWidth(String header) {
-    if (header.contains('Package') || header.contains('Services') || header.contains('Engineering')) {
-      return 160;
-    } else if (header == 'Code') {
-      return 90;
-    } else if (header == 'Unit') {
-      return 70;
-    } else if (header.contains('Price') || header.contains('Cost')) {
-      return 90;
-    } else if (header == '') {
-      return 40; // Play button column
-    } else {
-      return 80;
-    }
+  // ─────────────────────────────────────────────
+  //  PACKAGE row cells
+  // ─────────────────────────────────────────────
+  List<DataCell> _packageCells(
+    PackageRowData row,
+    int index,
+    bool isSelected,
+    RxList<PackageItem> dropdownItems,
+    Function(int, PackageItem) onDropdownChanged,
+    VoidCallback onRowSelected,
+    Function(int) onCalculate,
+    Function(int) onSave,
+    Function(int) onDelete,
+    bool isSaving,
+    bool isDeleting,
+  ) {
+    return [
+      // Dropdown
+      _dropdownCell<PackageItem>(
+        row: row,
+        index: index,
+        isSelected: isSelected,
+        dropdownItems: dropdownItems,
+        onDropdownChanged: onDropdownChanged,
+        onRowSelected: onRowSelected,
+        width: 160,
+        getName: (i) => i.name,
+      ),
+      // Code
+      _readCell(row.code, 90),
+      // Unit
+      _readCell(row.unit, 70),
+      // Price
+      _readCell(row.price > 0 ? row.price.toStringAsFixed(2) : '', 90, rightAlign: true),
+      // Initial (editable)
+      _editCell(row.initial, 80, (v) {
+        row.initial = v;
+        _calculatePackage(index);
+      }),
+      // Used (editable)
+      _editCell(row.used, 80, (v) {
+        row.used = v;
+        _calculatePackage(index);
+      }),
+      // Final (auto-computed, read-only, colored if negative)
+      DataCell(Container(
+        width: 80,
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        alignment: Alignment.centerRight,
+        child: Text(
+          row.finalValue,
+          style: AppTheme.bodySmall.copyWith(
+            fontSize: 9,
+            color: (double.tryParse(row.finalValue) ?? 0) < 0
+                ? Colors.red
+                : Colors.grey.shade700,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      )),
+      // Cost (auto-computed)
+      _readCell(row.cost > 0 ? row.cost.toStringAsFixed(2) : '', 90,
+          rightAlign: true, bold: true, color: AppTheme.primaryColor),
+      // Calculate + Save button
+      DataCell(_actionButtons(
+        index: index,
+        isSaving: isSaving,
+        isDeleting: isDeleting,
+        hasItem: row.selectedItem.isNotEmpty,
+        onCalculate: () => onCalculate(index),
+        onSave: () => onSave(index),
+      )),
+      // Delete button
+      DataCell(_deleteButton(
+        index: index,
+        isDeleting: isDeleting,
+        onDelete: () => onDelete(index),
+      )),
+    ];
   }
 
-  List<DataCell> _buildRowCells<T extends BaseRowData, I>({
-    required T row,
+  // ─────────────────────────────────────────────
+  //  SERVICE row cells
+  // ─────────────────────────────────────────────
+  List<DataCell> _serviceCells(
+    ServiceRowData row,
+    int index,
+    bool isSelected,
+    RxList<ServiceItem> dropdownItems,
+    Function(int, ServiceItem) onDropdownChanged,
+    VoidCallback onRowSelected,
+    Function(int) onCalculate,
+    Function(int) onSave,
+    Function(int) onDelete,
+    bool isSaving,
+    bool isDeleting,
+  ) {
+    return [
+      _dropdownCell<ServiceItem>(
+        row: row,
+        index: index,
+        isSelected: isSelected,
+        dropdownItems: dropdownItems,
+        onDropdownChanged: onDropdownChanged,
+        onRowSelected: onRowSelected,
+        width: 160,
+        getName: (i) => i.name,
+      ),
+      _readCell(row.code, 90),
+      _readCell(row.unit, 70),
+      _readCell(row.price > 0 ? row.price.toStringAsFixed(2) : '', 90, rightAlign: true),
+      _editCell(row.usage, 80, (v) {
+        row.usage = v;
+        _calculateService(index);
+      }),
+      _readCell(row.cost > 0 ? row.cost.toStringAsFixed(2) : '', 90,
+          rightAlign: true, bold: true, color: AppTheme.successColor),
+      DataCell(_actionButtons(
+        index: index,
+        isSaving: isSaving,
+        isDeleting: isDeleting,
+        hasItem: row.selectedItem.isNotEmpty,
+        onCalculate: () => onCalculate(index),
+        onSave: () => onSave(index),
+      )),
+      DataCell(_deleteButton(
+        index: index,
+        isDeleting: isDeleting,
+        onDelete: () => onDelete(index),
+      )),
+    ];
+  }
+
+  // ─────────────────────────────────────────────
+  //  ENGINEERING row cells
+  // ─────────────────────────────────────────────
+  List<DataCell> _engineeringCells(
+    EngineeringRowData row,
+    int index,
+    bool isSelected,
+    RxList<EngineeringItem> dropdownItems,
+    Function(int, EngineeringItem) onDropdownChanged,
+    VoidCallback onRowSelected,
+    Function(int) onCalculate,
+    Function(int) onSave,
+    Function(int) onDelete,
+    bool isSaving,
+    bool isDeleting,
+  ) {
+    return [
+      _dropdownCell<EngineeringItem>(
+        row: row,
+        index: index,
+        isSelected: isSelected,
+        dropdownItems: dropdownItems,
+        onDropdownChanged: onDropdownChanged,
+        onRowSelected: onRowSelected,
+        width: 160,
+        getName: (i) => i.name,
+      ),
+      _readCell(row.code, 90),
+      _readCell(row.unit, 70),
+      _readCell(row.price > 0 ? row.price.toStringAsFixed(2) : '', 90, rightAlign: true),
+      _editCell(row.usage, 80, (v) {
+        row.usage = v;
+        _calculateEngineering(index);
+      }),
+      _readCell(row.cost > 0 ? row.cost.toStringAsFixed(2) : '', 90,
+          rightAlign: true, bold: true, color: AppTheme.infoColor),
+      DataCell(_actionButtons(
+        index: index,
+        isSaving: isSaving,
+        isDeleting: isDeleting,
+        hasItem: row.selectedItem.isNotEmpty,
+        onCalculate: () => onCalculate(index),
+        onSave: () => onSave(index),
+      )),
+      DataCell(_deleteButton(
+        index: index,
+        isDeleting: isDeleting,
+        onDelete: () => onDelete(index),
+      )),
+    ];
+  }
+
+  // ─────────────────────────────────────────────
+  //  REUSABLE CELL BUILDERS
+  // ─────────────────────────────────────────────
+
+  DataCell _dropdownCell<I>({
+    required BaseRowData row,
     required int index,
     required bool isSelected,
     required RxList<I> dropdownItems,
     required Function(int, I) onDropdownChanged,
-    required Function(int) onFieldChanged,
     required VoidCallback onRowSelected,
-    required Function(int) onCalculate,
-    required List<String> headers,
-    required bool isLoading,
+    required double width,
+    required String Function(I) getName,
   }) {
-    List<DataCell> cells = [];
-
-    // First column - Dropdown with icon
-    cells.add(DataCell(
-      GestureDetector(
-        onTap: onRowSelected,
-        child: Container(
-          width: 160,
-          padding: const EdgeInsets.symmetric(horizontal: 6),
-          child: Row(
-            children: [
-              // Dropdown icon - shows only in selected row
-              if (isSelected)
-                Icon(
-                  Icons.arrow_drop_down,
-                  size: 14,
-                  color: AppTheme.primaryColor,
-                ),
-              if (isSelected)
-                const SizedBox(width: 2),
-              
-              // Dropdown
-              Expanded(
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<I>(
-                    value: row.selectedItem.isNotEmpty 
-                        ? dropdownItems.firstWhereOrNull((item) {
-                            if (item is PackageItem) return item.name == row.selectedItem;
-                            if (item is ServiceItem) return item.name == row.selectedItem;
-                            if (item is EngineeringItem) return item.name == row.selectedItem;
-                            return false;
-                          })
-                        : null,
-                    hint: Text(
-                      "Select",
-                      style: AppTheme.bodySmall.copyWith(
-                        fontSize: 9,
-                        color: Colors.grey,
-                      ),
-                    ),
-                    isExpanded: true,
-                    isDense: true,
-                    icon: const SizedBox.shrink(),
-                    menuMaxHeight: 200,
-                    items: dropdownItems.map((item) {
-                      String name = '';
-                      if (item is PackageItem) name = item.name;
-                      if (item is ServiceItem) name = item.name;
-                      if (item is EngineeringItem) name = item.name;
-                      
-                      return DropdownMenuItem<I>(
-                        value: item,
-                        child: Text(
-                          name,
-                          style: AppTheme.bodySmall.copyWith(fontSize: 9),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      );
-                    }).toList(),
-                    onChanged: dashboardController.isLocked.value 
-                        ? null 
-                        : (I? value) {
-                            if (value != null) {
-                              onRowSelected();
-                              onDropdownChanged(index, value);
-                            }
-                          },
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    ));
-
-    // Code
-    cells.add(DataCell(
-      Container(
-        width: 90,
-        padding: const EdgeInsets.symmetric(horizontal: 6),
-        child: Text(row.code, style: AppTheme.bodySmall.copyWith(fontSize: 9)),
-      ),
-    ));
-
-    // Unit
-    cells.add(DataCell(
-      Container(
-        width: 70,
-        padding: const EdgeInsets.symmetric(horizontal: 6),
-        child: Text(row.unit, style: AppTheme.bodySmall.copyWith(fontSize: 9)),
-      ),
-    ));
-
-    // Price
-    cells.add(DataCell(
-      Container(
-        width: 90,
-        padding: const EdgeInsets.symmetric(horizontal: 6),
-        child: Text(
-          row.price > 0 ? row.price.toStringAsFixed(2) : '',
-          style: AppTheme.bodySmall.copyWith(fontSize: 9),
-          textAlign: TextAlign.right,
-        ),
-      ),
-    ));
-
-    // Additional fields based on table type
-    if (row is PackageRowData) {
-      // Initial, Used, Final, Cost
-      cells.add(_buildEditableCell(row.initial, (val) {
-        row.initial = val;
-        onFieldChanged(index);
-      }, 80));
-      cells.add(_buildEditableCell(row.used, (val) {
-        row.used = val;
-        onFieldChanged(index);
-      }, 80));
-      cells.add(DataCell(
-        Container(
-          width: 80,
-          padding: const EdgeInsets.symmetric(horizontal: 6),
-          child: Text(
-            row.final_,
-            style: AppTheme.bodySmall.copyWith(
-              fontSize: 9,
-              color: Colors.grey.shade600,
-            ),
-            textAlign: TextAlign.right,
-          ),
-        ),
-      ));
-      cells.add(DataCell(
-        Container(
-          width: 90,
-          padding: const EdgeInsets.symmetric(horizontal: 6),
-          child: Text(
-            row.cost > 0 ? row.cost.toStringAsFixed(2) : '',
-            style: AppTheme.bodySmall.copyWith(
-              fontSize: 9,
-              fontWeight: FontWeight.w600,
-              color: row.cost > 0 ? AppTheme.primaryColor : Colors.black,
-            ),
-            textAlign: TextAlign.right,
-          ),
-        ),
-      ));
-    } else {
-      // Usage, Cost
-      cells.add(_buildEditableCell(
-        row is ServiceRowData ? row.usage : (row as EngineeringRowData).usage, 
-        (val) {
-          if (row is ServiceRowData) {
-            row.usage = val;
-          } else if (row is EngineeringRowData) {
-            row.usage = val;
-          }
-          onFieldChanged(index);
-        }, 
-        80
-      ));
-      cells.add(DataCell(
-        Container(
-          width: 90,
-          padding: const EdgeInsets.symmetric(horizontal: 6),
-          child: Text(
-            row.cost > 0 ? row.cost.toStringAsFixed(2) : '',
-            style: AppTheme.bodySmall.copyWith(
-              fontSize: 9,
-              fontWeight: FontWeight.w600,
-              color: row.cost > 0 ? AppTheme.primaryColor : Colors.black,
-            ),
-            textAlign: TextAlign.right,
-          ),
-        ),
-      ));
-    }
-
-    // Play button column
-    cells.add(DataCell(
-      Container(
-        width: 40,
-        padding: const EdgeInsets.symmetric(horizontal: 2),
-        child: isLoading
-            ? const SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : IconButton(
-                icon: Icon(
-                  Icons.play_circle_outline,
-                  size: 18,
-                  color: row.selectedItem.isNotEmpty && !dashboardController.isLocked.value
-                      ? AppTheme.primaryColor
-                      : Colors.grey.shade400,
-                ),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                onPressed: row.selectedItem.isNotEmpty && !dashboardController.isLocked.value
-                    ? () => onCalculate(index)
-                    : null,
-                tooltip: 'Calculate Cost',
-              ),
-      ),
-    ));
-
-    return cells;
-  }
-
-  DataCell _buildEditableCell(String value, Function(String) onChanged, double width) {
-    return DataCell(
-      Container(
+    return DataCell(GestureDetector(
+      onTap: onRowSelected,
+      child: Container(
         width: width,
         padding: const EdgeInsets.symmetric(horizontal: 6),
-        child: TextField(
-          controller: TextEditingController(text: value),
-          enabled: !dashboardController.isLocked.value,
-          style: AppTheme.bodySmall.copyWith(fontSize: 9),
-          decoration: const InputDecoration(
-            isDense: true,
-            contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-            border: InputBorder.none,
+        child: Row(children: [
+          if (isSelected)
+            Icon(Icons.arrow_drop_down, size: 14, color: AppTheme.primaryColor),
+          if (isSelected) const SizedBox(width: 2),
+          Expanded(
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<I>(
+                value: row.selectedItem.isNotEmpty
+                    ? dropdownItems.firstWhereOrNull(
+                        (item) => getName(item) == row.selectedItem)
+                    : null,
+                hint: Text("Select",
+                    style: AppTheme.bodySmall.copyWith(
+                        fontSize: 9, color: Colors.grey)),
+                isExpanded: true,
+                isDense: true,
+                icon: const SizedBox.shrink(),
+                menuMaxHeight: 200,
+                items: dropdownItems
+                    .map((item) => DropdownMenuItem<I>(
+                          value: item,
+                          child: Text(getName(item),
+                              style: AppTheme.bodySmall.copyWith(fontSize: 9),
+                              overflow: TextOverflow.ellipsis),
+                        ))
+                    .toList(),
+                onChanged: dashboardController.isLocked.value
+                    ? null
+                    : (I? val) {
+                        if (val != null) {
+                          onRowSelected();
+                          onDropdownChanged(index, val);
+                        }
+                      },
+              ),
+            ),
           ),
-          keyboardType: TextInputType.number,
-          onChanged: onChanged,
+        ]),
+      ),
+    ));
+  }
+
+  DataCell _readCell(String val, double width,
+      {bool rightAlign = false, bool bold = false, Color? color}) {
+    return DataCell(Container(
+      width: width,
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      alignment: rightAlign ? Alignment.centerRight : Alignment.centerLeft,
+      child: Text(
+        val,
+        style: AppTheme.bodySmall.copyWith(
+          fontSize: 9,
+          fontWeight: bold ? FontWeight.w600 : FontWeight.normal,
+          color: color ?? Colors.grey.shade800,
         ),
+      ),
+    ));
+  }
+
+  DataCell _editCell(String value, double width, Function(String) onChanged) {
+    return DataCell(Container(
+      width: width,
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      child: TextField(
+        controller: TextEditingController(text: value),
+        enabled: !dashboardController.isLocked.value,
+        style: AppTheme.bodySmall.copyWith(fontSize: 9),
+        decoration: const InputDecoration(
+          isDense: true,
+          contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+          border: InputBorder.none,
+        ),
+        keyboardType: const TextInputType.numberWithOptions(
+            signed: true, decimal: true),
+        onChanged: onChanged,
+      ),
+    ));
+  }
+
+  // Action buttons: play (calculate) + save icon
+  Widget _actionButtons({
+    required int index,
+    required bool isSaving,
+    required bool isDeleting,
+    required bool hasItem,
+    required VoidCallback onCalculate,
+    required VoidCallback onSave,
+  }) {
+    if (isSaving) {
+      return const SizedBox(
+        width: 60,
+        child: Center(
+          child: SizedBox(
+            width: 14,
+            height: 14,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      );
+    }
+    return SizedBox(
+      width: 60,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Calculate
+          IconButton(
+            icon: Icon(Icons.play_circle_outline,
+                size: 16,
+                color: hasItem && !dashboardController.isLocked.value
+                    ? AppTheme.primaryColor
+                    : Colors.grey.shade400),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            onPressed: hasItem && !dashboardController.isLocked.value
+                ? onCalculate
+                : null,
+            tooltip: 'Calculate',
+          ),
+          const SizedBox(width: 4),
+          // Save
+          IconButton(
+            icon: Icon(Icons.save_outlined,
+                size: 16,
+                color: hasItem && !dashboardController.isLocked.value
+                    ? const Color(0xff10B981)
+                    : Colors.grey.shade400),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            onPressed: hasItem && !dashboardController.isLocked.value
+                ? onSave
+                : null,
+            tooltip: 'Save row',
+          ),
+        ],
       ),
     );
   }
+
+  // Delete button
+  Widget _deleteButton({
+    required int index,
+    required bool isDeleting,
+    required VoidCallback onDelete,
+  }) {
+    if (isDeleting) {
+      return const SizedBox(
+        width: 32,
+        child: Center(
+          child: SizedBox(
+            width: 12,
+            height: 12,
+            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.red),
+          ),
+        ),
+      );
+    }
+    return SizedBox(
+      width: 32,
+      child: IconButton(
+        icon: Icon(Icons.delete_outline,
+            size: 15,
+            color: dashboardController.isLocked.value
+                ? Colors.grey.shade300
+                : Colors.red.shade300),
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(),
+        onPressed:
+            dashboardController.isLocked.value ? null : onDelete,
+        tooltip: 'Delete row',
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────
+  //  Radio button
+  // ─────────────────────────────────────────────
+  Widget _buildCompactRadio(String label, String value) {
+    return Obx(() => InkWell(
+          onTap: dashboardController.isLocked.value
+              ? null
+              : () => selectedMethod.value = value,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: selectedMethod.value == value
+                  ? AppTheme.primaryColor.withOpacity(0.1)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(
+                color: selectedMethod.value == value
+                    ? AppTheme.primaryColor
+                    : Colors.grey.shade300,
+              ),
+            ),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: selectedMethod.value == value
+                        ? AppTheme.primaryColor
+                        : Colors.grey.shade400,
+                    width: 1.5,
+                  ),
+                ),
+                child: selectedMethod.value == value
+                    ? Center(
+                        child: Container(
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: AppTheme.primaryColor,
+                          ),
+                        ),
+                      )
+                    : null,
+              ),
+              const SizedBox(width: 6),
+              Text(label,
+                  style: AppTheme.bodySmall.copyWith(
+                      fontSize: 11,
+                      color: selectedMethod.value == value
+                          ? AppTheme.primaryColor
+                          : AppTheme.textSecondary)),
+            ]),
+          ),
+        ));
+  }
+
+  // ─────────────────────────────────────────────
+  //  Column width / numeric header helpers
+  // ─────────────────────────────────────────────
+  double _colWidth(String h) {
+    if (h == 'Package' || h == 'Services' || h == 'Engineering') return 160;
+    if (h == 'Code')    return 90;
+    if (h == 'Unit')    return 70;
+    if (h.contains('Price') || h.contains('Cost')) return 90;
+    if (h == '' )       return 32; // delete column
+    return 80;
+  }
+
+  bool _isNumericHeader(String h) =>
+      h.contains('Price') ||
+      h.contains('Cost') ||
+      h == 'Initial' ||
+      h == 'Used' ||
+      h == 'Final' ||
+      h == 'Usage';
 }
 
-// Base class for row data
+// ─────────────────────────────────────────────
+//  DATA MODELS
+// ─────────────────────────────────────────────
 abstract class BaseRowData {
-  String selectedItem = '';
-  String code = '';
-  String unit = '';
-  double price = 0.0;
-  double cost = 0.0;
+  String  selectedItem = '';
+  String  code         = '';
+  String  unit         = '';
+  double  price        = 0.0;
+  double  cost         = 0.0;
+  String? savedId;          // MongoDB _id after save
 }
 
 class PackageRowData extends BaseRowData {
-  String initial = '';
-  String used = '';
-  String final_ = '';
+  String initial    = '';
+  String used       = '';
+  String finalValue = '';   // can be negative, shown in red
 }
 
 class ServiceRowData extends BaseRowData {

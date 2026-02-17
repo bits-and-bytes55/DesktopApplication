@@ -15,7 +15,7 @@ class ReceiveProductController {
   Future<List<Map<String, dynamic>>> getReceiveProducts() async {
     try {
       final response = await http.get(
-        Uri.parse('${baseUrl}receive-products'),
+        Uri.parse('${baseUrl}receive-product'),
         headers: _headers,
       );
 
@@ -43,7 +43,7 @@ class ReceiveProductController {
   }) async {
     try {
       final response = await http.post(
-        Uri.parse('${baseUrl}receive-products'),
+        Uri.parse('${baseUrl}receive-product'),
         headers: _headers,
         body: jsonEncode({
           'productName': productName,
@@ -86,7 +86,7 @@ class ReceiveProductController {
   }) async {
     try {
       final response = await http.put(
-        Uri.parse('${baseUrl}receive-products/$id'),
+        Uri.parse('${baseUrl}receive-product/$id'),
         headers: _headers,
         body: jsonEncode({
           'productName': productName,
@@ -123,7 +123,7 @@ class ReceiveProductController {
   Future<Map<String, dynamic>> deleteReceiveProduct(String id) async {
     try {
       final response = await http.delete(
-        Uri.parse('${baseUrl}receive-products/$id'),
+        Uri.parse('${baseUrl}receive-product/$id'),
         headers: _headers,
       );
 
@@ -155,7 +155,7 @@ class ReceiveProductController {
   Future<List<Map<String, dynamic>>> getReceivePackages() async {
     try {
       final response = await http.get(
-        Uri.parse('${baseUrl}receive-packages'),
+        Uri.parse('${baseUrl}receive-package'),
         headers: _headers,
       );
 
@@ -183,7 +183,7 @@ class ReceiveProductController {
   }) async {
     try {
       final response = await http.post(
-        Uri.parse('${baseUrl}receive-packages'),
+        Uri.parse('${baseUrl}receive-package'),
         headers: _headers,
         body: jsonEncode({
           'packageName': packageName,
@@ -226,7 +226,7 @@ class ReceiveProductController {
   }) async {
     try {
       final response = await http.put(
-        Uri.parse('${baseUrl}receive-packages/$id'),
+        Uri.parse('${baseUrl}receive-package/$id'),
         headers: _headers,
         body: jsonEncode({
           'packageName': packageName,
@@ -263,8 +263,7 @@ class ReceiveProductController {
   Future<Map<String, dynamic>> deleteReceivePackage(String id) async {
     try {
       final response = await http.delete(
-        Uri.parse('${baseUrl}receive-packages/$id'),
-        headers: _headers,
+        Uri.parse('${baseUrl}receive-package/$id'),
       );
 
       final responseData = jsonDecode(response.body);

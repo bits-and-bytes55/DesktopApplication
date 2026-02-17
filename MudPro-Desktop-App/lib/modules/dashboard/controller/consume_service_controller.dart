@@ -10,8 +10,10 @@ class ConsumeServiceController {
     'Accept': 'application/json',
   };
 
-  // ============ CONSUME PACKAGE APIs ============
-  
+  // ═══════════════════════════════════════════
+  //  PACKAGE
+  // ═══════════════════════════════════════════
+
   Future<Map<String, dynamic>> createConsumePackage({
     required String packageName,
     required String code,
@@ -21,70 +23,130 @@ class ConsumeServiceController {
     required double used,
   }) async {
     try {
+      final body = jsonEncode({
+        'packageName': packageName,
+        'code':        code,
+        'unit':        unit,
+        'price':       price,
+        'initial':     initial,
+        'used':        used,
+      });
+
+      print('🔵 [API] POST ${baseUrl}cs/package');
+      print('🔵 [API] Body: $body');
+
       final response = await http.post(
-        Uri.parse('${baseUrl}cs/consume-packages'),
+        Uri.parse('${baseUrl}cs/package'),
         headers: _headers,
-        body: jsonEncode({
-          'packageName': packageName,
-          'code': code,
-          'unit': unit,
-          'price': price,
-          'initial': initial,
-          'used': used,
-        }),
+        body: body,
       );
 
+      print('🟢 [API] Create Package - statusCode: ${response.statusCode}');
+      print('🟢 [API] Create Package - responseBody: ${response.body}');
+
       final responseData = jsonDecode(response.body);
-      print("Create Package - responsebody: ${response.body}");
-      print("Create Package - statusCode: ${response.statusCode}");
-      
-      if (response.statusCode == 201 || response.statusCode == 200) {
+      if (response.statusCode == 200 || response.statusCode == 201) {
         return {
           'success': true,
-          'message': 'Package consumption created successfully',
+          'message': responseData['message'] ?? 'Package created',
           'data': responseData['data'],
         };
       } else {
         return {
           'success': false,
-          'message': responseData['message'] ?? 'Failed to create package consumption',
+          'message': responseData['message'] ?? 'Failed to create package',
         };
       }
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Error: $e',
-      };
+      print('🔴 [API] Create Package exception: $e');
+      return {'success': false, 'message': 'Error: $e'};
     }
   }
 
-  Future<Map<String, dynamic>> calculatePackageCost({
+  Future<Map<String, dynamic>> updateConsumePackage({
+    required String id,
+    required String packageName,
+    required String code,
+    required String unit,
+    required double price,
     required double initial,
     required double used,
-    required double price,
   }) async {
     try {
-      // Calculate locally (same as backend logic)
-      final double finalValue = initial - used;
-      final double cost = used * price;
+      final body = jsonEncode({
+        'packageName': packageName,
+        'code':        code,
+        'unit':        unit,
+        'price':       price,
+        'initial':     initial,
+        'used':        used,
+      });
 
-      return {
-        'success': true,
-        'data': {
-          'final': finalValue,
-          'cost': cost,
-        },
-      };
+      print('🔵 [API] PUT ${baseUrl}cs/package/$id');
+      print('🔵 [API] Body: $body');
+
+      final response = await http.put(
+        Uri.parse('${baseUrl}cs/package/$id'),
+        headers: _headers,
+        body: body,
+      );
+
+      print('🟢 [API] Update Package - statusCode: ${response.statusCode}');
+      print('🟢 [API] Update Package - responseBody: ${response.body}');
+
+      final responseData = jsonDecode(response.body);
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return {
+          'success': true,
+          'message': responseData['message'] ?? 'Package updated',
+          'data': responseData['data'],
+        };
+      } else {
+        return {
+          'success': false,
+          'message': responseData['message'] ?? 'Failed to update package',
+        };
+      }
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Error calculating cost: $e',
-      };
+      print('🔴 [API] Update Package exception: $e');
+      return {'success': false, 'message': 'Error: $e'};
     }
   }
 
-  // ============ CONSUME SERVICE APIs ============
-  
+  Future<Map<String, dynamic>> deleteConsumePackage(String id) async {
+    try {
+      print('🔵 [API] DELETE ${baseUrl}cs/package/$id');
+
+      final response = await http.delete(
+        Uri.parse('${baseUrl}cs/package/$id'),
+        headers: _headers,
+      );
+
+      print('🟢 [API] Delete Package - statusCode: ${response.statusCode}');
+      print('🟢 [API] Delete Package - responseBody: ${response.body}');
+
+      final responseData = jsonDecode(response.body);
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return {
+          'success': true,
+          'message': responseData['message'] ?? 'Package deleted',
+        };
+      } else {
+        return {
+          'success': false,
+          'message': responseData['message'] ?? 'Failed to delete package',
+        };
+      }
+    } catch (e) {
+      print('🔴 [API] Delete Package exception: $e');
+      return {'success': false, 'message': 'Error: $e'};
+    }
+  }
+
+  // ═══════════════════════════════════════════
+  //  SERVICE
+  // ═══════════════════════════════════════════
+
   Future<Map<String, dynamic>> createConsumeService({
     required String serviceName,
     required String code,
@@ -93,66 +155,127 @@ class ConsumeServiceController {
     required double usage,
   }) async {
     try {
+      final body = jsonEncode({
+        'serviceName': serviceName,
+        'code':        code,
+        'unit':        unit,
+        'price':       price,
+        'usage':       usage,
+      });
+
+      print('🔵 [API] POST ${baseUrl}cs/service');
+      print('🔵 [API] Body: $body');
+
       final response = await http.post(
-        Uri.parse('${baseUrl}cs/consume-services'),
+        Uri.parse('${baseUrl}cs/service'),
         headers: _headers,
-        body: jsonEncode({
-          'serviceName': serviceName,
-          'code': code,
-          'unit': unit,
-          'price': price,
-          'usage': usage,
-        }),
+        body: body,
       );
 
+      print('🟢 [API] Create Service - statusCode: ${response.statusCode}');
+      print('🟢 [API] Create Service - responseBody: ${response.body}');
+
       final responseData = jsonDecode(response.body);
-      print("Create Service - responsebody: ${response.body}");
-      print("Create Service - statusCode: ${response.statusCode}");
-      
-      if (response.statusCode == 201 || response.statusCode == 200) {
+      if (response.statusCode == 200 || response.statusCode == 201) {
         return {
           'success': true,
-          'message': 'Service consumption created successfully',
+          'message': responseData['message'] ?? 'Service created',
           'data': responseData['data'],
         };
       } else {
         return {
           'success': false,
-          'message': responseData['message'] ?? 'Failed to create service consumption',
+          'message': responseData['message'] ?? 'Failed to create service',
         };
       }
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Error: $e',
-      };
+      print('🔴 [API] Create Service exception: $e');
+      return {'success': false, 'message': 'Error: $e'};
     }
   }
 
-  Future<Map<String, dynamic>> calculateServiceCost({
-    required double usage,
+  Future<Map<String, dynamic>> updateConsumeService({
+    required String id,
+    required String serviceName,
+    required String code,
+    required String unit,
     required double price,
+    required double usage,
   }) async {
     try {
-      // Calculate locally (same as backend logic)
-      final double cost = usage * price;
+      final body = jsonEncode({
+        'serviceName': serviceName,
+        'code':        code,
+        'unit':        unit,
+        'price':       price,
+        'usage':       usage,
+      });
 
-      return {
-        'success': true,
-        'data': {
-          'cost': cost,
-        },
-      };
+      print('🔵 [API] PUT ${baseUrl}cs/service/$id');
+      print('🔵 [API] Body: $body');
+
+      final response = await http.put(
+        Uri.parse('${baseUrl}cs/service/$id'),
+        headers: _headers,
+        body: body,
+      );
+
+      print('🟢 [API] Update Service - statusCode: ${response.statusCode}');
+      print('🟢 [API] Update Service - responseBody: ${response.body}');
+
+      final responseData = jsonDecode(response.body);
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return {
+          'success': true,
+          'message': responseData['message'] ?? 'Service updated',
+          'data': responseData['data'],
+        };
+      } else {
+        return {
+          'success': false,
+          'message': responseData['message'] ?? 'Failed to update service',
+        };
+      }
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Error calculating cost: $e',
-      };
+      print('🔴 [API] Update Service exception: $e');
+      return {'success': false, 'message': 'Error: $e'};
     }
   }
 
-  // ============ CONSUME ENGINEERING APIs ============
-  
+  Future<Map<String, dynamic>> deleteConsumeService(String id) async {
+    try {
+      print('🔵 [API] DELETE ${baseUrl}cs/service/$id');
+
+      final response = await http.delete(
+        Uri.parse('${baseUrl}cs/service/$id'),
+        headers: _headers,
+      );
+
+      print('🟢 [API] Delete Service - statusCode: ${response.statusCode}');
+      print('🟢 [API] Delete Service - responseBody: ${response.body}');
+
+      final responseData = jsonDecode(response.body);
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return {
+          'success': true,
+          'message': responseData['message'] ?? 'Service deleted',
+        };
+      } else {
+        return {
+          'success': false,
+          'message': responseData['message'] ?? 'Failed to delete service',
+        };
+      }
+    } catch (e) {
+      print('🔴 [API] Delete Service exception: $e');
+      return {'success': false, 'message': 'Error: $e'};
+    }
+  }
+
+  // ═══════════════════════════════════════════
+  //  ENGINEERING
+  // ═══════════════════════════════════════════
+
   Future<Map<String, dynamic>> createConsumeEngineering({
     required String engineeringName,
     required String code,
@@ -161,135 +284,120 @@ class ConsumeServiceController {
     required double usage,
   }) async {
     try {
+      final body = jsonEncode({
+        'engineeringName': engineeringName,
+        'code':            code,
+        'unit':            unit,
+        'price':           price,
+        'usage':           usage,
+      });
+
+      print('🔵 [API] POST ${baseUrl}cs/engineering');
+      print('🔵 [API] Body: $body');
+
       final response = await http.post(
-        Uri.parse('${baseUrl}cs/consume-engineering'),
+        Uri.parse('${baseUrl}cs/engineering'),
         headers: _headers,
-        body: jsonEncode({
-          'engineeringName': engineeringName,
-          'code': code,
-          'unit': unit,
-          'price': price,
-          'usage': usage,
-        }),
+        body: body,
       );
 
+      print('🟢 [API] Create Engineering - statusCode: ${response.statusCode}');
+      print('🟢 [API] Create Engineering - responseBody: ${response.body}');
+
       final responseData = jsonDecode(response.body);
-      print("Create Engineering - responsebody: ${response.body}");
-      print("Create Engineering - statusCode: ${response.statusCode}");
-      
-      if (response.statusCode == 201 || response.statusCode == 200) {
+      if (response.statusCode == 200 || response.statusCode == 201) {
         return {
           'success': true,
-          'message': 'Engineering consumption created successfully',
+          'message': responseData['message'] ?? 'Engineering created',
           'data': responseData['data'],
         };
       } else {
         return {
           'success': false,
-          'message': responseData['message'] ?? 'Failed to create engineering consumption',
+          'message': responseData['message'] ?? 'Failed to create engineering',
         };
       }
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Error: $e',
-      };
+      print('🔴 [API] Create Engineering exception: $e');
+      return {'success': false, 'message': 'Error: $e'};
     }
   }
 
-  Future<Map<String, dynamic>> calculateEngineeringCost({
-    required double usage,
+  Future<Map<String, dynamic>> updateConsumeEngineering({
+    required String id,
+    required String engineeringName,
+    required String code,
+    required String unit,
     required double price,
+    required double usage,
   }) async {
     try {
-      // Calculate locally (same as backend logic)
-      final double cost = usage * price;
+      final body = jsonEncode({
+        'engineeringName': engineeringName,
+        'code':            code,
+        'unit':            unit,
+        'price':           price,
+        'usage':           usage,
+      });
 
-      return {
-        'success': true,
-        'data': {
-          'cost': cost,
-        },
-      };
+      print('🔵 [API] PUT ${baseUrl}cs/engineering/$id');
+      print('🔵 [API] Body: $body');
+
+      final response = await http.put(
+        Uri.parse('${baseUrl}cs/engineering/$id'),
+        headers: _headers,
+        body: body,
+      );
+
+      print('🟢 [API] Update Engineering - statusCode: ${response.statusCode}');
+      print('🟢 [API] Update Engineering - responseBody: ${response.body}');
+
+      final responseData = jsonDecode(response.body);
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return {
+          'success': true,
+          'message': responseData['message'] ?? 'Engineering updated',
+          'data': responseData['data'],
+        };
+      } else {
+        return {
+          'success': false,
+          'message': responseData['message'] ?? 'Failed to update engineering',
+        };
+      }
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Error calculating cost: $e',
-      };
+      print('🔴 [API] Update Engineering exception: $e');
+      return {'success': false, 'message': 'Error: $e'};
     }
   }
 
-  // ============ SAVE ALL DATA ============
-  
-  Future<Map<String, dynamic>> saveAllConsumptions({
-    required List<Map<String, dynamic>> packages,
-    required List<Map<String, dynamic>> services,
-    required List<Map<String, dynamic>> engineering,
-  }) async {
+  Future<Map<String, dynamic>> deleteConsumeEngineering(String id) async {
     try {
-      // Save packages
-      List<Map<String, dynamic>> packageResults = [];
-      for (var pkg in packages) {
-        if (pkg['packageName'] != null && pkg['packageName'].toString().isNotEmpty) {
-          final result = await createConsumePackage(
-            packageName: pkg['packageName'],
-            code: pkg['code'] ?? '',
-            unit: pkg['unit'] ?? '',
-            price: (pkg['price'] ?? 0.0).toDouble(),
-            initial: double.tryParse(pkg['initial'] ?? '0') ?? 0.0,
-            used: double.tryParse(pkg['used'] ?? '0') ?? 0.0,
-          );
-          packageResults.add(result);
-        }
+      print('🔵 [API] DELETE ${baseUrl}cs/engineering/$id');
+
+      final response = await http.delete(
+        Uri.parse('${baseUrl}cs/engineering/$id'),
+        headers: _headers,
+      );
+
+      print('🟢 [API] Delete Engineering - statusCode: ${response.statusCode}');
+      print('🟢 [API] Delete Engineering - responseBody: ${response.body}');
+
+      final responseData = jsonDecode(response.body);
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return {
+          'success': true,
+          'message': responseData['message'] ?? 'Engineering deleted',
+        };
+      } else {
+        return {
+          'success': false,
+          'message': responseData['message'] ?? 'Failed to delete engineering',
+        };
       }
-
-      // Save services
-      List<Map<String, dynamic>> serviceResults = [];
-      for (var srv in services) {
-        if (srv['serviceName'] != null && srv['serviceName'].toString().isNotEmpty) {
-          final result = await createConsumeService(
-            serviceName: srv['serviceName'],
-            code: srv['code'] ?? '',
-            unit: srv['unit'] ?? '',
-            price: (srv['price'] ?? 0.0).toDouble(),
-            usage: double.tryParse(srv['usage'] ?? '0') ?? 0.0,
-          );
-          serviceResults.add(result);
-        }
-      }
-
-      // Save engineering
-      List<Map<String, dynamic>> engineeringResults = [];
-      for (var eng in engineering) {
-        if (eng['engineeringName'] != null && eng['engineeringName'].toString().isNotEmpty) {
-          final result = await createConsumeEngineering(
-            engineeringName: eng['engineeringName'],
-            code: eng['code'] ?? '',
-            unit: eng['unit'] ?? '',
-            price: (eng['price'] ?? 0.0).toDouble(),
-            usage: double.tryParse(eng['usage'] ?? '0') ?? 0.0,
-          );
-          engineeringResults.add(result);
-        }
-      }
-
-      // Count successes
-      final totalSuccess = packageResults.where((r) => r['success'] == true).length +
-          serviceResults.where((r) => r['success'] == true).length +
-          engineeringResults.where((r) => r['success'] == true).length;
-
-      return {
-        'success': true,
-        'message': '$totalSuccess items saved successfully',
-        'packageResults': packageResults,
-        'serviceResults': serviceResults,
-        'engineeringResults': engineeringResults,
-      };
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Error saving data: $e',
-      };
+      print('🔴 [API] Delete Engineering exception: $e');
+      return {'success': false, 'message': 'Error: $e'};
     }
   }
 }
