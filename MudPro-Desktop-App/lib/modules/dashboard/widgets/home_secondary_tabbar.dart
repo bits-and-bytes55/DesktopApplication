@@ -844,7 +844,7 @@ void _setCellValue(
         _toggleLock(context);
         break;
       case 8: // Calculate
-        await _generateDailyInventoryExcel(context);
+        Get.to(() => DailyReportPage());
         break;
       case 9: // Options
         Get.to(() => OptionsPage());

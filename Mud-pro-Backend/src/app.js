@@ -46,7 +46,7 @@ import waterBasedRoutes from './routes/others/otherWaterbase.route.js';
 import oilBasedRoutes from './routes/others/otherOilbase.route.js';
 import syntheticRoutes from './routes/others/otherSynthetic.route.js';
 
-
+import ugInventoryRoutes from "./routes/ugInventory/ugInventoryProductsRoutes.js";
 
 import inventorySnapshotRoutes from "./routes/FullInventory/inventorySnapshotRoutes.js";
 import exportRoutes from "./routes/Export/exportRoutes.js";
@@ -142,6 +142,9 @@ app.use("/api/inventory", inventorySnapshotRoutes);
 //export route
 app.use("/api/export", exportRoutes);
 
+
+//ug inventory product routes
+app.use("/api/ug-inventory", ugInventoryRoutes);
 
 
 

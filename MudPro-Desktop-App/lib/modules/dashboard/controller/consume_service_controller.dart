@@ -143,6 +143,31 @@ class ConsumeServiceController {
     }
   }
 
+  Future<List<Map<String, dynamic>>> getAllConsumePackages() async {
+    try {
+      print('🔵 [API] GET ${baseUrl}cs/package');
+
+      final response = await http.get(
+        Uri.parse('${baseUrl}cs/package'),
+        headers: _headers,
+      );
+
+      print('🟢 [API] Get All Packages - statusCode: ${response.statusCode}');
+      print('🟢 [API] Get All Packages - responseBody: ${response.body}');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final responseData = jsonDecode(response.body);
+        final List items = responseData['data'] ?? [];
+        return items.map((e) => e as Map<String, dynamic>).toList();
+      } else {
+        return [];
+      }
+    } catch (e) {
+      print('🔴 [API] Get All Packages exception: $e');
+      return [];
+    }
+  }
+
   // ═══════════════════════════════════════════
   //  SERVICE
   // ═══════════════════════════════════════════
@@ -272,6 +297,31 @@ class ConsumeServiceController {
     }
   }
 
+  Future<List<Map<String, dynamic>>> getAllConsumeServices() async {
+    try {
+      print('🔵 [API] GET ${baseUrl}cs/service');
+
+      final response = await http.get(
+        Uri.parse('${baseUrl}cs/service'),
+        headers: _headers,
+      );
+
+      print('🟢 [API] Get All Services - statusCode: ${response.statusCode}');
+      print('🟢 [API] Get All Services - responseBody: ${response.body}');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final responseData = jsonDecode(response.body);
+        final List items = responseData['data'] ?? [];
+        return items.map((e) => e as Map<String, dynamic>).toList();
+      } else {
+        return [];
+      }
+    } catch (e) {
+      print('🔴 [API] Get All Services exception: $e');
+      return [];
+    }
+  }
+
   // ═══════════════════════════════════════════
   //  ENGINEERING
   // ═══════════════════════════════════════════
@@ -398,6 +448,31 @@ class ConsumeServiceController {
     } catch (e) {
       print('🔴 [API] Delete Engineering exception: $e');
       return {'success': false, 'message': 'Error: $e'};
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getAllConsumeEngineering() async {
+    try {
+      print('🔵 [API] GET ${baseUrl}cs/engineering');
+
+      final response = await http.get(
+        Uri.parse('${baseUrl}cs/engineering'),
+        headers: _headers,
+      );
+
+      print('🟢 [API] Get All Engineering - statusCode: ${response.statusCode}');
+      print('🟢 [API] Get All Engineering - responseBody: ${response.body}');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final responseData = jsonDecode(response.body);
+        final List items = responseData['data'] ?? [];
+        return items.map((e) => e as Map<String, dynamic>).toList();
+      } else {
+        return [];
+      }
+    } catch (e) {
+      print('🔴 [API] Get All Engineering exception: $e');
+      return [];
     }
   }
 }

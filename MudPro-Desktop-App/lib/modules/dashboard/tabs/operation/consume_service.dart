@@ -61,7 +61,7 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
     super.initState();
     print('🟡 [INIT] ConsumeServicesView initState');
     _loadDropdownData();
-    _initRows(5);
+    _fetchAllData();  // Fetch saved data on page load
   }
 
   void _initRows(int count) {
@@ -96,6 +96,113 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
       print('🟢 [LOAD] packages=${pkgs.length} services=${srvs.length} engineering=${engs.length}');
     } catch (e) {
       print('🔴 [LOAD] Error loading dropdown data: $e');
+    }
+  }
+
+  // ─────────────────────────────────────────────
+  //  Fetch saved data from backend
+  // ─────────────────────────────────────────────
+  Future<void> _fetchAllData() async {
+    print('🔵 [FETCH] Fetching all saved data...');
+    try {
+      // Fetch packages
+      final pkgData = await consumeServiceController.getAllConsumePackages();
+      print('🟢 [FETCH] Packages: ${pkgData.length} items');
+      
+      // Clear existing rows except first empty one
+      packageRows.clear();
+      packageRowLoading.clear();
+      packageRowSaving.clear();
+      packageRowDeleting.clear();
+
+      // Add fetched data
+      for (var item in pkgData) {
+        final row = PackageRowData();
+        row.selectedItem = item['packageName'] ?? '';
+        row.code         = item['code'] ?? '';
+        row.unit         = item['unit'] ?? '';
+        row.price        = (item['price'] ?? 0).toDouble();
+        row.initial      = (item['initial'] ?? 0).toString();
+        row.used         = (item['used'] ?? 0).toString();
+        row.finalValue   = (item['final'] ?? 0).toString();
+        row.cost         = (item['cost'] ?? 0).toDouble();
+        row.savedId      = item['_id'];
+        
+        packageRows.add(row);
+        packageRowLoading.add(false);
+        packageRowSaving.add(false);
+        packageRowDeleting.add(false);
+      }
+      
+      // Add one empty row at end
+      packageRows.add(PackageRowData());
+      packageRowLoading.add(false);
+      packageRowSaving.add(false);
+      packageRowDeleting.add(false);
+
+      // Fetch services
+      final srvData = await consumeServiceController.getAllConsumeServices();
+      print('🟢 [FETCH] Services: ${srvData.length} items');
+      
+      serviceRows.clear();
+      serviceRowLoading.clear();
+      serviceRowSaving.clear();
+      serviceRowDeleting.clear();
+
+      for (var item in srvData) {
+        final row = ServiceRowData();
+        row.selectedItem = item['serviceName'] ?? '';
+        row.code         = item['code'] ?? '';
+        row.unit         = item['unit'] ?? '';
+        row.price        = (item['price'] ?? 0).toDouble();
+        row.usage        = (item['usage'] ?? 0).toString();
+        row.cost         = (item['cost'] ?? 0).toDouble();
+        row.savedId      = item['_id'];
+        
+        serviceRows.add(row);
+        serviceRowLoading.add(false);
+        serviceRowSaving.add(false);
+        serviceRowDeleting.add(false);
+      }
+      
+      serviceRows.add(ServiceRowData());
+      serviceRowLoading.add(false);
+      serviceRowSaving.add(false);
+      serviceRowDeleting.add(false);
+
+      // Fetch engineering
+      final engData = await consumeServiceController.getAllConsumeEngineering();
+      print('🟢 [FETCH] Engineering: ${engData.length} items');
+      
+      engineeringRows.clear();
+      engineeringRowLoading.clear();
+      engineeringRowSaving.clear();
+      engineeringRowDeleting.clear();
+
+      for (var item in engData) {
+        final row = EngineeringRowData();
+        row.selectedItem = item['engineeringName'] ?? '';
+        row.code         = item['code'] ?? '';
+        row.unit         = item['unit'] ?? '';
+        row.price        = (item['price'] ?? 0).toDouble();
+        row.usage        = (item['usage'] ?? 0).toString();
+        row.cost         = (item['cost'] ?? 0).toDouble();
+        row.savedId      = item['_id'];
+        
+        engineeringRows.add(row);
+        engineeringRowLoading.add(false);
+        engineeringRowSaving.add(false);
+        engineeringRowDeleting.add(false);
+      }
+      
+      engineeringRows.add(EngineeringRowData());
+      engineeringRowLoading.add(false);
+      engineeringRowSaving.add(false);
+      engineeringRowDeleting.add(false);
+
+      print('🟢 [FETCH] All data loaded successfully');
+    } catch (e) {
+      print('🔴 [FETCH] Error fetching data: $e');
     }
   }
 
@@ -210,7 +317,7 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
         row.savedId = result['data']?['_id'] ?? row.savedId;
         packageRows.refresh();
         _showSuccess('Package row ${index + 1} saved!');
-        _checkAndAddRow(packageRows, packageRowLoading, packageRowSaving, packageRowDeleting);
+        await _fetchAllData();  // Reload all data after save
       } else {
         _showError(result['message'] ?? 'Save failed');
       }
@@ -263,7 +370,7 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
         row.savedId = result['data']?['_id'] ?? row.savedId;
         serviceRows.refresh();
         _showSuccess('Service row ${index + 1} saved!');
-        _checkAndAddRow(serviceRows, serviceRowLoading, serviceRowSaving, serviceRowDeleting);
+        await _fetchAllData();  // Reload all data after save
       } else {
         _showError(result['message'] ?? 'Save failed');
       }
@@ -316,7 +423,7 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
         row.savedId = result['data']?['_id'] ?? row.savedId;
         engineeringRows.refresh();
         _showSuccess('Engineering row ${index + 1} saved!');
-        _checkAndAddRow(engineeringRows, engineeringRowLoading, engineeringRowSaving, engineeringRowDeleting);
+        await _fetchAllData();  // Reload all data after save
       } else {
         _showError(result['message'] ?? 'Save failed');
       }
@@ -344,29 +451,22 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
         print('🟢 [DEL-PKG] Row $index result: $result');
         if (result['success'] != true) {
           _showError(result['message'] ?? 'Delete failed');
+          packageRowDeleting[index] = false;
+          packageRowDeleting.refresh();
           return;
         }
+        // Reload all data after successful delete
+        await _fetchAllData();
+        _showSuccess('Package deleted');
       } catch (e) {
         print('🔴 [DEL-PKG] Row $index exception: $e');
         _showError('Error: $e');
-        return;
       } finally {
         packageRowDeleting[index] = false;
         packageRowDeleting.refresh();
       }
-    }
-
-    // Remove row locally (keep at least 1)
-    if (packageRows.length > 1) {
-      packageRows.removeAt(index);
-      packageRowLoading.removeAt(index);
-      packageRowSaving.removeAt(index);
-      packageRowDeleting.removeAt(index);
-      if (selectedPackageRow.value >= packageRows.length) {
-        selectedPackageRow.value = packageRows.length - 1;
-      }
     } else {
-      // Just reset the row
+      // Just reset unsaved row
       packageRows[index] = PackageRowData();
       packageRows.refresh();
     }
@@ -384,25 +484,18 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
         print('🟢 [DEL-SRV] Row $index result: $result');
         if (result['success'] != true) {
           _showError(result['message'] ?? 'Delete failed');
+          serviceRowDeleting[index] = false;
+          serviceRowDeleting.refresh();
           return;
         }
+        await _fetchAllData();
+        _showSuccess('Service deleted');
       } catch (e) {
         print('🔴 [DEL-SRV] Row $index exception: $e');
         _showError('Error: $e');
-        return;
       } finally {
         serviceRowDeleting[index] = false;
         serviceRowDeleting.refresh();
-      }
-    }
-
-    if (serviceRows.length > 1) {
-      serviceRows.removeAt(index);
-      serviceRowLoading.removeAt(index);
-      serviceRowSaving.removeAt(index);
-      serviceRowDeleting.removeAt(index);
-      if (selectedServiceRow.value >= serviceRows.length) {
-        selectedServiceRow.value = serviceRows.length - 1;
       }
     } else {
       serviceRows[index] = ServiceRowData();
@@ -422,25 +515,18 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
         print('🟢 [DEL-ENG] Row $index result: $result');
         if (result['success'] != true) {
           _showError(result['message'] ?? 'Delete failed');
+          engineeringRowDeleting[index] = false;
+          engineeringRowDeleting.refresh();
           return;
         }
+        await _fetchAllData();
+        _showSuccess('Engineering deleted');
       } catch (e) {
         print('🔴 [DEL-ENG] Row $index exception: $e');
         _showError('Error: $e');
-        return;
       } finally {
         engineeringRowDeleting[index] = false;
         engineeringRowDeleting.refresh();
-      }
-    }
-
-    if (engineeringRows.length > 1) {
-      engineeringRows.removeAt(index);
-      engineeringRowLoading.removeAt(index);
-      engineeringRowSaving.removeAt(index);
-      engineeringRowDeleting.removeAt(index);
-      if (selectedEngineeringRow.value >= engineeringRows.length) {
-        selectedEngineeringRow.value = engineeringRows.length - 1;
       }
     } else {
       engineeringRows[index] = EngineeringRowData();
@@ -511,6 +597,31 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
     RxList<bool> deleting,
   ) {
     if (rows.last.selectedItem.isNotEmpty) {
+      if (T == PackageRowData) {
+        rows.add(PackageRowData() as T);
+      } else if (T == ServiceRowData) {
+        rows.add(ServiceRowData() as T);
+      } else if (T == EngineeringRowData) {
+        rows.add(EngineeringRowData() as T);
+      }
+      loading.add(false);
+      saving.add(false);
+      deleting.add(false);
+      print('🟢 [ROW] New empty row added to ${T.toString()} table');
+    }
+  }
+
+  // ─────────────────────────────────────────────
+  //  Auto-add new row when last row is filled
+  // ─────────────────────────────────────────────
+  void checkAndAddRow<T extends BaseRowData>(
+    RxList<T> rows,
+    RxList<bool> loading,
+    RxList<bool> saving,
+    RxList<bool> deleting,
+  ) {
+    // If last row is filled, add a new empty row
+    if (rows.isNotEmpty && rows.last.selectedItem.isNotEmpty) {
       if (T == PackageRowData) {
         rows.add(PackageRowData() as T);
       } else if (T == ServiceRowData) {
@@ -614,16 +725,16 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
             ),
           ),
 
-          // ── Tables ──
+          // ── Tables — equally split, each fills 1/3 of available height ──
           Expanded(
-            child: SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Package
-                    _buildTableSection<PackageRowData, PackageItem>(
+            child: Padding(
+              padding: const EdgeInsets.all(10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start, // Left align tables
+                children: [
+                  // Package
+                  Expanded(
+                    child: _buildTableSection<PackageRowData, PackageItem>(
                       title: "Package",
                       color: AppTheme.primaryColor,
                       rows: packageRows,
@@ -645,11 +756,13 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
                       onDelete:    _deletePackageRow,
                       cellBuilder: _packageCells,
                     ),
+                  ),
 
-                    const SizedBox(height: 12),
+                  const SizedBox(height: 8),
 
-                    // Services
-                    _buildTableSection<ServiceRowData, ServiceItem>(
+                  // Services
+                  Expanded(
+                    child: _buildTableSection<ServiceRowData, ServiceItem>(
                       title: "Services",
                       color: AppTheme.successColor,
                       rows: serviceRows,
@@ -671,11 +784,13 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
                       onDelete:    _deleteServiceRow,
                       cellBuilder: _serviceCells,
                     ),
+                  ),
 
-                    const SizedBox(height: 12),
+                  const SizedBox(height: 8),
 
-                    // Engineering
-                    _buildTableSection<EngineeringRowData, EngineeringItem>(
+                  // Engineering
+                  Expanded(
+                    child: _buildTableSection<EngineeringRowData, EngineeringItem>(
                       title: "Engineering",
                       color: AppTheme.infoColor,
                       rows: engineeringRows,
@@ -697,8 +812,8 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
                       onDelete:    _deleteEngineeringRow,
                       cellBuilder: _engineeringCells,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -762,16 +877,15 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
                     color: Colors.white)),
           ),
 
-          // Data table
-          SizedBox(
-            height: 180,
+          // Data table — compressed height with scrollable rows
+          Expanded(
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: SingleChildScrollView(
                 scrollDirection: Axis.vertical,
                 child: Obx(() => DataTable(
-                      headingRowHeight: 28,
-                      dataRowHeight: 28,
+                      headingRowHeight: 26,  // compressed from 28
+                      dataRowHeight: 26,      // compressed from 28
                       columnSpacing: 0,
                       horizontalMargin: 0,
                       dividerThickness: 0,

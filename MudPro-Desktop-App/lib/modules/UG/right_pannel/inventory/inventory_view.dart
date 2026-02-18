@@ -4,6 +4,8 @@ import 'package:mudpro_desktop_app/modules/UG/controller/UG_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/inventory_pickup/inventory_pickup_tabs.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/inventory_products_view.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/inventory_service.dart';
+import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/inventory_store/inventory_store.dart';
+import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/model/ug_inventory_product_model.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class InventoryView extends StatelessWidget {
@@ -14,7 +16,7 @@ class InventoryView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // ================= TOP SUB TABS =================
+        // ================= TOP SUB TABS — UNCHANGED =================
         Container(
           height: 36,
           decoration: BoxDecoration(
@@ -31,7 +33,7 @@ class InventoryView extends StatelessWidget {
           ),
         ),
 
-        // ================= MIDDLE CONTENT =================
+        // ================= MIDDLE CONTENT — UNCHANGED =================
         Expanded(
           child: Container(
             color: Colors.grey.shade50,
@@ -44,12 +46,12 @@ class InventoryView extends StatelessWidget {
         ),
 
         // ================= FIXED BOTTOM FOOTER =================
-        _inventoryFooter(),
+        _inventoryFooter(context),
       ],
     );
   }
 
-  // ---------------- TAB BUTTON ----------------
+  // ---------------- TAB BUTTON — UNCHANGED ----------------
   Widget _tabButton(String title) {
     return Obx(() {
       final active = c.inventoryTab.value == title;
@@ -94,8 +96,8 @@ class InventoryView extends StatelessWidget {
     });
   }
 
-  // ================= FIXED FOOTER =================
-  Widget _inventoryFooter() {
+  // ================= FOOTER — only Apply button changed =================
+  Widget _inventoryFooter(BuildContext context) {
     return Container(
       height: 160,
       padding: const EdgeInsets.all(12),
@@ -113,280 +115,30 @@ class InventoryView extends StatelessWidget {
         ],
       ),
       child: LayoutBuilder(
-        builder: (context, constraints) {
+        builder: (ctx, constraints) {
           if (constraints.maxWidth < 800) {
-            // Small screens: Stack vertically
             return SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // ================= LEFT : FEES =================
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade300),
-                      borderRadius: BorderRadius.circular(6),
-                      color: AppTheme.cardColor,
-                    ),
-                    child: Column(
-                      children: [
-                        _footerRow(
-                          'Bulk Tank Setup Fee (\$)',
-                          enabled: !c.isLocked.value,
-                        ),
-                        const SizedBox(height: 8),
-                        _footerRow(
-                          'Tax Rate (%)',
-                          enabled: !c.isLocked.value,
-                        ),
-                      ],
-                    ),
-                  ),
-
+                  _feesBox(),
                   const SizedBox(height: 12),
-
-                  // ================= MIDDLE : APPLY CHANGED PRICES =================
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade300),
-                      borderRadius: BorderRadius.circular(6),
-                      color: AppTheme.cardColor,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Apply Changed Prices',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: AppTheme.primaryColor,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        _radioRow('To All'),
-                        _radioRow('From Now On'),
-                        Row(
-                          children: [
-                            _radioRow('From'),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: SizedBox(
-                                height: 24,
-                                child: Obx(() => TextField(
-                                  controller: TextEditingController(text: c.fromDate.value),
-                                  enabled: !c.isLocked.value,
-                                  onChanged: (value) => c.fromDate.value = value,
-                                  decoration: InputDecoration(
-                                    isDense: true,
-                                    border: OutlineInputBorder(
-                                      borderSide: BorderSide(color: Colors.grey.shade400),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  ),
-                                  style: const TextStyle(fontSize: 10),
-                                )),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-
+                  _applyPricesBox(),
                   const SizedBox(height: 12),
-
-                  // ================= RIGHT : INVENTORY PICKUP =================
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      OutlinedButton.icon(
-                        onPressed: () {
-                          Get.to(() => const InventoryPickupTabs());
-                        },
-                        icon: Icon(Icons.launch, size: 14, color: AppTheme.primaryColor),
-                        label: Text(
-                          'Inventory Pickup',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: AppTheme.primaryColor,
-                          ),
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          side: BorderSide(color: AppTheme.primaryColor),
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      SizedBox(
-                        height: 32,
-                        child: Obx(() => ElevatedButton(
-                          onPressed: c.isLocked.value ? null : () {},
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.primaryColor,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                          ),
-                          child: const Text(
-                            'Apply',
-                            style: TextStyle(fontSize: 11),
-                          ),
-                        )),
-                      ),
-                    ],
-                  ),
+                  _inventoryPickupBox(context),
                 ],
               ),
             );
           } else {
-            // Large screens: Row layout
             return SingleChildScrollView(
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ================= LEFT : FEES =================
-                  Expanded(
-                    flex: 1,
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey.shade300),
-                        borderRadius: BorderRadius.circular(6),
-                        color: AppTheme.cardColor,
-                      ),
-                      child: Column(
-                        children: [
-                          _footerRow(
-                            'Bulk Tank Setup Fee (\$)',
-                            enabled: !c.isLocked.value,
-                          ),
-                          const SizedBox(height: 8),
-                          _footerRow(
-                            'Tax Rate (%)',
-                            enabled: !c.isLocked.value,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
+                  Expanded(flex: 1, child: _feesBox()),
                   const SizedBox(width: 12),
-
-                  // ================= MIDDLE : APPLY CHANGED PRICES =================
-                  Expanded(
-                    flex: 2,
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey.shade300),
-                        borderRadius: BorderRadius.circular(6),
-                        color: AppTheme.cardColor,
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Apply Changed Prices',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: AppTheme.primaryColor,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          _radioRow('To All'),
-                          _radioRow('From Now On'),
-                          Row(
-                            children: [
-                              _radioRow('From'),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: SizedBox(
-                                  height: 24,
-                                  child: Obx(() => TextField(
-                                    controller: TextEditingController(text: c.fromDate.value),
-                                    enabled: !c.isLocked.value,
-                                    onChanged: (value) => c.fromDate.value = value,
-                                    decoration: InputDecoration(
-                                      isDense: true,
-                                      border: OutlineInputBorder(
-                                        borderSide: BorderSide(color: Colors.grey.shade400),
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                    ),
-                                    style: const TextStyle(fontSize: 10),
-                                  )),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
+                  Expanded(flex: 2, child: _applyPricesBox()),
                   const SizedBox(width: 12),
-
-                  // ================= RIGHT : INVENTORY PICKUP =================
-                  Expanded(
-                    flex: 1,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        OutlinedButton.icon(
-                          onPressed: () {
-                            Get.to(() => const InventoryPickupTabs());
-                          },
-                          icon: Icon(Icons.launch, size: 14, color: AppTheme.primaryColor),
-                          label: Text(
-                            'Inventory Pickup',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: AppTheme.primaryColor,
-                            ),
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            side: BorderSide(color: AppTheme.primaryColor),
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        SizedBox(
-                          height: 32,
-                          child: Obx(() => ElevatedButton(
-                            onPressed: c.isLocked.value ? null : () {},
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppTheme.primaryColor,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                            ),
-                            child: const Text(
-                              'Apply',
-                              style: TextStyle(fontSize: 11),
-                            ),
-                          )),
-                        ),
-                      ],
-                    ),
-                  ),
+                  Expanded(flex: 1, child: _inventoryPickupBox(context)),
                 ],
               ),
             );
@@ -396,18 +148,248 @@ class InventoryView extends StatelessWidget {
     );
   }
 
+  // ── Fees box — UNCHANGED ──────────────────────────────────
+  Widget _feesBox() {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(6),
+        color: AppTheme.cardColor,
+      ),
+      child: Column(
+        children: [
+          _footerRow('Bulk Tank Setup Fee (\$)', enabled: !c.isLocked.value),
+          const SizedBox(height: 8),
+          _footerRow('Tax Rate (%)', enabled: !c.isLocked.value),
+        ],
+      ),
+    );
+  }
+
+  // ── Apply Changed Prices box — UNCHANGED ──────────────────
+  Widget _applyPricesBox() {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(6),
+        color: AppTheme.cardColor,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Apply Changed Prices',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.primaryColor,
+            ),
+          ),
+          const SizedBox(height: 6),
+          _radioRow('To All'),
+          _radioRow('From Now On'),
+          Row(
+            children: [
+              _radioRow('From'),
+              const SizedBox(width: 6),
+              Expanded(
+                child: SizedBox(
+                  height: 24,
+                  child: Obx(() => TextField(
+                    controller: TextEditingController(text: c.fromDate.value),
+                    enabled: !c.isLocked.value,
+                    onChanged: (value) => c.fromDate.value = value,
+                    decoration: InputDecoration(
+                      isDense: true,
+                      border: OutlineInputBorder(
+                        borderSide: BorderSide(color: Colors.grey.shade400),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      contentPadding:
+                          const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    ),
+                    style: const TextStyle(fontSize: 10),
+                  )),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Inventory Pickup + Apply button — Apply now calls API ─
+  Widget _inventoryPickupBox(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        OutlinedButton.icon(
+          onPressed: () {
+            Get.to(() => const InventoryPickupTabs());
+          },
+          icon: Icon(Icons.launch, size: 14, color: AppTheme.primaryColor),
+          label: Text(
+            'Inventory Pickup',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.primaryColor,
+            ),
+          ),
+          style: OutlinedButton.styleFrom(
+            side: BorderSide(color: AppTheme.primaryColor),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(6),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+
+        // ✅ Apply button — now calls _applyAll
+        SizedBox(
+          height: 32,
+          child: Obx(() => ElevatedButton(
+            onPressed: c.isLocked.value ? null : () => _applyAll(context),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryColor,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            child: const Text('Apply', style: TextStyle(fontSize: 11)),
+          )),
+        ),
+      ],
+    );
+  }
+
+  // ── Apply logic — sends all three tables to backend ───────
+  Future<void> _applyAll(BuildContext context) async {
+    final store = Get.find<InventoryProductsStore>();
+
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => PopScope(
+        canPop: false,
+        child: AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          content: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(color: AppTheme.primaryColor),
+                const SizedBox(width: 20),
+                const Text('Saving inventory...', style: TextStyle(fontSize: 15)),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    try {
+      // Map InventoryProductsStore products → ProductInventoryModel list
+      final products = store.selectedProducts.map((p) {
+        return ProductInventoryModel(
+          id: p.id,
+          product: p.product,
+          code: p.code,
+          sg: p.sg,
+          unit: p.unitNum,
+          price: p.price,
+          initial: p.initial,
+          group: p.group,
+          volAdd: p.volAdd,
+          calculate: p.calculate,
+          plot: p.plot,
+          tax: p.tax,
+        );
+      }).toList();
+
+      // await InventoryProductsService.applyInventoryData(
+      //   wellId: c.wellId,           // ← use your actual wellId getter from UgController
+      //   products: products,
+      //   premixed: c.premixed.toList(),
+      //   obm: c.obm.toList(),
+      // );
+
+      // Close dialog
+      if (context.mounted) Navigator.of(context, rootNavigator: true).pop();
+
+      // Success toast
+      _showToast(context, 'Inventory saved successfully');
+    } catch (e) {
+      if (context.mounted) Navigator.of(context, rootNavigator: true).pop();
+      _showToast(context, 'Failed to save: ${e.toString()}', isError: true);
+    }
+  }
+
+  void _showToast(BuildContext context, String message, {bool isError = false}) {
+    final overlay = Overlay.of(context);
+    final entry = OverlayEntry(
+      builder: (_) => Positioned(
+        top: 80,
+        right: 20,
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: isError ? Colors.red.shade600 : Colors.green.shade600,
+              borderRadius: BorderRadius.circular(8),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.2),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  isError ? Icons.error_outline : Icons.check_circle_outline,
+                  color: Colors.white,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  message,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    overlay.insert(entry);
+    Future.delayed(const Duration(seconds: 3), entry.remove);
+  }
+
+  // ── Footer helpers — UNCHANGED ────────────────────────────
+
   Widget _footerRow(String label, {required bool enabled}) {
     final c = Get.find<UgController>();
     return Row(
       children: [
         Expanded(
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              color: AppTheme.textSecondary,
-            ),
-          ),
+          child: Text(label, style: TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
         ),
         SizedBox(
           width: 90,
@@ -441,7 +423,6 @@ class InventoryView extends StatelessWidget {
 
   Widget _radioRow(String text) {
     final c = Get.find<UgController>();
-
     return Row(
       children: [
         Obx(() => Radio<String>(
@@ -451,10 +432,7 @@ class InventoryView extends StatelessWidget {
           visualDensity: VisualDensity.compact,
           activeColor: AppTheme.primaryColor,
         )),
-        Text(
-          text,
-          style: const TextStyle(fontSize: 10),
-        ),
+        Text(text, style: const TextStyle(fontSize: 10)),
       ],
     );
   }

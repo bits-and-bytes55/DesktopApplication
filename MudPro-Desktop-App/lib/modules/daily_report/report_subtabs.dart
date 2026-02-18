@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:mudpro_desktop_app/modules/daily_report/home_tabs/dailyreport_options/controller/wbm_report_controller.dart';
 import 'package:mudpro_desktop_app/modules/daily_report/left_sidebar.dart';
 import 'package:mudpro_desktop_app/modules/daily_report/wellbore_dashboard.dart';
 import 'package:mudpro_desktop_app/modules/daily_report/tabs/alert/alert_page.dart';
@@ -11,7 +12,8 @@ import 'package:mudpro_desktop_app/modules/daily_report/tabs/time_distribution/t
 import 'package:mudpro_desktop_app/modules/daily_report/tabs/total_cost/daily_total_cost.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
-class SubTabContent extends StatelessWidget {
+
+class SubTabContent extends StatefulWidget {
   final int mainTabIndex;
   final int? subTabIndex;
   final int? selectedSideTab;
@@ -30,142 +32,126 @@ class SubTabContent extends StatelessWidget {
   });
 
   @override
+  State<SubTabContent> createState() => _SubTabContentState();
+}
+
+class _SubTabContentState extends State<SubTabContent> {
+  bool _wbmLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _triggerWbmIfNeeded(widget.mainTabIndex, widget.subTabIndex);
+  }
+
+  @override
+  void didUpdateWidget(SubTabContent oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Trigger only when WBM tab is freshly selected
+    if (widget.mainTabIndex == 1 &&
+        widget.subTabIndex == 5 &&
+        !(oldWidget.mainTabIndex == 1 && oldWidget.subTabIndex == 5)) {
+      _triggerWbmIfNeeded(widget.mainTabIndex, widget.subTabIndex);
+    }
+  }
+
+  void _triggerWbmIfNeeded(int mainTab, int? subTab) {
+    if (mainTab == 1 && subTab == 5) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _downloadWbmReport();
+      });
+    }
+  }
+
+  Future<void> _downloadWbmReport() async {
+    if (_wbmLoading) return;
+    setState(() => _wbmLoading = true);
+
+    // Show loading popup
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => PopScope(
+        canPop: false,
+        child: AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          content: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(color: AppTheme.primaryColor),
+                const SizedBox(width: 20),
+                const Text(
+                  'Generating WBM Report...',
+                  style: TextStyle(fontSize: 15),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    try {
+      await ExportController.downloadAndOpenInventoryReport();
+      // Close popup on success
+      if (mounted) Navigator.of(context, rootNavigator: true).pop();
+    } catch (e) {
+      // Close popup then show error
+      if (mounted) Navigator.of(context, rootNavigator: true).pop();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to generate report: ${e.toString()}'),
+            backgroundColor: Colors.red.shade600,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _wbmLoading = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    if (selectedSideTab != null) {
-      // Show Home content for all main tabs
+    if (widget.selectedSideTab != null) {
+      // Show Home content for all main tabs — UNCHANGED
       return Row(
         children: [
           // Sidebar
-          if (isSidebarVisible ?? true)
+          if (widget.isSidebarVisible ?? true)
             DailySidebar(
-              selectedTab: selectedSideTab!,
-              onTabSelected: onSideTabSelected ?? (int index) {},
-              onToggleSidebar: onToggleSidebar ?? () {},
+              selectedTab: widget.selectedSideTab!,
+              onTabSelected: widget.onSideTabSelected ?? (int index) {},
+              onToggleSidebar: widget.onToggleSidebar ?? () {},
             ),
 
           // Main content
           Expanded(
-            child: _getHomeContent(selectedSideTab!),
+            child: _getHomeContent(widget.selectedSideTab!),
           ),
         ],
       );
     } else {
-      // Fallback for when selectedSideTab is null
-      return const Center(
-        child: Text(
-          'Select a sub-tab to view content',
-          style: TextStyle(fontSize: 16, color: Colors.grey),
-        ),
-      );
+      // Route to correct tab builder
+      switch (widget.mainTabIndex) {
+        case 0:
+          return _buildHomeSubTabContent(widget.subTabIndex ?? 0);
+        case 1:
+          return _buildReportSubTabContent(widget.subTabIndex ?? 0);
+        case 2:
+          return _buildUtilitiesSubTabContent(widget.subTabIndex ?? 0);
+        case 3:
+          return _buildHelpSubTabContent(widget.subTabIndex ?? 0);
+        default:
+          return const Center(child: Text('Content not available'));
+      }
     }
   }
 
-  List<Map<String, dynamic>> _getSubTabData(int mainTab) {
-    switch (mainTab) {
-      case 1: // Report
-        return [
-          {
-            'title': 'Generate Report',
-            'description': 'Create and customize daily reports',
-            'icon': Icons.description,
-          },
-          {
-            'title': 'Export PDF',
-            'description': 'Export reports in PDF format',
-            'icon': Icons.picture_as_pdf,
-          },
-          {
-            'title': 'Print',
-            'description': 'Print reports directly',
-            'icon': Icons.print,
-          },
-          {
-            'title': 'Share',
-            'description': 'Share reports with team',
-            'icon': Icons.share,
-          },
-        ];
-      case 2: // Utilities
-        return [
-          {
-            'title': 'Calculators',
-            'description': 'Various drilling calculators',
-            'icon': Icons.calculate,
-          },
-          {
-            'title': 'Converters',
-            'description': 'Unit converters and tools',
-            'icon': Icons.swap_horiz,
-          },
-          {
-            'title': 'Templates',
-            'description': 'Report templates',
-            'icon': Icons.content_copy,
-          },
-          {
-            'title': 'Settings',
-            'description': 'Application settings',
-            'icon': Icons.settings_applications,
-          },
-        ];
-      case 3: // Help
-        return [
-          {
-            'title': 'Documentation',
-            'description': 'User manuals and guides',
-            'icon': Icons.menu_book,
-          },
-          {
-            'title': 'Tutorials',
-            'description': 'Step-by-step tutorials',
-            'icon': Icons.school,
-          },
-          {
-            'title': 'Support',
-            'description': 'Contact support team',
-            'icon': Icons.support_agent,
-          },
-          {
-            'title': 'About',
-            'description': 'About MUDPRO+',
-            'icon': Icons.info,
-          },
-        ];
-      default: // Home
-        return [
-          {
-            'title': 'Export to HYDPRO',
-            'description': 'Export data to HYDPRO system',
-            'icon': Icons.upload_file,
-          },
-          {
-            'title': 'Go to Input',
-            'description': 'Navigate to input section',
-            'icon': Icons.input,
-          },
-          {
-            'title': 'Options',
-            'description': 'Configuration options',
-            'icon': Icons.settings,
-          },
-        ];
-    }
-  }
-
-  Widget _getTabContent(int mainTab, int subTab) {
-    switch (mainTab) {
-      case 0: // Home
-        return _buildHomeSubTabContent(subTab);
-      case 1: // Report
-        return _buildReportSubTabContent(subTab);
-      case 2: // Utilities
-        return _buildUtilitiesSubTabContent(subTab);
-      case 3: // Help
-        return _buildHelpSubTabContent(subTab);
-      default:
-        return const Center(child: Text('Content not available'));
-    }
-  }
+  // ── Home sidebar content — UNCHANGED ──────────────────────────
 
   Widget _getHomeContent(int selectedSideTab) {
     switch (selectedSideTab) {
@@ -189,6 +175,8 @@ class SubTabContent extends StatelessWidget {
         return const WellboreDashboard();
     }
   }
+
+  // ── Home sub-tab content — UNCHANGED ──────────────────────────
 
   Widget _buildHomeSubTabContent(int subTab) {
     switch (subTab) {
@@ -247,8 +235,29 @@ class SubTabContent extends StatelessWidget {
     }
   }
 
+  // ── Report sub-tabs — WBM (index 5) added, rest UNCHANGED ─────
+
   Widget _buildReportSubTabContent(int subTab) {
-    // Similar implementation for Report sub-tabs
+    if (subTab == 5) {
+      // WBM Report: show loading spinner while downloading, blank after done
+      return Center(
+        child: _wbmLoading
+            ? Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(color: AppTheme.primaryColor),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Generating WBM Report...',
+                    style: TextStyle(fontSize: 15, color: Colors.grey),
+                  ),
+                ],
+              )
+            : const SizedBox.shrink(),
+      );
+    }
+
+    // All other report sub-tabs — UNCHANGED
     return Center(
       child: Text(
         'Report - Sub Tab ${subTab + 1} Content',
@@ -257,8 +266,9 @@ class SubTabContent extends StatelessWidget {
     );
   }
 
+  // ── Utilities & Help — UNCHANGED ──────────────────────────────
+
   Widget _buildUtilitiesSubTabContent(int subTab) {
-    // Similar implementation for Utilities sub-tabs
     return Center(
       child: Text(
         'Utilities - Sub Tab ${subTab + 1} Content',
@@ -268,12 +278,47 @@ class SubTabContent extends StatelessWidget {
   }
 
   Widget _buildHelpSubTabContent(int subTab) {
-    // Similar implementation for Help sub-tabs
     return Center(
       child: Text(
         'Help - Sub Tab ${subTab + 1} Content',
         style: const TextStyle(fontSize: 18),
       ),
     );
+  }
+
+  // ── _getSubTabData — UNCHANGED ─────────────────────────────────
+
+  List<Map<String, dynamic>> _getSubTabData(int mainTab) {
+    switch (mainTab) {
+      case 1:
+        return [
+          {'title': 'Daily Report', 'description': 'Create and customize daily reports', 'icon': Icons.description},
+          {'title': 'Detail Report', 'description': 'Export reports in PDF format', 'icon': Icons.picture_as_pdf},
+          {'title': 'Safety Card', 'description': 'Print reports directly', 'icon': Icons.print},
+          {'title': 'Hydraulics Report', 'description': 'Share reports with team', 'icon': Icons.share},
+          {'title': 'WITSML Report', 'description': 'Share reports with team', 'icon': Icons.share},
+          {'title': 'WBM Report', 'description': 'Share reports with team', 'icon': Icons.generating_tokens},
+        ];
+      case 2:
+        return [
+          {'title': 'Calculators', 'description': 'Various drilling calculators', 'icon': Icons.calculate},
+          {'title': 'Converters', 'description': 'Unit converters and tools', 'icon': Icons.swap_horiz},
+          {'title': 'Templates', 'description': 'Report templates', 'icon': Icons.content_copy},
+          {'title': 'Settings', 'description': 'Application settings', 'icon': Icons.settings_applications},
+        ];
+      case 3:
+        return [
+          {'title': 'Documentation', 'description': 'User manuals and guides', 'icon': Icons.menu_book},
+          {'title': 'Tutorials', 'description': 'Step-by-step tutorials', 'icon': Icons.school},
+          {'title': 'Support', 'description': 'Contact support team', 'icon': Icons.support_agent},
+          {'title': 'About', 'description': 'About MUDPRO+', 'icon': Icons.info},
+        ];
+      default:
+        return [
+          {'title': 'Export to HYDPRO', 'description': 'Export data to HYDPRO system', 'icon': Icons.upload_file},
+          {'title': 'Go to Input', 'description': 'Navigate to input section', 'icon': Icons.input},
+          {'title': 'Options', 'description': 'Configuration options', 'icon': Icons.settings},
+        ];
+    }
   }
 }

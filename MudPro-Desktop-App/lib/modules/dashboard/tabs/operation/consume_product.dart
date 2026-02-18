@@ -4,6 +4,8 @@ import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart'
 import 'package:mudpro_desktop_app/modules/UG/model/pit_model.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/controller/products_controller.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/model/products_model.dart';
+import 'package:mudpro_desktop_app/modules/daily_report/controller/inventory_snapshot_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/consume_product_controller.dart';
 import '../../controller/operation_controller.dart';
 import '../../controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
@@ -20,6 +22,8 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
   final DashboardController dashboardController = Get.find<DashboardController>();
   final ProductsController productsController = Get.put(ProductsController());
   final PitController pitController = Get.put(PitController());
+  final ConsumeProductController consumeProductController = ConsumeProductController();
+  final InventorySnapshotController inventorySnapshotController = InventorySnapshotController();
   
   final RxString selectedMethod = "Used".obs;
   final RxBool addWater = false.obs;
@@ -30,6 +34,10 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
   final RxList<ProductRowData> productRows = <ProductRowData>[].obs;
   final RxList<DistributeRowData> distributeRows = <DistributeRowData>[].obs;
 
+  // Per-row saving/deleting states
+  final RxList<bool> productRowSaving = <bool>[].obs;
+  final RxList<bool> productRowDeleting = <bool>[].obs;
+
   // Selected row indices
   final RxInt selectedProductRow = 0.obs;
   final RxInt selectedDistributeRow = 0.obs;
@@ -37,16 +45,280 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
   // Selected products for top dropdown
   final Rx<ProductModel?> selectedTopProduct = Rx<ProductModel?>(null);
 
+  // Save All loading
+  final RxBool isSavingAll = false.obs;
+
   @override
   void initState() {
     super.initState();
-    // Initialize with 5 empty rows each
-    for (int i = 0; i < 5; i++) {
-      productRows.add(ProductRowData());
-      distributeRows.add(DistributeRowData());
-    }
+    print('🟡 [INIT] ConsumeProductView initState');
     // Fetch pits data
     pitController.fetchAllPits();
+    // Fetch saved consume products
+    _fetchAllConsumeProducts();
+    // Initialize distribute rows
+    for (int i = 0; i < 5; i++) {
+      distributeRows.add(DistributeRowData());
+    }
+  }
+
+  // ─────────────────────────────────────────────
+  //  Fetch all saved consume products from backend
+  // ─────────────────────────────────────────────
+  Future<void> _fetchAllConsumeProducts() async {
+    print('🔵 [FETCH] Fetching saved consume products...');
+    try {
+      final data = await consumeProductController.getAllConsumeProducts();
+      print('🟢 [FETCH] ConsumeProducts: ${data.length} items');
+
+      productRows.clear();
+      productRowSaving.clear();
+      productRowDeleting.clear();
+
+      for (var item in data) {
+        final row = ProductRowData();
+        
+        // Match product by ID
+        final productId = item['product']?.toString();
+        if (productId != null && productId.isNotEmpty) {
+          final matchedProduct = productsController.products.firstWhereOrNull(
+            (p) => p.id == productId,
+          );
+          row.selectedProduct.value = matchedProduct;
+        }
+
+        row.code      = item['code']?.toString() ?? '';
+        row.sg        = item['sg']?.toString() ?? '';
+        row.unit      = item['unit']?.toString() ?? '';
+        row.price     = (item['price'] ?? 0).toDouble();
+        row.initial   = (item['initial'] ?? 0).toString();
+        row.adjust    = (item['adjust'] ?? 0).toString();
+        row.used      = (item['used'] ?? 0).toString();
+        row.final_    = (item['final'] ?? 0).toString();
+        row.savedId   = item['_id'];
+        
+        // Recalculate to update reactive values
+        row.recalculate();
+
+        productRows.add(row);
+        productRowSaving.add(false);
+        productRowDeleting.add(false);
+      }
+
+      // Add one empty row at end
+      productRows.add(ProductRowData());
+      productRowSaving.add(false);
+      productRowDeleting.add(false);
+
+      print('🟢 [FETCH] All products loaded');
+    } catch (e) {
+      print('🔴 [FETCH] Error fetching products: $e');
+    }
+  }
+
+  // ─────────────────────────────────────────────
+  //  Calculate row (just updates reactive values)
+  // ─────────────────────────────────────────────
+  void _calculateRow(int index) {
+    if (dashboardController.isLocked.value) return;
+    final row = productRows[index];
+    if (row.selectedProduct.value == null) {
+      print('🔴 [CALC] Row $index: no product selected');
+      return;
+    }
+
+    print('🔵 [CALC] Row $index → Calculating...');
+    row.recalculate();
+    productRows.refresh();
+  }
+
+  // ─────────────────────────────────────────────
+  //  Save row (inline save)
+  // ─────────────────────────────────────────────
+  Future<void> _saveRow(int index) async {
+    if (dashboardController.isLocked.value) return;
+    final row = productRows[index];
+    
+    if (row.selectedProduct.value == null) {
+      print('🔴 [SAVE] Row $index: no product selected');
+      return;
+    }
+
+    // Calculate first
+    _calculateRow(index);
+
+    productRowSaving[index] = true;
+    productRowSaving.refresh();
+
+    final productId = row.selectedProduct.value!.id ?? '';
+    final initial   = double.tryParse(row.initial) ?? 0.0;
+    final adjust    = double.tryParse(row.adjust) ?? 0.0;
+    final used      = double.tryParse(row.used) ?? 0.0;
+
+    print('🔵 [SAVE] Row $index → productId=$productId | initial=$initial | adjust=$adjust | used=$used');
+
+    try {
+      Map<String, dynamic> result;
+
+      if (row.savedId == null) {
+        // CREATE
+        result = await consumeProductController.createConsumeProduct(
+          productId:     productId,
+          code:          row.code,
+          sg:            double.tryParse(row.sg) ?? 0.0,
+          unit:          row.unit,
+          price:         row.price,
+          initial:       initial,
+          adjust:        adjust,
+          used:          used,
+          numberOfBags:  1.0,  // Placeholder
+          weightPerBag:  1.0,  // Placeholder
+        );
+      } else {
+        // UPDATE
+        result = await consumeProductController.updateConsumeProduct(
+          id:            row.savedId!,
+          productId:     productId,
+          code:          row.code,
+          sg:            double.tryParse(row.sg) ?? 0.0,
+          unit:          row.unit,
+          price:         row.price,
+          initial:       initial,
+          adjust:        adjust,
+          used:          used,
+          numberOfBags:  1.0,
+          weightPerBag:  1.0,
+        );
+      }
+
+      print('🟢 [SAVE] Row $index result: $result');
+
+      if (result['success'] == true) {
+        row.savedId = result['data']?['_id'] ?? row.savedId;
+        productRows.refresh();
+        _showSuccess('Product row ${index + 1} saved!');
+        await _fetchAllConsumeProducts();
+      } else {
+        _showError(result['message'] ?? 'Save failed');
+      }
+    } catch (e) {
+      print('🔴 [SAVE] Row $index exception: $e');
+      _showError('Error: $e');
+    } finally {
+      productRowSaving[index] = false;
+      productRowSaving.refresh();
+    }
+  }
+
+  // ─────────────────────────────────────────────
+  //  Delete row (inline delete)
+  // ─────────────────────────────────────────────
+  Future<void> _deleteRow(int index) async {
+    final row = productRows[index];
+    print('🔵 [DEL] Row $index | savedId=${row.savedId}');
+
+    if (row.savedId != null) {
+      productRowDeleting[index] = true;
+      productRowDeleting.refresh();
+      try {
+        final result = await consumeProductController.deleteConsumeProduct(row.savedId!);
+        print('🟢 [DEL] Row $index result: $result');
+        if (result['success'] != true) {
+          _showError(result['message'] ?? 'Delete failed');
+          productRowDeleting[index] = false;
+          productRowDeleting.refresh();
+          return;
+        }
+        await _fetchAllConsumeProducts();
+        _showSuccess('Product deleted');
+      } catch (e) {
+        print('🔴 [DEL] Row $index exception: $e');
+        _showError('Error: $e');
+      } finally {
+        productRowDeleting[index] = false;
+        productRowDeleting.refresh();
+      }
+    } else {
+      // Just reset unsaved row
+      productRows[index] = ProductRowData();
+      productRows.refresh();
+    }
+  }
+
+  // ─────────────────────────────────────────────
+  //  Save All → generateInventorySnapshot
+  // ─────────────────────────────────────────────
+  Future<void> _saveAll() async {
+    if (dashboardController.isLocked.value) return;
+    isSavingAll.value = true;
+
+    print('🟡 [SAVE-ALL] Save All button pressed');
+
+    try {
+      // Save all unsaved filled rows
+      print('🔵 [SAVE-ALL] Saving all product rows...');
+      for (int i = 0; i < productRows.length; i++) {
+        if (productRows[i].selectedProduct.value != null && productRows[i].savedId == null) {
+          await _saveRow(i);
+        }
+      }
+
+      // Generate inventory snapshot
+      print('🔵 [SAVE-ALL] Calling generateInventorySnapshot...');
+      final snapResult = await inventorySnapshotController.generateInventorySnapshot();
+      print('🟢 [SAVE-ALL] generateInventorySnapshot result: $snapResult');
+
+      if (snapResult['success'] == true) {
+        _showSuccess(
+          'All saved! Snapshot generated (${snapResult['count']} items)',
+          duration: 3,
+        );
+      } else {
+        _showError('Rows saved but snapshot failed: ${snapResult['message']}');
+      }
+    } catch (e) {
+      print('🔴 [SAVE-ALL] Exception: $e');
+      _showError('Save All failed: $e');
+    } finally {
+      isSavingAll.value = false;
+    }
+  }
+
+  // ─────────────────────────────────────────────
+  //  Snackbar helpers
+  // ─────────────────────────────────────────────
+  void _showSuccess(String msg, {int duration = 2}) {
+    Get.rawSnackbar(
+      messageText: Row(children: [
+        const Icon(Icons.check_circle, color: Colors.white, size: 16),
+        const SizedBox(width: 8),
+        Expanded(child: Text(msg, style: const TextStyle(color: Colors.white, fontSize: 12))),
+      ]),
+      backgroundColor: const Color(0xff10B981),
+      borderRadius: 6,
+      margin: const EdgeInsets.only(top: 8, right: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      snackPosition: SnackPosition.TOP,
+      duration: Duration(seconds: duration),
+      maxWidth: 380,
+    );
+  }
+
+  void _showError(String msg) {
+    Get.rawSnackbar(
+      messageText: Row(children: [
+        const Icon(Icons.error, color: Colors.white, size: 16),
+        const SizedBox(width: 8),
+        Expanded(child: Text(msg, style: const TextStyle(color: Colors.white, fontSize: 12))),
+      ]),
+      backgroundColor: const Color(0xffEF4444),
+      borderRadius: 6,
+      margin: const EdgeInsets.only(top: 8, right: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      snackPosition: SnackPosition.TOP,
+      duration: const Duration(seconds: 3),
+      maxWidth: 380,
+    );
   }
 
   @override
@@ -122,6 +394,34 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
               ],
             ),
           ),
+
+          const SizedBox(width: 12),
+
+          // Save All Button
+          Obx(() => ElevatedButton.icon(
+            onPressed: dashboardController.isLocked.value || isSavingAll.value
+                ? null
+                : _saveAll,
+            icon: isSavingAll.value
+                ? const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation(Colors.white)),
+                  )
+                : const Icon(Icons.save, size: 14),
+            label: Text(
+              isSavingAll.value ? 'Saving...' : 'Save All',
+              style: const TextStyle(fontSize: 11),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryColor,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              minimumSize: const Size(90, 32),
+            ),
+          )),
         ],
       ),
     );
@@ -154,7 +454,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                     color: AppTheme.textSecondary,
                   ),
                 ),
-                icon: Icon(Icons.arrow_drop_down, size: 16),
+                icon: const Icon(Icons.arrow_drop_down, size: 16),
                 isExpanded: true,
                 isDense: true,
                 menuMaxHeight: 300,
@@ -204,8 +504,8 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                     color: AppTheme.textSecondary,
                   ),
                 ),
-                icon: Icon(Icons.arrow_drop_down, size: 16),
-                items: [],
+                icon: const Icon(Icons.arrow_drop_down, size: 16),
+                items: const [],
                 onChanged: dashboardController.isLocked.value ? null : (_) {},
               ),
             ),
@@ -290,6 +590,8 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       "Final",
       "Cost (\$)",
       "Vol (bbl)",
+      "",  // Action buttons column
+      "",  // Delete column
     ];
 
     return Container(
@@ -311,7 +613,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
             ),
             child: Row(
               children: [
-                Icon(Icons.inventory_2, color: Colors.white, size: 16),
+                const Icon(Icons.inventory_2, color: Colors.white, size: 16),
                 const SizedBox(width: 8),
                 Text(
                   "Consume Product",
@@ -388,17 +690,12 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
   }
 
   double _getProductColumnWidth(String header) {
-    if (header == 'Product') {
-      return 150;
-    } else if (header == 'Code') {
-      return 80;
-    } else if (header == 'SG' || header == 'Unit') {
-      return 70;
-    } else if (header.contains('Price') || header.contains('Cost')) {
-      return 85;
-    } else {
-      return 75;
-    }
+    if (header == 'Product') return 150;
+    if (header == 'Code') return 80;
+    if (header == 'SG' || header == 'Unit') return 70;
+    if (header.contains('Price') || header.contains('Cost')) return 85;
+    if (header == '') return 32;  // Action/Delete column
+    return 75;
   }
 
   List<DataCell> _buildProductCells(ProductRowData row, int index, bool isSelected) {
@@ -411,19 +708,10 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
         child: Container(
           width: 150,
           padding: const EdgeInsets.symmetric(horizontal: 8),
-          decoration: BoxDecoration(
-            border: Border(
-              right: BorderSide(color: Colors.grey.shade300, width: 1),
-            ),
-          ),
           child: Row(
             children: [
               if (isSelected)
-                Icon(
-                  Icons.arrow_drop_down,
-                  size: 16,
-                  color: AppTheme.primaryColor,
-                ),
+                Icon(Icons.arrow_drop_down, size: 16, color: AppTheme.primaryColor),
               if (isSelected)
                 const SizedBox(width: 4),
               
@@ -436,10 +724,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                         : null,
                     hint: Text(
                       "Select",
-                      style: AppTheme.bodySmall.copyWith(
-                        fontSize: 10,
-                        color: Colors.grey,
-                      ),
+                      style: AppTheme.bodySmall.copyWith(fontSize: 10, color: Colors.grey),
                     ),
                     isExpanded: true,
                     isDense: true,
@@ -470,7 +755,6 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                               row.initial = value.initial;
                               productRows.refresh();
                               _checkAndAddProductRow();
-                              // Auto-calculate on product selection
                               row.recalculate();
                             }
                           },
@@ -521,12 +805,24 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       _checkAndAddProductRow();
     }, 75));
 
-    // Final
-    cells.add(_buildEditableTableCell(row.final_, (val) {
-      row.final_ = val;
-      row.recalculate();
-      _checkAndAddProductRow();
-    }, 75));
+    // Final (calculated, can be negative, shown in red if negative)
+    cells.add(DataCell(
+      Container(
+        width: 75,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        child: Obx(() => Text(
+          row.calculatedFinal.value.toStringAsFixed(2),
+          style: AppTheme.bodySmall.copyWith(
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+            color: row.calculatedFinal.value < 0 
+                ? Colors.red 
+                : Colors.grey.shade700,
+          ),
+          textAlign: TextAlign.right,
+        )),
+      ),
+    ));
 
     // Cost (calculated, highlighted)
     cells.add(_buildTableCell(
@@ -545,6 +841,26 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       isEditable: false,
       isRightAligned: true,
       isHighlighted: true,
+    ));
+
+    // Action buttons (calculate + save)
+    cells.add(DataCell(
+      _buildActionButtons(
+        index: index,
+        isSaving: productRowSaving[index],
+        hasProduct: row.selectedProduct.value != null,
+        onCalculate: () => _calculateRow(index),
+        onSave: () => _saveRow(index),
+      ),
+    ));
+
+    // Delete button
+    cells.add(DataCell(
+      _buildDeleteButton(
+        index: index,
+        isDeleting: productRowDeleting[index],
+        onDelete: () => _deleteRow(index),
+      ),
     ));
 
     return cells;
@@ -600,10 +916,101 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
             contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 6),
             border: InputBorder.none,
           ),
-          keyboardType: TextInputType.number,
+          keyboardType: const TextInputType.numberWithOptions(signed: true, decimal: true),
           textAlign: isRightAligned ? TextAlign.right : TextAlign.left,
           onChanged: onChanged,
         ),
+      ),
+    );
+  }
+
+  Widget _buildActionButtons({
+    required int index,
+    required bool isSaving,
+    required bool hasProduct,
+    required VoidCallback onCalculate,
+    required VoidCallback onSave,
+  }) {
+    if (isSaving) {
+      return const SizedBox(
+        width: 60,
+        child: Center(
+          child: SizedBox(
+            width: 14,
+            height: 14,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      );
+    }
+    return SizedBox(
+      width: 60,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Calculate
+          IconButton(
+            icon: Icon(Icons.play_circle_outline,
+                size: 16,
+                color: hasProduct && !dashboardController.isLocked.value
+                    ? AppTheme.primaryColor
+                    : Colors.grey.shade400),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            onPressed: hasProduct && !dashboardController.isLocked.value
+                ? onCalculate
+                : null,
+            tooltip: 'Calculate',
+          ),
+          const SizedBox(width: 4),
+          // Save
+          IconButton(
+            icon: Icon(Icons.save_outlined,
+                size: 16,
+                color: hasProduct && !dashboardController.isLocked.value
+                    ? const Color(0xff10B981)
+                    : Colors.grey.shade400),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            onPressed: hasProduct && !dashboardController.isLocked.value
+                ? onSave
+                : null,
+            tooltip: 'Save row',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDeleteButton({
+    required int index,
+    required bool isDeleting,
+    required VoidCallback onDelete,
+  }) {
+    if (isDeleting) {
+      return const SizedBox(
+        width: 32,
+        child: Center(
+          child: SizedBox(
+            width: 12,
+            height: 12,
+            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.red),
+          ),
+        ),
+      );
+    }
+    return SizedBox(
+      width: 32,
+      child: IconButton(
+        icon: Icon(Icons.delete_outline,
+            size: 15,
+            color: dashboardController.isLocked.value
+                ? Colors.grey.shade300
+                : Colors.red.shade300),
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(),
+        onPressed: dashboardController.isLocked.value ? null : onDelete,
+        tooltip: 'Delete row',
       ),
     );
   }
@@ -613,6 +1020,8 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       final lastRow = productRows.last;
       if (lastRow.selectedProduct.value != null) {
         productRows.add(ProductRowData());
+        productRowSaving.add(false);
+        productRowDeleting.add(false);
       }
     }
   }
@@ -657,7 +1066,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
             ),
             child: Row(
               children: [
-                Icon(Icons.share, color: Colors.white, size: 16),
+                const Icon(Icons.share, color: Colors.white, size: 16),
                 const SizedBox(width: 8),
                 Text(
                   "Distribute to",
@@ -695,7 +1104,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                     label: Container(
                       width: 150,
                       padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: Text("Pit"),
+                      child: const Text("Pit"),
                     ),
                   ),
                   DataColumn(
@@ -703,7 +1112,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                       width: 100,
                       alignment: Alignment.centerRight,
                       padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: Text("Vol (bbl)"),
+                      child: const Text("Vol (bbl)"),
                     ),
                   ),
                 ],
@@ -725,11 +1134,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                             child: Row(
                               children: [
                                 if (isSelected)
-                                  Icon(
-                                    Icons.arrow_drop_down,
-                                    size: 16,
-                                    color: AppTheme.successColor,
-                                  ),
+                                  Icon(Icons.arrow_drop_down, size: 16, color: AppTheme.successColor),
                                 if (isSelected)
                                   const SizedBox(width: 4),
                                 
@@ -739,10 +1144,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                                       value: row.pit.isNotEmpty ? row.pit : null,
                                       hint: Text(
                                         "Select Pit",
-                                        style: AppTheme.bodySmall.copyWith(
-                                          fontSize: 10,
-                                          color: Colors.grey,
-                                        ),
+                                        style: AppTheme.bodySmall.copyWith(fontSize: 10, color: Colors.grey),
                                       ),
                                       isExpanded: true,
                                       isDense: true,
@@ -869,7 +1271,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                               : Colors.transparent,
                         ),
                         child: addWater.value
-                            ? Icon(Icons.check, size: 11, color: Colors.white)
+                            ? const Icon(Icons.check, size: 11, color: Colors.white)
                             : null,
                       ),
                       const SizedBox(width: 8),
@@ -1013,43 +1415,35 @@ class ProductRowData {
   String adjust = '';
   String used = '';
   String final_ = '';
+  String? savedId;  // MongoDB _id after save
   
   // Reactive calculated values
   final RxDouble calculatedCost = 0.0.obs;
   final RxDouble calculatedVolume = 0.0.obs;
+  final RxDouble calculatedFinal = 0.0.obs;
 
-  // Recalculate cost and volume whenever inputs change
+  // Recalculate cost, final, and volume whenever inputs change
   void recalculate() {
     final initialVal = double.tryParse(initial) ?? 0.0;
-    final adjustVal = double.tryParse(adjust) ?? 0.0;
-    final usedVal = double.tryParse(used) ?? 0.0;
-    final finalVal = double.tryParse(final_) ?? 0.0;
-    final sgVal = double.tryParse(sg) ?? 0.0;
+    final adjustVal  = double.tryParse(adjust) ?? 0.0;
+    final usedVal    = double.tryParse(used) ?? 0.0;
+    final sgVal      = double.tryParse(sg) ?? 0.0;
 
-    // Calculate cost: used * price
+    // Final = initial + adjust - used (CAN BE NEGATIVE)
+    calculatedFinal.value = initialVal + adjustVal - usedVal;
+
+    // Cost = used * price
     calculatedCost.value = usedVal * price;
 
-    // Calculate final if not manually entered
-    if (final_.isEmpty) {
-      final calculatedFinal = initialVal + adjustVal - usedVal;
-      final_ = calculatedFinal.toString();
-    }
-
-    // Calculate volume in BBL
-    // Using numberOfBags and weightPerBag from product selection
-    // For simplicity, assuming 1 bag per unit used if not specified
+    // Volume in BBL (simplified formula)
     if (sgVal > 0 && usedVal > 0) {
-      final totalWeight = usedVal; // Assuming used is in kg or similar
+      final totalWeight = usedVal;  // Assuming used is in kg
       calculatedVolume.value = double.parse(
         (totalWeight / (sgVal * 158.987)).toStringAsFixed(3)
       );
     } else {
       calculatedVolume.value = 0.0;
     }
-  }
-
-  double calculateCost() {
-    return calculatedCost.value;
   }
 }
 

@@ -32,7 +32,9 @@ class DailyReportBody extends StatefulWidget {
 
 class _DailyReportBodyState extends State<DailyReportBody> {
   int _selectedSideTab = 0;
+  int _lastSelectedSideTab = 0; // Remembers sidebar selection when switching main tabs
   int _selectedSubTab = 0; // For sub-tabs under main tabs
+  bool _hasExplicitlySelectedSubTab = false; // Track if user explicitly selected a sub-tab for non-Home tabs
 
   // Sub-tabs configuration for each main tab
   final Map<int, List<Map<String, dynamic>>> _mainTabSubTabs = {
@@ -42,10 +44,12 @@ class _DailyReportBodyState extends State<DailyReportBody> {
       {'title': 'Options', 'icon': Icons.settings},
     ],
     1: [ // Report
-      {'title': 'Generate Report', 'icon': Icons.description},
-      {'title': 'Export PDF', 'icon': Icons.picture_as_pdf},
-      {'title': 'Print', 'icon': Icons.print},
-      {'title': 'Share', 'icon': Icons.share},
+      {'title': 'Daily Report', 'icon': Icons.description},
+      {'title': 'Detail Report', 'icon': Icons.picture_as_pdf},
+      {'title': 'Safety Card', 'icon': Icons.safety_check},
+      {'title': 'Hydraulics Report', 'icon': Icons.print},
+      {'title': 'WITSML Report', 'icon': Icons.report},
+      {'title': 'WBM Report', 'icon': Icons.generating_tokens},
     ],
     2: [ // Utilities
       {'title': 'Calculators', 'icon': Icons.calculate},
@@ -73,7 +77,23 @@ class _DailyReportBodyState extends State<DailyReportBody> {
     } else {
       setState(() {
         _selectedSubTab = index;
+        // Mark that user has explicitly selected a sub-tab for non-Home tabs
+        if (widget.selectedMainTab != 0) {
+          _hasExplicitlySelectedSubTab = true;
+        }
       });
+    }
+  }
+
+  @override
+  void didUpdateWidget(DailyReportBody oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // When main tab changes, reset the explicit sub-tab selection flag
+    // This ensures body stays on Home when switching between main tabs
+    if (oldWidget.selectedMainTab != widget.selectedMainTab) {
+      _hasExplicitlySelectedSubTab = false;
+      _selectedSubTab = 0;
+      // Keep the last selected side tab to show Home content
     }
   }
 
@@ -85,21 +105,16 @@ class _DailyReportBodyState extends State<DailyReportBody> {
   }
 
   Widget _getSelectedTabContent() {
-    if (widget.selectedMainTab == 0) {
-      return SubTabContent(
-        mainTabIndex: widget.selectedMainTab,
-        subTabIndex: _selectedSubTab,
-        selectedSideTab: _selectedSideTab,
-        onSideTabSelected: _onSideTabSelected,
-        isSidebarVisible: widget.isSidebarVisible,
-        onToggleSidebar: widget.onToggleSidebar,
-      );
-    } else {
-      return SubTabContent(
-        mainTabIndex: widget.selectedMainTab,
-        subTabIndex: _selectedSubTab,
-      );
-    }
+    // Always show Home content with sidebar - body doesn't change when clicking on main tabs
+    // Only the sub-tab bar changes
+    return SubTabContent(
+      mainTabIndex: widget.selectedMainTab,
+      subTabIndex: _selectedSubTab,
+      selectedSideTab: _selectedSideTab,
+      onSideTabSelected: _onSideTabSelected,
+      isSidebarVisible: widget.isSidebarVisible,
+      onToggleSidebar: widget.onToggleSidebar,
+    );
   }
 
   @override

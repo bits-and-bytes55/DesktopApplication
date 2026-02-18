@@ -1,0 +1,194 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:mudpro_desktop_app/api_endpoint/api_endpoint.dart';
+
+class ConsumeProductController {
+  final String baseUrl = ApiEndpoint.baseUrl;
+
+  Map<String, String> get _headers => {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+  };
+
+  // ═══════════════════════════════════════════
+  //  CREATE CONSUME PRODUCT
+  // ═══════════════════════════════════════════
+  Future<Map<String, dynamic>> createConsumeProduct({
+    required String productId,
+    required String code,
+    required double sg,
+    required String unit,
+    required double price,
+    required double initial,
+    required double adjust,
+    required double used,
+    required double numberOfBags,
+    required double weightPerBag,
+  }) async {
+    try {
+      final body = jsonEncode({
+        'product':        productId,
+        'code':           code,
+        'sg':             sg,
+        'unit':           unit,
+        'price':          price,
+        'initial':        initial,
+        'adjust':         adjust,
+        'used':           used,
+        'numberOfBags':   numberOfBags,
+        'weightPerBag':   weightPerBag,
+      });
+
+      print('🔵 [API] POST ${baseUrl}consume-product');
+      print('🔵 [API] Body: $body');
+
+      final response = await http.post(
+        Uri.parse('${baseUrl}consume-product'),
+        headers: _headers,
+        body: body,
+      );
+
+      print('🟢 [API] Create ConsumeProduct - statusCode: ${response.statusCode}');
+      print('🟢 [API] Create ConsumeProduct - responseBody: ${response.body}');
+
+      final responseData = jsonDecode(response.body);
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return {
+          'success': true,
+          'message': responseData['message'] ?? 'Product consumed successfully',
+          'data': responseData['data'],
+        };
+      } else {
+        return {
+          'success': false,
+          'message': responseData['message'] ?? 'Failed to consume product',
+        };
+      }
+    } catch (e) {
+      print('🔴 [API] Create ConsumeProduct exception: $e');
+      return {'success': false, 'message': 'Error: $e'};
+    }
+  }
+
+  // ═══════════════════════════════════════════
+  //  UPDATE CONSUME PRODUCT
+  // ═══════════════════════════════════════════
+  Future<Map<String, dynamic>> updateConsumeProduct({
+    required String id,
+    required String productId,
+    required String code,
+    required double sg,
+    required String unit,
+    required double price,
+    required double initial,
+    required double adjust,
+    required double used,
+    required double numberOfBags,
+    required double weightPerBag,
+  }) async {
+    try {
+      final body = jsonEncode({
+        'product':        productId,
+        'code':           code,
+        'sg':             sg,
+        'unit':           unit,
+        'price':          price,
+        'initial':        initial,
+        'adjust':         adjust,
+        'used':           used,
+        'numberOfBags':   numberOfBags,
+        'weightPerBag':   weightPerBag,
+      });
+
+      print('🔵 [API] PUT ${baseUrl}consume-product/$id');
+      print('🔵 [API] Body: $body');
+
+      final response = await http.put(
+        Uri.parse('${baseUrl}consume-product/$id'),
+        headers: _headers,
+        body: body,
+      );
+
+      print('🟢 [API] Update ConsumeProduct - statusCode: ${response.statusCode}');
+      print('🟢 [API] Update ConsumeProduct - responseBody: ${response.body}');
+
+      final responseData = jsonDecode(response.body);
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return {
+          'success': true,
+          'message': responseData['message'] ?? 'Product updated successfully',
+          'data': responseData['data'],
+        };
+      } else {
+        return {
+          'success': false,
+          'message': responseData['message'] ?? 'Failed to update product',
+        };
+      }
+    } catch (e) {
+      print('🔴 [API] Update ConsumeProduct exception: $e');
+      return {'success': false, 'message': 'Error: $e'};
+    }
+  }
+
+  // ═══════════════════════════════════════════
+  //  DELETE CONSUME PRODUCT
+  // ═══════════════════════════════════════════
+  Future<Map<String, dynamic>> deleteConsumeProduct(String id) async {
+    try {
+      print('🔵 [API] DELETE ${baseUrl}consume-product/$id');
+
+      final response = await http.delete(
+        Uri.parse('${baseUrl}consume-product/$id'),
+        headers: _headers,
+      );
+
+      print('🟢 [API] Delete ConsumeProduct - statusCode: ${response.statusCode}');
+      print('🟢 [API] Delete ConsumeProduct - responseBody: ${response.body}');
+
+      final responseData = jsonDecode(response.body);
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return {
+          'success': true,
+          'message': responseData['message'] ?? 'Product deleted successfully',
+        };
+      } else {
+        return {
+          'success': false,
+          'message': responseData['message'] ?? 'Failed to delete product',
+        };
+      }
+    } catch (e) {
+      print('🔴 [API] Delete ConsumeProduct exception: $e');
+      return {'success': false, 'message': 'Error: $e'};
+    }
+  }
+
+  // ═══════════════════════════════════════════
+  //  GET ALL CONSUME PRODUCTS
+  // ═══════════════════════════════════════════
+  Future<List<Map<String, dynamic>>> getAllConsumeProducts() async {
+    try {
+      print('🔵 [API] GET ${baseUrl}consume-product');
+
+      final response = await http.get(
+        Uri.parse('${baseUrl}consume-product'),
+        headers: _headers,
+      );
+
+      print('🟢 [API] Get All ConsumeProducts - statusCode: ${response.statusCode}');
+      print('🟢 [API] Get All ConsumeProducts - responseBody: ${response.body}');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final responseData = jsonDecode(response.body);
+        final List items = responseData['data'] ?? [];
+        return items.map((e) => e as Map<String, dynamic>).toList();
+      } else {
+        return [];
+      }
+    } catch (e) {
+      print('🔴 [API] Get All ConsumeProducts exception: $e');
+      return [];
+    }
+  }
+}
