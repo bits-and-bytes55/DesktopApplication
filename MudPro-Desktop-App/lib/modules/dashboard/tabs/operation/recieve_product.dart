@@ -70,7 +70,7 @@ class _ReceiveProductViewState extends State<ReceiveProductView> {
         product: p.product,
         code: p.code,
         sg: p.sg,
-        unitClass: p.unit,
+        unitClass: p.unit, 
         price: p.price,
         initial: p.initial,
         group: p.group,
@@ -231,7 +231,7 @@ class _ReceiveProductViewState extends State<ReceiveProductView> {
                           onDropdownChanged: (index, item) {
                             productRows[index].selectedItem = item.product ?? '';
                             productRows[index].code = item.code ?? '';
-                            productRows[index].unit = item.unitClass ?? '';
+                            productRows[index].unit = item.formattedUnit;
                             productRows.refresh();
                             _checkAndAddRow(productRows);
                           },

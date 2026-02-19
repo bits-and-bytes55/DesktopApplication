@@ -981,12 +981,15 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
         width: 160,
         getName: (i) => i.name,
       ),
-      // Code
-      _readCell(row.code, 90),
-      // Unit
-      _readCell(row.unit, 70),
-      // Price
-      _readCell(row.price > 0 ? row.price.toStringAsFixed(2) : '', 90, rightAlign: true),
+      // Code (editable)
+      _editCell(row.code, 90, (v) => row.code = v),
+      // Unit (editable)
+      _editCell(row.unit, 70, (v) => row.unit = v),
+      // Price (editable)
+      _editCell(row.price > 0 ? row.price.toStringAsFixed(2) : '', 90, (v) {
+        row.price = double.tryParse(v) ?? 0.0;
+        _calculatePackage(index);
+      }),
       // Initial (editable)
       _editCell(row.initial, 80, (v) {
         row.initial = v;
@@ -1061,9 +1064,12 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
         width: 160,
         getName: (i) => i.name,
       ),
-      _readCell(row.code, 90),
-      _readCell(row.unit, 70),
-      _readCell(row.price > 0 ? row.price.toStringAsFixed(2) : '', 90, rightAlign: true),
+      _editCell(row.code, 90, (v) => row.code = v),
+      _editCell(row.unit, 70, (v) => row.unit = v),
+      _editCell(row.price > 0 ? row.price.toStringAsFixed(2) : '', 90, (v) {
+        row.price = double.tryParse(v) ?? 0.0;
+        _calculateService(index);
+      }),
       _editCell(row.usage, 80, (v) {
         row.usage = v;
         _calculateService(index);
@@ -1113,9 +1119,12 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
         width: 160,
         getName: (i) => i.name,
       ),
-      _readCell(row.code, 90),
-      _readCell(row.unit, 70),
-      _readCell(row.price > 0 ? row.price.toStringAsFixed(2) : '', 90, rightAlign: true),
+      _editCell(row.code, 90, (v) => row.code = v),
+      _editCell(row.unit, 70, (v) => row.unit = v),
+      _editCell(row.price > 0 ? row.price.toStringAsFixed(2) : '', 90, (v) {
+        row.price = double.tryParse(v) ?? 0.0;
+        _calculateEngineering(index);
+      }),
       _editCell(row.usage, 80, (v) {
         row.usage = v;
         _calculateEngineering(index);
@@ -1420,17 +1429,17 @@ abstract class BaseRowData {
   String  unit         = '';
   double  price        = 0.0;
   double  cost         = 0.0;
+  String  initial      = '';
+  String  used         = '';
+  String  finalValue   = '';   // can be negative, shown in red
   String? savedId;          // MongoDB _id after save
 }
 
-class PackageRowData extends BaseRowData {
-  String initial    = '';
-  String used       = '';
-  String finalValue = '';   // can be negative, shown in red
-}
+class PackageRowData extends BaseRowData {}
 
 class ServiceRowData extends BaseRowData {
-  String usage = '';
+  String get usage => used;
+  set usage(String v) => used = v;
 }
 
 class EngineeringRowData extends BaseRowData {

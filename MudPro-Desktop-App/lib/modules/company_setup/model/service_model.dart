@@ -21,7 +21,7 @@ class ServiceItem {
       name: json['name'] ?? '',
       code: json['code'] ?? '',
       unit: json['unit'] ?? '',
-      price: (json['price'] ?? 0).toDouble(),
+      price: double.tryParse(json['price']?.toString() ?? '0') ?? 0.0,
     );
   }
 
@@ -56,7 +56,7 @@ class PackageItem {
       name: json['name'] ?? '',
       code: json['code'] ?? '',
       unit: json['unit'] ?? '',
-      price: (json['price'] ?? 0).toDouble(),
+      price: double.tryParse(json['price']?.toString() ?? '0') ?? 0.0,
     );
   }
 
@@ -91,7 +91,7 @@ class EngineeringItem {
       name: json['name'] ?? '',
       code: json['code'] ?? '',
       unit: json['unit'] ?? '',
-      price: (json['price'] ?? 0).toDouble(),
+      price: double.tryParse(json['price']?.toString() ?? '0') ?? 0.0,
     );
   }
 

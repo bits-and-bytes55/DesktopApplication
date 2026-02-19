@@ -20,6 +20,10 @@ class ProductModel {
   DateTime? createdAt;
   DateTime? updatedAt;
 
+  String get formattedUnit => unitNum.isEmpty && unitClass.isEmpty 
+    ? "" 
+    : "${unitNum.trim()} ${unitClass.trim()}".trim();
+
   ProductModel({
     this.id,
     this.product = '',
@@ -81,6 +85,12 @@ class ProductModel {
       retail: json['Retail'] ?? '',
       a: json['A']?.toString() ?? '',
       b: json['B']?.toString() ?? '',
+      price: json['price']?.toString() ?? json['Price']?.toString() ?? '',
+      initial: json['initial']?.toString() ?? json['Initial']?.toString() ?? '',
+      volAdd: json['volAdd'] ?? false,
+      calculate: json['calculate'] ?? false,
+      plot: json['plot'] ?? false,
+      tax: json['tax'] == true || json['tax'] == 'true', // Handle both bool and string
       isDeleted: json['isDeleted'] ?? false,
       createdAt: json['createdAt'] != null 
           ? DateTime.parse(json['createdAt']) 

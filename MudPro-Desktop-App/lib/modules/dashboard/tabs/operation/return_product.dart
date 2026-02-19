@@ -283,7 +283,7 @@ class _ReturnProductViewState extends State<ReturnProductView> {
                           onDropdownChanged: (index, item) {
                             productRows[index].selectedItem = item.product ?? '';
                             productRows[index].code = item.code ?? '';
-                            productRows[index].unit = item.unitClass ?? '';
+                            productRows[index].unit = item.formattedUnit;
                             productRows.refresh();
                             _checkAndAddRow(productRows);
                           },

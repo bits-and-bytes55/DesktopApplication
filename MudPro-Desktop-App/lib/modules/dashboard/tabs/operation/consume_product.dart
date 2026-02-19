@@ -779,16 +779,16 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                     }).toList(),
                     onChanged: dashboardController.isLocked.value 
                         ? null 
-                        : (ProductModel? value) {
+                          : (ProductModel? value) {
                             if (value != null) {
                               selectedProductRow.value = index;
                               row.selectedProduct.value = value;
                               row.code = value.code;
                               row.sg = value.sg;
-                              row.unit = value.unitClass;
-                              row.price = value.a.isNotEmpty 
-                                  ? double.tryParse(value.a) ?? 0.0 
-                                  : 0.0;
+                              row.unit = value.formattedUnit;
+                              // Use value.price if available, fallback to value.a
+                              String priceStr = value.price.isNotEmpty ? value.price : value.a;
+                              row.price = double.tryParse(priceStr) ?? 0.0;
                               row.initial = value.initial;
                               productRows.refresh();
                               _checkAndAddProductRow();
