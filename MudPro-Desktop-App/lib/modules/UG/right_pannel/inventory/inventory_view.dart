@@ -6,6 +6,8 @@ import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/inventory_p
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/inventory_service.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/inventory_store/inventory_store.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/model/ug_inventory_product_model.dart';
+import 'package:mudpro_desktop_app/modules/UG/model/inventory_model.dart';
+import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/controller/ug_inventory_product_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class InventoryView extends StatelessWidget {
@@ -297,8 +299,10 @@ class InventoryView extends StatelessWidget {
     );
 
     try {
+      final servicesStore = Get.find<InventoryServicesStore>();
+
       // Map InventoryProductsStore products → ProductInventoryModel list
-      final products = store.selectedProducts.map((p) {
+      final productsList = store.selectedProducts.map((p) {
         return ProductInventoryModel(
           id: p.id,
           product: p.product,
@@ -315,12 +319,24 @@ class InventoryView extends StatelessWidget {
         );
       }).toList();
 
-      // await InventoryProductsService.applyInventoryData(
-      //   wellId: c.wellId,           // ← use your actual wellId getter from UgController
-      //   products: products,
-      //   premixed: c.premixed.toList(),
-      //   obm: c.obm.toList(),
-      // );
+      // Collect from services store
+      final packages = servicesStore.selectedPackages.toList();
+      final engineering = servicesStore.selectedEngineering.toList();
+      final services = servicesStore.selectedServices.toList();
+
+      await InventoryProductsService.applyInventoryData(
+        wellId: c.wellId,
+        products: productsList,
+        premixed: c.premixed.toList(),
+        obm: c.obm.toList(),
+        packages: packages,
+        engineering: engineering,
+        services: services,
+        bulkTankSetupFee: c.bulkTankSetupFee.value,
+        taxRate: c.taxRate.value,
+        applyPricesOption: c.applyChangedPricesOption.value,
+        fromDate: c.fromDate.value,
+      );
 
       // Close dialog
       if (context.mounted) Navigator.of(context, rootNavigator: true).pop();

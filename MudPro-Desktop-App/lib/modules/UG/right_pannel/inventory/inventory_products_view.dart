@@ -27,6 +27,14 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
   final Map<String, TextEditingController> _premixedControllers = {};
   final Map<String, TextEditingController> _obmControllers = {};
 
+  // Scroll Controllers
+  final _mainVerticalScroll = ScrollController();
+  final _mainHorizontalScroll = ScrollController();
+  final _premixedVerticalScroll = ScrollController();
+  final _premixedHorizontalScroll = ScrollController();
+  final _obmVerticalScroll = ScrollController();
+  final _obmHorizontalScroll = ScrollController();
+
   @override
   void initState() {
     super.initState();
@@ -36,6 +44,12 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
 
   @override
   void dispose() {
+    _mainVerticalScroll.dispose();
+    _mainHorizontalScroll.dispose();
+    _premixedVerticalScroll.dispose();
+    _premixedHorizontalScroll.dispose();
+    _obmVerticalScroll.dispose();
+    _obmHorizontalScroll.dispose();
     _disposeControllers();
     super.dispose();
   }
@@ -68,6 +82,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
   }
 
   Future<void> _loadData() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
     try {
       // Load Premixed
@@ -83,9 +98,13 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
       print('OBM count: ${obmList.length}');
     } catch (e) {
       print('❌ Error loading data: $e');
-      _showToast('Failed to load data', isError: true);
+      if (mounted) {
+        _showToast('Failed to load data', isError: true);
+      }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -278,10 +297,13 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
               }
 
               return Scrollbar(
+                controller: _mainVerticalScroll,
                 thumbVisibility: true,
                 child: SingleChildScrollView(
+                  controller: _mainHorizontalScroll,
                   scrollDirection: Axis.horizontal,
                   child: SingleChildScrollView(
+                    controller: _mainVerticalScroll,
                     child: Table(
                       border: TableBorder.all(
                         color: Colors.grey.shade200,
@@ -480,10 +502,13 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
           ),
           Expanded(
             child: Scrollbar(
+              controller: _premixedVerticalScroll,
               thumbVisibility: true,
               child: SingleChildScrollView(
+                controller: _premixedHorizontalScroll,
                 scrollDirection: Axis.horizontal,
                 child: SingleChildScrollView(
+                  controller: _premixedVerticalScroll,
                   child: Obx(() => Table(
                     border: TableBorder.all(
                       color: Colors.grey.shade300,
@@ -734,10 +759,13 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
           ),
           Expanded(
             child: Scrollbar(
+              controller: _obmVerticalScroll,
               thumbVisibility: true,
               child: SingleChildScrollView(
+                controller: _obmHorizontalScroll,
                 scrollDirection: Axis.horizontal,
                 child: SingleChildScrollView(
+                  controller: _obmVerticalScroll,
                   child: Obx(() => Table(
                     border: TableBorder.all(
                       color: Colors.grey.shade300,

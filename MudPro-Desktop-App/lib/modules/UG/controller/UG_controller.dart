@@ -13,6 +13,9 @@ import 'package:mudpro_desktop_app/modules/company_setup/model/products_model.da
 
 class UgController extends GetxController {
   final AuthRepository repository = AuthRepository();
+  
+  // Replace with actual well ID logic later
+  String get wellId => '507f1f77bcf86cd799439011';
 
   // Right panel main tab
   final activeRightTab = 'pad'.obs;

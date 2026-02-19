@@ -6,6 +6,8 @@ import 'package:mudpro_desktop_app/modules/company_setup/controller/products_con
 import 'package:mudpro_desktop_app/modules/company_setup/model/products_model.dart';
 import 'package:mudpro_desktop_app/modules/daily_report/controller/inventory_snapshot_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/consume_product_controller.dart';
+import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/controller/ug_inventory_product_controller.dart';
+import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/model/ug_inventory_product_model.dart';
 import '../../controller/operation_controller.dart';
 import '../../controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
@@ -45,6 +47,9 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
   // Selected products for top dropdown
   final Rx<ProductModel?> selectedTopProduct = Rx<ProductModel?>(null);
 
+  // Local list for inventory products
+  final RxList<ProductModel> products = <ProductModel>[].obs;
+
   // Save All loading
   final RxBool isSavingAll = false.obs;
 
@@ -52,6 +57,8 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
   void initState() {
     super.initState();
     print('🟡 [INIT] ConsumeProductView initState');
+    // Fetch dropdown data from inventory
+    _loadDropdownData();
     // Fetch pits data
     pitController.fetchAllPits();
     // Fetch saved consume products
@@ -59,6 +66,35 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     // Initialize distribute rows
     for (int i = 0; i < 5; i++) {
       distributeRows.add(DistributeRowData());
+    }
+  }
+
+  // ─────────────────────────────────────────────
+  //  Load dropdown data (Well-specific Inventory)
+  // ─────────────────────────────────────────────
+  Future<void> _loadDropdownData() async {
+    print('🔵 [LOAD] Loading dropdown products...');
+    try {
+      const wellId = '507f1f77bcf86cd799439011';
+      final inventoryProducts = await InventoryProductsService.fetchProducts(wellId);
+      print('🟢 [LOAD] Fetched ${inventoryProducts.length} products from inventory');
+
+      products.value = inventoryProducts.map((p) => ProductModel(
+        id: p.id,
+        product: p.product,
+        code: p.code,
+        sg: p.sg,
+        unitClass: p.unit,
+        price: p.price,
+        initial: p.initial,
+        group: p.group,
+        volAdd: p.volAdd,
+        calculate: p.calculate,
+        plot: p.plot ?? false,
+        tax: p.tax,
+      )).toList();
+    } catch (e) {
+      print('🔴 [LOAD] Error loading dropdown data: $e');
     }
   }
 
@@ -81,10 +117,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
         // Match product by ID
         final productId = item['product']?.toString();
         if (productId != null && productId.isNotEmpty) {
-          final matchedProduct = productsController.products.firstWhereOrNull(
-            (p) => p.id == productId,
-          );
-          row.selectedProduct.value = matchedProduct;
+          row.selectedProduct.value = _findProductById(productId);
         }
 
         row.code      = item['code']?.toString() ?? '';
@@ -114,6 +147,10 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     } catch (e) {
       print('🔴 [FETCH] Error fetching products: $e');
     }
+  }
+
+  ProductModel? _findProductById(String id) {
+    return products.firstWhereOrNull((p) => p.id == id);
   }
 
   // ─────────────────────────────────────────────
@@ -444,7 +481,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
             child: Obx(() => DropdownButtonHideUnderline(
               child: DropdownButton<ProductModel>(
                 value: selectedTopProduct.value != null &&
-                       productsController.products.any((p) => p.id == selectedTopProduct.value?.id)
+                       products.any((p) => p.id == selectedTopProduct.value?.id)
                     ? selectedTopProduct.value
                     : null,
                 hint: Text(
@@ -458,7 +495,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                 isExpanded: true,
                 isDense: true,
                 menuMaxHeight: 300,
-                items: productsController.products.where((p) => p.id != null).map((product) {
+                items: products.where((p) => p.id != null).map((product) {
                   return DropdownMenuItem<ProductModel>(
                     value: product,
                     child: Text(
@@ -719,7 +756,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                 child: Obx(() => DropdownButtonHideUnderline(
                   child: DropdownButton<ProductModel>(
                     value: row.selectedProduct.value != null &&
-                           productsController.products.any((p) => p.id == row.selectedProduct.value?.id)
+                           products.any((p) => p.id == row.selectedProduct.value?.id)
                         ? row.selectedProduct.value
                         : null,
                     hint: Text(
@@ -730,7 +767,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                     isDense: true,
                     icon: const SizedBox.shrink(),
                     menuMaxHeight: 300,
-                    items: productsController.products.where((p) => p.id != null).map((product) {
+                    items: products.where((p) => p.id != null).map((product) {
                       return DropdownMenuItem<ProductModel>(
                         value: product,
                         child: Text(

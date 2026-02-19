@@ -20,6 +20,9 @@ export const getUgInventory = async (req, res) => {
           products: [],
           premixed: [],
           obm: [],
+          packages: [],
+          engineering: [],
+          services: [],
           bulkTankSetupFee: "",
           taxRate: "",
           applyPricesOption: "To All",
@@ -29,6 +32,48 @@ export const getUgInventory = async (req, res) => {
     }
 
     res.status(200).json({ success: true, data: snapshot });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ── Specific GET Endpoints ────────────────────────────────────────
+
+export const getUgInventoryProducts = async (req, res) => {
+  try {
+    const { wellId } = req.params;
+    const snapshot = await UgInventorySnapshot.findOne({ wellId });
+    res.status(200).json({ success: true, data: snapshot ? snapshot.products : [] });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getUgInventoryPackages = async (req, res) => {
+  try {
+    const { wellId } = req.params;
+    const snapshot = await UgInventorySnapshot.findOne({ wellId });
+    res.status(200).json({ success: true, data: snapshot ? snapshot.packages : [] });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getUgInventoryEngineering = async (req, res) => {
+  try {
+    const { wellId } = req.params;
+    const snapshot = await UgInventorySnapshot.findOne({ wellId });
+    res.status(200).json({ success: true, data: snapshot ? snapshot.engineering : [] });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getUgInventoryServices = async (req, res) => {
+  try {
+    const { wellId } = req.params;
+    const snapshot = await UgInventorySnapshot.findOne({ wellId });
+    res.status(200).json({ success: true, data: snapshot ? snapshot.services : [] });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -45,6 +90,9 @@ export const saveUgInventory = async (req, res) => {
       products,
       premixed,
       obm,
+      packages,
+      engineering,
+      services,
       bulkTankSetupFee,
       taxRate,
       applyPricesOption,
@@ -55,13 +103,16 @@ export const saveUgInventory = async (req, res) => {
       { wellId },
       {
         $set: {
-          products:          products          ?? [],
-          premixed:          premixed          ?? [],
-          obm:               obm               ?? [],
-          bulkTankSetupFee:  bulkTankSetupFee  ?? "",
-          taxRate:           taxRate           ?? "",
+          products: products ?? [],
+          premixed: premixed ?? [],
+          obm: obm ?? [],
+          packages: packages ?? [],
+          engineering: engineering ?? [],
+          services: services ?? [],
+          bulkTankSetupFee: bulkTankSetupFee ?? "",
+          taxRate: taxRate ?? "",
           applyPricesOption: applyPricesOption ?? "To All",
-          fromDate:          fromDate          ?? "",
+          fromDate: fromDate ?? "",
         },
       },
       { new: true, upsert: true, runValidators: true }

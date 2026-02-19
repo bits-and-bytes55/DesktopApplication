@@ -6,6 +6,8 @@ import 'package:mudpro_desktop_app/modules/company_setup/controller/products_con
 import 'package:mudpro_desktop_app/modules/company_setup/controller/service_controller.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/model/products_model.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/model/service_model.dart';
+import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/controller/ug_inventory_product_controller.dart';
+import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/model/ug_inventory_product_model.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 abstract class BaseRowData {
@@ -56,10 +58,31 @@ class _ReturnProductViewState extends State<ReturnProductView> {
   }
 
   Future<void> _loadDropdownData() async {
+    print('🔵 [LOAD] Loading dropdown data from inventory...');
     try {
-      final result = await productsController.repository.getProducts(page: 1, limit: 1000);
-      if (result['success'] == true) products.value = result['products'] ?? [];
-      packages.value = await serviceController.getPackages();
+      const wellId = '507f1f77bcf86cd799439011';
+      
+      final inventoryProducts = await InventoryProductsService.fetchProducts(wellId);
+      final inventoryPackages = await InventoryProductsService.fetchPackages(wellId);
+      
+      products.value = inventoryProducts.map((p) => ProductModel(
+        id: p.id,
+        product: p.product,
+        code: p.code,
+        sg: p.sg,
+        unitClass: p.unit,
+        price: p.price,
+        initial: p.initial,
+        group: p.group,
+        volAdd: p.volAdd,
+        calculate: p.calculate,
+        plot: p.plot ?? false,
+        tax: p.tax,
+      )).toList();
+      
+      packages.value = inventoryPackages;
+      
+      print('🟢 [LOAD] products=${inventoryProducts.length} packages=${inventoryPackages.length}');
     } catch (e) {
       print("Error loading dropdown data: $e");
     }
