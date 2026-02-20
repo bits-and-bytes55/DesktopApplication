@@ -22,7 +22,7 @@ export const addProduct = async (req, res) => {
     if (
       !productName ||
       !Code ||
-      SG === undefined ||
+      SG === undefined || SG === "" ||
       !Unit?.Num ||
       !Unit?.Class ||
       !Group
@@ -78,8 +78,8 @@ export const bulkAddProducts = async (req, res) => {
     const validRows = req.body.filter(row =>
       row.Product &&
       row.Code &&
-      row.SG !== undefined &&
-      row.Unit?.Num &&
+      row.SG !== undefined && row.SG !== "" &&
+      row.Unit?.Num !== undefined && row.Unit?.Num !== "" &&
       row.Unit?.Class &&
       row.Group
     );
@@ -182,7 +182,7 @@ export const updateProduct = async (req, res) => {
     if (
       !productName ||
       !Code ||
-      SG === undefined ||
+      SG === undefined || SG === "" ||
       !Unit?.Num ||
       !Unit?.Class ||
       !Group
@@ -194,17 +194,17 @@ export const updateProduct = async (req, res) => {
     }
 
     const existing = await Product.findOne({
-  Code,
-  isDeleted: false,
-  _id: { $ne: id }   // 👈 exclude current product
-});
+      Code,
+      isDeleted: false,
+      _id: { $ne: id }   // 👈 exclude current product
+    });
 
-if (existing) {
-  return res.status(400).json({
-    success: false,
-    message: "Product code already exists"
-  });
-}
+    if (existing) {
+      return res.status(400).json({
+        success: false,
+        message: "Product code already exists"
+      });
+    }
 
 
     const product = await Product.findByIdAndUpdate(

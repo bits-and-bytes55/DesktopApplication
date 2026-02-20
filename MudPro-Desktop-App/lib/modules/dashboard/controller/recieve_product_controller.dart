@@ -293,7 +293,7 @@ class ReceiveProductController {
   
   Future<Map<String, dynamic>> saveAllReceiveData({
     required List<Map<String, dynamic>> products,
-    required List<Map<String, dynamic>> packages,
+    List<Map<String, dynamic>> packages = const [],
   }) async {
     try {
       List<Map<String, dynamic>> productResults = [];

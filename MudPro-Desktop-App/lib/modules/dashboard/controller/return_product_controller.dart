@@ -300,7 +300,7 @@ print("Fetching return products from: ${Uri.parse('${baseUrl}return-products')}"
   
   Future<Map<String, dynamic>> saveAllReturnData({
     required List<Map<String, dynamic>> products,
-    required List<Map<String, dynamic>> packages,
+    List<Map<String, dynamic>> packages = const [],
   }) async {
     try {
       List<Map<String, dynamic>> productResults = [];

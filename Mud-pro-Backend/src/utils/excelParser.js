@@ -64,8 +64,8 @@ export const parseProductExcel = (filePath) => {
 
     if (!r["Product"]) missingFields.push("Product");
     if (!r["Code"]) missingFields.push("Code");
-    if (r["SG"] === "") missingFields.push("SG");
-    if (!r["Unit Num"]) missingFields.push("Unit Num");
+    if (r["SG"] === "" || r["SG"] === undefined) missingFields.push("SG");
+    if (r["Unit Num"] === "" || r["Unit Num"] === undefined) missingFields.push("Unit Num");
     if (!r["Unit Class"]) missingFields.push("Unit Class");
     if (!r["Group"]) missingFields.push("Group");
 
@@ -81,21 +81,21 @@ export const parseProductExcel = (filePath) => {
 
     // ✅ Valid row → UI-aligned structure
     valid.push({
-      Product: r["Product"].trim(),
-      Code: r["Code"].trim(),
-      SG: Number(r["SG"]),
+      Product: String(r["Product"]).trim(),
+      Code: String(r["Code"]).trim(),
+      SG: String(r["SG"]),
       Unit: {
-        Num: Number(r["Unit Num"]),
-        Class: r["Unit Class"].trim()
+        Num: String(r["Unit Num"]),
+        Class: String(r["Unit Class"]).trim()
       },
-      Group: r["Group"].trim(),
+      Group: String(r["Group"]).trim(),
       Retail: r["Retail"] === "Yes" ? "Yes" : "No",
-      A: r["A"] !== "" ? Number(r["A"]) : undefined,
-      B: r["B"] !== "" ? Number(r["B"]) : undefined,
-      C: r["C"] !== "" ? Number(r["C"]) : undefined,
-      D: r["D"] !== "" ? Number(r["D"]) : undefined,
-      E: r["E"] !== "" ? Number(r["E"]) : undefined,
-      F: r["F"] !== "" ? Number(r["F"]) : undefined
+      A: r["A"] !== "" ? String(r["A"]) : undefined,
+      B: r["B"] !== "" ? String(r["B"]) : undefined,
+      C: r["C"] !== "" ? String(r["C"]) : undefined,
+      D: r["D"] !== "" ? String(r["D"]) : undefined,
+      E: r["E"] !== "" ? String(r["E"]) : undefined,
+      F: r["F"] !== "" ? String(r["F"]) : undefined
     });
   });
 

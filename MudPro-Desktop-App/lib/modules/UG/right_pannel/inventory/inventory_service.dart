@@ -12,7 +12,7 @@ class InventoryServicesView extends StatefulWidget {
 }
 
 class _InventoryServicesViewState extends State<InventoryServicesView> {
-  final isLocked = true.obs;
+  final isLocked = false.obs;
   final ScrollController _scrollController = ScrollController();
 
   @override
@@ -162,10 +162,18 @@ class _InventoryServicesViewState extends State<InventoryServicesView> {
                 entry.value.code,
                 entry.value.unit,
                 entry.value.price.toString(),
-                '', // initial
-                false, // tax
+                entry.value.initial, // initial
+                entry.value.tax, // tax
               ]).toList(),
               checkboxCols: [6],
+              onChanged: (rowIndex, colIndex, value) {
+                if (colIndex == 5) {
+                  store.selectedPackages[rowIndex].initial = value.toString();
+                } else if (colIndex == 6) {
+                  store.selectedPackages[rowIndex].tax = value as bool;
+                }
+                store.selectedPackages.refresh();
+              },
             ),
           ),
         ],
@@ -232,9 +240,15 @@ class _InventoryServicesViewState extends State<InventoryServicesView> {
                 entry.value.code,
                 entry.value.unit,
                 entry.value.price.toString(),
-                false, // tax
+                entry.value.tax, // tax
               ]).toList(),
               checkboxCols: [5],
+              onChanged: (rowIndex, colIndex, value) {
+                if (colIndex == 5) {
+                  store.selectedEngineering[rowIndex].tax = value as bool;
+                  store.selectedEngineering.refresh();
+                }
+              },
             ),
           ),
         ],
@@ -301,9 +315,15 @@ class _InventoryServicesViewState extends State<InventoryServicesView> {
                 entry.value.code,
                 entry.value.unit,
                 entry.value.price.toString(),
-                false, // tax
+                entry.value.tax, // tax
               ]).toList(),
               checkboxCols: [5],
+              onChanged: (rowIndex, colIndex, value) {
+                if (colIndex == 5) {
+                  store.selectedServices[rowIndex].tax = value as bool;
+                  store.selectedServices.refresh();
+                }
+              },
             ),
           ),
         ],
@@ -346,6 +366,7 @@ class _InventoryServicesViewState extends State<InventoryServicesView> {
     required List<String> headers,
     required List<List<dynamic>> rows,
     List<int> checkboxCols = const [],
+    void Function(int rowIndex, int colIndex, dynamic value)? onChanged,
   }) {
     final columnWidths = headers.length == 7
         ? const {
@@ -392,9 +413,11 @@ class _InventoryServicesViewState extends State<InventoryServicesView> {
                 ),
                 children: List.generate(row.length, (i) {
                   if (checkboxCols.contains(i)) {
-                    return _checkboxCell(row[i]);
+                    return _checkboxCell(row[i],
+                        onChanged: (v) => onChanged?.call(rowIndex, i, v));
                   }
-                  return _editableCell(row[i].toString());
+                  return _editableCell(row[i].toString(),
+                      onChanged: (v) => onChanged?.call(rowIndex, i, v));
                 }),
               );
             }),
@@ -436,8 +459,10 @@ class _InventoryServicesViewState extends State<InventoryServicesView> {
           : Container(
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: Colors.grey.shade200), // Added subtle border for focus
               ),
               child: TextFormField(
+                key: ValueKey('cell_${value}'), // Stable key based on value
                 initialValue: value,
                 onChanged: onChanged,
                 style: TextStyle(

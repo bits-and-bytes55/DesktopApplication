@@ -25,19 +25,20 @@ class InventoryServicesStore extends GetxController {
   final RxList<EngineeringItem> selectedEngineering = <EngineeringItem>[].obs;
 
   void setSelectedServices({
-    required List<PackageItem> packages,
-    required List<ServiceItem> services,
-    required List<EngineeringItem> engineering,
+    List<PackageItem>? packages,
+    List<ServiceItem>? services,
+    List<EngineeringItem>? engineering,
   }) {
-    selectedPackages.clear();
-    selectedServices.clear();
-    selectedEngineering.clear();
-    
-    selectedPackages.addAll(packages);
-    selectedServices.addAll(services);
-    selectedEngineering.addAll(engineering);
-    
-    print('✅ Services stored - Packages: ${selectedPackages.length}, Services: ${selectedServices.length}, Engineering: ${selectedEngineering.length}');
+    if (packages != null) {
+      selectedPackages.assignAll(packages);
+    }
+    if (services != null) {
+      selectedServices.assignAll(services);
+    }
+    if (engineering != null) {
+      selectedEngineering.assignAll(engineering);
+    }
+    print('✅ Services stored: pkgs=${selectedPackages.length}, srvs=${selectedServices.length}, eng=${selectedEngineering.length}');
   }
 
   void clearAll() {

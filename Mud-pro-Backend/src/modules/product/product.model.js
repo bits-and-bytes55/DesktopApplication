@@ -27,7 +27,7 @@ const productSchema = new mongoose.Schema(
        Decimal allowed, mandatory
     ========================== */
     SG: {
-      type: Number,
+      type: String,
       required: true
     },
 
@@ -38,7 +38,7 @@ const productSchema = new mongoose.Schema(
     ========================== */
     Unit: {
       Num: {
-        type: Number,
+        type: String,
         required: true
       },
       Class: {
@@ -72,12 +72,12 @@ const productSchema = new mongoose.Schema(
        UI: A – F Columns
        Optional, limited input
     ========================== */
-    A: { type: Number },
-    B: { type: Number },
-    C: { type: Number },
-    D: { type: Number },
-    E: { type: Number },
-    F: { type: Number },
+    A: { type: String },
+    B: { type: String },
+    C: { type: String },
+    D: { type: String },
+    E: { type: String },
+    F: { type: String },
 
     /* =========================
        System

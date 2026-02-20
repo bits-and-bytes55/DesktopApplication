@@ -6,6 +6,8 @@ class ServiceItem {
   final String code;
   final String unit;
   final double price;
+  String initial;
+  bool tax;
 
   ServiceItem({
     this.id,
@@ -13,6 +15,8 @@ class ServiceItem {
     required this.code,
     required this.unit,
     required this.price,
+    this.initial = '',
+    this.tax = false,
   });
 
   factory ServiceItem.fromJson(Map<String, dynamic> json) {
@@ -22,6 +26,8 @@ class ServiceItem {
       code: json['code'] ?? '',
       unit: json['unit'] ?? '',
       price: double.tryParse(json['price']?.toString() ?? '0') ?? 0.0,
+      initial: json['initial']?.toString() ?? '',
+      tax: json['tax'] ?? false,
     );
   }
 
@@ -31,6 +37,8 @@ class ServiceItem {
       'code': code,
       'unit': unit,
       'price': price,
+      'initial': initial,
+      'tax': tax,
     };
   }
 }
@@ -41,6 +49,8 @@ class PackageItem {
   final String code;
   final String unit;
   final double price;
+  String initial;
+  bool tax;
 
   PackageItem({
     this.id,
@@ -48,6 +58,8 @@ class PackageItem {
     required this.code,
     required this.unit,
     required this.price,
+    this.initial = '',
+    this.tax = false,
   });
 
   factory PackageItem.fromJson(Map<String, dynamic> json) {
@@ -57,6 +69,8 @@ class PackageItem {
       code: json['code'] ?? '',
       unit: json['unit'] ?? '',
       price: double.tryParse(json['price']?.toString() ?? '0') ?? 0.0,
+      initial: json['initial']?.toString() ?? '',
+      tax: json['tax'] ?? false,
     );
   }
 
@@ -66,6 +80,8 @@ class PackageItem {
       'code': code,
       'unit': unit,
       'price': price,
+      'initial': initial,
+      'tax': tax,
     };
   }
 }
@@ -76,6 +92,8 @@ class EngineeringItem {
   final String code;
   final String unit;
   final double price;
+  String initial;
+  bool tax;
 
   EngineeringItem({
     this.id,
@@ -83,6 +101,8 @@ class EngineeringItem {
     required this.code,
     required this.unit,
     required this.price,
+    this.initial = '',
+    this.tax = false,
   });
 
   factory EngineeringItem.fromJson(Map<String, dynamic> json) {
@@ -92,6 +112,8 @@ class EngineeringItem {
       code: json['code'] ?? '',
       unit: json['unit'] ?? '',
       price: double.tryParse(json['price']?.toString() ?? '0') ?? 0.0,
+      initial: json['initial']?.toString() ?? '',
+      tax: json['tax'] ?? false,
     );
   }
 
@@ -101,6 +123,8 @@ class EngineeringItem {
       'code': code,
       'unit': unit,
       'price': price,
+      'initial': initial,
+      'tax': tax,
     };
   }
 }

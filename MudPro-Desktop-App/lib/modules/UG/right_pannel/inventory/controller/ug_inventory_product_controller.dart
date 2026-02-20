@@ -15,9 +15,9 @@ class InventoryProductsService {
     required List<ProductInventoryModel> products,
     required List<PremixModel> premixed,
     required List<ObmModel> obm,
-    required List<PackageItem> packages,
-    required List<EngineeringItem> engineering,
-    required List<ServiceItem> services,
+    List<PackageItem>? packages,
+    List<ServiceItem>? services,
+    List<EngineeringItem>? engineering,
     String? bulkTankSetupFee,
     String? taxRate,
     String? applyPricesOption,
@@ -32,9 +32,9 @@ class InventoryProductsService {
       'products': products.map((ProductInventoryModel p) => p.toJson()).toList(),
       'premixed': premixed.map((PremixModel p) => p.toJson()).toList(),
       'obm': obm.map((ObmModel o) => o.toJson()).toList(),
-      'packages': packages.map((PackageItem p) => p.toJson()).toList(),
-      'engineering': engineering.map((EngineeringItem e) => e.toJson()).toList(),
-      'services': services.map((ServiceItem s) => s.toJson()).toList(),
+      'packages': packages?.map((e) => e.toJson()).toList() ?? [],
+      'services': services?.map((e) => e.toJson()).toList() ?? [],
+      'engineering': engineering?.map((e) => e.toJson()).toList() ?? [],
     };
 
     if (bulkTankSetupFee != null) bodyData['bulkTankSetupFee'] = bulkTankSetupFee;
@@ -99,24 +99,9 @@ class InventoryProductsService {
     final url = '${_baseUrl}ug-inventory/packages/$wellId';
     print('🔵 [GET] Fetching packages from URL: $url');
     final response = await http.get(Uri.parse(url), headers: {'Content-Type': 'application/json'});
-    print('🟢 [GET] statusCode: ${response.statusCode}');
-    print('🟢 [GET] responseBody: ${response.body}');
     final json = jsonDecode(response.body);
     if (response.statusCode == 200 && json['success'] == true) {
       return (json['data'] as List).map((e) => PackageItem.fromJson(e)).toList();
-    }
-    return [];
-  }
-
-  static Future<List<EngineeringItem>> fetchEngineering(String wellId) async {
-    final url = '${_baseUrl}ug-inventory/engineering/$wellId';
-    print('🔵 [GET] Fetching engineering from URL: $url');
-    final response = await http.get(Uri.parse(url), headers: {'Content-Type': 'application/json'});
-    print('🟢 [GET] statusCode: ${response.statusCode}');
-    print('🟢 [GET] responseBody: ${response.body}');
-    final json = jsonDecode(response.body);
-    if (response.statusCode == 200 && json['success'] == true) {
-      return (json['data'] as List).map((e) => EngineeringItem.fromJson(e)).toList();
     }
     return [];
   }
@@ -125,11 +110,20 @@ class InventoryProductsService {
     final url = '${_baseUrl}ug-inventory/services/$wellId';
     print('🔵 [GET] Fetching services from URL: $url');
     final response = await http.get(Uri.parse(url), headers: {'Content-Type': 'application/json'});
-    print('🟢 [GET] statusCode: ${response.statusCode}');
-    print('🟢 [GET] responseBody: ${response.body}');
     final json = jsonDecode(response.body);
     if (response.statusCode == 200 && json['success'] == true) {
       return (json['data'] as List).map((e) => ServiceItem.fromJson(e)).toList();
+    }
+    return [];
+  }
+
+  static Future<List<EngineeringItem>> fetchEngineering(String wellId) async {
+    final url = '${_baseUrl}ug-inventory/engineering/$wellId';
+    print('🔵 [GET] Fetching engineering from URL: $url');
+    final response = await http.get(Uri.parse(url), headers: {'Content-Type': 'application/json'});
+    final json = jsonDecode(response.body);
+    if (response.statusCode == 200 && json['success'] == true) {
+      return (json['data'] as List).map((e) => EngineeringItem.fromJson(e)).toList();
     }
     return [];
   }

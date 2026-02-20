@@ -389,12 +389,9 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                                 p.sg = v;
                                 store.selectedProducts.refresh();
                               }),
-                              _editableTableCell(p.unitNum, onChanged: (v) {
-                                p.unitClass = v;
-                                store.selectedProducts.refresh();
-                              }),
-                              _editableTableCell(p.price, onChanged: (v) {
-                                p.unitNum = v;
+                              _tableCell(p.formattedUnit),
+                              _editableTableCell(p.a, onChanged: (v) {
+                                p.a = v;
                                 store.selectedProducts.refresh();
                               }),
                               _editableTableCell(p.initial, onChanged: (v) {

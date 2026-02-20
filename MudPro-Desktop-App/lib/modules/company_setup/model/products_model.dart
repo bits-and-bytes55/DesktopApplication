@@ -52,9 +52,9 @@ class ProductModel {
     final json = <String, dynamic>{
       'Product': product.trim(),
       'Code': code.trim(),
-      'SG': num.tryParse(sg.trim()) ?? 0,
+      'SG': sg.trim(),
       'Unit': {
-        'Num': int.tryParse(unitNum.trim()) ?? 0,
+        'Num': unitNum.trim(),
         'Class': unitClass.trim(),
       },
       'Group': group.trim(),
@@ -63,10 +63,10 @@ class ProductModel {
 
     // Add optional fields only if they have values
     if (a.trim().isNotEmpty) {
-      json['A'] = num.tryParse(a.trim()) ?? 0;
+      json['A'] = a.trim();
     }
     if (b.trim().isNotEmpty) {
-      json['B'] = num.tryParse(b.trim()) ?? 0;
+      json['B'] = b.trim();
     }
 
     return json;
