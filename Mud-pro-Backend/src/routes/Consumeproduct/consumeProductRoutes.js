@@ -5,7 +5,7 @@ import {
   getConsumeProductById,
   updateConsumeProduct,
   deleteConsumeProduct
-} from "../../controllers/Consumeproduct/consumeProductController.js";
+} from "../../controllers/ConsumeProduct/consumeProductController.js";
 
 const router = express.Router();
 

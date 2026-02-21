@@ -1,4 +1,4 @@
-import ConsumeProduct from "../../modules/Consumeproduct/ConsumeProduct.js"
+import ConsumeProduct from "../../modules/ConsumeProduct/ConsumeProduct.js"
 
 /**
  * @desc    Create Consume Product

@@ -1,5 +1,5 @@
 import InventorySnapshot from "../../modules/FullInventory/InventorySnapshot.js";
-import ConsumeProduct from "../../modules/Consumeproduct/ConsumeProduct.js";
+import ConsumeProduct from "../../modules/ConsumeProduct/ConsumeProduct.js";
 import ReceiveProduct from "../../modules/ReceiveProduct/Product/ReceiveProduct.js";
 import ReturnProduct from "../../modules/ReturnProduct/Product/ReturnProduct.js";
 import Service from "../../modules/ConsumeServices/Services/Service.js";
@@ -18,37 +18,48 @@ export const generateInventorySnapshot = async (req, res) => {
 
     let snapshotData = [];
 
+    console.log(consumes)
+
     // =========================
     // PRODUCTS
     // =========================
-    for (let receive of receives) {
 
-      const totalUsed = consumes
-        .filter(c => c.code === receive.code)
-        .reduce((sum, c) => sum + (c.used || 0), 0);
+    const productCodes = [
+      ...new Set([
+        ...receives.map(r => r.code),
+        ...consumes.map(c => c.code),
+        ...returns.map(r => r.code)
+      ])
+    ];
 
-      const totalReturn = returns
-        .filter(r => r.code === receive.code)
-        .reduce((sum, r) => sum + (r.amount || 0), 0);
+    for (let code of productCodes) {
 
-      const initial = 0;
-      const rec = receive.amount || 0;
-      const ret = totalReturn;
-      const used = totalUsed;
-      const adj = 0;
+      const productReceives = receives.filter(r => r.code === code);
+      const productConsumes = consumes.filter(c => c.code === code);
+      const productReturns = returns.filter(r => r.code === code);
 
-      const final = initial + rec - ret - used + adj;
-      const subtotal = final * (receive.price || 0);
+      const cumulativeRec = productReceives.reduce((s, r) => s + (r.amount || 0), 0);
+      const cumulativeUsed = productConsumes.reduce((s, c) => s + (c.used || 0), 0);
+      const cumulativeRet = productReturns.reduce((s, r) => s + (r.amount || 0), 0);
+
+      const price = productConsumes.length > 0 ? productConsumes[0].price : 0;
+      console.log(price);
+
+      const final = cumulativeRec - cumulativeRet - cumulativeUsed;
+      const subtotal = cumulativeUsed * price;
 
       snapshotData.push({
         category: "Product",
-        itemName: receive.productName,
-        price: receive.price || 0,
-        initial,
-        rec,
-        ret,
-        adj,
-        used,
+        itemName: productReceives[0]?.productName || "",
+        price,
+        cumulativeRec,
+        cumulativeRet,
+        cumulativeUsed,
+        initial: 0,
+        rec: cumulativeRec,
+        ret: cumulativeRet,
+        adj: 0,
+        used: cumulativeUsed,
         final,
         subtotal,
         costDollar: subtotal
@@ -58,49 +69,65 @@ export const generateInventorySnapshot = async (req, res) => {
     // =========================
     // SERVICES
     // =========================
+
     for (let srv of services) {
+
+      const subtotal = (srv.price || 0) * (srv.usage || 0);
+
       snapshotData.push({
         category: "Service",
         itemName: srv.serviceName,
-        price: srv.price || 0,
-        used: srv.usage || 0,
-        subtotal: srv.cost || 0,
-        costDollar: srv.cost || 0
+        price: srv.price,
+        cumulativeUsed: srv.usage,
+        used: srv.usage,
+        final: 0,
+        subtotal,
+        costDollar: subtotal
       });
     }
 
     // =========================
     // ENGINEERING
     // =========================
+
     for (let eng of engineering) {
+
+      const subtotal = (eng.price || 0) * (eng.usage || 0);
+
       snapshotData.push({
         category: "Engineering",
         itemName: eng.engineeringName,
-        price: eng.price || 0,
-        used: eng.usage || 0,
-        subtotal: eng.cost || 0,
-        costDollar: eng.cost || 0
+        price: eng.price,
+        cumulativeUsed: eng.usage,
+        used: eng.usage,
+        final: 0,
+        subtotal,
+        costDollar: subtotal
       });
     }
 
     // =========================
     // PACKAGE
     // =========================
+
     for (let pkg of packages) {
+
+      const subtotal = (pkg.price || 0) * (pkg.used || 0);
+
       snapshotData.push({
         category: "Package",
         itemName: pkg.packageName,
-        price: pkg.price || 0,
-        initial: pkg.initial || 0,
-        used: pkg.used || 0,
-        final: pkg.final || 0,
-        subtotal: pkg.cost || 0,
-        costDollar: pkg.cost || 0
+        price: pkg.price,
+        cumulativeUsed: pkg.used,
+        used: pkg.used,
+        final: pkg.final,
+        subtotal,
+        costDollar: subtotal
       });
     }
 
     // =========================
-    // GRAND TOTAL CALCULATION
+    // GRAND TOTAL
     // =========================
 
     const grandTotal = snapshotData.reduce(
@@ -108,18 +135,10 @@ export const generateInventorySnapshot = async (req, res) => {
       0
     );
 
-    snapshotData = snapshotData.map(item => {
-      const costPercent = grandTotal > 0
-        ? ((item.subtotal / grandTotal) * 100).toFixed(2)
-        : 0;
-
-      return {
-        ...item,
-        costPercent: Number(costPercent),
-        totalDollar: grandTotal,
-        totalPercent: 100
-      };
-    });
+    snapshotData = snapshotData.map(item => ({
+      ...item,
+      totalDollar: grandTotal
+    }));
 
     await InventorySnapshot.deleteMany();
     await InventorySnapshot.insertMany(snapshotData);

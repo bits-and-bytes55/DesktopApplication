@@ -53,7 +53,7 @@ export const exportInventoryReport = async (req, res) => {
     worksheet.mergeCells("C1:L3");
     worksheet.getCell("C1").value = "Daily Inventory Report";
     worksheet.getCell("C1").font = { size: 20, bold: true };
-    worksheet.getCell("C1").alignment = { horizontal: "center", vertical: "middle" };
+    worksheet.getCell("C1").alignment = { horizontal: "center", vertical: "center" };
 
     // ===========================
     // COMPANY INFO (ONLY FROM DB)
@@ -91,15 +91,17 @@ export const exportInventoryReport = async (req, res) => {
       "Price",
       "Initial",
       "Received",
+      "Cumulative Rec",
       "Returned",
+      "Cumulative Ret",
       "Adj",
       "Used",
-      "Final",
-      "Cumulative Rec",
-      "Cumulative Ret",
       "Cumulative Used",
-      "Subtotal",
-      "Report Date"
+      "Final",
+       "Cost ($)",
+      "Report Date",
+      "Starting",
+      "Ending"
     ]);
 
     tableHeader.font = { bold: true };
@@ -123,14 +125,14 @@ export const exportInventoryReport = async (req, res) => {
         item.price,
         item.initial,
         item.rec,
+        item.cumulativeRec,
         item.ret,
+        item.cumulativeRet,
         item.adj,
         item.used,
-        item.final,
-        item.cumulativeRec,
-        item.cumulativeRet,
         item.cumulativeUsed,
-        item.subtotal,
+        item.final,
+        item.costDollar,
         new Date(item.reportDate).toLocaleDateString()
       ]);
 
