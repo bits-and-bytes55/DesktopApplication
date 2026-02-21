@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 const inventorySnapshotSchema = new mongoose.Schema(
   {
     category: {
-      type: String,   // Product / Premixed Mud / Engineering
+      type: String,
       default: "",
     },
 
@@ -17,7 +17,7 @@ const inventorySnapshotSchema = new mongoose.Schema(
       default: 0,
     },
 
-    // 🔹 Cumulative Section
+    // Cumulative
     cumulativeRec: {
       type: Number,
       default: 0,
@@ -33,7 +33,7 @@ const inventorySnapshotSchema = new mongoose.Schema(
       default: 0,
     },
 
-    // 🔹 Daily Movement
+    // Daily
     initial: {
       type: Number,
       default: 0,
@@ -64,7 +64,7 @@ const inventorySnapshotSchema = new mongoose.Schema(
       default: 0,
     },
 
-    // 🔹 Financial
+    // Financial
     subtotal: {
       type: Number,
       default: 0,
@@ -75,27 +75,15 @@ const inventorySnapshotSchema = new mongoose.Schema(
       default: 0,
     },
 
-    costPercent: {
-      type: Number,
-      default: 0,
-    },
-
     totalDollar: {
       type: Number,
       default: 0,
     },
 
-    totalPercent: {
-      type: Number,
-      default: 0,
-    },
-
-    // Date based snapshot
     reportDate: {
       type: Date,
       default: Date.now,
     }
-
   },
   { timestamps: true }
 );

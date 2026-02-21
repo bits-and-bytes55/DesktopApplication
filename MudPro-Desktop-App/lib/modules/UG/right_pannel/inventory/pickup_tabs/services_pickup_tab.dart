@@ -528,11 +528,11 @@ class _ServicesPageState extends State<ServicesPickupPage> {
       ),
       child: Row(
         children: [
-          _HeaderCell(width: widths[0], text: '', icon: Icons.numbers),
-          _HeaderCell(width: widths[1], text: 'Name', icon: Icons.text_fields),
-          _HeaderCell(width: widths[2], text: 'Code', icon: Icons.code),
-          _HeaderCell(width: widths[3], text: 'Unit', icon: Icons.linear_scale),
-          Expanded(child: _HeaderCell(text: 'Price (\$)', icon: Icons.attach_money)),
+          _HeaderCell(width: widths[0], text: ''),
+          _HeaderCell(width: widths[1], text: 'Name'),
+          _HeaderCell(width: widths[2], text: 'Code'),
+          _HeaderCell(width: widths[3], text: 'Unit'),
+          Expanded(child: _HeaderCell(text: 'Price (\$)')),
         ],
       ),
     );
@@ -783,9 +783,8 @@ class _ServicesPageState extends State<ServicesPickupPage> {
 class _HeaderCell extends StatelessWidget {
   final double? width;
   final String text;
-  final IconData icon;
 
-  const _HeaderCell({this.width, required this.text, required this.icon});
+  const _HeaderCell({this.width, required this.text});
 
   @override
   Widget build(BuildContext context) {
@@ -800,8 +799,6 @@ class _HeaderCell extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, size: 12, color: Colors.white),
-          const SizedBox(width: 4),
           Expanded(
             child: Text(
               text,

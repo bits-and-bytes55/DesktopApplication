@@ -212,6 +212,40 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
   }
 
   // ─────────────────────────────────────────────
+  //  AUTO-SAVE helpers (calculate then POST)
+  // ─────────────────────────────────────────────
+  void _autoSavePackage(int index) {
+    if (dashboardController.isLocked.value) return;
+    final row = packageRows[index];
+    if (row.selectedItem.isEmpty) return;
+    _calculatePackage(index);
+    // Save after a short delay to avoid firing on every keystroke
+    Future.delayed(const Duration(milliseconds: 800), () {
+      if (row.selectedItem.isNotEmpty) _savePackageRow(index);
+    });
+  }
+
+  void _autoSaveService(int index) {
+    if (dashboardController.isLocked.value) return;
+    final row = serviceRows[index];
+    if (row.selectedItem.isEmpty) return;
+    _calculateService(index);
+    Future.delayed(const Duration(milliseconds: 800), () {
+      if (row.selectedItem.isNotEmpty) _saveServiceRow(index);
+    });
+  }
+
+  void _autoSaveEngineering(int index) {
+    if (dashboardController.isLocked.value) return;
+    final row = engineeringRows[index];
+    if (row.selectedItem.isEmpty) return;
+    _calculateEngineering(index);
+    Future.delayed(const Duration(milliseconds: 800), () {
+      if (row.selectedItem.isNotEmpty) _saveEngineeringRow(index);
+    });
+  }
+
+  // ─────────────────────────────────────────────
   //  CALCULATION — Package
   //  initial blank → treated as 0
   //  final = initial - used  (can be negative)
@@ -704,28 +738,7 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
                 const SizedBox(width: 12),
                 _buildCompactRadio("Final", "Final"),
                 const Spacer(),
-                Obx(() => ElevatedButton.icon(
-                      onPressed: dashboardController.isLocked.value || isSaving.value
-                          ? null
-                          : _saveAll,
-                      icon: isSaving.value
-                          ? const SizedBox(
-                              width: 14,
-                              height: 14,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation(Colors.white)),
-                            )
-                          : const Icon(Icons.save, size: 16),
-                      label: Text(isSaving.value ? 'Saving...' : 'Save All',
-                          style: const TextStyle(fontSize: 12)),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primaryColor,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                        minimumSize: const Size(100, 32),
-                      ),
-                    )),
+                // Save All button removed — rows auto-save after cost calculation
               ],
             ),
           ),
@@ -747,8 +760,18 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
                       selectedRowIndex: selectedPackageRow,
                       rowSaving: packageRowSaving,
                       rowDeleting: packageRowDeleting,
-                      headers: const ["Package", "Code", "Unit", "Price (\$)", "Initial", "Used", "Final", "Cost (\$)", "", ""],
+                      headers: const ["Package", "Code", "Unit", "Price (\$)", "Initial", "Used", "Final", "Cost (\$)", ""],
                       onDropdownChanged: (i, item) {
+                        // Clear old data first
+                        packageRows[i].selectedItem = '';
+                        packageRows[i].code       = '';
+                        packageRows[i].unit       = '';
+                        packageRows[i].price      = 0.0;
+                        packageRows[i].initial    = '';
+                        packageRows[i].used       = '';
+                        packageRows[i].finalValue = '';
+                        packageRows[i].cost       = 0.0;
+                        // Populate with new selection
                         packageRows[i].selectedItem = item.name;
                         packageRows[i].code  = item.code;
                         packageRows[i].unit  = item.unit;
@@ -775,8 +798,16 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
                       selectedRowIndex: selectedServiceRow,
                       rowSaving: serviceRowSaving,
                       rowDeleting: serviceRowDeleting,
-                      headers: const ["Services", "Code", "Unit", "Price (\$)", "Usage", "Cost (\$)", "", ""],
+                      headers: const ["Services", "Code", "Unit", "Price (\$)", "Usage", "Cost (\$)", ""],
                       onDropdownChanged: (i, item) {
+                        // Clear old data first
+                        serviceRows[i].selectedItem = '';
+                        serviceRows[i].code  = '';
+                        serviceRows[i].unit  = '';
+                        serviceRows[i].price = 0.0;
+                        serviceRows[i].used  = '';
+                        serviceRows[i].cost  = 0.0;
+                        // Populate with new selection
                         serviceRows[i].selectedItem = item.name;
                         serviceRows[i].code  = item.code;
                         serviceRows[i].unit  = item.unit;
@@ -803,8 +834,16 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
                       selectedRowIndex: selectedEngineeringRow,
                       rowSaving: engineeringRowSaving,
                       rowDeleting: engineeringRowDeleting,
-                      headers: const ["Engineering", "Code", "Unit", "Price (\$)", "Usage", "Cost (\$)", "", ""],
+                      headers: const ["Engineering", "Code", "Unit", "Price (\$)", "Usage", "Cost (\$)", ""],
                       onDropdownChanged: (i, item) {
+                        // Clear old data first
+                        engineeringRows[i].selectedItem = '';
+                        engineeringRows[i].code  = '';
+                        engineeringRows[i].unit  = '';
+                        engineeringRows[i].price = 0.0;
+                        engineeringRows[i].usage = '';
+                        engineeringRows[i].cost  = 0.0;
+                        // Populate with new selection
                         engineeringRows[i].selectedItem = item.name;
                         engineeringRows[i].code  = item.code;
                         engineeringRows[i].unit  = item.unit;
@@ -988,17 +1027,17 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
       // Price (editable)
       _editCell(row.price > 0 ? row.price.toStringAsFixed(2) : '', 90, (v) {
         row.price = double.tryParse(v) ?? 0.0;
-        _calculatePackage(index);
+        _autoSavePackage(index);
       }),
       // Initial (editable)
       _editCell(row.initial, 80, (v) {
         row.initial = v;
-        _calculatePackage(index);
+        _autoSavePackage(index);
       }),
       // Used (editable)
       _editCell(row.used, 80, (v) {
         row.used = v;
-        _calculatePackage(index);
+        _autoSavePackage(index);
       }),
       // Final (auto-computed, read-only, colored if negative)
       DataCell(Container(
@@ -1019,15 +1058,6 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
       // Cost (auto-computed)
       _readCell(row.cost > 0 ? row.cost.toStringAsFixed(2) : '', 90,
           rightAlign: true, bold: true, color: AppTheme.primaryColor),
-      // Calculate + Save button
-      DataCell(_actionButtons(
-        index: index,
-        isSaving: isSaving,
-        isDeleting: isDeleting,
-        hasItem: row.selectedItem.isNotEmpty,
-        onCalculate: () => onCalculate(index),
-        onSave: () => onSave(index),
-      )),
       // Delete button
       DataCell(_deleteButton(
         index: index,
@@ -1068,22 +1098,14 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
       _editCell(row.unit, 70, (v) => row.unit = v),
       _editCell(row.price > 0 ? row.price.toStringAsFixed(2) : '', 90, (v) {
         row.price = double.tryParse(v) ?? 0.0;
-        _calculateService(index);
+        _autoSaveService(index);
       }),
       _editCell(row.usage, 80, (v) {
         row.usage = v;
-        _calculateService(index);
+        _autoSaveService(index);
       }),
       _readCell(row.cost > 0 ? row.cost.toStringAsFixed(2) : '', 90,
           rightAlign: true, bold: true, color: AppTheme.successColor),
-      DataCell(_actionButtons(
-        index: index,
-        isSaving: isSaving,
-        isDeleting: isDeleting,
-        hasItem: row.selectedItem.isNotEmpty,
-        onCalculate: () => onCalculate(index),
-        onSave: () => onSave(index),
-      )),
       DataCell(_deleteButton(
         index: index,
         isDeleting: isDeleting,
@@ -1123,22 +1145,14 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
       _editCell(row.unit, 70, (v) => row.unit = v),
       _editCell(row.price > 0 ? row.price.toStringAsFixed(2) : '', 90, (v) {
         row.price = double.tryParse(v) ?? 0.0;
-        _calculateEngineering(index);
+        _autoSaveEngineering(index);
       }),
       _editCell(row.usage, 80, (v) {
         row.usage = v;
-        _calculateEngineering(index);
+        _autoSaveEngineering(index);
       }),
       _readCell(row.cost > 0 ? row.cost.toStringAsFixed(2) : '', 90,
           rightAlign: true, bold: true, color: AppTheme.infoColor),
-      DataCell(_actionButtons(
-        index: index,
-        isSaving: isSaving,
-        isDeleting: isDeleting,
-        hasItem: row.selectedItem.isNotEmpty,
-        onCalculate: () => onCalculate(index),
-        onSave: () => onSave(index),
-      )),
       DataCell(_deleteButton(
         index: index,
         isDeleting: isDeleting,

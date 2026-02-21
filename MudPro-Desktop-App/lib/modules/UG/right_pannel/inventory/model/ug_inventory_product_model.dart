@@ -29,15 +29,24 @@ class ProductInventoryModel {
   });
 
   factory ProductInventoryModel.fromJson(Map<String, dynamic> json) {
+    // Handle both nested Unit object and flat unit field
+    String unitValue = "";
+    if (json['Unit'] != null && json['Unit'] is Map) {
+      unitValue = json['Unit']['Class']?.toString() ?? "";
+    } else {
+      unitValue = json['unit']?.toString() ?? json['Unit']?.toString() ?? "";
+    }
+    
     return ProductInventoryModel(
       id: json['_id']?.toString(),
-      product: json['product'] ?? "",
-      code: json['code'] ?? "",
-      sg: json['sg'] ?? "",
-      unit: json['unit'] ?? "",
-      price: json['price'] ?? "",
-      initial: json['initial'] ?? "",
-      group: json['group'] ?? "",
+      product: json['Product'] ?? "",
+      code: json['Code'] ?? "",
+      sg: json['SG']?.toString() ?? "",
+      unit: unitValue,
+      // Fix: Map 'A' from API response to price field (API uses 'A' for price)
+      price: json['A']?.toString() ?? json['price']?.toString() ?? "",
+      initial: json['initial']?.toString() ?? json['Initial']?.toString() ?? "",
+      group: json['Group'] ?? "",
       volAdd: json['volAdd'] ?? false,
       calculate: json['calculate'] ?? false,
       plot: json['plot'] ?? false,
