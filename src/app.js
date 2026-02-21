@@ -6,7 +6,7 @@ import fs from "fs";
 import { fileURLToPath } from "url";
 
 import engineerRoutes from "./routes/engineer.routes.js";
-import companyRoutes from "./routes/company.routes.js";
+import companyRoutes from "./routes/company.routes.js"; 
 
 // Product routes imports would go here
 import productRoutes from "./routes/product/product.routes.js";
@@ -56,7 +56,7 @@ app.use("/api/consume-product", consumeProductRoutes);
 
 //consumeservices package route
 app.use("/api/package", packageRoutes);
-app.use("/api/service", serviceRoutes);
+app.use("/api/consume-service", serviceRoutes);
 app.use("/api/engineering", engineeringRoutes);
 //receive product route
 app.use("/api/receive-product", receiveProductRoutes);

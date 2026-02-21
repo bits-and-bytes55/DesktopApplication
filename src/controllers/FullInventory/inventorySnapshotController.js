@@ -9,7 +9,6 @@ import Package from "../../modules/ConsumeServices/Package/Package.js";
 export const generateInventorySnapshot = async (req, res) => {
   try {
 
-    // 🔹 Fetch All Transaction Data
     const consumes = await ConsumeProduct.find();
     const receives = await ReceiveProduct.find();
     const returns = await ReturnProduct.find();
@@ -19,84 +18,132 @@ export const generateInventorySnapshot = async (req, res) => {
 
     let snapshotData = [];
 
-    // 🔹 Handle Products
+    // =========================
+    // PRODUCTS
+    // =========================
+    const groupedProducts = {};
+
     for (let receive of receives) {
 
+      if (!groupedProducts[receive.code]) {
+        groupedProducts[receive.code] = {
+          productName: receive.productName,
+          price: receive.price || 0,
+          rec: 0
+        };
+      }
+
+      groupedProducts[receive.code].rec += receive.amount || 0;
+    }
+
+    for (let code in groupedProducts) {
+
+      const product = groupedProducts[code];
+
       const totalUsed = consumes
-        .filter(c => c.code === receive.code)
-        .reduce((sum, c) => sum + c.used, 0);
+        .filter(c => c.code === code)
+        .reduce((sum, c) => sum + (c.used || 0), 0);
 
       const totalReturn = returns
-        .filter(r => r.code === receive.code)
-        .reduce((sum, r) => sum + r.amount, 0);
+        .filter(r => r.code === code)
+        .reduce((sum, r) => sum + (r.amount || 0), 0);
 
-      const initial = 0; // first version
-      const rec = receive.amount;
-      const ret = totalReturn;
-      const used = totalUsed;
-      const adj = 0;
+      const finalQty = (product.rec || 0) - totalReturn - totalUsed;
 
-      const final = initial + rec - ret - used + adj;
-      const subtotal = final * (receive.price || 0);
+      const cost = totalUsed * product.price;
 
       snapshotData.push({
         category: "Product",
-        itemName: receive.productName,
-        price: receive.price || 0,
-        initial,
-        rec,
-        ret,
-        adj,
-        used,
-        final,
-        subtotal,
+        itemName: product.productName,
+        price: product.price,
+        used: totalUsed,
+        final: finalQty,
+        subtotal: cost,
+        cost: cost
       });
     }
 
-    // 🔹 Handle Services
+    // =========================
+    // SERVICES
+    // =========================
     for (let srv of services) {
+
+      const cost = srv.cost || 0;
+
       snapshotData.push({
         category: "Service",
         itemName: srv.serviceName,
-        price: srv.price,
-        used: srv.usage,
-        subtotal: srv.cost,
+        price: srv.price || 0,
+        used: srv.usage || 0,
+        final: 0,
+        subtotal: cost,
+        cost: cost
       });
     }
 
-    // 🔹 Handle Engineering
+    // =========================
+    // ENGINEERING
+    // =========================
     for (let eng of engineering) {
+
+      const cost = eng.cost || 0;
+
       snapshotData.push({
         category: "Engineering",
         itemName: eng.engineeringName,
-        price: eng.price,
-        used: eng.usage,
-        subtotal: eng.cost,
+        price: eng.price || 0,
+        used: eng.usage || 0,
+        final: 0,
+        subtotal: cost,
+        cost: cost
       });
     }
 
-    // 🔹 Handle Packages
+    // =========================
+    // PACKAGE
+    // =========================
     for (let pkg of packages) {
+
+      const cost = pkg.cost || 0;
+
       snapshotData.push({
         category: "Package",
         itemName: pkg.packageName,
-        price: pkg.price,
-        initial: pkg.initial,
-        used: pkg.used,
-        final: pkg.final,
-        subtotal: pkg.cost,
+        price: pkg.price || 0,
+        used: pkg.used || 0,
+        final: pkg.final || 0,
+        subtotal: cost,
+        cost: cost
       });
     }
 
-    // 🔹 Clear old snapshot
-    await InventorySnapshot.deleteMany();
+    // =========================
+    // CATEGORY TOTAL CALCULATION
+    // =========================
+    const categoryTotals = {};
 
-    // 🔹 Insert fresh snapshot
+    snapshotData.forEach(item => {
+      if (!categoryTotals[item.category]) {
+        categoryTotals[item.category] = 0;
+      }
+      categoryTotals[item.category] += item.cost;
+    });
+
+    // =========================
+    // ADD TOTAL FIELD
+    // =========================
+    snapshotData = snapshotData.map(item => ({
+      ...item,
+      total: categoryTotals[item.category]
+    }));
+
+    await InventorySnapshot.deleteMany();
     await InventorySnapshot.insertMany(snapshotData);
 
     res.status(200).json({
       success: true,
       message: "Inventory Snapshot Generated Successfully",
+      categoryTotals,
       count: snapshotData.length
     });
 
@@ -107,6 +154,7 @@ export const generateInventorySnapshot = async (req, res) => {
     });
   }
 };
+
 
 export const getInventorySnapshot = async (req, res) => {
   try {
