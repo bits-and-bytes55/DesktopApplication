@@ -48,6 +48,8 @@ export const generateInventorySnapshot = async (req, res) => {
       snapshotData.push({
         category: "Product",
         itemName: productReceives[0]?.productName || "",
+        code: code || "", 
+       unit: productReceives[0]?.unit || "",
         price,
         cumulativeRec,
         cumulativeRet,
@@ -74,6 +76,8 @@ export const generateInventorySnapshot = async (req, res) => {
       snapshotData.push({
         category: "Service",
         itemName: srv.serviceName,
+        code: srv.code || "",
+        unit: srv.unit || "",
         price: srv.price,
         cumulativeUsed: srv.usage,
         used: srv.usage,
@@ -94,6 +98,8 @@ export const generateInventorySnapshot = async (req, res) => {
       snapshotData.push({
         category: "Engineering",
         itemName: eng.engineeringName,
+        code: eng.code || "",
+        unit: eng.unit || "",
         price: eng.price,
         cumulativeUsed: eng.usage,
         used: eng.usage,
@@ -114,6 +120,8 @@ export const generateInventorySnapshot = async (req, res) => {
       snapshotData.push({
         category: "Package",
         itemName: pkg.packageName,
+        code: pkg.code || "",
+        unit: pkg.unit || "",
         price: pkg.price,
         cumulativeUsed: pkg.used,
         used: pkg.used,
@@ -172,4 +180,3 @@ export const getInventorySnapshot = async (req, res) => {
     });
   }
 };
-

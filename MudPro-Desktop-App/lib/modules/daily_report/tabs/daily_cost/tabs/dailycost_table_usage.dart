@@ -75,7 +75,12 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
       if (data.isNotEmpty) {
         grandTotal = (data[0]['totalDollar'] ?? 0).toDouble();
       }
+     
+      if (data.isNotEmpty) {
+        grandTotal = (data[0]['totalDollar'] ?? 0).toDouble();
+      }
       for (final item in data) {
+        subtotal += (item['subtotal'] ?? 0).toDouble();
         subtotal += (item['subtotal'] ?? 0).toDouble();
       }
 
@@ -83,9 +88,12 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
         _groupedData = grouped;
         _subtotal = subtotal;
         _dailyTotal = grandTotal > 0 ? grandTotal : subtotal;
+        _dailyTotal = grandTotal > 0 ? grandTotal : subtotal;
         _prevTotal = 0;
         _cumTotal = _dailyTotal;
+        _cumTotal = _dailyTotal;
         _intervalTotal = 0;
+        _stockBalance = _dailyTotal;
         _stockBalance = _dailyTotal;
         _bulkSetupFee = 0;
         _isLoading = false;
@@ -98,7 +106,6 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
     }
   }
 
-  // ─────────────────────────────────────────────
   //  LAYOUT CONSTANTS
   //  Col indices:
   //   0  #
@@ -247,7 +254,7 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
           ]),
         ),
 
-        // ── Row 2: sub-labels ──
+        // ── Row 2: sub-labels — only Cumulative has sub-cols ──
         Container(
           height: rowHeight,
           decoration: const BoxDecoration(
@@ -328,6 +335,7 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
 
   // ─────────────────────────────────────────────
   //  SUMMARY ROW
+  //  SUMMARY ROW
   // ─────────────────────────────────────────────
   Widget summaryRow(String label, String value) {
     return Row(children: [
@@ -341,6 +349,22 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
             border: Border.all(color: Colors.grey.shade200, width: 0.5),
           ),
           child: Text(label,
+              style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.grey.shade700)),
+        ),
+      ),
+      Expanded(
+        child: Container(
+          height: rowHeight,
+          alignment: Alignment.centerLeft,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            border: Border.all(color: Colors.grey.shade200, width: 0.5),
+          ),
+          child: Text(value,
               style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w500,
@@ -413,6 +437,7 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
     double catTotal = 0;
     for (final item in items) {
       catTotal += (item['costDollar'] ?? 0).toDouble();
+      catTotal += (item['costDollar'] ?? 0).toDouble();
     }
 
     return Stack(
@@ -451,6 +476,7 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
           ),
         ),
 
+        // ── Total overlay (last column, merged) ──
         // ── Total overlay (last column, merged) ──
         Positioned(
           left: tableWidth - col[17],
@@ -509,6 +535,8 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
+                      const Icon(Icons.error_outline,
+                          color: Colors.red, size: 48),
                       const Icon(Icons.error_outline,
                           color: Colors.red, size: 48),
                       const SizedBox(height: 12),

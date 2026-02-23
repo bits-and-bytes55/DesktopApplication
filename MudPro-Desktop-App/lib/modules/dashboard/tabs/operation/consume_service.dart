@@ -723,6 +723,16 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
                       rowDeleting: packageRowDeleting,
                       headers: const ["Package", "Code", "Unit", "Price (\$)", "Initial", "Used", "Final", "Cost (\$)", ""],
                       onDropdownChanged: (i, item) {
+                        // Clear old data first
+                        packageRows[i].selectedItem = '';
+                        packageRows[i].code       = '';
+                        packageRows[i].unit       = '';
+                        packageRows[i].price      = 0.0;
+                        packageRows[i].initial    = '';
+                        packageRows[i].used       = '';
+                        packageRows[i].finalValue = '';
+                        packageRows[i].cost       = 0.0;
+                        // Populate with new selection
                         packageRows[i].selectedItem = item.name;
                         packageRows[i].code         = item.code;
                         packageRows[i].unit         = item.unit;
@@ -754,7 +764,16 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
                       rowSaving: serviceRowSaving,
                       rowDeleting: serviceRowDeleting,
                       headers: const ["Services", "Code", "Unit", "Price (\$)", "Usage", "Cost (\$)", ""],
+                     
                       onDropdownChanged: (i, item) {
+                        // Clear old data first
+                        serviceRows[i].selectedItem = '';
+                        serviceRows[i].code  = '';
+                        serviceRows[i].unit  = '';
+                        serviceRows[i].price = 0.0;
+                        serviceRows[i].used  = '';
+                        serviceRows[i].cost  = 0.0;
+                        // Populate with new selection
                         serviceRows[i].selectedItem = item.name;
                         serviceRows[i].code         = item.code;
                         serviceRows[i].unit         = item.unit;
@@ -785,6 +804,14 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
                       rowDeleting: engineeringRowDeleting,
                       headers: const ["Engineering", "Code", "Unit", "Price (\$)", "Usage", "Cost (\$)", ""],
                       onDropdownChanged: (i, item) {
+                        // Clear old data first
+                        engineeringRows[i].selectedItem = '';
+                        engineeringRows[i].code  = '';
+                        engineeringRows[i].unit  = '';
+                        engineeringRows[i].price = 0.0;
+                        engineeringRows[i].usage = '';
+                        engineeringRows[i].cost  = 0.0;
+                        // Populate with new selection
                         engineeringRows[i].selectedItem = item.name;
                         engineeringRows[i].code         = item.code;
                         engineeringRows[i].unit         = item.unit;
@@ -920,13 +947,16 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
       _editCell(row.price > 0 ? row.price.toStringAsFixed(2) : '', 90, (v) {
         row.price = double.tryParse(v) ?? 0.0;
         _autoSavePackage(index);
+        _autoSavePackage(index);
       }),
       _editCell(row.initial, 80, (v) {
         row.initial = v;
         _autoSavePackage(index);
+        _autoSavePackage(index);
       }),
       _editCell(row.used, 80, (v) {
         row.used = v;
+        _autoSavePackage(index);
         _autoSavePackage(index);
       }),
       // Final — read-only, negative = red
@@ -971,9 +1001,11 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
       _editCell(row.price > 0 ? row.price.toStringAsFixed(2) : '', 90, (v) {
         row.price = double.tryParse(v) ?? 0.0;
         _autoSaveService(index);
+        _autoSaveService(index);
       }),
       _editCell(row.usage, 80, (v) {
         row.usage = v;
+        _autoSaveService(index);
         _autoSaveService(index);
       }),
       _readCell(row.cost > 0 ? row.cost.toStringAsFixed(2) : '', 90,
@@ -1004,9 +1036,11 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
       _editCell(row.price > 0 ? row.price.toStringAsFixed(2) : '', 90, (v) {
         row.price = double.tryParse(v) ?? 0.0;
         _autoSaveEngineering(index);
+        _autoSaveEngineering(index);
       }),
       _editCell(row.usage, 80, (v) {
         row.usage = v;
+        _autoSaveEngineering(index);
         _autoSaveEngineering(index);
       }),
       _readCell(row.cost > 0 ? row.cost.toStringAsFixed(2) : '', 90,
