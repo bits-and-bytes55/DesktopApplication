@@ -35,6 +35,8 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
   final RxList<bool> productRowSaving = <bool>[].obs;
   final RxList<bool> productRowDeleting = <bool>[].obs;
 
+  final Set<int> _savingInProgress = {};
+
   final RxInt selectedProductRow = 0.obs;
   final Rx<ProductModel?> selectedTopProduct = Rx<ProductModel?>(null);
   final RxBool isSavingAll = false.obs;
@@ -70,17 +72,21 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       productRows.clear();
       productRowSaving.clear();
       productRowDeleting.clear();
+      _savingInProgress.clear();
 
       for (final item in data) {
         final row = ProductRowData();
 
-        // ✅ FIX: product ab String (name) hai — seedha read karo, Map/ObjectId nahi
+        // ✅ DB se seedha product name lo — yahi dropdown mein dikhega
         final productName = item['product']?.toString() ?? '';
+        row.productName = productName;
+
+        // Store mein match karo agar mile — editing ke liye helpful
         if (productName.isNotEmpty) {
-          // Store se name match karke ProductModel dhundo
           row.selectedProduct.value = _findByName(productName);
         }
 
+        // ✅ Saari details DB se directly load karo
         row.code    = item['code']?.toString() ?? '';
         row.sg      = item['sg']?.toString() ?? '';
         row.unit    = item['unit']?.toString() ?? '';
@@ -90,14 +96,12 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
         row.used    = _numStr(item['used']);
         row.savedId = item['_id']?.toString();
 
-        if (row.price == 0.0 && row.selectedProduct.value != null) {
-          row.price = double.tryParse(row.selectedProduct.value!.a) ?? 0.0;
-        }
-
         row.recalculate();
         productRows.add(row);
         productRowSaving.add(false);
         productRowDeleting.add(false);
+
+        debugPrint('🟢 [ROW] name="$productName" code=${row.code} savedId=${row.savedId}');
       }
 
       productRows.add(ProductRowData());
@@ -116,7 +120,6 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
-  // ✅ FIX: id se nahi, name se match karo
   ProductModel? _findByName(String name) =>
       _inventoryStore.selectedProducts.firstWhereOrNull(
         (p) => p.product.trim().toLowerCase() == name.trim().toLowerCase(),
@@ -149,10 +152,6 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     totalVolumeDisplay.value = total.toStringAsFixed(3);
   }
 
-  // ─────────────────────────────────────────────
-  //  Cost calculate hone ke baad hi save karo
-  //  Cost = used * price > 0
-  // ─────────────────────────────────────────────
   bool _isCostCalculated(ProductRowData row) {
     final usedVal = double.tryParse(row.used) ?? 0.0;
     return usedVal > 0 && row.price > 0;
@@ -161,20 +160,24 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
   void _onFieldChanged(int index) {
     if (index >= productRows.length) return;
     final row = productRows[index];
-    if (row.selectedProduct.value == null) return;
+    // productName set hona chahiye — selectedProduct null ho tab bhi chale
+    if (row.productName.isEmpty && row.selectedProduct.value == null) return;
 
     row.recalculate();
     productRows.refresh();
     _recalculateTotalVolume();
 
-    // ✅ Sirf tab save karo jab cost calculate ho gayi ho
     if (_isCostCalculated(row)) {
-      _saveRow(index);
+      Future.delayed(const Duration(milliseconds: 600), () {
+        if (index < productRows.length) {
+          _saveRow(index);
+        }
+      });
     }
   }
 
   void _checkAndAddProductRow() {
-    if (productRows.isNotEmpty && productRows.last.selectedProduct.value != null) {
+    if (productRows.isNotEmpty && productRows.last.productName.isNotEmpty) {
       productRows.add(ProductRowData());
       productRowSaving.add(false);
       productRowDeleting.add(false);
@@ -189,14 +192,27 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
   }
 
   // ─────────────────────────────────────────────
-  //  CRUD
+  //  SAVE ROW
   // ─────────────────────────────────────────────
   Future<void> _saveRow(int index) async {
     if (dashboardController.isLocked.value) return;
     if (index >= productRows.length) return;
     final row = productRows[index];
-    if (row.selectedProduct.value == null) return;
+
+    // productName — selectedProduct se lo ya row.productName se
+    final productName = row.selectedProduct.value?.product.isNotEmpty == true
+        ? row.selectedProduct.value!.product
+        : row.productName;
+
+    if (productName.isEmpty) return;
     if (!_isCostCalculated(row)) return;
+
+    if (_savingInProgress.contains(index)) {
+      debugPrint('⏳ [SAVE] Row $index already saving — skip');
+      return;
+    }
+
+    _savingInProgress.add(index);
 
     row.recalculate();
     productRows.refresh();
@@ -207,14 +223,12 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     }
 
     try {
-      // ✅ FIX: productId ki jagah productName pass karo
-      final productName = row.selectedProduct.value!.product;
-
       Map<String, dynamic> result;
 
       if (row.savedId == null) {
+        debugPrint('🆕 [CREATE] Row $index — product="$productName"');
         result = await consumeProductController.createConsumeProduct(
-          productName:  productName,  // ✅ name
+          productName:  productName,
           code:         row.code,
           sg:           double.tryParse(row.sg) ?? 0.0,
           unit:         row.unit,
@@ -225,10 +239,20 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
           numberOfBags: 1.0,
           weightPerBag: 1.0,
         );
+
+        if (result['success'] == true) {
+          row.savedId     = result['data']?['_id']?.toString();
+          row.productName = productName;
+          productRows.refresh();
+          debugPrint('✅ [CREATE] Done — savedId=${row.savedId}');
+        } else {
+          _showToast(result['message'] ?? 'Save failed', isError: true);
+        }
       } else {
+        debugPrint('✏️ [UPDATE] Row $index — product="$productName" id=${row.savedId}');
         result = await consumeProductController.updateConsumeProduct(
           id:           row.savedId!,
-          productName:  productName,  // ✅ name
+          productName:  productName,
           code:         row.code,
           sg:           double.tryParse(row.sg) ?? 0.0,
           unit:         row.unit,
@@ -239,18 +263,17 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
           numberOfBags: 1.0,
           weightPerBag: 1.0,
         );
-      }
 
-      if (result['success'] == true) {
-        row.savedId = result['data']?['_id']?.toString() ?? row.savedId;
-        productRows.refresh();
-        debugPrint('✅ [SAVE] Row $index — product="$productName" savedId=${row.savedId}');
-      } else {
-        _showToast(result['message'] ?? 'Save failed', isError: true);
+        if (result['success'] == true) {
+          debugPrint('✅ [UPDATE] Done — savedId=${row.savedId}');
+        } else {
+          _showToast(result['message'] ?? 'Update failed', isError: true);
+        }
       }
     } catch (e) {
       _showToast('Save error: $e', isError: true);
     } finally {
+      _savingInProgress.remove(index);
       if (index < productRowSaving.length) {
         productRowSaving[index] = false;
         productRowSaving.refresh();
@@ -267,6 +290,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
         productRows.removeAt(index);
         if (index < productRowSaving.length) productRowSaving.removeAt(index);
         if (index < productRowDeleting.length) productRowDeleting.removeAt(index);
+        _savingInProgress.remove(index);
       } else {
         productRows[index] = ProductRowData();
         productRows.refresh();
@@ -283,6 +307,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     try {
       final result = await consumeProductController.deleteConsumeProduct(row.savedId!);
       if (result['success'] == true) {
+        _savingInProgress.remove(index);
         await _fetchAllConsumeProducts();
         _showToast('Deleted');
       } else {
@@ -306,7 +331,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     isSavingAll.value = true;
     try {
       for (int i = 0; i < productRows.length; i++) {
-        if (productRows[i].selectedProduct.value != null &&
+        if (productRows[i].productName.isNotEmpty &&
             productRows[i].savedId == null &&
             _isCostCalculated(productRows[i])) {
           await _saveRow(i);
@@ -570,13 +595,64 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     final locked = dashboardController.isLocked.value;
 
     return [
-      // 1. Product dropdown
+      // ══════════════════════════════════════════
+      // 1. Product Column
+      // ══════════════════════════════════════════
       DataCell(Container(
         width: 160,
         padding: const EdgeInsets.symmetric(horizontal: 6),
         child: Obx(() {
           final storeProducts = _inventoryStore.selectedProducts;
           final currentVal = row.selectedProduct.value;
+
+          // ✅ KEY FIX: Agar selectedProduct null hai lekin productName set hai
+          // toh wo naam directly text ke roop mein dikha do — "Select" mat dikha
+          if (currentVal == null && row.productName.isNotEmpty) {
+            // DB se aaya hua naam — sirf text dikhao, dropdown bhi rakhenge
+            return DropdownButtonHideUnderline(
+              child: DropdownButton<ProductModel>(
+                value: null,
+                // ✅ Yahan productName as hint dikhao — "Select" ki jagah
+                hint: Text(
+                  row.productName,
+                  style: AppTheme.bodySmall.copyWith(
+                    fontSize: 10,
+                    color: Colors.black87, // Dark color — data hai toh clearly dikhe
+                    fontWeight: FontWeight.w500,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                isExpanded: true, isDense: true,
+                icon: const Icon(Icons.arrow_drop_down, size: 14),
+                menuMaxHeight: 300,
+                items: storeProducts.where((p) => p.id != null).map((p) =>
+                  DropdownMenuItem(value: p,
+                    child: Text(p.product,
+                        style: AppTheme.bodySmall.copyWith(fontSize: 10),
+                        overflow: TextOverflow.ellipsis))).toList(),
+                onChanged: locked ? null : (ProductModel? val) {
+                  if (val == null) return;
+                  selectedProductRow.value = i;
+                  row.selectedProduct.value = val;
+                  row.productName = val.product;
+                  row.code  = val.code;
+                  row.sg    = val.sg;
+                  row.unit  = _mergeUnit(val);
+                  row.price = double.tryParse(val.a) ?? 0.0;
+                  final initD = double.tryParse(val.initial) ?? 0.0;
+                  row.initial = initD != 0.0 ? val.initial : '';
+                  row.adjust = '';
+                  row.used   = '';
+                  productRows.refresh();
+                  _checkAndAddProductRow();
+                  row.recalculate();
+                  _recalculateTotalVolume();
+                },
+              ),
+            );
+          }
+
+          // Normal case — selectedProduct available hai
           final validVal = currentVal != null &&
               storeProducts.any((p) => p.id == currentVal.id)
               ? currentVal : null;
@@ -598,6 +674,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                 if (val == null) return;
                 selectedProductRow.value = i;
                 row.selectedProduct.value = val;
+                row.productName = val.product;
                 row.code  = val.code;
                 row.sg    = val.sg;
                 row.unit  = _mergeUnit(val);
@@ -610,34 +687,33 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                 _checkAndAddProductRow();
                 row.recalculate();
                 _recalculateTotalVolume();
-                // ✅ Product select par save nahi — used type hone par cost banti hai tab save hoga
               },
             ),
           );
         }),
       )),
 
-      // 2–5. Static read-only
+      // 2–5. Static read-only cells
       _staticCell(row.code, 80),
       _staticCell(row.sg, 70),
       _staticCell(row.unit, 70),
       _staticCell(row.price > 0 ? row.price.toStringAsFixed(2) : '', 90, right: true),
 
-      // 6. Initial (not required)
+      // 6. Initial
       _editCell(
-        key: ValueKey('init_${row.savedId ?? i}_${row.selectedProduct.value?.id}'),
+        key: ValueKey('init_${row.savedId ?? i}_${row.productName}'),
         value: row.initial, width: 75, locked: locked,
         onChange: (v) { row.initial = v; _onFieldChanged(i); _checkAndAddProductRow(); },
       ),
       // 7. Adjust
       _editCell(
-        key: ValueKey('adj_${row.savedId ?? i}_${row.selectedProduct.value?.id}'),
+        key: ValueKey('adj_${row.savedId ?? i}_${row.productName}'),
         value: row.adjust, width: 75, locked: locked,
         onChange: (v) { row.adjust = v; _onFieldChanged(i); _checkAndAddProductRow(); },
       ),
-      // 8. Used — ✅ yahan cost calculate hogi aur save trigger hoga
+      // 8. Used
       _editCell(
-        key: ValueKey('used_${row.savedId ?? i}_${row.selectedProduct.value?.id}'),
+        key: ValueKey('used_${row.savedId ?? i}_${row.productName}'),
         value: row.used, width: 75, locked: locked,
         onChange: (v) { row.used = v; _onFieldChanged(i); _checkAndAddProductRow(); },
       ),
@@ -648,7 +724,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
         child: Obx(() {
           final fv = row.calculatedFinal.value;
           return Text(
-            row.selectedProduct.value != null ? fv.toStringAsFixed(2) : '',
+            row.productName.isNotEmpty ? fv.toStringAsFixed(2) : '',
             textAlign: TextAlign.right,
             style: AppTheme.bodySmall.copyWith(
               fontSize: 10, fontWeight: FontWeight.w600,
@@ -989,6 +1065,10 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
 
 class ProductRowData {
   final Rx<ProductModel?> selectedProduct = Rx<ProductModel?>(null);
+
+  // ✅ DB se aaya hua product name — selectedProduct null ho tab bhi kaam karta hai
+  String productName = '';
+
   String code    = '';
   String sg      = '';
   String unit    = '';
