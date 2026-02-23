@@ -35,7 +35,7 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
   }
 
   // ─────────────────────────────────────────────
-  //  FETCH
+  //  FETCH — only GET, no generate (no re-insert on page open)
   // ─────────────────────────────────────────────
   Future<void> _fetchInventoryData() async {
     setState(() {
@@ -44,21 +44,10 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
     });
 
     try {
-      // First, generate the fresh inventory snapshot from the API
-      final genResult = await _inventoryController.generateInventorySnapshot();
-
-      if (genResult['success'] == false) {
-        // Handle failure - still try to fetch existing data
-        print('Generate snapshot failed: ${genResult['message']}');
-      }
-
-      // Add a small delay to ensure database has committed the new data
-      await Future.delayed(const Duration(milliseconds: 500));
-
-      // Now fetch the fresh data from the database
+      // Only fetch existing data — do NOT call generateInventorySnapshot() here.
+      // Generate is triggered separately (e.g. via refresh button with explicit intent).
       final data = await _inventoryController.getInventorySnapshot();
 
-      // Handle empty data case
       if (data.isEmpty) {
         setState(() {
           _groupedData = {};
@@ -101,7 +90,7 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
         _bulkSetupFee = 0;
         _isLoading = false;
       });
-    } catch (e, stackTrace) {
+    } catch (e) {
       setState(() {
         _isLoading = false;
         _errorMessage = e.toString();
@@ -109,7 +98,27 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
     }
   }
 
+  // ─────────────────────────────────────────────
   //  LAYOUT CONSTANTS
+  //  Col indices:
+  //   0  #
+  //   1  Category
+  //   2  Item
+  //   3  Code       ← NEW
+  //   4  Unit       ← NEW
+  //   5  Price
+  //   6  Cum Rec
+  //   7  Cum Ret
+  //   8  Cum Used
+  //   9  Initial
+  //  10  Rec
+  //  11  Ret
+  //  12  Adj
+  //  13  Used
+  //  14  Final
+  //  15  Subtotal
+  //  16  Cost ($)
+  //  17  Total ($)
   // ─────────────────────────────────────────────
   static const double rowHeight = 32;
 
@@ -117,19 +126,21 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
     60,  // 0  #
     150, // 1  Category
     150, // 2  Item
-    75,  // 3  Price
-    75,  // 4  Cum Rec
-    75,  // 5  Cum Ret
-    75,  // 6  Cum Used
-    75,  // 7  Initial
-    75,  // 8  Rec
-    75,  // 9  Ret
-    75,  // 10 Adj
-    75,  // 11 Used
-    75,  // 12 Final
-    100, // 13 Subtotal
-    100, // 14 Cost ($)
-    150, // 15 Total ($)
+    90,  // 3  Code       ← NEW
+    80,  // 4  Unit       ← NEW
+    75,  // 5  Price
+    75,  // 6  Cum Rec
+    75,  // 7  Cum Ret
+    75,  // 8  Cum Used
+    75,  // 9  Initial
+    75,  // 10 Rec
+    75,  // 11 Ret
+    75,  // 12 Adj
+    75,  // 13 Used
+    75,  // 14 Final
+    100, // 15 Subtotal
+    100, // 16 Cost ($)
+    150, // 17 Total ($)
   ];
 
   double get tableWidth => col.reduce((a, b) => a + b);
@@ -145,7 +156,7 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
   }
 
   // ─────────────────────────────────────────────
-  //  CELL (view-only, no hint text)
+  //  CELL
   // ─────────────────────────────────────────────
   Widget cell(
     String v,
@@ -183,7 +194,7 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
   }
 
   // ─────────────────────────────────────────────
-  //  HEADER — Cost and Total are now single columns
+  //  HEADER
   // ─────────────────────────────────────────────
   Widget header() {
     Widget h(String t, double w, {bool isHeader = false}) =>
@@ -205,10 +216,12 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
             h('#', col[0], isHeader: true),
             h('Category', col[1], isHeader: true),
             h('Item', col[2], isHeader: true),
-            h('Price', col[3], isHeader: true),
+            h('Code', col[3], isHeader: true),      // NEW
+            h('Unit', col[4], isHeader: true),      // NEW
+            h('Price', col[5], isHeader: true),
             // Cumulative span (3 sub-cols)
             Container(
-              width: col[4] + col[5] + col[6],
+              width: col[6] + col[7] + col[8],
               height: rowHeight,
               alignment: Alignment.center,
               padding: const EdgeInsets.symmetric(horizontal: 6),
@@ -222,19 +235,19 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
                       fontWeight: FontWeight.w600,
                       color: Colors.white)),
             ),
-            h('Initial', col[7], isHeader: true),
-            h('Rec.', col[8], isHeader: true),
-            h('Ret.', col[9], isHeader: true),
-            h('Adj.', col[10], isHeader: true),
-            h('Used', col[11], isHeader: true),
-            h('Final', col[12], isHeader: true),
-            h('Subtotal', col[13], isHeader: true),
-            h('Cost (\$)', col[14], isHeader: true),   // single merged column
-            h('Total (\$)', col[15], isHeader: true),  // single merged column
+            h('Initial', col[9], isHeader: true),
+            h('Rec.', col[10], isHeader: true),
+            h('Ret.', col[11], isHeader: true),
+            h('Adj.', col[12], isHeader: true),
+            h('Used', col[13], isHeader: true),
+            h('Final', col[14], isHeader: true),
+            h('Subtotal', col[15], isHeader: true),
+            h('Cost (\$)', col[16], isHeader: true),
+            h('Total (\$)', col[17], isHeader: true),
           ]),
         ),
 
-        // ── Row 2: sub-labels — only Cumulative has sub-cols ──
+        // ── Row 2: sub-labels ──
         Container(
           height: rowHeight,
           decoration: const BoxDecoration(
@@ -248,19 +261,21 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
             cell('', col[0],  isHeader: true),
             cell('', col[1],  isHeader: true),
             cell('', col[2],  isHeader: true),
-            cell('', col[3],  isHeader: true),
-            h('Rec.',  col[4], isHeader: true),
-            h('Ret.',  col[5], isHeader: true),
-            h('Used',  col[6], isHeader: true),
-            cell('', col[7],  isHeader: true),
-            cell('', col[8],  isHeader: true),
+            cell('', col[3],  isHeader: true),  // NEW
+            cell('', col[4],  isHeader: true),  // NEW
+            cell('', col[5],  isHeader: true),
+            h('Rec.',  col[6], isHeader: true),
+            h('Ret.',  col[7], isHeader: true),
+            h('Used',  col[8], isHeader: true),
             cell('', col[9],  isHeader: true),
             cell('', col[10], isHeader: true),
             cell('', col[11], isHeader: true),
             cell('', col[12], isHeader: true),
             cell('', col[13], isHeader: true),
-            cell('', col[14], isHeader: true), // Cost — no sub-label
-            cell('', col[15], isHeader: true), // Total — no sub-label
+            cell('', col[14], isHeader: true),
+            cell('', col[15], isHeader: true),
+            cell('', col[16], isHeader: true),
+            cell('', col[17], isHeader: true),
           ]),
         ),
       ],
@@ -268,11 +283,11 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
   }
 
   // ─────────────────────────────────────────────
-  //  DATA ROW — maps backend fields correctly
-  //  Backend fields: category, itemName, price,
-  //                  used, final, subtotal, cost, total
+  //  DATA ROW
   // ─────────────────────────────────────────────
   Widget dataRow(int rowIndex, Map<String, dynamic> item, Color bg) {
+    final code     = item['code']?.toString() ?? '';         // NEW
+    final unit     = item['unit']?.toString() ?? '';         // NEW
     final price    = _fmt(item['price']);
     final cumRec   = _fmt(item['cumulativeRec'],  decimals: 0);
     final cumRet   = _fmt(item['cumulativeRet'],  decimals: 0);
@@ -285,27 +300,28 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
     final finalVal = _fmt(item['final'],          decimals: 0);
     final subtotal = _fmt(item['subtotal']);
     final costVal  = _fmt(item['costDollar']);
-    final totalVal = _fmt(item['totalDollar']);
 
     return Container(
       color: bg,
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         cell('$rowIndex',                        col[0]),
         cell('',                                 col[1]),  // overlay handles category
-        cell(item['itemName']?.toString() ?? '', col[2],  a: Alignment.centerLeft),
-        cell(price,    col[3],  a: Alignment.centerRight),
-        cell(cumRec,   col[4],  a: Alignment.centerRight),
-        cell(cumRet,   col[5],  a: Alignment.centerRight),
-        cell(cumUsed,  col[6],  a: Alignment.centerRight),
-        cell(initial,  col[7],  a: Alignment.centerRight),
-        cell(rec,      col[8],  a: Alignment.centerRight),
-        cell(ret,      col[9],  a: Alignment.centerRight),
-        cell(adj,      col[10], a: Alignment.centerRight),
-        cell(used,     col[11], a: Alignment.centerRight),
-        cell(finalVal, col[12], a: Alignment.centerRight),
-        cell(subtotal, col[13], a: Alignment.centerRight),
-        cell(costVal,  col[14], a: Alignment.centerRight),  // Restore cost values
-        cell('',       col[15], a: Alignment.centerRight),  // Keep total row part empty for overlay
+        cell(item['itemName']?.toString() ?? '', col[2], a: Alignment.centerLeft),
+        cell(code,     col[3], a: Alignment.centerLeft),   // NEW
+        cell(unit,     col[4], a: Alignment.center),        // NEW
+        cell(price,    col[5],  a: Alignment.centerRight),
+        cell(cumRec,   col[6],  a: Alignment.centerRight),
+        cell(cumRet,   col[7],  a: Alignment.centerRight),
+        cell(cumUsed,  col[8],  a: Alignment.centerRight),
+        cell(initial,  col[9],  a: Alignment.centerRight),
+        cell(rec,      col[10], a: Alignment.centerRight),
+        cell(ret,      col[11], a: Alignment.centerRight),
+        cell(adj,      col[12], a: Alignment.centerRight),
+        cell(used,     col[13], a: Alignment.centerRight),
+        cell(finalVal, col[14], a: Alignment.centerRight),
+        cell(subtotal, col[15], a: Alignment.centerRight),
+        cell(costVal,  col[16], a: Alignment.centerRight),
+        cell('',       col[17], a: Alignment.centerRight),  // overlay handles total
       ]),
     );
   }
@@ -350,7 +366,7 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
   }
 
   // ─────────────────────────────────────────────
-  //  CATEGORY BLOCK
+  //  CATEGORY STYLE
   // ─────────────────────────────────────────────
   _CategoryStyle _styleForCategory(String category) {
     switch (category.toLowerCase()) {
@@ -394,7 +410,6 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
     final style = _styleForCategory(category);
     final blockHeight = items.length * rowHeight;
 
-    // Sum the `costDollar` field across all items in this category for the overlay
     double catTotal = 0;
     for (final item in items) {
       catTotal += (item['costDollar'] ?? 0).toDouble();
@@ -438,10 +453,10 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
 
         // ── Total overlay (last column, merged) ──
         Positioned(
-          left: tableWidth - col[15],
+          left: tableWidth - col[17],
           top: 0,
           child: Container(
-            width: col[15],
+            width: col[17],
             height: blockHeight,
             alignment: Alignment.center,
             padding: const EdgeInsets.symmetric(horizontal: 6),
@@ -483,6 +498,7 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
           IconButton(
             icon: const Icon(Icons.refresh, color: Colors.blue),
             onPressed: _fetchInventoryData,
+            tooltip: 'Refresh',
           ),
         ],
       ),
@@ -560,12 +576,12 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
                           children: [
                             ...categoryBlocks,
                             summaryRow('Subtotal (\$)',       _fmt(_subtotal)),
-                            summaryRow('Tax (0.000%)',         ''),
-                            summaryRow('Daily Total (\$)',     _fmt(_dailyTotal)),
-                            summaryRow('Prev. Total (\$)',     _fmt(_prevTotal)),
-                            summaryRow('Cum. Total (\$)',      _fmt(_cumTotal)),
-                            summaryRow('Interval Total (\$)',  _fmt(_intervalTotal)),
-                            summaryRow('Stock Balance (\$)',   _fmt(_stockBalance)),
+                            summaryRow('Tax (0.000%)',        ''),
+                            summaryRow('Daily Total (\$)',    _fmt(_dailyTotal)),
+                            summaryRow('Prev. Total (\$)',    _fmt(_prevTotal)),
+                            summaryRow('Cum. Total (\$)',     _fmt(_cumTotal)),
+                            summaryRow('Interval Total (\$)', _fmt(_intervalTotal)),
+                            summaryRow('Stock Balance (\$)',  _fmt(_stockBalance)),
                             Container(
                               decoration: BoxDecoration(
                                 color: const Color(0xffF8F9FA),
