@@ -21,6 +21,8 @@ class InventorySnapshotController {
 
       print("Get Inventory Snapshot - responseBody: ${response.body}");
       print("Get Inventory Snapshot - statusCode: ${response.statusCode}");
+
+      print('******===================response product name field: ${jsonDecode(response.body)['data']?[0]?['product']}');
       
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body);

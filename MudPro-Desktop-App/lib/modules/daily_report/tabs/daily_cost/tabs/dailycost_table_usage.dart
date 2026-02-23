@@ -106,10 +106,10 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
 
   final List<double> col = [
     60,  // 0  #
-    150, // 1  Category
-    150, // 2  Item
-    90,  // 3  Code
-    80,  // 4  Unit
+    120, // 1  Category
+    120, // 2  Item
+    75,  // 3  Code
+    75,  // 4  Unit
     75,  // 5  Price
     75,  // 6  Cum Rec
     75,  // 7  Cum Ret
@@ -120,9 +120,9 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
     75,  // 12 Adj
     75,  // 13 Used
     75,  // 14 Final
-    100, // 15 Subtotal
-    100, // 16 Cost ($)
-    150, // 17 Total ($)
+    90, // 15 Subtotal
+    90, // 16 Cost ($)
+    120, // 17 Total ($)
   ];
 
   double get tableWidth => col.reduce((a, b) => a + b);
