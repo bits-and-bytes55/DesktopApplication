@@ -3,10 +3,10 @@ import mongoose from "mongoose";
 
 const consumeProductSchema = new mongoose.Schema(
   {
+    // ✅ FIX: ObjectId ref hata diya — ab product name (String) save hoga
     product: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Product",
-      default: null,
+      type: String,
+      default: "",
     },
 
     code: {

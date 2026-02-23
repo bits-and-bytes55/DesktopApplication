@@ -14,7 +14,7 @@ class ConsumeProductController {
   //  CREATE CONSUME PRODUCT
   // ═══════════════════════════════════════════
   Future<Map<String, dynamic>> createConsumeProduct({
-    required String productId,
+    required String productName,   // ✅ FIX: productId → productName
     required String code,
     required double sg,
     required String unit,
@@ -27,16 +27,16 @@ class ConsumeProductController {
   }) async {
     try {
       final body = jsonEncode({
-        'product':        productId,
-        'code':           code,
-        'sg':             sg,
-        'unit':           unit,
-        'price':          price,
-        'initial':        initial,
-        'adjust':         adjust,
-        'used':           used,
-        'numberOfBags':   numberOfBags,
-        'weightPerBag':   weightPerBag,
+        'product':      productName,   // ✅ FIX: name send ho raha hai
+        'code':         code,
+        'sg':           sg,
+        'unit':         unit,
+        'price':        price,
+        'initial':      initial,
+        'adjust':       adjust,
+        'used':         used,
+        'numberOfBags': numberOfBags,
+        'weightPerBag': weightPerBag,
       });
 
       print('🔵 [API] POST ${baseUrl}consume-product');
@@ -75,7 +75,7 @@ class ConsumeProductController {
   // ═══════════════════════════════════════════
   Future<Map<String, dynamic>> updateConsumeProduct({
     required String id,
-    required String productId,
+    required String productName,   // ✅ FIX: productId → productName
     required String code,
     required double sg,
     required String unit,
@@ -88,16 +88,16 @@ class ConsumeProductController {
   }) async {
     try {
       final body = jsonEncode({
-        'product':        productId,
-        'code':           code,
-        'sg':             sg,
-        'unit':           unit,
-        'price':          price,
-        'initial':        initial,
-        'adjust':         adjust,
-        'used':           used,
-        'numberOfBags':   numberOfBags,
-        'weightPerBag':   weightPerBag,
+        'product':      productName,   // ✅ FIX: name send ho raha hai
+        'code':         code,
+        'sg':           sg,
+        'unit':         unit,
+        'price':        price,
+        'initial':      initial,
+        'adjust':       adjust,
+        'used':         used,
+        'numberOfBags': numberOfBags,
+        'weightPerBag': weightPerBag,
       });
 
       print('🔵 [API] PUT ${baseUrl}consume-product/$id');

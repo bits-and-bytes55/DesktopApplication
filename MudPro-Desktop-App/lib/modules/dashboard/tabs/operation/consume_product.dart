@@ -23,14 +23,11 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
   final ConsumeProductController consumeProductController = ConsumeProductController();
   final InventorySnapshotController inventorySnapshotController = InventorySnapshotController();
 
-  // ✅ Source of truth: products selected via Inventory Pickup → Apply
   late final InventoryProductsStore _inventoryStore;
 
   final RxString selectedMethod = "Used".obs;
   final RxBool addWater = false.obs;
   final TextEditingController waterVolumeController = TextEditingController();
-
-  // ✅ RxString for total volume display — no TextEditingController inside Obx
   final RxString totalVolumeDisplay = '0.000'.obs;
 
   final RxList<ProductRowData> productRows = <ProductRowData>[].obs;
@@ -40,25 +37,17 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
 
   final RxInt selectedProductRow = 0.obs;
   final Rx<ProductModel?> selectedTopProduct = Rx<ProductModel?>(null);
-
   final RxBool isSavingAll = false.obs;
 
-  // Convenience getter — reads directly from store (reactive)
   RxList<ProductModel> get products => _inventoryStore.selectedProducts;
 
   @override
   void initState() {
     super.initState();
-
-    // ✅ Get the store — populated when user clicks "Apply" in Inventory Pickup
     _inventoryStore = Get.find<InventoryProductsStore>();
-
     pitController.fetchAllPits();
     _fetchAllConsumeProducts();
-
-    for (int i = 0; i < 5; i++) {
-      distributeRows.add(DistributeRowData());
-    }
+    for (int i = 0; i < 5; i++) distributeRows.add(DistributeRowData());
     waterVolumeController.addListener(_recalculateTotalVolume);
   }
 
@@ -70,7 +59,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
   }
 
   // ─────────────────────────────────────────────
-  //  Fetch saved consume products from backend
+  //  Fetch saved consume products
   // ─────────────────────────────────────────────
   Future<void> _fetchAllConsumeProducts() async {
     debugPrint('🔵 [FETCH] Fetching saved consume products...');
@@ -85,20 +74,13 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       for (final item in data) {
         final row = ProductRowData();
 
-        // product field may be populated object or just an ID string
-        String? productId;
-        if (item['product'] is Map) {
-          productId = (item['product'] as Map)['_id']?.toString();
-        } else {
-          productId = item['product']?.toString();
+        // ✅ FIX: product ab String (name) hai — seedha read karo, Map/ObjectId nahi
+        final productName = item['product']?.toString() ?? '';
+        if (productName.isNotEmpty) {
+          // Store se name match karke ProductModel dhundo
+          row.selectedProduct.value = _findByName(productName);
         }
 
-        if (productId != null && productId.isNotEmpty) {
-          // ✅ Match against store products only
-          row.selectedProduct.value = _findById(productId);
-        }
-
-        // If product not found in store, still load the row data
         row.code    = item['code']?.toString() ?? '';
         row.sg      = item['sg']?.toString() ?? '';
         row.unit    = item['unit']?.toString() ?? '';
@@ -108,7 +90,6 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
         row.used    = _numStr(item['used']);
         row.savedId = item['_id']?.toString();
 
-        // If price is 0 but we found the product in store, use store price
         if (row.price == 0.0 && row.selectedProduct.value != null) {
           row.price = double.tryParse(row.selectedProduct.value!.a) ?? 0.0;
         }
@@ -119,7 +100,6 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
         productRowDeleting.add(false);
       }
 
-      // Always one blank row at end for new entry
       productRows.add(ProductRowData());
       productRowSaving.add(false);
       productRowDeleting.add(false);
@@ -136,8 +116,11 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
-  ProductModel? _findById(String id) =>
-      _inventoryStore.selectedProducts.firstWhereOrNull((p) => p.id == id);
+  // ✅ FIX: id se nahi, name se match karo
+  ProductModel? _findByName(String name) =>
+      _inventoryStore.selectedProducts.firstWhereOrNull(
+        (p) => p.product.trim().toLowerCase() == name.trim().toLowerCase(),
+      );
 
   double _toDouble(dynamic v) =>
       v is num ? v.toDouble() : double.tryParse(v?.toString() ?? '') ?? 0.0;
@@ -166,14 +149,26 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     totalVolumeDisplay.value = total.toStringAsFixed(3);
   }
 
+  // ─────────────────────────────────────────────
+  //  Cost calculate hone ke baad hi save karo
+  //  Cost = used * price > 0
+  // ─────────────────────────────────────────────
+  bool _isCostCalculated(ProductRowData row) {
+    final usedVal = double.tryParse(row.used) ?? 0.0;
+    return usedVal > 0 && row.price > 0;
+  }
+
   void _onFieldChanged(int index) {
     if (index >= productRows.length) return;
     final row = productRows[index];
     if (row.selectedProduct.value == null) return;
+
     row.recalculate();
     productRows.refresh();
     _recalculateTotalVolume();
-    if (row.initial.isNotEmpty || row.adjust.isNotEmpty || row.used.isNotEmpty) {
+
+    // ✅ Sirf tab save karo jab cost calculate ho gayi ho
+    if (_isCostCalculated(row)) {
       _saveRow(index);
     }
   }
@@ -201,6 +196,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     if (index >= productRows.length) return;
     final row = productRows[index];
     if (row.selectedProduct.value == null) return;
+    if (!_isCostCalculated(row)) return;
 
     row.recalculate();
     productRows.refresh();
@@ -211,12 +207,14 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     }
 
     try {
-      final productId = row.selectedProduct.value!.id ?? '';
+      // ✅ FIX: productId ki jagah productName pass karo
+      final productName = row.selectedProduct.value!.product;
+
       Map<String, dynamic> result;
 
       if (row.savedId == null) {
         result = await consumeProductController.createConsumeProduct(
-          productId:    productId,
+          productName:  productName,  // ✅ name
           code:         row.code,
           sg:           double.tryParse(row.sg) ?? 0.0,
           unit:         row.unit,
@@ -230,7 +228,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       } else {
         result = await consumeProductController.updateConsumeProduct(
           id:           row.savedId!,
-          productId:    productId,
+          productName:  productName,  // ✅ name
           code:         row.code,
           sg:           double.tryParse(row.sg) ?? 0.0,
           unit:         row.unit,
@@ -246,6 +244,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       if (result['success'] == true) {
         row.savedId = result['data']?['_id']?.toString() ?? row.savedId;
         productRows.refresh();
+        debugPrint('✅ [SAVE] Row $index — product="$productName" savedId=${row.savedId}');
       } else {
         _showToast(result['message'] ?? 'Save failed', isError: true);
       }
@@ -307,7 +306,9 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     isSavingAll.value = true;
     try {
       for (int i = 0; i < productRows.length; i++) {
-        if (productRows[i].selectedProduct.value != null && productRows[i].savedId == null) {
+        if (productRows[i].selectedProduct.value != null &&
+            productRows[i].savedId == null &&
+            _isCostCalculated(productRows[i])) {
           await _saveRow(i);
         }
       }
@@ -364,7 +365,6 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     );
   }
 
-  // ── Top bar ───────────────────────────────────────────────────────────────
   Widget _buildTopControls() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -400,7 +400,6 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       child: Row(children: [
         Icon(Icons.inventory_2_outlined, size: 14, color: AppTheme.textSecondary),
         const SizedBox(width: 6),
-        // ✅ Obx watches the store directly
         Expanded(child: Obx(() => DropdownButtonHideUnderline(
           child: DropdownButton<ProductModel>(
             value: selectedTopProduct.value != null &&
@@ -488,7 +487,6 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     ));
   }
 
-  // ── Product Table ─────────────────────────────────────────────────────────
   Widget _buildProductTable() {
     const headers = [
       "Product", "Code", "SG", "Unit", "Price (\$)",
@@ -501,7 +499,6 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
         borderRadius: BorderRadius.circular(4),
       ),
       child: Column(children: [
-        // Title band
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
@@ -515,15 +512,12 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                 fontWeight: FontWeight.w600, fontSize: 11, color: Colors.white)),
           ]),
         ),
-
         SizedBox(
           height: 220,
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: SingleChildScrollView(
               scrollDirection: Axis.vertical,
-              // ✅ Single Obx wraps entire DataTable — no nested Obx in DataCells
-              //    except for per-row reactive calculated values
               child: Obx(() => DataTable(
                 headingRowHeight: 32, dataRowHeight: 38,
                 columnSpacing: 0, horizontalMargin: 0, dividerThickness: 0,
@@ -576,7 +570,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     final locked = dashboardController.isLocked.value;
 
     return [
-      // 1. Product dropdown — sources ONLY from InventoryProductsStore
+      // 1. Product dropdown
       DataCell(Container(
         width: 160,
         padding: const EdgeInsets.symmetric(horizontal: 6),
@@ -606,11 +600,8 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                 row.selectedProduct.value = val;
                 row.code  = val.code;
                 row.sg    = val.sg;
-                // ✅ Full unit: "25 KG", "55 GAL"
                 row.unit  = _mergeUnit(val);
-                // ✅ Price from 'a' field (company API "A" = price)
                 row.price = double.tryParse(val.a) ?? 0.0;
-                // Initial from inventory
                 final initD = double.tryParse(val.initial) ?? 0.0;
                 row.initial = initD != 0.0 ? val.initial : '';
                 row.adjust = '';
@@ -619,19 +610,20 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                 _checkAndAddProductRow();
                 row.recalculate();
                 _recalculateTotalVolume();
+                // ✅ Product select par save nahi — used type hone par cost banti hai tab save hoga
               },
             ),
           );
         }),
       )),
 
-      // 2–5. Static read-only cells
+      // 2–5. Static read-only
       _staticCell(row.code, 80),
       _staticCell(row.sg, 70),
       _staticCell(row.unit, 70),
       _staticCell(row.price > 0 ? row.price.toStringAsFixed(2) : '', 90, right: true),
 
-      // 6. Initial
+      // 6. Initial (not required)
       _editCell(
         key: ValueKey('init_${row.savedId ?? i}_${row.selectedProduct.value?.id}'),
         value: row.initial, width: 75, locked: locked,
@@ -643,7 +635,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
         value: row.adjust, width: 75, locked: locked,
         onChange: (v) { row.adjust = v; _onFieldChanged(i); _checkAndAddProductRow(); },
       ),
-      // 8. Used
+      // 8. Used — ✅ yahan cost calculate hogi aur save trigger hoga
       _editCell(
         key: ValueKey('used_${row.savedId ?? i}_${row.selectedProduct.value?.id}'),
         value: row.used, width: 75, locked: locked,
@@ -771,7 +763,6 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
           ]),
         ),
         Expanded(child: SingleChildScrollView(
-          // ✅ Obx here reads pitController.pits (reactive) to rebuild when pits load
           child: Obx(() {
             final pitList = pitController.pits
                 .where((p) => p.id != null && p.pitName.isNotEmpty)
@@ -804,7 +795,6 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                   cells: [
                     DataCell(Container(
                       width: 150, padding: const EdgeInsets.symmetric(horizontal: 8),
-                      // ✅ No nested Obx — pitList already read from parent Obx
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<String>(
                           value: dr.pit.isNotEmpty &&
@@ -853,7 +843,6 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     );
   }
 
-  // ✅ FIX: No Spacer() — uses SizedBox gaps; total vol uses RxString not TextEditingController
   Widget _buildRightControls() {
     return Container(
       height: 240,
@@ -863,8 +852,6 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
         border: Border.all(color: Colors.grey.shade300),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-
-        // Add Water row
         Obx(() => Row(children: [
           InkWell(
             onTap: dashboardController.isLocked.value ? null : () {
@@ -906,7 +893,6 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
 
         const SizedBox(height: 10),
 
-        // Total Volume — pure display from RxString
         Row(children: [
           Text("Total Vol.",
               style: AppTheme.bodySmall.copyWith(fontSize: 10, fontWeight: FontWeight.w600)),
@@ -944,7 +930,6 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
 
         const SizedBox(height: 10),
 
-        // Info note
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
