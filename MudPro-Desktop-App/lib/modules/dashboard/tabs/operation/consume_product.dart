@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart';
-import 'package:mudpro_desktop_app/modules/UG/model/pit_model.dart';
-import 'package:mudpro_desktop_app/modules/company_setup/controller/products_controller.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/model/products_model.dart';
 import 'package:mudpro_desktop_app/modules/daily_report/controller/inventory_snapshot_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/consume_product_controller.dart';
-import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/controller/ug_inventory_product_controller.dart';
-import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/model/ug_inventory_product_model.dart';
+import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/inventory_store/inventory_store.dart';
 import '../../controller/operation_controller.dart';
 import '../../controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
@@ -22,341 +19,331 @@ class ConsumeProductView extends StatefulWidget {
 class _ConsumeProductViewState extends State<ConsumeProductView> {
   final OperationController operationController = Get.find<OperationController>();
   final DashboardController dashboardController = Get.find<DashboardController>();
-  final ProductsController productsController = Get.put(ProductsController());
   final PitController pitController = Get.put(PitController());
   final ConsumeProductController consumeProductController = ConsumeProductController();
   final InventorySnapshotController inventorySnapshotController = InventorySnapshotController();
-  
+
+  // ✅ Source of truth: products selected via Inventory Pickup → Apply
+  late final InventoryProductsStore _inventoryStore;
+
   final RxString selectedMethod = "Used".obs;
   final RxBool addWater = false.obs;
   final TextEditingController waterVolumeController = TextEditingController();
-  final TextEditingController totalVolumeController = TextEditingController(text: "2.62");
 
-  // Row data for tables
+  // ✅ RxString for total volume display — no TextEditingController inside Obx
+  final RxString totalVolumeDisplay = '0.000'.obs;
+
   final RxList<ProductRowData> productRows = <ProductRowData>[].obs;
   final RxList<DistributeRowData> distributeRows = <DistributeRowData>[].obs;
-
-  // Per-row saving/deleting states
   final RxList<bool> productRowSaving = <bool>[].obs;
   final RxList<bool> productRowDeleting = <bool>[].obs;
 
-  // Selected row indices
   final RxInt selectedProductRow = 0.obs;
-  final RxInt selectedDistributeRow = 0.obs;
-
-  // Selected products for top dropdown
   final Rx<ProductModel?> selectedTopProduct = Rx<ProductModel?>(null);
 
-  // Local list for inventory products
-  final RxList<ProductModel> products = <ProductModel>[].obs;
-
-  // Save All loading
   final RxBool isSavingAll = false.obs;
+
+  // Convenience getter — reads directly from store (reactive)
+  RxList<ProductModel> get products => _inventoryStore.selectedProducts;
 
   @override
   void initState() {
     super.initState();
-    print('🟡 [INIT] ConsumeProductView initState');
-    // Fetch dropdown data from inventory
-    _loadDropdownData();
-    // Fetch pits data
+
+    // ✅ Get the store — populated when user clicks "Apply" in Inventory Pickup
+    _inventoryStore = Get.find<InventoryProductsStore>();
+
     pitController.fetchAllPits();
-    // Fetch saved consume products
     _fetchAllConsumeProducts();
-    // Initialize distribute rows
+
     for (int i = 0; i < 5; i++) {
       distributeRows.add(DistributeRowData());
     }
+    waterVolumeController.addListener(_recalculateTotalVolume);
+  }
+
+  @override
+  void dispose() {
+    waterVolumeController.removeListener(_recalculateTotalVolume);
+    waterVolumeController.dispose();
+    super.dispose();
   }
 
   // ─────────────────────────────────────────────
-  //  Load dropdown data (Well-specific Inventory)
-  // ─────────────────────────────────────────────
-  Future<void> _loadDropdownData() async {
-    print('🔵 [LOAD] Loading dropdown products...');
-    try {
-      const wellId = '507f1f77bcf86cd799439011';
-      final inventoryProducts = await InventoryProductsService.fetchProducts(wellId);
-      print('🟢 [LOAD] Fetched ${inventoryProducts.length} products from inventory');
-
-      products.value = inventoryProducts.map((p) => ProductModel(
-        id: p.id,
-        product: p.product,
-        code: p.code,
-        sg: p.sg,
-        unitClass: p.unit,
-        price: p.price,
-        initial: p.initial,
-        group: p.group,
-        volAdd: p.volAdd,
-        calculate: p.calculate,
-        plot: p.plot ?? false,
-        tax: p.tax,
-      )).toList();
-    } catch (e) {
-      print('🔴 [LOAD] Error loading dropdown data: $e');
-    }
-  }
-
-  // ─────────────────────────────────────────────
-  //  Fetch all saved consume products from backend
+  //  Fetch saved consume products from backend
   // ─────────────────────────────────────────────
   Future<void> _fetchAllConsumeProducts() async {
-    print('🔵 [FETCH] Fetching saved consume products...');
+    debugPrint('🔵 [FETCH] Fetching saved consume products...');
     try {
       final data = await consumeProductController.getAllConsumeProducts();
-      print('🟢 [FETCH] ConsumeProducts: ${data.length} items');
+      debugPrint('🟢 [FETCH] ConsumeProducts: ${data.length} items');
 
       productRows.clear();
       productRowSaving.clear();
       productRowDeleting.clear();
 
-      for (var item in data) {
+      for (final item in data) {
         final row = ProductRowData();
-        
-        // Match product by ID
-        final productId = item['product']?.toString();
-        if (productId != null && productId.isNotEmpty) {
-          row.selectedProduct.value = _findProductById(productId);
+
+        // product field may be populated object or just an ID string
+        String? productId;
+        if (item['product'] is Map) {
+          productId = (item['product'] as Map)['_id']?.toString();
+        } else {
+          productId = item['product']?.toString();
         }
 
-        row.code      = item['code']?.toString() ?? '';
-        row.sg        = item['sg']?.toString() ?? '';
-        row.unit      = item['unit']?.toString() ?? '';
-        row.price     = (item['price'] ?? 0).toDouble();
-        row.initial   = (item['initial'] ?? 0).toString();
-        row.adjust    = (item['adjust'] ?? 0).toString();
-        row.used      = (item['used'] ?? 0).toString();
-        row.final_    = (item['final'] ?? 0).toString();
-        row.savedId   = item['_id'];
-        
-        // Recalculate to update reactive values
-        row.recalculate();
+        if (productId != null && productId.isNotEmpty) {
+          // ✅ Match against store products only
+          row.selectedProduct.value = _findById(productId);
+        }
 
+        // If product not found in store, still load the row data
+        row.code    = item['code']?.toString() ?? '';
+        row.sg      = item['sg']?.toString() ?? '';
+        row.unit    = item['unit']?.toString() ?? '';
+        row.price   = _toDouble(item['price']);
+        row.initial = _numStr(item['initial']);
+        row.adjust  = _numStr(item['adjust']);
+        row.used    = _numStr(item['used']);
+        row.savedId = item['_id']?.toString();
+
+        // If price is 0 but we found the product in store, use store price
+        if (row.price == 0.0 && row.selectedProduct.value != null) {
+          row.price = double.tryParse(row.selectedProduct.value!.a) ?? 0.0;
+        }
+
+        row.recalculate();
         productRows.add(row);
         productRowSaving.add(false);
         productRowDeleting.add(false);
       }
 
-      // Add one empty row at end
+      // Always one blank row at end for new entry
       productRows.add(ProductRowData());
       productRowSaving.add(false);
       productRowDeleting.add(false);
 
-      print('🟢 [FETCH] All products loaded');
+      _recalculateTotalVolume();
+      debugPrint('🟢 [FETCH] Done, ${productRows.length} rows');
     } catch (e) {
-      print('🔴 [FETCH] Error fetching products: $e');
+      debugPrint('🔴 [FETCH] $e');
+      productRows.add(ProductRowData());
+      productRowSaving.add(false);
+      productRowDeleting.add(false);
     }
   }
 
-  ProductModel? _findProductById(String id) {
-    return products.firstWhereOrNull((p) => p.id == id);
+  // ── Helpers ───────────────────────────────────────────────────────────────
+
+  ProductModel? _findById(String id) =>
+      _inventoryStore.selectedProducts.firstWhereOrNull((p) => p.id == id);
+
+  double _toDouble(dynamic v) =>
+      v is num ? v.toDouble() : double.tryParse(v?.toString() ?? '') ?? 0.0;
+
+  String _numStr(dynamic v) {
+    final d = _toDouble(v);
+    return d == 0.0 ? '' : d.toString();
   }
 
-  // ─────────────────────────────────────────────
-  //  Calculate row (just updates reactive values)
-  // ─────────────────────────────────────────────
-  void _calculateRow(int index) {
-    if (dashboardController.isLocked.value) return;
+  String _mergeUnit(ProductModel p) {
+    final n = p.unitNum.trim();
+    final c = p.unitClass.trim();
+    if (n.isNotEmpty && c.isNotEmpty) return '$n $c';
+    if (c.isNotEmpty) return c;
+    return n;
+  }
+
+  void _recalculateTotalVolume() {
+    double total = 0.0;
+    for (final row in productRows) {
+      total += row.calculatedVolume.value;
+    }
+    if (addWater.value) {
+      total += double.tryParse(waterVolumeController.text) ?? 0.0;
+    }
+    totalVolumeDisplay.value = total.toStringAsFixed(3);
+  }
+
+  void _onFieldChanged(int index) {
+    if (index >= productRows.length) return;
     final row = productRows[index];
-    if (row.selectedProduct.value == null) {
-      print('🔴 [CALC] Row $index: no product selected');
-      return;
-    }
-
-    print('🔵 [CALC] Row $index → Calculating...');
+    if (row.selectedProduct.value == null) return;
     row.recalculate();
     productRows.refresh();
+    _recalculateTotalVolume();
+    if (row.initial.isNotEmpty || row.adjust.isNotEmpty || row.used.isNotEmpty) {
+      _saveRow(index);
+    }
+  }
+
+  void _checkAndAddProductRow() {
+    if (productRows.isNotEmpty && productRows.last.selectedProduct.value != null) {
+      productRows.add(ProductRowData());
+      productRowSaving.add(false);
+      productRowDeleting.add(false);
+    }
+  }
+
+  void _checkAndAddDistributeRow() {
+    if (distributeRows.isNotEmpty &&
+        (distributeRows.last.pit.isNotEmpty || distributeRows.last.volume.isNotEmpty)) {
+      distributeRows.add(DistributeRowData());
+    }
   }
 
   // ─────────────────────────────────────────────
-  //  Save row (inline save)
+  //  CRUD
   // ─────────────────────────────────────────────
   Future<void> _saveRow(int index) async {
     if (dashboardController.isLocked.value) return;
+    if (index >= productRows.length) return;
     final row = productRows[index];
-    
-    if (row.selectedProduct.value == null) {
-      print('🔴 [SAVE] Row $index: no product selected');
-      return;
+    if (row.selectedProduct.value == null) return;
+
+    row.recalculate();
+    productRows.refresh();
+
+    if (index < productRowSaving.length) {
+      productRowSaving[index] = true;
+      productRowSaving.refresh();
     }
 
-    // Calculate first
-    _calculateRow(index);
-
-    productRowSaving[index] = true;
-    productRowSaving.refresh();
-
-    final productId = row.selectedProduct.value!.id ?? '';
-    final initial   = double.tryParse(row.initial) ?? 0.0;
-    final adjust    = double.tryParse(row.adjust) ?? 0.0;
-    final used      = double.tryParse(row.used) ?? 0.0;
-
-    print('🔵 [SAVE] Row $index → productId=$productId | initial=$initial | adjust=$adjust | used=$used');
-
     try {
+      final productId = row.selectedProduct.value!.id ?? '';
       Map<String, dynamic> result;
 
       if (row.savedId == null) {
-        // CREATE
         result = await consumeProductController.createConsumeProduct(
-          productId:     productId,
-          code:          row.code,
-          sg:            double.tryParse(row.sg) ?? 0.0,
-          unit:          row.unit,
-          price:         row.price,
-          initial:       initial,
-          adjust:        adjust,
-          used:          used,
-          numberOfBags:  1.0,  // Placeholder
-          weightPerBag:  1.0,  // Placeholder
+          productId:    productId,
+          code:         row.code,
+          sg:           double.tryParse(row.sg) ?? 0.0,
+          unit:         row.unit,
+          price:        row.price,
+          initial:      double.tryParse(row.initial) ?? 0.0,
+          adjust:       double.tryParse(row.adjust) ?? 0.0,
+          used:         double.tryParse(row.used) ?? 0.0,
+          numberOfBags: 1.0,
+          weightPerBag: 1.0,
         );
       } else {
-        // UPDATE
         result = await consumeProductController.updateConsumeProduct(
-          id:            row.savedId!,
-          productId:     productId,
-          code:          row.code,
-          sg:            double.tryParse(row.sg) ?? 0.0,
-          unit:          row.unit,
-          price:         row.price,
-          initial:       initial,
-          adjust:        adjust,
-          used:          used,
-          numberOfBags:  1.0,
-          weightPerBag:  1.0,
+          id:           row.savedId!,
+          productId:    productId,
+          code:         row.code,
+          sg:           double.tryParse(row.sg) ?? 0.0,
+          unit:         row.unit,
+          price:        row.price,
+          initial:      double.tryParse(row.initial) ?? 0.0,
+          adjust:       double.tryParse(row.adjust) ?? 0.0,
+          used:         double.tryParse(row.used) ?? 0.0,
+          numberOfBags: 1.0,
+          weightPerBag: 1.0,
         );
       }
-
-      print('🟢 [SAVE] Row $index result: $result');
 
       if (result['success'] == true) {
-        row.savedId = result['data']?['_id'] ?? row.savedId;
+        row.savedId = result['data']?['_id']?.toString() ?? row.savedId;
         productRows.refresh();
-        _showSuccess('Product row ${index + 1} saved!');
-        await _fetchAllConsumeProducts();
       } else {
-        _showError(result['message'] ?? 'Save failed');
+        _showToast(result['message'] ?? 'Save failed', isError: true);
       }
     } catch (e) {
-      print('🔴 [SAVE] Row $index exception: $e');
-      _showError('Error: $e');
+      _showToast('Save error: $e', isError: true);
     } finally {
-      productRowSaving[index] = false;
-      productRowSaving.refresh();
+      if (index < productRowSaving.length) {
+        productRowSaving[index] = false;
+        productRowSaving.refresh();
+      }
     }
   }
 
-  // ─────────────────────────────────────────────
-  //  Delete row (inline delete)
-  // ─────────────────────────────────────────────
   Future<void> _deleteRow(int index) async {
+    if (index >= productRows.length) return;
     final row = productRows[index];
-    print('🔵 [DEL] Row $index | savedId=${row.savedId}');
 
-    if (row.savedId != null) {
+    if (row.savedId == null) {
+      if (productRows.length > 1) {
+        productRows.removeAt(index);
+        if (index < productRowSaving.length) productRowSaving.removeAt(index);
+        if (index < productRowDeleting.length) productRowDeleting.removeAt(index);
+      } else {
+        productRows[index] = ProductRowData();
+        productRows.refresh();
+      }
+      _recalculateTotalVolume();
+      return;
+    }
+
+    if (index < productRowDeleting.length) {
       productRowDeleting[index] = true;
       productRowDeleting.refresh();
-      try {
-        final result = await consumeProductController.deleteConsumeProduct(row.savedId!);
-        print('🟢 [DEL] Row $index result: $result');
-        if (result['success'] != true) {
-          _showError(result['message'] ?? 'Delete failed');
+    }
+
+    try {
+      final result = await consumeProductController.deleteConsumeProduct(row.savedId!);
+      if (result['success'] == true) {
+        await _fetchAllConsumeProducts();
+        _showToast('Deleted');
+      } else {
+        _showToast(result['message'] ?? 'Delete failed', isError: true);
+        if (index < productRowDeleting.length) {
           productRowDeleting[index] = false;
           productRowDeleting.refresh();
-          return;
         }
-        await _fetchAllConsumeProducts();
-        _showSuccess('Product deleted');
-      } catch (e) {
-        print('🔴 [DEL] Row $index exception: $e');
-        _showError('Error: $e');
-      } finally {
+      }
+    } catch (e) {
+      _showToast('Delete error: $e', isError: true);
+      if (index < productRowDeleting.length) {
         productRowDeleting[index] = false;
         productRowDeleting.refresh();
       }
-    } else {
-      // Just reset unsaved row
-      productRows[index] = ProductRowData();
-      productRows.refresh();
     }
   }
 
-  // ─────────────────────────────────────────────
-  //  Save All → generateInventorySnapshot
-  // ─────────────────────────────────────────────
   Future<void> _saveAll() async {
-    if (dashboardController.isLocked.value) return;
+    if (dashboardController.isLocked.value || isSavingAll.value) return;
     isSavingAll.value = true;
-
-    print('🟡 [SAVE-ALL] Save All button pressed');
-
     try {
-      // Save all unsaved filled rows
-      print('🔵 [SAVE-ALL] Saving all product rows...');
       for (int i = 0; i < productRows.length; i++) {
         if (productRows[i].selectedProduct.value != null && productRows[i].savedId == null) {
           await _saveRow(i);
         }
       }
-
-      // Generate inventory snapshot
-      print('🔵 [SAVE-ALL] Calling generateInventorySnapshot...');
       final snapResult = await inventorySnapshotController.generateInventorySnapshot();
-      print('🟢 [SAVE-ALL] generateInventorySnapshot result: $snapResult');
-
       if (snapResult['success'] == true) {
-        _showSuccess(
-          'All saved! Snapshot generated (${snapResult['count']} items)',
-          duration: 3,
-        );
+        _showToast('Saved! Snapshot: ${snapResult['count']} items');
       } else {
-        _showError('Rows saved but snapshot failed: ${snapResult['message']}');
+        _showToast('Snapshot failed: ${snapResult['message']}', isError: true);
       }
     } catch (e) {
-      print('🔴 [SAVE-ALL] Exception: $e');
-      _showError('Save All failed: $e');
+      _showToast('Save All failed: $e', isError: true);
     } finally {
       isSavingAll.value = false;
     }
   }
 
-  // ─────────────────────────────────────────────
-  //  Snackbar helpers
-  // ─────────────────────────────────────────────
-  void _showSuccess(String msg, {int duration = 2}) {
-    Get.rawSnackbar(
-      messageText: Row(children: [
-        const Icon(Icons.check_circle, color: Colors.white, size: 16),
+  void _showToast(String msg, {bool isError = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Row(children: [
+        Icon(isError ? Icons.error_outline : Icons.check_circle_outline,
+            color: Colors.white, size: 16),
         const SizedBox(width: 8),
         Expanded(child: Text(msg, style: const TextStyle(color: Colors.white, fontSize: 12))),
       ]),
-      backgroundColor: const Color(0xff10B981),
-      borderRadius: 6,
-      margin: const EdgeInsets.only(top: 8, right: 12),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      snackPosition: SnackPosition.TOP,
-      duration: Duration(seconds: duration),
-      maxWidth: 380,
-    );
+      backgroundColor: isError ? const Color(0xffEF4444) : const Color(0xff10B981),
+      behavior: SnackBarBehavior.floating,
+      margin: const EdgeInsets.only(bottom: 20, left: 12, right: 12),
+      duration: Duration(seconds: isError ? 3 : 2),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+    ));
   }
 
-  void _showError(String msg) {
-    Get.rawSnackbar(
-      messageText: Row(children: [
-        const Icon(Icons.error, color: Colors.white, size: 16),
-        const SizedBox(width: 8),
-        Expanded(child: Text(msg, style: const TextStyle(color: Colors.white, fontSize: 12))),
-      ]),
-      backgroundColor: const Color(0xffEF4444),
-      borderRadius: 6,
-      margin: const EdgeInsets.only(top: 8, right: 12),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      snackPosition: SnackPosition.TOP,
-      duration: const Duration(seconds: 3),
-      maxWidth: 380,
-    );
-  }
+  // ══════════════════════════════════════════════════════════════════════════
+  //  BUILD
+  // ══════════════════════════════════════════════════════════════════════════
 
   @override
   Widget build(BuildContext context) {
@@ -365,156 +352,74 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       child: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Top Controls
-              _buildTopControls(),
-              const SizedBox(height: 10),
-
-              // Main Product Table
-              _buildProductTable(),
-              const SizedBox(height: 10),
-
-              // Bottom Section: Distribute Table + Right Controls
-              _buildBottomSection(),
-            ],
-          ),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            _buildTopControls(),
+            const SizedBox(height: 10),
+            _buildProductTable(),
+            const SizedBox(height: 10),
+            _buildBottomSection(),
+          ]),
         ),
       ),
     );
   }
 
+  // ── Top bar ───────────────────────────────────────────────────────────────
   Widget _buildTopControls() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(4),
+        color: Colors.white, borderRadius: BorderRadius.circular(4),
         border: Border.all(color: Colors.grey.shade300),
       ),
-      child: Row(
-        children: [
-          // Select Products Dropdown
-          Expanded(
-            flex: 2,
-            child: _buildProductDropdown(),
-          ),
+      child: Row(children: [
+        Expanded(flex: 2, child: _buildTopProductDropdown()),
+        const SizedBox(width: 10),
+        Expanded(flex: 2, child: _buildDropdown(hint: "Load Previous Products", icon: Icons.history)),
+        const SizedBox(width: 12),
+        Expanded(flex: 2, child: Row(children: [
+          Text("Input Method",
+              style: AppTheme.bodySmall.copyWith(fontWeight: FontWeight.w600, fontSize: 10)),
           const SizedBox(width: 10),
-
-          // Load Previous Products
-          Expanded(
-            flex: 2,
-            child: _buildDropdown(
-              hint: "Load Previous Products",
-              icon: Icons.history,
-            ),
-          ),
-          const SizedBox(width: 12),
-
-          // Radio Buttons
-          Expanded(
-            flex: 2,
-            child: Row(
-              children: [
-                Text(
-                  "Input Method",
-                  style: AppTheme.bodySmall.copyWith(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 10,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                _buildCompactRadio("Used", "Used"),
-                const SizedBox(width: 6),
-                _buildCompactRadio("Final", "Final"),
-              ],
-            ),
-          ),
-
-          const SizedBox(width: 12),
-
-          // Save All Button
-          Obx(() => ElevatedButton.icon(
-            onPressed: dashboardController.isLocked.value || isSavingAll.value
-                ? null
-                : _saveAll,
-            icon: isSavingAll.value
-                ? const SizedBox(
-                    width: 14,
-                    height: 14,
-                    child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation(Colors.white)),
-                  )
-                : const Icon(Icons.save, size: 14),
-            label: Text(
-              isSavingAll.value ? 'Saving...' : 'Save All',
-              style: const TextStyle(fontSize: 11),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              minimumSize: const Size(90, 32),
-            ),
-          )),
-        ],
-      ),
+          _buildRadioBtn("Used"),
+          const SizedBox(width: 6),
+          _buildRadioBtn("Final"),
+        ])),
+      ]),
     );
   }
 
-  Widget _buildProductDropdown() {
+  Widget _buildTopProductDropdown() {
     return Container(
       height: 32,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(3),
+        color: Colors.white, borderRadius: BorderRadius.circular(3),
         border: Border.all(color: Colors.grey.shade300),
       ),
-      child: Row(
-        children: [
-          Icon(Icons.inventory_2_outlined, size: 14, color: AppTheme.textSecondary),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Obx(() => DropdownButtonHideUnderline(
-              child: DropdownButton<ProductModel>(
-                value: selectedTopProduct.value != null &&
-                       products.any((p) => p.id == selectedTopProduct.value?.id)
-                    ? selectedTopProduct.value
-                    : null,
-                hint: Text(
-                  "Select Products",
-                  style: AppTheme.bodySmall.copyWith(
-                    fontSize: 10,
-                    color: AppTheme.textSecondary,
-                  ),
-                ),
-                icon: const Icon(Icons.arrow_drop_down, size: 16),
-                isExpanded: true,
-                isDense: true,
-                menuMaxHeight: 300,
-                items: products.where((p) => p.id != null).map((product) {
-                  return DropdownMenuItem<ProductModel>(
-                    value: product,
-                    child: Text(
-                      product.product,
-                      style: AppTheme.bodySmall.copyWith(fontSize: 10),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  );
-                }).toList(),
-                onChanged: dashboardController.isLocked.value 
-                    ? null 
-                    : (ProductModel? value) {
-                        selectedTopProduct.value = value;
-                      },
-              ),
-            )),
+      child: Row(children: [
+        Icon(Icons.inventory_2_outlined, size: 14, color: AppTheme.textSecondary),
+        const SizedBox(width: 6),
+        // ✅ Obx watches the store directly
+        Expanded(child: Obx(() => DropdownButtonHideUnderline(
+          child: DropdownButton<ProductModel>(
+            value: selectedTopProduct.value != null &&
+                products.any((p) => p.id == selectedTopProduct.value?.id)
+                ? selectedTopProduct.value : null,
+            hint: Text("Select Products",
+                style: AppTheme.bodySmall.copyWith(fontSize: 10, color: AppTheme.textSecondary)),
+            icon: const Icon(Icons.arrow_drop_down, size: 16),
+            isExpanded: true, isDense: true, menuMaxHeight: 300,
+            items: products.where((p) => p.id != null).map((p) =>
+              DropdownMenuItem(value: p,
+                child: Text(p.product,
+                    style: AppTheme.bodySmall.copyWith(fontSize: 10),
+                    overflow: TextOverflow.ellipsis))).toList(),
+            onChanged: dashboardController.isLocked.value
+                ? null : (v) => selectedTopProduct.value = v,
           ),
-        ],
-      ),
+        ))),
+      ]),
     );
   }
 
@@ -523,112 +428,71 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       height: 32,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(3),
+        color: Colors.white, borderRadius: BorderRadius.circular(3),
         border: Border.all(color: Colors.grey.shade300),
       ),
-      child: Row(
-        children: [
-          Icon(icon, size: 14, color: AppTheme.textSecondary),
-          const SizedBox(width: 6),
-          Expanded(
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                hint: Text(
-                  hint,
-                  style: AppTheme.bodySmall.copyWith(
-                    fontSize: 10,
-                    color: AppTheme.textSecondary,
-                  ),
-                ),
-                icon: const Icon(Icons.arrow_drop_down, size: 16),
-                items: const [],
-                onChanged: dashboardController.isLocked.value ? null : (_) {},
-              ),
-            ),
+      child: Row(children: [
+        Icon(icon, size: 14, color: AppTheme.textSecondary),
+        const SizedBox(width: 6),
+        Expanded(child: DropdownButtonHideUnderline(
+          child: DropdownButton<String>(
+            hint: Text(hint,
+                style: AppTheme.bodySmall.copyWith(fontSize: 10, color: AppTheme.textSecondary)),
+            icon: const Icon(Icons.arrow_drop_down, size: 16),
+            items: const [], onChanged: (_) {},
           ),
-        ],
-      ),
+        )),
+      ]),
     );
   }
 
-  Widget _buildCompactRadio(String label, String value) {
+  Widget _buildRadioBtn(String value) {
     return Obx(() => InkWell(
-      onTap: dashboardController.isLocked.value 
-          ? null 
-          : () => selectedMethod.value = value,
+      onTap: dashboardController.isLocked.value
+          ? null : () => selectedMethod.value = value,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         decoration: BoxDecoration(
           color: selectedMethod.value == value
-              ? AppTheme.primaryColor.withOpacity(0.1)
-              : Colors.transparent,
+              ? AppTheme.primaryColor.withOpacity(0.1) : Colors.transparent,
           borderRadius: BorderRadius.circular(3),
           border: Border.all(
-            color: selectedMethod.value == value
-                ? AppTheme.primaryColor
-                : Colors.grey.shade300,
-          ),
+              color: selectedMethod.value == value
+                  ? AppTheme.primaryColor : Colors.grey.shade300),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 11,
-              height: 11,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Container(
+            width: 11, height: 11,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
                   color: selectedMethod.value == value
-                      ? AppTheme.primaryColor
-                      : Colors.grey.shade400,
-                  width: 1.5,
-                ),
-              ),
-              child: selectedMethod.value == value
-                  ? Center(
-                      child: Container(
-                        width: 5,
-                        height: 5,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: AppTheme.primaryColor,
-                        ),
-                      ),
-                    )
-                  : null,
+                      ? AppTheme.primaryColor : Colors.grey.shade400,
+                  width: 1.5),
             ),
-            const SizedBox(width: 5),
-            Text(
-              label,
-              style: AppTheme.bodySmall.copyWith(
-                fontSize: 10,
-                color: selectedMethod.value == value
-                    ? AppTheme.primaryColor
-                    : AppTheme.textSecondary,
-              ),
-            ),
-          ],
-        ),
+            child: selectedMethod.value == value
+                ? Center(child: Container(
+                    width: 5, height: 5,
+                    decoration: BoxDecoration(
+                        shape: BoxShape.circle, color: AppTheme.primaryColor)))
+                : null,
+          ),
+          const SizedBox(width: 5),
+          Text(value, style: AppTheme.bodySmall.copyWith(
+            fontSize: 10,
+            color: selectedMethod.value == value
+                ? AppTheme.primaryColor : AppTheme.textSecondary,
+          )),
+        ]),
       ),
     ));
   }
 
+  // ── Product Table ─────────────────────────────────────────────────────────
   Widget _buildProductTable() {
-    final headers = [
-      "Product",
-      "Code",
-      "SG",
-      "Unit",
-      "Price (\$)",
-      "Initial",
-      "Adjust",
-      "Used",
-      "Final",
-      "Cost (\$)",
-      "Vol (bbl)",
-      "",  // Action buttons column
-      "",  // Delete column
+    const headers = [
+      "Product", "Code", "SG", "Unit", "Price (\$)",
+      "Initial", "Adjust", "Used", "Final", "Cost (\$)", "Vol (bbl)", "",
     ];
 
     return Container(
@@ -636,450 +500,253 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
         border: Border.all(color: Colors.grey.shade300),
         borderRadius: BorderRadius.circular(4),
       ),
-      child: Column(
-        children: [
-          // Header
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: AppTheme.primaryColor,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(4),
-                topRight: Radius.circular(4),
-              ),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.inventory_2, color: Colors.white, size: 16),
-                const SizedBox(width: 8),
-                Text(
-                  "Consume Product",
-                  style: AppTheme.bodySmall.copyWith(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 11,
-                    color: Colors.white,
-                  ),
-                ),
-              ],
-            ),
+      child: Column(children: [
+        // Title band
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: AppTheme.primaryColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
           ),
-
-          // Table with fixed height and scrollable content
-          SizedBox(
-            height: 220,
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: SingleChildScrollView(
-                scrollDirection: Axis.vertical,
-                child: Obx(() => Container(
-                  decoration: BoxDecoration(
-                    border: Border(
-                      top: BorderSide(color: Colors.grey.shade300),
-                    ),
-                  ),
-                  child: DataTable(
-                    headingRowHeight: 32,
-                    dataRowHeight: 32,
-                    columnSpacing: 0,
-                    horizontalMargin: 0,
-                    dividerThickness: 0,
-                    headingRowColor: MaterialStateProperty.all(Colors.grey.shade50),
-                    border: TableBorder(
-                      verticalInside: BorderSide(color: Colors.grey.shade300, width: 1),
-                      horizontalInside: BorderSide(color: Colors.grey.shade200, width: 1),
-                    ),
-                    headingTextStyle: AppTheme.bodySmall.copyWith(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.primaryColor,
-                    ),
-                    dataTextStyle: AppTheme.bodySmall.copyWith(fontSize: 10),
-                    columns: headers.map((h) => DataColumn(
-                      label: Container(
-                        width: _getProductColumnWidth(h),
-                        alignment: h.contains('Price') || h.contains('Cost') || h.contains('Initial') || 
-                                   h.contains('Adjust') || h.contains('Used') || h.contains('Final') || h.contains('Vol')
-                            ? Alignment.centerRight
-                            : Alignment.centerLeft,
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        child: Text(h),
-                      ),
-                    )).toList(),
-                    rows: List.generate(productRows.length, (index) {
-                      final row = productRows[index];
-                      final isSelected = selectedProductRow.value == index;
-                      
-                      return DataRow(
-                        color: MaterialStateProperty.all(
-                          index % 2 == 0 ? Colors.white : Colors.grey.shade50,
-                        ),
-                        cells: _buildProductCells(row, index, isSelected),
-                      );
-                    }),
-                  ),
-                )),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  double _getProductColumnWidth(String header) {
-    if (header == 'Product') return 150;
-    if (header == 'Code') return 80;
-    if (header == 'SG' || header == 'Unit') return 70;
-    if (header.contains('Price') || header.contains('Cost')) return 85;
-    if (header == '') return 32;  // Action/Delete column
-    return 75;
-  }
-
-  List<DataCell> _buildProductCells(ProductRowData row, int index, bool isSelected) {
-    List<DataCell> cells = [];
-
-    // Product Dropdown with icon
-    cells.add(DataCell(
-      GestureDetector(
-        onTap: () => selectedProductRow.value = index,
-        child: Container(
-          width: 150,
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          child: Row(
-            children: [
-              if (isSelected)
-                Icon(Icons.arrow_drop_down, size: 16, color: AppTheme.primaryColor),
-              if (isSelected)
-                const SizedBox(width: 4),
-              
-              Expanded(
-                child: Obx(() => DropdownButtonHideUnderline(
-                  child: DropdownButton<ProductModel>(
-                    value: row.selectedProduct.value != null &&
-                           products.any((p) => p.id == row.selectedProduct.value?.id)
-                        ? row.selectedProduct.value
-                        : null,
-                    hint: Text(
-                      "Select",
-                      style: AppTheme.bodySmall.copyWith(fontSize: 10, color: Colors.grey),
-                    ),
-                    isExpanded: true,
-                    isDense: true,
-                    icon: const SizedBox.shrink(),
-                    menuMaxHeight: 300,
-                    items: products.where((p) => p.id != null).map((product) {
-                      return DropdownMenuItem<ProductModel>(
-                        value: product,
-                        child: Text(
-                          product.product,
-                          style: AppTheme.bodySmall.copyWith(fontSize: 10),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      );
-                    }).toList(),
-                    onChanged: dashboardController.isLocked.value 
-                        ? null 
-                          : (ProductModel? value) {
-                            if (value != null) {
-                              selectedProductRow.value = index;
-                              row.selectedProduct.value = value;
-                              row.code = value.code;
-                              row.sg = value.sg;
-                              row.unit = value.formattedUnit;
-                              // Use value.price if available, fallback to value.a
-                              String priceStr = value.price.isNotEmpty ? value.price : value.a;
-                              row.price = double.tryParse(priceStr) ?? 0.0;
-                              row.initial = value.initial;
-                              productRows.refresh();
-                              _checkAndAddProductRow();
-                              row.recalculate();
-                            }
-                          },
-                  ),
-                )),
-              ),
-            ],
-          ),
+          child: Row(children: [
+            const Icon(Icons.inventory_2, color: Colors.white, size: 16),
+            const SizedBox(width: 8),
+            Text("Consume Product", style: AppTheme.bodySmall.copyWith(
+                fontWeight: FontWeight.w600, fontSize: 11, color: Colors.white)),
+          ]),
         ),
-      ),
-    ));
 
-    // Code
-    cells.add(_buildTableCell(row.code, 80, isEditable: false));
-
-    // SG
-    cells.add(_buildTableCell(row.sg, 70, isEditable: false));
-
-    // Unit
-    cells.add(_buildTableCell(row.unit, 70, isEditable: false));
-
-    // Price
-    cells.add(_buildTableCell(
-      row.price > 0 ? row.price.toStringAsFixed(2) : '',
-      85,
-      isEditable: false,
-      isRightAligned: true,
-    ));
-
-    // Initial
-    cells.add(_buildEditableTableCell(row.initial, (val) {
-      row.initial = val;
-      row.recalculate();
-      _checkAndAddProductRow();
-    }, 75));
-
-    // Adjust
-    cells.add(_buildEditableTableCell(row.adjust, (val) {
-      row.adjust = val;
-      row.recalculate();
-      _checkAndAddProductRow();
-    }, 75));
-
-    // Used
-    cells.add(_buildEditableTableCell(row.used, (val) {
-      row.used = val;
-      row.recalculate();
-      _checkAndAddProductRow();
-    }, 75));
-
-    // Final (calculated, can be negative, shown in red if negative)
-    cells.add(DataCell(
-      Container(
-        width: 75,
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        child: Obx(() => Text(
-          row.calculatedFinal.value.toStringAsFixed(2),
-          style: AppTheme.bodySmall.copyWith(
-            fontSize: 10,
-            fontWeight: FontWeight.w600,
-            color: row.calculatedFinal.value < 0 
-                ? Colors.red 
-                : Colors.grey.shade700,
-          ),
-          textAlign: TextAlign.right,
-        )),
-      ),
-    ));
-
-    // Cost (calculated, highlighted)
-    cells.add(_buildTableCell(
-      row.calculatedCost.value > 0 ? row.calculatedCost.value.toStringAsFixed(2) : '',
-      85,
-      isEditable: false,
-      isRightAligned: true,
-      isBold: true,
-      isHighlighted: true,
-    ));
-
-    // Vol (calculated, highlighted)
-    cells.add(_buildTableCell(
-      row.calculatedVolume.value > 0 ? row.calculatedVolume.value.toStringAsFixed(3) : '',
-      80,
-      isEditable: false,
-      isRightAligned: true,
-      isHighlighted: true,
-    ));
-
-    // Action buttons (calculate + save)
-    cells.add(DataCell(
-      _buildActionButtons(
-        index: index,
-        isSaving: productRowSaving[index],
-        hasProduct: row.selectedProduct.value != null,
-        onCalculate: () => _calculateRow(index),
-        onSave: () => _saveRow(index),
-      ),
-    ));
-
-    // Delete button
-    cells.add(DataCell(
-      _buildDeleteButton(
-        index: index,
-        isDeleting: productRowDeleting[index],
-        onDelete: () => _deleteRow(index),
-      ),
-    ));
-
-    return cells;
-  }
-
-  DataCell _buildTableCell(
-    String text,
-    double width, {
-    bool isEditable = false,
-    bool isRightAligned = false,
-    bool isBold = false,
-    bool isHighlighted = false,
-  }) {
-    return DataCell(
-      Container(
-        width: width,
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        decoration: isHighlighted
-            ? BoxDecoration(
-                color: AppTheme.primaryColor.withOpacity(0.05),
-                borderRadius: BorderRadius.circular(2),
-              )
-            : null,
-        child: Text(
-          text,
-          style: AppTheme.bodySmall.copyWith(
-            fontSize: 10,
-            fontWeight: isBold ? FontWeight.w600 : FontWeight.w400,
-            color: isHighlighted ? AppTheme.primaryColor : null,
-          ),
-          textAlign: isRightAligned ? TextAlign.right : TextAlign.left,
-        ),
-      ),
-    );
-  }
-
-  DataCell _buildEditableTableCell(
-    String value,
-    Function(String) onChanged,
-    double width, {
-    bool isRightAligned = false,
-  }) {
-    return DataCell(
-      Container(
-        width: width,
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        child: TextField(
-          controller: TextEditingController(text: value),
-          enabled: !dashboardController.isLocked.value,
-          style: AppTheme.bodySmall.copyWith(fontSize: 10),
-          decoration: const InputDecoration(
-            isDense: true,
-            contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-            border: InputBorder.none,
-          ),
-          keyboardType: const TextInputType.numberWithOptions(signed: true, decimal: true),
-          textAlign: isRightAligned ? TextAlign.right : TextAlign.left,
-          onChanged: onChanged,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildActionButtons({
-    required int index,
-    required bool isSaving,
-    required bool hasProduct,
-    required VoidCallback onCalculate,
-    required VoidCallback onSave,
-  }) {
-    if (isSaving) {
-      return const SizedBox(
-        width: 60,
-        child: Center(
-          child: SizedBox(
-            width: 14,
-            height: 14,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-        ),
-      );
-    }
-    return SizedBox(
-      width: 60,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // Calculate
-          IconButton(
-            icon: Icon(Icons.play_circle_outline,
-                size: 16,
-                color: hasProduct && !dashboardController.isLocked.value
-                    ? AppTheme.primaryColor
-                    : Colors.grey.shade400),
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
-            onPressed: hasProduct && !dashboardController.isLocked.value
-                ? onCalculate
-                : null,
-            tooltip: 'Calculate',
-          ),
-          const SizedBox(width: 4),
-          // Save
-          IconButton(
-            icon: Icon(Icons.save_outlined,
-                size: 16,
-                color: hasProduct && !dashboardController.isLocked.value
-                    ? const Color(0xff10B981)
-                    : Colors.grey.shade400),
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
-            onPressed: hasProduct && !dashboardController.isLocked.value
-                ? onSave
-                : null,
-            tooltip: 'Save row',
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDeleteButton({
-    required int index,
-    required bool isDeleting,
-    required VoidCallback onDelete,
-  }) {
-    if (isDeleting) {
-      return const SizedBox(
-        width: 32,
-        child: Center(
-          child: SizedBox(
-            width: 12,
-            height: 12,
-            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.red),
-          ),
-        ),
-      );
-    }
-    return SizedBox(
-      width: 32,
-      child: IconButton(
-        icon: Icon(Icons.delete_outline,
-            size: 15,
-            color: dashboardController.isLocked.value
-                ? Colors.grey.shade300
-                : Colors.red.shade300),
-        padding: EdgeInsets.zero,
-        constraints: const BoxConstraints(),
-        onPressed: dashboardController.isLocked.value ? null : onDelete,
-        tooltip: 'Delete row',
-      ),
-    );
-  }
-
-  void _checkAndAddProductRow() {
-    if (productRows.length >= 5) {
-      final lastRow = productRows.last;
-      if (lastRow.selectedProduct.value != null) {
-        productRows.add(ProductRowData());
-        productRowSaving.add(false);
-        productRowDeleting.add(false);
-      }
-    }
-  }
-
-  Widget _buildBottomSection() {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Distribute Table
         SizedBox(
-          width: 280,
-          child: _buildDistributeTable(),
+          height: 220,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.vertical,
+              // ✅ Single Obx wraps entire DataTable — no nested Obx in DataCells
+              //    except for per-row reactive calculated values
+              child: Obx(() => DataTable(
+                headingRowHeight: 32, dataRowHeight: 38,
+                columnSpacing: 0, horizontalMargin: 0, dividerThickness: 0,
+                headingRowColor: MaterialStateProperty.all(Colors.grey.shade50),
+                border: TableBorder(
+                  verticalInside: BorderSide(color: Colors.grey.shade300),
+                  horizontalInside: BorderSide(color: Colors.grey.shade200),
+                ),
+                headingTextStyle: AppTheme.bodySmall.copyWith(
+                    fontSize: 10, fontWeight: FontWeight.w600,
+                    color: AppTheme.primaryColor),
+                dataTextStyle: AppTheme.bodySmall.copyWith(fontSize: 10),
+                columns: headers.map((h) => DataColumn(label: Container(
+                  width: _colWidth(h),
+                  alignment: _isRightCol(h) ? Alignment.centerRight : Alignment.centerLeft,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Text(h),
+                ))).toList(),
+                rows: List.generate(productRows.length, (i) => DataRow(
+                  color: MaterialStateProperty.all(
+                      i % 2 == 0 ? Colors.white : Colors.grey.shade50),
+                  cells: _buildRowCells(productRows[i], i),
+                )),
+              )),
+            ),
+          ),
         ),
-        const SizedBox(width: 12),
-
-        // Right Controls
-        Expanded(
-          child: _buildRightControls(),
-        ),
-      ],
+      ]),
     );
+  }
+
+  bool _isRightCol(String h) => const {
+    'Price (\$)', 'Cost (\$)', 'Initial', 'Adjust', 'Used', 'Final', 'Vol (bbl)'
+  }.contains(h);
+
+  double _colWidth(String h) {
+    switch (h) {
+      case 'Product':    return 160;
+      case 'Code':       return 80;
+      case 'SG':
+      case 'Unit':       return 70;
+      case 'Price (\$)':
+      case 'Cost (\$)':  return 90;
+      case '':           return 36;
+      default:           return 75;
+    }
+  }
+
+  List<DataCell> _buildRowCells(ProductRowData row, int i) {
+    final locked = dashboardController.isLocked.value;
+
+    return [
+      // 1. Product dropdown — sources ONLY from InventoryProductsStore
+      DataCell(Container(
+        width: 160,
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        child: Obx(() {
+          final storeProducts = _inventoryStore.selectedProducts;
+          final currentVal = row.selectedProduct.value;
+          final validVal = currentVal != null &&
+              storeProducts.any((p) => p.id == currentVal.id)
+              ? currentVal : null;
+
+          return DropdownButtonHideUnderline(
+            child: DropdownButton<ProductModel>(
+              value: validVal,
+              hint: Text("Select",
+                  style: AppTheme.bodySmall.copyWith(fontSize: 10, color: Colors.grey)),
+              isExpanded: true, isDense: true,
+              icon: const Icon(Icons.arrow_drop_down, size: 14),
+              menuMaxHeight: 300,
+              items: storeProducts.where((p) => p.id != null).map((p) =>
+                DropdownMenuItem(value: p,
+                  child: Text(p.product,
+                      style: AppTheme.bodySmall.copyWith(fontSize: 10),
+                      overflow: TextOverflow.ellipsis))).toList(),
+              onChanged: locked ? null : (ProductModel? val) {
+                if (val == null) return;
+                selectedProductRow.value = i;
+                row.selectedProduct.value = val;
+                row.code  = val.code;
+                row.sg    = val.sg;
+                // ✅ Full unit: "25 KG", "55 GAL"
+                row.unit  = _mergeUnit(val);
+                // ✅ Price from 'a' field (company API "A" = price)
+                row.price = double.tryParse(val.a) ?? 0.0;
+                // Initial from inventory
+                final initD = double.tryParse(val.initial) ?? 0.0;
+                row.initial = initD != 0.0 ? val.initial : '';
+                row.adjust = '';
+                row.used   = '';
+                productRows.refresh();
+                _checkAndAddProductRow();
+                row.recalculate();
+                _recalculateTotalVolume();
+              },
+            ),
+          );
+        }),
+      )),
+
+      // 2–5. Static read-only cells
+      _staticCell(row.code, 80),
+      _staticCell(row.sg, 70),
+      _staticCell(row.unit, 70),
+      _staticCell(row.price > 0 ? row.price.toStringAsFixed(2) : '', 90, right: true),
+
+      // 6. Initial
+      _editCell(
+        key: ValueKey('init_${row.savedId ?? i}_${row.selectedProduct.value?.id}'),
+        value: row.initial, width: 75, locked: locked,
+        onChange: (v) { row.initial = v; _onFieldChanged(i); _checkAndAddProductRow(); },
+      ),
+      // 7. Adjust
+      _editCell(
+        key: ValueKey('adj_${row.savedId ?? i}_${row.selectedProduct.value?.id}'),
+        value: row.adjust, width: 75, locked: locked,
+        onChange: (v) { row.adjust = v; _onFieldChanged(i); _checkAndAddProductRow(); },
+      ),
+      // 8. Used
+      _editCell(
+        key: ValueKey('used_${row.savedId ?? i}_${row.selectedProduct.value?.id}'),
+        value: row.used, width: 75, locked: locked,
+        onChange: (v) { row.used = v; _onFieldChanged(i); _checkAndAddProductRow(); },
+      ),
+
+      // 9. Final — reactive
+      DataCell(Container(
+        width: 75, padding: const EdgeInsets.symmetric(horizontal: 8),
+        child: Obx(() {
+          final fv = row.calculatedFinal.value;
+          return Text(
+            row.selectedProduct.value != null ? fv.toStringAsFixed(2) : '',
+            textAlign: TextAlign.right,
+            style: AppTheme.bodySmall.copyWith(
+              fontSize: 10, fontWeight: FontWeight.w600,
+              color: fv < 0 ? Colors.red : Colors.grey.shade700,
+            ),
+          );
+        }),
+      )),
+
+      // 10. Cost — reactive
+      DataCell(Container(
+        width: 90, padding: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: BoxDecoration(color: AppTheme.primaryColor.withOpacity(0.05)),
+        child: Obx(() {
+          final cv = row.calculatedCost.value;
+          return Text(cv > 0 ? cv.toStringAsFixed(2) : '',
+            textAlign: TextAlign.right,
+            style: AppTheme.bodySmall.copyWith(
+                fontSize: 10, fontWeight: FontWeight.w600, color: AppTheme.primaryColor));
+        }),
+      )),
+
+      // 11. Vol — reactive
+      DataCell(Container(
+        width: 75, padding: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: BoxDecoration(color: AppTheme.primaryColor.withOpacity(0.03)),
+        child: Obx(() {
+          final vv = row.calculatedVolume.value;
+          return Text(vv > 0 ? vv.toStringAsFixed(3) : '',
+            textAlign: TextAlign.right,
+            style: AppTheme.bodySmall.copyWith(fontSize: 10, color: AppTheme.primaryColor));
+        }),
+      )),
+
+      // 12. Delete
+      DataCell(Obx(() {
+        final del = i < productRowDeleting.length && productRowDeleting[i];
+        if (del) {
+          return const SizedBox(width: 36, child: Center(
+              child: SizedBox(width: 12, height: 12,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.red))));
+        }
+        return SizedBox(width: 36, child: IconButton(
+          icon: Icon(Icons.delete_outline, size: 15,
+              color: locked ? Colors.grey.shade300 : Colors.red.shade300),
+          padding: EdgeInsets.zero, constraints: const BoxConstraints(),
+          onPressed: locked ? null : () => _deleteRow(i),
+        ));
+      })),
+    ];
+  }
+
+  DataCell _staticCell(String text, double width, {bool right = false}) {
+    return DataCell(Container(
+      width: width, padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Text(text,
+        textAlign: right ? TextAlign.right : TextAlign.left,
+        overflow: TextOverflow.ellipsis,
+        style: AppTheme.bodySmall.copyWith(fontSize: 10)),
+    ));
+  }
+
+  DataCell _editCell({
+    required Key key, required String value, required double width,
+    required Function(String) onChange, bool locked = false,
+  }) {
+    return DataCell(Container(
+      key: key, width: width, padding: const EdgeInsets.symmetric(horizontal: 6),
+      child: TextFormField(
+        initialValue: value, enabled: !locked,
+        style: AppTheme.bodySmall.copyWith(fontSize: 10),
+        textAlign: TextAlign.right,
+        keyboardType: const TextInputType.numberWithOptions(signed: true, decimal: true),
+        decoration: const InputDecoration(
+          isDense: true,
+          contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+          border: InputBorder.none,
+        ),
+        onChanged: onChange,
+      ),
+    ));
+  }
+
+  // ── Bottom Section ────────────────────────────────────────────────────────
+  Widget _buildBottomSection() {
+    return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      SizedBox(width: 280, child: _buildDistributeTable()),
+      const SizedBox(width: 12),
+      Expanded(child: _buildRightControls()),
+    ]);
   }
 
   Widget _buildDistributeTable() {
@@ -1089,403 +756,282 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
         border: Border.all(color: Colors.grey.shade300),
         borderRadius: BorderRadius.circular(4),
       ),
-      child: Column(
-        children: [
-          // Header
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: AppTheme.successColor,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(4),
-                topRight: Radius.circular(4),
+      child: Column(children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: AppTheme.successColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+          ),
+          child: Row(children: [
+            const Icon(Icons.share, color: Colors.white, size: 16),
+            const SizedBox(width: 8),
+            Text("Distribute to", style: AppTheme.bodySmall.copyWith(
+                fontWeight: FontWeight.w600, fontSize: 11, color: Colors.white)),
+          ]),
+        ),
+        Expanded(child: SingleChildScrollView(
+          // ✅ Obx here reads pitController.pits (reactive) to rebuild when pits load
+          child: Obx(() {
+            final pitList = pitController.pits
+                .where((p) => p.id != null && p.pitName.isNotEmpty)
+                .toList();
+
+            return DataTable(
+              headingRowHeight: 32, dataRowHeight: 32,
+              columnSpacing: 0, horizontalMargin: 0, dividerThickness: 0,
+              headingRowColor: MaterialStateProperty.all(Colors.grey.shade50),
+              border: TableBorder(
+                verticalInside: BorderSide(color: Colors.grey.shade300),
+                horizontalInside: BorderSide(color: Colors.grey.shade200),
               ),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.share, color: Colors.white, size: 16),
-                const SizedBox(width: 8),
-                Text(
-                  "Distribute to",
-                  style: AppTheme.bodySmall.copyWith(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 11,
-                    color: Colors.white,
-                  ),
-                ),
+              headingTextStyle: AppTheme.bodySmall.copyWith(
+                  fontSize: 10, fontWeight: FontWeight.w600, color: AppTheme.successColor),
+              columns: [
+                DataColumn(label: Container(width: 150,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: const Text("Pit"))),
+                DataColumn(label: Container(width: 100,
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: const Text("Vol (bbl)"))),
               ],
-            ),
-          ),
-
-          Expanded(
-            child: SingleChildScrollView(
-              child: Obx(() => DataTable(
-                headingRowHeight: 32,
-                dataRowHeight: 32,
-                columnSpacing: 0,
-                horizontalMargin: 0,
-                dividerThickness: 0,
-                headingRowColor: MaterialStateProperty.all(Colors.grey.shade50),
-                border: TableBorder(
-                  verticalInside: BorderSide(color: Colors.grey.shade300, width: 1),
-                  horizontalInside: BorderSide(color: Colors.grey.shade200, width: 1),
-                ),
-                headingTextStyle: AppTheme.bodySmall.copyWith(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.successColor,
-                ),
-                dataTextStyle: AppTheme.bodySmall.copyWith(fontSize: 10),
-                columns: [
-                  DataColumn(
-                    label: Container(
-                      width: 150,
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: const Text("Pit"),
-                    ),
-                  ),
-                  DataColumn(
-                    label: Container(
-                      width: 100,
-                      alignment: Alignment.centerRight,
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: const Text("Vol (bbl)"),
-                    ),
-                  ),
-                ],
-                rows: List.generate(distributeRows.length, (index) {
-                  final row = distributeRows[index];
-                  final isSelected = selectedDistributeRow.value == index;
-                  
-                  return DataRow(
-                    color: MaterialStateProperty.all(
-                      index % 2 == 0 ? Colors.white : Colors.grey.shade50,
-                    ),
-                    cells: [
-                      DataCell(
-                        GestureDetector(
-                          onTap: () => selectedDistributeRow.value = index,
-                          child: Container(
-                            width: 150,
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
-                            child: Row(
-                              children: [
-                                if (isSelected)
-                                  Icon(Icons.arrow_drop_down, size: 16, color: AppTheme.successColor),
-                                if (isSelected)
-                                  const SizedBox(width: 4),
-                                
-                                Expanded(
-                                  child: Obx(() => DropdownButtonHideUnderline(
-                                    child: DropdownButton<String>(
-                                      value: row.pit.isNotEmpty ? row.pit : null,
-                                      hint: Text(
-                                        "Select Pit",
-                                        style: AppTheme.bodySmall.copyWith(fontSize: 10, color: Colors.grey),
-                                      ),
-                                      isExpanded: true,
-                                      isDense: true,
-                                      icon: const SizedBox.shrink(),
-                                      menuMaxHeight: 250,
-                                      items: pitController.pits
-                                          .where((pit) => pit.id != null && pit.pitName.isNotEmpty)
-                                          .map((pit) {
-                                        return DropdownMenuItem<String>(
-                                          value: pit.pitName,
-                                          child: Text(
-                                            pit.pitName,
-                                            style: AppTheme.bodySmall.copyWith(fontSize: 10),
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        );
-                                      }).toList(),
-                                      onChanged: dashboardController.isLocked.value
-                                          ? null
-                                          : (String? newValue) {
-                                              if (newValue != null) {
-                                                selectedDistributeRow.value = index;
-                                                row.pit = newValue;
-                                                distributeRows.refresh();
-                                                _checkAndAddDistributeRow();
-                                              }
-                                            },
-                                    ),
-                                  )),
-                                ),
-                              ],
-                            ),
-                          ),
+              rows: List.generate(distributeRows.length, (i) {
+                final dr = distributeRows[i];
+                return DataRow(
+                  color: MaterialStateProperty.all(
+                      i % 2 == 0 ? Colors.white : Colors.grey.shade50),
+                  cells: [
+                    DataCell(Container(
+                      width: 150, padding: const EdgeInsets.symmetric(horizontal: 8),
+                      // ✅ No nested Obx — pitList already read from parent Obx
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: dr.pit.isNotEmpty &&
+                              pitList.any((p) => p.pitName == dr.pit)
+                              ? dr.pit : null,
+                          hint: Text("Select Pit",
+                              style: AppTheme.bodySmall.copyWith(fontSize: 10, color: Colors.grey)),
+                          isExpanded: true, isDense: true,
+                          icon: const SizedBox.shrink(), menuMaxHeight: 250,
+                          items: pitList.map((p) => DropdownMenuItem(value: p.pitName,
+                            child: Text(p.pitName,
+                                style: AppTheme.bodySmall.copyWith(fontSize: 10),
+                                overflow: TextOverflow.ellipsis))).toList(),
+                          onChanged: dashboardController.isLocked.value
+                              ? null : (v) {
+                            if (v == null) return;
+                            dr.pit = v;
+                            distributeRows.refresh();
+                            _checkAndAddDistributeRow();
+                          },
                         ),
                       ),
-
-                      DataCell(
-                        Container(
-                          width: 100,
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                          child: TextField(
-                            controller: TextEditingController(text: row.volume),
-                            enabled: !dashboardController.isLocked.value,
-                            style: AppTheme.bodySmall.copyWith(fontSize: 10),
-                            decoration: const InputDecoration(
-                              isDense: true,
-                              contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-                              border: InputBorder.none,
-                            ),
-                            keyboardType: TextInputType.number,
-                            textAlign: TextAlign.right,
-                            onChanged: (val) {
-                              row.volume = val;
-                              _checkAndAddDistributeRow();
-                            },
-                          ),
-                        ),
+                    )),
+                    DataCell(Container(
+                      width: 100, padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: TextFormField(
+                        initialValue: dr.volume,
+                        enabled: !dashboardController.isLocked.value,
+                        style: AppTheme.bodySmall.copyWith(fontSize: 10),
+                        textAlign: TextAlign.right,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                            isDense: true,
+                            contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                            border: InputBorder.none),
+                        onChanged: (v) { dr.volume = v; _checkAndAddDistributeRow(); },
                       ),
-                    ],
-                  );
-                }),
-              )),
-            ),
-          ),
-        ],
-      ),
+                    )),
+                  ],
+                );
+              }),
+            );
+          }),
+        )),
+      ]),
     );
   }
 
-  void _checkAndAddDistributeRow() {
-    if (distributeRows.length >= 5) {
-      final lastRow = distributeRows.last;
-      if (lastRow.volume.isNotEmpty) {
-        distributeRows.add(DistributeRowData());
-      }
-    }
-  }
-
+  // ✅ FIX: No Spacer() — uses SizedBox gaps; total vol uses RxString not TextEditingController
   Widget _buildRightControls() {
     return Container(
       height: 240,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(4),
+        color: Colors.white, borderRadius: BorderRadius.circular(4),
         border: Border.all(color: Colors.grey.shade300),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Obx(() => Row(
-            children: [
-              InkWell(
-                onTap: dashboardController.isLocked.value 
-                    ? null 
-                    : () => addWater.value = !addWater.value,
-                child: Container(
-                  padding: const EdgeInsets.all(8),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+
+        // Add Water row
+        Obx(() => Row(children: [
+          InkWell(
+            onTap: dashboardController.isLocked.value ? null : () {
+              addWater.value = !addWater.value;
+              _recalculateTotalVolume();
+            },
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: addWater.value
+                    ? AppTheme.primaryColor.withOpacity(0.1) : Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(3),
+                border: Border.all(
+                    color: addWater.value ? AppTheme.primaryColor : Colors.grey.shade300),
+              ),
+              child: Row(children: [
+                Container(
+                  width: 16, height: 16,
                   decoration: BoxDecoration(
-                    color: addWater.value 
-                        ? AppTheme.primaryColor.withOpacity(0.1) 
-                        : Colors.grey.shade50,
-                    borderRadius: BorderRadius.circular(3),
+                    borderRadius: BorderRadius.circular(2),
                     border: Border.all(
-                      color: addWater.value 
-                          ? AppTheme.primaryColor 
-                          : Colors.grey.shade300,
-                    ),
+                        color: addWater.value ? AppTheme.primaryColor : Colors.grey.shade400),
+                    color: addWater.value ? AppTheme.primaryColor : Colors.transparent,
                   ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 16,
-                        height: 16,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(2),
-                          border: Border.all(
-                            color: addWater.value 
-                                ? AppTheme.primaryColor 
-                                : Colors.grey.shade400,
-                          ),
-                          color: addWater.value 
-                              ? AppTheme.primaryColor 
-                              : Colors.transparent,
-                        ),
-                        child: addWater.value
-                            ? const Icon(Icons.check, size: 11, color: Colors.white)
-                            : null,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        "Add Water",
-                        style: AppTheme.bodySmall.copyWith(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
+                  child: addWater.value
+                      ? const Icon(Icons.check, size: 11, color: Colors.white) : null,
                 ),
-              ),
-              
-              const SizedBox(width: 10),
-              
-              if (addWater.value)
-                Expanded(
-                  child: _buildCompactInputField(
-                    controller: waterVolumeController,
-                    suffix: "bbl",
-                  ),
-                ),
-            ],
-          )),
-
-          const SizedBox(height: 10),
-
-          Row(
-            children: [
-              Text(
-                "Total Vol.",
-                style: AppTheme.bodySmall.copyWith(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _buildCompactInputField(
-                  controller: totalVolumeController,
-                  suffix: "bbl",
-                ),
-              ),
-            ],
+                const SizedBox(width: 8),
+                Text("Add Water", style: AppTheme.bodySmall.copyWith(
+                    fontSize: 10, fontWeight: FontWeight.w500)),
+              ]),
+            ),
           ),
+          if (addWater.value) ...[
+            const SizedBox(width: 10),
+            Expanded(child: _waterField()),
+          ],
+        ])),
 
-          const Spacer(),
+        const SizedBox(height: 10),
 
-          Container(
-            padding: const EdgeInsets.all(8),
+        // Total Volume — pure display from RxString
+        Row(children: [
+          Text("Total Vol.",
+              style: AppTheme.bodySmall.copyWith(fontSize: 10, fontWeight: FontWeight.w600)),
+          const SizedBox(width: 10),
+          Expanded(child: Obx(() => Container(
+            height: 32,
             decoration: BoxDecoration(
-              color: Colors.amber.shade50,
+              color: AppTheme.primaryColor.withOpacity(0.04),
               borderRadius: BorderRadius.circular(3),
-              border: Border.all(color: Colors.amber.shade200),
+              border: Border.all(color: AppTheme.primaryColor.withOpacity(0.3)),
             ),
-            child: Row(
-              children: [
-                Icon(Icons.info_outline, size: 13, color: Colors.amber.shade700),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    "Products distributed evenly if multiple pits selected",
-                    style: AppTheme.bodySmall.copyWith(
-                      fontSize: 9,
-                      color: Colors.amber.shade900,
-                    ),
-                  ),
+            child: Row(children: [
+              Expanded(child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Text(totalVolumeDisplay.value,
+                  textAlign: TextAlign.right,
+                  style: AppTheme.bodySmall.copyWith(
+                      fontSize: 11, fontWeight: FontWeight.w700,
+                      color: AppTheme.primaryColor)),
+              )),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor.withOpacity(0.1),
+                  borderRadius: const BorderRadius.only(
+                      topRight: Radius.circular(3), bottomRight: Radius.circular(3)),
                 ),
-              ],
-            ),
+                child: Center(child: Text("bbl", style: AppTheme.bodySmall.copyWith(
+                    fontSize: 10, color: AppTheme.primaryColor,
+                    fontWeight: FontWeight.w600))),
+              ),
+            ]),
+          ))),
+        ]),
+
+        const SizedBox(height: 10),
+
+        // Info note
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.amber.shade50, borderRadius: BorderRadius.circular(3),
+            border: Border.all(color: Colors.amber.shade200),
           ),
-        ],
-      ),
+          child: Row(children: [
+            Icon(Icons.info_outline, size: 13, color: Colors.amber.shade700),
+            const SizedBox(width: 6),
+            Expanded(child: Text(
+              "Products distributed evenly if multiple pits selected",
+              style: AppTheme.bodySmall.copyWith(fontSize: 9, color: Colors.amber.shade900),
+            )),
+          ]),
+        ),
+      ]),
     );
   }
 
-  Widget _buildCompactInputField({
-    required TextEditingController controller,
-    required String suffix,
-  }) {
-    return Obx(() => Container(
+  Widget _waterField() {
+    return Container(
       height: 32,
       decoration: BoxDecoration(
-        color: dashboardController.isLocked.value 
-            ? Colors.grey.shade50 
-            : Colors.white,
-        borderRadius: BorderRadius.circular(3),
+        color: Colors.white, borderRadius: BorderRadius.circular(3),
         border: Border.all(color: Colors.grey.shade300),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: controller,
-              enabled: !dashboardController.isLocked.value,
-              style: AppTheme.bodySmall.copyWith(fontSize: 10),
-              decoration: const InputDecoration(
-                isDense: true,
-                contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                border: InputBorder.none,
-              ),
-              keyboardType: TextInputType.number,
-            ),
+      child: Row(children: [
+        Expanded(child: TextField(
+          controller: waterVolumeController,
+          enabled: !dashboardController.isLocked.value,
+          style: AppTheme.bodySmall.copyWith(fontSize: 10),
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            isDense: true,
+            contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            border: InputBorder.none,
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            decoration: BoxDecoration(
-              color: AppTheme.primaryColor.withOpacity(0.1),
-              borderRadius: const BorderRadius.only(
-                topRight: Radius.circular(3),
-                bottomRight: Radius.circular(3),
-              ),
-            ),
-            child: Center(
-              child: Text(
-                suffix,
-                style: AppTheme.bodySmall.copyWith(
-                  fontSize: 10,
-                  color: AppTheme.primaryColor,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
+        )),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          decoration: BoxDecoration(
+            color: AppTheme.primaryColor.withOpacity(0.1),
+            borderRadius: const BorderRadius.only(
+                topRight: Radius.circular(3), bottomRight: Radius.circular(3)),
           ),
-        ],
-      ),
-    ));
+          child: Center(child: Text("bbl", style: AppTheme.bodySmall.copyWith(
+              fontSize: 10, color: AppTheme.primaryColor, fontWeight: FontWeight.w600))),
+        ),
+      ]),
+    );
   }
 }
 
-// Product Row Data Model with Calculation Logic
+// ══════════════════════════════════════════════════════════════════════════════
+//  DATA MODELS
+// ══════════════════════════════════════════════════════════════════════════════
+
 class ProductRowData {
   final Rx<ProductModel?> selectedProduct = Rx<ProductModel?>(null);
-  String code = '';
-  String sg = '';
-  String unit = '';
-  double price = 0.0;
+  String code    = '';
+  String sg      = '';
+  String unit    = '';
+  double price   = 0.0;
   String initial = '';
-  String adjust = '';
-  String used = '';
-  String final_ = '';
-  String? savedId;  // MongoDB _id after save
-  
-  // Reactive calculated values
-  final RxDouble calculatedCost = 0.0.obs;
+  String adjust  = '';
+  String used    = '';
+  String? savedId;
+
+  final RxDouble calculatedCost   = 0.0.obs;
   final RxDouble calculatedVolume = 0.0.obs;
-  final RxDouble calculatedFinal = 0.0.obs;
+  final RxDouble calculatedFinal  = 0.0.obs;
 
-  // Recalculate cost, final, and volume whenever inputs change
   void recalculate() {
-    final initialVal = double.tryParse(initial) ?? 0.0;
-    final adjustVal  = double.tryParse(adjust) ?? 0.0;
-    final usedVal    = double.tryParse(used) ?? 0.0;
-    final sgVal      = double.tryParse(sg) ?? 0.0;
+    final iVal = double.tryParse(initial) ?? 0.0;
+    final aVal = double.tryParse(adjust)  ?? 0.0;
+    final uVal = double.tryParse(used)    ?? 0.0;
+    final sVal = double.tryParse(sg)      ?? 0.0;
 
-    // Final = initial + adjust - used (CAN BE NEGATIVE)
-    calculatedFinal.value = initialVal + adjustVal - usedVal;
-
-    // Cost = used * price
-    calculatedCost.value = usedVal * price;
-
-    // Volume in BBL (simplified formula)
-    if (sgVal > 0 && usedVal > 0) {
-      final totalWeight = usedVal;  // Assuming used is in kg
-      calculatedVolume.value = double.parse(
-        (totalWeight / (sgVal * 158.987)).toStringAsFixed(3)
-      );
-    } else {
-      calculatedVolume.value = 0.0;
-    }
+    calculatedFinal.value  = iVal + aVal - uVal;
+    calculatedCost.value   = uVal * price;
+    calculatedVolume.value = (sVal > 0 && uVal > 0)
+        ? double.parse((uVal / (sVal * 158.987)).toStringAsFixed(3))
+        : 0.0;
   }
 }
 
-// Distribute Row Data Model
 class DistributeRowData {
-  String pit = '';
+  String pit    = '';
   String volume = '';
 }

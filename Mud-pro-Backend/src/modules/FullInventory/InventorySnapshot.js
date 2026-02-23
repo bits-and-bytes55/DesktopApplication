@@ -12,6 +12,16 @@ const inventorySnapshotSchema = new mongoose.Schema(
       default: "",
     },
 
+     code: {                     // ✅ ADD THIS
+      type: String,
+      default: "",
+    },
+
+    unit: {                     // ✅ ADD THIS
+      type: String,
+      default: "",
+    },
+
     price: {
       type: Number,
       default: 0,

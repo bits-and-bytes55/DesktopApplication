@@ -1,9 +1,5 @@
-import ConsumeProduct from "../../modules/ConsumeProduct/ConsumeProduct.js"
+import ConsumeProduct from "../../modules/Consumeproduct/ConsumeProduct.js";
 
-/**
- * @desc    Create Consume Product
- */
-/**
 /**
  * @desc    Create Consume Product (With Auto Calculation)
  */

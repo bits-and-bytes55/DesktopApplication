@@ -1,5 +1,5 @@
 import InventorySnapshot from "../../modules/FullInventory/InventorySnapshot.js";
-import ConsumeProduct from "../../modules/ConsumeProduct/ConsumeProduct.js";
+import ConsumeProduct from "../../modules/Consumeproduct/ConsumeProduct.js";
 import ReceiveProduct from "../../modules/ReceiveProduct/Product/ReceiveProduct.js";
 import ReturnProduct from "../../modules/ReturnProduct/Product/ReturnProduct.js";
 import Service from "../../modules/ConsumeServices/Services/Service.js";
@@ -17,8 +17,6 @@ export const generateInventorySnapshot = async (req, res) => {
     const packages = await Package.find();
 
     let snapshotData = [];
-
-    console.log(consumes)
 
     // =========================
     // PRODUCTS
@@ -43,7 +41,6 @@ export const generateInventorySnapshot = async (req, res) => {
       const cumulativeRet = productReturns.reduce((s, r) => s + (r.amount || 0), 0);
 
       const price = productConsumes.length > 0 ? productConsumes[0].price : 0;
-      console.log(price);
 
       const final = cumulativeRec - cumulativeRet - cumulativeUsed;
       const subtotal = cumulativeUsed * price;
@@ -51,6 +48,8 @@ export const generateInventorySnapshot = async (req, res) => {
       snapshotData.push({
         category: "Product",
         itemName: productReceives[0]?.productName || "",
+        code: code || "", 
+       unit: productReceives[0]?.unit || "",
         price,
         cumulativeRec,
         cumulativeRet,
@@ -77,6 +76,8 @@ export const generateInventorySnapshot = async (req, res) => {
       snapshotData.push({
         category: "Service",
         itemName: srv.serviceName,
+        code: srv.code || "",
+        unit: srv.unit || "",
         price: srv.price,
         cumulativeUsed: srv.usage,
         used: srv.usage,
@@ -97,6 +98,8 @@ export const generateInventorySnapshot = async (req, res) => {
       snapshotData.push({
         category: "Engineering",
         itemName: eng.engineeringName,
+        code: eng.code || "",
+        unit: eng.unit || "",
         price: eng.price,
         cumulativeUsed: eng.usage,
         used: eng.usage,
@@ -117,6 +120,8 @@ export const generateInventorySnapshot = async (req, res) => {
       snapshotData.push({
         category: "Package",
         itemName: pkg.packageName,
+        code: pkg.code || "",
+        unit: pkg.unit || "",
         price: pkg.price,
         cumulativeUsed: pkg.used,
         used: pkg.used,
@@ -175,4 +180,3 @@ export const getInventorySnapshot = async (req, res) => {
     });
   }
 };
-

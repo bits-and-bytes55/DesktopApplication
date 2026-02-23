@@ -695,12 +695,12 @@ class _ServicesPageState extends State<ServicesPage> {
       ),
       child: Row(
         children: [
-          _HeaderCell(width: 40, text: '#', icon: Icons.numbers),
-          Expanded(flex: 3, child: _HeaderCell(text: 'Name', icon: Icons.text_fields)),
-          Expanded(flex: 2, child: _HeaderCell(text: 'Code', icon: Icons.code)),
-          Expanded(flex: 1, child: _HeaderCell(text: 'Unit', icon: Icons.linear_scale)),
-          Expanded(flex: 2, child: _HeaderCell(text: 'Price (\$)', icon: Icons.attach_money)),
-          _HeaderCell(width: 100, text: 'Actions', icon: Icons.settings),
+          _HeaderCell(width: 40, text: '#'),
+          Expanded(flex: 3, child: _HeaderCell(text: 'Name')),
+          Expanded(flex: 2, child: _HeaderCell(text: 'Code')),
+          Expanded(flex: 1, child: _HeaderCell(text: 'Unit')),
+          Expanded(flex: 2, child: _HeaderCell(text: 'Price (\$)')),
+          _HeaderCell(width: 100, text: 'Actions'),
         ],
       ),
     );
@@ -1052,13 +1052,11 @@ class _ServicesPageState extends State<ServicesPage> {
 class _HeaderCell extends StatelessWidget {
   final double? width;
   final String text;
-  final IconData icon;
   final int? flex;
 
   const _HeaderCell({
     this.width,
     required this.text,
-    required this.icon,
     this.flex,
   });
 
@@ -1075,8 +1073,8 @@ class _HeaderCell extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, size: 12, color: Colors.white),
-          const SizedBox(width: 4),
+         
+         
           Flexible(
             child: Text(
               text,

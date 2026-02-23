@@ -26,6 +26,8 @@ import receiveProductRoutes from "./routes/ReceiveProduct/Product/receiveProduct
 import receivePackageRoutes from "./routes/ReceiveProduct/Package/receivePackageRoutes.js";
 import returnProductRoutes from "./routes/ReturnProduct/Product/returnProductRoutes.js";
 import returnPackageRoutes from "./routes/ReturnProduct/Package/returnPackageRoutes.js";
+import drillStringRoutes from "./routes/DrillString/drillString.routes.js";
+
 
 
 import servicesRoutes from "./routes/service/service.routes.js";
@@ -145,6 +147,8 @@ app.use("/api/export", exportRoutes);
 
 //ug inventory product routes
 app.use("/api/ug-inventory", ugInventoryRoutes);
+//drill string
+app.use("/api/drill-string", drillStringRoutes);
 
 
 
