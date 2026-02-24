@@ -1,4 +1,6 @@
 // ─── Product Inventory Model ──────────────────────────────────
+import 'package:mudpro_desktop_app/modules/company_setup/model/products_model.dart';
+
 class ProductInventoryModel {
   String? id;
   String product;
@@ -28,6 +30,23 @@ class ProductInventoryModel {
     this.tax = false,
   });
 
+  ProductModel toProductModel() {
+  return ProductModel(
+    id: id,
+    product: product,
+    code: code,
+    sg: sg,
+    unitNum: unit,
+    price: price,
+    initial: initial,
+    group: group,
+    volAdd: volAdd,
+    calculate: calculate,
+    plot: plot ?? false,
+    tax: tax,
+  );
+}
+
   factory ProductInventoryModel.fromJson(Map<String, dynamic> json) {
     // Handle both nested Unit object and flat unit field
     String unitValue = "";
@@ -53,6 +72,8 @@ class ProductInventoryModel {
       tax: json['tax'] ?? false,
     );
   }
+
+  
 
   Map<String, dynamic> toJson() => {
         if (id != null) '_id': id,
