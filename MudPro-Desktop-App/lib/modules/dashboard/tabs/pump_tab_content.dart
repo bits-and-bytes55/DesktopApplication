@@ -162,7 +162,7 @@ class PumpPage extends StatelessWidget {
                               onChanged: (val) {
                                 pump.model.value = val ?? '';
                                 if (isLast && val != null && val.isNotEmpty) {
-                                  pumpController.pumps.add(pump.clone()
+                                  pumpController.pumps.add(pump
                                     ..model.value = ''
                                     ..type.value = '');
                                 }
@@ -183,7 +183,7 @@ class PumpPage extends StatelessWidget {
                           _verticalDivider(),
                           _dataCell(child: Obx(() => _editableText(pump.displacement)), width: 95),
                           _verticalDivider(),
-                          _dataCell(child: Obx(() => _editableText(pump.stroke)), width: 95),
+                          _dataCell(child: Obx(() => _plainText(pump.spm.value)), width: 95),
                           _verticalDivider(),
                           _dataCell(child: Obx(() => _editableText(pump.rate)), width: 80),
                         ],

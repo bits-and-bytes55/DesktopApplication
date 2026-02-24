@@ -30,51 +30,40 @@ export const generateInventorySnapshot = async (req, res) => {
       ])
     ];
 
-  for (let code of productCodes) {
+    for (let code of productCodes) {
 
-  const productReceives = receives.filter(r => r.code === code);
-  const productConsumes = consumes.filter(c => c.code === code);
-  const productReturns = returns.filter(r => r.code === code);
+      const productReceives = receives.filter(r => r.code === code);
+      const productConsumes = consumes.filter(c => c.code === code);
+      const productReturns = returns.filter(r => r.code === code);
 
-  const cumulativeRec = productReceives.reduce((s, r) => s + (r.amount || 0), 0);
-  const cumulativeUsed = productConsumes.reduce((s, c) => s + (c.used || 0), 0);
-  const cumulativeRet = productReturns.reduce((s, r) => s + (r.amount || 0), 0);
+      const cumulativeRec = productReceives.reduce((s, r) => s + (r.amount || 0), 0);
+      const cumulativeUsed = productConsumes.reduce((s, c) => s + (c.used || 0), 0);
+      const cumulativeRet = productReturns.reduce((s, r) => s + (r.amount || 0), 0);
 
-  const price = productConsumes.length > 0 
-    ? productConsumes[0].price 
-    : productReceives[0]?.price || 0;
+      const price = productConsumes.length > 0 ? productConsumes[0].price : 0;
 
-  // 🔥 GET PREVIOUS SNAPSHOT
-  const previousSnapshot = await InventorySnapshot.findOne({
-    code: code,
-    category: "Product"
-  }).sort({ createdAt: -1 });
+      const final = cumulativeRec - cumulativeRet - cumulativeUsed;
+      const subtotal = cumulativeUsed * price;
 
-  const initial = previousSnapshot ? previousSnapshot.final : 0;
-
-  const final = initial + cumulativeRec - cumulativeRet - cumulativeUsed;
-
-  const subtotal = cumulativeUsed * price;
-
-  snapshotData.push({
-    category: "Product",
-    itemName: productReceives[0]?.productName || "",
-    code: code || "",
-    unit: productReceives[0]?.unit || "",
-    price,
-    cumulativeRec,
-    cumulativeRet,
-    cumulativeUsed,
-    initial,
-    rec: productReceives.reduce((s, r) => s + (r.amount || 0), 0),
-    ret: cumulativeRet,
-    adj: 0,
-    used: cumulativeUsed,
-    final,
-    subtotal,
-    costDollar: subtotal
-  });
-}
+      snapshotData.push({
+        category: "Product",
+        itemName: productReceives[0]?.productName || "",
+        code: code || "", 
+       unit: productReceives[0]?.unit || "",
+        price,
+        cumulativeRec,
+        cumulativeRet,
+        cumulativeUsed,
+        initial: 0,
+        rec: cumulativeRec,
+        ret: cumulativeRet,
+        adj: 0,
+        used: cumulativeUsed,
+        final,
+        subtotal,
+        costDollar: subtotal
+      });
+    }
 
     // =========================
     // SERVICES

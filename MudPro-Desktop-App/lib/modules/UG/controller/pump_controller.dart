@@ -111,56 +111,33 @@ class PumpController extends GetxController {
 
 
   // Manual save with feedback
-  Future<void> savePump(int index) async {
-    if (currentWellId == null) {
-      print('❌ No well selected');
-      throw Exception('No well selected');
+ Future<void> savePump(int index) async {
+  final pump = pumps[index];
+
+  if (!pump.hasData) return;
+
+  try {
+    isLoading.value = true;
+
+    Map<String, dynamic> result;
+
+    if (pump.id != null) {
+      result = await repository.updatePump(pump.id!, pump.toJson());
+    } else {
+      result = await repository.createPump(currentWellId, pump.toJson());
     }
 
-    final pump = pumps[index];
-
-    // Check if pump has any data
-    if (!pump.hasData) {
-      print('❌ No data to save');
-      throw Exception('Please fill at least one field');
+    if (result['success']) {
+      // IMPORTANT: Replace with backend returned pump
+      pumps[index] = PumpModel.fromJson(result['data']);
+      pumps.refresh();
     }
-
-    try {
-      isLoading.value = true;
-      print('💾 Manually saving pump at index $index');
-      print('📝 Pump data: ${pump.toJson()}');
-
-      Map<String, dynamic> result;
-
-      if (pump.id != null) {
-        // Update existing pump
-        print('🔄 Updating pump: ${pump.id}');
-        result = await repository.updatePump(pump.id!, pump.toJson());
-      } else {
-        // Create new pump
-        print('➕ Creating pump for well: $currentWellId');
-        result = await repository.createPump(currentWellId!, pump.toJson());
-      }
-
-      print('📦 Result: $result');
-
-      if (result['success']) {
-        // Update pump with returned data
-        final updatedPump = PumpModel.fromJson(result['data']);
-        pumps[index] = updatedPump;
-        
-        // Check if we need to add a new row
-        _checkAndAddNewRow();
-        
-        print('✅ Pump saved successfully');
-      } else {
-        print('❌ Save failed: ${result['message']}');
-        throw Exception(result['message'] ?? 'Failed to save pump');
-      }
-    } finally {
-      isLoading.value = false;
-    }
+  } catch (e) {
+    print("Save error: $e");
+  } finally {
+    isLoading.value = false;
   }
+}
 
   // Delete pump
   Future<bool> deletePump(int index) async {
