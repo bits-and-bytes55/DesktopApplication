@@ -1,6 +1,22 @@
 import mongoose from 'mongoose';
 import Pump from '../../modules/pump/pump.model.js';
 
+const calculateDisplacement = (type, linerId, strokeLength) => {
+  const D = Number(linerId) || 0;
+  const L = Number(strokeLength) || 0;
+
+  let N = 0;
+
+  if (type === "Triplex") N = 3;
+  if (type === "Duplex") N = 2;
+  if (type === "Quintuplex") N = 5;
+
+  if (!D || !L || !N) return 0;
+
+  const displacement = (0.000971 * Math.pow(D, 2) * L * N) / 42;
+
+  return +displacement.toFixed(3);
+};
 class PumpController {
   // Get all pumps for a well
   async getPumps(req, res) {
@@ -89,14 +105,20 @@ class PumpController {
         .lean();
 
       const rowNumber = req.body.rowNumber || (lastPump ? lastPump.rowNumber + 1 : 1);
+      const displacement = calculateDisplacement(
+  req.body.type,
+  req.body.linerId,
+  req.body.strokeLength
+);
 
       const pumpData = {
-        ...req.body,
-        wellId,
-        rowNumber,
-        createdBy: userId,
-        updatedBy: userId
-      };
+  ...req.body,
+  displacement,
+  wellId,
+  rowNumber,
+  createdBy: userId,
+  updatedBy: userId
+};
 
       const pump = await Pump.create(pumpData);
 
@@ -136,12 +158,18 @@ class PumpController {
           message: 'Valid pump ID is required'
         });
       }
+      const displacement = calculateDisplacement(
+  req.body.type || existing.type,
+  req.body.linerId || existing.linerId,
+  req.body.strokeLength || existing.strokeLength
+);
 
       const updateData = {
-        ...req.body,
-        updatedBy: userId,
-        updatedAt: Date.now()
-      };
+  ...req.body,
+  displacement,
+  updatedBy: userId,
+  updatedAt: Date.now()
+};
 
       // Remove fields that shouldn't be updated
       delete updateData._id;
