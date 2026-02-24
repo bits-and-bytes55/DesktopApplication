@@ -1,6 +1,18 @@
 import mongoose from 'mongoose';
 import Pump from '../../modules/pump/pump.model.js';
 
+const calculateRate = (displacement, spm, efficiency) => {
+  const disp = Number(displacement) || 0;
+  const SPM = Number(spm) || 0;
+  const eff = (Number(efficiency) || 0) / 100;
+
+  if (!disp || !SPM || !eff) return 0;
+
+  const rate = disp * SPM * eff * 42;
+
+  return +rate.toFixed(1);
+};
+
 const calculateDisplacement = (type, linerId, strokeLength) => {
   const D = Number(linerId) || 0;
   const L = Number(strokeLength) || 0;
@@ -111,9 +123,16 @@ class PumpController {
   req.body.strokeLength
 );
 
-      const pumpData = {
+const rate = calculateRate(
+  displacement,
+  req.body.spm,
+  req.body.efficiency
+);
+
+ const pumpData = {
   ...req.body,
   displacement,
+  rate,
   wellId,
   rowNumber,
   createdBy: userId,
@@ -162,6 +181,11 @@ class PumpController {
   req.body.type || existing.type,
   req.body.linerId || existing.linerId,
   req.body.strokeLength || existing.strokeLength
+);
+const rate = calculateRate(
+  displacement,
+  req.body.spm || existing.spm,
+  req.body.efficiency || existing.efficiency
 );
 
       const updateData = {

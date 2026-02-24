@@ -7,70 +7,92 @@ const pumpSchema = new mongoose.Schema({
     required: true,
     index: true
   },
+
   type: {
     type: String,
     enum: ['Triplex', 'Duplex', 'Quintuplex', 'Hydraulic', ''],
     default: ''
   },
+
   model: {
     type: String,
     default: ''
   },
-  linerId: {
-    type: String,
-    default: ''
+
+  linerId: {            // inches
+    type: Number,
+    default: 0
   },
+
   rodOd: {
-    type: String,
-    default: ''
+    type: Number,
+    default: 0
   },
-  strokeLength: {
-    type: String,
-    default: ''
+
+  strokeLength: {       // inches
+    type: Number,
+    default: 0
   },
-  efficiency: {
-    type: String,
-    default: ''
+
+  efficiency: {         // %
+    type: Number,
+    default: 0
   },
-  displacement: {
-    type: String,
-    default: ''
+
+  displacement: {       // bbl/stk
+    type: Number,
+    default: 0
   },
+
+  spm: {                // strokes per minute
+    type: Number,
+    default: 0
+  },
+
+  rate: {               // GPM
+    type: Number,
+    default: 0
+  },
+
   maxPumpP: {
-    type: String,
-    default: ''
+    type: Number,
+    default: 0
   },
+
   maxHp: {
-    type: String,
-    default: ''
+    type: Number,
+    default: 0
   },
+
   surfaceLen: {
-    type: String,
-    default: ''
+    type: Number,
+    default: 0
   },
+
   surfaceId: {
-    type: String,
-    default: ''
+    type: Number,
+    default: 0
   },
+
   rowNumber: {
     type: Number,
     required: true
   },
+
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   },
+
   updatedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   }
+
 }, {
   timestamps: true
 });
 
-// Compound index to ensure unique row numbers per well
 pumpSchema.index({ wellId: 1, rowNumber: 1 }, { unique: true });
 
-const Pump = mongoose.model('Pump', pumpSchema);
-
-export default Pump;
+export default mongoose.model('Pump', pumpSchema);
