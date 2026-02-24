@@ -108,7 +108,7 @@ class _PumpViewState extends State<PumpView> {
     'Triplex',
     'Duplex',
     'Quintuplex',
-    'Quadplex',
+    'Hydraulic',
   ];
 
   @override

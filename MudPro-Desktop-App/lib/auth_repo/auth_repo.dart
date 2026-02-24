@@ -1439,184 +1439,177 @@ Future<Map<String, dynamic>> deleteProduct(String productId) async {
    // ============= PUMP METHODS =============
 
   // Get all pumps for a well
+  // Get all pumps for a well
   Future<Map<String, dynamic>> getPumps(String wellId) async {
     try {
+      
+      
       final response = await http.get(
         Uri.parse('${baseUrl}pump/well/$wellId'),
         headers: _headers,
       );
 
-      print("statuscode------${response.statusCode}");
-      print("response body------${response.body}");
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        return json.decode(response.body);
-      } else {
-        return {
-          'success': false,
-          'message': 'Failed to fetch pumps',
-          'data': []
-        };
-      }
-    } catch (e) {
-      print('Error fetching pumps: $e');
-      return {
-        'success': false,
-        'message': 'Error: $e',
-        'data': []
-      };
-    }
-  }
-
-  // Get single pump by ID
-  Future<Map<String, dynamic>> getPumpById(String pumpId) async {
-    try {
-      final response = await http.get(
-        Uri.parse('${baseUrl}pump/$pumpId'),
-        headers: _headers,
-      );
-
-      print("statuscode------${response.statusCode}");
-      print("response body------${response.body}");
-
       if (response.statusCode == 200) {
         return json.decode(response.body);
       } else {
+        print('Error getting pumps: ${response.statusCode} - ${response.body}');
         return {
-          'success': false,
-          'message': 'Failed to fetch pump',
+          'success': false, 
+          'message': 'Failed to get pumps: ${response.statusCode}'
         };
       }
     } catch (e) {
-      print('Error fetching pump: $e');
-      return {
-        'success': false,
-        'message': 'Error: $e',
-      };
+      print('Error getting pumps: $e');
+      return {'success': false, 'message': e.toString()};
     }
   }
 
   // Create new pump
-  Future<Map<String, dynamic>> createPump(
-    String wellId,
-    Map<String, dynamic> pumpData,
-  ) async {
+  Future<Map<String, dynamic>> createPump(String wellId, Map<String, dynamic> pumpData) async {
     try {
+      
       final response = await http.post(
         Uri.parse('${baseUrl}pump/well/$wellId'),
         headers: _headers,
         body: json.encode(pumpData),
       );
 
-      print("statuscode------${response.statusCode}");
-      print("response body------${response.body}");
-
-      if (response.statusCode == 201 || response.statusCode == 200) {
+      if (response.statusCode == 201) {
         return json.decode(response.body);
       } else {
+        print('Error creating pump: ${response.statusCode} - ${response.body}');
         return {
-          'success': false,
-          'message': 'Failed to create pump',
+          'success': false, 
+          'message': 'Failed to create pump: ${response.statusCode}'
         };
       }
     } catch (e) {
       print('Error creating pump: $e');
-      return {
-        'success': false,
-        'message': 'Error: $e',
-      };
+      return {'success': false, 'message': e.toString()};
     }
   }
 
   // Update pump
-  Future<Map<String, dynamic>> updatePump(
-    String pumpId,
-    Map<String, dynamic> pumpData,
-  ) async {
+  Future<Map<String, dynamic>> updatePump(String pumpId, Map<String, dynamic> pumpData) async {
     try {
+     
+      
       final response = await http.put(
         Uri.parse('${baseUrl}pump/$pumpId'),
         headers: _headers,
         body: json.encode(pumpData),
       );
 
-      print("statuscode------${response.statusCode}");
-      print("response body------${response.body}");
-
       if (response.statusCode == 200) {
         return json.decode(response.body);
       } else {
+        print('Error updating pump: ${response.statusCode} - ${response.body}');
         return {
-          'success': false,
-          'message': 'Failed to update pump',
+          'success': false, 
+          'message': 'Failed to update pump: ${response.statusCode}'
         };
       }
     } catch (e) {
       print('Error updating pump: $e');
-      return {
-        'success': false,
-        'message': 'Error: $e',
-      };
+      return {'success': false, 'message': e.toString()};
     }
   }
 
   // Delete pump
   Future<Map<String, dynamic>> deletePump(String pumpId) async {
     try {
+      
       final response = await http.delete(
         Uri.parse('${baseUrl}pump/$pumpId'),
         headers: _headers,
       );
 
-      print("statuscode------${response.statusCode}");
-      print("response body------${response.body}");
-
       if (response.statusCode == 200) {
         return json.decode(response.body);
       } else {
+        print('Error deleting pump: ${response.statusCode} - ${response.body}');
         return {
-          'success': false,
-          'message': 'Failed to delete pump',
+          'success': false, 
+          'message': 'Failed to delete pump: ${response.statusCode}'
         };
       }
     } catch (e) {
       print('Error deleting pump: $e');
-      return {
-        'success': false,
-        'message': 'Error: $e',
-      };
+      return {'success': false, 'message': e.toString()};
     }
   }
 
-  // Bulk upsert pumps
-  Future<Map<String, dynamic>> bulkUpsertPumps(
-    String wellId,
-    List<Map<String, dynamic>> pumps,
-  ) async {
+  // Delete all pumps for a well
+  Future<Map<String, dynamic>> deleteAllPumps(String wellId) async {
     try {
+      
+      final response = await http.delete(
+        Uri.parse('${baseUrl}pump/well/$wellId/all'),
+        headers: _headers,
+      );
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        print('Error deleting all pumps: ${response.statusCode} - ${response.body}');
+        return {
+          'success': false, 
+          'message': 'Failed to delete all pumps: ${response.statusCode}'
+        };
+      }
+    } catch (e) {
+      print('Error deleting all pumps: $e');
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  // Bulk create/update pumps
+  Future<Map<String, dynamic>> bulkUpsertPumps(String wellId, List<Map<String, dynamic>> pumps) async {
+    try {
+      
       final response = await http.post(
         Uri.parse('${baseUrl}pump/well/$wellId/bulk'),
         headers: _headers,
         body: json.encode({'pumps': pumps}),
       );
 
-      print("statuscode------${response.statusCode}");
-      print("response body------${response.body}");
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        print('Error bulk upserting pumps: ${response.statusCode} - ${response.body}');
+        return {
+          'success': false, 
+          'message': 'Failed to bulk upsert pumps: ${response.statusCode}'
+        };
+      }
+    } catch (e) {
+      print('Error bulk upserting pumps: $e');
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  // Get pump by ID
+  Future<Map<String, dynamic>> getPumpById(String pumpId) async {
+    try {
+     
+      
+      final response = await http.get(
+        Uri.parse('${baseUrl}pump/well/$pumpId'),
+        headers: _headers,
+      );
 
       if (response.statusCode == 200) {
         return json.decode(response.body);
       } else {
+        print('Error getting pump: ${response.statusCode} - ${response.body}');
         return {
-          'success': false,
-          'message': 'Failed to bulk update pumps',
+          'success': false, 
+          'message': 'Failed to get pump: ${response.statusCode}'
         };
       }
     } catch (e) {
-      print('Error bulk updating pumps: $e');
-      return {
-        'success': false,
-        'message': 'Error: $e',
-      };
+      print('Error getting pump: $e');
+      return {'success': false, 'message': e.toString()};
     }
   }
 

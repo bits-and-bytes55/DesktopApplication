@@ -3,15 +3,14 @@ import pumpController from '../../controllers/pump/pump.controller.js';
 
 const router = express.Router();
 
+// Get all pumps
+router.get('/', pumpController.getPumps);
 
-// Get all pumps for a well
-router.get('/well/:wellId', pumpController.getPumps);
-
-// Get single pump by ID
+// Get single pump
 router.get('/:id', pumpController.getPumpById);
 
-// Create new pump
-router.post('/well/:wellId', pumpController.createPump);
+// Create pump
+router.post('/', pumpController.createPump);
 
 // Update pump
 router.put('/:id', pumpController.updatePump);
@@ -19,10 +18,10 @@ router.put('/:id', pumpController.updatePump);
 // Delete pump
 router.delete('/:id', pumpController.deletePump);
 
-// Delete all pumps for a well
-router.delete('/well/:wellId/all', pumpController.deleteAllPumps);
+// Delete all pumps
+router.delete('/', pumpController.deleteAllPumps);
 
-// Bulk create/update pumps
-router.post('/well/:wellId/bulk', pumpController.bulkUpsertPumps);
+// Bulk upsert pumps
+router.post('/bulk', pumpController.bulkUpsertPumps);
 
 export default router;
