@@ -119,9 +119,13 @@ class WellGeneralController extends GetxController {
     isLoading.value = true;
     try {
       final response = await http.get(
-        Uri.parse('${baseUrl}well-general/'),
+        Uri.parse('${baseUrl}well-general'),
         headers: _headers,
       );
+
+
+print('WellGeneral fetch response: ${response.statusCode} ${response.body}');
+
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body);
         final List data = json['data'] ?? [];
@@ -149,11 +153,13 @@ class WellGeneralController extends GetxController {
         );
       } else {
         response = await http.post(
-          Uri.parse('${baseUrl}well-general/'),
+          Uri.parse('${baseUrl}well-general'),
           headers: _headers,
           body: jsonEncode(_toJson()),
         );
       }
+print('WellGeneral save response: ${response.statusCode} ${response.body}');
+
       if (response.statusCode == 200 || response.statusCode == 201) {
         final json = jsonDecode(response.body);
         _fromJson(json['data']);

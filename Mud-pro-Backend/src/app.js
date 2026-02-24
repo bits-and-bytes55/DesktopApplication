@@ -41,6 +41,9 @@ import pumpRoutes from "./routes/pump/pump.routes.js";
 import sceRoutes from "./routes/sce/sce.routes.js";
 
 
+import wellGeneralRoutes from "./routes/wellGeneral/wellGeneralRoutes.js";
+
+
 import activityRoutes from './routes/others/otherActivity.routes.js';
 import additionRoutes from './routes/others/otherAddition.route.js';
 import lossRoutes from './routes/others/otherLoss.routes.js';
@@ -149,6 +152,8 @@ app.use("/api/export", exportRoutes);
 app.use("/api/ug-inventory", ugInventoryRoutes);
 //drill string
 app.use("/api/drill-string", drillStringRoutes);
+
+app.use("/api/well-general", wellGeneralRoutes);
 
 
 
