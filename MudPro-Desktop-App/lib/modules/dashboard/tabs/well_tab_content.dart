@@ -5,9 +5,12 @@ import 'package:mudpro_desktop_app/modules/company_setup/controller/others_contr
 import 'package:mudpro_desktop_app/modules/company_setup/model/engineers_model.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/drill_string_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/nozzle_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/well_general_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/widgets/tabular_database.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
+// ✅ Import nozzle controller & model
+
 
 const double _kRowH = 22.0;
 
@@ -21,7 +24,7 @@ const List<String> _kTimeSlots = [
 ];
 
 // ═══════════════════════════════════════════════════════════════════
-//  ROOT — crossAxisAlignment.stretch so children fill real height
+//  ROOT
 // ═══════════════════════════════════════════════════════════════════
 class WellTabContent extends StatelessWidget {
   final c = Get.find<DashboardController>();
@@ -46,11 +49,9 @@ class WellTabContent extends StatelessWidget {
           ),
         );
       }
-      // Desktop: stretch fills available height automatically
       return Container(
         color: AppTheme.backgroundColor,
         child: Padding(
-          // bottom padding 8 for breathing room
           padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -68,16 +69,13 @@ class WellTabContent extends StatelessWidget {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════
-//  LEFT — GeneralSection fills stretch height, scrolls inside
-// ═══════════════════════════════════════════════════════════════════
 class LeftPortion extends StatelessWidget {
   @override
   Widget build(BuildContext context) => GeneralSection();
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  GENERAL SECTION
+//  GENERAL SECTION — Engineers fix + dropdown height fix
 // ═══════════════════════════════════════════════════════════════════
 class GeneralSection extends StatefulWidget {
   @override
@@ -86,15 +84,21 @@ class GeneralSection extends StatefulWidget {
 
 class _GeneralSectionState extends State<GeneralSection> {
   final c            = Get.find<DashboardController>();
-  final engineerCtrl = Get.put(EngineerController());
-  final activityCtrl = Get.put(OthersController());
-  final wellGenCtrl  = Get.put(WellGeneralController());
+  // ✅ FIX: Use Get.find if already registered, else Get.put
+  late final EngineerController engineerCtrl;
+  final activityCtrl = Get.isRegistered<OthersController>()
+      ? Get.find<OthersController>()
+      : Get.put(OthersController());
+  final wellGenCtrl  = Get.isRegistered<WellGeneralController>()
+      ? Get.find<WellGeneralController>()
+      : Get.put(WellGeneralController());
 
   List<String> activityOptions = [
     'Rig-up/Service','Drilling','Circulating','Tripping','Survey',
     'Logging','Run Casing','Testing','Coring/Reaming','Cementing'
   ];
   bool _isLoadingActivities = true;
+  bool _isLoadingEngineers = true; // ✅ NEW
 
   final List<String> intervalOptions = [
     '22° Hole','16° Hole','12 1/4° Hole','8 1/2° Hole','6 1/8° Hole','Completion'
@@ -112,6 +116,11 @@ class _GeneralSectionState extends State<GeneralSection> {
   @override
   void initState() {
     super.initState();
+    // ✅ FIX: Register EngineerController properly
+    engineerCtrl = Get.isRegistered<EngineerController>()
+        ? Get.find<EngineerController>()
+        : Get.put(EngineerController());
+
     fc = {
       'Report #':           TextEditingController(text: '12'),
       'User Report #':      TextEditingController(),
@@ -139,6 +148,7 @@ class _GeneralSectionState extends State<GeneralSection> {
       'Formation':          TextEditingController(text: 'MaG'),
     };
     _fetchActivities();
+    _fetchEngineers(); // ✅ NEW
     _loadFromApi();
   }
 
@@ -152,6 +162,14 @@ class _GeneralSectionState extends State<GeneralSection> {
           selectedActivity = activityOptions.isNotEmpty ? activityOptions.first : 'Cementing';
       });
     } catch (_) { setState(() => _isLoadingActivities = false); }
+  }
+
+  // ✅ FIX: Fetch engineers from API
+  Future<void> _fetchEngineers() async {
+    try {
+      await engineerCtrl.fetchEngineers();
+    } catch (_) {}
+    setState(() => _isLoadingEngineers = false);
   }
 
   Future<void> _loadFromApi() async {
@@ -187,6 +205,22 @@ class _GeneralSectionState extends State<GeneralSection> {
       if (w.time.value.isNotEmpty)     selectedTime     = w.time.value;
       if (w.activity.value.isNotEmpty) selectedActivity = w.activity.value;
       if (w.interval.value.isNotEmpty) selectedInterval = w.interval.value;
+
+      // ✅ FIX: Restore selected engineer IDs from saved names
+      if (w.engineer.value.isNotEmpty) {
+        final eng = engineerCtrl.engineers.firstWhere(
+          (e) => '${e.firstName} ${e.lastName}' == w.engineer.value,
+          orElse: () => Engineer(firstName: '', lastName: '', cell: '', office: '', email: ''),
+        );
+        if (eng.id != null) selectedEngId = eng.id;
+      }
+      if (w.engineer2.value.isNotEmpty) {
+        final eng2 = engineerCtrl.engineers.firstWhere(
+          (e) => '${e.firstName} ${e.lastName}' == w.engineer2.value,
+          orElse: () => Engineer(firstName: '', lastName: '', cell: '', office: '', email: ''),
+        );
+        if (eng2.id != null) selectedEng2Id = eng2.id;
+      }
     });
   }
 
@@ -332,11 +366,13 @@ class _GeneralSectionState extends State<GeneralSection> {
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
       child: Obx(() => c.isLocked.value
           ? SizedBox(height: _kRowH, child: Center(child: Text(selectedTime, style: TextStyle(fontSize: 10, color: AppTheme.textPrimary))))
+          // ✅ FIX: menuMaxHeight limits dropdown scroll height
           : SizedBox(height: _kRowH, child: DropdownButtonHideUnderline(child: DropdownButton<String>(
               value: selectedTime,
               isExpanded: true,
               icon: const Icon(Icons.arrow_drop_down, size: 13),
               style: const TextStyle(fontSize: 10, color: Colors.black),
+              menuMaxHeight: 200, // ✅ Fixed scrollable height
               onChanged: (v) { if (v != null) setState(() => selectedTime = v); },
               items: _kTimeSlots.map((t) => DropdownMenuItem(value: t, child: Padding(padding: const EdgeInsets.symmetric(horizontal: 4), child: Text(t, style: const TextStyle(fontSize: 10))))).toList(),
             )))),
@@ -351,10 +387,13 @@ class _GeneralSectionState extends State<GeneralSection> {
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
         child: Obx(() => c.isLocked.value
             ? SizedBox(height: _kRowH, child: Center(child: Text(val, style: TextStyle(fontSize: 10, color: AppTheme.textPrimary))))
+            // ✅ FIX: menuMaxHeight for all dropdowns
             : SizedBox(height: _kRowH, child: DropdownButtonHideUnderline(child: DropdownButton<String>(
-                value: val, isExpanded: true,
+                value: opts.contains(val) ? val : null,
+                isExpanded: true,
                 icon: const Icon(Icons.arrow_drop_down, size: 13),
                 style: const TextStyle(fontSize: 10, color: Colors.black),
+                menuMaxHeight: 200, // ✅ Fixed scrollable height
                 onChanged: onChange,
                 items: opts.map((o) => DropdownMenuItem(value: o, child: Padding(padding: const EdgeInsets.symmetric(horizontal: 4), child: Text(o, style: const TextStyle(fontSize: 10), overflow: TextOverflow.ellipsis)))).toList(),
               )))),
@@ -362,22 +401,44 @@ class _GeneralSectionState extends State<GeneralSection> {
       _unit(''),
     ]);
 
+  // ✅ FIX: Engineer dropdown — fetches from API, scrollable
   TableRow _engRow(String label, String? engId, ValueChanged<String?> onChange) =>
     TableRow(decoration: const BoxDecoration(color: Colors.white), children: [
       _lbl(label),
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-        child: Obx(() => c.isLocked.value
-            ? SizedBox(height: _kRowH, child: Center(child: Text(_engName(engId), style: TextStyle(fontSize: 10, color: AppTheme.textPrimary))))
-            : SizedBox(height: _kRowH, child: DropdownButtonHideUnderline(child: DropdownButton<String>(
-                value: engId,
-                hint: Text("Select Engineer", style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
-                isExpanded: true,
-                icon: const Icon(Icons.arrow_drop_down, size: 13),
-                style: const TextStyle(fontSize: 10, color: Colors.black),
-                onChanged: onChange,
-                items: engineerCtrl.engineers.map((Engineer e) => DropdownMenuItem(value: e.id, child: Padding(padding: const EdgeInsets.symmetric(horizontal: 4), child: Text("${e.firstName} ${e.lastName}", style: const TextStyle(fontSize: 10), overflow: TextOverflow.ellipsis)))).toList(),
-              )))),
+        child: Obx(() {
+          if (c.isLocked.value) {
+            return SizedBox(height: _kRowH, child: Center(child: Text(_engName(engId), style: TextStyle(fontSize: 10, color: AppTheme.textPrimary))));
+          }
+          // ✅ Use Obx to react to engineers list loading
+          final engineers = engineerCtrl.engineers;
+          // Validate current value exists in list
+          final safeEngId = engineers.any((e) => e.id == engId) ? engId : null;
+
+          return SizedBox(
+            height: _kRowH,
+            child: _isLoadingEngineers
+                ? const Center(child: SizedBox(width: 10, height: 10, child: CircularProgressIndicator(strokeWidth: 1.5)))
+                : DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: safeEngId,
+                      hint: Text("Select Engineer", style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
+                      isExpanded: true,
+                      icon: const Icon(Icons.arrow_drop_down, size: 13),
+                      style: const TextStyle(fontSize: 10, color: Colors.black),
+                      menuMaxHeight: 200, // ✅ Fixed scrollable height
+                      onChanged: onChange,
+                      items: engineers.map((Engineer e) => DropdownMenuItem(
+                        value: e.id,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: Text("${e.firstName} ${e.lastName}", style: const TextStyle(fontSize: 10), overflow: TextOverflow.ellipsis)),
+                      )).toList(),
+                    ),
+                  ),
+          );
+        }),
       ),
       _unit(''),
     ]);
@@ -401,7 +462,6 @@ Widget _hCell(String t, Color primary) => Container(
   padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 4),
   child: Text(t, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: primary), textAlign: TextAlign.center));
 
-// No-col cell (displays row number, not editable)
 Widget _noCell(int rowNo, bool sel, Color primary) => Container(
   height: _kRowH,
   alignment: Alignment.center,
@@ -420,12 +480,6 @@ Widget _eCell(TextEditingController ctrl, DashboardController c) => Container(
 
 // ═══════════════════════════════════════════════════════════════════
 //  MIDDLE PORTION
-//  Uses LayoutBuilder to get real available height — no overflow
-//  Proportions:
-//    CasedHole    3/9 of flex space
-//    OpenHole     2/9 of flex space
-//    cement row   fixed 28px
-//    DrillString  4/9 of flex space
 // ═══════════════════════════════════════════════════════════════════
 class MiddlePortion extends StatefulWidget {
   @override _MiddlePortionState createState() => _MiddlePortionState();
@@ -493,7 +547,7 @@ class _MiddlePortionState extends State<MiddlePortion> {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  CASED HOLE — width-filling, with No. column
+//  CASED HOLE (unchanged)
 // ═══════════════════════════════════════════════════════════════════
 class CasedHoleSection extends StatefulWidget {
   @override _CasedHoleSectionState createState() => _CasedHoleSectionState();
@@ -533,6 +587,7 @@ class _CasedHoleSectionState extends State<CasedHoleSection> {
             value: selectedCasingType,
             icon: const Icon(Icons.arrow_drop_down, size: 13),
             style: const TextStyle(fontSize: 9, color: Colors.black),
+            menuMaxHeight: 200,
             onChanged: (v) { if (v != null) setState(() => selectedCasingType = v); },
             items: casingTypes.map((t) => DropdownMenuItem(value: t, child: Text(t, style: const TextStyle(fontSize: 9)))).toList(),
           )),
@@ -548,7 +603,6 @@ class _CasedHoleSectionState extends State<CasedHoleSection> {
       ]),
       const SizedBox(height: 3),
       Expanded(child: LayoutBuilder(builder: (ctx, bc) {
-        // col0=No(28), col1..7 share rest equally
         final double avail = bc.maxWidth - 28;
         final double cw = avail / 7;
         return SingleChildScrollView(
@@ -594,7 +648,7 @@ class _CasedHoleSectionState extends State<CasedHoleSection> {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  OPEN HOLE — with No. column
+//  OPEN HOLE (unchanged)
 // ═══════════════════════════════════════════════════════════════════
 class OpenHoleSection extends StatefulWidget {
   @override _OpenHoleSectionState createState() => _OpenHoleSectionState();
@@ -655,7 +709,7 @@ class _OpenHoleSectionState extends State<OpenHoleSection> {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  DRILL STRING — No. column, white rows, Save All, live total
+//  DRILL STRING (unchanged)
 // ═══════════════════════════════════════════════════════════════════
 class DrillStringSection extends StatefulWidget {
   @override _DrillStringSectionState createState() => _DrillStringSectionState();
@@ -663,7 +717,9 @@ class DrillStringSection extends StatefulWidget {
 
 class _DrillStringSectionState extends State<DrillStringSection> {
   final c  = Get.find<DashboardController>();
-  final ds = Get.put(DrillStringController());
+  final ds = Get.isRegistered<DrillStringController>()
+      ? Get.find<DrillStringController>()
+      : Get.put(DrillStringController());
   int? selectedRowIndex;
 
   @override
@@ -696,7 +752,6 @@ class _DrillStringSectionState extends State<DrillStringSection> {
       Expanded(child: Obx(() {
         if (ds.isLoading.value) return const Center(child: CircularProgressIndicator());
         return LayoutBuilder(builder: (ctx, bc) {
-          // col0=No(28), 6 data cols share rest
           final double avail = bc.maxWidth - 28;
           final double cw = avail / 6;
           return SingleChildScrollView(
@@ -725,7 +780,6 @@ class _DrillStringSectionState extends State<DrillStringSection> {
           );
         });
       })),
-      // Total length footer
       Obx(() => Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         color: AppTheme.primaryColor.withOpacity(0.05),
@@ -776,12 +830,14 @@ class _DrillStringSectionState extends State<DrillStringSection> {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  RIGHT PORTION — mirror exact pixel heights from MiddlePortion
+//  RIGHT PORTION
 // ═══════════════════════════════════════════════════════════════════
 class RightPortion extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final ac = Get.put(OthersController());
+    final ac = Get.isRegistered<OthersController>()
+        ? Get.find<OthersController>()
+        : Get.put(OthersController());
     return LayoutBuilder(builder: (ctx, bc) {
       const double cementRowH = 28.0;
       const double gap        = 5.0;
@@ -796,9 +852,10 @@ class RightPortion extends StatelessWidget {
           children: [
             SizedBox(height: flexH * 3 / 9, child: BitSection()),
             const SizedBox(height: gap),
+            // ✅ NozzleSection replaces old NozzleSection
             SizedBox(height: flexH * 2 / 9, child: NozzleSection()),
             const SizedBox(height: gap),
-            const SizedBox(height: cementRowH),   // spacer matches cement row
+            const SizedBox(height: cementRowH),
             const SizedBox(height: gap),
             SizedBox(height: flexH * 4 / 9, child: TimeDistributionSection(activityController: ac)),
           ],
@@ -809,7 +866,7 @@ class RightPortion extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  BIT SECTION
+//  BIT SECTION (unchanged)
 // ═══════════════════════════════════════════════════════════════════
 class BitSection extends StatefulWidget {
   @override _BitSectionState createState() => _BitSectionState();
@@ -859,74 +916,175 @@ class _BitSectionState extends State<BitSection> {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  NOZZLE SECTION — with No. column
+//  ✅ NOZZLE SECTION — Full rewrite with API + auto TFA + overflow fix
 // ═══════════════════════════════════════════════════════════════════
 class NozzleSection extends StatefulWidget {
   @override _NozzleSectionState createState() => _NozzleSectionState();
 }
 
 class _NozzleSectionState extends State<NozzleSection> {
-  final c = Get.find<DashboardController>();
+  final c  = Get.find<DashboardController>();
+  // ✅ Register NozzleController
+  final nc = Get.isRegistered<NozzleController>()
+      ? Get.find<NozzleController>()
+      : Get.put(NozzleController());
+
   int? selectedRowIndex;
-  List<List<TextEditingController>> tableData = [
-    [TextEditingController(text:'1'), TextEditingController(text:'3'), TextEditingController(text:'14')],
-    [TextEditingController(text:'2'), TextEditingController(), TextEditingController()],
-    [TextEditingController(text:'3'), TextEditingController(), TextEditingController()],
-  ];
-  final TextEditingController tfaCtrl = TextEditingController(text: '0.518');
+
+  // TextEditingControllers per row for count and size32
+  // Built dynamically from nc.entries
+  final Map<int, TextEditingController> _countCtrls = {};
+  final Map<int, TextEditingController> _sizeCtrls  = {};
+
+  TextEditingController _countCtrl(int idx) {
+    _countCtrls[idx] ??= TextEditingController(
+        text: nc.entries[idx].count.value.toString());
+    return _countCtrls[idx]!;
+  }
+
+  TextEditingController _sizeCtrl(int idx) {
+    _sizeCtrls[idx] ??= TextEditingController(
+        text: nc.entries[idx].size32.value == 0
+            ? ''
+            : nc.entries[idx].size32.value.toString());
+    return _sizeCtrls[idx]!;
+  }
+
+  @override
+  void dispose() {
+    for (final c in _countCtrls.values) c.dispose();
+    for (final c in _sizeCtrls.values)  c.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), color: AppTheme.primaryColor.withOpacity(0.1),
-        child: Text("Nozzle (1/32in)", style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.primaryColor))),
-      Table(
-        border: TableBorder.all(color: Colors.grey.shade300, width: 1),
-        defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-        // No(28) | No.(flex) | Size(flex)
-        columnWidths: const {0: FixedColumnWidth(28), 1: FlexColumnWidth(1), 2: FlexColumnWidth(1)},
-        children: [
-          TableRow(decoration: BoxDecoration(color: AppTheme.primaryColor.withOpacity(0.15)),
-            children: ['No.','No.','Size\n(1/32in)'].map((h) => _hCell(h, AppTheme.primaryColor)).toList()),
-          ...tableData.asMap().entries.map((entry) {
-            final idx = entry.key; final ctrls = entry.value;
-            bool sel = selectedRowIndex == idx;
-            return TableRow(
-              decoration: BoxDecoration(color: sel ? AppTheme.primaryColor.withOpacity(0.1) : (idx % 2 == 0 ? Colors.white : Colors.grey.shade50)),
-              children: [
-                GestureDetector(
-                  onTap: () => setState(() => selectedRowIndex = sel ? null : idx),
-                  child: _noCell(idx + 1, sel, AppTheme.primaryColor)),
-                _nzCell(ctrls[1]),
-                _nzCell(ctrls[2]),
-              ],
-            );
-          }).toList(),
-        ],
-      ),
       Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        color: AppTheme.primaryColor.withOpacity(0.1),
+        child: Text("Nozzle (1/32in)", style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.primaryColor)),
+      ),
+      // ✅ FIX: Wrap table in Flexible to prevent overflow
+      Flexible(
+        child: Obx(() {
+          final entries = nc.entries;
+          // Sync new rows' controllers
+          for (int i = 0; i < entries.length; i++) {
+            if (!_countCtrls.containsKey(i)) {
+              _countCtrls[i] = TextEditingController(
+                  text: entries[i].count.value.toString());
+            }
+            if (!_sizeCtrls.containsKey(i)) {
+              _sizeCtrls[i] = TextEditingController(
+                  text: entries[i].size32.value == 0
+                      ? ''
+                      : entries[i].size32.value.toString());
+            }
+          }
+
+          return SingleChildScrollView(
+            scrollDirection: Axis.vertical,
+            child: Table(
+              border: TableBorder.all(color: Colors.grey.shade300, width: 1),
+              defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+              // ✅ FIX: No(28) | No.(flex) | Size(flex)
+              columnWidths: const {
+                0: FixedColumnWidth(28),
+                1: FlexColumnWidth(1),
+                2: FlexColumnWidth(1),
+              },
+              children: [
+                TableRow(
+                  decoration: BoxDecoration(color: AppTheme.primaryColor.withOpacity(0.15)),
+                  children: ['No.', 'No.', 'Size\n(1/32in)']
+                      .map((h) => _hCell(h, AppTheme.primaryColor)).toList(),
+                ),
+                ...entries.asMap().entries.map((entry) {
+                  final idx = entry.key;
+                  final nozzle = entry.value;
+                  final bool sel = selectedRowIndex == idx;
+                  return TableRow(
+                    decoration: BoxDecoration(
+                      color: sel
+                          ? AppTheme.primaryColor.withOpacity(0.1)
+                          : (idx % 2 == 0 ? Colors.white : Colors.grey.shade50),
+                    ),
+                    children: [
+                      GestureDetector(
+                        onTap: () => setState(() => selectedRowIndex = sel ? null : idx),
+                        child: _noCell(idx + 1, sel, AppTheme.primaryColor),
+                      ),
+                      // Count cell
+                      _nzEditCell(_countCtrl(idx), (val) {
+                        nozzle.count.value = int.tryParse(val) ?? 1;
+                        nc.onCellChanged(idx);
+                      }),
+                      // Size32 cell
+                      _nzEditCell(_sizeCtrl(idx), (val) {
+                        nozzle.size32.value = int.tryParse(val) ?? 0;
+                        nc.onCellChanged(idx);
+                      }),
+                    ],
+                  );
+                }).toList(),
+              ],
+            ),
+          );
+        }),
+      ),
+      // ✅ TFA footer — auto-updates reactively
+      Obx(() => Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         color: AppTheme.primaryColor.withOpacity(0.05),
         child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          const Text("TFA (in²)", style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600)),
-          Container(width: 60, height: 20, decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300)),
-            child: Obx(() => c.isLocked.value
-                ? Padding(padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3), child: Text(tfaCtrl.text, style: const TextStyle(fontSize: 9)))
-                : TextField(controller: tfaCtrl, style: const TextStyle(fontSize: 9), textAlign: TextAlign.center, decoration: const InputDecoration(isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 3), border: InputBorder.none)))),
+          Row(children: [
+            const Text("TFA (in²)", style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600)),
+            const SizedBox(width: 4),
+            if (nc.isSaving.value)
+              const SizedBox(width: 10, height: 10, child: CircularProgressIndicator(strokeWidth: 1.5)),
+          ]),
+          Container(
+            width: 60, height: 20,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), color: Colors.white),
+            child: Text(
+              nc.tfa.value.toStringAsFixed(4),
+              style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w600),
+            ),
+          ),
         ]),
-      ),
+      )),
     ]);
   }
 
-  Widget _nzCell(TextEditingController ctrl) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
-    child: Obx(() => c.isLocked.value
-        ? SizedBox(height: _kRowH, child: Center(child: Text(ctrl.text, style: TextStyle(fontSize: 9, color: AppTheme.textPrimary), textAlign: TextAlign.center)))
-        : SizedBox(height: _kRowH, child: TextField(controller: ctrl, style: const TextStyle(fontSize: 9), textAlign: TextAlign.center, decoration: const InputDecoration(isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 2, vertical: 2), border: InputBorder.none, enabledBorder: InputBorder.none, focusedBorder: InputBorder.none, fillColor: Colors.white, filled: true)))));
+  Widget _nzEditCell(TextEditingController ctrl, Function(String) onChanged) =>
+    Container(
+      padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+      child: Obx(() => c.isLocked.value
+          ? SizedBox(height: _kRowH, child: Center(child: Text(ctrl.text, style: TextStyle(fontSize: 9, color: AppTheme.textPrimary), textAlign: TextAlign.center)))
+          : SizedBox(height: _kRowH, child: TextField(
+              controller: ctrl,
+              style: const TextStyle(fontSize: 9),
+              textAlign: TextAlign.center,
+              keyboardType: TextInputType.number,
+              onChanged: onChanged,
+              decoration: const InputDecoration(
+                isDense: true,
+                contentPadding: EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                fillColor: Colors.white,
+                filled: true,
+              ),
+            )),
+      ),
+    );
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  TIME DISTRIBUTION — with No. column, scrollable inside height
+//  ✅ TIME DISTRIBUTION — 5 initial rows, dynamic activity dropdown
 // ═══════════════════════════════════════════════════════════════════
 class TimeDistributionSection extends StatefulWidget {
   final OthersController activityController;
@@ -940,64 +1098,130 @@ class _TimeDistributionSectionState extends State<TimeDistributionSection> {
   List<String> activityOptions = [];
   bool _isLoadingActivities = true;
 
-  List<List<dynamic>> tableData = [
-    ['1','MUD BOP','2.00'], ['2','Install Wellhead','2.30'], ['3','N/Up BOP','3.00'],
-    ['4','Pressure Test','3.00'], ['5','Others','2.00'], ['6','Circulation','1.30'],
-    ['7','Tripping','4.00'], ['8','Drilling Cement','6.90'],
-  ];
+  // ✅ FIX: 5 initial empty rows — no static data
+  late List<Map<String, dynamic>> tableData;
 
   @override
-  void initState() { super.initState(); _fetchActivities(); }
+  void initState() {
+    super.initState();
+    // 5 rows with empty activity and time
+    tableData = List.generate(5, (_) => {'activity': '', 'time': TextEditingController()});
+    _fetchActivities();
+  }
+
+  @override
+  void dispose() {
+    for (final row in tableData) {
+      (row['time'] as TextEditingController).dispose();
+    }
+    super.dispose();
+  }
 
   Future<void> _fetchActivities() async {
     try {
       final acts = await widget.activityController.getActivities();
-      setState(() { activityOptions = acts.map((a) => a.description).toList(); _isLoadingActivities = false; });
-    } catch (_) { setState(() => _isLoadingActivities = false); }
+      setState(() {
+        activityOptions = acts.map((a) => a.description).toList();
+        _isLoadingActivities = false;
+      });
+    } catch (_) {
+      setState(() => _isLoadingActivities = false);
+    }
+  }
+
+  // ✅ Auto-add row when last row has activity selected
+  void _checkAndAddRow(int idx) {
+    if (idx == tableData.length - 1 && (tableData[idx]['activity'] as String).isNotEmpty) {
+      setState(() {
+        tableData.add({'activity': '', 'time': TextEditingController()});
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), color: AppTheme.primaryColor.withOpacity(0.1),
-        child: Text("Time Distribution", style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.primaryColor))),
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        color: AppTheme.primaryColor.withOpacity(0.1),
+        child: Text("Time Distribution", style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.primaryColor)),
+      ),
       Expanded(child: SingleChildScrollView(
         child: Table(
           border: TableBorder.all(color: Colors.grey.shade300, width: 1),
           defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-          // No(28) | Activity(flex) | Time(50)
           columnWidths: const {0: FixedColumnWidth(28), 1: FlexColumnWidth(3), 2: FixedColumnWidth(50)},
           children: [
             TableRow(
               decoration: BoxDecoration(color: AppTheme.primaryColor.withOpacity(0.15)),
-              children: ['No.','Activity','Time\n(hr)'].map((h) => _hCell(h, AppTheme.primaryColor)).toList()),
+              children: ['No.', 'Activity', 'Time\n(hr)']
+                  .map((h) => _hCell(h, AppTheme.primaryColor)).toList(),
+            ),
             ...tableData.asMap().entries.map((entry) {
-              final idx = entry.key; final row = entry.value;
-              final timeCtrl = TextEditingController(text: row[2]);
-              bool sel = selectedRowIndex == idx;
+              final idx = entry.key;
+              final row = entry.value;
+              final timeCtrl = row['time'] as TextEditingController;
+              final currentActivity = row['activity'] as String;
+              final bool sel = selectedRowIndex == idx;
+
               return TableRow(
-                decoration: BoxDecoration(color: sel ? AppTheme.primaryColor.withOpacity(0.1) : (idx % 2 == 0 ? Colors.white : Colors.grey.shade50)),
+                decoration: BoxDecoration(
+                  color: sel
+                      ? AppTheme.primaryColor.withOpacity(0.1)
+                      : (idx % 2 == 0 ? Colors.white : Colors.grey.shade50),
+                ),
                 children: [
                   GestureDetector(
                     onTap: () => setState(() => selectedRowIndex = sel ? null : idx),
-                    child: _noCell(idx + 1, sel, AppTheme.primaryColor)),
-                  Container(padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+                    child: _noCell(idx + 1, sel, AppTheme.primaryColor),
+                  ),
+                  // ✅ Activity dropdown — dynamic from API, scrollable
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
                     child: Obx(() => c.isLocked.value
-                        ? SizedBox(height: _kRowH, child: Align(alignment: Alignment.centerLeft, child: Text(row[1], style: TextStyle(fontSize: 9, color: AppTheme.textPrimary))))
-                        : SizedBox(height: _kRowH, child: _isLoadingActivities
-                            ? const Center(child: SizedBox(width: 10, height: 10, child: CircularProgressIndicator(strokeWidth: 1.5)))
-                            : DropdownButtonHideUnderline(child: DropdownButton<String>(
-                                value: activityOptions.contains(row[1]) ? row[1] : (activityOptions.isNotEmpty ? activityOptions.first : null),
-                                isExpanded: true,
-                                icon: const Icon(Icons.arrow_drop_down, size: 12),
-                                style: const TextStyle(fontSize: 9, color: Colors.black),
-                                onChanged: (v) { if (v != null) setState(() => tableData[idx][1] = v); },
-                                items: activityOptions.map((o) => DropdownMenuItem(value: o, child: Padding(padding: const EdgeInsets.symmetric(horizontal: 4), child: Text(o, style: const TextStyle(fontSize: 9), overflow: TextOverflow.ellipsis)))).toList(),
-                              ))))),
-                  Container(padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+                        ? SizedBox(height: _kRowH, child: Align(alignment: Alignment.centerLeft,
+                            child: Text(currentActivity, style: TextStyle(fontSize: 9, color: AppTheme.textPrimary))))
+                        : SizedBox(
+                            height: _kRowH,
+                            child: _isLoadingActivities
+                                ? const Center(child: SizedBox(width: 10, height: 10, child: CircularProgressIndicator(strokeWidth: 1.5)))
+                                : DropdownButtonHideUnderline(
+                                    child: DropdownButton<String>(
+                                      value: activityOptions.contains(currentActivity) ? currentActivity : null,
+                                      hint: Text("Select", style: TextStyle(fontSize: 9, color: Colors.grey.shade400)),
+                                      isExpanded: true,
+                                      icon: const Icon(Icons.arrow_drop_down, size: 12),
+                                      style: const TextStyle(fontSize: 9, color: Colors.black),
+                                      menuMaxHeight: 200, // ✅ Fixed scrollable height
+                                      onChanged: (v) {
+                                        if (v != null) {
+                                          setState(() => tableData[idx]['activity'] = v);
+                                          _checkAndAddRow(idx);
+                                        }
+                                      },
+                                      items: activityOptions.map((o) => DropdownMenuItem(
+                                        value: o,
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                                          child: Text(o, style: const TextStyle(fontSize: 9), overflow: TextOverflow.ellipsis)),
+                                      )).toList(),
+                                    ),
+                                  ),
+                          )),
+                  ),
+                  // Time cell
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
                     child: Obx(() => c.isLocked.value
                         ? SizedBox(height: _kRowH, child: Center(child: Text(timeCtrl.text, style: TextStyle(fontSize: 9, color: AppTheme.textPrimary), textAlign: TextAlign.center)))
-                        : SizedBox(height: _kRowH, child: TextField(controller: timeCtrl, style: const TextStyle(fontSize: 9), textAlign: TextAlign.center, onChanged: (v) => tableData[idx][2] = v, decoration: const InputDecoration(isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 2, vertical: 2), border: InputBorder.none, enabledBorder: InputBorder.none, focusedBorder: InputBorder.none, fillColor: Colors.white, filled: true))))),
+                        : SizedBox(height: _kRowH, child: TextField(
+                            controller: timeCtrl,
+                            style: const TextStyle(fontSize: 9),
+                            textAlign: TextAlign.center,
+                            keyboardType: TextInputType.number,
+                            onChanged: (v) => tableData[idx]['time'] = timeCtrl,
+                            decoration: const InputDecoration(isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 2, vertical: 2), border: InputBorder.none, enabledBorder: InputBorder.none, focusedBorder: InputBorder.none, fillColor: Colors.white, filled: true)))),
+                  ),
                 ],
               );
             }).toList(),
