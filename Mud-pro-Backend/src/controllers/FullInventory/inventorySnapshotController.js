@@ -30,45 +30,46 @@ export const generateInventorySnapshot = async (req, res) => {
       ])
     ];
 
-    for (let code of productCodes) {
+  // PRODUCTS section mein ye changes karo:
+for (let code of productCodes) {
+  const productReceives = receives.filter(r => r.code === code);
+  const productConsumes = consumes.filter(c => c.code === code);
+  const productReturns = returns.filter(r => r.code === code);
 
-      const productReceives = receives.filter(r => r.code === code);
-      const productConsumes = consumes.filter(c => c.code === code);
-      const productReturns = returns.filter(r => r.code === code);
+  const cumulativeRec = productReceives.reduce((s, r) => s + (r.amount || 0), 0);
+  const cumulativeUsed = productConsumes.reduce((s, c) => s + (c.used || 0), 0);
+  const cumulativeRet = productReturns.reduce((s, r) => s + (r.amount || 0), 0);
 
-      const cumulativeRec = productReceives.reduce((s, r) => s + (r.amount || 0), 0);
-      const cumulativeUsed = productConsumes.reduce((s, c) => s + (c.used || 0), 0);
-      const cumulativeRet = productReturns.reduce((s, r) => s + (r.amount || 0), 0);
+  const price = productConsumes.length > 0 ? productConsumes[0].price : 0;
 
-      const price = productConsumes.length > 0 ? productConsumes[0].price : 0;
+  const final_ = cumulativeRec - cumulativeRet - cumulativeUsed;
+  const subtotal = cumulativeUsed * price;
 
-      // ✅ DEFINE INITIAL HERE
-  const initial = productConsumes.length > 0
-    ? productConsumes[0].initial
-    : 0;
-
-      const final = initial + cumulativeRec - cumulativeRet - cumulativeUsed;
-      const subtotal = cumulativeUsed * price;
-
-      snapshotData.push({
-        category: "Product",
-        itemName: productReceives[0]?.productName || "",
-        code: code || "", 
-       unit: productReceives[0]?.unit || "",
-        price,
-        cumulativeRec,
-        cumulativeRet,
-        cumulativeUsed,
-        initial:initial,
-        rec: cumulativeRec,
-        ret: cumulativeRet,
-        adj: 0,
-        used: cumulativeUsed,
-        final,
-        subtotal,
-        costDollar: subtotal
-      });
-    }
+  snapshotData.push({
+    category: "Product",
+    // ✅ FIX: productReceives ka productName OR productConsumes ka 'product' field
+    itemName: productReceives[0]?.productName 
+           || productConsumes[0]?.product    // ← ConsumeProduct ka correct field name
+           || "",
+    code: code || "",
+    // ✅ FIX: unit bhi same fallback logic
+    unit: productReceives[0]?.unit 
+       || productConsumes[0]?.unit           // ← ConsumeProduct ka unit field
+       || "",
+    price,
+    cumulativeRec,
+    cumulativeRet,
+    cumulativeUsed,
+    initial: productConsumes[0]?.initial || 0,  // ← initial bhi ConsumeProduct se lo
+    rec: cumulativeRec,
+    ret: cumulativeRet,
+    adj: 0,
+    used: cumulativeUsed,
+    final: final_,
+    subtotal,
+    costDollar: subtotal
+  });
+}
 
     // =========================
     // SERVICES

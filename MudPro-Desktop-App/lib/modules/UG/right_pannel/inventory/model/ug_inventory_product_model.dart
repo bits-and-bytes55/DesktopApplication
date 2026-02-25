@@ -30,22 +30,22 @@ class ProductInventoryModel {
     this.tax = false,
   });
 
-  ProductModel toProductModel() {
-  return ProductModel(
-    id: id,
-    product: product,
-    code: code,
-    sg: sg,
-    unitNum: unit,
-    price: price,
-    initial: initial,
-    group: group,
-    volAdd: volAdd,
-    calculate: calculate,
-    plot: plot ?? false,
-    tax: tax,
-  );
-}
+//   ProductModel toProductModel() {
+//   return ProductModel(
+//     id: id,
+//     product: product,
+//     code: code,
+//     sg: sg,
+//     unitNum: unit,
+//     price: price,
+//     initial: initial,
+//     group: group,
+//     volAdd: volAdd,
+//     calculate: calculate,
+//     plot: plot ?? false,
+//     tax: tax,
+//   );
+// }
 
   factory ProductInventoryModel.fromJson(Map<String, dynamic> json) {
     // Handle both nested Unit object and flat unit field
