@@ -1,20 +1,61 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/model/operators_model.dart';
 import '../../../auth_repo/auth_repo.dart';
 
 class OperatorController extends GetxController {
   final _repo = AuthRepository();
+  final ImagePicker _picker = ImagePicker();
 
   // Observable list of operators
   final RxList<OperatorModel> operators = <OperatorModel>[].obs;
   final RxBool isLoading = false.obs;
   RxBool isSaving = false.obs;
 
+  // Store selected logo images for each row (index -> base64 string)
+  final RxMap<int, String> selectedLogos = <int, String>{}.obs;
+
   @override
   void onInit() {
     super.onInit();
     fetchOperators();
+  }
+
+  /// Pick logo image from gallery
+  Future<void> pickLogoImage(int rowIndex) async {
+    try {
+      final XFile? image = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 80,
+      );
+
+      if (image != null) {
+        // Convert to base64
+        final bytes = await File(image.path).readAsBytes();
+        final base64Image = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+        
+        selectedLogos[rowIndex] = base64Image;
+        selectedLogos.refresh();
+      }
+    } catch (e) {
+      print("Error picking logo image: $e");
+    }
+  }
+
+  /// Clear logo for a specific row
+  void clearLogo(int rowIndex) {
+    selectedLogos.remove(rowIndex);
+    selectedLogos.refresh();
+  }
+
+  /// Get logo for a row (from selectedLogos map)
+  String? getLogoForRow(int rowIndex) {
+    return selectedLogos[rowIndex];
   }
 
   /// SAVE FROM UI CONTROLLERS
@@ -24,9 +65,13 @@ class OperatorController extends GetxController {
 
     final List<OperatorModel> list = [];
 
-    for (var row in uiControllers) {
+    for (var i = 0; i < uiControllers.length; i++) {
+      var row = uiControllers[i];
       // skip empty rows
       if (row[0].text.trim().isEmpty) continue;
+
+      // Get logo from selectedLogos map or use empty string
+      String logoUrl = selectedLogos[i] ?? '';
 
       final newOperator = OperatorModel(
         company: row[0].text.trim(),
@@ -34,7 +79,7 @@ class OperatorController extends GetxController {
         address: row[2].text.trim(),
         phone: row[3].text.trim(),
         email: row[4].text.trim(),
-        logoUrl: row[5].text.trim(),
+        logoUrl: logoUrl,
       );
 
       // Check if this operator already exists in the fetched operators list
@@ -68,6 +113,8 @@ class OperatorController extends GetxController {
     if (res['success'] == true || res['statusCode'] == 200) {
       // Refresh the operators list after saving
       await fetchOperators();
+      // Clear selected logos after save
+      selectedLogos.clear();
       isSaving.value = false;
       return {
         'success': true,

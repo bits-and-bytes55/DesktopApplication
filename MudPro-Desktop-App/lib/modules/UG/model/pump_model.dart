@@ -10,8 +10,8 @@ class PumpModel {
   RxString strokeLength;
   RxString efficiency;
   RxString spm;
-  RxString displacement;   // calculated from backend
-  RxString rate;           // calculated from backend
+  RxString displacement;   // auto-calculated locally + confirmed by backend
+  RxString rate;           // calculated by backend (shown on other pump page)
   RxString maxPumpP;
   RxString maxHp;
   RxString surfaceLen;
@@ -47,6 +47,42 @@ class PumpModel {
         maxHp = (maxHp ?? '').obs,
         surfaceLen = (surfaceLen ?? '').obs,
         surfaceId = (surfaceId ?? '').obs;
+
+  /// Auto-calculate displacement from: type, linerId, strokeLength
+  /// Formula: (0.000971 × D² × L × N) / 42
+  void recalculateDisplacement() {
+    final D = double.tryParse(linerId.value) ?? 0;
+    final L = double.tryParse(strokeLength.value) ?? 0;
+
+    int N = 0;
+    switch (type.value) {
+      case 'Triplex':
+        N = 3;
+        break;
+      case 'Duplex':
+        N = 2;
+        break;
+      case 'Quintuplex':
+        N = 5;
+        break;
+      case 'Quadplex':
+        N = 4;
+        break;
+      case 'Hydraulic':
+        N = 2;
+        break;
+      default:
+        N = 0;
+    }
+
+    if (D == 0 || L == 0 || N == 0) {
+      displacement.value = '';
+      return;
+    }
+
+    final result = (0.000971 * D * D * L * N) / 42;
+    displacement.value = result.toStringAsFixed(4);
+  }
 
   // From JSON - for GET responses
   factory PumpModel.fromJson(Map<String, dynamic> json) {
@@ -84,10 +120,9 @@ class PumpModel {
       'maxHp': double.tryParse(maxHp.value) ?? 0,
       'surfaceLen': double.tryParse(surfaceLen.value) ?? 0,
       'surfaceId': double.tryParse(surfaceId.value) ?? 0,
+      // displacement and rate are calculated by backend
     };
 
-    // Don't send displacement and rate as they're calculated by backend
-    
     if (id != null) {
       data['_id'] = id;
     }

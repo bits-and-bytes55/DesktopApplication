@@ -1445,7 +1445,7 @@ Future<Map<String, dynamic>> deleteProduct(String productId) async {
       
       
       final response = await http.get(
-        Uri.parse('${baseUrl}pump/well/$wellId'),
+        Uri.parse('${baseUrl}pump'),
         headers: _headers,
       );
 
@@ -1469,7 +1469,7 @@ Future<Map<String, dynamic>> deleteProduct(String productId) async {
     try {
       
       final response = await http.post(
-        Uri.parse('${baseUrl}pump/well/$wellId'),
+        Uri.parse('${baseUrl}pump'),
         headers: _headers,
         body: json.encode(pumpData),
       );
@@ -1544,7 +1544,7 @@ Future<Map<String, dynamic>> deleteProduct(String productId) async {
     try {
       
       final response = await http.delete(
-        Uri.parse('${baseUrl}pump/well/$wellId/all'),
+        Uri.parse('${baseUrl}pump'),
         headers: _headers,
       );
 
@@ -1568,7 +1568,7 @@ Future<Map<String, dynamic>> deleteProduct(String productId) async {
     try {
       
       final response = await http.post(
-        Uri.parse('${baseUrl}pump/well/$wellId/bulk'),
+        Uri.parse('${baseUrl}pump/bulk'),
         headers: _headers,
         body: json.encode({'pumps': pumps}),
       );
@@ -1594,7 +1594,7 @@ Future<Map<String, dynamic>> deleteProduct(String productId) async {
      
       
       final response = await http.get(
-        Uri.parse('${baseUrl}pump/well/$pumpId'),
+        Uri.parse('${baseUrl}pump/$pumpId'),
         headers: _headers,
       );
 

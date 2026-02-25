@@ -6,26 +6,18 @@ import '../model/pump_model.dart';
 class PumpController extends GetxController {
   final AuthRepository repository = AuthRepository();
 
-  // Pump list with dynamic rows
   final pumps = <PumpModel>[].obs;
-
-  // Available pump models from API
   final availablePumpModels = <String>[].obs;
-
-  // Loading state
   final isLoading = false.obs;
 
-  // Current well ID - always set to static ID
   String currentWellId = '507f1f77bcf86cd799439011';
 
   @override
   void onInit() {
     super.onInit();
-    // Initialize with 10 empty rows
     _initializeEmptyRows();
   }
 
-  // Initialize 10 empty rows
   void _initializeEmptyRows() {
     pumps.clear();
     for (int i = 0; i < 10; i++) {
@@ -33,66 +25,50 @@ class PumpController extends GetxController {
     }
   }
 
-  // Check if we need to add a new row
-  void _checkAndAddNewRow() {
+  /// Public method - called from view whenever any field changes
+  void checkAndAddNewRow() {
     if (pumps.isEmpty) return;
-    
-    // Check if last row has any data
+
     final lastPump = pumps.last;
-    if (lastPump.hasData && pumps.length < 50) { // Max 50 rows
+    if (lastPump.hasData && pumps.length < 50) {
       pumps.add(PumpModel(rowNumber: pumps.length + 1));
-      print('✅ Added new row: ${pumps.length}');
+      pumps.refresh();
     }
   }
 
-  // Set well ID (call this when well is selected)
   void setWellId(String wellId) {
-    print('🔧 Setting well ID: $wellId');
     currentWellId = wellId;
     loadPumps(wellId);
   }
 
-  // Load pumps for a well
   Future<void> loadPumps(String wellId) async {
     try {
-      print('📡 Loading pumps for well: $wellId');
       isLoading.value = true;
       currentWellId = wellId;
-      
+
       final result = await repository.getPumps(wellId);
-      print('📦 Result from API: $result');
-      
+
       if (result['success']) {
         final List<dynamic> pumpData = result['data'] ?? [];
-        print('✅ Loaded ${pumpData.length} pumps from API');
-        
-        // Clear existing pumps
+
         pumps.clear();
-        
-        // Add fetched pumps
+
         for (var data in pumpData) {
           final pump = PumpModel.fromJson(data);
-          print('📋 Pump ${pump.rowNumber.value}: type=${pump.type.value}, model=${pump.model.value}, disp=${pump.displacement.value}, rate=${pump.rate.value}');
           pumps.add(pump);
         }
-        
-        // Fill remaining rows with empty pumps to maintain at least 10 rows
+
+        // Ensure minimum 10 rows
         while (pumps.length < 10) {
           pumps.add(PumpModel(rowNumber: pumps.length + 1));
         }
-        
-        // Check if we need to add one more row at the end
-        _checkAndAddNewRow();
-        
-        // Force UI refresh
+
+        // Add extra row if last one has data
+        checkAndAddNewRow();
+
         pumps.refresh();
-        
-        // Load available pump models from the fetched data
         _extractAvailablePumpModels(pumpData);
-        
-        print('✅ Total rows after loading: ${pumps.length}');
       } else {
-        print('❌ Failed to load pumps: ${result['message']}');
         _initializeEmptyRows();
       }
     } catch (e) {
@@ -103,7 +79,6 @@ class PumpController extends GetxController {
     }
   }
 
-  // Extract unique pump models from API response
   void _extractAvailablePumpModels(List<dynamic> pumpData) {
     final Set<String> models = {};
     for (var pump in pumpData) {
@@ -112,13 +87,10 @@ class PumpController extends GetxController {
       }
     }
     availablePumpModels.assignAll(models.toList()..sort());
-    print('✅ Extracted ${models.length} unique pump models');
   }
 
-  // Save single pump
   Future<void> savePump(int index) async {
     final pump = pumps[index];
-
     if (!pump.hasData) return;
 
     try {
@@ -128,29 +100,19 @@ class PumpController extends GetxController {
       final pumpData = pump.toJson();
 
       if (pump.id != null) {
-        // Update existing pump
-        print('📝 Updating pump: ${pump.id}');
         result = await repository.updatePump(pump.id!, pumpData);
       } else {
-        // Create new pump
-        print('➕ Creating new pump');
         result = await repository.createPump(currentWellId, pumpData);
       }
 
       if (result['success']) {
-        // IMPORTANT: Replace with backend returned pump (includes calculated displacement and rate)
+        // Replace with backend-returned pump (includes server-calculated displacement & rate)
         final updatedPump = PumpModel.fromJson(result['data']);
         pumps[index] = updatedPump;
-        
-        // Check if we need to add a new row at the end
-        _checkAndAddNewRow();
-        
-        // Refresh to show updated values
+
+        checkAndAddNewRow();
         pumps.refresh();
-        
-        print('✅ Pump saved successfully - Disp: ${updatedPump.displacement.value}, Rate: ${updatedPump.rate.value}');
-        
-        // Show success message
+
         Get.snackbar(
           'Success',
           'Pump saved successfully',
@@ -177,7 +139,6 @@ class PumpController extends GetxController {
     }
   }
 
-  // Bulk save all pumps
   Future<void> saveAllPumps() async {
     final pumpsWithData = pumps.where((pump) => pump.hasData).toList();
 
@@ -194,7 +155,7 @@ class PumpController extends GetxController {
 
     try {
       isLoading.value = true;
-      
+
       int successCount = 0;
       int failCount = 0;
 
@@ -210,7 +171,6 @@ class PumpController extends GetxController {
         }
       }
 
-      // Reload pumps to ensure we have latest data
       await loadPumps(currentWellId);
 
       Get.snackbar(
@@ -221,7 +181,6 @@ class PumpController extends GetxController {
         colorText: Colors.white,
       );
     } catch (e) {
-      print('❌ Bulk save error: $e');
       Get.snackbar(
         'Error',
         'Failed to save pumps: $e',
@@ -234,40 +193,30 @@ class PumpController extends GetxController {
     }
   }
 
-  // Delete pump
   Future<bool> deletePump(int index) async {
     final pump = pumps[index];
 
     if (pump.id == null) {
-      // Just clear the row if it's not saved yet
-      print('🗑️ Clearing unsaved row $index');
       pumps[index] = PumpModel(rowNumber: index + 1);
       return true;
     }
 
     try {
       isLoading.value = true;
-      print('🗑️ Deleting pump: ${pump.id}');
 
       final result = await repository.deletePump(pump.id!);
-      print('📦 Delete result: $result');
 
       if (result['success']) {
-        // Remove the pump and reorder row numbers
         pumps.removeAt(index);
-        
-        // Update row numbers for remaining pumps
+
         for (int i = index; i < pumps.length; i++) {
           pumps[i].rowNumber.value = i + 1;
         }
-        
-        // Ensure we have at least 10 rows
+
         while (pumps.length < 10) {
           pumps.add(PumpModel(rowNumber: pumps.length + 1));
         }
-        
-        print('✅ Pump deleted successfully');
-        
+
         Get.snackbar(
           'Success',
           'Pump deleted successfully',
@@ -275,13 +224,12 @@ class PumpController extends GetxController {
           backgroundColor: Colors.green,
           colorText: Colors.white,
         );
-        
+
         return true;
       } else {
         throw Exception(result['message'] ?? 'Failed to delete pump');
       }
     } catch (e) {
-      print('❌ Error deleting pump: $e');
       Get.snackbar(
         'Error',
         'Failed to delete pump: $e',
@@ -295,12 +243,10 @@ class PumpController extends GetxController {
     }
   }
 
-  // Get pump count (only counting pumps with data)
   int get pumpCount {
     return pumps.where((pump) => pump.hasData).length;
   }
 
-  // Get pump data by model (for dropdown selection)
   Future<Map<String, dynamic>?> getPumpDataByModel(String model) async {
     try {
       final result = await repository.getPumps(currentWellId);

@@ -4,13 +4,13 @@ const pumpSchema = new mongoose.Schema({
   wellId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Well',
-    required: true,
+    required: false,  // REMOVED required - frontend uses static well context
     index: true
   },
 
   type: {
     type: String,
-    enum: ['Triplex', 'Duplex', 'Quintuplex', 'Hydraulic', ''],
+    enum: ['Triplex', 'Duplex', 'Quintuplex', 'Hydraulic', 'Quadplex', ''],
     default: ''
   },
 
@@ -39,7 +39,7 @@ const pumpSchema = new mongoose.Schema({
     default: 0
   },
 
-  displacement: {       // bbl/stk
+  displacement: {       // bbl/stk (calculated)
     type: Number,
     default: 0
   },
@@ -49,7 +49,7 @@ const pumpSchema = new mongoose.Schema({
     default: 0
   },
 
-  rate: {               // GPM
+  rate: {               // GPM (calculated)
     type: Number,
     default: 0
   },
@@ -93,6 +93,7 @@ const pumpSchema = new mongoose.Schema({
   timestamps: true
 });
 
-pumpSchema.index({ wellId: 1, rowNumber: 1 }, { unique: true });
+// Remove unique constraint on wellId+rowNumber since wellId is now optional
+pumpSchema.index({ rowNumber: 1 });
 
 export default mongoose.model('Pump', pumpSchema);

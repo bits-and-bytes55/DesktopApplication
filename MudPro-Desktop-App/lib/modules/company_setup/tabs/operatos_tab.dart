@@ -418,7 +418,7 @@ class _OperatorTabState extends State<OperatorTab> {
                                           _lockedCell(200, controller.operators[row].address),
                                           _lockedCell(160, controller.operators[row].phone),
                                           _lockedCell(200, controller.operators[row].email),
-                                          _lockedCell(120, controller.operators[row].logoUrl),
+                                          _lockedLogoCell(120, controller.operators[row].logoUrl),
                                           _actionButtons(controller.operators[row], row),
                                         ] else ...[
                                           // Editable cells for new entries
@@ -594,6 +594,51 @@ class _OperatorTabState extends State<OperatorTab> {
     );
   }
 
+  Widget _lockedLogoCell(double width, String logoUrl) {
+    return Container(
+      width: width,
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      decoration: BoxDecoration(
+        border: Border(
+          right: BorderSide(color: Colors.grey.shade400, width: 1),
+        ),
+      ),
+      child: Row(
+        children: [
+          if (logoUrl.isNotEmpty)
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: Image.network(
+                logoUrl,
+                width: 40,
+                height: 24,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Icon(
+                    Icons.image,
+                    size: 16,
+                    color: Colors.grey.shade400,
+                  );
+                },
+              ),
+            )
+          else
+            Icon(
+              Icons.image,
+              size: 16,
+              color: Colors.grey.shade400,
+            ),
+          const Spacer(),
+          Icon(
+            Icons.lock,
+            size: 12,
+            color: Colors.grey.shade400,
+          ),
+        ],
+      ),
+    );
+  }
+
   // Actions buttons for locked rows
   Widget _actionButtons(OperatorModel operator, int index) {
     return Container(
@@ -654,8 +699,92 @@ class _OperatorTabState extends State<OperatorTab> {
       _cell(200, newEntryControllers[newRowIndex][2], ''),
       _cell(160, newEntryControllers[newRowIndex][3], ''),
       _cell(200, newEntryControllers[newRowIndex][4], ''),
-      _cell(120, newEntryControllers[newRowIndex][5], ''),
+      _logoCell(120, newRowIndex),
     ];
+  }
+
+  Widget _logoCell(double width, int rowIndex) {
+    return Container(
+      width: width,
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      decoration: BoxDecoration(
+        border: Border(
+          right: BorderSide(color: Colors.grey.shade400, width: 1),
+        ),
+      ),
+      child: Obx(() {
+        final logoBase64 = controller.selectedLogos[rowIndex];
+        if (logoBase64 != null && logoBase64.isNotEmpty) {
+          return Stack(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: Image.memory(
+                  Uri.parse(logoBase64).data!.contentAsBytes(),
+                  width: 40,
+                  height: 24,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return _buildLogoButton(rowIndex);
+                  },
+                ),
+              ),
+              Positioned(
+                right: 0,
+                top: 0,
+                child: InkWell(
+                  onTap: () => controller.clearLogo(rowIndex),
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.close,
+                      size: 10,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        }
+        return _buildLogoButton(rowIndex);
+      }),
+    );
+  }
+
+  Widget _buildLogoButton(int rowIndex) {
+    return InkWell(
+      onTap: () => controller.pickLogoImage(rowIndex),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+        decoration: BoxDecoration(
+          color: AppTheme.primaryColor.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.add_photo_alternate,
+              size: 14,
+              color: AppTheme.primaryColor,
+            ),
+            const SizedBox(width: 2),
+            Text(
+              'Logo',
+              style: TextStyle(
+                fontSize: 10,
+                color: AppTheme.primaryColor,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

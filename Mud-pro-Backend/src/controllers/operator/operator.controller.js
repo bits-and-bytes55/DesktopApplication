@@ -1,4 +1,6 @@
 import Operator from "../../modules/operator/operator.model.js";
+import cloudinary from "../../config/cloudinary.js";
+import fs from "fs";
 
 // ADD / UPDATE (bulk save from table)
 export async function saveOperators(req, res) {
@@ -12,7 +14,27 @@ export async function saveOperators(req, res) {
       });
     }
 
-    const saved = await Operator.insertMany(operators);
+    // Handle logo image upload if present in the request
+    const processedOperators = await Promise.all(
+      operators.map(async (operator) => {
+        if (operator.logoUrl && operator.logoUrl.startsWith('data:image')) {
+          try {
+            // Upload to cloudinary
+            const uploadResult = await cloudinary.uploader.upload(operator.logoUrl, {
+              folder: 'operator-logos',
+              resource_type: 'image',
+            });
+            operator.logoUrl = uploadResult.secure_url;
+          } catch (uploadError) {
+            console.error("Error uploading logo:", uploadError);
+            // Keep original base64 if upload fails
+          }
+        }
+        return operator;
+      })
+    );
+
+    const saved = await Operator.insertMany(processedOperators);
 
     res.json({
       success: true,
@@ -38,9 +60,27 @@ export async function getOperators(req, res) {
 export async function updateOperator(req, res) {
   try {
     console.log("Updating operator:", req.params.id, req.body);
+    
+    let updateData = { ...req.body };
+    
+    // Handle logo image upload if present as base64
+    if (updateData.logoUrl && updateData.logoUrl.startsWith('data:image')) {
+      try {
+        // Upload to cloudinary
+        const uploadResult = await cloudinary.uploader.upload(updateData.logoUrl, {
+          folder: 'operator-logos',
+          resource_type: 'image',
+        });
+        updateData.logoUrl = uploadResult.secure_url;
+      } catch (uploadError) {
+        console.error("Error uploading logo:", uploadError);
+        // Keep original base64 if upload fails
+      }
+    }
+    
     const data = await Operator.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      updateData,
       { new: true, runValidators: true }
     );
     
