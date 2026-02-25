@@ -14,10 +14,10 @@ class ReturnProductController {
   
   Future<List<Map<String, dynamic>>> getReturnProducts() async {
     try {
-print("Fetching return products from: ${Uri.parse('${baseUrl}return-products')}");
+print("Fetching return products from: ${Uri.parse('${baseUrl}return-product')}");
 
       final response = await http.get(
-        Uri.parse('${baseUrl}return-products'),
+        Uri.parse('${baseUrl}return-product'),
         headers: _headers,
       );
 
@@ -45,11 +45,11 @@ print("Fetching return products from: ${Uri.parse('${baseUrl}return-products')}"
   }) async {
     try {
 
-      print("url: ${Uri.parse('${baseUrl}return-products')}");
+      print("url: ${Uri.parse('${baseUrl}return-product')}");
 
       
       final response = await http.post(
-        Uri.parse('${baseUrl}return-products'),
+        Uri.parse('${baseUrl}return-product'),
         headers: _headers,
         body: jsonEncode({
           'productName': productName,
@@ -92,7 +92,7 @@ print("Fetching return products from: ${Uri.parse('${baseUrl}return-products')}"
   }) async {
     try {
       final response = await http.put(
-        Uri.parse('${baseUrl}return-products/$id'),
+        Uri.parse('${baseUrl}return-product/$id'),
         headers: _headers,
         body: jsonEncode({
           'productName': productName,
@@ -129,7 +129,7 @@ print("Fetching return products from: ${Uri.parse('${baseUrl}return-products')}"
   Future<Map<String, dynamic>> deleteReturnProduct(String id) async {
     try {
       final response = await http.delete(
-        Uri.parse('${baseUrl}return-products/$id'),
+        Uri.parse('${baseUrl}return-product/$id'),
         headers: _headers,
       );
 
@@ -189,7 +189,7 @@ print("Fetching return products from: ${Uri.parse('${baseUrl}return-products')}"
   }) async {
     try {
       final response = await http.post(
-        Uri.parse('${baseUrl}return-packages'),
+        Uri.parse('${baseUrl}return-package'),
         headers: _headers,
         body: jsonEncode({
           'packageName': packageName,
@@ -232,7 +232,7 @@ print("Fetching return products from: ${Uri.parse('${baseUrl}return-products')}"
   }) async {
     try {
       final response = await http.put(
-        Uri.parse('${baseUrl}return-packages/$id'),
+        Uri.parse('${baseUrl}return-package/$id'),
         headers: _headers,
         body: jsonEncode({
           'packageName': packageName,
@@ -269,7 +269,7 @@ print("Fetching return products from: ${Uri.parse('${baseUrl}return-products')}"
   Future<Map<String, dynamic>> deleteReturnPackage(String id) async {
     try {
       final response = await http.delete(
-        Uri.parse('${baseUrl}return-packages/$id'),
+        Uri.parse('${baseUrl}return-package/$id'),
         headers: _headers,
       );
 
