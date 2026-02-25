@@ -42,7 +42,12 @@ export const generateInventorySnapshot = async (req, res) => {
 
       const price = productConsumes.length > 0 ? productConsumes[0].price : 0;
 
-      const final = cumulativeRec - cumulativeRet - cumulativeUsed;
+      // ✅ DEFINE INITIAL HERE
+  const initial = productConsumes.length > 0
+    ? productConsumes[0].initial
+    : 0;
+
+      const final = initial + cumulativeRec - cumulativeRet - cumulativeUsed;
       const subtotal = cumulativeUsed * price;
 
       snapshotData.push({
@@ -54,7 +59,7 @@ export const generateInventorySnapshot = async (req, res) => {
         cumulativeRec,
         cumulativeRet,
         cumulativeUsed,
-        initial: 0,
+        initial:initial,
         rec: cumulativeRec,
         ret: cumulativeRet,
         adj: 0,
