@@ -1443,11 +1443,14 @@ Future<Map<String, dynamic>> deleteProduct(String productId) async {
   Future<Map<String, dynamic>> getPumps(String wellId) async {
     try {
       
-      
+      print('${baseUrl}pump?wellId=$wellId');
+     
       final response = await http.get(
         Uri.parse('${baseUrl}pump'),
         headers: _headers,
       );
+       print('statuscode------${response.statusCode}');
+      print('response body------${response.body}');
 
       if (response.statusCode == 200) {
         return json.decode(response.body);
@@ -1473,6 +1476,8 @@ Future<Map<String, dynamic>> deleteProduct(String productId) async {
         headers: _headers,
         body: json.encode(pumpData),
       );
+        print('statuscode------${response.statusCode}');
+      print('response body------${response.body}');
 
       if (response.statusCode == 201) {
         return json.decode(response.body);
@@ -1499,6 +1504,8 @@ Future<Map<String, dynamic>> deleteProduct(String productId) async {
         headers: _headers,
         body: json.encode(pumpData),
       );
+        print('statuscode------${response.statusCode}');
+      print('response body------${response.body}');
 
       if (response.statusCode == 200) {
         return json.decode(response.body);
@@ -1524,6 +1531,9 @@ Future<Map<String, dynamic>> deleteProduct(String productId) async {
         headers: _headers,
       );
 
+  print('statuscode------${response.statusCode}');
+      print('response body------${response.body}');
+
       if (response.statusCode == 200) {
         return json.decode(response.body);
       } else {
@@ -1547,6 +1557,8 @@ Future<Map<String, dynamic>> deleteProduct(String productId) async {
         Uri.parse('${baseUrl}pump'),
         headers: _headers,
       );
+        print('statuscode------${response.statusCode}');
+      print('response body------${response.body}');
 
       if (response.statusCode == 200) {
         return json.decode(response.body);

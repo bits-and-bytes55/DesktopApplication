@@ -10,7 +10,7 @@ import operatorRoutes from "./routes/operator/operator.route.js";
 import pitRoutes from "./routes/pit/pit.routes.js";
 import inventoryRoutes from "./routes/inventory/inventory.routes.js";
 
-
+import nozzleRoutes from "./routes/nozzle/nozzle.routes.js";
 
 import engineerRoutes from "./routes/engineer/engineer.routes.js";
 import companyRoutes from "./routes/company/company.routes.js";
@@ -154,6 +154,9 @@ app.use("/api/ug-inventory", ugInventoryRoutes);
 app.use("/api/drill-string", drillStringRoutes);
 
 app.use("/api/well-general", wellGeneralRoutes);
+
+//nozzle
+app.use("/api/nozzle", nozzleRoutes);
 
 
 
