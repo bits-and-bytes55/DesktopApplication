@@ -8,10 +8,8 @@ import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/controller/
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/inventory_store/inventory_store.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
-// ─────────────────────────────────────────────
-//  Row Data Models
-// ─────────────────────────────────────────────
-class ReturnProductRow {
+// ─── Row Models ───────────────────────────────────────────────
+class ProductRowData {
   String? savedId;
   String selectedItem = '';
   String code = '';
@@ -19,9 +17,13 @@ class ReturnProductRow {
   String amount = '';
   bool isSaving = false;
   bool isDeleting = false;
+
+  final TextEditingController amountController = TextEditingController();
+
+  void dispose() => amountController.dispose();
 }
 
-class ReturnPackageRow {
+class PackageRowData {
   String? savedId;
   String selectedItem = '';
   String code = '';
@@ -29,11 +31,13 @@ class ReturnPackageRow {
   String amount = '';
   bool isSaving = false;
   bool isDeleting = false;
+
+  final TextEditingController amountController = TextEditingController();
+
+  void dispose() => amountController.dispose();
 }
 
-// ─────────────────────────────────────────────
-//  View
-// ─────────────────────────────────────────────
+// ─── View ─────────────────────────────────────────────────────
 class ReturnProductView extends StatefulWidget {
   const ReturnProductView({super.key});
 
@@ -42,129 +46,113 @@ class ReturnProductView extends StatefulWidget {
 }
 
 class _ReturnProductViewState extends State<ReturnProductView> {
-  final DashboardController dashboardController =
-      Get.find<DashboardController>();
-  final ReturnProductController _controller = ReturnProductController();
+  final DashboardController dashboardController = Get.find<DashboardController>();
+  final ReturnProductController _apiController = ReturnProductController();
 
   late final InventoryProductsStore _inventoryStore;
 
   final RxList<PackageItem> packages = <PackageItem>[].obs;
   RxList<ProductModel> get products => _inventoryStore.selectedProducts;
 
-  final RxList<ReturnProductRow> productRows = <ReturnProductRow>[].obs;
-  final RxList<ReturnPackageRow> packageRows = <ReturnPackageRow>[].obs;
+  final RxList<ProductRowData> productRows = <ProductRowData>[].obs;
+  final RxList<PackageRowData> packageRows = <PackageRowData>[].obs;
+
+  final RxInt selectedProductRow = 0.obs;
+  final RxInt selectedPackageRow = 0.obs;
 
   final RxString alertMessage = ''.obs;
   final RxBool alertIsError = false.obs;
-  final RxBool isLoadingProducts = false.obs;
-  final RxBool isLoadingPackages = false.obs;
-
-  // Amount field controllers
-  final Map<String, TextEditingController> _amountControllers = {};
+  final RxBool isSaving = false.obs;
 
   @override
   void initState() {
     super.initState();
     _inventoryStore = Get.find<InventoryProductsStore>();
-    _loadAll();
+    _loadPackages();
+    _loadSavedData();
   }
 
-  // ─────────────────────────────────────────────
-  //  LOAD
-  // ─────────────────────────────────────────────
-  Future<void> _loadAll() async {
-    _disposeAmountControllers();
-    await Future.wait([
-      _loadSavedProducts(),
-      _loadSavedPackages(),
-      _loadPackageDropdown(),
-    ]);
-  }
-
-  Future<void> _loadPackageDropdown() async {
+  // ─── Fetch saved records on load ──────────────────────────
+  Future<void> _loadSavedData() async {
     try {
-      const wellId = '507f1f77bcf86cd799439011';
-      final list = await InventoryProductsService.fetchPackages(wellId);
-      packages.value = list;
-    } catch (e) {
-      print('Error loading package dropdown: $e');
-    }
-  }
+      final savedProducts = await _apiController.getReturnProducts();
+      final savedPackages = await _apiController.getReturnPackages();
 
-  Future<void> _loadSavedProducts() async {
-    isLoadingProducts.value = true;
-    try {
-      final data = await _controller.getReturnProducts();
       productRows.clear();
-      for (final item in data) {
-        final row = ReturnProductRow();
+      for (final item in savedProducts) {
+        final row = ProductRowData();
         row.savedId = item['_id']?.toString();
         row.selectedItem = item['productName']?.toString() ?? '';
         row.code = item['code']?.toString() ?? '';
         row.unit = item['unit']?.toString() ?? '';
         row.amount = item['amount']?.toString() ?? '';
+        row.amountController.text = row.amount;
         productRows.add(row);
       }
-      _ensureEmptyProductRow();
-    } catch (e) {
-      print('Error loading saved return products: $e');
-      productRows.add(ReturnProductRow());
-    } finally {
-      isLoadingProducts.value = false;
-    }
-  }
+      productRows.add(ProductRowData());
 
-  Future<void> _loadSavedPackages() async {
-    isLoadingPackages.value = true;
-    try {
-      final data = await _controller.getReturnPackages();
       packageRows.clear();
-      for (final item in data) {
-        final row = ReturnPackageRow();
+      for (final item in savedPackages) {
+        final row = PackageRowData();
         row.savedId = item['_id']?.toString();
         row.selectedItem = item['packageName']?.toString() ?? '';
         row.code = item['code']?.toString() ?? '';
         row.unit = item['unit']?.toString() ?? '';
         row.amount = item['amount']?.toString() ?? '';
+        row.amountController.text = row.amount;
         packageRows.add(row);
       }
-      _ensureEmptyPackageRow();
+      packageRows.add(PackageRowData());
     } catch (e) {
-      print('Error loading saved return packages: $e');
-      packageRows.add(ReturnPackageRow());
-    } finally {
-      isLoadingPackages.value = false;
+      print('Error loading saved return data: $e');
+      if (productRows.isEmpty) productRows.add(ProductRowData());
+      if (packageRows.isEmpty) packageRows.add(PackageRowData());
     }
   }
 
-  // ─────────────────────────────────────────────
-  //  RETURN ALL INVENTORY
-  // ─────────────────────────────────────────────
+  Future<void> _loadPackages() async {
+    try {
+      const wellId = '507f1f77bcf86cd799439011';
+      final inventoryPackages =
+          await InventoryProductsService.fetchPackages(wellId);
+      packages.value = inventoryPackages;
+    } catch (e) {
+      print("Error loading packages: $e");
+    }
+  }
+
+  void _showAlert(String message, {bool isError = false}) {
+    alertMessage.value = message;
+    alertIsError.value = isError;
+    Future.delayed(const Duration(seconds: 3), () => alertMessage.value = '');
+  }
+
+  // ─── Return All Inventory ──────────────────────────────────
   void _returnAllInventory() {
     if (dashboardController.isLocked.value) return;
 
-    // Clear existing unsaved rows, keep saved ones
+    // Remove unsaved rows, keep saved ones
     productRows.removeWhere((r) => r.savedId == null);
     packageRows.removeWhere((r) => r.savedId == null);
 
-    // Add all inventory products as new rows
-    for (final product in products) {
-      // Skip if already in list
-      final alreadyExists = productRows.any((r) => r.selectedItem == product.product);
+    // Add all inventory products (skip duplicates)
+    for (var product in products) {
+      final alreadyExists =
+          productRows.any((r) => r.selectedItem == product.product);
       if (!alreadyExists) {
-        final row = ReturnProductRow();
+        final row = ProductRowData();
         row.selectedItem = product.product;
         row.code = product.code;
         row.unit = product.formattedUnit;
         productRows.add(row);
       }
     }
-
-    // Add all packages as new rows
-    for (final pkg in packages) {
-      final alreadyExists = packageRows.any((r) => r.selectedItem == pkg.name);
+    // Add all packages (skip duplicates)
+    for (var pkg in packages) {
+      final alreadyExists =
+          packageRows.any((r) => r.selectedItem == pkg.name);
       if (!alreadyExists) {
-        final row = ReturnPackageRow();
+        final row = PackageRowData();
         row.selectedItem = pkg.name;
         row.code = pkg.code;
         row.unit = pkg.unit;
@@ -172,48 +160,50 @@ class _ReturnProductViewState extends State<ReturnProductView> {
       }
     }
 
-    _ensureEmptyProductRow();
-    _ensureEmptyPackageRow();
-    _showAlert('All inventory items added — amounts bharo aur save karo');
+    // Ensure empty row at end
+    if (productRows.isEmpty || productRows.last.selectedItem.isNotEmpty) {
+      productRows.add(ProductRowData());
+    }
+    if (packageRows.isEmpty || packageRows.last.selectedItem.isNotEmpty) {
+      packageRows.add(PackageRowData());
+    }
+
+    productRows.refresh();
+    packageRows.refresh();
+    _showAlert('All inventory items added');
   }
 
-  // ─────────────────────────────────────────────
-  //  PRODUCT CRUD
-  // ─────────────────────────────────────────────
+  // ─── Save single product row ────────────────────────────────
   Future<void> _saveProductRow(int index) async {
-    if (dashboardController.isLocked.value) return;
     if (index >= productRows.length) return;
     final row = productRows[index];
+    row.amount = row.amountController.text;
 
-    final amtCtrl = _amountControllers['p_$index'];
-    if (amtCtrl != null) row.amount = amtCtrl.text;
-
-    if (row.selectedItem.isEmpty || row.amount.isEmpty) {
-      _showAlert('Product aur Amount dono required hain', isError: true);
-      return;
-    }
+    if (row.selectedItem.isEmpty || row.amount.isEmpty) return;
 
     productRows[index].isSaving = true;
     productRows.refresh();
 
     try {
+      Map<String, dynamic> result;
       if (row.savedId == null) {
-        final result = await _controller.createReturnProduct(
+        result = await _apiController.createReturnProduct(
           productName: row.selectedItem,
           code: row.code,
           unit: row.unit,
           amount: double.tryParse(row.amount) ?? 0.0,
         );
         if (result['success'] == true) {
-          productRows[index].savedId =
-              result['data']?['_id']?.toString();
-          _showAlert('Return product saved ✓');
-          _ensureEmptyProductRow();
+          productRows[index].savedId = result['data']?['_id']?.toString();
+          _showAlert('Saved ✓');
+          if (productRows.isEmpty || productRows.last.selectedItem.isNotEmpty) {
+            productRows.add(ProductRowData());
+          }
         } else {
           _showAlert(result['message'] ?? 'Save failed', isError: true);
         }
       } else {
-        final result = await _controller.updateReturnProduct(
+        result = await _apiController.updateReturnProduct(
           id: row.savedId!,
           productName: row.selectedItem,
           code: row.code,
@@ -221,7 +211,7 @@ class _ReturnProductViewState extends State<ReturnProductView> {
           amount: double.tryParse(row.amount) ?? 0.0,
         );
         if (result['success'] == true) {
-          _showAlert('Return product updated ✓');
+          _showAlert('Updated ✓');
         } else {
           _showAlert(result['message'] ?? 'Update failed', isError: true);
         }
@@ -236,18 +226,15 @@ class _ReturnProductViewState extends State<ReturnProductView> {
     }
   }
 
+  // ─── Delete product row ─────────────────────────────────────
   Future<void> _deleteProductRow(int index) async {
-    if (dashboardController.isLocked.value) return;
     if (index >= productRows.length) return;
     final row = productRows[index];
 
     if (row.savedId == null) {
-      _amountControllers.remove('p_$index')?.dispose();
-      if (productRows.length > 1) {
-        productRows.removeAt(index);
-      } else {
-        productRows[index] = ReturnProductRow();
-      }
+      row.dispose();
+      if (productRows.length > 1) productRows.removeAt(index);
+      else productRows[index] = ProductRowData();
       productRows.refresh();
       return;
     }
@@ -256,12 +243,15 @@ class _ReturnProductViewState extends State<ReturnProductView> {
     productRows.refresh();
 
     try {
-      final result = await _controller.deleteReturnProduct(row.savedId!);
+      final result = await _apiController.deleteReturnProduct(row.savedId!);
       if (result['success'] == true) {
-        _amountControllers.remove('p_$index')?.dispose();
+        row.dispose();
         productRows.removeAt(index);
-        _ensureEmptyProductRow();
-        _showAlert('Return product deleted');
+        if (productRows.isEmpty || productRows.last.selectedItem.isNotEmpty) {
+          productRows.add(ProductRowData());
+        }
+        productRows.refresh();
+        _showAlert('Deleted');
       } else {
         _showAlert(result['message'] ?? 'Delete failed', isError: true);
         if (index < productRows.length) {
@@ -278,50 +268,37 @@ class _ReturnProductViewState extends State<ReturnProductView> {
     }
   }
 
-  void _ensureEmptyProductRow() {
-    if (productRows.isEmpty || productRows.last.selectedItem.isNotEmpty) {
-      productRows.add(ReturnProductRow());
-    }
-    productRows.refresh();
-  }
-
-  // ─────────────────────────────────────────────
-  //  PACKAGE CRUD
-  // ─────────────────────────────────────────────
+  // ─── Save single package row ────────────────────────────────
   Future<void> _savePackageRow(int index) async {
-    if (dashboardController.isLocked.value) return;
     if (index >= packageRows.length) return;
     final row = packageRows[index];
+    row.amount = row.amountController.text;
 
-    final amtCtrl = _amountControllers['pkg_$index'];
-    if (amtCtrl != null) row.amount = amtCtrl.text;
-
-    if (row.selectedItem.isEmpty || row.amount.isEmpty) {
-      _showAlert('Package aur Amount dono required hain', isError: true);
-      return;
-    }
+    if (row.selectedItem.isEmpty || row.amount.isEmpty) return;
 
     packageRows[index].isSaving = true;
     packageRows.refresh();
 
     try {
+      Map<String, dynamic> result;
       if (row.savedId == null) {
-        final result = await _controller.createReturnPackage(
+        result = await _apiController.createReturnPackage(
           packageName: row.selectedItem,
           code: row.code,
           unit: row.unit,
           amount: double.tryParse(row.amount) ?? 0.0,
         );
         if (result['success'] == true) {
-          packageRows[index].savedId =
-              result['data']?['_id']?.toString();
-          _showAlert('Return package saved ✓');
-          _ensureEmptyPackageRow();
+          packageRows[index].savedId = result['data']?['_id']?.toString();
+          _showAlert('Saved ✓');
+          if (packageRows.isEmpty || packageRows.last.selectedItem.isNotEmpty) {
+            packageRows.add(PackageRowData());
+          }
         } else {
           _showAlert(result['message'] ?? 'Save failed', isError: true);
         }
       } else {
-        final result = await _controller.updateReturnPackage(
+        result = await _apiController.updateReturnPackage(
           id: row.savedId!,
           packageName: row.selectedItem,
           code: row.code,
@@ -329,7 +306,7 @@ class _ReturnProductViewState extends State<ReturnProductView> {
           amount: double.tryParse(row.amount) ?? 0.0,
         );
         if (result['success'] == true) {
-          _showAlert('Return package updated ✓');
+          _showAlert('Updated ✓');
         } else {
           _showAlert(result['message'] ?? 'Update failed', isError: true);
         }
@@ -344,18 +321,15 @@ class _ReturnProductViewState extends State<ReturnProductView> {
     }
   }
 
+  // ─── Delete package row ─────────────────────────────────────
   Future<void> _deletePackageRow(int index) async {
-    if (dashboardController.isLocked.value) return;
     if (index >= packageRows.length) return;
     final row = packageRows[index];
 
     if (row.savedId == null) {
-      _amountControllers.remove('pkg_$index')?.dispose();
-      if (packageRows.length > 1) {
-        packageRows.removeAt(index);
-      } else {
-        packageRows[index] = ReturnPackageRow();
-      }
+      row.dispose();
+      if (packageRows.length > 1) packageRows.removeAt(index);
+      else packageRows[index] = PackageRowData();
       packageRows.refresh();
       return;
     }
@@ -364,12 +338,15 @@ class _ReturnProductViewState extends State<ReturnProductView> {
     packageRows.refresh();
 
     try {
-      final result = await _controller.deleteReturnPackage(row.savedId!);
+      final result = await _apiController.deleteReturnPackage(row.savedId!);
       if (result['success'] == true) {
-        _amountControllers.remove('pkg_$index')?.dispose();
+        row.dispose();
         packageRows.removeAt(index);
-        _ensureEmptyPackageRow();
-        _showAlert('Return package deleted');
+        if (packageRows.isEmpty || packageRows.last.selectedItem.isNotEmpty) {
+          packageRows.add(PackageRowData());
+        }
+        packageRows.refresh();
+        _showAlert('Deleted');
       } else {
         _showAlert(result['message'] ?? 'Delete failed', isError: true);
         if (index < packageRows.length) {
@@ -386,29 +363,37 @@ class _ReturnProductViewState extends State<ReturnProductView> {
     }
   }
 
-  void _ensureEmptyPackageRow() {
-    if (packageRows.isEmpty || packageRows.last.selectedItem.isNotEmpty) {
-      packageRows.add(ReturnPackageRow());
+  // ─── Save All (top Save button) ─────────────────────────────
+  Future<void> _saveAllData() async {
+    if (dashboardController.isLocked.value) return;
+    isSaving.value = true;
+    try {
+      for (int i = 0; i < productRows.length; i++) {
+        final row = productRows[i];
+        row.amount = row.amountController.text;
+        if (row.selectedItem.isNotEmpty &&
+            row.amount.isNotEmpty &&
+            row.savedId == null) {
+          await _saveProductRow(i);
+        }
+      }
+      for (int i = 0; i < packageRows.length; i++) {
+        final row = packageRows[i];
+        row.amount = row.amountController.text;
+        if (row.selectedItem.isNotEmpty &&
+            row.amount.isNotEmpty &&
+            row.savedId == null) {
+          await _savePackageRow(i);
+        }
+      }
+    } finally {
+      isSaving.value = false;
     }
-    packageRows.refresh();
   }
 
-  void _showAlert(String message, {bool isError = false}) {
-    alertMessage.value = message;
-    alertIsError.value = isError;
-    Future.delayed(const Duration(seconds: 3), () => alertMessage.value = '');
-  }
-
-  void _disposeAmountControllers() {
-    for (final c in _amountControllers.values) {
-      c.dispose();
-    }
-    _amountControllers.clear();
-  }
-
-  // ─────────────────────────────────────────────
-  //  BUILD
-  // ─────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────
+  //  BUILD — ORIGINAL UI EXACTLY
+  // ─────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Stack(
@@ -417,7 +402,76 @@ class _ReturnProductViewState extends State<ReturnProductView> {
           color: Colors.white,
           child: Column(
             children: [
-              _buildTopBar(),
+              // ── Top bar ──────────────────────────────────────
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border(
+                      bottom: BorderSide(color: Colors.grey.shade300)),
+                ),
+                child: Row(
+                  children: [
+                    // Return All Inventory button
+                    Obx(() => ElevatedButton(
+                          onPressed: dashboardController.isLocked.value
+                              ? null
+                              : _returnAllInventory,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.successColor,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 8),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(4)),
+                            elevation: 0,
+                            minimumSize: const Size(0, 32),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.all_inbox_rounded, size: 14),
+                              const SizedBox(width: 6),
+                              Text("Return All Inventory",
+                                  style: AppTheme.bodySmall.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 11)),
+                            ],
+                          ),
+                        )),
+                    const Spacer(),
+                    // Save button
+                    Obx(() => ElevatedButton.icon(
+                          onPressed: dashboardController.isLocked.value ||
+                                  isSaving.value
+                              ? null
+                              : _saveAllData,
+                          icon: isSaving.value
+                              ? const SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor:
+                                          AlwaysStoppedAnimation<Color>(
+                                              Colors.white)))
+                              : const Icon(Icons.save, size: 16),
+                          label: Text(
+                              isSaving.value ? 'Saving...' : 'Save',
+                              style: const TextStyle(fontSize: 12)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.primaryColor,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 20, vertical: 8),
+                            minimumSize: const Size(100, 32),
+                          ),
+                        )),
+                  ],
+                ),
+              ),
+
               Expanded(
                 child: SingleChildScrollView(
                   child: Padding(
@@ -425,9 +479,53 @@ class _ReturnProductViewState extends State<ReturnProductView> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildProductTable(),
+                        // Products table
+                        _buildCompactTable<ProductRowData, ProductModel>(
+                          title: "Add Product",
+                          rows: productRows,
+                          dropdownItems: products,
+                          selectedRowIndex: selectedProductRow,
+                          onDropdownChanged: (index, item) {
+                            productRows[index].selectedItem = item.product;
+                            productRows[index].code = item.code;
+                            productRows[index].unit = item.formattedUnit;
+                            productRows.refresh();
+                            if (productRows.last.selectedItem.isNotEmpty) {
+                              productRows.add(ProductRowData());
+                            }
+                          },
+                          onSaveRow: _saveProductRow,
+                          onDeleteRow: _deleteProductRow,
+                          headers: [
+                            "No", "Product", "Code", "Unit", "Amount", ""
+                          ],
+                          color: AppTheme.primaryColor,
+                          itemNameGetter: (item) => item.product,
+                        ),
                         const SizedBox(height: 16),
-                        _buildPackageTable(),
+                        // Packages table
+                        _buildCompactTable<PackageRowData, PackageItem>(
+                          title: "Add Package",
+                          rows: packageRows,
+                          dropdownItems: packages,
+                          selectedRowIndex: selectedPackageRow,
+                          onDropdownChanged: (index, item) {
+                            packageRows[index].selectedItem = item.name;
+                            packageRows[index].code = item.code;
+                            packageRows[index].unit = item.unit;
+                            packageRows.refresh();
+                            if (packageRows.last.selectedItem.isNotEmpty) {
+                              packageRows.add(PackageRowData());
+                            }
+                          },
+                          onSaveRow: _savePackageRow,
+                          onDeleteRow: _deletePackageRow,
+                          headers: [
+                            "No", "Package", "Code", "Unit", "Amount", ""
+                          ],
+                          color: AppTheme.successColor,
+                          itemNameGetter: (item) => item.name,
+                        ),
                       ],
                     ),
                   ),
@@ -441,462 +539,318 @@ class _ReturnProductViewState extends State<ReturnProductView> {
     );
   }
 
-  // ─── Top Bar ──────────────────────────────────
-  Widget _buildTopBar() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
-      ),
-      child: Row(
-        children: [
-          // Return All Inventory button
-          Obx(() => ElevatedButton.icon(
-                onPressed: dashboardController.isLocked.value
-                    ? null
-                    : _returnAllInventory,
-                icon: const Icon(Icons.all_inbox_rounded, size: 14),
-                label: Text('Return All Inventory',
-                    style: AppTheme.bodySmall
-                        .copyWith(fontWeight: FontWeight.w600, fontSize: 11)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orange.shade600,
-                  foregroundColor: Colors.white,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  minimumSize: const Size(0, 32),
-                  elevation: 0,
-                ),
-              )),
-          const Spacer(),
-          // Refresh button
-          Obx(() => (isLoadingProducts.value || isLoadingPackages.value)
-              ? const SizedBox(
-                  width: 32,
-                  height: 32,
-                  child: Center(
-                      child: SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2))))
-              : IconButton(
-                  icon: const Icon(Icons.refresh_rounded, size: 20),
-                  color: AppTheme.primaryColor,
-                  tooltip: 'Refresh',
-                  onPressed: _loadAll,
-                )),
-        ],
-      ),
-    );
-  }
-
-  // ─── Product Table ────────────────────────────
-  Widget _buildProductTable() {
-    return Container(
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade300),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildSectionHeader(
-              'Return Products', Icons.undo_rounded, AppTheme.primaryColor,
-              isLoading: isLoadingProducts),
-          _buildColHeaders(
-              ['No', 'Product', 'Code', 'Unit', 'Amount', 'Actions'],
-              AppTheme.primaryColor),
-          Obx(() => Column(
-                children: List.generate(productRows.length,
-                    (i) => _buildProductRow(productRows[i], i)),
-              )),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildProductRow(ReturnProductRow row, int index) {
-    final locked = dashboardController.isLocked.value;
-
-    final amtKey = 'p_$index';
-    if (!_amountControllers.containsKey(amtKey)) {
-      _amountControllers[amtKey] = TextEditingController(text: row.amount);
-    } else if (_amountControllers[amtKey]!.text != row.amount &&
-        !_amountControllers[amtKey]!.selection.isValid) {
-      _amountControllers[amtKey]!.text = row.amount;
-    }
-    final amtCtrl = _amountControllers[amtKey]!;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: index % 2 == 0 ? Colors.white : Colors.grey.shade50,
-        border:
-            Border(bottom: BorderSide(color: Colors.grey.shade200, width: 0.5)),
-      ),
-      child: Row(
-        children: [
-          _cell(50,
-              Text('${index + 1}',
-                  style: AppTheme.bodySmall.copyWith(fontSize: 10)),
-              center: true),
-
-          // Product Dropdown
-          Container(
-            width: 280,
-            height: 36,
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            decoration: BoxDecoration(
-                border: Border(
-                    right:
-                        BorderSide(color: Colors.grey.shade300, width: 0.5))),
-            child: Obx(() {
-              final storeProducts = _inventoryStore.selectedProducts;
-              final matched = storeProducts
-                  .firstWhereOrNull((p) => p.product == row.selectedItem);
-              return DropdownButtonHideUnderline(
-                child: DropdownButton<ProductModel>(
-                  value: matched,
-                  hint: row.selectedItem.isNotEmpty
-                      ? Text(row.selectedItem,
-                          style: AppTheme.bodySmall
-                              .copyWith(fontSize: 10, color: Colors.black87),
-                          overflow: TextOverflow.ellipsis)
-                      : Text('Select Product',
-                          style: AppTheme.bodySmall.copyWith(
-                              fontSize: 10, color: Colors.grey.shade400)),
-                  isExpanded: true,
-                  isDense: true,
-                  icon: const Icon(Icons.arrow_drop_down, size: 14),
-                  menuMaxHeight: 280,
-                  items: storeProducts
-                      .map((p) => DropdownMenuItem(
-                            value: p,
-                            child: Text(p.product,
-                                style:
-                                    AppTheme.bodySmall.copyWith(fontSize: 10),
-                                overflow: TextOverflow.ellipsis),
-                          ))
-                      .toList(),
-                  onChanged: locked
-                      ? null
-                      : (ProductModel? val) {
-                          if (val == null) return;
-                          productRows[index].selectedItem = val.product;
-                          productRows[index].code = val.code;
-                          productRows[index].unit = val.formattedUnit;
-                          productRows.refresh();
-                          _ensureEmptyProductRow();
-                        },
-                ),
-              );
-            }),
-          ),
-
-          _cell(
-              110,
-              Text(row.code,
-                  style: AppTheme.bodySmall.copyWith(fontSize: 10),
-                  overflow: TextOverflow.ellipsis)),
-          _cell(
-              110,
-              Text(row.unit,
-                  style: AppTheme.bodySmall.copyWith(fontSize: 10),
-                  overflow: TextOverflow.ellipsis)),
-
-          _cell(
-              110,
-              TextField(
-                controller: amtCtrl,
-                enabled: !locked,
-                style: AppTheme.bodySmall.copyWith(fontSize: 10),
-                textAlign: TextAlign.right,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(
-                  isDense: true,
-                  contentPadding:
-                      EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-                  border: InputBorder.none,
-                ),
-                onChanged: (val) {
-                  productRows[index].amount = val;
-                },
-                onSubmitted: (_) => _saveProductRow(index),
-              ),
-              noBorder: true),
-
-          _buildActionButtons(
-            isSaving: row.isSaving,
-            isDeleting: row.isDeleting,
-            color: AppTheme.primaryColor,
-            onSave: () => _saveProductRow(index),
-            onDelete: () => _deleteProductRow(index),
-            locked: locked,
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ─── Package Table ────────────────────────────
-  Widget _buildPackageTable() {
-    return Container(
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade300),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildSectionHeader(
-              'Return Packages', Icons.inventory_outlined, AppTheme.successColor,
-              isLoading: isLoadingPackages),
-          _buildColHeaders(
-              ['No', 'Package', 'Code', 'Unit', 'Amount', 'Actions'],
-              AppTheme.successColor),
-          Obx(() => Column(
-                children: List.generate(packageRows.length,
-                    (i) => _buildPackageRow(packageRows[i], i)),
-              )),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPackageRow(ReturnPackageRow row, int index) {
-    final locked = dashboardController.isLocked.value;
-
-    final amtKey = 'pkg_$index';
-    if (!_amountControllers.containsKey(amtKey)) {
-      _amountControllers[amtKey] = TextEditingController(text: row.amount);
-    } else if (_amountControllers[amtKey]!.text != row.amount &&
-        !_amountControllers[amtKey]!.selection.isValid) {
-      _amountControllers[amtKey]!.text = row.amount;
-    }
-    final amtCtrl = _amountControllers[amtKey]!;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: index % 2 == 0 ? Colors.white : Colors.grey.shade50,
-        border:
-            Border(bottom: BorderSide(color: Colors.grey.shade200, width: 0.5)),
-      ),
-      child: Row(
-        children: [
-          _cell(50,
-              Text('${index + 1}',
-                  style: AppTheme.bodySmall.copyWith(fontSize: 10)),
-              center: true),
-
-          Container(
-            width: 280,
-            height: 36,
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            decoration: BoxDecoration(
-                border: Border(
-                    right:
-                        BorderSide(color: Colors.grey.shade300, width: 0.5))),
-            child: Obx(() {
-              final matched =
-                  packages.firstWhereOrNull((p) => p.name == row.selectedItem);
-              return DropdownButtonHideUnderline(
-                child: DropdownButton<PackageItem>(
-                  value: matched,
-                  hint: row.selectedItem.isNotEmpty
-                      ? Text(row.selectedItem,
-                          style: AppTheme.bodySmall
-                              .copyWith(fontSize: 10, color: Colors.black87),
-                          overflow: TextOverflow.ellipsis)
-                      : Text('Select Package',
-                          style: AppTheme.bodySmall.copyWith(
-                              fontSize: 10, color: Colors.grey.shade400)),
-                  isExpanded: true,
-                  isDense: true,
-                  icon: const Icon(Icons.arrow_drop_down, size: 14),
-                  menuMaxHeight: 280,
-                  items: packages
-                      .map((p) => DropdownMenuItem(
-                            value: p,
-                            child: Text(p.name,
-                                style:
-                                    AppTheme.bodySmall.copyWith(fontSize: 10),
-                                overflow: TextOverflow.ellipsis),
-                          ))
-                      .toList(),
-                  onChanged: locked
-                      ? null
-                      : (PackageItem? val) {
-                          if (val == null) return;
-                          packageRows[index].selectedItem = val.name;
-                          packageRows[index].code = val.code;
-                          packageRows[index].unit = val.unit;
-                          packageRows.refresh();
-                          _ensureEmptyPackageRow();
-                        },
-                ),
-              );
-            }),
-          ),
-
-          _cell(
-              110,
-              Text(row.code,
-                  style: AppTheme.bodySmall.copyWith(fontSize: 10),
-                  overflow: TextOverflow.ellipsis)),
-          _cell(
-              110,
-              Text(row.unit,
-                  style: AppTheme.bodySmall.copyWith(fontSize: 10),
-                  overflow: TextOverflow.ellipsis)),
-
-          _cell(
-              110,
-              TextField(
-                controller: amtCtrl,
-                enabled: !locked,
-                style: AppTheme.bodySmall.copyWith(fontSize: 10),
-                textAlign: TextAlign.right,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(
-                  isDense: true,
-                  contentPadding:
-                      EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-                  border: InputBorder.none,
-                ),
-                onChanged: (val) {
-                  packageRows[index].amount = val;
-                },
-                onSubmitted: (_) => _savePackageRow(index),
-              ),
-              noBorder: true),
-
-          _buildActionButtons(
-            isSaving: row.isSaving,
-            isDeleting: row.isDeleting,
-            color: AppTheme.successColor,
-            onSave: () => _savePackageRow(index),
-            onDelete: () => _deletePackageRow(index),
-            locked: locked,
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ─────────────────────────────────────────────
-  //  SHARED WIDGETS
-  // ─────────────────────────────────────────────
-  Widget _buildSectionHeader(String title, IconData icon, Color color,
-      {required RxBool isLoading}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.07),
-        border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 8),
-          Text(title,
-              style: AppTheme.bodySmall.copyWith(
-                  fontWeight: FontWeight.w600, fontSize: 11, color: color)),
-          const Spacer(),
-          Obx(() => isLoading.value
-              ? SizedBox(
-                  width: 14,
-                  height: 14,
-                  child: CircularProgressIndicator(
-                      strokeWidth: 2, color: color))
-              : const SizedBox.shrink()),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildColHeaders(List<String> headers, Color color) {
-    return Container(
-      decoration: BoxDecoration(
-          color: color.withOpacity(0.04),
-          border: Border(bottom: BorderSide(color: Colors.grey.shade300))),
-      child: Row(
-        children: headers.map((h) {
-          return Container(
-            width: _colWidth(h),
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            decoration: BoxDecoration(
-                border: Border(
-                    right: BorderSide(
-                        color: Colors.grey.shade300, width: 0.5))),
-            alignment:
-                h == 'Amount' ? Alignment.centerRight : Alignment.centerLeft,
-            child: Text(h,
-                style: AppTheme.bodySmall.copyWith(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: color)),
-          );
-        }).toList(),
-      ),
-    );
-  }
-
-  Widget _buildActionButtons({
-    required bool isSaving,
-    required bool isDeleting,
+  // ─── ORIGINAL _buildCompactTable — UI unchanged ────────────
+  Widget _buildCompactTable<T, I>({
+    required String title,
+    required RxList<T> rows,
+    required RxList<I> dropdownItems,
+    required RxInt selectedRowIndex,
+    required Function(int, I) onDropdownChanged,
+    required Function(int) onSaveRow,
+    required Function(int) onDeleteRow,
+    required List<String> headers,
     required Color color,
-    required VoidCallback onSave,
-    required VoidCallback onDelete,
-    required bool locked,
+    required String Function(I) itemNameGetter,
   }) {
-    return SizedBox(
-      width: 90,
-      height: 36,
-      child: isSaving || isDeleting
-          ? Center(
+    return Container(
+      decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade300),
+          borderRadius: BorderRadius.circular(6)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                border: Border(
+                    bottom: BorderSide(color: Colors.grey.shade300))),
+            child: Text(title,
+                style: AppTheme.bodySmall.copyWith(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 11,
+                    color: color)),
+          ),
+          SizedBox(
+            height: 200,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
               child: SizedBox(
-                  width: 14,
-                  height: 14,
-                  child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: isDeleting ? Colors.red.shade400 : color)))
-          : Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Tooltip(
-                  message: 'Save / Update',
-                  child: InkWell(
-                    onTap: locked ? null : onSave,
-                    borderRadius: BorderRadius.circular(4),
-                    child: Padding(
-                      padding: const EdgeInsets.all(4),
-                      child: Icon(Icons.save_outlined,
-                          size: 16,
-                          color: locked ? Colors.grey.shade300 : color),
+                width: _getTableWidth(headers),
+                child: Column(
+                  children: [
+                    _buildColumnHeaders(headers, color),
+                    Expanded(
+                      child: Obx(() => SingleChildScrollView(
+                            child: Column(
+                              children:
+                                  List.generate(rows.length, (index) {
+                                final isSelected =
+                                    selectedRowIndex.value == index;
+
+                                String selItem = '';
+                                String code = '';
+                                String unit = '';
+                                bool isSavingRow = false;
+                                bool isDeletingRow = false;
+                                TextEditingController? amtCtrl;
+
+                                if (T == ProductRowData) {
+                                  final r =
+                                      rows[index] as ProductRowData;
+                                  selItem = r.selectedItem;
+                                  code = r.code;
+                                  unit = r.unit;
+                                  isSavingRow = r.isSaving;
+                                  isDeletingRow = r.isDeleting;
+                                  amtCtrl = r.amountController;
+                                } else if (T == PackageRowData) {
+                                  final r =
+                                      rows[index] as PackageRowData;
+                                  selItem = r.selectedItem;
+                                  code = r.code;
+                                  unit = r.unit;
+                                  isSavingRow = r.isSaving;
+                                  isDeletingRow = r.isDeleting;
+                                  amtCtrl = r.amountController;
+                                }
+
+                                return Container(
+                                  decoration: BoxDecoration(
+                                    color: index % 2 == 0
+                                        ? Colors.white
+                                        : Colors.grey.shade50,
+                                    border: Border(
+                                        bottom: BorderSide(
+                                            color: Colors.grey.shade200,
+                                            width: 0.5)),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      // No.
+                                      _cell(
+                                          50,
+                                          Text('${index + 1}',
+                                              style: AppTheme.bodySmall
+                                                  .copyWith(fontSize: 10)),
+                                          center: true),
+
+                                      // Dropdown
+                                      GestureDetector(
+                                        onTap: () =>
+                                            selectedRowIndex.value = index,
+                                        child: Container(
+                                          width: 350,
+                                          height: 32,
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 8),
+                                          decoration: BoxDecoration(
+                                              border: Border(
+                                                  right: BorderSide(
+                                                      color: Colors
+                                                          .grey.shade300,
+                                                      width: 0.5))),
+                                          child: Row(
+                                            children: [
+                                              Icon(
+                                                  isSelected
+                                                      ? Icons.arrow_drop_down
+                                                      : Icons.arrow_right,
+                                                  size: 16,
+                                                  color: isSelected
+                                                      ? AppTheme.primaryColor
+                                                      : Colors.grey.shade400),
+                                              const SizedBox(width: 4),
+                                              Expanded(
+                                                child:
+                                                    DropdownButtonHideUnderline(
+                                                  child: DropdownButton<I>(
+                                                    value: selItem.isNotEmpty
+                                                        ? dropdownItems
+                                                            .firstWhereOrNull(
+                                                                (item) =>
+                                                                    itemNameGetter(
+                                                                        item) ==
+                                                                    selItem)
+                                                        : null,
+                                                    hint: selItem.isNotEmpty
+                                                        ? Text(
+                                                            selItem,
+                                                            style: AppTheme.bodySmall.copyWith(
+                                                                fontSize: 10,
+                                                                color: Colors.black87),
+                                                            overflow:
+                                                                TextOverflow.ellipsis)
+                                                        : Text("",
+                                                            style: AppTheme
+                                                                .bodySmall
+                                                                .copyWith(
+                                                                    fontSize: 10,
+                                                                    color: Colors.grey)),
+                                                    isExpanded: true,
+                                                    isDense: true,
+                                                    icon:
+                                                        const SizedBox.shrink(),
+                                                    style: AppTheme.bodySmall
+                                                        .copyWith(
+                                                            fontSize: 10,
+                                                            color: AppTheme
+                                                                .textPrimary),
+                                                    menuMaxHeight: 250,
+                                                    items: dropdownItems
+                                                        .map((item) =>
+                                                            DropdownMenuItem<I>(
+                                                              value: item,
+                                                              child: Text(
+                                                                  itemNameGetter(item),
+                                                                  style: AppTheme.bodySmall.copyWith(fontSize: 10),
+                                                                  overflow: TextOverflow.ellipsis),
+                                                            ))
+                                                        .toList(),
+                                                    onChanged: dashboardController.isLocked.value
+                                                        ? null
+                                                        : (I? value) {
+                                                            if (value != null) {
+                                                              selectedRowIndex.value = index;
+                                                              onDropdownChanged(index, value);
+                                                            }
+                                                          },
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+
+                                      // Code
+                                      _cell(150, Text(code,
+                                          style: AppTheme.bodySmall.copyWith(fontSize: 10),
+                                          overflow: TextOverflow.ellipsis)),
+
+                                      // Unit
+                                      _cell(150, Text(unit,
+                                          style: AppTheme.bodySmall.copyWith(fontSize: 10),
+                                          overflow: TextOverflow.ellipsis)),
+
+                                      // Amount — editable, Enter = save
+                                      _cell(
+                                          150,
+                                          TextField(
+                                            controller: amtCtrl,
+                                            enabled: !dashboardController.isLocked.value,
+                                            style: AppTheme.bodySmall.copyWith(fontSize: 10),
+                                            textAlign: TextAlign.right,
+                                            decoration: const InputDecoration(
+                                              isDense: true,
+                                              contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                                              border: InputBorder.none,
+                                            ),
+                                            keyboardType: TextInputType.numberWithOptions(decimal: true),
+                                            onChanged: (val) {
+                                              if (T == ProductRowData) {
+                                                (rows[index] as ProductRowData).amount = val;
+                                              } else if (T == PackageRowData) {
+                                                (rows[index] as PackageRowData).amount = val;
+                                              }
+                                            },
+                                            onSubmitted: (_) => onSaveRow(index),
+                                          ),
+                                          noBorder: true),
+
+                                      // Action icons
+                                      SizedBox(
+                                        width: 60,
+                                        height: 32,
+                                        child: isSavingRow || isDeletingRow
+                                            ? Center(
+                                                child: SizedBox(
+                                                    width: 12,
+                                                    height: 12,
+                                                    child: CircularProgressIndicator(
+                                                        strokeWidth: 2,
+                                                        color: isDeletingRow
+                                                            ? Colors.red
+                                                            : color)))
+                                            : Row(
+                                                mainAxisAlignment: MainAxisAlignment.center,
+                                                children: [
+                                                  InkWell(
+                                                    onTap: dashboardController.isLocked.value
+                                                        ? null
+                                                        : () => onSaveRow(index),
+                                                    child: Padding(
+                                                      padding: const EdgeInsets.all(3),
+                                                      child: Icon(
+                                                          Icons.save_outlined,
+                                                          size: 14,
+                                                          color: dashboardController.isLocked.value
+                                                              ? Colors.grey.shade300
+                                                              : color),
+                                                    ),
+                                                  ),
+                                                  InkWell(
+                                                    onTap: dashboardController.isLocked.value
+                                                        ? null
+                                                        : () => onDeleteRow(index),
+                                                    child: Padding(
+                                                      padding: const EdgeInsets.all(3),
+                                                      child: Icon(
+                                                          Icons.delete_outline,
+                                                          size: 14,
+                                                          color: dashboardController.isLocked.value
+                                                              ? Colors.grey.shade300
+                                                              : Colors.red.shade400),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }),
+                            ),
+                          )),
                     ),
-                  ),
+                  ],
                 ),
-                const SizedBox(width: 6),
-                Tooltip(
-                  message: 'Delete',
-                  child: InkWell(
-                    onTap: locked ? null : onDelete,
-                    borderRadius: BorderRadius.circular(4),
-                    child: Padding(
-                      padding: const EdgeInsets.all(4),
-                      child: Icon(Icons.delete_outline,
-                          size: 16,
-                          color: locked
-                              ? Colors.grey.shade300
-                              : Colors.red.shade400),
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildColumnHeaders(List<String> headers, Color color) {
+    return Container(
+      decoration: BoxDecoration(
+          color: Colors.grey.shade50,
+          border:
+              Border(bottom: BorderSide(color: Colors.grey.shade300))),
+      child: Row(
+        children: headers
+            .map((h) => Container(
+                  width: _getColumnWidth(h),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 6),
+                  decoration: BoxDecoration(
+                      border: Border(
+                          right: BorderSide(
+                              color: Colors.grey.shade300, width: 0.5))),
+                  alignment: h == 'Amount'
+                      ? Alignment.centerRight
+                      : Alignment.centerLeft,
+                  child: Text(h,
+                      style: AppTheme.bodySmall.copyWith(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.textPrimary)),
+                ))
+            .toList(),
+      ),
     );
   }
 
@@ -904,7 +858,7 @@ class _ReturnProductViewState extends State<ReturnProductView> {
       {bool center = false, bool noBorder = false}) {
     return Container(
       width: width,
-      height: 36,
+      height: 32,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: noBorder
           ? null
@@ -917,21 +871,19 @@ class _ReturnProductViewState extends State<ReturnProductView> {
     );
   }
 
-  double _colWidth(String h) {
+  double _getTableWidth(List<String> headers) =>
+      headers.fold(0.0, (sum, h) => sum + _getColumnWidth(h));
+
+  double _getColumnWidth(String h) {
     switch (h) {
-      case 'No':
-        return 50;
+      case 'No': return 50;
       case 'Product':
-      case 'Package':
-        return 280;
+      case 'Package': return 350;
       case 'Code':
       case 'Unit':
-      case 'Amount':
-        return 110;
-      case 'Actions':
-        return 90;
-      default:
-        return 100;
+      case 'Amount': return 150;
+      case '': return 60;
+      default: return 100;
     }
   }
 
@@ -980,7 +932,8 @@ class _ReturnProductViewState extends State<ReturnProductView> {
 
   @override
   void dispose() {
-    _disposeAmountControllers();
+    for (final r in productRows) r.dispose();
+    for (final r in packageRows) r.dispose();
     super.dispose();
   }
 }

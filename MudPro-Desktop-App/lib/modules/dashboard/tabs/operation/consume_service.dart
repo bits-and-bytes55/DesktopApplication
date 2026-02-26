@@ -723,27 +723,26 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
                       rowDeleting: packageRowDeleting,
                       headers: const ["Package", "Code", "Unit", "Price (\$)", "Initial", "Used", "Final", "Cost (\$)", ""],
                       onDropdownChanged: (i, item) {
-                        // Clear old data first
-                        packageRows[i].selectedItem = '';
-                        packageRows[i].code       = '';
-                        packageRows[i].unit       = '';
-                        packageRows[i].price      = 0.0;
-                        packageRows[i].initial    = '';
-                        packageRows[i].used       = '';
-                        packageRows[i].finalValue = '';
-                        packageRows[i].cost       = 0.0;
-                        // Populate with new selection
-                        packageRows[i].selectedItem = item.name;
-                        packageRows[i].code         = item.code;
-                        packageRows[i].unit         = item.unit;
-                        packageRows[i].price        = item.price;
-                        packageRows[i].initial      = '';
-                        packageRows[i].used         = '';
-                        packageRows[i].finalValue   = '';
-                        packageRows[i].cost         = 0.0;
-                        packageRows.refresh();
-                        _checkAndAddRow(packageRows, packageRowLoading, packageRowSaving, packageRowDeleting);
-                      },
+  packageRows[i].selectedItem = '';
+  packageRows[i].code         = '';
+  packageRows[i].unit         = '';
+  packageRows[i].price        = 0.0;
+  packageRows[i].initial      = '';
+  packageRows[i].used         = '';
+  packageRows[i].finalValue   = '';
+  packageRows[i].cost         = 0.0;
+  // Populate with new selection
+  packageRows[i].selectedItem = item.name;
+  packageRows[i].code         = item.code;
+  packageRows[i].unit         = item.unit;
+  packageRows[i].price        = item.price;
+  packageRows[i].initial      = item.initial;  // ✅ YE FIX HAI
+  packageRows[i].used         = '';
+  packageRows[i].finalValue   = '';
+  packageRows[i].cost         = 0.0;
+  packageRows.refresh();
+  _checkAndAddRow(packageRows, packageRowLoading, packageRowSaving, packageRowDeleting);
+},
                       onCalculate: _calculatePackage,
                       onSave:      _savePackageRow,
                       onDelete:    _deletePackageRow,

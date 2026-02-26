@@ -215,7 +215,6 @@ class PumpPage extends StatelessWidget {
       return DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: safeValue,
-          hint: const Text("Select", style: TextStyle(fontSize: 9, color: Colors.grey)),
           isExpanded: true,
           isDense: true,
           style: const TextStyle(fontSize: 9, color: Colors.black87),
@@ -374,7 +373,6 @@ class PumpPage extends StatelessWidget {
       return DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: safeValue,
-          hint: const Text("Select", style: TextStyle(fontSize: 9, color: Colors.grey)),
           isExpanded: true,
           isDense: true,
           style: const TextStyle(fontSize: 9, color: Colors.black87),
@@ -423,7 +421,6 @@ class PumpPage extends StatelessWidget {
       return DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: safeValue,
-          hint: const Text("Select", style: TextStyle(fontSize: 9, color: Colors.grey)),
           isExpanded: true,
           isDense: true,
           style: const TextStyle(fontSize: 9, color: Colors.black87),
@@ -574,7 +571,6 @@ class PumpPage extends StatelessWidget {
       return DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: safeValue,
-          hint: const Text("Select", style: TextStyle(fontSize: 9, color: Colors.grey)),
           isExpanded: true,
           isDense: true,
           style: const TextStyle(fontSize: 9, color: Colors.black87),
@@ -622,7 +618,7 @@ class PumpPage extends StatelessWidget {
       return DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: safeValue,
-          hint: const Text("Select", style: TextStyle(fontSize: 9, color: Colors.grey)),
+        
           isExpanded: true,
           isDense: true,
           style: const TextStyle(fontSize: 9, color: Colors.black87),
