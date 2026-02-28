@@ -16,11 +16,16 @@ class SceController extends GetxController {
   final availableShakerTypes = <String>[].obs;
   final availableOtherSceTypes = <String>[].obs;
 
-  // ✅ NEW: Available models from API
+  // Available models from API
   final availableShakerModels = <String>[].obs;
   final availableOtherSceModels = <String>[].obs;
 
   final isLoading = false.obs;
+
+  // ✅ FIX: maxScreenCols — driven by "No. of Screen" field from SCE data
+  // Default 8 (all enabled). Updated when SCE data is loaded.
+  final _maxScreenCols = 8.obs;
+  int get maxScreenCols => _maxScreenCols.value;
 
   String? currentWellId = "507f1f77bcf86cd799439011";
 
@@ -84,6 +89,9 @@ class SceController extends GetxController {
         while (shakers.length < MIN_SHAKER_ROWS) {
           shakers.add(ShakerModel(shaker: ''));
         }
+
+        // ✅ Update maxScreenCols from loaded data (max "screens" value across all shakers)
+        _updateMaxScreenCols(shakerData);
       } else {
         initializeEmptyShakers();
       }
@@ -91,6 +99,18 @@ class SceController extends GetxController {
       print('❌ Error loading shakers: $e');
       initializeEmptyShakers();
     }
+  }
+
+  /// Reads 'screens' field from API data to determine how many screen cols are active
+  void _updateMaxScreenCols(List<dynamic> shakerData) {
+    int maxCols = 0;
+    for (var shaker in shakerData) {
+      final screens = int.tryParse(shaker['screens']?.toString() ?? '') ?? 0;
+      if (screens > maxCols) maxCols = screens;
+    }
+    // Clamp between 0 and 8
+    _maxScreenCols.value = maxCols.clamp(0, 8);
+    if (_maxScreenCols.value == 0) _maxScreenCols.value = 8; // default all enabled
   }
 
   Future<void> loadOtherSce(String wellId) async {
@@ -397,7 +417,7 @@ class SceController extends GetxController {
     }
   }
 
-  // ── ✅ NEW: Lookup by MODEL ──────────────────────────────────────────────
+  // ── Lookup by MODEL ──────────────────────────────────────────────────────
 
   Future<Map<String, dynamic>?> getShakerDataByModel(String model) async {
     try {

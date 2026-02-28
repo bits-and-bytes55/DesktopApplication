@@ -1,51 +1,72 @@
 import 'package:flutter/material.dart';
+import 'package:mudpro_desktop_app/modules/company_setup/controller/mud_properties_controller.dart';
+import 'package:mudpro_desktop_app/modules/company_setup/model/mud_properties_model.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
-import 'package:mudpro_desktop_app/modules/company_setup/controller/others_controller.dart';
-import 'package:mudpro_desktop_app/modules/company_setup/model/others_model.dart';
 
 class DefaultMudPropertiesPage extends StatefulWidget {
   const DefaultMudPropertiesPage({super.key});
 
   @override
-  State<DefaultMudPropertiesPage> createState() => _DefaultMudPropertiesPageState();
+  State<DefaultMudPropertiesPage> createState() =>
+      _DefaultMudPropertiesPageState();
 }
 
 class _DefaultMudPropertiesPageState extends State<DefaultMudPropertiesPage> {
-  final OthersController _controller = OthersController();
-  
-  List<WaterBasedItem> _waterBasedItems = [];
-  List<OilBasedItem> _oilBasedItems = [];
-  List<SyntheticItem> _syntheticItems = [];
-  
+  final MudPropertiesController _controller = MudPropertiesController();
+
+  // ✅ Static data loaded directly from Flutter - no API call
+  final MudPropertiesStaticData _staticData = MudPropertiesStaticData.defaultData;
+
+  // ✅ Only selected data is fetched from backend
+  SelectedMudProperties _selected = SelectedMudProperties(
+    waterBased: [],
+    oilBased: [],
+    synthetic: [],
+  );
+
   bool _isLoading = true;
+  bool _isSaving = false;
 
   @override
   void initState() {
     super.initState();
-    _fetchData();
+    _fetchSelected();
   }
 
-  Future<void> _fetchData() async {
+  Future<void> _fetchSelected() async {
     setState(() => _isLoading = true);
-    
     try {
-      final results = await Future.wait([
-        _controller.getWaterBased(),
-        _controller.getOilBased(),
-        _controller.getSynthetic(),
-      ]);
-
+      final selected = await _controller.getSelectedMudProperties();
       setState(() {
-        _waterBasedItems = results[0] as List<WaterBasedItem>;
-        _oilBasedItems = results[1] as List<OilBasedItem>;
-        _syntheticItems = results[2] as List<SyntheticItem>;
+        _selected = selected;
         _isLoading = false;
       });
     } catch (e) {
       setState(() => _isLoading = false);
+      if (mounted) _showError('Failed to load saved selections: $e');
+    }
+  }
+
+  Future<void> _saveData() async {
+    setState(() => _isSaving = true);
+    try {
+      final saved = await _controller.saveSelectedMudProperties(_selected);
+      setState(() {
+        _selected = saved;
+        _isSaving = false;
+      });
       if (mounted) {
-        _showError('Failed to load data: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Saved successfully!'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
       }
+    } catch (e) {
+      setState(() => _isSaving = false);
+      if (mounted) _showError('Failed to save: $e');
     }
   }
 
@@ -57,6 +78,62 @@ class _DefaultMudPropertiesPageState extends State<DefaultMudPropertiesPage> {
         duration: const Duration(seconds: 3),
       ),
     );
+  }
+
+  void _toggleItem(String col, String item) {
+    setState(() {
+      if (col == 'water') {
+        final list = List<String>.from(_selected.waterBased);
+        list.contains(item) ? list.remove(item) : list.add(item);
+        _selected = _selected.copyWith(waterBased: list);
+      } else if (col == 'oil') {
+        final list = List<String>.from(_selected.oilBased);
+        list.contains(item) ? list.remove(item) : list.add(item);
+        _selected = _selected.copyWith(oilBased: list);
+      } else if (col == 'synthetic') {
+        final list = List<String>.from(_selected.synthetic);
+        list.contains(item) ? list.remove(item) : list.add(item);
+        _selected = _selected.copyWith(synthetic: list);
+      }
+    });
+  }
+
+  void _toggleSelectAll(String col) {
+    setState(() {
+      if (col == 'water') {
+        final allSelected = _staticData.waterBased
+            .every((item) => _selected.waterBased.contains(item));
+        _selected = _selected.copyWith(
+          waterBased: allSelected ? [] : List.from(_staticData.waterBased),
+        );
+      } else if (col == 'oil') {
+        final allSelected = _staticData.oilBased
+            .every((item) => _selected.oilBased.contains(item));
+        _selected = _selected.copyWith(
+          oilBased: allSelected ? [] : List.from(_staticData.oilBased),
+        );
+      } else if (col == 'synthetic') {
+        final allSelected = _staticData.synthetic
+            .every((item) => _selected.synthetic.contains(item));
+        _selected = _selected.copyWith(
+          synthetic: allSelected ? [] : List.from(_staticData.synthetic),
+        );
+      }
+    });
+  }
+
+  bool _isAllSelected(String col) {
+    if (col == 'water') {
+      return _staticData.waterBased.isNotEmpty &&
+          _staticData.waterBased
+              .every((i) => _selected.waterBased.contains(i));
+    } else if (col == 'oil') {
+      return _staticData.oilBased.isNotEmpty &&
+          _staticData.oilBased.every((i) => _selected.oilBased.contains(i));
+    } else {
+      return _staticData.synthetic.isNotEmpty &&
+          _staticData.synthetic.every((i) => _selected.synthetic.contains(i));
+    }
   }
 
   @override
@@ -73,18 +150,14 @@ class _DefaultMudPropertiesPageState extends State<DefaultMudPropertiesPage> {
       ),
       body: _isLoading
           ? const Center(
-              child: CircularProgressIndicator(
-                color: AppTheme.primaryColor,
-              ),
+              child: CircularProgressIndicator(color: AppTheme.primaryColor),
             )
           : Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Expanded(
-                    child: _buildPropertiesTable(),
-                  ),
+                  Expanded(child: _buildPropertiesTable()),
                   const SizedBox(height: 16),
                   _buildFooterButtons(),
                 ],
@@ -95,12 +168,10 @@ class _DefaultMudPropertiesPageState extends State<DefaultMudPropertiesPage> {
 
   Widget _buildPropertiesTable() {
     final maxRows = [
-      _waterBasedItems.length,
-      _oilBasedItems.length,
-      _syntheticItems.length,
+      _staticData.waterBased.length,
+      _staticData.oilBased.length,
+      _staticData.synthetic.length,
     ].reduce((a, b) => a > b ? a : b);
-
-    const colWidths = [60.0, null, null, null]; // #, Water-based, Oil-based, Synthetic
 
     return Container(
       decoration: BoxDecoration(
@@ -129,93 +200,110 @@ class _DefaultMudPropertiesPageState extends State<DefaultMudPropertiesPage> {
             ),
             child: Row(
               children: [
-                _buildHeaderCell('#', colWidths[0], true),
-                _buildHeaderCell('Water-based', colWidths[1], false),
-                _buildHeaderCell('Oil-based', colWidths[2], false),
-                _buildHeaderCell('Synthetic', colWidths[3], false),
+                _buildHeaderCell('#', 60, isFixed: true),
+                _buildHeaderCell('Water-based', null,
+                    col: 'water', showSelectAll: true),
+                _buildHeaderCell('Oil-based', null,
+                    col: 'oil', showSelectAll: true),
+                _buildHeaderCell('Synthetic', null,
+                    col: 'synthetic', showSelectAll: true),
               ],
             ),
           ),
-          
+
           // Data Rows
-          if (maxRows == 0)
-            Container(
-              height: 100,
-              child: const Center(
-                child: Text(
-                  'No data available',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey,
-                  ),
-                ),
-              ),
-            )
-          else
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: maxRows,
-              itemBuilder: (context, index) {
-                return Container(
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: index % 2 == 0 ? Colors.white : Colors.grey.shade50,
-                    border: Border(
-                      bottom: BorderSide(
-                        color: Colors.grey.shade300,
-                        width: 0.5,
-                      ),
+          Expanded(
+            child: maxRows == 0
+                ? const Center(
+                    child: Text(
+                      'No data available',
+                      style: TextStyle(fontSize: 14, color: Colors.grey),
                     ),
+                  )
+                : ListView.builder(
+                    itemCount: maxRows,
+                    itemBuilder: (context, index) {
+                      return Container(
+                        height: 42,
+                        decoration: BoxDecoration(
+                          color: index % 2 == 0
+                              ? Colors.white
+                              : Colors.grey.shade50,
+                          border: Border(
+                            bottom: BorderSide(
+                              color: Colors.grey.shade300,
+                              width: 0.5,
+                            ),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            _buildNumberCell(index),
+                            _buildSelectableCell(
+                              col: 'water',
+                              index: index,
+                              items: _staticData.waterBased,
+                              selectedItems: _selected.waterBased,
+                              backgroundColor:
+                                  AppTheme.primaryColor.withOpacity(0.03),
+                            ),
+                            _buildSelectableCell(
+                              col: 'oil',
+                              index: index,
+                              items: _staticData.oilBased,
+                              selectedItems: _selected.oilBased,
+                              backgroundColor:
+                                  const Color(0xff8B4513).withOpacity(0.03),
+                            ),
+                            _buildSelectableCell(
+                              col: 'synthetic',
+                              index: index,
+                              items: _staticData.synthetic,
+                              selectedItems: _selected.synthetic,
+                              backgroundColor:
+                                  const Color(0xff20B2AA).withOpacity(0.03),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
                   ),
-                  child: Row(
-                    children: [
-                      _buildNumberCell(index),
-                      _buildDataCell(
-                        index < _waterBasedItems.length 
-                            ? _waterBasedItems[index].name 
-                            : '-',
-                        colWidths[1],
-                        AppTheme.primaryColor.withOpacity(0.03),
-                      ),
-                      _buildDataCell(
-                        index < _oilBasedItems.length 
-                            ? _oilBasedItems[index].name 
-                            : '-',
-                        colWidths[2],
-                        const Color(0xff8B4513).withOpacity(0.03),
-                      ),
-                      _buildDataCell(
-                        index < _syntheticItems.length 
-                            ? _syntheticItems[index].name 
-                            : '-',
-                        colWidths[3],
-                        const Color(0xff20B2AA).withOpacity(0.03),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildHeaderCell(String text, double? width, bool isFirst) {
-    if (isFirst) {
-      return Container(
-        width: width,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        decoration: BoxDecoration(
-          border: Border(
-            right: BorderSide(
-              color: Colors.white.withOpacity(0.3),
-              width: 1,
+  Widget _buildHeaderCell(
+    String text,
+    double? fixedWidth, {
+    bool isFixed = false,
+    String? col,
+    bool showSelectAll = false,
+  }) {
+    final content = Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (showSelectAll && col != null) ...[
+          GestureDetector(
+            onTap: () => _toggleSelectAll(col),
+            child: Container(
+              width: 16,
+              height: 16,
+              margin: const EdgeInsets.only(right: 6),
+              decoration: BoxDecoration(
+                color: _isAllSelected(col) ? Colors.white : Colors.transparent,
+                border: Border.all(color: Colors.white, width: 1.5),
+                borderRadius: BorderRadius.circular(3),
+              ),
+              child: _isAllSelected(col)
+                  ? Icon(Icons.check, size: 12, color: AppTheme.primaryColor)
+                  : null,
             ),
           ),
-        ),
-        child: Center(
+        ],
+        Flexible(
           child: Text(
             text,
             style: const TextStyle(
@@ -227,31 +315,28 @@ class _DefaultMudPropertiesPageState extends State<DefaultMudPropertiesPage> {
             overflow: TextOverflow.ellipsis,
           ),
         ),
+      ],
+    );
+
+    final decoration = BoxDecoration(
+      border: Border(
+        right: BorderSide(color: Colors.white.withOpacity(0.3), width: 1),
+      ),
+    );
+
+    if (isFixed) {
+      return Container(
+        width: fixedWidth,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: decoration,
+        child: Center(child: content),
       );
     } else {
       return Expanded(
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(
-            border: Border(
-              right: BorderSide(
-                color: Colors.white.withOpacity(0.3),
-                width: 1,
-              ),
-            ),
-          ),
-          child: Center(
-            child: Text(
-              text,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-              ),
-              textAlign: TextAlign.center,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          decoration: decoration,
+          child: Center(child: content),
         ),
       );
     }
@@ -263,10 +348,7 @@ class _DefaultMudPropertiesPageState extends State<DefaultMudPropertiesPage> {
       padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
         border: Border(
-          right: BorderSide(
-            color: Colors.grey.shade300,
-            width: 1,
-          ),
+          right: BorderSide(color: Colors.grey.shade300, width: 1),
         ),
       ),
       child: Center(
@@ -299,27 +381,43 @@ class _DefaultMudPropertiesPageState extends State<DefaultMudPropertiesPage> {
     );
   }
 
-  Widget _buildDataCell(String text, double? width, Color backgroundColor) {
+  Widget _buildSelectableCell({
+    required String col,
+    required int index,
+    required List<String> items,
+    required List<String> selectedItems,
+    required Color backgroundColor,
+  }) {
+    final hasItem = index < items.length;
+    final text = hasItem ? items[index] : '-';
+    final isSelected = hasItem && selectedItems.contains(text);
+
     return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: backgroundColor,
-          border: Border(
-            right: BorderSide(
-              color: Colors.grey.shade300,
-              width: 1,
+      child: GestureDetector(
+        onTap: hasItem ? () => _toggleItem(col, text) : null,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? AppTheme.primaryColor.withOpacity(0.12)
+                : backgroundColor,
+            border: Border(
+              right: BorderSide(color: Colors.grey.shade300, width: 1),
             ),
           ),
-        ),
-        child: Text(
-          text,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-            color: text == '-' ? Colors.grey.shade400 : AppTheme.textPrimary,
+          child: Text(
+            text,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+              color: !hasItem
+                  ? Colors.grey.shade400
+                  : isSelected
+                      ? AppTheme.primaryColor
+                      : AppTheme.textPrimary,
+            ),
+            overflow: TextOverflow.ellipsis,
           ),
-          overflow: TextOverflow.ellipsis,
         ),
       ),
     );
@@ -344,78 +442,91 @@ class _DefaultMudPropertiesPageState extends State<DefaultMudPropertiesPage> {
         children: [
           Row(
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withOpacity(0.05),
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: AppTheme.primaryColor.withOpacity(0.2)),
-                ),
-                child: Text(
-                  'Water: ${_waterBasedItems.length}',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    color: AppTheme.textPrimary,
-                  ),
-                ),
-              ),
+              _buildCountBadge(
+                  'Water: ${_selected.waterBased.length}', AppTheme.primaryColor),
               const SizedBox(width: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xff8B4513).withOpacity(0.05),
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: const Color(0xff8B4513).withOpacity(0.2)),
-                ),
-                child: Text(
-                  'Oil: ${_oilBasedItems.length}',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    color: AppTheme.textPrimary,
-                  ),
-                ),
-              ),
+              _buildCountBadge(
+                  'Oil: ${_selected.oilBased.length}', const Color(0xff8B4513)),
               const SizedBox(width: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xff20B2AA).withOpacity(0.05),
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: const Color(0xff20B2AA).withOpacity(0.2)),
+              _buildCountBadge(
+                  'Synthetic: ${_selected.synthetic.length}',
+                  const Color(0xff20B2AA)),
+            ],
+          ),
+          Row(
+            children: [
+              ElevatedButton(
+                onPressed: _isSaving ? null : _saveData,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryColor,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  minimumSize: Size.zero,
                 ),
-                child: Text(
-                  'Synthetic: ${_syntheticItems.length}',
+                child: _isSaving
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Text(
+                        'Save',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.white,
+                        ),
+                      ),
+              ),
+              const SizedBox(width: 8),
+              OutlinedButton(
+                onPressed: () => Navigator.of(context).pop(),
+                style: OutlinedButton.styleFrom(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                  side: BorderSide(color: Colors.grey.shade400),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  minimumSize: Size.zero,
+                ),
+                child: const Text(
+                  'Close',
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 13,
                     fontWeight: FontWeight.w500,
-                    color: AppTheme.textPrimary,
+                    color: Colors.grey,
                   ),
                 ),
               ),
             ],
           ),
-          OutlinedButton(
-            onPressed: () => Navigator.of(context).pop(),
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-              side: BorderSide(color: Colors.grey.shade400),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(4),
-              ),
-              minimumSize: Size.zero,
-            ),
-            child: const Text(
-              'Close',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: Colors.grey,
-              ),
-            ),
-          ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildCountBadge(String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: color.withOpacity(0.2)),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w500,
+          color: AppTheme.textPrimary,
+        ),
       ),
     );
   }

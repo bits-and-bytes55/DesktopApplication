@@ -60,6 +60,9 @@ class _ReturnProductViewState extends State<ReturnProductView> {
   final RxInt selectedProductRow = 0.obs;
   final RxInt selectedPackageRow = 0.obs;
 
+  // ✅ BOL No. field — same as ReceiveProductView
+  final TextEditingController bolController = TextEditingController();
+
   final RxString alertMessage = ''.obs;
   final RxBool alertIsError = false.obs;
   final RxBool isSaving = false.obs;
@@ -131,11 +134,9 @@ class _ReturnProductViewState extends State<ReturnProductView> {
   void _returnAllInventory() {
     if (dashboardController.isLocked.value) return;
 
-    // Remove unsaved rows, keep saved ones
     productRows.removeWhere((r) => r.savedId == null);
     packageRows.removeWhere((r) => r.savedId == null);
 
-    // Add all inventory products (skip duplicates)
     for (var product in products) {
       final alreadyExists =
           productRows.any((r) => r.selectedItem == product.product);
@@ -147,7 +148,6 @@ class _ReturnProductViewState extends State<ReturnProductView> {
         productRows.add(row);
       }
     }
-    // Add all packages (skip duplicates)
     for (var pkg in packages) {
       final alreadyExists =
           packageRows.any((r) => r.selectedItem == pkg.name);
@@ -160,7 +160,6 @@ class _ReturnProductViewState extends State<ReturnProductView> {
       }
     }
 
-    // Ensure empty row at end
     if (productRows.isEmpty || productRows.last.selectedItem.isNotEmpty) {
       productRows.add(ProductRowData());
     }
@@ -363,7 +362,7 @@ class _ReturnProductViewState extends State<ReturnProductView> {
     }
   }
 
-  // ─── Save All (top Save button) ─────────────────────────────
+  // ─── Save All ───────────────────────────────────────────────
   Future<void> _saveAllData() async {
     if (dashboardController.isLocked.value) return;
     isSaving.value = true;
@@ -392,7 +391,7 @@ class _ReturnProductViewState extends State<ReturnProductView> {
   }
 
   // ─────────────────────────────────────────────────────────────
-  //  BUILD — ORIGINAL UI EXACTLY
+  //  BUILD
   // ─────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
@@ -413,7 +412,39 @@ class _ReturnProductViewState extends State<ReturnProductView> {
                 ),
                 child: Row(
                   children: [
-                    // Return All Inventory button
+                    // ✅ BOL No. — pehle (same as ReceiveProductView)
+                    Text("BOL No.",
+                        style: AppTheme.bodySmall.copyWith(
+                            fontWeight: FontWeight.w600, fontSize: 11)),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Container(
+                        height: 32,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey.shade300),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Obx(() => TextField(
+                              controller: bolController,
+                              enabled: !dashboardController.isLocked.value,
+                              style: AppTheme.bodySmall.copyWith(fontSize: 11),
+                              decoration: InputDecoration(
+                                isDense: true,
+                                contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 8),
+                                border: InputBorder.none,
+                                hintText: "Enter BOL number...",
+                                hintStyle: TextStyle(
+                                    color: Colors.grey.shade400,
+                                    fontSize: 11),
+                              ),
+                            )),
+                      ),
+                    ),
+
+                    const SizedBox(width: 16),
+
+                    // ✅ Return All Inventory button — BOL ke right mein
                     Obx(() => ElevatedButton(
                           onPressed: dashboardController.isLocked.value
                               ? null
@@ -440,8 +471,10 @@ class _ReturnProductViewState extends State<ReturnProductView> {
                             ],
                           ),
                         )),
-                    const Spacer(),
-                    // Save button
+
+                    const SizedBox(width: 16),
+
+                    // ✅ Save button
                     Obx(() => ElevatedButton.icon(
                           onPressed: dashboardController.isLocked.value ||
                                   isSaving.value
@@ -479,7 +512,6 @@ class _ReturnProductViewState extends State<ReturnProductView> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Products table
                         _buildCompactTable<ProductRowData, ProductModel>(
                           title: "Add Product",
                           rows: productRows,
@@ -496,14 +528,11 @@ class _ReturnProductViewState extends State<ReturnProductView> {
                           },
                           onSaveRow: _saveProductRow,
                           onDeleteRow: _deleteProductRow,
-                          headers: [
-                            "No", "Product", "Code", "Unit", "Amount", ""
-                          ],
+                          headers: ["No", "Product", "Code", "Unit", "Amount", ""],
                           color: AppTheme.primaryColor,
                           itemNameGetter: (item) => item.product,
                         ),
                         const SizedBox(height: 16),
-                        // Packages table
                         _buildCompactTable<PackageRowData, PackageItem>(
                           title: "Add Package",
                           rows: packageRows,
@@ -520,9 +549,7 @@ class _ReturnProductViewState extends State<ReturnProductView> {
                           },
                           onSaveRow: _savePackageRow,
                           onDeleteRow: _deletePackageRow,
-                          headers: [
-                            "No", "Package", "Code", "Unit", "Amount", ""
-                          ],
+                          headers: ["No", "Package", "Code", "Unit", "Amount", ""],
                           color: AppTheme.successColor,
                           itemNameGetter: (item) => item.name,
                         ),
@@ -539,7 +566,6 @@ class _ReturnProductViewState extends State<ReturnProductView> {
     );
   }
 
-  // ─── ORIGINAL _buildCompactTable — UI unchanged ────────────
   Widget _buildCompactTable<T, I>({
     required String title,
     required RxList<T> rows,
@@ -560,8 +586,7 @@ class _ReturnProductViewState extends State<ReturnProductView> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
                 color: color.withOpacity(0.1),
                 border: Border(
@@ -584,8 +609,7 @@ class _ReturnProductViewState extends State<ReturnProductView> {
                     Expanded(
                       child: Obx(() => SingleChildScrollView(
                             child: Column(
-                              children:
-                                  List.generate(rows.length, (index) {
+                              children: List.generate(rows.length, (index) {
                                 final isSelected =
                                     selectedRowIndex.value == index;
 
@@ -597,8 +621,7 @@ class _ReturnProductViewState extends State<ReturnProductView> {
                                 TextEditingController? amtCtrl;
 
                                 if (T == ProductRowData) {
-                                  final r =
-                                      rows[index] as ProductRowData;
+                                  final r = rows[index] as ProductRowData;
                                   selItem = r.selectedItem;
                                   code = r.code;
                                   unit = r.unit;
@@ -606,8 +629,7 @@ class _ReturnProductViewState extends State<ReturnProductView> {
                                   isDeletingRow = r.isDeleting;
                                   amtCtrl = r.amountController;
                                 } else if (T == PackageRowData) {
-                                  final r =
-                                      rows[index] as PackageRowData;
+                                  final r = rows[index] as PackageRowData;
                                   selItem = r.selectedItem;
                                   code = r.code;
                                   unit = r.unit;
@@ -628,15 +650,12 @@ class _ReturnProductViewState extends State<ReturnProductView> {
                                   ),
                                   child: Row(
                                     children: [
-                                      // No.
-                                      _cell(
-                                          50,
+                                      _cell(50,
                                           Text('${index + 1}',
                                               style: AppTheme.bodySmall
                                                   .copyWith(fontSize: 10)),
                                           center: true),
 
-                                      // Dropdown
                                       GestureDetector(
                                         onTap: () =>
                                             selectedRowIndex.value = index,
@@ -648,8 +667,7 @@ class _ReturnProductViewState extends State<ReturnProductView> {
                                           decoration: BoxDecoration(
                                               border: Border(
                                                   right: BorderSide(
-                                                      color: Colors
-                                                          .grey.shade300,
+                                                      color: Colors.grey.shade300,
                                                       width: 0.5))),
                                           child: Row(
                                             children: [
@@ -663,48 +681,38 @@ class _ReturnProductViewState extends State<ReturnProductView> {
                                                       : Colors.grey.shade400),
                                               const SizedBox(width: 4),
                                               Expanded(
-                                                child:
-                                                    DropdownButtonHideUnderline(
+                                                child: DropdownButtonHideUnderline(
                                                   child: DropdownButton<I>(
                                                     value: selItem.isNotEmpty
                                                         ? dropdownItems
                                                             .firstWhereOrNull(
                                                                 (item) =>
-                                                                    itemNameGetter(
-                                                                        item) ==
+                                                                    itemNameGetter(item) ==
                                                                     selItem)
                                                         : null,
                                                     hint: selItem.isNotEmpty
-                                                        ? Text(
-                                                            selItem,
+                                                        ? Text(selItem,
                                                             style: AppTheme.bodySmall.copyWith(
                                                                 fontSize: 10,
                                                                 color: Colors.black87),
-                                                            overflow:
-                                                                TextOverflow.ellipsis)
+                                                            overflow: TextOverflow.ellipsis)
                                                         : Text("",
-                                                            style: AppTheme
-                                                                .bodySmall
-                                                                .copyWith(
-                                                                    fontSize: 10,
-                                                                    color: Colors.grey)),
+                                                            style: AppTheme.bodySmall
+                                                                .copyWith(fontSize: 10, color: Colors.grey)),
                                                     isExpanded: true,
                                                     isDense: true,
-                                                    icon:
-                                                        const SizedBox.shrink(),
-                                                    style: AppTheme.bodySmall
-                                                        .copyWith(
-                                                            fontSize: 10,
-                                                            color: AppTheme
-                                                                .textPrimary),
+                                                    icon: const SizedBox.shrink(),
+                                                    style: AppTheme.bodySmall.copyWith(
+                                                        fontSize: 10,
+                                                        color: AppTheme.textPrimary),
                                                     menuMaxHeight: 250,
                                                     items: dropdownItems
-                                                        .map((item) =>
-                                                            DropdownMenuItem<I>(
+                                                        .map((item) => DropdownMenuItem<I>(
                                                               value: item,
                                                               child: Text(
                                                                   itemNameGetter(item),
-                                                                  style: AppTheme.bodySmall.copyWith(fontSize: 10),
+                                                                  style: AppTheme.bodySmall
+                                                                      .copyWith(fontSize: 10),
                                                                   overflow: TextOverflow.ellipsis),
                                                             ))
                                                         .toList(),
@@ -724,17 +732,16 @@ class _ReturnProductViewState extends State<ReturnProductView> {
                                         ),
                                       ),
 
-                                      // Code
-                                      _cell(150, Text(code,
-                                          style: AppTheme.bodySmall.copyWith(fontSize: 10),
-                                          overflow: TextOverflow.ellipsis)),
+                                      _cell(150,
+                                          Text(code,
+                                              style: AppTheme.bodySmall.copyWith(fontSize: 10),
+                                              overflow: TextOverflow.ellipsis)),
 
-                                      // Unit
-                                      _cell(150, Text(unit,
-                                          style: AppTheme.bodySmall.copyWith(fontSize: 10),
-                                          overflow: TextOverflow.ellipsis)),
+                                      _cell(150,
+                                          Text(unit,
+                                              style: AppTheme.bodySmall.copyWith(fontSize: 10),
+                                              overflow: TextOverflow.ellipsis)),
 
-                                      // Amount — editable, Enter = save
                                       _cell(
                                           150,
                                           TextField(
@@ -744,10 +751,12 @@ class _ReturnProductViewState extends State<ReturnProductView> {
                                             textAlign: TextAlign.right,
                                             decoration: const InputDecoration(
                                               isDense: true,
-                                              contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                                              contentPadding: EdgeInsets.symmetric(
+                                                  horizontal: 4, vertical: 6),
                                               border: InputBorder.none,
                                             ),
-                                            keyboardType: TextInputType.numberWithOptions(decimal: true),
+                                            keyboardType: TextInputType.numberWithOptions(
+                                                decimal: true),
                                             onChanged: (val) {
                                               if (T == ProductRowData) {
                                                 (rows[index] as ProductRowData).amount = val;
@@ -759,7 +768,6 @@ class _ReturnProductViewState extends State<ReturnProductView> {
                                           ),
                                           noBorder: true),
 
-                                      // Action icons
                                       SizedBox(
                                         width: 60,
                                         height: 32,
@@ -782,8 +790,7 @@ class _ReturnProductViewState extends State<ReturnProductView> {
                                                         : () => onSaveRow(index),
                                                     child: Padding(
                                                       padding: const EdgeInsets.all(3),
-                                                      child: Icon(
-                                                          Icons.save_outlined,
+                                                      child: Icon(Icons.save_outlined,
                                                           size: 14,
                                                           color: dashboardController.isLocked.value
                                                               ? Colors.grey.shade300
@@ -796,8 +803,7 @@ class _ReturnProductViewState extends State<ReturnProductView> {
                                                         : () => onDeleteRow(index),
                                                     child: Padding(
                                                       padding: const EdgeInsets.all(3),
-                                                      child: Icon(
-                                                          Icons.delete_outline,
+                                                      child: Icon(Icons.delete_outline,
                                                           size: 14,
                                                           color: dashboardController.isLocked.value
                                                               ? Colors.grey.shade300
@@ -828,14 +834,13 @@ class _ReturnProductViewState extends State<ReturnProductView> {
     return Container(
       decoration: BoxDecoration(
           color: Colors.grey.shade50,
-          border:
-              Border(bottom: BorderSide(color: Colors.grey.shade300))),
+          border: Border(bottom: BorderSide(color: Colors.grey.shade300))),
       child: Row(
         children: headers
             .map((h) => Container(
                   width: _getColumnWidth(h),
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                   decoration: BoxDecoration(
                       border: Border(
                           right: BorderSide(
@@ -864,8 +869,8 @@ class _ReturnProductViewState extends State<ReturnProductView> {
           ? null
           : BoxDecoration(
               border: Border(
-                  right: BorderSide(
-                      color: Colors.grey.shade300, width: 0.5))),
+                  right:
+                      BorderSide(color: Colors.grey.shade300, width: 0.5))),
       alignment: center ? Alignment.center : Alignment.centerLeft,
       child: child,
     );
@@ -897,8 +902,7 @@ class _ReturnProductViewState extends State<ReturnProductView> {
           elevation: 4,
           borderRadius: BorderRadius.circular(4),
           child: Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
               color: alertIsError.value
                   ? Colors.red.shade600
@@ -932,6 +936,7 @@ class _ReturnProductViewState extends State<ReturnProductView> {
 
   @override
   void dispose() {
+    bolController.dispose(); // ✅ BOL controller dispose
     for (final r in productRows) r.dispose();
     for (final r in packageRows) r.dispose();
     super.dispose();

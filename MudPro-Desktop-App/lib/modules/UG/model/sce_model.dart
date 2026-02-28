@@ -3,7 +3,7 @@ import 'package:get/get.dart';
 // ================= SHAKER MODEL =================
 class ShakerModel {
   String? id;
-  RxString shaker; // Shaker number (1, 2, 3...)
+  RxString shaker; // Shaker type (Shaker/Cleaner/Dryer)
   RxString model;
   RxString screens;
   RxBool plot;
@@ -11,6 +11,10 @@ class ShakerModel {
   RxString screen2;
   RxString screen3;
   RxString screen4;
+  RxString screen5; // ✅ Added
+  RxString screen6; // ✅ Added
+  RxString screen7; // ✅ Added
+  RxString screen8; // ✅ Added
   RxString time;
   RxString oocWt;
 
@@ -27,6 +31,10 @@ class ShakerModel {
     String? screen2,
     String? screen3,
     String? screen4,
+    String? screen5,
+    String? screen6,
+    String? screen7,
+    String? screen8,
     String? time,
     String? oocWt,
   })  : shaker = (shaker ?? '').obs,
@@ -37,6 +45,10 @@ class ShakerModel {
         screen2 = (screen2 ?? '').obs,
         screen3 = (screen3 ?? '').obs,
         screen4 = (screen4 ?? '').obs,
+        screen5 = (screen5 ?? '').obs,
+        screen6 = (screen6 ?? '').obs,
+        screen7 = (screen7 ?? '').obs,
+        screen8 = (screen8 ?? '').obs,
         time = (time ?? '').obs,
         oocWt = (oocWt ?? '').obs;
 
@@ -48,12 +60,16 @@ class ShakerModel {
       model: json['model'] ?? '',
       screens: json['screens']?.toString() ?? '',
       plot: json['plot'] ?? false,
-      screen1: json['screen1'] ?? '',
-      screen2: json['screen2'] ?? '',
-      screen3: json['screen3'] ?? '',
-      screen4: json['screen4'] ?? '',
-      time: json['time'] ?? '',
-      oocWt: json['oocWt'] ?? '',
+      screen1: json['screen1']?.toString() ?? '',
+      screen2: json['screen2']?.toString() ?? '',
+      screen3: json['screen3']?.toString() ?? '',
+      screen4: json['screen4']?.toString() ?? '',
+      screen5: json['screen5']?.toString() ?? '',
+      screen6: json['screen6']?.toString() ?? '',
+      screen7: json['screen7']?.toString() ?? '',
+      screen8: json['screen8']?.toString() ?? '',
+      time: json['time']?.toString() ?? '',
+      oocWt: json['oocWt']?.toString() ?? '',
     );
   }
 
@@ -68,6 +84,10 @@ class ShakerModel {
       'screen2': screen2.value,
       'screen3': screen3.value,
       'screen4': screen4.value,
+      'screen5': screen5.value,
+      'screen6': screen6.value,
+      'screen7': screen7.value,
+      'screen8': screen8.value,
       'time': time.value,
       'oocWt': oocWt.value,
     };
@@ -96,6 +116,10 @@ class ShakerModel {
       screen2: screen2.value,
       screen3: screen3.value,
       screen4: screen4.value,
+      screen5: screen5.value,
+      screen6: screen6.value,
+      screen7: screen7.value,
+      screen8: screen8.value,
       time: time.value,
       oocWt: oocWt.value,
     );
@@ -114,7 +138,7 @@ class OtherSceModel {
   RxString of;
   RxString time;
   RxString oocWt;
-  
+
   // For tracking edit mode
   RxBool isEditing = false.obs;
 
@@ -143,15 +167,15 @@ class OtherSceModel {
   factory OtherSceModel.fromJson(Map<String, dynamic> json) {
     return OtherSceModel(
       id: json['_id'] ?? json['id'],
-      type: json['type'] ?? '',
-      model1: json['model1'] ?? '',
-      model2: json['model2'] ?? '',
-      model3: json['model3'] ?? '',
+      type: json['type']?.toString() ?? '',
+      model1: json['model1']?.toString() ?? '',
+      model2: json['model2']?.toString() ?? '',
+      model3: json['model3']?.toString() ?? '',
       plot: json['plot'] ?? false,
-      uf: json['uf'] ?? '',
-      of: json['of'] ?? '',
-      time: json['time'] ?? '',
-      oocWt: json['oocWt'] ?? '',
+      uf: json['uf']?.toString() ?? '',
+      of: json['of']?.toString() ?? '',
+      time: json['time']?.toString() ?? '',
+      oocWt: json['oocWt']?.toString() ?? '',
     );
   }
 

@@ -28,7 +28,7 @@ import returnProductRoutes from "./routes/ReturnProduct/Product/returnProductRou
 import returnPackageRoutes from "./routes/ReturnProduct/Package/returnPackageRoutes.js";
 import drillStringRoutes from "./routes/DrillString/drillString.routes.js";
 
-
+import mudPropertiesRoute from "./routes/mudProperties/mudProperetiesRoutes.js";
 
 import servicesRoutes from "./routes/service/service.routes.js";
 import engineeringRoutes from "./routes/service/engineering.routes.js";
@@ -158,6 +158,9 @@ app.use("/api/well-general", wellGeneralRoutes);
 //nozzle
 app.use("/api/nozzle", nozzleRoutes);
 
+
+//mud properties
+app.use('/api/mud-properties', mudPropertiesRoute);
 
 
 // Error handler (ALWAYS LAST)
