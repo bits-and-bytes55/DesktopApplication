@@ -6,14 +6,16 @@ import 'package:mudpro_desktop_app/modules/company_setup/model/mud_properties_mo
 class MudPropertiesController {
   // Change to your actual server base URL
   static const String _baseUrl = ApiEndpoint.baseUrl;
-  static const String _userId = 'default'; // change per user/well as needed
 
   /// GET saved/selected mud properties from DB
   Future<SelectedMudProperties> getSelectedMudProperties() async {
     final response = await http.get(
-      Uri.parse('$_baseUrl/selected?userId=$_userId'),
+      Uri.parse('${_baseUrl}mud-properties/selected'),
       headers: {'Content-Type': 'application/json'},
     );
+
+    print('GET Response Status: ${response.statusCode}');
+    print('GET Response Body: ${response.body}');
 
     if (response.statusCode == 200) {
       final json = jsonDecode(response.body);
@@ -29,13 +31,15 @@ class MudPropertiesController {
   Future<SelectedMudProperties> saveSelectedMudProperties(
       SelectedMudProperties selected) async {
     final body = selected.toJson();
-    body['userId'] = _userId;
 
     final response = await http.post(
-      Uri.parse('$_baseUrl/selected'),
+      Uri.parse('${_baseUrl}mud-properties/selected'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode(body),
     );
+
+    print('GET Response Status: ${response.statusCode}');
+    print('GET Response Body: ${response.body}');
 
     if (response.statusCode == 200) {
       final json = jsonDecode(response.body);

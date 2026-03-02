@@ -13,7 +13,7 @@ import 'package:mudpro_desktop_app/modules/dashboard/widgets/lock_bar.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/widgets/primary_tabbar.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/widgets/home_secondary_tabbar.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/tabs/well_tab_content.dart';
-import 'package:mudpro_desktop_app/modules/dashboard/tabs/mud_tab_content.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/mud/mud_tab_content.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_tab_content.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/tabs/safety_tab_content.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/tabs/jsa_tab_content.dart';
