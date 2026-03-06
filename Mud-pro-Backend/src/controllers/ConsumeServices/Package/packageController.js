@@ -7,12 +7,13 @@ export const createPackage = async (req, res) => {
   try {
     let {
       initial = 0,
+      adjust = 0,
       used = 0,
       price = 0,
     } = req.body;
 
     // 🔥 Auto Calculation
-    const final = Number(initial) - Number(used);
+    const final = Number(initial) + Number(adjust) - Number(used);
     const cost = Number(used) * Number(price);
 
     const newPackage = await Package.create({
@@ -101,11 +102,12 @@ export const updatePackage = async (req, res) => {
     }
 
     const initial = Number(req.body.initial ?? existing.initial ?? 0);
+    const adjust = Number(req.body.adjust ?? existing.adjust ?? 0);
     const used = Number(req.body.used ?? existing.used ?? 0);
     const price = Number(req.body.price ?? existing.price ?? 0);
 
     // 🔥 Recalculate
-    const final = initial - used;
+    const final = initial + adjust - used;
     const cost = used * price;
 
     const updatedPackage = await Package.findByIdAndUpdate(

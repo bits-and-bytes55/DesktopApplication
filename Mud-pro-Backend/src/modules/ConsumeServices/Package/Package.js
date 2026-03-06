@@ -29,6 +29,11 @@ const packageSchema = new mongoose.Schema(
       default: 0,
     },
 
+    adjust: {
+      type: Number,
+      default: 0,
+    },
+
     used: {
       type: Number,
       default: 0,
