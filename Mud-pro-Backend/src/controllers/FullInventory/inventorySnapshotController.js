@@ -11,6 +11,7 @@ import ReturnPackage from "../../modules/ReturnProduct/Package/ReturnPackage.js"
 
 export const generateInventorySnapshot = async (req, res) => {
   try {
+    console.log("🔵 [BACKEND] Starting generateInventorySnapshot...");
 
     const consumes = await ConsumeProduct.find();
     const receives = await ReceiveProduct.find();
@@ -44,7 +45,12 @@ export const generateInventorySnapshot = async (req, res) => {
       const cumulativeRec = productReceives.reduce((s, r) => s + (r.amount || 0), 0);
       const cumulativeUsed = productConsumes.reduce((s, c) => s + (c.used || 0), 0);
       const cumulativeRet = productReturns.reduce((s, r) => s + (r.amount || 0), 0);
-      const cumulativeAdj = productConsumes.reduce((s, c) => s + (c.adjust || 0), 0); // ✅ FIXED
+      const cumulativeAdj = productConsumes.reduce((s, c) => s + (c.adjust || 0), 0);
+
+      // ✅ DEBUG LOG
+      if (cumulativeAdj !== 0) {
+        console.log(`🟢 [BACKEND] Product Code: ${code}, Cumulative Adj: ${cumulativeAdj}`);
+      }
 
       const price = productConsumes.length > 0 ? (productConsumes[0].price || 0) : 0;
       const initial = productConsumes.length > 0 ? (productConsumes[0].initial || 0) : 0;
@@ -78,7 +84,7 @@ export const generateInventorySnapshot = async (req, res) => {
         initial,
         rec: cumulativeRec,
         ret: cumulativeRet,
-        adj: cumulativeAdj, // ✅ FIXED
+        adj: cumulativeAdj,
         used: cumulativeUsed,
         final: finalVal,      // ✅ FIXED
         subtotal,
@@ -147,7 +153,7 @@ export const generateInventorySnapshot = async (req, res) => {
       const cumulativeRec = rec.reduce((s, r) => s + (r.amount || 0), 0);
       const cumulativeUsed = cons.reduce((s, c) => s + (c.used || 0), 0);
       const cumulativeRet = ret.reduce((s, r) => s + (r.amount || 0), 0);
-      const cumulativeAdj = cons.reduce((s, c) => s + (c.adjust || 0), 0); // ✅ FIXED (Backend aggregation)
+      const cumulativeAdj = cons.reduce((s, c) => s + (c.adjust || 0), 0);
 
       const initial = cons.length > 0 ? (cons[0].initial || 0) : 0;  // ✅ FIX
       const price = cons.length > 0 ? (cons[0].price || 0) : 0;
@@ -168,7 +174,7 @@ export const generateInventorySnapshot = async (req, res) => {
         initial,           // ✅ initial ab snapshot mein jayega
         rec: cumulativeRec,
         ret: cumulativeRet,
-        adj: cumulativeAdj, // ✅ FIXED
+        adj: cumulativeAdj,
         used: cumulativeUsed,
         final: finalVal,   // ✅ FIXED
         subtotal,
