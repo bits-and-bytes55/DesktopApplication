@@ -1,27 +1,18 @@
-# Pump Module Integration TODO
+# TODO - Shaker Table Dropdown Implementation
 
-## Task: Integrate Pump UI with Backend Calculations
+## Task: Add dropdown for "No. of Screen" in SCE View and connect with Pump Tab
 
-### Completed Changes:
+### Files modified:
+1. [x] sce_view.dart - Added dropdown (1-8) for "No. of Screen" column
+2. [x] sce_controller.dart - Added getScreensByModel method
+3. [x] pump_tab_content.dart - Changed to use per-row model-based calculation for screen cols
 
-1. **pump_controller.dart** - Updated to:
-   - Add debug logging to track loaded pump data
-   - Added `pumps.refresh()` after loading to force UI update
-   - Added logging for pump type, displacement, spm, rate values
-
-2. **pump_view.dart** - Updated to:
-   - Made displacement field read-only (uses `_readOnlyField` widget)
-   - Added `_readOnlyField` method for displaying calculated values
-   - Values displayed in primary color to indicate calculated fields
+### Implementation Summary:
+1. ✅ sce_view.dart: Added `_screensDropdownCell` widget with dropdown (1-8 options)
+2. ✅ sce_controller.dart: Added `getScreensByModel(String model)` method to get screens count per model
+3. ✅ pump_tab_content.dart: Changed from global `maxScreenCols` to per-row calculation using `getScreensByModel(shaker.model.value)`
 
 ### How it works:
-1. User enters input data: type, linerId, strokeLength, efficiency, spm
-2. User clicks Save button
-3. Backend calculates: displacement (from type, linerId, strokeLength) and rate (from displacement, spm, efficiency)
-4. Backend returns calculated values
-5. UI displays the calculated displacement value
-
-### Next Steps:
-- Test the integration
-- If SPM needs to be entered, it should be added to UI (currently missing as column)
-- Data should now load and display from database
+- In SCE View: User clicks on "No. of Screen" cell → dropdown appears with options 1-8
+- In Pump Tab: When a model is selected, the number of editable screen columns is determined by that model's "screens" value from SCE data
+- If model has 5 screens selected in SCE → only 5 screen columns are editable in Pump Tab

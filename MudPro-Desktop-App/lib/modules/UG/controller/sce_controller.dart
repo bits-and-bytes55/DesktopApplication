@@ -12,6 +12,10 @@ class SceController extends GetxController {
   final shakers = <ShakerModel>[].obs;
   final otherSce = <OtherSceModel>[].obs;
 
+  // Dedicated lists for Pump/Operation page to keep them independent from Setup
+  final operationShakers = <ShakerModel>[].obs;
+  final operationOtherSce = <OtherSceModel>[].obs;
+
   // Available types from API
   final availableShakerTypes = <String>[].obs;
   final availableOtherSceTypes = <String>[].obs;
@@ -29,14 +33,27 @@ class SceController extends GetxController {
 
   String? currentWellId = "507f1f77bcf86cd799439011";
 
-  static const int MIN_SHAKER_ROWS = 10;
-  static const int MIN_OTHER_SCE_ROWS = 5;
+  static const List<String> shakerLabels = [
+    '1', '2', '3', '4', '5', '6', '7', '8', '9', '10',
+    'Mud Cleaner', 'Dryer',
+  ];
+  static const List<String> otherSceLabels = [
+    'Degasser',
+    'Desander',
+    'Desilter',
+    'Centrifuge',
+    'Barite Rec.',
+  ];
+
+  static const int MIN_SHAKER_ROWS = 12; // Matches label count
+  static const int MIN_OTHER_SCE_ROWS = 5; // Matches label count
 
   @override
   void onInit() {
     super.onInit();
     initializeEmptyShakers();
     initializeEmptyOtherSce();
+    initializeOperationLists();
     if (currentWellId != null) {
       loadAvailableTypes(currentWellId!);
     }
@@ -46,15 +63,26 @@ class SceController extends GetxController {
 
   void initializeEmptyShakers() {
     shakers.clear();
-    for (int i = 0; i < MIN_SHAKER_ROWS; i++) {
-      shakers.add(ShakerModel(shaker: ''));
+    for (var label in shakerLabels) {
+      shakers.add(ShakerModel(shaker: label));
     }
   }
 
   void initializeEmptyOtherSce() {
     otherSce.clear();
-    for (int i = 0; i < MIN_OTHER_SCE_ROWS; i++) {
-      otherSce.add(OtherSceModel());
+    for (var label in otherSceLabels) {
+      otherSce.add(OtherSceModel(type: label));
+    }
+  }
+
+  void initializeOperationLists() {
+    operationShakers.clear();
+    for (int i = 0; i < 10; i++) {
+      operationShakers.add(ShakerModel(shaker: ''));
+    }
+    operationOtherSce.clear();
+    for (int i = 0; i < 10; i++) {
+      operationOtherSce.add(OtherSceModel(type: ''));
     }
   }
 
@@ -82,15 +110,23 @@ class SceController extends GetxController {
       final result = await repository.getShakers(wellId);
       if (result['success']) {
         final List<dynamic> shakerData = result['data'] ?? [];
-        shakers.clear();
+        
+        // Reset to empty with labels first
+        initializeEmptyShakers();
+        
+        // Populate existing ones by matching shaker label
         for (var data in shakerData) {
-          shakers.add(ShakerModel.fromJson(data));
-        }
-        while (shakers.length < MIN_SHAKER_ROWS) {
-          shakers.add(ShakerModel(shaker: ''));
+          final label = data['shaker']?.toString() ?? '';
+          final idx = shakers.indexWhere((s) => s.shaker.value == label);
+          if (idx != -1) {
+            shakers[idx] = ShakerModel.fromJson(data);
+          } else {
+            // If it's a custom shaker not in our labels, add it
+            shakers.add(ShakerModel.fromJson(data));
+          }
         }
 
-        // ✅ Update maxScreenCols from loaded data (max "screens" value across all shakers)
+        // ✅ Update maxScreenCols from loaded data
         _updateMaxScreenCols(shakerData);
       } else {
         initializeEmptyShakers();
@@ -118,12 +154,19 @@ class SceController extends GetxController {
       final result = await repository.getOtherSce(wellId);
       if (result['success']) {
         final List<dynamic> sceData = result['data'] ?? [];
-        otherSce.clear();
+        
+        // Reset to empty with labels
+        initializeEmptyOtherSce();
+        
         for (var data in sceData) {
-          otherSce.add(OtherSceModel.fromJson(data));
-        }
-        while (otherSce.length < MIN_OTHER_SCE_ROWS) {
-          otherSce.add(OtherSceModel());
+          final label = data['type']?.toString() ?? '';
+          final idx = otherSce.indexWhere((s) => s.type.value == label);
+          if (idx != -1) {
+            otherSce[idx] = OtherSceModel.fromJson(data);
+          } else {
+            // If it's a custom SCE type not in our labels, add it
+            otherSce.add(OtherSceModel.fromJson(data));
+          }
         }
       } else {
         initializeEmptyOtherSce();
@@ -464,5 +507,18 @@ class SceController extends GetxController {
 
   Future<List<String>> getAvailableOtherSceTypes() async {
     return availableOtherSceTypes.toList();
+  }
+
+  // ✅ Get screens count by model from loaded shaker data
+  int getScreensByModel(String model) {
+    if (model.isEmpty) return 8; // Default to all 8 if no model
+    
+    for (var shaker in shakers) {
+      if (shaker.model.value == model && shaker.screens.value.isNotEmpty) {
+        final screens = int.tryParse(shaker.screens.value) ?? 8;
+        return screens.clamp(1, 8);
+      }
+    }
+    return 8; // Default to all 8 if not found
   }
 }

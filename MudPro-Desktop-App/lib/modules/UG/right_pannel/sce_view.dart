@@ -2,13 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controller/UG_controller.dart';
 import '../controller/sce_controller.dart';
+import '../model/sce_model.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
-class SceView extends StatelessWidget {
-  SceView({super.key});
+class SceView extends StatefulWidget {
+  const SceView({super.key});
 
-  final ugController = Get.find<UgController>();
-  final sceController = Get.put(SceController());
+  @override
+  State<SceView> createState() => _SceViewState();
+}
+
+class _SceViewState extends State<SceView> {
+  late final UgController ugController;
+  late final SceController sceController;
 
   static const String WELL_ID = '507f1f77bcf86cd799439011';
 
@@ -31,11 +37,20 @@ class SceView extends StatelessWidget {
   ];
 
   @override
-  Widget build(BuildContext context) {
+  void initState() {
+    super.initState();
+    ugController = Get.find<UgController>();
+    sceController = Get.isRegistered<SceController>()
+        ? Get.find<SceController>()
+        : Get.put(SceController());
+    // ✅ Load data only once when the page is first shown — NOT on every rebuild
     WidgetsBinding.instance.addPostFrameCallback((_) {
       sceController.loadSceData(WELL_ID);
     });
+  }
 
+  @override
+  Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(12),
       child: Row(
@@ -127,23 +142,12 @@ class SceView extends StatelessWidget {
         return const Center(child: CircularProgressIndicator());
       }
 
-      // Build a map: label → shaker data (matched by shaker field = label)
-      final Map<String, dynamic> shakerByLabel = {};
-      final Map<String, int> shakerIndexByLabel = {};
-      for (int i = 0; i < sceController.shakers.length; i++) {
-        final s = sceController.shakers[i];
-        if (s.shaker.value.isNotEmpty) {
-          shakerByLabel[s.shaker.value] = s;
-          shakerIndexByLabel[s.shaker.value] = i;
-        }
-      }
-
       return ListView.builder(
         itemCount: shakerRowLabels.length,
         itemBuilder: (_, i) {
           final label = shakerRowLabels[i];
-          final shaker = shakerByLabel[label];
-          final shakerIndex = shakerIndexByLabel[label] ?? i;
+          final shaker = i < sceController.shakers.length ? sceController.shakers[i] : null;
+          final shakerIndex = i;
 
           return Container(
             height: rowH,
@@ -158,15 +162,13 @@ class SceView extends StatelessWidget {
                 // Col 2: Model — editable
                 shaker != null
                     ? _editableCell(shaker.model, flex: 3)
-                    : _emptyEditableSlot(label: label, field: 'model', flex: 3),
-                // Col 3: No. of Screen — editable
-                shaker != null
-                    ? _editableCell(shaker.screens, flex: 2)
-                    : _emptyEditableSlot(label: label, field: 'screens', flex: 2),
+                    : _emptyCell(flex: 3),
+                // Col 3: No. of Screen — click-to-show dropdown with 1-8 options
+                _screensDropdownCell(shaker, label: label, flex: 2),
                 // Col 4: Plot — checkbox
                 shaker != null
                     ? _checkboxCell(shaker.plot, flex: 1)
-                    : _staticCheckboxCell(label: label, flex: 1),
+                    : _emptyCell(flex: 1),
                 // Col 5: Actions
                 shaker != null
                     ? _shakerActionsCell(shakerIndex, shaker, flex: 2)
@@ -287,23 +289,12 @@ class SceView extends StatelessWidget {
         return const Center(child: CircularProgressIndicator());
       }
 
-      // Build a map: type label → sce data
-      final Map<String, dynamic> sceByLabel = {};
-      final Map<String, int> sceIndexByLabel = {};
-      for (int i = 0; i < sceController.otherSce.length; i++) {
-        final s = sceController.otherSce[i];
-        if (s.type.value.isNotEmpty) {
-          sceByLabel[s.type.value] = s;
-          sceIndexByLabel[s.type.value] = i;
-        }
-      }
-
       return ListView.builder(
         itemCount: otherSceRowLabels.length,
         itemBuilder: (_, i) {
           final label = otherSceRowLabels[i];
-          final sce = sceByLabel[label];
-          final sceIndex = sceIndexByLabel[label] ?? i;
+          final sce = i < sceController.otherSce.length ? sceController.otherSce[i] : null;
+          final sceIndex = i;
 
           return Container(
             height: rowH,
@@ -318,17 +309,17 @@ class SceView extends StatelessWidget {
                 // Col 2,3,4: Model 1,2,3 — editable
                 sce != null
                     ? _editableCell(sce.model1, flex: 2)
-                    : _emptyEditableSlot(label: label, field: 'model1', flex: 2),
+                    : _emptyCell(flex: 2),
                 sce != null
                     ? _editableCell(sce.model2, flex: 2)
-                    : _emptyEditableSlot(label: label, field: 'model2', flex: 2),
+                    : _emptyCell(flex: 2),
                 sce != null
                     ? _editableCell(sce.model3, flex: 2)
-                    : _emptyEditableSlot(label: label, field: 'model3', flex: 2),
+                    : _emptyCell(flex: 2),
                 // Col 5: Plot
                 sce != null
                     ? _checkboxCell(sce.plot, flex: 1)
-                    : _staticCheckboxCell(label: label, flex: 1),
+                    : _emptyCell(flex: 1),
                 // Col 6: Actions
                 sce != null
                     ? _otherSceActionsCell(sceIndex, sce, flex: 2)
@@ -405,63 +396,11 @@ class SceView extends StatelessWidget {
     );
   }
 
-  // ✅ Editable cell that auto-creates shaker/sce record on first edit
-  Widget _emptyEditableSlot({required String label, required String field, required int flex}) {
-    // Create a temporary RxString that, on change, saves the row
-    final rx = ''.obs;
-    return Expanded(
-      flex: flex,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6),
-        child: Obx(() {
-          final isLocked = ugController.isLocked.value;
-          if (isLocked) {
-            return const SizedBox.shrink();
-          }
-          return TextField(
-            controller: TextEditingController(text: rx.value)
-              ..selection = TextSelection.fromPosition(TextPosition(offset: rx.value.length)),
-            onChanged: (v) => rx.value = v,
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 11, color: AppTheme.textPrimary),
-            decoration: InputDecoration(
-              isDense: true,
-              contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-              border: InputBorder.none,
-              hintText: '—',
-              hintStyle: TextStyle(color: Colors.grey.shade300, fontSize: 11),
-            ),
-          );
-        }),
-      ),
-    );
-  }
 
-  // ✅ Static checkbox (creates record on toggle)
-  Widget _staticCheckboxCell({required String label, required int flex}) {
-    final rx = false.obs;
-    return Expanded(
-      flex: flex,
-      child: Container(
-        alignment: Alignment.center,
-        child: Obx(() {
-          final isLocked = ugController.isLocked.value;
-          return Transform.scale(
-            scale: 0.8,
-            child: Checkbox(
-              value: rx.value,
-              onChanged: isLocked ? null : (x) => rx.value = x!,
-              activeColor: AppTheme.successColor,
-              checkColor: Colors.white,
-              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              visualDensity: VisualDensity.compact,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(3)),
-            ),
-          );
-        }),
-      ),
-    );
-  }
+
+
+
+
 
   Widget _emptyCell({required int flex}) {
     return Expanded(flex: flex, child: const SizedBox.shrink());
@@ -520,6 +459,19 @@ class SceView extends StatelessWidget {
             ),
           );
         }),
+      ),
+    );
+  }
+
+  // ✅ FIXED: Screens dropdown with click-to-show-icon behavior
+  Widget _screensDropdownCell(ShakerModel? shaker, {required String label, required int flex}) {
+    return Expanded(
+      flex: flex,
+      child: _ScreensDropdownCell(
+        shaker: shaker,
+        label: label,
+        sceController: sceController,
+        ugController: ugController,
       ),
     );
   }
@@ -653,21 +605,38 @@ class SceView extends StatelessWidget {
     try {
       sceController.isLoading.value = true;
 
+      // ✅ FIX: Also handle position-based matching for rows with empty type
       final Map<String, dynamic> sceByLabel = {};
       final Map<String, int> sceIndexByLabel = {};
+      final Map<int, dynamic> sceByPosition = {};
+      final Map<int, int> sceControllerIndexByPosition = {};
+
       for (int i = 0; i < sceController.otherSce.length; i++) {
         final s = sceController.otherSce[i];
         if (s.type.value.isNotEmpty) {
           sceByLabel[s.type.value] = s;
           sceIndexByLabel[s.type.value] = i;
+        } else if (s.hasData && i < otherSceRowLabels.length) {
+          sceByPosition[i] = s;
+          sceControllerIndexByPosition[i] = i;
         }
       }
 
       bool anySaved = false;
-      for (final label in otherSceRowLabels) {
-        final sce = sceByLabel[label];
-        if (sce != null && sce.hasData) {
-          final idx = sceIndexByLabel[label]!;
+      for (int i = 0; i < otherSceRowLabels.length; i++) {
+        final label = otherSceRowLabels[i];
+        
+        dynamic sce = sceByLabel[label];
+        int? idx = sceIndexByLabel[label];
+        
+        if (sce == null && sceByPosition.containsKey(i)) {
+          sce = sceByPosition[i];
+          idx = sceControllerIndexByPosition[i];
+          // ✅ FIX: Assign the label to the type field before saving
+          if (sce != null) sce.type.value = label;
+        }
+
+        if (sce != null && sce.hasData && idx != null) {
           await sceController.saveOtherSce(idx);
           anySaved = true;
         }
@@ -717,6 +686,168 @@ class SceView extends StatelessWidget {
     Future.delayed(const Duration(seconds: 3), () => entry.remove());
   }
 }
+
+// ✅ Screens dropdown cell — pure StatefulWidget, no GetX in build
+class _ScreensDropdownCell extends StatefulWidget {
+  final ShakerModel? shaker;
+  final String label;
+  final SceController sceController;
+  final UgController ugController;
+
+  const _ScreensDropdownCell({
+    required this.shaker,
+    required this.label,
+    required this.sceController,
+    required this.ugController,
+  });
+
+  @override
+  State<_ScreensDropdownCell> createState() => _ScreensDropdownCellState();
+}
+
+class _ScreensDropdownCellState extends State<_ScreensDropdownCell> {
+  static const List<String> _opts = ['', '1', '2', '3', '4', '5', '6', '7', '8'];
+
+  String? _localValue;
+  bool _isLocked = false;
+  bool _showIcon = false; // ✅ Added to track icon visibility on first click
+
+  Worker? _valueWorker;
+  Worker? _lockWorker;
+
+  @override
+  void initState() {
+    super.initState();
+    _updateLocalStates();
+
+    // Listen to changes if shaker exists
+    if (widget.shaker != null) {
+      _valueWorker = ever<String>(widget.shaker!.screens, (val) {
+        if (mounted) setState(() => _localValue = val.isEmpty ? null : val);
+      });
+    }
+    _lockWorker = ever<bool>(widget.ugController.isLocked, (val) {
+      if (mounted) setState(() => _isLocked = val);
+    });
+  }
+
+  void _updateLocalStates() {
+    _localValue = (widget.shaker?.screens.value.isEmpty ?? true) ? null : widget.shaker?.screens.value;
+    _isLocked = widget.ugController.isLocked.value;
+  }
+
+  @override
+  void didUpdateWidget(covariant _ScreensDropdownCell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.shaker != widget.shaker) {
+      _valueWorker?.dispose();
+      if (widget.shaker != null) {
+        _valueWorker = ever<String>(widget.shaker!.screens, (val) {
+          if (mounted) setState(() => _localValue = val.isEmpty ? null : val);
+        });
+      }
+      _updateLocalStates();
+    }
+  }
+
+  @override
+  void dispose() {
+    _valueWorker?.dispose();
+    _lockWorker?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLocked) {
+      return Container(
+        alignment: Alignment.center,
+        child: Text(
+          _localValue ?? '',
+          style: TextStyle(
+            fontSize: 11,
+            color: _localValue == null ? Colors.grey.shade400 : AppTheme.textSecondary,
+          ),
+        ),
+      );
+    }
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          if (!_showIcon) {
+            setState(() => _showIcon = true);
+          } else {
+            _showDropdownMenu(context);
+          }
+        },
+        child: Container(
+          height: double.infinity,
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Text(
+                  _localValue ?? '',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
+              ),
+              // ✅ UI Fix: Icon only shows after first click
+              if (_showIcon)
+                const Icon(Icons.arrow_drop_down, size: 16, color: Colors.grey),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showDropdownMenu(BuildContext context) {
+    final RenderBox overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    final RenderBox button = context.findRenderObject() as RenderBox;
+    final RelativeRect position = RelativeRect.fromRect(
+      Rect.fromPoints(
+        button.localToGlobal(Offset.zero, ancestor: overlay),
+        button.localToGlobal(button.size.bottomRight(Offset.zero), ancestor: overlay),
+      ),
+      Offset.zero & overlay.size,
+    );
+
+    showMenu<String>(
+      context: context,
+      position: position,
+      constraints: const BoxConstraints(maxWidth: 80),
+      items: _opts.map((v) => PopupMenuItem<String>(
+        value: v,
+        height: 30, // ✅ Compact height
+        child: Container(
+          width: double.infinity,
+          alignment: Alignment.center,
+          child: Text(v, style: const TextStyle(fontSize: 11)),
+        ),
+      )).toList(),
+    ).then((val) {
+      if (val != null) {
+        _handleValueSelected(val);
+      }
+    });
+  }
+
+  void _handleValueSelected(String val) {
+    if (widget.shaker != null) {
+      widget.shaker!.screens.value = val;
+    }
+    setState(() => _localValue = val.isEmpty ? null : val);
+  }
+}
+
 
 class _HCell extends StatelessWidget {
   final String text;
