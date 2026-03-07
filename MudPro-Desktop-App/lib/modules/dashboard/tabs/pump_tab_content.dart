@@ -6,9 +6,6 @@ import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_contro
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 // ─── Local row models ─────────────────────────────────────────────────────────
-// Purely local state — NEVER pre-populated from API on page load.
-// Data fills only when user selects a model from the dropdown.
-
 class _ShakerRow {
   final RxString shakerType      = ''.obs;
   final RxString model           = ''.obs;
@@ -22,7 +19,6 @@ class _ShakerRow {
   final RxString screen8         = ''.obs;
   final RxString time            = ''.obs;
   final RxString oocWt           = ''.obs;
-  // Number of screen cols unlocked for this row (set after model fetch from API)
   final RxInt    enabledScreens  = 0.obs;
 }
 
@@ -53,7 +49,6 @@ class _PumpPageState extends State<PumpPage> {
   final ScrollController shakerScrollController = ScrollController();
   final ScrollController sceScrollController    = ScrollController();
 
-  // 4 blank rows each — starts completely empty, no API call on init
   late final List<_ShakerRow>   _shakerRows;
   late final List<_OtherSceRow> _sceRows;
 
@@ -114,7 +109,6 @@ class _PumpPageState extends State<PumpPage> {
               ),
             ),
             const SizedBox(height: 12),
-            // Screen auto-fill bar — outside shaker table, compact, right-aligned
             Align(
               alignment: Alignment.centerLeft,
               child: SizedBox(
@@ -265,11 +259,24 @@ class _PumpPageState extends State<PumpPage> {
       final current = (pump.model.value as String).isEmpty ? null : pump.model.value as String;
       final safeVal = models.contains(current) ? current : null;
       return DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
+        child: DropdownButton<String?>(
           value: safeVal, isExpanded: true, isDense: true,
           style: const TextStyle(fontSize: 9, color: Colors.black87),
           onChanged: isLocked ? null : (selected) async {
-            if (selected == null) return;
+            if (selected == null || selected.isEmpty) {
+              // Clear row if empty option selected
+              final p = pumpController.pumps[rowIndex];
+              p.model.value        = '';
+              p.type.value         = '';
+              p.linerId.value      = '';
+              p.rodOd.value        = '';
+              p.strokeLength.value = '';
+              p.efficiency.value   = '';
+              p.displacement.value = '';
+              _recalculateRate(p);
+              if (p.id != null) pumpController.onFieldChanged(rowIndex);
+              return;
+            }
             final data = await pumpController.getPumpDataByModel(selected);
             if (data != null && rowIndex < pumpController.pumps.length) {
               final p = pumpController.pumps[rowIndex];
@@ -284,14 +291,17 @@ class _PumpPageState extends State<PumpPage> {
               if (p.id != null) pumpController.onFieldChanged(rowIndex);
             }
           },
-          items: models.map((m) => DropdownMenuItem(value: m, child: Text(m, style: const TextStyle(fontSize: 9)))).toList(),
+          items: [
+            const DropdownMenuItem<String?>(value: null, child: Text('', style: TextStyle(fontSize: 9))),
+            ...models.map((m) => DropdownMenuItem<String?>(value: m, child: Text(m, style: const TextStyle(fontSize: 9)))),
+          ],
         ),
       );
     });
   }
 
   // ═══════════════════════════════════════════════════════════
-  //  SHAKER TABLE  — local _shakerRows only, no sceController.shakers
+  //  SHAKER TABLE
   // ═══════════════════════════════════════════════════════════
 
   Widget _shakerTable() {
@@ -360,7 +370,7 @@ class _PumpPageState extends State<PumpPage> {
     );
   }
 
-  // Shaker type dropdown — purely local, no API
+  // FIX 1: Shaker type dropdown — empty string item instead of '—'
   Widget _shakerTypeDropdown({required _ShakerRow row, required bool isLocked}) {
     return Obx(() {
       final current = row.shakerType.value.isEmpty ? null : row.shakerType.value;
@@ -371,8 +381,15 @@ class _PumpPageState extends State<PumpPage> {
           style: const TextStyle(fontSize: 9, color: Colors.black87),
           onChanged: isLocked ? null : (sel) => row.shakerType.value = sel ?? '',
           items: [
-            const DropdownMenuItem<String?>(value: null, child: Text('—', style: TextStyle(fontSize: 9, color: Colors.grey))),
-            ..._shakerTypes.map((t) => DropdownMenuItem<String?>(value: t, child: Text(t, style: const TextStyle(fontSize: 9)))),
+            // Empty option — blank label, clears the field
+            const DropdownMenuItem<String?>(
+              value: null,
+              child: Text('', style: TextStyle(fontSize: 9)),
+            ),
+            ..._shakerTypes.map((t) => DropdownMenuItem<String?>(
+              value: t,
+              child: Text(t, style: const TextStyle(fontSize: 9)),
+            )),
           ],
         ),
       );
@@ -391,15 +408,18 @@ class _PumpPageState extends State<PumpPage> {
           onChanged: isLocked ? null : (sel) async {
             row.model.value = sel ?? '';
             if (sel != null && sel.isNotEmpty) {
-              // Fetch screen count from API only when user picks a model
+              // Fetch screen count from API — Only auto-fill type if it's currently empty
               final data = await sceController.getShakerDataByModel(sel);
               if (data != null) {
-                row.shakerType.value     = data['shaker']?.toString() ?? '';
-                final n                  = int.tryParse(data['screens']?.toString() ?? '0') ?? 0;
+                final apiType = data['shaker']?.toString() ?? '';
+                if (row.shakerType.value.isEmpty && apiType.isNotEmpty) {
+                  row.shakerType.value = apiType;
+                }
+                final n = int.tryParse(data['screens']?.toString() ?? '0') ?? 0;
                 row.enabledScreens.value = n;
               }
             } else {
-              // Clear everything when model is cleared
+              // Clear screens when model is cleared
               row.enabledScreens.value = 0;
               row.screen1.value = ''; row.screen2.value = '';
               row.screen3.value = ''; row.screen4.value = '';
@@ -408,7 +428,7 @@ class _PumpPageState extends State<PumpPage> {
             }
           },
           items: [
-            const DropdownMenuItem<String?>(value: null, child: Text('—', style: TextStyle(fontSize: 9, color: Colors.grey))),
+            const DropdownMenuItem<String?>(value: null, child: Text('', style: TextStyle(fontSize: 9))),
             ...models.map((m) => DropdownMenuItem<String?>(value: m, child: Text(m, style: const TextStyle(fontSize: 9)))),
           ],
         ),
@@ -416,7 +436,6 @@ class _PumpPageState extends State<PumpPage> {
     });
   }
 
-  // Screen cols — col enabled only if index < enabledScreens for that row
   List<Widget> _buildScreenCols(_ShakerRow row, bool isLocked) {
     final fields = [
       row.screen1, row.screen2, row.screen3, row.screen4,
@@ -535,7 +554,7 @@ class _PumpPageState extends State<PumpPage> {
   }
 
   // ═══════════════════════════════════════════════════════════
-  //  OTHER SCE TABLE  — local _sceRows only, no sceController.otherSce
+  //  OTHER SCE TABLE
   // ═══════════════════════════════════════════════════════════
 
   Widget _otherSCETable() {
@@ -606,6 +625,7 @@ class _PumpPageState extends State<PumpPage> {
     );
   }
 
+  // FIX 4: SCE type dropdown — empty string item instead of '—'
   Widget _sceTypeDropdown({required _OtherSceRow row, required bool isLocked}) {
     return Obx(() {
       final current = row.type.value.isEmpty ? null : row.type.value;
@@ -619,7 +639,7 @@ class _PumpPageState extends State<PumpPage> {
             if (sel == null) row.model.value = '';
           },
           items: [
-            const DropdownMenuItem<String?>(value: null, child: Text('—', style: TextStyle(fontSize: 9, color: Colors.grey))),
+            const DropdownMenuItem<String?>(value: null, child: Text('', style: TextStyle(fontSize: 9))),
             ..._otherSceTypes.map((t) => DropdownMenuItem<String?>(value: t, child: Text(t, style: const TextStyle(fontSize: 9)))),
           ],
         ),
@@ -637,16 +657,10 @@ class _PumpPageState extends State<PumpPage> {
           style: const TextStyle(fontSize: 9, color: Colors.black87),
           onChanged: isLocked ? null : (sel) async {
             row.model.value = sel ?? '';
-            if (sel != null && sel.isNotEmpty) {
-              // Fetch type from API only on user selection
-              final data = await sceController.getOtherSceDataByModel(sel);
-              if (data != null) {
-                row.type.value = data['type']?.toString() ?? '';
-              }
-            }
+            // DECOUPLED: Removed automatic row.type.value update from API data
           },
           items: [
-            const DropdownMenuItem<String?>(value: null, child: Text('—', style: TextStyle(fontSize: 9, color: Colors.grey))),
+            const DropdownMenuItem<String?>(value: null, child: Text('', style: TextStyle(fontSize: 9, color: Colors.grey))),
             ...models.map((m) => DropdownMenuItem<String?>(value: m, child: Text(m, style: const TextStyle(fontSize: 9)))),
           ],
         ),

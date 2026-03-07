@@ -604,7 +604,11 @@ class _MudViewState extends State<MudView> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
         child: SizedBox(
           width: 700,
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.85,
+            ),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
@@ -622,84 +626,88 @@ class _MudViewState extends State<MudView> {
                 ),
               ]),
             ),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Obx(() {
-                final entries = c.propertyTable.entries.toList();
-                return Column(children: [
-                  Container(
-                    height: 30,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
-                      border: Border.all(color: Colors.grey.shade300),
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(4), topRight: Radius.circular(4)),
-                    ),
-                    child: Row(children: [
-                      _snapHeaderCell('Property', flex: 3),
-                      ...c.samples.map((s) => _snapHeaderCell(s)),
-                    ]),
-                  ),
-                  Container(
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade300),
-                      borderRadius: const BorderRadius.only(
-                        bottomLeft: Radius.circular(4), bottomRight: Radius.circular(4)),
-                    ),
-                    child: Column(
-                      children: entries.asMap().entries.map((e) {
-                        final idx    = e.key;
-                        final entry  = e.value;
-                        final isLast = idx == entries.length - 1;
-                        return Container(
-                          height: 28,
-                          decoration: BoxDecoration(
-                            color: idx % 2 == 0 ? Colors.white : Colors.grey.shade50,
-                            border: Border(bottom: BorderSide(
-                              color: isLast ? Colors.transparent : Colors.grey.shade200)),
-                          ),
-                          child: Row(children: [
-                            Expanded(
-                              flex: 3,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8),
-                                decoration: BoxDecoration(
-                                  border: Border(right: BorderSide(color: Colors.grey.shade200))),
-                                child: Text(entry.key,
-                                    style: AppTheme.caption.copyWith(
-                                        color: AppTheme.textSecondary, fontSize: 10),
-                                    overflow: TextOverflow.ellipsis),
+            Flexible(
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Obx(() {
+                    final entries = c.propertyTable.entries.toList();
+                    return Column(children: [
+                      Container(
+                        height: 30,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          border: Border.all(color: Colors.grey.shade300),
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(4), topRight: Radius.circular(4)),
+                        ),
+                        child: Row(children: [
+                          _snapHeaderCell('Property', flex: 3),
+                          ...c.samples.map((s) => _snapHeaderCell(s)),
+                        ]),
+                      ),
+                      Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey.shade300),
+                          borderRadius: const BorderRadius.only(
+                            bottomLeft: Radius.circular(4), bottomRight: Radius.circular(4)),
+                        ),
+                        child: Column(
+                          children: entries.asMap().entries.map((e) {
+                            final idx    = e.key;
+                            final entry  = e.value;
+                            final isLast = idx == entries.length - 1;
+                            return Container(
+                              height: 28,
+                              decoration: BoxDecoration(
+                                color: idx % 2 == 0 ? Colors.white : Colors.grey.shade50,
+                                border: Border(bottom: BorderSide(
+                                  color: isLast ? Colors.transparent : Colors.grey.shade200)),
                               ),
-                            ),
-                            ...entry.value.asMap().entries.map((cell) {
-                              final isLastCol = cell.key == entry.value.length - 1;
-                              return Expanded(
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6),
-                                  decoration: BoxDecoration(
-                                    border: Border(right: BorderSide(
-                                      color: isLastCol ? Colors.transparent : Colors.grey.shade200))),
-                                  child: Obx(() => Text(
-                                        cell.value.value.isEmpty ? '-' : cell.value.value,
+                              child: Row(children: [
+                                Expanded(
+                                  flex: 3,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                                    decoration: BoxDecoration(
+                                      border: Border(right: BorderSide(color: Colors.grey.shade200))),
+                                    child: Text(entry.key,
                                         style: AppTheme.caption.copyWith(
-                                          fontSize: 10,
-                                          color: cell.value.value.isEmpty
-                                              ? Colors.grey.shade400
-                                              : AppTheme.textPrimary,
-                                        ),
-                                        textAlign: TextAlign.center,
-                                        overflow: TextOverflow.ellipsis,
-                                      )),
+                                            color: AppTheme.textSecondary, fontSize: 10),
+                                        overflow: TextOverflow.ellipsis),
+                                  ),
                                 ),
-                              );
-                            }),
-                          ]),
-                        );
-                      }).toList(),
-                    ),
-                  ),
-                ]);
-              }),
+                                ...entry.value.asMap().entries.map((cell) {
+                                  final isLastCol = cell.key == entry.value.length - 1;
+                                  return Expanded(
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                                      decoration: BoxDecoration(
+                                        border: Border(right: BorderSide(
+                                          color: isLastCol ? Colors.transparent : Colors.grey.shade200))),
+                                      child: Obx(() => Text(
+                                            cell.value.value.isEmpty ? '-' : cell.value.value,
+                                            style: AppTheme.caption.copyWith(
+                                              fontSize: 10,
+                                              color: cell.value.value.isEmpty
+                                                  ? Colors.grey.shade400
+                                                  : AppTheme.textPrimary,
+                                            ),
+                                            textAlign: TextAlign.center,
+                                            overflow: TextOverflow.ellipsis,
+                                          )),
+                                    ),
+                                  );
+                                }),
+                              ]),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ]);
+                  }),
+                ),
+              ),
             ),
             Padding(
               padding: const EdgeInsets.only(bottom: 16, right: 16),
@@ -717,6 +725,7 @@ class _MudViewState extends State<MudView> {
               ]),
             ),
           ]),
+          ),
         ),
       ),
     );

@@ -68,9 +68,6 @@ class PumpModel {
       case 'Quadplex':
         N = 4;
         break;
-      case 'Hydraulic':
-        N = 2;
-        break;
       default:
         N = 0;
     }
