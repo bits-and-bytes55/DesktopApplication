@@ -53,6 +53,8 @@ import ugInventoryRoutes from "./routes/ugInventory/ugInventoryProductsRoutes.js
 import inventorySnapshotRoutes from "./routes/FullInventory/inventorySnapshotRoutes.js";
 import exportRoutes from "./routes/Export/exportRoutes.js";
 
+import solidanalysisroute from "./routes/SolidAnalysis/solidanalysisroute.js"
+
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -150,6 +152,8 @@ app.use("/api/ug-inventory", ugInventoryRoutes);
 //drill string
 app.use("/api/drill-string", drillStringRoutes);
 
+
+app.use('/api/solids',solidanalysisroute);
 
 
 // Error handler (ALWAYS LAST)

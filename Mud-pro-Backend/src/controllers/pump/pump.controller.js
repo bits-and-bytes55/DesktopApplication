@@ -1,20 +1,47 @@
 import mongoose from 'mongoose';
 import Pump from '../../modules/pump/pump.model.js';
 
+// Formula: Displacement (bbl/stk) = (0.000971 × D² × L × N) / 42
+// D = Liner ID (inches), L = Stroke Length (inches), N = number of cylinders
+const calculateDisplacement = (type, linerId, strokeLength, efficiency) => {
+
+  const D = Number(linerId) || 0;
+  const L = Number(strokeLength) || 0;
+  const eff = (Number(efficiency) || 0) / 100;
+
+  let constant = 0;
+
+  if (type === "Duplex") constant = 0.000162;
+  else if (type === "Triplex") constant = 0.000243;
+  else if (type === "Quadruplex") constant = 0.000324;
+  else if (type === "Quintuplex") constant = 0.000405;
+
+  if (!D || !L || !eff || !constant) return 0;
+
+  const displacement = constant * Math.pow(D, 2) * L * eff;
+
+  return +displacement.toFixed(4);
+};
+
+// Rate (GPM) = Displacement (bbl/stk) × SPM × Efficiency × 42
+const calculateRate = (displacement, spm) => {
+
+  const disp = Number(displacement) || 0;
+  const SPM = Number(spm) || 0;
+
+  if (!disp || !SPM) return 0;
+
+  const rate = disp * SPM * 42;
+
+  return +rate.toFixed(1);
+};
+
 class PumpController {
-  // Get all pumps for a well
+
+  // GET ALL PUMPS
   async getPumps(req, res) {
     try {
-      const { wellId } = req.params;
-
-      if (!wellId || !mongoose.Types.ObjectId.isValid(wellId)) {
-        return res.status(400).json({
-          success: false,
-          message: 'Valid well ID is required'
-        });
-      }
-
-      const pumps = await Pump.find({ wellId })
+      const pumps = await Pump.find()
         .sort({ rowNumber: 1 })
         .lean();
 
@@ -23,8 +50,9 @@ class PumpController {
         message: 'Pumps retrieved successfully',
         data: pumps
       });
+
     } catch (error) {
-      console.error('Error fetching pumps:', error);
+      console.error(error);
       return res.status(500).json({
         success: false,
         message: 'Failed to fetch pumps',
@@ -33,15 +61,15 @@ class PumpController {
     }
   }
 
-  // Get single pump by ID
+  // GET BY ID
   async getPumpById(req, res) {
     try {
       const { id } = req.params;
 
-      if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+      if (!mongoose.Types.ObjectId.isValid(id)) {
         return res.status(400).json({
           success: false,
-          message: 'Valid pump ID is required'
+          message: 'Invalid pump ID'
         });
       }
 
@@ -56,47 +84,55 @@ class PumpController {
 
       return res.status(200).json({
         success: true,
-        message: 'Pump retrieved successfully',
         data: pump
       });
+
     } catch (error) {
-      console.error('Error fetching pump:', error);
       return res.status(500).json({
         success: false,
-        message: 'Failed to fetch pump',
-        error: error.message
+        message: error.message
       });
     }
   }
 
-  // Create new pump
+  // CREATE
   async createPump(req, res) {
     try {
-      const { wellId } = req.params;
-      const userId = req.user?.id || req.user?._id;
-
-      if (!wellId || !mongoose.Types.ObjectId.isValid(wellId)) {
-        return res.status(400).json({
-          success: false,
-          message: 'Valid well ID is required'
-        });
-      }
-
-      // Get the highest row number for this well
-      const lastPump = await Pump.findOne({ wellId })
+      const lastPump = await Pump.findOne()
         .sort({ rowNumber: -1 })
         .select('rowNumber')
         .lean();
 
-      const rowNumber = req.body.rowNumber || (lastPump ? lastPump.rowNumber + 1 : 1);
+      const rowNumber =
+        req.body.rowNumber || (lastPump ? lastPump.rowNumber + 1 : 1);
 
+      const displacement = calculateDisplacement(
+  req.body.type,
+  req.body.linerId,
+  req.body.strokeLength,
+  req.body.efficiency
+);
+
+      const rate = calculateRate(
+        displacement,
+        req.body.spm,
+        req.body.efficiency
+      );
+
+      // Build pump data without wellId if not provided
       const pumpData = {
         ...req.body,
-        wellId,
         rowNumber,
-        createdBy: userId,
-        updatedBy: userId
+        displacement,
+        rate
       };
+
+      // Only include wellId if it's valid
+      if (req.body.wellId && mongoose.Types.ObjectId.isValid(req.body.wellId)) {
+        pumpData.wellId = req.body.wellId;
+      } else {
+        delete pumpData.wellId;
+      }
 
       const pump = await Pump.create(pumpData);
 
@@ -105,17 +141,9 @@ class PumpController {
         message: 'Pump created successfully',
         data: pump
       });
-    } catch (error) {
-      console.error('Error creating pump:', error);
-      
-      // Handle duplicate row number error
-      if (error.code === 11000) {
-        return res.status(409).json({
-          success: false,
-          message: 'A pump with this row number already exists for this well'
-        });
-      }
 
+    } catch (error) {
+      console.error(error);
       return res.status(500).json({
         success: false,
         message: 'Failed to create pump',
@@ -124,31 +152,40 @@ class PumpController {
     }
   }
 
-  // Update pump
+  // UPDATE
   async updatePump(req, res) {
     try {
       const { id } = req.params;
-      const userId = req.user?.id || req.user?._id;
 
-      if (!id || !mongoose.Types.ObjectId.isValid(id)) {
-        return res.status(400).json({
+      const existing = await Pump.findById(id);
+
+      if (!existing) {
+        return res.status(404).json({
           success: false,
-          message: 'Valid pump ID is required'
+          message: 'Pump not found'
         });
       }
 
+      const type = req.body.type ?? existing.type;
+      const linerId = req.body.linerId ?? existing.linerId;
+      const strokeLength = req.body.strokeLength ?? existing.strokeLength;
+      const spm = req.body.spm ?? existing.spm;
+      const efficiency = req.body.efficiency ?? existing.efficiency;
+
+      const displacement = calculateDisplacement(type, linerId, strokeLength);
+      const rate = calculateRate(displacement, spm, efficiency);
+
       const updateData = {
         ...req.body,
-        updatedBy: userId,
+        displacement,
+        rate,
         updatedAt: Date.now()
       };
 
-      // Remove fields that shouldn't be updated
-      delete updateData._id;
-      delete updateData.wellId;
-      delete updateData.rowNumber;
-      delete updateData.createdBy;
-      delete updateData.createdAt;
+      // Don't overwrite wellId with invalid value
+      if (req.body.wellId && !mongoose.Types.ObjectId.isValid(req.body.wellId)) {
+        delete updateData.wellId;
+      }
 
       const pump = await Pump.findByIdAndUpdate(
         id,
@@ -156,20 +193,13 @@ class PumpController {
         { new: true, runValidators: true }
       );
 
-      if (!pump) {
-        return res.status(404).json({
-          success: false,
-          message: 'Pump not found'
-        });
-      }
-
       return res.status(200).json({
         success: true,
         message: 'Pump updated successfully',
         data: pump
       });
+
     } catch (error) {
-      console.error('Error updating pump:', error);
       return res.status(500).json({
         success: false,
         message: 'Failed to update pump',
@@ -178,17 +208,10 @@ class PumpController {
     }
   }
 
-  // Delete pump
+  // DELETE ONE
   async deletePump(req, res) {
     try {
       const { id } = req.params;
-
-      if (!id || !mongoose.Types.ObjectId.isValid(id)) {
-        return res.status(400).json({
-          success: false,
-          message: 'Valid pump ID is required'
-        });
-      }
 
       const pump = await Pump.findByIdAndDelete(id);
 
@@ -201,61 +224,39 @@ class PumpController {
 
       return res.status(200).json({
         success: true,
-        message: 'Pump deleted successfully',
-        data: pump
+        message: 'Pump deleted successfully'
       });
+
     } catch (error) {
-      console.error('Error deleting pump:', error);
       return res.status(500).json({
         success: false,
-        message: 'Failed to delete pump',
-        error: error.message
+        message: error.message
       });
     }
   }
 
-  // Delete all pumps for a well
+  // DELETE ALL
   async deleteAllPumps(req, res) {
     try {
-      const { wellId } = req.params;
-
-      if (!wellId || !mongoose.Types.ObjectId.isValid(wellId)) {
-        return res.status(400).json({
-          success: false,
-          message: 'Valid well ID is required'
-        });
-      }
-
-      const result = await Pump.deleteMany({ wellId });
+      await Pump.deleteMany({});
 
       return res.status(200).json({
         success: true,
-        message: `${result.deletedCount} pumps deleted successfully`,
-        data: { deletedCount: result.deletedCount }
+        message: 'All pumps deleted successfully'
       });
+
     } catch (error) {
-      console.error('Error deleting pumps:', error);
       return res.status(500).json({
         success: false,
-        message: 'Failed to delete pumps',
-        error: error.message
+        message: error.message
       });
     }
   }
 
-  // Bulk create/update pumps
+  // BULK UPSERT
   async bulkUpsertPumps(req, res) {
     try {
-      const { wellId } = req.params;
       const { pumps } = req.body;
-      const userId = req.user?.id || req.user?._id;
-
-      if (!wellId || !mongoose.Types.ObjectId.isValid(wellId)) {
-        return res.status(400).json({
-          success: false,
-          message: 'Valid well ID is required'
-        });
-      }
 
       if (!Array.isArray(pumps)) {
         return res.status(400).json({
@@ -265,32 +266,34 @@ class PumpController {
       }
 
       const operations = pumps.map((pump, index) => {
+        // Calculate displacement and rate for each pump
+        const displacement = calculateDisplacement(pump.type, pump.linerId, pump.strokeLength);
+        const rate = calculateRate(displacement, pump.spm, pump.efficiency);
+
+        const pumpData = {
+          ...pump,
+          displacement,
+          rate,
+          rowNumber: pump.rowNumber || index + 1
+        };
+
+        // Remove invalid wellId
+        if (pumpData.wellId && !mongoose.Types.ObjectId.isValid(pumpData.wellId)) {
+          delete pumpData.wellId;
+        }
+
         if (pump._id) {
-          // Update existing pump
           return {
             updateOne: {
-              filter: { _id: pump._id, wellId },
-              update: { 
-                $set: {
-                  ...pump, 
-                  updatedBy: userId,
-                  updatedAt: Date.now()
-                }
-              },
+              filter: { _id: pump._id },
+              update: { $set: pumpData },
               upsert: false
             }
           };
         } else {
-          // Insert new pump
           return {
             insertOne: {
-              document: {
-                ...pump,
-                wellId,
-                rowNumber: pump.rowNumber || index + 1,
-                createdBy: userId,
-                updatedBy: userId
-              }
+              document: pumpData
             }
           };
         }
@@ -300,15 +303,32 @@ class PumpController {
 
       return res.status(200).json({
         success: true,
-        message: 'Pumps updated successfully',
+        message: 'Bulk operation successful',
         data: result
       });
+
     } catch (error) {
-      console.error('Error bulk upserting pumps:', error);
       return res.status(500).json({
         success: false,
-        message: 'Failed to update pumps',
-        error: error.message
+        message: error.message
+      });
+    }
+  }
+
+  // CALCULATE DISPLACEMENT (utility endpoint for frontend)
+  async calculateDisplacementEndpoint(req, res) {
+    try {
+      const { type, linerId, strokeLength } = req.body;
+      const displacement = calculateDisplacement(type, linerId, strokeLength);
+
+      return res.status(200).json({
+        success: true,
+        displacement
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: error.message
       });
     }
   }
