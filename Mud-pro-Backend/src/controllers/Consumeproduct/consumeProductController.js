@@ -6,16 +6,16 @@ import ConsumeProduct from "../../modules/Consumeproduct/ConsumeProduct.js";
 export const createConsumeProduct = async (req, res) => {
   try {
     const initial = Number(req.body.initial ?? 0);
-    const adjust  = Number(req.body.adjust ?? 0);
-    const used    = Number(req.body.used ?? 0);
-    const price   = Number(req.body.price ?? 0);
+    const adjust = Number(req.body.adjust ?? 0);
+    const used = Number(req.body.used ?? 0);
+    const price = Number(req.body.price ?? 0);
 
     const numberOfBags = Number(req.body.numberOfBags ?? 0);
     const weightPerBag = Number(req.body.weightPerBag ?? 0);
-    const sg           = Number(req.body.sg ?? 1);
+    const sg = Number(req.body.sg ?? 1);
 
     const finalVal = initial + adjust - used;
-    const cost     = used * price;
+    const cost = used * price;
 
     const totalWeight = numberOfBags * weightPerBag;
     let volumeBbl = 0;
@@ -25,7 +25,7 @@ export const createConsumeProduct = async (req, res) => {
 
     const consumeProduct = await ConsumeProduct.create({
       ...req.body,
-      final:     finalVal,
+      final: finalVal,
       cost,
       volumeBbl: +volumeBbl.toFixed(3),
     });
@@ -33,7 +33,7 @@ export const createConsumeProduct = async (req, res) => {
     res.status(201).json({
       success: true,
       message: "Consume Product created successfully",
-      data: consumeProduct,
+      data: consumeProduct
     });
 
   } catch (error) {
@@ -91,16 +91,16 @@ export const updateConsumeProduct = async (req, res) => {
     }
 
     const initial = Number(req.body.initial ?? existing.initial ?? 0);
-    const adjust  = Number(req.body.adjust  ?? existing.adjust  ?? 0);
-    const used    = Number(req.body.used    ?? existing.used    ?? 0);
-    const price   = Number(req.body.price   ?? existing.price   ?? 0);
+    const adjust = Number(req.body.adjust ?? existing.adjust ?? 0);
+    const used = Number(req.body.used ?? existing.used ?? 0);
+    const price = Number(req.body.price ?? existing.price ?? 0);
 
     const numberOfBags = Number(req.body.numberOfBags ?? existing.numberOfBags ?? 0);
     const weightPerBag = Number(req.body.weightPerBag ?? existing.weightPerBag ?? 0);
-    const sg           = Number(req.body.sg ?? existing.sg ?? 1);
+    const sg = Number(req.body.sg ?? existing.sg ?? 1);
 
     const finalVal = initial + adjust - used;
-    const cost     = used * price;
+    const cost = used * price;
 
     const totalWeight = numberOfBags * weightPerBag;
     let volumeBbl = 0;
@@ -112,7 +112,7 @@ export const updateConsumeProduct = async (req, res) => {
       req.params.id,
       {
         ...req.body,
-        final:     finalVal,
+        final: finalVal,
         cost,
         volumeBbl: +volumeBbl.toFixed(3),
       },

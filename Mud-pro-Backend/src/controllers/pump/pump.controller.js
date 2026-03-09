@@ -3,31 +3,37 @@ import Pump from '../../modules/pump/pump.model.js';
 
 // Formula: Displacement (bbl/stk) = (0.000971 × D² × L × N) / 42
 // D = Liner ID (inches), L = Stroke Length (inches), N = number of cylinders
-const calculateDisplacement = (type, linerId, strokeLength) => {
+const calculateDisplacement = (type, linerId, strokeLength, efficiency) => {
+
   const D = Number(linerId) || 0;
   const L = Number(strokeLength) || 0;
+  const eff = (Number(efficiency) || 0) / 100;
 
-  let N = 0;
-  if (type === 'Triplex') N = 3;
-  else if (type === 'Duplex') N = 2;
-  else if (type === 'Quintuplex') N = 5;
-  else if (type === 'Quadplex') N = 4;
-  else if (type === 'Hydraulic') N = 2; // treat as duplex by default
+  let constant = 0;
 
-  if (!D || !L || !N) return 0;
+  if (type === "Duplex") constant = 0.000162;
+  else if (type === "Triplex") constant = 0.000243;
+  else if (type === "Quadruplex") constant = 0.000324;
+  else if (type === "Quintuplex") constant = 0.000405;
 
-  return +((0.000971 * Math.pow(D, 2) * L * N) / 42).toFixed(4);
+  if (!D || !L || !eff || !constant) return 0;
+
+  const displacement = constant * Math.pow(D, 2) * L * eff;
+
+  return +displacement.toFixed(4);
 };
 
 // Rate (GPM) = Displacement (bbl/stk) × SPM × Efficiency × 42
-const calculateRate = (displacement, spm, efficiency) => {
+const calculateRate = (displacement, spm) => {
+
   const disp = Number(displacement) || 0;
   const SPM = Number(spm) || 0;
-  const eff = (Number(efficiency) || 0) / 100;
 
-  if (!disp || !SPM || !eff) return 0;
+  if (!disp || !SPM) return 0;
 
-  return +(disp * SPM * eff * 42).toFixed(1);
+  const rate = disp * SPM * 42;
+
+  return +rate.toFixed(1);
 };
 
 class PumpController {
@@ -103,7 +109,8 @@ class PumpController {
       const displacement = calculateDisplacement(
         req.body.type,
         req.body.linerId,
-        req.body.strokeLength
+        req.body.strokeLength,
+        req.body.efficiency
       );
 
       const rate = calculateRate(
