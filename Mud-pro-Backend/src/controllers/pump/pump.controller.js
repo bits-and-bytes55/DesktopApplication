@@ -11,10 +11,10 @@ const calculateDisplacement = (type, linerId, strokeLength, efficiency) => {
 
   let constant = 0;
 
-  if (type === "Duplex") constant = 0.000162;
-  else if (type === "Triplex") constant = 0.000243;
-  else if (type === "Quadruplex") constant = 0.000324;
-  else if (type === "Quintuplex") constant = 0.000405;
+ if (type === "Duplex") constant = 0.000324;            // ✅ double-acting
+else if (type === "Triplex") constant = 0.000243;
+else if (type === "Quadplex") constant = 0.000324;     // ✅ spelling fixed
+else if (type === "Quintuplex") constant = 0.000405;
 
   if (!D || !L || !eff || !constant) return 0;
 
@@ -172,7 +172,9 @@ class PumpController {
       const spm = req.body.spm ?? existing.spm;
       const efficiency = req.body.efficiency ?? existing.efficiency;
 
-      const displacement = calculateDisplacement(type, linerId, strokeLength);
+     
+      const displacement = calculateDisplacement(type, linerId, strokeLength, efficiency); // ✅
+
       const rate = calculateRate(displacement, spm, efficiency);
 
       const updateData = {
