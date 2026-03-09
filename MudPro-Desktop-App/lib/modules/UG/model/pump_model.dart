@@ -48,38 +48,66 @@ class PumpModel {
         surfaceLen = (surfaceLen ?? '').obs,
         surfaceId = (surfaceId ?? '').obs;
 
-  /// Auto-calculate displacement from: type, linerId, strokeLength
-  /// Formula: (0.000971 × D² × L × N) / 42
-  void recalculateDisplacement() {
-    final D = double.tryParse(linerId.value) ?? 0;
-    final L = double.tryParse(strokeLength.value) ?? 0;
 
-    int N = 0;
+
+// AFTER (correct — matches backend & original software)
+// void recalculateDisplacement() {
+//   final D = double.tryParse(linerId.value) ?? 0;
+//   final L = double.tryParse(strokeLength.value) ?? 0;
+//   final eff = (double.tryParse(efficiency.value) ?? 0) / 100;
+
+//   double constant = 0;
+//   switch (type.value) {
+//     case 'Duplex':     constant = 0.000324; break; // double-acting
+//     case 'Triplex':    constant = 0.000243; break;
+//     case 'Quadplex':   constant = 0.000324; break;
+//     case 'Quintuplex': constant = 0.000405; break;
+//     default:           constant = 0;
+//   }
+
+//   if (D == 0 || L == 0 || eff == 0 || constant == 0) {
+//     displacement.value = '';
+//     return;
+//   }
+
+//   final result = constant * D * D * L * eff;
+//   displacement.value = result.toStringAsFixed(4);
+// }
+
+// AFTER — Duplex uses rod formula when rodOd is provided
+void recalculateDisplacement() {
+  final D = double.tryParse(linerId.value) ?? 0;
+  final L = double.tryParse(strokeLength.value) ?? 0;
+  final eff = (double.tryParse(efficiency.value) ?? 0) / 100;
+  final d = double.tryParse(rodOd.value) ?? 0; // only used for Duplex
+
+  if (D == 0 || L == 0 || eff == 0) { displacement.value = ''; return; }
+
+  double result = 0;
+
+  if (type.value == 'Duplex') {
+    if (d > 0) {
+      // With rod: 0.000162 × (2D² - d²) × L × Efficiency
+      result = 0.000162 * (2 * D * D - d * d) * L * eff;
+    } else {
+      // Without rod (approximation)
+      result = 0.000324 * D * D * L * eff;
+    }
+  } else {
+    double constant = 0;
     switch (type.value) {
-      case 'Triplex':
-        N = 3;
-        break;
-      case 'Duplex':
-        N = 2;
-        break;
-      case 'Quintuplex':
-        N = 5;
-        break;
-      case 'Quadplex':
-        N = 4;
-        break;
-      default:
-        N = 0;
+      case 'Triplex':    constant = 0.000243; break;
+      case 'Quadplex':   constant = 0.000324; break;
+      case 'Quintuplex': constant = 0.000405; break;
+      default:           constant = 0;
     }
-
-    if (D == 0 || L == 0 || N == 0) {
-      displacement.value = '';
-      return;
-    }
-
-    final result = (0.000971 * D * D * L * N) / 42;
-    displacement.value = result.toStringAsFixed(4);
+    if (constant == 0) { displacement.value = ''; return; }
+    result = constant * D * D * L * eff;
   }
+
+  displacement.value = result.toStringAsFixed(4);
+}
+
 
   // From JSON - for GET responses
   factory PumpModel.fromJson(Map<String, dynamic> json) {

@@ -291,11 +291,12 @@ class _PumpViewState extends State<PumpView> {
                   pumpController.onFieldChanged(i);
                 }, flex: 2),
 
-                // Rod OD
-                _editableField(p.rodOd, i, (val) {
-                  p.rodOd.value = val;
-                  pumpController.onFieldChanged(i);
-                }, flex: 2),
+                // AFTER — trigger displacement recalc for Duplex
+_editableField(p.rodOd, i, (val) {
+  p.rodOd.value = val;
+  if (p.type.value == 'Duplex') p.recalculateDisplacement(); // ✅ only Duplex
+  pumpController.onFieldChanged(i);
+}, flex: 2),
 
                 // Stroke Length — triggers displacement calc
                 _editableField(p.strokeLength, i, (val) {
@@ -307,6 +308,7 @@ class _PumpViewState extends State<PumpView> {
                 // Efficiency
                 _editableField(p.efficiency, i, (val) {
                   p.efficiency.value = val;
+                  p.recalculateDisplacement();
                   pumpController.onFieldChanged(i);
                 }, flex: 2),
 

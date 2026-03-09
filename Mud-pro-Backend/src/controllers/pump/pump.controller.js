@@ -3,24 +3,53 @@ import Pump from '../../modules/pump/pump.model.js';
 
 // Formula: Displacement (bbl/stk) = (0.000971 × D² × L × N) / 42
 // D = Liner ID (inches), L = Stroke Length (inches), N = number of cylinders
-const calculateDisplacement = (type, linerId, strokeLength, efficiency) => {
+// const calculateDisplacement = (type, linerId, strokeLength, efficiency) => {
 
+//   const D = Number(linerId) || 0;
+//   const L = Number(strokeLength) || 0;
+//   const eff = (Number(efficiency) || 0) / 100;
+
+//   let constant = 0;
+
+//  if (type === "Duplex") constant = 0.000324;            // ✅ double-acting
+// else if (type === "Triplex") constant = 0.000243;
+// else if (type === "Quadplex") constant = 0.000324;     // ✅ spelling fixed
+// else if (type === "Quintuplex") constant = 0.000405;
+
+//   if (!D || !L || !eff || !constant) return 0;
+
+//   const displacement = constant * Math.pow(D, 2) * L * eff;
+
+//   return +displacement.toFixed(4);
+// };
+
+// AFTER — add rodOd parameter, special formula for Duplex with rod
+const calculateDisplacement = (type, linerId, strokeLength, efficiency, rodOd = 0) => {
   const D = Number(linerId) || 0;
   const L = Number(strokeLength) || 0;
   const eff = (Number(efficiency) || 0) / 100;
+  const d = Number(rodOd) || 0;  // rod OD — only used for Duplex
+
+  if (!D || !L || !eff) return 0;
+
+  // Duplex: double-acting pump — rod reduces displacement on backstroke
+  if (type === "Duplex") {
+    if (d > 0) {
+      // With rod: 0.000162 × (2D² - d²) × L × Efficiency
+      return +(0.000162 * (2 * D * D - d * d) * L * eff).toFixed(4);
+    } else {
+      // Without rod (approximation): 0.000324 × D² × L × Efficiency
+      return +(0.000324 * D * D * L * eff).toFixed(4);
+    }
+  }
 
   let constant = 0;
+  if (type === "Triplex")    constant = 0.000243;
+  else if (type === "Quadplex")   constant = 0.000324;
+  else if (type === "Quintuplex") constant = 0.000405;
 
- if (type === "Duplex") constant = 0.000324;            // ✅ double-acting
-else if (type === "Triplex") constant = 0.000243;
-else if (type === "Quadplex") constant = 0.000324;     // ✅ spelling fixed
-else if (type === "Quintuplex") constant = 0.000405;
-
-  if (!D || !L || !eff || !constant) return 0;
-
-  const displacement = constant * Math.pow(D, 2) * L * eff;
-
-  return +displacement.toFixed(4);
+  if (!constant) return 0;
+  return +(constant * D * D * L * eff).toFixed(4);
 };
 
 // Rate (GPM) = Displacement (bbl/stk) × SPM × Efficiency × 42
@@ -110,7 +139,8 @@ class PumpController {
         req.body.type,
         req.body.linerId,
         req.body.strokeLength,
-        req.body.efficiency
+        req.body.efficiency,
+        req.body.rodOd 
       );
 
       const rate = calculateRate(
@@ -172,8 +202,8 @@ class PumpController {
       const spm = req.body.spm ?? existing.spm;
       const efficiency = req.body.efficiency ?? existing.efficiency;
 
-     
-      const displacement = calculateDisplacement(type, linerId, strokeLength, efficiency); // ✅
+     const rodOd = req.body.rodOd ?? existing.rodOd;  // ✅ add this line
+      const displacement = calculateDisplacement(type, linerId, strokeLength, efficiency, rodOd); // ✅
 
       const rate = calculateRate(displacement, spm, efficiency);
 
@@ -269,7 +299,7 @@ class PumpController {
 
       const operations = pumps.map((pump, index) => {
         // Calculate displacement and rate for each pump
-        const displacement = calculateDisplacement(pump.type, pump.linerId, pump.strokeLength);
+        const displacement = calculateDisplacement(pump.type, pump.linerId, pump.strokeLength, pump.rodOd );
         const rate = calculateRate(displacement, pump.spm, pump.efficiency);
 
         const pumpData = {

@@ -184,26 +184,26 @@ class PumpController extends GetxController {
         // ✅ After save, refresh models so new model appears in dropdown
         await loadPumps(currentWellId);
 
-        Get.snackbar(
-          'Success',
-          'Pump saved successfully',
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.green,
-          colorText: Colors.white,
-          duration: const Duration(seconds: 2),
-        );
+        // Get.snackbar(
+        //   'Success',
+        //   'Pump saved successfully',
+        //   snackPosition: SnackPosition.BOTTOM,
+        //   backgroundColor: Colors.green,
+        //   colorText: Colors.white,
+        //   duration: const Duration(seconds: 2),
+        // );
       } else {
         throw Exception(result['message'] ?? 'Failed to save pump');
       }
     } catch (e) {
       print("❌ Save error: $e");
-      Get.snackbar(
-        'Error',
-        'Failed to save pump: $e',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
+      // Get.snackbar(
+      //   'Error',
+      //   'Failed to save pump: $e',
+      //   snackPosition: SnackPosition.BOTTOM,
+      //   backgroundColor: Colors.red,
+      //   colorText: Colors.white,
+      // );
       rethrow;
     } finally {
       isLoading.value = false;
@@ -214,10 +214,10 @@ class PumpController extends GetxController {
     final pumpsWithData = pumps.where((pump) => pump.hasData).toList();
 
     if (pumpsWithData.isEmpty) {
-      Get.snackbar('Info', 'No pumps to save',
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.orange,
-          colorText: Colors.white);
+      // Get.snackbar('Info', 'No pumps to save',
+      //     snackPosition: SnackPosition.BOTTOM,
+      //     backgroundColor: Colors.orange,
+      //     colorText: Colors.white);
       return;
     }
 
@@ -239,18 +239,18 @@ class PumpController extends GetxController {
 
       await loadPumps(currentWellId);
 
-      Get.snackbar(
-        'Success',
-        'Saved $successCount pumps${failCount > 0 ? ', $failCount failed' : ''}',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: failCount > 0 ? Colors.orange : Colors.green,
-        colorText: Colors.white,
-      );
+      // Get.snackbar(
+      //   'Success',
+      //   'Saved $successCount pumps${failCount > 0 ? ', $failCount failed' : ''}',
+      //   snackPosition: SnackPosition.BOTTOM,
+      //   backgroundColor: failCount > 0 ? Colors.orange : Colors.green,
+      //   colorText: Colors.white,
+      // );
     } catch (e) {
-      Get.snackbar('Error', 'Failed to save pumps: $e',
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.red,
-          colorText: Colors.white);
+      // Get.snackbar('Error', 'Failed to save pumps: $e',
+      //     snackPosition: SnackPosition.BOTTOM,
+      //     backgroundColor: Colors.red,
+      //     colorText: Colors.white);
     } finally {
       isLoading.value = false;
     }
@@ -286,20 +286,20 @@ class PumpController extends GetxController {
         // ✅ Refresh models after delete
         await loadPumps(currentWellId);
 
-        Get.snackbar('Success', 'Pump deleted successfully',
-            snackPosition: SnackPosition.BOTTOM,
-            backgroundColor: Colors.green,
-            colorText: Colors.white);
+        // Get.snackbar('Success', 'Pump deleted successfully',
+        //     snackPosition: SnackPosition.BOTTOM,
+        //     backgroundColor: Colors.green,
+        //     colorText: Colors.white);
 
         return true;
       } else {
         throw Exception(result['message'] ?? 'Failed to delete pump');
       }
     } catch (e) {
-      Get.snackbar('Error', 'Failed to delete pump: $e',
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.red,
-          colorText: Colors.white);
+      // Get.snackbar('Error', 'Failed to delete pump: $e',
+      //     snackPosition: SnackPosition.BOTTOM,
+      //     backgroundColor: Colors.red,
+      //     colorText: Colors.white);
       rethrow;
     } finally {
       isLoading.value = false;
