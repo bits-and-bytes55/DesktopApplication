@@ -205,7 +205,7 @@ export const getSelectedPits = async (req, res) => {
   }
 };
 
-// Get unselected (inactive) pits
+// Get unselected (inactive) pits storage waali
 export const getUnselectedPits = async (req, res) => {
   try {
     const { wellId } = req.params;

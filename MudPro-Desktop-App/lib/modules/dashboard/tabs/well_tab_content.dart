@@ -9,8 +9,6 @@ import 'package:mudpro_desktop_app/modules/dashboard/controller/nozzle_controlle
 import 'package:mudpro_desktop_app/modules/dashboard/controller/well_general_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/widgets/tabular_database.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
-// ✅ Import nozzle controller & model
-
 
 const double _kRowH = 22.0;
 
@@ -22,6 +20,41 @@ const List<String> _kTimeSlots = [
   '16:00','16:30','17:00','17:30','18:00','18:30','19:00','19:30',
   '20:00','20:30','21:00','21:30','22:00','22:30','23:00','23:30',
 ];
+
+// ─── Date helpers ───────────────────────────────────────────────────
+/// Parse stored long-form date e.g. "Tuesday, December 30, 2025" → DateTime
+DateTime? _parseLongDate(String s) {
+  try {
+    // Remove weekday prefix if present
+    final clean = s.contains(',') ? s.substring(s.indexOf(',') + 1).trim() : s.trim();
+    // clean = "December 30, 2025"
+    const months = {
+      'january':1,'february':2,'march':3,'april':4,'may':5,'june':6,
+      'july':7,'august':8,'september':9,'october':10,'november':11,'december':12
+    };
+    final parts = clean.replaceAll(',', '').split(RegExp(r'\s+'));
+    if (parts.length >= 3) {
+      final month = months[parts[0].toLowerCase()];
+      final day   = int.tryParse(parts[1]);
+      final year  = int.tryParse(parts[2]);
+      if (month != null && day != null && year != null) {
+        return DateTime(year, month, day);
+      }
+    }
+  } catch (_) {}
+  return null;
+}
+
+/// Format DateTime → display string  e.g. "12/30/2025"
+String _formatDisplay(DateTime d) =>
+    '${d.month.toString().padLeft(2,'0')}/${d.day.toString().padLeft(2,'0')}/${d.year}';
+
+/// Format DateTime → storage long-form  e.g. "Tuesday, December 30, 2025"
+String _formatStorage(DateTime d) {
+  const dn = ['','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  const mn = ['','January','February','March','April','May','June','July','August','September','October','November','December'];
+  return '${dn[d.weekday]}, ${mn[d.month]} ${d.day}, ${d.year}';
+}
 
 // ═══════════════════════════════════════════════════════════════════
 //  ROOT
@@ -75,7 +108,7 @@ class LeftPortion extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  GENERAL SECTION — Engineers fix + dropdown height fix
+//  GENERAL SECTION
 // ═══════════════════════════════════════════════════════════════════
 class GeneralSection extends StatefulWidget {
   @override
@@ -84,7 +117,6 @@ class GeneralSection extends StatefulWidget {
 
 class _GeneralSectionState extends State<GeneralSection> {
   final c            = Get.find<DashboardController>();
-  // ✅ FIX: Use Get.find if already registered, else Get.put
   late final EngineerController engineerCtrl;
   final activityCtrl = Get.isRegistered<OthersController>()
       ? Get.find<OthersController>()
@@ -98,7 +130,7 @@ class _GeneralSectionState extends State<GeneralSection> {
     'Logging','Run Casing','Testing','Coring/Reaming','Cementing'
   ];
   bool _isLoadingActivities = true;
-  bool _isLoadingEngineers = true; // ✅ NEW
+  bool _isLoadingEngineers  = true;
 
   final List<String> intervalOptions = [
     '22° Hole','16° Hole','12 1/4° Hole','8 1/2° Hole','6 1/8° Hole','Completion'
@@ -106,29 +138,38 @@ class _GeneralSectionState extends State<GeneralSection> {
 
   late final Map<String, TextEditingController> fc;
 
-  String selectedDate     = 'Tuesday, December 30, 2025';
-  String selectedTime     = '23:30';
+  // ── Date stored internally as long-form string (for API),
+  //    displayed as MM/DD/YYYY ──────────────────────────────────────
+  String _storedDate   = '';   // e.g. "Tuesday, December 30, 2025"
+  String selectedTime  = '23:30';
   String? selectedEngId;
   String? selectedEng2Id;
-  String selectedActivity = 'Cementing';
-  String selectedInterval = 'Completion';
+  String selectedActivity = '';
+  String selectedInterval = '';
+
+  /// Display-ready date string
+  String get _displayDate {
+    if (_storedDate.isEmpty) return '';
+    final dt = _parseLongDate(_storedDate);
+    return dt != null ? _formatDisplay(dt) : _storedDate;
+  }
 
   @override
   void initState() {
     super.initState();
-    // ✅ FIX: Register EngineerController properly
     engineerCtrl = Get.isRegistered<EngineerController>()
         ? Get.find<EngineerController>()
         : Get.put(EngineerController());
 
+    // ── All fields start EMPTY — data comes from API only ──────────
     fc = {
-      'Report #':           TextEditingController(text: '12'),
+      'Report #':           TextEditingController(),
       'User Report #':      TextEditingController(),
-      'Bottom T.':          TextEditingController(text: '180.0'),
-      'MD':                 TextEditingController(text: '9575.0'),
-      'TVD':                TextEditingController(text: '7683.0'),
-      'Inc':                TextEditingController(text: '89.38'),
-      'Azi':                TextEditingController(text: '299.50'),
+      'Bottom T.':          TextEditingController(),
+      'MD':                 TextEditingController(),
+      'TVD':                TextEditingController(),
+      'Inc':                TextEditingController(),
+      'Azi':                TextEditingController(),
       'WOB':                TextEditingController(),
       'Rot. Wt.':           TextEditingController(),
       'S/O Wt.':            TextEditingController(),
@@ -138,17 +179,17 @@ class _GeneralSectionState extends State<GeneralSection> {
       'Off-bottom TQ':      TextEditingController(),
       'On-bottom TQ':       TextEditingController(),
       'Suction T.':         TextEditingController(),
-      'Additional Footage': TextEditingController(text: '0.0'),
+      'Additional Footage': TextEditingController(),
       'NPT Time':           TextEditingController(),
       'NPT Cost':           TextEditingController(),
-      'Depth Drilled':      TextEditingController(text: '0.0'),
-      'Operator Rep.':      TextEditingController(text: 'Wang'),
-      'Contractor Rep.':    TextEditingController(text: 'Jerry'),
-      'FIT':                TextEditingController(text: 'Completion'),
-      'Formation':          TextEditingController(text: 'MaG'),
+      'Depth Drilled':      TextEditingController(),
+      'Operator Rep.':      TextEditingController(),
+      'Contractor Rep.':    TextEditingController(),
+      'FIT':                TextEditingController(),
+      'Formation':          TextEditingController(),
     };
     _fetchActivities();
-    _fetchEngineers(); // ✅ NEW
+    _fetchEngineers();
     _loadFromApi();
   }
 
@@ -158,17 +199,14 @@ class _GeneralSectionState extends State<GeneralSection> {
       setState(() {
         activityOptions      = acts.map((a) => a.description).toList();
         _isLoadingActivities = false;
-        if (!activityOptions.contains(selectedActivity))
-          selectedActivity = activityOptions.isNotEmpty ? activityOptions.first : 'Cementing';
+        if (selectedActivity.isNotEmpty && !activityOptions.contains(selectedActivity))
+          selectedActivity = activityOptions.isNotEmpty ? activityOptions.first : '';
       });
     } catch (_) { setState(() => _isLoadingActivities = false); }
   }
 
-  // ✅ FIX: Fetch engineers from API
   Future<void> _fetchEngineers() async {
-    try {
-      await engineerCtrl.fetchEngineers();
-    } catch (_) {}
+    try { await engineerCtrl.fetchEngineers(); } catch (_) {}
     setState(() => _isLoadingEngineers = false);
   }
 
@@ -201,12 +239,14 @@ class _GeneralSectionState extends State<GeneralSection> {
       fc['Contractor Rep.']!.text    = w.contractorRep.value;
       fc['FIT']!.text                = w.fit.value;
       fc['Formation']!.text          = w.formation.value;
-      if (w.date.value.isNotEmpty)     selectedDate     = w.date.value;
-      if (w.time.value.isNotEmpty)     selectedTime     = w.time.value;
+
+      // Date — store long-form, display as MM/DD/YYYY
+      if (w.date.value.isNotEmpty) _storedDate = w.date.value;
+      if (w.time.value.isNotEmpty) selectedTime = w.time.value;
       if (w.activity.value.isNotEmpty) selectedActivity = w.activity.value;
       if (w.interval.value.isNotEmpty) selectedInterval = w.interval.value;
 
-      // ✅ FIX: Restore selected engineer IDs from saved names
+      // Restore engineer IDs from saved names
       if (w.engineer.value.isNotEmpty) {
         final eng = engineerCtrl.engineers.firstWhere(
           (e) => '${e.firstName} ${e.lastName}' == w.engineer.value,
@@ -228,7 +268,7 @@ class _GeneralSectionState extends State<GeneralSection> {
     final w = wellGenCtrl;
     w.reportNo.value          = fc['Report #']!.text;
     w.userReportNo.value      = fc['User Report #']!.text;
-    w.date.value              = selectedDate;
+    w.date.value              = _storedDate;          // always save long-form
     w.time.value              = selectedTime;
     w.engineer.value          = _engName(selectedEngId);
     w.engineer2.value         = _engName(selectedEng2Id);
@@ -326,6 +366,40 @@ class _GeneralSectionState extends State<GeneralSection> {
     ]);
   }
 
+  // ── Unified cell helpers ─────────────────────────────────────────
+
+  /// Label cell — left-aligned
+  Widget _lbl(String t) => Container(
+    height: _kRowH,
+    padding: const EdgeInsets.symmetric(horizontal: 6),
+    alignment: Alignment.centerLeft,
+    child: Text(t, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: AppTheme.textPrimary)),
+  );
+
+  /// Unit cell — center-aligned
+  Widget _unit(String t) => Container(
+    height: _kRowH,
+    padding: const EdgeInsets.symmetric(horizontal: 4),
+    alignment: Alignment.center,
+    child: Text(t, style: TextStyle(fontSize: 10, color: AppTheme.textSecondary)),
+  );
+
+  /// Locked read-only value cell — CENTER aligned, consistent with editable
+  Widget _lockedText(String text) => SizedBox(
+    height: _kRowH,
+    child: Align(
+      alignment: Alignment.center,
+      child: Text(
+        text,
+        style: TextStyle(fontSize: 10, color: AppTheme.textPrimary),
+        textAlign: TextAlign.center,
+        overflow: TextOverflow.ellipsis,
+      ),
+    ),
+  );
+
+  // ── Row builders ─────────────────────────────────────────────────
+
   TableRow _tfRow(String label, String key, String unit) {
     final ctrl = fc[key]!;
     return TableRow(decoration: const BoxDecoration(color: Colors.white), children: [
@@ -333,52 +407,101 @@ class _GeneralSectionState extends State<GeneralSection> {
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
         child: Obx(() => c.isLocked.value
-            ? SizedBox(height: _kRowH, child: Align(alignment: Alignment.center, child: Text(ctrl.text, style: TextStyle(fontSize: 10, color: AppTheme.textPrimary), textAlign: TextAlign.center)))
-            : SizedBox(height: _kRowH, child: TextField(controller: ctrl, style: const TextStyle(fontSize: 10), textAlign: TextAlign.center, decoration: const InputDecoration(isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 3), border: InputBorder.none, enabledBorder: InputBorder.none, focusedBorder: InputBorder.none, fillColor: Colors.white, filled: true)))),
+            ? _lockedText(ctrl.text)
+            : SizedBox(
+                height: _kRowH,
+                child: TextField(
+                  controller: ctrl,
+                  style: const TextStyle(fontSize: 10),
+                  textAlign: TextAlign.center,
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    fillColor: Colors.white,
+                    filled: true,
+                  ),
+                ))),
       ),
       _unit(unit),
     ]);
   }
 
-  TableRow _dateRow() => TableRow(decoration: const BoxDecoration(color: Colors.white), children: [
-    _lbl("Date"),
-    Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-      child: Obx(() => c.isLocked.value
-          ? SizedBox(height: _kRowH, child: Center(child: Text(selectedDate, style: TextStyle(fontSize: 10, color: AppTheme.textPrimary), overflow: TextOverflow.ellipsis)))
-          : SizedBox(height: _kRowH, child: TextButton(
-              onPressed: () async {
-                final p = await showDatePicker(context: context, initialDate: DateTime.now(), firstDate: DateTime(2000), lastDate: DateTime(2100));
-                if (p != null) setState(() => selectedDate = "${_dn(p.weekday)}, ${_mn(p.month)} ${p.day}, ${p.year}");
-              },
-              style: TextButton.styleFrom(padding: EdgeInsets.zero, shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero)),
-              child: Row(children: [
-                Expanded(child: Text(selectedDate, style: const TextStyle(fontSize: 10, color: Colors.black), overflow: TextOverflow.ellipsis, textAlign: TextAlign.center)),
-                const Icon(Icons.arrow_drop_down, size: 13, color: Colors.grey),
-              ])))),
-    ),
-    _unit(''),
-  ]);
+  TableRow _dateRow() => TableRow(
+    decoration: const BoxDecoration(color: Colors.white),
+    children: [
+      _lbl("Date"),
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+        child: Obx(() => c.isLocked.value
+            ? _lockedText(_displayDate)
+            : SizedBox(
+                height: _kRowH,
+                child: TextButton(
+                  onPressed: () async {
+                    // Parse current stored date as initial date for picker
+                    final initial = _parseLongDate(_storedDate) ?? DateTime.now();
+                    final picked  = await showDatePicker(
+                      context: context,
+                      initialDate: initial,
+                      firstDate: DateTime(2000),
+                      lastDate: DateTime(2100),
+                    );
+                    if (picked != null) {
+                      setState(() => _storedDate = _formatStorage(picked));
+                    }
+                  },
+                  style: TextButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+                  ),
+                  child: Row(children: [
+                    Expanded(
+                      child: Text(
+                        _displayDate,
+                        style: const TextStyle(fontSize: 10, color: Colors.black),
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    const Icon(Icons.arrow_drop_down, size: 13, color: Colors.grey),
+                  ]),
+                ))),
+      ),
+      _unit(''),
+    ],
+  );
 
-  TableRow _timeRow() => TableRow(decoration: const BoxDecoration(color: Colors.white), children: [
-    _lbl("Time"),
-    Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-      child: Obx(() => c.isLocked.value
-          ? SizedBox(height: _kRowH, child: Center(child: Text(selectedTime, style: TextStyle(fontSize: 10, color: AppTheme.textPrimary))))
-          // ✅ FIX: menuMaxHeight limits dropdown scroll height
-          : SizedBox(height: _kRowH, child: DropdownButtonHideUnderline(child: DropdownButton<String>(
-              value: selectedTime,
-              isExpanded: true,
-              icon: const Icon(Icons.arrow_drop_down, size: 13),
-              style: const TextStyle(fontSize: 10, color: Colors.black),
-              menuMaxHeight: 200, // ✅ Fixed scrollable height
-              onChanged: (v) { if (v != null) setState(() => selectedTime = v); },
-              items: _kTimeSlots.map((t) => DropdownMenuItem(value: t, child: Padding(padding: const EdgeInsets.symmetric(horizontal: 4), child: Text(t, style: const TextStyle(fontSize: 10))))).toList(),
-            )))),
-    ),
-    _unit(''),
-  ]);
+  TableRow _timeRow() => TableRow(
+    decoration: const BoxDecoration(color: Colors.white),
+    children: [
+      _lbl("Time"),
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+        child: Obx(() => c.isLocked.value
+            ? _lockedText(selectedTime)
+            : SizedBox(
+                height: _kRowH,
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: selectedTime,
+                    isExpanded: true,
+                    icon: const Icon(Icons.arrow_drop_down, size: 13),
+                    style: const TextStyle(fontSize: 10, color: Colors.black),
+                    menuMaxHeight: 200,
+                    onChanged: (v) { if (v != null) setState(() => selectedTime = v); },
+                    items: _kTimeSlots.map((t) => DropdownMenuItem(
+                      value: t,
+                      child: Center(child: Text(t, style: const TextStyle(fontSize: 10))),
+                    )).toList(),
+                  ),
+                ))),
+      ),
+      _unit(''),
+    ],
+  );
 
   TableRow _ddRow(String label, String val, List<String> opts, ValueChanged<String?> onChange) =>
     TableRow(decoration: const BoxDecoration(color: Colors.white), children: [
@@ -386,22 +509,29 @@ class _GeneralSectionState extends State<GeneralSection> {
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
         child: Obx(() => c.isLocked.value
-            ? SizedBox(height: _kRowH, child: Center(child: Text(val, style: TextStyle(fontSize: 10, color: AppTheme.textPrimary))))
-            // ✅ FIX: menuMaxHeight for all dropdowns
-            : SizedBox(height: _kRowH, child: DropdownButtonHideUnderline(child: DropdownButton<String>(
-                value: opts.contains(val) ? val : null,
-                isExpanded: true,
-                icon: const Icon(Icons.arrow_drop_down, size: 13),
-                style: const TextStyle(fontSize: 10, color: Colors.black),
-                menuMaxHeight: 200, // ✅ Fixed scrollable height
-                onChanged: onChange,
-                items: opts.map((o) => DropdownMenuItem(value: o, child: Padding(padding: const EdgeInsets.symmetric(horizontal: 4), child: Text(o, style: const TextStyle(fontSize: 10), overflow: TextOverflow.ellipsis)))).toList(),
-              )))),
+            ? _lockedText(val)
+            : SizedBox(
+                height: _kRowH,
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: opts.contains(val) ? val : null,
+                    isExpanded: true,
+                    icon: const Icon(Icons.arrow_drop_down, size: 13),
+                    style: const TextStyle(fontSize: 10, color: Colors.black),
+                    menuMaxHeight: 200,
+                    onChanged: onChange,
+                    items: opts.map((o) => DropdownMenuItem(
+                      value: o,
+                      child: Center(
+                        child: Text(o, style: const TextStyle(fontSize: 10), overflow: TextOverflow.ellipsis),
+                      ),
+                    )).toList(),
+                  ),
+                ))),
       ),
       _unit(''),
     ]);
 
-  // ✅ FIX: Engineer dropdown — fetches from API, scrollable
   TableRow _engRow(String label, String? engId, ValueChanged<String?> onChange) =>
     TableRow(decoration: const BoxDecoration(color: Colors.white), children: [
       _lbl(label),
@@ -409,13 +539,10 @@ class _GeneralSectionState extends State<GeneralSection> {
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
         child: Obx(() {
           if (c.isLocked.value) {
-            return SizedBox(height: _kRowH, child: Center(child: Text(_engName(engId), style: TextStyle(fontSize: 10, color: AppTheme.textPrimary))));
+            return _lockedText(_engName(engId));
           }
-          // ✅ Use Obx to react to engineers list loading
           final engineers = engineerCtrl.engineers;
-          // Validate current value exists in list
           final safeEngId = engineers.any((e) => e.id == engId) ? engId : null;
-
           return SizedBox(
             height: _kRowH,
             child: _isLoadingEngineers
@@ -423,17 +550,23 @@ class _GeneralSectionState extends State<GeneralSection> {
                 : DropdownButtonHideUnderline(
                     child: DropdownButton<String>(
                       value: safeEngId,
-                      hint: Text("Select Engineer", style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
+                      hint: Center(
+                        child: Text("Select Engineer", style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
+                      ),
                       isExpanded: true,
                       icon: const Icon(Icons.arrow_drop_down, size: 13),
                       style: const TextStyle(fontSize: 10, color: Colors.black),
-                      menuMaxHeight: 200, // ✅ Fixed scrollable height
+                      menuMaxHeight: 200,
                       onChanged: onChange,
                       items: engineers.map((Engineer e) => DropdownMenuItem(
                         value: e.id,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 4),
-                          child: Text("${e.firstName} ${e.lastName}", style: const TextStyle(fontSize: 10), overflow: TextOverflow.ellipsis)),
+                        child: Center(
+                          child: Text(
+                            "${e.firstName} ${e.lastName}",
+                            style: const TextStyle(fontSize: 10),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
                       )).toList(),
                     ),
                   ),
@@ -443,16 +576,14 @@ class _GeneralSectionState extends State<GeneralSection> {
       _unit(''),
     ]);
 
-  Widget _lbl(String t) => Container(height: _kRowH, padding: const EdgeInsets.symmetric(horizontal: 6), alignment: Alignment.centerLeft, child: Text(t, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: AppTheme.textPrimary)));
-  Widget _unit(String t) => Container(height: _kRowH, padding: const EdgeInsets.symmetric(horizontal: 4), alignment: Alignment.center, child: Text(t, style: TextStyle(fontSize: 10, color: AppTheme.textSecondary)));
-
   String _engName(String? id) {
     if (id == null) return '';
-    final e = engineerCtrl.engineers.firstWhere((e) => e.id == id, orElse: () => Engineer(firstName: '', lastName: '', cell: '', office: '', email: ''));
+    final e = engineerCtrl.engineers.firstWhere(
+      (e) => e.id == id,
+      orElse: () => Engineer(firstName: '', lastName: '', cell: '', office: '', email: ''),
+    );
     return e.id != null ? "${e.firstName} ${e.lastName}" : '';
   }
-  String _dn(int d) => ['','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'][d];
-  String _mn(int m) => ['','January','February','March','April','May','June','July','August','September','October','November','December'][m];
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -547,7 +678,7 @@ class _MiddlePortionState extends State<MiddlePortion> {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  CASED HOLE (unchanged)
+//  CASED HOLE
 // ═══════════════════════════════════════════════════════════════════
 class CasedHoleSection extends StatefulWidget {
   @override _CasedHoleSectionState createState() => _CasedHoleSectionState();
@@ -648,7 +779,7 @@ class _CasedHoleSectionState extends State<CasedHoleSection> {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  OPEN HOLE (unchanged)
+//  OPEN HOLE
 // ═══════════════════════════════════════════════════════════════════
 class OpenHoleSection extends StatefulWidget {
   @override _OpenHoleSectionState createState() => _OpenHoleSectionState();
@@ -709,7 +840,7 @@ class _OpenHoleSectionState extends State<OpenHoleSection> {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  DRILL STRING (unchanged)
+//  DRILL STRING
 // ═══════════════════════════════════════════════════════════════════
 class DrillStringSection extends StatefulWidget {
   @override _DrillStringSectionState createState() => _DrillStringSectionState();
@@ -852,7 +983,6 @@ class RightPortion extends StatelessWidget {
           children: [
             SizedBox(height: flexH * 3 / 9, child: BitSection()),
             const SizedBox(height: gap),
-            // ✅ NozzleSection replaces old NozzleSection
             SizedBox(height: flexH * 2 / 9, child: NozzleSection()),
             const SizedBox(height: gap),
             const SizedBox(height: cementRowH),
@@ -866,7 +996,7 @@ class RightPortion extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  BIT SECTION (unchanged)
+//  BIT SECTION
 // ═══════════════════════════════════════════════════════════════════
 class BitSection extends StatefulWidget {
   @override _BitSectionState createState() => _BitSectionState();
@@ -916,7 +1046,7 @@ class _BitSectionState extends State<BitSection> {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  ✅ NOZZLE SECTION — Full rewrite with API + auto TFA + overflow fix
+//  NOZZLE SECTION
 // ═══════════════════════════════════════════════════════════════════
 class NozzleSection extends StatefulWidget {
   @override _NozzleSectionState createState() => _NozzleSectionState();
@@ -924,15 +1054,12 @@ class NozzleSection extends StatefulWidget {
 
 class _NozzleSectionState extends State<NozzleSection> {
   final c  = Get.find<DashboardController>();
-  // ✅ Register NozzleController
   final nc = Get.isRegistered<NozzleController>()
       ? Get.find<NozzleController>()
       : Get.put(NozzleController());
 
   int? selectedRowIndex;
 
-  // TextEditingControllers per row for count and size32
-  // Built dynamically from nc.entries
   final Map<int, TextEditingController> _countCtrls = {};
   final Map<int, TextEditingController> _sizeCtrls  = {};
 
@@ -965,11 +1092,9 @@ class _NozzleSectionState extends State<NozzleSection> {
         color: AppTheme.primaryColor.withOpacity(0.1),
         child: Text("Nozzle (1/32in)", style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.primaryColor)),
       ),
-      // ✅ FIX: Wrap table in Flexible to prevent overflow
       Flexible(
         child: Obx(() {
           final entries = nc.entries;
-          // Sync new rows' controllers
           for (int i = 0; i < entries.length; i++) {
             if (!_countCtrls.containsKey(i)) {
               _countCtrls[i] = TextEditingController(
@@ -988,7 +1113,6 @@ class _NozzleSectionState extends State<NozzleSection> {
             child: Table(
               border: TableBorder.all(color: Colors.grey.shade300, width: 1),
               defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-              // ✅ FIX: No(28) | No.(flex) | Size(flex)
               columnWidths: const {
                 0: FixedColumnWidth(28),
                 1: FlexColumnWidth(1),
@@ -1015,12 +1139,10 @@ class _NozzleSectionState extends State<NozzleSection> {
                         onTap: () => setState(() => selectedRowIndex = sel ? null : idx),
                         child: _noCell(idx + 1, sel, AppTheme.primaryColor),
                       ),
-                      // Count cell
                       _nzEditCell(_countCtrl(idx), (val) {
                         nozzle.count.value = int.tryParse(val) ?? 1;
                         nc.onCellChanged(idx);
                       }),
-                      // Size32 cell
                       _nzEditCell(_sizeCtrl(idx), (val) {
                         nozzle.size32.value = int.tryParse(val) ?? 0;
                         nc.onCellChanged(idx);
@@ -1033,7 +1155,6 @@ class _NozzleSectionState extends State<NozzleSection> {
           );
         }),
       ),
-      // ✅ TFA footer — auto-updates reactively
       Obx(() => Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         color: AppTheme.primaryColor.withOpacity(0.05),
@@ -1084,7 +1205,7 @@ class _NozzleSectionState extends State<NozzleSection> {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  ✅ TIME DISTRIBUTION — 5 initial rows, dynamic activity dropdown
+//  TIME DISTRIBUTION
 // ═══════════════════════════════════════════════════════════════════
 class TimeDistributionSection extends StatefulWidget {
   final OthersController activityController;
@@ -1098,13 +1219,11 @@ class _TimeDistributionSectionState extends State<TimeDistributionSection> {
   List<String> activityOptions = [];
   bool _isLoadingActivities = true;
 
-  // ✅ FIX: 5 initial empty rows — no static data
   late List<Map<String, dynamic>> tableData;
 
   @override
   void initState() {
     super.initState();
-    // 5 rows with empty activity and time
     tableData = List.generate(5, (_) => {'activity': '', 'time': TextEditingController()});
     _fetchActivities();
   }
@@ -1129,7 +1248,6 @@ class _TimeDistributionSectionState extends State<TimeDistributionSection> {
     }
   }
 
-  // ✅ Auto-add row when last row has activity selected
   void _checkAndAddRow(int idx) {
     if (idx == tableData.length - 1 && (tableData[idx]['activity'] as String).isNotEmpty) {
       setState(() {
@@ -1175,7 +1293,6 @@ class _TimeDistributionSectionState extends State<TimeDistributionSection> {
                     onTap: () => setState(() => selectedRowIndex = sel ? null : idx),
                     child: _noCell(idx + 1, sel, AppTheme.primaryColor),
                   ),
-                  // ✅ Activity dropdown — dynamic from API, scrollable
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
                     child: Obx(() => c.isLocked.value
@@ -1192,7 +1309,7 @@ class _TimeDistributionSectionState extends State<TimeDistributionSection> {
                                       isExpanded: true,
                                       icon: const Icon(Icons.arrow_drop_down, size: 12),
                                       style: const TextStyle(fontSize: 9, color: Colors.black),
-                                      menuMaxHeight: 200, // ✅ Fixed scrollable height
+                                      menuMaxHeight: 200,
                                       onChanged: (v) {
                                         if (v != null) {
                                           setState(() => tableData[idx]['activity'] = v);
@@ -1209,7 +1326,6 @@ class _TimeDistributionSectionState extends State<TimeDistributionSection> {
                                   ),
                           )),
                   ),
-                  // Time cell
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
                     child: Obx(() => c.isLocked.value

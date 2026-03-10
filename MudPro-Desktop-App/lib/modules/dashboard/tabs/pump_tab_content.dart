@@ -5,7 +5,7 @@ import 'package:mudpro_desktop_app/modules/UG/controller/sce_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
-// ─── Local row model for Pump page (independent of UG pump config) ────────────
+// ─── Local row model for Pump page ────────────────────────────────────────────
 class _PumpRow {
   final RxString model        = ''.obs;
   final RxString type         = ''.obs;
@@ -16,6 +16,8 @@ class _PumpRow {
   final RxString displacement = ''.obs;
   final RxString spm          = ''.obs;
   final RxString rate         = ''.obs;
+
+  bool get hasData => model.value.isNotEmpty;
 
   void clear() {
     model.value        = '';
@@ -33,8 +35,6 @@ class _PumpRow {
     final disp = double.tryParse(displacement.value) ?? 0;
     final s    = double.tryParse(spm.value)          ?? 0;
     if (disp <= 0 || s <= 0) { rate.value = ''; return; }
-    // Rate (GPM) = displacement (bbl/stk) × SPM × 42
-    // displacement already includes efficiency — do NOT multiply eff again
     rate.value = (disp * s * 42).toStringAsFixed(1);
   }
 }
@@ -54,6 +54,8 @@ class _ShakerRow {
   final RxString time           = ''.obs;
   final RxString oocWt          = ''.obs;
   final RxInt    enabledScreens = 0.obs;
+
+  bool get hasData => model.value.isNotEmpty || shakerType.value.isNotEmpty;
 }
 
 class _OtherSceRow {
@@ -63,6 +65,8 @@ class _OtherSceRow {
   final RxString of_   = ''.obs;
   final RxString time  = ''.obs;
   final RxString oocWt = ''.obs;
+
+  bool get hasData => type.value.isNotEmpty || model.value.isNotEmpty;
 }
 
 // ─── PumpPage ─────────────────────────────────────────────────────────────────
@@ -82,10 +86,10 @@ class _PumpPageState extends State<PumpPage> {
   final ScrollController shakerScrollController = ScrollController();
   final ScrollController sceScrollController    = ScrollController();
 
-  // ✅ Local rows — independent of UG pump config, empty on init
-  late final List<_PumpRow>     _pumpRows;
-  late final List<_ShakerRow>   _shakerRows;
-  late final List<_OtherSceRow> _sceRows;
+  // RxList so Obx can react to new rows being added
+  final RxList<_PumpRow>     _pumpRows   = <_PumpRow>[].obs;
+  final RxList<_ShakerRow>   _shakerRows = <_ShakerRow>[].obs;
+  final RxList<_OtherSceRow> _sceRows    = <_OtherSceRow>[].obs;
 
   final RxString _screenFillSelected = ''.obs;
 
@@ -98,6 +102,11 @@ class _PumpPageState extends State<PumpPage> {
     '270', '230', '200', '170', '140', '120', '100', '80', '60', '40',
   ];
 
+  // ── How many blank rows to keep at the bottom of each table ──────
+  static const int _initialPumpRows   = 4;
+  static const int _initialShakerRows = 4;
+  static const int _initialSceRows    = 4;
+
   @override
   void initState() {
     super.initState();
@@ -109,10 +118,10 @@ class _PumpPageState extends State<PumpPage> {
         : Get.put(SceController());
     dashboard = Get.find<DashboardController>();
 
-    // ✅ 4 empty pump rows — no data loaded, user picks model from dropdown
-    _pumpRows   = List.generate(4, (_) => _PumpRow());
-    _shakerRows = List.generate(4, (_) => _ShakerRow());
-    _sceRows    = List.generate(4, (_) => _OtherSceRow());
+    // Seed with initial empty rows
+    _pumpRows.addAll(List.generate(_initialPumpRows, (_) => _PumpRow()));
+    _shakerRows.addAll(List.generate(_initialShakerRows, (_) => _ShakerRow()));
+    _sceRows.addAll(List.generate(_initialSceRows, (_) => _OtherSceRow()));
   }
 
   @override
@@ -120,6 +129,28 @@ class _PumpPageState extends State<PumpPage> {
     shakerScrollController.dispose();
     sceScrollController.dispose();
     super.dispose();
+  }
+
+  // ── Auto-row helpers ─────────────────────────────────────────────
+
+  /// Call after any pump row gets data. Ensures there is always at least
+  /// one empty row at the bottom.
+  void _checkAddPumpRow(int changedIndex) {
+    if (changedIndex == _pumpRows.length - 1 && _pumpRows[changedIndex].hasData) {
+      _pumpRows.add(_PumpRow());
+    }
+  }
+
+  void _checkAddShakerRow(int changedIndex) {
+    if (changedIndex == _shakerRows.length - 1 && _shakerRows[changedIndex].hasData) {
+      _shakerRows.add(_ShakerRow());
+    }
+  }
+
+  void _checkAddSceRow(int changedIndex) {
+    if (changedIndex == _sceRows.length - 1 && _sceRows[changedIndex].hasData) {
+      _sceRows.add(_OtherSceRow());
+    }
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -139,9 +170,14 @@ class _PumpPageState extends State<PumpPage> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(child: _pumpTable()),
+                  // Pump table — fixed max width, narrower
+                  Expanded(child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 780),
+                    child: _pumpTable(),
+                  )),
                   const SizedBox(width: 12),
-                  SizedBox(width: 220, child: _summaryBox()),
+                  // Summary box — wider fixed width
+                  SizedBox(width: 310, child: _summaryBox()),
                 ],
               ),
             ),
@@ -190,7 +226,6 @@ class _PumpPageState extends State<PumpPage> {
 
   Widget _pumpTable() {
     return Container(
-      constraints: const BoxConstraints(maxWidth: 950),
       decoration: _boxStyle(),
       child: Column(
         children: [
@@ -203,27 +238,28 @@ class _PumpPageState extends State<PumpPage> {
             ),
             child: IntrinsicHeight(
               child: Row(children: [
-                _headerCell("Model",           110), _verticalDivider(),
-                _headerCell("Type",             95), _verticalDivider(),
-                _headerCell("Liner ID\n(in)",   80), _verticalDivider(),
-                _headerCell("Rod OD\n(in)",     80), _verticalDivider(),
-                _headerCell("Stk. Length\n(in)",95), _verticalDivider(),
-                _headerCell("Efficiency\n(%)",  90), _verticalDivider(),
-                _headerCell("Displ.\n(bbl/stk)",95), _verticalDivider(),
-                _headerCell("Stroke\n(stk/min)",95), _verticalDivider(),
-                _headerCell("Rate\n(gpm)",      80),
+                _headerCell("Model",           100), _verticalDivider(),
+                _headerCell("Type",             85), _verticalDivider(),
+                _headerCell("Liner ID\n(in)",   68), _verticalDivider(),
+                _headerCell("Rod OD\n(in)",     68), _verticalDivider(),
+                _headerCell("Stk. Length\n(in)",80), _verticalDivider(),
+                _headerCell("Efficiency\n(%)",  75), _verticalDivider(),
+                _headerCell("Displ.\n(bbl/stk)",80), _verticalDivider(),
+                _headerCell("Stroke\n(stk/min)",80), _verticalDivider(),
+                _headerCell("Rate\n(gpm)",      68),
               ]),
             ),
           ),
           Expanded(
             child: Obx(() {
               final isLocked = dashboard.isLocked.value;
-              // ✅ availablePumpModels comes from already-loaded UG pump config
               final models   = pumpController.availablePumpModels.toList();
+              // React to _pumpRows list changes
+              final rows = _pumpRows.toList();
               return ListView.builder(
-                itemCount: _pumpRows.length,
+                itemCount: rows.length,
                 itemBuilder: (context, index) {
-                  final row = _pumpRows[index];
+                  final row = rows[index];
                   return Container(
                     height: 32,
                     decoration: BoxDecoration(
@@ -232,30 +268,25 @@ class _PumpPageState extends State<PumpPage> {
                     ),
                     child: IntrinsicHeight(
                       child: Row(children: [
-                        // Model dropdown — selecting this fills the entire row
-                        _dataCell(width: 110, child: _pumpModelDropdown(row: row, models: models, isLocked: isLocked)),
+                        _dataCell(width: 100, child: _pumpModelDropdown(row: row, models: models, isLocked: isLocked, rowIndex: index)),
                         _verticalDivider(),
-                        // All other fields are READ-ONLY — filled by model selection
-                        _dataCell(width: 95,  child: Obx(() => _readOnlyCell(row.type.value))),
+                        _dataCell(width: 85,  child: Obx(() => _readOnlyCell(row.type.value))),
                         _verticalDivider(),
-                        _dataCell(width: 80,  child: Obx(() => _readOnlyCell(row.linerId.value))),
+                        _dataCell(width: 68,  child: Obx(() => _readOnlyCell(row.linerId.value))),
                         _verticalDivider(),
-                        _dataCell(width: 80,  child: Obx(() => _readOnlyCell(row.rodOd.value))),
+                        _dataCell(width: 68,  child: Obx(() => _readOnlyCell(row.rodOd.value))),
                         _verticalDivider(),
-                        _dataCell(width: 95,  child: Obx(() => _readOnlyCell(row.strokeLength.value))),
+                        _dataCell(width: 80,  child: Obx(() => _readOnlyCell(row.strokeLength.value))),
                         _verticalDivider(),
-                        _dataCell(width: 90,  child: Obx(() => _readOnlyCell(row.efficiency.value))),
+                        _dataCell(width: 75,  child: Obx(() => _readOnlyCell(row.efficiency.value))),
                         _verticalDivider(),
-                        // Displacement — read-only, auto-filled from model
-                        _dataCell(width: 95,  child: Obx(() => _readOnlyCell(
+                        _dataCell(width: 80,  child: Obx(() => _readOnlyCell(
                           row.displacement.value.isEmpty ? '-' : row.displacement.value,
                         ))),
                         _verticalDivider(),
-                        // SPM — only editable field, triggers rate calculation
-                        _dataCell(width: 95,  child: _spmField(row: row, isLocked: isLocked)),
+                        _dataCell(width: 80,  child: _spmField(row: row, isLocked: isLocked, rowIndex: index)),
                         _verticalDivider(),
-                        // Rate — read-only, auto-calculated from disp × SPM × 42
-                        _dataCell(width: 80,  child: Obx(() => _readOnlyCell(
+                        _dataCell(width: 68,  child: Obx(() => _readOnlyCell(
                           row.rate.value.isEmpty ? '-' : row.rate.value,
                         ))),
                       ]),
@@ -270,8 +301,8 @@ class _PumpPageState extends State<PumpPage> {
     );
   }
 
-  /// SPM field — only editable input; auto-calculates rate on change
-  Widget _spmField({required _PumpRow row, required bool isLocked}) {
+  /// SPM field — triggers rate calculation AND auto-row generation
+  Widget _spmField({required _PumpRow row, required bool isLocked, required int rowIndex}) {
     return Obx(() {
       final ctrl = TextEditingController(text: row.spm.value)
         ..selection = TextSelection.collapsed(offset: row.spm.value.length);
@@ -281,7 +312,9 @@ class _PumpPageState extends State<PumpPage> {
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
         onChanged: (val) {
           row.spm.value = val;
-          row.recalculateRate(); // ✅ auto-calculate rate immediately
+          row.recalculateRate();
+          // ✅ Auto-add row when last row has data
+          _checkAddPumpRow(rowIndex);
         },
         textAlign: TextAlign.center,
         style: TextStyle(
@@ -300,11 +333,12 @@ class _PumpPageState extends State<PumpPage> {
     });
   }
 
-  /// Model dropdown — selecting a model fills all row fields from memory (no API call)
+  /// Model dropdown — filling model also triggers auto-row generation
   Widget _pumpModelDropdown({
     required _PumpRow row,
     required List<String> models,
     required bool isLocked,
+    required int rowIndex,
   }) {
     return Obx(() {
       final current = row.model.value.isEmpty ? null : row.model.value;
@@ -317,12 +351,10 @@ class _PumpPageState extends State<PumpPage> {
           style: const TextStyle(fontSize: 9, color: Colors.black87),
           onChanged: isLocked ? null : (selected) {
             if (selected == null || selected.isEmpty) {
-              // ✅ Clear entire row when empty option selected
               row.clear();
               return;
             }
 
-            // ✅ Find pump data from already-loaded pumps in memory — NO API call, instant
             final source = pumpController.pumps.firstWhereOrNull(
               (p) => p.model.value == selected && p.hasData,
             );
@@ -331,18 +363,16 @@ class _PumpPageState extends State<PumpPage> {
               row.model.value        = selected;
               row.type.value         = source.type.value;
               row.linerId.value      = source.linerId.value;
-
-              // ✅ rodOd: only show if it's a real value (non-zero)
-              // Backend stores 0 for non-Duplex or when not entered
               final rodVal = double.tryParse(source.rodOd.value) ?? 0;
               row.rodOd.value = rodVal > 0 ? source.rodOd.value : '';
-
               row.strokeLength.value = source.strokeLength.value;
               row.efficiency.value   = source.efficiency.value;
               row.displacement.value = source.displacement.value;
-              row.spm.value          = ''; // SPM is entered fresh by user
-              row.rate.value         = ''; // rate recalculates when SPM is entered
+              row.spm.value          = '';
+              row.rate.value         = '';
             }
+            // ✅ Auto-add row when last row's model is selected
+            _checkAddPumpRow(rowIndex);
           },
           items: [
             const DropdownMenuItem<String?>(
@@ -391,14 +421,15 @@ class _PumpPageState extends State<PumpPage> {
             child: Obx(() {
               final isLocked     = dashboard.isLocked.value;
               final shakerModels = sceController.availableShakerModels.toList();
+              final rows         = _shakerRows.toList(); // react to list changes
               return Scrollbar(
                 controller: shakerScrollController,
                 thumbVisibility: true,
                 child: ListView.builder(
                   controller: shakerScrollController,
-                  itemCount: _shakerRows.length,
+                  itemCount: rows.length,
                   itemBuilder: (ctx, index) {
-                    final row = _shakerRows[index];
+                    final row = rows[index];
                     return Container(
                       height: 30,
                       decoration: BoxDecoration(
@@ -407,9 +438,9 @@ class _PumpPageState extends State<PumpPage> {
                       ),
                       child: IntrinsicHeight(
                         child: Row(children: [
-                          _dataCell(width: 100, child: _shakerTypeDropdown(row: row, isLocked: isLocked)),
+                          _dataCell(width: 100, child: _shakerTypeDropdown(row: row, isLocked: isLocked, rowIndex: index)),
                           _verticalDivider(),
-                          _dataCell(width: 120, child: _shakerModelDropdown(row: row, models: shakerModels, isLocked: isLocked)),
+                          _dataCell(width: 120, child: _shakerModelDropdown(row: row, models: shakerModels, isLocked: isLocked, rowIndex: index)),
                           _verticalDivider(),
                           ..._buildScreenCols(row, isLocked),
                           _verticalDivider(),
@@ -429,7 +460,7 @@ class _PumpPageState extends State<PumpPage> {
     );
   }
 
-  Widget _shakerTypeDropdown({required _ShakerRow row, required bool isLocked}) {
+  Widget _shakerTypeDropdown({required _ShakerRow row, required bool isLocked, required int rowIndex}) {
     return Obx(() {
       final current = row.shakerType.value.isEmpty ? null : row.shakerType.value;
       final safe    = _shakerTypes.contains(current) ? current : null;
@@ -437,7 +468,11 @@ class _PumpPageState extends State<PumpPage> {
         child: DropdownButton<String?>(
           value: safe, isExpanded: true, isDense: true,
           style: const TextStyle(fontSize: 9, color: Colors.black87),
-          onChanged: isLocked ? null : (sel) => row.shakerType.value = sel ?? '',
+          onChanged: isLocked ? null : (sel) {
+            row.shakerType.value = sel ?? '';
+            // ✅ Auto-add row when last row gets a type selected
+            _checkAddShakerRow(rowIndex);
+          },
           items: [
             const DropdownMenuItem<String?>(value: null, child: Text('', style: TextStyle(fontSize: 9))),
             ..._shakerTypes.map((t) => DropdownMenuItem<String?>(
@@ -450,7 +485,7 @@ class _PumpPageState extends State<PumpPage> {
     });
   }
 
-  Widget _shakerModelDropdown({required _ShakerRow row, required List<String> models, required bool isLocked}) {
+  Widget _shakerModelDropdown({required _ShakerRow row, required List<String> models, required bool isLocked, required int rowIndex}) {
     return Obx(() {
       final current = row.model.value.isEmpty ? null : row.model.value;
       final safe    = models.contains(current) ? current : null;
@@ -470,6 +505,8 @@ class _PumpPageState extends State<PumpPage> {
                 final n = int.tryParse(data['screens']?.toString() ?? '0') ?? 0;
                 row.enabledScreens.value = n;
               }
+              // ✅ Auto-add row when last row's model is selected
+              _checkAddShakerRow(rowIndex);
             } else {
               row.enabledScreens.value = 0;
               row.screen1.value = ''; row.screen2.value = '';
@@ -636,14 +673,15 @@ class _PumpPageState extends State<PumpPage> {
             child: Obx(() {
               final isLocked  = dashboard.isLocked.value;
               final sceModels = sceController.availableOtherSceModels.toList();
+              final rows      = _sceRows.toList(); // react to list changes
               return Scrollbar(
                 controller: sceScrollController,
                 thumbVisibility: true,
                 child: ListView.builder(
                   controller: sceScrollController,
-                  itemCount: _sceRows.length,
+                  itemCount: rows.length,
                   itemBuilder: (ctx, index) {
-                    final row = _sceRows[index];
+                    final row = rows[index];
                     return Container(
                       height: 30,
                       decoration: BoxDecoration(
@@ -652,9 +690,9 @@ class _PumpPageState extends State<PumpPage> {
                       ),
                       child: IntrinsicHeight(
                         child: Row(children: [
-                          _dataCell(width: 90,  child: _sceTypeDropdown(row: row, isLocked: isLocked)),
+                          _dataCell(width: 90,  child: _sceTypeDropdown(row: row, isLocked: isLocked, rowIndex: index)),
                           _verticalDivider(),
-                          _dataCell(width: 110, child: _sceModelDropdown(row: row, models: sceModels, isLocked: isLocked)),
+                          _dataCell(width: 110, child: _sceModelDropdown(row: row, models: sceModels, isLocked: isLocked, rowIndex: index)),
                           _verticalDivider(),
                           _dataCell(width: 70,  child: _rxTextField(row.uf,    isLocked)),
                           _verticalDivider(),
@@ -676,7 +714,7 @@ class _PumpPageState extends State<PumpPage> {
     );
   }
 
-  Widget _sceTypeDropdown({required _OtherSceRow row, required bool isLocked}) {
+  Widget _sceTypeDropdown({required _OtherSceRow row, required bool isLocked, required int rowIndex}) {
     return Obx(() {
       final current = row.type.value.isEmpty ? null : row.type.value;
       final safe    = _otherSceTypes.contains(current) ? current : null;
@@ -687,6 +725,8 @@ class _PumpPageState extends State<PumpPage> {
           onChanged: isLocked ? null : (sel) {
             row.type.value = sel ?? '';
             if (sel == null) row.model.value = '';
+            // ✅ Auto-add row when last row gets a type
+            _checkAddSceRow(rowIndex);
           },
           items: [
             const DropdownMenuItem<String?>(value: null, child: Text('', style: TextStyle(fontSize: 9))),
@@ -700,7 +740,7 @@ class _PumpPageState extends State<PumpPage> {
     });
   }
 
-  Widget _sceModelDropdown({required _OtherSceRow row, required List<String> models, required bool isLocked}) {
+  Widget _sceModelDropdown({required _OtherSceRow row, required List<String> models, required bool isLocked, required int rowIndex}) {
     return Obx(() {
       final current = row.model.value.isEmpty ? null : row.model.value;
       final safe    = models.contains(current) ? current : null;
@@ -710,6 +750,8 @@ class _PumpPageState extends State<PumpPage> {
           style: const TextStyle(fontSize: 9, color: Colors.black87),
           onChanged: isLocked ? null : (sel) {
             row.model.value = sel ?? '';
+            // ✅ Auto-add row when last row's model is selected
+            _checkAddSceRow(rowIndex);
           },
           items: [
             const DropdownMenuItem<String?>(value: null, child: Text('', style: TextStyle(fontSize: 9, color: Colors.grey))),
@@ -754,7 +796,7 @@ class _PumpPageState extends State<PumpPage> {
       child: Row(children: [
         Expanded(child: Text(label, style: const TextStyle(fontSize: 9, color: Colors.black87))),
         SizedBox(
-          width: 70, height: 24,
+          width: 95, height: 24,
           child: Obx(() => TextField(
             enabled: !dashboard.isLocked.value,
             textAlign: TextAlign.right,
