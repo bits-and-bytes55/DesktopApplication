@@ -85,7 +85,7 @@ class ProductModel {
       retail: json['Retail'] ?? '',
       a: json['A']?.toString() ?? '',
       b: json['B']?.toString() ?? '',
-      price: json['price']?.toString() ?? json['Price']?.toString() ?? '',
+      price: json['A']?.toString() ?? json['A']?.toString() ?? '',
       initial: json['initial']?.toString() ?? json['Initial']?.toString() ?? '',
       volAdd: json['volAdd'] ?? false,
       calculate: json['calculate'] ?? false,

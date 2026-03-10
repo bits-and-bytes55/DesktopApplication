@@ -50,12 +50,12 @@ class DashboardView extends StatelessWidget {
         ),
         child: Column(
           children: [
-            // Top Header with shadow
-            Material(
-              elevation: 4,
-              shadowColor: Colors.black.withOpacity(0.1),
-              child: TopHeaderBar(),
-            ),
+            // // Top Header with shadow
+            // Material(
+            //   elevation: 4,
+            //   shadowColor: Colors.black.withOpacity(0.1),
+            //   child: TopHeaderBar(),
+            // ),
 
             // Primary Tab Bar
             Material(

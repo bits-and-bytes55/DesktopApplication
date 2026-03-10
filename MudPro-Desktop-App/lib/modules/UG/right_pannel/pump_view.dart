@@ -291,12 +291,46 @@ class _PumpViewState extends State<PumpView> {
                   pumpController.onFieldChanged(i);
                 }, flex: 2),
 
-                // AFTER — trigger displacement recalc for Duplex
-_editableField(p.rodOd, i, (val) {
-  p.rodOd.value = val;
-  if (p.type.value == 'Duplex') p.recalculateDisplacement(); // ✅ only Duplex
-  pumpController.onFieldChanged(i);
-}, flex: 2),
+     // AFTER — Rod OD locked for all except Duplex
+Expanded(
+  flex: 2,
+  child: Obx(() {
+    final isDuplex = p.type.value == 'Duplex';
+    final isLocked = ugController.isLocked.value || !isDuplex; // ✅ locked if not Duplex
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      color: !isDuplex ? const Color(0xfff5f5f5) : null, // grey bg for non-Duplex
+      child: isLocked
+          ? Container(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              alignment: Alignment.center,
+              child: Text(
+                isDuplex ? p.rodOd.value : '', // non-Duplex shows empty
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+              ),
+            )
+          : TextField(
+              controller: TextEditingController(text: p.rodOd.value)
+                ..selection = TextSelection.fromPosition(
+                    TextPosition(offset: p.rodOd.value.length)),
+              onChanged: (val) {
+                p.rodOd.value = val;
+                p.recalculateDisplacement(); // always safe, only Duplex reaches here
+                pumpController.onFieldChanged(i);
+              },
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 11, color: AppTheme.textPrimary),
+              decoration: const InputDecoration(
+                isDense: true,
+                contentPadding: EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                border: InputBorder.none,
+              ),
+            ),
+    );
+  }),
+),
 
                 // Stroke Length — triggers displacement calc
                 _editableField(p.strokeLength, i, (val) {

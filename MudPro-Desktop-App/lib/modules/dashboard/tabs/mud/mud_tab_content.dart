@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/mud_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/tabs/mud/apply_rheology_page.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/mud/solid_analysis_page.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class MudView extends StatefulWidget {
@@ -228,22 +229,26 @@ class _MudViewState extends State<MudView> {
         // Footer: snapshot + required + sample for calculation
         Row(children: [
           // Snapshot button
-          Tooltip(
-            message: 'Snapshot',
-            child: InkWell(
-              onTap: () => _showSnapshotDialog(context),
-              borderRadius: BorderRadius.circular(4),
-              child: Container(
-                width: 28, height: 28,
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: AppTheme.primaryColor.withOpacity(0.3)),
-                ),
-                child: Icon(Icons.camera_alt_outlined, size: 15, color: AppTheme.primaryColor),
-              ),
-            ),
-          ),
+          // AFTER — snapshot icon opens SolidAnalysisDialog
+Tooltip(
+  message: 'Solid Analysis',
+  child: InkWell(
+    onTap: () => showDialog(           // ✅ opens SolidAnalysisDialog
+      context: context,
+      builder: (_) => const SolidAnalysisDialog(),
+    ),
+    borderRadius: BorderRadius.circular(4),
+    child: Container(
+      width: 28, height: 28,
+      decoration: BoxDecoration(
+        color: AppTheme.primaryColor.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: AppTheme.primaryColor.withOpacity(0.3)),
+      ),
+      child: Icon(Icons.camera_alt_outlined, size: 15, color: AppTheme.primaryColor),
+    ),
+  ),
+),
           const SizedBox(width: 10),
           Text('*Required',
               style: AppTheme.caption.copyWith(color: Colors.red.shade400, fontSize: 10)),
