@@ -5,9 +5,10 @@ import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:mudpro_desktop_app/modules/company_setup/controller/others_controller.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/controller/mud_properties_controller.dart';
+import 'package:mudpro_desktop_app/api_endpoint/api_endpoint.dart';
 
 // ─── Change to your actual backend base URL ───────────────────────────────────
-const String _kBaseUrl = 'http://localhost:3000';
+const String _kBaseUrl = ApiEndpoint.baseUrl;
 
 // ─── Debounce duration: waits this long after last keystroke before saving ────
 const Duration _kSaveDebounce = Duration(milliseconds: 800);
@@ -194,11 +195,19 @@ class MudController extends GetxController {
     for (int si = 0; si < 3; si++) {
       final sampleIdx = si;
 
-      // The 5 fields that drive solid analysis calculations
-      final sourceKeys = [_mwKey, _solidsKey, _bariteKey, _bentoniteKey, _waterKey];
+      // All 5 fields that drive solid analysis — fetched fresh each time
+      // so newly added rows (barite, bentonite etc.) are picked up too
+      final sourceKeys = [
+        _mwKey,
+        _solidsKey,
+        _bariteKey,
+        _bentoniteKey,
+        _brineDensityKey,
+      ];
 
       for (final key in sourceKeys) {
-        final list = key != null ? propertyTable[key] : null;
+        if (key == null) continue;
+        final list = propertyTable[key];
         if (list == null || sampleIdx >= list.length) continue;
 
         ever(list[sampleIdx], (_) {
@@ -243,7 +252,7 @@ class MudController extends GetxController {
       if (existingId == null) {
         // ── First save → POST ──────────────────────────────────────────
         response = await http.post(
-          Uri.parse('$_kBaseUrl/api/solids'),
+          Uri.parse('${_kBaseUrl}solids'),
           headers: {'Content-Type': 'application/json'},
           body: body,
         );
@@ -256,7 +265,7 @@ class MudController extends GetxController {
       } else {
         // ── Subsequent save → PUT ──────────────────────────────────────
         response = await http.put(
-          Uri.parse('$_kBaseUrl/api/solids/$existingId'),
+          Uri.parse('${_kBaseUrl}solids/$existingId'),
           headers: {'Content-Type': 'application/json'},
           body: body,
         );
@@ -332,43 +341,65 @@ class MudController extends GetxController {
     return null;
   }
 
-  String? get _mwKey        => _findKey((k) => k == 'mw' || k.contains('mud weight'));
-  String? get _solidsKey    => _findKey((k) => k.contains('solids') && !k.contains('drill') && !k.contains('adj') && !k.contains('salt'));
-  String? get _oilKey       => _findKey((k) => k.contains('oil') && !k.contains('ratio') && !k.contains('sg'));
-  String? get _waterKey     => _findKey((k) => k.contains('water') && !k.contains('activity') && !k.contains('sg'));
+  // ── Field key getters — match property table row names (strip * prefix) ──────
+  // Note: _findKey() strips '*' before calling the test, so we never see '*' here.
+  String? get _mwKey => _findKey((k) =>
+      k == 'mw' || k.contains('mud weight'));
+
+  String? get _solidsKey => _findKey((k) =>
+      k == 'solids' &&
+      !k.contains('drill') && !k.contains('adj') && !k.contains('salt'));
+
+  String? get _oilKey => _findKey((k) =>
+      k == 'oil' &&
+      !k.contains('ratio') && !k.contains('sg') && !k.contains('water'));
+
+  String? get _waterKey => _findKey((k) =>
+      k == 'water' &&
+      !k.contains('activity') && !k.contains('sg') && !k.contains('oil'));
+
   String? get _alkalinityKey => _findKey((k) => k.contains('alkalinity mud'));
-  String? get _bariteKey    => _findKey((k) => k.contains('barite'));
-  String? get _bentoniteKey => _findKey((k) => k.contains('bentonite') || k == 'bent');
+
+  // Barite: exact 'barite' field
+  String? get _bariteKey => _findKey((k) =>
+      k == 'barite' || k.contains('barite') && !k.contains('brine'));
+
+  // Bentonite lb/bbl field directly
+  String? get _bentoniteKey => _findKey((k) =>
+      k == 'bentonite' || k.contains('bentonite'));
+
+  // Brine density field (oil-based muds) in ppg
+  String? get _brineDensityKey => _findKey((k) =>
+      k == 'brine density' || k.contains('brine density'));
 
   Map<String, double> _extractSampleValues(int index) {
     double mw = 0, solids = 0, oil = 0, water = 0, barite = 0, bentonite = 0;
+    double brineDensityDirect = 0; // ppg, if available directly
 
-    void read(String? key, void Function(double) assign) {
-      if (key == null) return;
+    double _readField(String? key) {
+      if (key == null) return 0;
       final vals = propertyTable[key];
-      if (vals == null || index >= vals.length) return;
-      final v = double.tryParse(vals[index].value) ?? 0;
-      assign(v);
+      if (vals == null || index >= vals.length) return 0;
+      return double.tryParse(vals[index].value) ?? 0;
     }
 
-    read(_mwKey,        (v) => mw = v);
-    read(_solidsKey,    (v) => solids = v);
-    read(_oilKey,       (v) => oil = v);
-    read(_waterKey,     (v) => water = v);
-    read(_bariteKey,    (v) => barite = v);
-    read(_bentoniteKey, (v) => bentonite = v);
+    mw              = _readField(_mwKey);
+    solids          = _readField(_solidsKey);
+    oil             = _readField(_oilKey);
+    water           = _readField(_waterKey);
+    barite          = _readField(_bariteKey);
+    bentonite       = _readField(_bentoniteKey);
+    brineDensityDirect = _readField(_brineDensityKey);
 
-    // Derive brine SG from MW + phase volumes if not directly available
+    // ── Brine SG ──────────────────────────────────────────────────────────
+    // Priority 1: direct "Brine Density" field in ppg → convert to SG
+    // Priority 2: default 1.00 (fresh water) — safe for water-based muds
+    // We do NOT derive brine SG from mass balance here because it requires
+    // accurate retort oil/water/solids fractions that may not be filled yet,
+    // and produces garbage (10.56 etc.) when fields are partially filled.
     double brineSg = 1.00;
-    if (mw > 0 && water > 0) {
-      final mwSg       = mw / 8.33;
-      final oilSg      = double.tryParse(oilSgController.text) ?? 0.80;
-      final lgsSg      = double.tryParse(lgsSgController.text) ?? 2.60;
-      final waterFrac  = water  / 100;
-      final oilFrac    = oil    / 100;
-      final solidsFrac = solids / 100;
-      brineSg = ((mwSg - oilFrac * oilSg - solidsFrac * lgsSg) / waterFrac)
-          .clamp(0.9, 2.5);
+    if (brineDensityDirect > 0) {
+      brineSg = (brineDensityDirect / 8.33).clamp(0.9, 2.5);
     }
 
     return {
@@ -473,39 +504,38 @@ class MudController extends GetxController {
   }
 
   void transferRheologyToPropertyTable() {
-    bool transferred = false;
     for (final entry in rheologyTable.entries) {
-      if (double.tryParse(entry.key) != null) continue;
+      if (double.tryParse(entry.key) != null) continue; // skip RPM rows
       for (final propKey in propertyTable.keys) {
         if (_rowMatches(propKey, entry.key)) {
           final propList = propertyTable[propKey]!;
           for (int j = 0; j < entry.value.length && j < propList.length; j++) {
             final val = entry.value[j].value;
-            if (val.isNotEmpty) { propList[j].value = val; transferred = true; }
+            if (val.isNotEmpty) propList[j].value = val;
           }
         }
       }
     }
     propertyTable.refresh();
-    Get.snackbar(
-      transferred ? 'Done' : 'No Match',
-      transferred ? 'Rheology values applied to property table'
-          : 'No matching fields found in property table',
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: (transferred ? Colors.green : Colors.orange).withOpacity(0.1),
-      colorText: transferred ? Colors.green.shade700 : Colors.orange.shade700,
-      duration: const Duration(seconds: 2),
-    );
+    // No snackbar — silent transfer
   }
 
   bool _rowMatches(String rowName, String rheologyKey) {
     final rn = rowName.toLowerCase().replaceAll('*', '').trim();
     final rk = rheologyKey.toLowerCase().trim();
-    if (rk.contains('pv')           && rn.contains('pv'))    return true;
-    if (rk.contains('yp')           && rn.contains('yp'))    return true;
-    if (rk == 'n'                   && rn == 'n')             return true;
-    if (rk.contains('yield stress') && rn.contains('yield')) return true;
-    if (rk.contains('k (')          && rn.contains('k ('))   return true;
+
+    // PV — exact field only, must NOT match "t. for pv" or "t for pv"
+    if (rk == 'pv (cp)' || rk == 'pv') {
+      return rn == 'pv' || rn == 'pv (cp)';
+    }
+    // YP
+    if (rk == 'yp (lbf/100ft2)' || rk == 'yp') {
+      return rn == 'yp' || rn == 'yp (lbf/100ft2)';
+    }
+    // n, K, Yield Stress for Power Law / HB
+    if (rk == 'n'                   && rn == 'n')              return true;
+    if (rk.contains('yield stress') && rn.contains('yield'))   return true;
+    if (rk.contains('k (')          && rn.contains('k ('))     return true;
     return false;
   }
 
