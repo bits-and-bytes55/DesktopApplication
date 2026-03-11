@@ -1,52 +1,74 @@
+import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:http/http.dart' as http;
 import 'package:mudpro_desktop_app/modules/company_setup/controller/others_controller.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/controller/mud_properties_controller.dart';
+
+// ─── Change to your actual backend base URL ───────────────────────────────────
+const String _kBaseUrl = 'http://localhost:3000';
+
+// ─── Debounce duration: waits this long after last keystroke before saving ────
+const Duration _kSaveDebounce = Duration(milliseconds: 800);
 
 class MudController extends GetxController {
   final samples = ['1', '2', '3', 'Plan-L', 'Plan-H'];
 
-  // LEFT TABLE: MudPropertiesController → selectedmudproperties collection
-  final _mudPropsCtrl = MudPropertiesController();
-
-  // DROPDOWN: OthersController → waterbased/oilbased/synthetic collection
+  final _mudPropsCtrl   = MudPropertiesController();
   final othersController = OthersController();
 
-  /// Fluid Type
   var selectedFluidType = 'Water-based'.obs;
 
-  /// LEFT TABLE DATA — fetched from selectedmudproperties DB
-  final propertyTable = <String, List<RxString>>{}.obs;
-
-  /// DROPDOWN available properties — fetched from OthersController
+  final propertyTable      = <String, List<RxString>>{}.obs;
   final availableProperties = <String>[].obs;
+  final rheologyTable       = <String, List<RxString>>{}.obs;
 
-  /// RIGHT TABLE DATA - Rheology
-  final rheologyTable = <String, List<RxString>>{}.obs;
-
-  var rheologyModel = 'Bingham'.obs;
+  var rheologyModel       = 'Bingham'.obs;
   var rheologyCalculation = 'API (RP 13D)'.obs;
-
-  // Checkboxes
-  var isCompletionFluid = false.obs;
-  var isWeightedMud = false.obs;
+  var isCompletionFluid   = false.obs;
+  var isWeightedMud       = false.obs;
 
   final fluidnameController = TextEditingController();
+  final oilSgController     = TextEditingController(text: '0.80');
+  final hgsSgController     = TextEditingController(text: '4.20');
+  final lgsSgController     = TextEditingController(text: '2.60');
+  final shaleCecController  = TextEditingController(text: '15.00');
+  final bentCecController   = TextEditingController(text: '65.00');
 
-  // Specific Gravity controllers
-  final oilSgController    = TextEditingController(text: '0.80');
-  final hgsSgController    = TextEditingController(text: '4.20');
-  final lgsSgController    = TextEditingController(text: '2.60');
-
-  // Solids controllers
-  final shaleCecController = TextEditingController(text: '15.00');
-  final bentCecController  = TextEditingController(text: '65.00');
-
-  // Sample for calculation (1, 2, 3 only)
   var sampleForCalculation = '1'.obs;
+  var isLoading            = false.obs;
 
-  // Loading state
-  var isLoading = false.obs;
+  // ── Solid Analysis state ────────────────────────────────────────────────────
+  // Results shown in the dialog (map of row-name → [sample1, sample2, sample3])
+  final solidAnalysisResult  = <String, List<String>>{}.obs;
+  var isSolidAnalysisLoading = false.obs;
+  var solidAnalysisError     = ''.obs;
+
+  // ── Upsert tracking ────────────────────────────────────────────────────────
+  // One DB record id per sample index (0=sample1, 1=sample2, 2=sample3)
+  // null = not yet created, non-null = PUT to update
+  final _solidAnalysisIds = <int, String?>{0: null, 1: null, 2: null};
+
+  // One debounce timer per sample slot
+  final _debounceTimers = <int, Timer?>{};
+
+  // Save-status indicator per sample (for optional UI dot)
+  // 'idle' | 'saving' | 'saved' | 'error'
+  final solidSaveStatus = <String, RxString>{
+    '0': 'idle'.obs,
+    '1': 'idle'.obs,
+    '2': 'idle'.obs,
+  };
+
+  // ── Source field names for solid-analysis inputs ────────────────────────────
+  // These must match keys in propertyTable (case-insensitive lookup in _findKey)
+  static const _kMW         = 'mw';
+  static const _kSolids     = 'solids';
+  static const _kOil        = 'oil';
+  static const _kWater      = 'water';
+  static const _kBarite     = 'barite';
+  static const _kBentonite  = 'bentonite';
 
   @override
   void onInit() {
@@ -55,135 +77,334 @@ class MudController extends GetxController {
     super.onInit();
   }
 
-  // ─── LOAD DATA ────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════════
+  // LOAD
+  // ═══════════════════════════════════════════════════════════════════════════
 
   Future<void> loadFluidTypeData() async {
     isLoading.value = true;
     try {
       propertyTable.clear();
       availableProperties.clear();
+      solidAnalysisResult.clear();
+      // Reset upsert IDs when fluid type changes
+      for (int i = 0; i < 3; i++) { _solidAnalysisIds[i] = null; }
 
-      // Run both in parallel
       await Future.wait([
         _loadLeftTableFromMudProperties(),
         _loadDropdownFromOthers(),
       ]);
+
+      _setupAutoCalculations();
+      _setupSolidAnalysisWatchers(); // wire debounced save
     } catch (e) {
       debugPrint('[MudController] loadFluidTypeData error: $e');
-      Get.snackbar(
-        'Error', 'Failed to load data: $e',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red.withOpacity(0.1),
-        colorText: Colors.red,
-      );
+      Get.snackbar('Error', 'Failed to load data: $e',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red.withOpacity(0.1),
+          colorText: Colors.red);
     } finally {
       isLoading.value = false;
     }
   }
 
-  // ─── LEFT TABLE: MudPropertiesController (selectedmudproperties) ──
-
   Future<void> _loadLeftTableFromMudProperties() async {
     try {
-      debugPrint('[MudController] Fetching selected mud properties...');
-
       final selected = await _mudPropsCtrl.getSelectedMudProperties();
-
-      debugPrint('[MudController] Selected waterBased: ${selected.waterBased}');
-      debugPrint('[MudController] Selected oilBased: ${selected.oilBased}');
-      debugPrint('[MudController] Selected synthetic: ${selected.synthetic}');
-
-      List<String> props = [];
-      switch (selectedFluidType.value) {
-        case 'Water-based':
-          props = selected.waterBased;
-          break;
-        case 'Oil-based':
-          props = selected.oilBased;
-          break;
-        case 'Synthetic':
-          props = selected.synthetic;
-          break;
-      }
-
-      debugPrint('[MudController] Props for ${selectedFluidType.value}: $props');
-
-      // Always add common fields first
+      List<String> props = switch (selectedFluidType.value) {
+        'Water-based' => selected.waterBased,
+        'Oil-based'   => selected.oilBased,
+        'Synthetic'   => selected.synthetic,
+        _             => <String>[],
+      };
       _addCommonFields();
-
-      // Add selected properties as table rows
       for (final name in props) {
         if (name.isNotEmpty) {
           propertyTable[name] = List.generate(samples.length, (_) => ''.obs);
         }
       }
-
-      debugPrint('[MudController] propertyTable keys: ${propertyTable.keys.toList()}');
     } catch (e) {
       debugPrint('[MudController] Left table fetch ERROR: $e');
-      // Show common fields at minimum even if API fails
       _addCommonFields();
     }
   }
 
-  // ─── DROPDOWN: OthersController ───────────────────────────
-
   Future<void> _loadDropdownFromOthers() async {
     try {
-      debugPrint('[MudController] Fetching dropdown data from OthersController...');
-      List<dynamic> data = [];
-
-      switch (selectedFluidType.value) {
-        case 'Water-based':
-          data = await othersController.getWaterBased();
-          break;
-        case 'Oil-based':
-          data = await othersController.getOilBased();
-          break;
-        case 'Synthetic':
-          data = await othersController.getSynthetic();
-          break;
-      }
-
-      final props = data
+      final data = switch (selectedFluidType.value) {
+        'Water-based' => await othersController.getWaterBased(),
+        'Oil-based'   => await othersController.getOilBased(),
+        'Synthetic'   => await othersController.getSynthetic(),
+        _             => <dynamic>[],
+      };
+      availableProperties.value = data
           .where((item) => item.name != null && (item.name as String).isNotEmpty)
           .map<String>((item) => item.name as String)
           .toList();
-
-      debugPrint('[MudController] Dropdown options (${props.length}): $props');
-      availableProperties.value = props;
     } catch (e) {
       debugPrint('[MudController] Dropdown fetch ERROR: $e');
       availableProperties.value = [];
     }
   }
 
-  // ─── COMMON FIELDS ────────────────────────────────────────
-
   void _addCommonFields() {
-    final commonFields = [
-      'Description',
-      'Sample from',
-      'Time Sample Taken (hh:mm)',
-    ];
-    for (final field in commonFields) {
+    for (final field in ['Description', 'Sample from', 'Time Sample Taken (hh:mm)']) {
       propertyTable[field] = List.generate(samples.length, (_) => ''.obs);
     }
   }
 
-  /// Add a property row from dropdown selection
-  void addPropertyRow(String propertyName) {
-    if (propertyName.isEmpty) return;
-    if (propertyTable.containsKey(propertyName)) return;
-    propertyTable[propertyName] = List.generate(samples.length, (_) => ''.obs);
-    debugPrint('[MudController] Added property row: $propertyName');
+  // ═══════════════════════════════════════════════════════════════════════════
+  // UI AUTO-CALCULATIONS (instant, no API)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  void _setupAutoCalculations() {
+    for (int i = 0; i < samples.length; i++) {
+      // 1. Oil/Water Ratio
+      _watchTwo(i, _oilKey, _waterKey, 'Oil/water Ratio', (a, b) {
+        final oil   = double.tryParse(a) ?? 0;
+        final water = double.tryParse(b) ?? 0;
+        if (oil <= 0 && water <= 0) return '';
+        if (water == 0) return '${oil.toStringAsFixed(0)}/0';
+        return (oil / water).toStringAsFixed(2);
+      });
+
+      // 2. Excess Lime = Alkalinity Mud × 1.3
+      _watchOne(i, _alkalinityKey, 'Excess Lime', (a) {
+        final v = double.tryParse(a) ?? 0;
+        return v == 0 ? '' : (v * 1.3).toStringAsFixed(2);
+      });
+
+      // 3. Solids Adjusted for Salt (approximate)
+      _watchTwo(i, _solidsKey, _waterKey, 'Solids Adjusted for Salt', (a, b) {
+        final solids = double.tryParse(a) ?? 0;
+        final water  = double.tryParse(b) ?? 0;
+        if (solids == 0) return '';
+        return (solids - water * 0.02).clamp(0, 100).toStringAsFixed(2);
+      });
+    }
   }
 
-  /// Remove a previously added (via dropdown) property row
-  void removeAddedPropertyRow(String propertyName) {
-    if (propertyName.isEmpty) return;
-    propertyTable.remove(propertyName);
-    debugPrint('[MudController] Removed property row: $propertyName');
+  // ═══════════════════════════════════════════════════════════════════════════
+  // DEBOUNCED SOLID ANALYSIS SAVE WATCHERS
+  // Watches the 5 source fields for each of the first 3 samples.
+  // On any change → debounce 800ms → POST (first time) or PUT (subsequent).
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  void _setupSolidAnalysisWatchers() {
+    for (int si = 0; si < 3; si++) {
+      final sampleIdx = si;
+
+      // The 5 fields that drive solid analysis calculations
+      final sourceKeys = [_mwKey, _solidsKey, _bariteKey, _bentoniteKey, _waterKey];
+
+      for (final key in sourceKeys) {
+        final list = key != null ? propertyTable[key] : null;
+        if (list == null || sampleIdx >= list.length) continue;
+
+        ever(list[sampleIdx], (_) {
+          _scheduleSolidAnalysisSave(sampleIdx);
+        });
+      }
+    }
+  }
+
+  /// Cancel any pending timer for this sample, start a new one.
+  void _scheduleSolidAnalysisSave(int sampleIdx) {
+    _debounceTimers[sampleIdx]?.cancel();
+    solidSaveStatus['$sampleIdx']?.value = 'idle';
+
+    _debounceTimers[sampleIdx] = Timer(_kSaveDebounce, () {
+      _saveSolidAnalysis(sampleIdx);
+    });
+  }
+
+  /// POST (first time) or PUT (subsequent) for the given sample index.
+  Future<void> _saveSolidAnalysis(int sampleIdx) async {
+    final vals = _extractSampleValues(sampleIdx);
+
+    // Skip if no mud weight — nothing to calculate
+    if (vals['mudWeight'] == 0) return;
+
+    solidSaveStatus['$sampleIdx']?.value = 'saving';
+
+    try {
+      final body = jsonEncode({
+        'mudWeight':    vals['mudWeight'],
+        'retortSolids': vals['retortSolids'],
+        'bariteLb':     vals['bariteLb'],
+        'bentoniteLb':  vals['bentoniteLb'],
+        'brineSG':      vals['brineSG'],
+        'sampleIndex':  sampleIdx,
+      });
+
+      final existingId = _solidAnalysisIds[sampleIdx];
+      http.Response response;
+
+      if (existingId == null) {
+        // ── First save → POST ──────────────────────────────────────────
+        response = await http.post(
+          Uri.parse('$_kBaseUrl/api/solids'),
+          headers: {'Content-Type': 'application/json'},
+          body: body,
+        );
+        if (response.statusCode == 201) {
+          final data = jsonDecode(response.body)['data'];
+          _solidAnalysisIds[sampleIdx] = data['_id'] as String?;
+          debugPrint('[SolidsAnalysis] Sample $sampleIdx CREATED — id: ${_solidAnalysisIds[sampleIdx]}');
+          _updateResultFromData(sampleIdx, data);
+        }
+      } else {
+        // ── Subsequent save → PUT ──────────────────────────────────────
+        response = await http.put(
+          Uri.parse('$_kBaseUrl/api/solids/$existingId'),
+          headers: {'Content-Type': 'application/json'},
+          body: body,
+        );
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body)['data'];
+          debugPrint('[SolidsAnalysis] Sample $sampleIdx UPDATED — id: $existingId');
+          _updateResultFromData(sampleIdx, data);
+        }
+      }
+
+      solidSaveStatus['$sampleIdx']?.value =
+          (response.statusCode == 200 || response.statusCode == 201) ? 'saved' : 'error';
+    } catch (e) {
+      debugPrint('[SolidsAnalysis] Save error (sample $sampleIdx): $e');
+      solidSaveStatus['$sampleIdx']?.value = 'error';
+    }
+  }
+
+  /// Writes one sample column of values into solidAnalysisResult.
+  void _updateResultFromData(int sampleIdx, Map<String, dynamic> data) {
+    final result = Map<String, List<String>>.from(solidAnalysisResult);
+
+    void set(String key, dynamic val) {
+      result.putIfAbsent(key, () => ['-', '-', '-']);
+      final list = List<String>.from(result[key]!);
+      while (list.length < 3) { list.add('-'); }
+      list[sampleIdx] = _fmt(val);
+      result[key] = list;
+    }
+
+    set('LGS (%)',             data['lgsPercent']);
+    set('LGS (lb/bbl)',        data['lgsLb']);
+    set('HGS (%)',             data['hgsPercent']);
+    set('Diss Solids (%)',     data['dissolvedSolids']);
+    set('Corr. Solids (%)',    data['correctedSolids']);
+    set('Brine SG',            data['brineSG']);
+    set('HGS (lb/bbl)',        data['hgsLb']);
+    set('Bentonite (%)',       data['bentPercent']);
+    set('Bentonite (lb/bbl)', data['bentoniteLb']);
+    set('Drill Solids (%)',   data['drillSolidsPercent']);
+    set('Drill Solids (lb/bbl)', data['drillSolidsLb']);
+    set('DS/Bent Ratio',      data['dsBentRatio']);
+    set('Avg. SG of Solids', data['avgSG']);
+
+    solidAnalysisResult.value = result;
+  }
+
+  // ─── Also keep the manual "open dialog" fetch ───────────────────────────────
+  // When dialog opens, load all 3 samples at once if any are missing.
+  Future<void> fetchSolidAnalysis() async {
+    isSolidAnalysisLoading.value = true;
+    solidAnalysisError.value = '';
+
+    try {
+      for (int i = 0; i < 3; i++) {
+        await _saveSolidAnalysis(i);
+      }
+    } catch (e) {
+      solidAnalysisError.value = e.toString();
+    } finally {
+      isSolidAnalysisLoading.value = false;
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // HELPERS: field lookup + value extraction
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  String? _findKey(bool Function(String) test) {
+    for (final key in propertyTable.keys) {
+      if (test(key.toLowerCase().replaceAll('*', '').trim())) return key;
+    }
+    return null;
+  }
+
+  String? get _mwKey        => _findKey((k) => k == 'mw' || k.contains('mud weight'));
+  String? get _solidsKey    => _findKey((k) => k.contains('solids') && !k.contains('drill') && !k.contains('adj') && !k.contains('salt'));
+  String? get _oilKey       => _findKey((k) => k.contains('oil') && !k.contains('ratio') && !k.contains('sg'));
+  String? get _waterKey     => _findKey((k) => k.contains('water') && !k.contains('activity') && !k.contains('sg'));
+  String? get _alkalinityKey => _findKey((k) => k.contains('alkalinity mud'));
+  String? get _bariteKey    => _findKey((k) => k.contains('barite'));
+  String? get _bentoniteKey => _findKey((k) => k.contains('bentonite') || k == 'bent');
+
+  Map<String, double> _extractSampleValues(int index) {
+    double mw = 0, solids = 0, oil = 0, water = 0, barite = 0, bentonite = 0;
+
+    void read(String? key, void Function(double) assign) {
+      if (key == null) return;
+      final vals = propertyTable[key];
+      if (vals == null || index >= vals.length) return;
+      final v = double.tryParse(vals[index].value) ?? 0;
+      assign(v);
+    }
+
+    read(_mwKey,        (v) => mw = v);
+    read(_solidsKey,    (v) => solids = v);
+    read(_oilKey,       (v) => oil = v);
+    read(_waterKey,     (v) => water = v);
+    read(_bariteKey,    (v) => barite = v);
+    read(_bentoniteKey, (v) => bentonite = v);
+
+    // Derive brine SG from MW + phase volumes if not directly available
+    double brineSg = 1.00;
+    if (mw > 0 && water > 0) {
+      final mwSg       = mw / 8.33;
+      final oilSg      = double.tryParse(oilSgController.text) ?? 0.80;
+      final lgsSg      = double.tryParse(lgsSgController.text) ?? 2.60;
+      final waterFrac  = water  / 100;
+      final oilFrac    = oil    / 100;
+      final solidsFrac = solids / 100;
+      brineSg = ((mwSg - oilFrac * oilSg - solidsFrac * lgsSg) / waterFrac)
+          .clamp(0.9, 2.5);
+    }
+
+    return {
+      'mudWeight':    mw,
+      'retortSolids': solids,
+      'bariteLb':     barite,
+      'bentoniteLb':  bentonite,
+      'brineSG':      brineSg,
+    };
+  }
+
+  String _fmt(dynamic v) {
+    if (v == null) return '-';
+    final d = double.tryParse(v.toString());
+    return d == null ? v.toString() : d.toStringAsFixed(2);
+  }
+
+  bool isAutoCalc(String fieldName) {
+    final k = fieldName.toLowerCase().replaceAll('*', '').trim();
+    return k == 'oil/water ratio' || k == 'excess lime' || k == 'solids adjusted for salt';
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ADD / REMOVE ROWS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  void addPropertyRow(String name) {
+    if (name.isEmpty || propertyTable.containsKey(name)) return;
+    propertyTable[name] = List.generate(samples.length, (_) => ''.obs);
+    _setupAutoCalculations();
+    _setupSolidAnalysisWatchers();
+  }
+
+  void removeAddedPropertyRow(String name) {
+    if (name.isEmpty) return;
+    propertyTable.remove(name);
   }
 
   void changeFluidType(String type) {
@@ -191,11 +412,11 @@ class MudController extends GetxController {
     loadFluidTypeData();
   }
 
-  // ─── RHEOLOGY TABLE ───────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════════
+  // RHEOLOGY
+  // ═══════════════════════════════════════════════════════════════════════════
 
-  void _initRheologyTable() {
-    _updateRheologyRows();
-  }
+  void _initRheologyTable() => _updateRheologyRows();
 
   void changeModel(String model) {
     rheologyModel.value = model;
@@ -207,16 +428,12 @@ class MudController extends GetxController {
         ? ['600', '300', '200', '100', '6', '3', 'PV (cP)', 'YP (lbf/100ft2)']
         : rheologyModel.value == 'Power Law'
             ? ['600', '300', '200', '100', '6', '3', 'n', 'K (lbf-s^n/100ft2)']
-            : ['600', '300', '200', '100', '6', '3',
-               'Yield Stress (lbf/100ft2)', 'n', 'K (lbf-s^n/100ft2)'];
-
+            : ['600', '300', '200', '100', '6', '3', 'Yield Stress (lbf/100ft2)', 'n', 'K (lbf-s^n/100ft2)'];
     rheologyTable.clear();
     for (var r in rows) {
       rheologyTable[r] = List.generate(samples.length, (_) => ''.obs);
     }
   }
-
-  // ─── CALCULATE RHEOLOGY ───────────────────────────────────
 
   void calculateRheology() {
     for (int i = 0; i < samples.length; i++) {
@@ -229,11 +446,9 @@ class MudController extends GetxController {
         case 'Bingham':
           if (r600 > 0 || r300 > 0) {
             final pv = r600 - r300;
-            final yp = r300 - pv;
             rheologyTable['PV (cP)']?[i].value         = pv.toStringAsFixed(1);
-            rheologyTable['YP (lbf/100ft2)']?[i].value = yp.toStringAsFixed(1);
+            rheologyTable['YP (lbf/100ft2)']?[i].value = (r300 - pv).toStringAsFixed(1);
           }
-          break;
         case 'Power Law':
           if (r600 > 0 && r300 > 0) {
             final n = 3.32 * _log10(r600 / r300);
@@ -241,11 +456,10 @@ class MudController extends GetxController {
             rheologyTable['n']?[i].value                   = n.toStringAsFixed(3);
             rheologyTable['K (lbf-s^n/100ft2)']?[i].value = k.toStringAsFixed(3);
           }
-          break;
         case 'HB':
           if (r3 > 0 || r6 > 0) {
-            final ys = (2 * r3 - r6).clamp(0.0, double.infinity);
-            rheologyTable['Yield Stress (lbf/100ft2)']?[i].value = ys.toStringAsFixed(2);
+            rheologyTable['Yield Stress (lbf/100ft2)']?[i].value =
+                (2 * r3 - r6).clamp(0.0, double.infinity).toStringAsFixed(2);
           }
           if (r600 > 0 && r300 > 0) {
             final n = 3.32 * _log10(r600 / r300);
@@ -253,13 +467,10 @@ class MudController extends GetxController {
             rheologyTable['n']?[i].value                   = n.toStringAsFixed(3);
             rheologyTable['K (lbf-s^n/100ft2)']?[i].value = k.toStringAsFixed(3);
           }
-          break;
       }
     }
     rheologyTable.refresh();
   }
-
-  // ─── TRANSFER RHEOLOGY → PROPERTY TABLE ──────────────────
 
   void transferRheologyToPropertyTable() {
     bool transferred = false;
@@ -270,20 +481,15 @@ class MudController extends GetxController {
           final propList = propertyTable[propKey]!;
           for (int j = 0; j < entry.value.length && j < propList.length; j++) {
             final val = entry.value[j].value;
-            if (val.isNotEmpty) {
-              propList[j].value = val;
-              transferred = true;
-            }
+            if (val.isNotEmpty) { propList[j].value = val; transferred = true; }
           }
         }
       }
     }
     propertyTable.refresh();
-
     Get.snackbar(
       transferred ? 'Done' : 'No Match',
-      transferred
-          ? 'Rheology values applied to property table'
+      transferred ? 'Rheology values applied to property table'
           : 'No matching fields found in property table',
       snackPosition: SnackPosition.BOTTOM,
       backgroundColor: (transferred ? Colors.green : Colors.orange).withOpacity(0.1),
@@ -303,7 +509,31 @@ class MudController extends GetxController {
     return false;
   }
 
-  // ─── MATH ─────────────────────────────────────────────────
+  // ─── Reactive helpers ──────────────────────────────────────────────────────
+
+  void _watchOne(int si, String? src, String target, String Function(String) fn) {
+    if (src == null) return;
+    final s = propertyTable[src];
+    final t = propertyTable[target];
+    if (s == null || t == null || si >= s.length || si >= t.length) return;
+    t[si].value = fn(s[si].value);
+    ever(s[si], (_) => t[si].value = fn(s[si].value));
+  }
+
+  void _watchTwo(int si, String? srcA, String? srcB, String target,
+      String Function(String, String) fn) {
+    if (srcA == null || srcB == null) return;
+    final a = propertyTable[srcA];
+    final b = propertyTable[srcB];
+    final t = propertyTable[target];
+    if (a == null || b == null || t == null ||
+        si >= a.length || si >= b.length || si >= t.length) return;
+    t[si].value = fn(a[si].value, b[si].value);
+    ever(a[si], (_) => t[si].value = fn(a[si].value, b[si].value));
+    ever(b[si], (_) => t[si].value = fn(a[si].value, b[si].value));
+  }
+
+  // ─── Math ──────────────────────────────────────────────────────────────────
 
   double _log10(double x) => x > 0 ? 0.4342944819 * _ln(x) : 0;
 
@@ -314,8 +544,7 @@ class MudController extends GetxController {
     return 2 * r;
   }
 
-  double _pow(double base, double exp) =>
-      base <= 0 ? 0 : _expM(exp * _ln(base));
+  double _pow(double base, double exp) => base <= 0 ? 0 : _expM(exp * _ln(base));
 
   double _expM(double x) {
     double r = 1, t = 1;
@@ -323,10 +552,11 @@ class MudController extends GetxController {
     return r;
   }
 
-  // ─── DISPOSE ──────────────────────────────────────────────
+  // ─── Dispose ───────────────────────────────────────────────────────────────
 
   @override
   void onClose() {
+    for (final t in _debounceTimers.values) { t?.cancel(); }
     fluidnameController.dispose();
     oilSgController.dispose();
     hgsSgController.dispose();
