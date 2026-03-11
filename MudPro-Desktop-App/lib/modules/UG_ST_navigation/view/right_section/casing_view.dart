@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/controller/UG_ST_controller.dart';
+import 'package:mudpro_desktop_app/modules/UG_ST_navigation/model/UG_ST_model.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class CasingView extends StatelessWidget {
@@ -217,21 +218,18 @@ class CasingView extends StatelessWidget {
 
   // ================= TABLE BODY =================
   Widget _tableBody() {
-    final ScrollController horizontalController = ScrollController();
-    final ScrollController verticalController = ScrollController();
-
     return Scrollbar(
       thumbVisibility: true,
-      controller: verticalController,
+      controller: c.casingVerticalScroll,
       child: SingleChildScrollView(
         scrollDirection: Axis.vertical,
-        controller: verticalController,
+        controller: c.casingVerticalScroll,
         child: Scrollbar(
           thumbVisibility: true,
-          controller: horizontalController,
+          controller: c.casingHorizontalScroll,
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
-            controller: horizontalController,
+            controller: c.casingHorizontalScroll,
             child: SizedBox(
               width: 1100,
               child: Obx(() {
@@ -243,23 +241,35 @@ class CasingView extends StatelessWidget {
                   ),
                   defaultVerticalAlignment: TableCellVerticalAlignment.middle,
                   columnWidths: const {
-                    0: FixedColumnWidth(50),
-                    1: FixedColumnWidth(200),
-                    2: FixedColumnWidth(120),
-                    3: FixedColumnWidth(90),
-                    4: FixedColumnWidth(100),
-                    5: FixedColumnWidth(90),
-                    6: FixedColumnWidth(90),
-                    7: FixedColumnWidth(90),
-                    8: FixedColumnWidth(90),
-                    9: FixedColumnWidth(90),
+                    0: FixedColumnWidth(40),
+                    1: FixedColumnWidth(180),
+                    2: FixedColumnWidth(100),
+                    3: FixedColumnWidth(80),
+                    4: FixedColumnWidth(90),
+                    5: FixedColumnWidth(80),
+                    6: FixedColumnWidth(80),
+                    7: FixedColumnWidth(80),
+                    8: FixedColumnWidth(80),
+                    9: FixedColumnWidth(80),
+                    10: FixedColumnWidth(110), // Actions column
                   },
                   children: [
                     _headerRow(),
-                    ...List.generate(20, (index) {
-                      final row = index < casingsLength ? c.casings[index] : null;
-                      return _dataRow(index, row);
-                    }),
+                    if (c.isLoading.value)
+                      TableRow(children: [
+                        TableCell(child: SizedBox(height: 100, child: Center(child: CircularProgressIndicator()))),
+                        ...List.generate(10, (index) => TableCell(child: SizedBox())),
+                      ])
+                    else if (casingsLength == 0)
+                      TableRow(children: [
+                        TableCell(child: SizedBox(height: 100, child: Center(child: Text("No casings found", style: AppTheme.caption)))),
+                        ...List.generate(10, (index) => TableCell(child: SizedBox())),
+                      ])
+                    else
+                      ...List.generate(casingsLength, (index) {
+                        final row = c.casings[index];
+                        return _dataRow(index, row);
+                      }),
                   ],
                 );
               }),
@@ -291,6 +301,7 @@ class CasingView extends StatelessWidget {
         _headerCell('Shoe\n(m)'),
         _headerCell('Bit\n(in)'),
         _headerCell('TOC\n(m)'),
+        _headerCell('Actions'),
       ],
     );
   }
@@ -325,9 +336,10 @@ class CasingView extends StatelessWidget {
         _editableCell(row?.wt, width: 100),
         _editableCell(row?.id, width: 90),
         _editableCell(row?.top, width: 90),
-        _editableCell(row?.shoe, width: 90),
-        _editableCell(row?.bit, width: 90),
-        _editableCell(row?.toc, width: 90),
+        _editableCell(row.shoe, width: 80),
+        _editableCell(row.bit, width: 80),
+        _editableCell(row.toc, width: 80),
+        _actionsCell(row),
       ],
     );
   }
@@ -388,6 +400,16 @@ class CasingView extends StatelessWidget {
 
   // ================= ADD CASING DIALOG =================
   void _showAddCasingDialog() {
+    final descCtrl = TextEditingController();
+    final typeCtrl = TextEditingController();
+    final odCtrl = TextEditingController();
+    final wtCtrl = TextEditingController();
+    final idCtrl = TextEditingController();
+    final bitCtrl = TextEditingController();
+    final topCtrl = TextEditingController();
+    final shoeCtrl = TextEditingController();
+    final tocCtrl = TextEditingController();
+
     Get.dialog(
       AlertDialog(
         title: Text(
@@ -402,33 +424,33 @@ class CasingView extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _dialogField("Description", "Conductor, Surface, etc."),
+              _dialogField("Description", "Conductor, Surface, etc.", descCtrl),
               const SizedBox(height: 12),
-              _dialogField("Type", "Casing, Liner, etc."),
+              _dialogField("Type", "Casing, Liner, etc.", typeCtrl),
               const SizedBox(height: 12),
               Row(
                 children: [
-                  Expanded(child: _dialogField("OD (in)", "13.375")),
+                  Expanded(child: _dialogField("OD (in)", "13.375", odCtrl)),
                   const SizedBox(width: 12),
-                  Expanded(child: _dialogField("Weight (lb/ft)", "68")),
+                  Expanded(child: _dialogField("Weight (lb/ft)", "68", wtCtrl)),
                 ],
               ),
               const SizedBox(height: 12),
               Row(
                 children: [
-                  Expanded(child: _dialogField("ID (in)", "12.415")),
+                  Expanded(child: _dialogField("ID (in)", "12.415", idCtrl)),
                   const SizedBox(width: 12),
-                  Expanded(child: _dialogField("Bit Size (in)", "17.5")),
+                  Expanded(child: _dialogField("Bit Size (in)", "17.5", bitCtrl)),
                 ],
               ),
               const SizedBox(height: 12),
               Row(
                 children: [
-                  Expanded(child: _dialogField("Top (m)", "0")),
+                  Expanded(child: _dialogField("Top (m)", "0", topCtrl)),
                   const SizedBox(width: 12),
-                  Expanded(child: _dialogField("Shoe (m)", "500")),
+                  Expanded(child: _dialogField("Shoe (m)", "500", shoeCtrl)),
                   const SizedBox(width: 12),
-                  Expanded(child: _dialogField("TOC (m)", "0")),
+                  Expanded(child: _dialogField("TOC (m)", "0", tocCtrl)),
                 ],
               ),
             ],
@@ -446,7 +468,18 @@ class CasingView extends StatelessWidget {
           ),
           ElevatedButton(
             onPressed: () {
-              // Add casing logic here
+              final newRow = CasingRow(
+                description: descCtrl.text,
+                type: typeCtrl.text,
+                od: odCtrl.text,
+                wt: wtCtrl.text,
+                id: idCtrl.text,
+                top: topCtrl.text,
+                shoe: shoeCtrl.text,
+                bit: bitCtrl.text,
+                toc: tocCtrl.text,
+              );
+              c.addCasing(newRow);
               Get.back();
             },
             style: ElevatedButton.styleFrom(
@@ -465,7 +498,7 @@ class CasingView extends StatelessWidget {
     );
   }
 
-  Widget _dialogField(String label, String hint) {
+  Widget _dialogField(String label, String hint, TextEditingController controller) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -478,6 +511,7 @@ class CasingView extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         TextField(
+          controller: controller,
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: AppTheme.caption.copyWith(
@@ -492,6 +526,39 @@ class CasingView extends StatelessWidget {
           style: AppTheme.bodySmall,
         ),
       ],
+    );
+  }
+
+  Widget _actionsCell(CasingRow row) {
+    return Container(
+      height: rowH,
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          IconButton(
+            icon: Icon(Icons.save, size: 16, color: AppTheme.primaryColor),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            onPressed: () => c.updateCasing(row),
+            tooltip: "Save",
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            icon: Icon(Icons.delete, size: 16, color: Colors.red.shade400),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            onPressed: () {
+              if (row.dbId != null) {
+                c.deleteCasing(row.dbId!);
+              } else {
+                c.casings.remove(row);
+              }
+            },
+            tooltip: "Delete",
+          ),
+        ],
+      ),
     );
   }
 }

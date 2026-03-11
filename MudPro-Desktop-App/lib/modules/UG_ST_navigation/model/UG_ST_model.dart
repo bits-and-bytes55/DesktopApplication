@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 
 class CasingRow {
+  String? dbId;
   RxString description = ''.obs;
   RxString type = ''.obs;
   RxString od = ''.obs;
@@ -12,6 +13,7 @@ class CasingRow {
   RxString toc = ''.obs;
 
   CasingRow({
+    this.dbId,
     String description = '',
     String type = '',
     String od = '',
@@ -32,6 +34,31 @@ class CasingRow {
     this.bit.value = bit;
     this.toc.value = toc;
   }
+
+  Map<String, dynamic> toJson() => {
+        'description': description.value,
+        'type': type.value,
+        'od': od.value,
+        'wt': wt.value,
+        'id': id.value,
+        'top': top.value,
+        'shoe': shoe.value,
+        'bit': bit.value,
+        'toc': toc.value,
+      };
+
+  factory CasingRow.fromJson(Map<String, dynamic> json) => CasingRow(
+        dbId: json['_id'],
+        description: json['description'] ?? '',
+        type: json['type'] ?? '',
+        od: json['od'] ?? '',
+        wt: json['wt'] ?? '',
+        id: json['id'] ?? '',
+        top: json['top'] ?? '',
+        shoe: json['shoe'] ?? '',
+        bit: json['bit'] ?? '',
+        toc: json['toc'] ?? '',
+      );
 }
 
 

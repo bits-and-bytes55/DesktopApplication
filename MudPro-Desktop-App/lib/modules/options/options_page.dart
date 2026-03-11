@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:mudpro_desktop_app/modules/dashboard/controller/options_controller.dart';
+import 'package:mudpro_desktop_app/modules/options/controller/unit_system_controller.dart';
 import 'package:mudpro_desktop_app/modules/options/options_left_pannel.dart';
 import 'package:mudpro_desktop_app/modules/options/tabs/language_tab.dart';
 import 'package:mudpro_desktop_app/modules/options/tabs/option_report_page.dart';
@@ -10,7 +10,7 @@ import 'package:mudpro_desktop_app/theme/app_theme.dart';
 class OptionsPage extends StatelessWidget {
   OptionsPage({super.key});
 
-  final OptionsController controller = Get.put(OptionsController());
+  final UnitSystemController controller = Get.put(UnitSystemController());
 
   @override
   Widget build(BuildContext context) {

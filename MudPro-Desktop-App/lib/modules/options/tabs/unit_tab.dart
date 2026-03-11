@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:mudpro_desktop_app/modules/dashboard/controller/options_controller.dart';
+import 'package:mudpro_desktop_app/modules/options/controller/unit_system_controller.dart';
 import 'package:mudpro_desktop_app/modules/options/tabs/unit_customization_popup.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
+
+import '../model/unit_system_model.dart';
 
 class UnitRightPanel extends StatefulWidget {
   const UnitRightPanel({super.key});
@@ -40,7 +42,7 @@ class _UnitRightPanelState extends State<UnitRightPanel> {
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.find<OptionsController>();
+    final controller = Get.find<UnitSystemController>();
 
     return Container(
       color: Colors.white,
@@ -383,7 +385,7 @@ class _UnitRightPanelState extends State<UnitRightPanel> {
   }
 
   // Custom dropdown that opens below the row
-  Widget _buildCustomDropdown(int index, OptionsController controller) {
+  Widget _buildCustomDropdown(int index, UnitSystemController controller) {
     return Container(
       height: 32,
       decoration: BoxDecoration(
@@ -406,7 +408,12 @@ class _UnitRightPanelState extends State<UnitRightPanel> {
           side: BorderSide(color: Colors.grey.shade300),
         ),
         onSelected: (String newValue) {
-          controller.customUnits[index] = newValue;
+          final number = controller.getUnitNumber(index);
+          controller.onUnitChanged(
+            systemId: controller.selectedCustomSystemId.value,
+            paramNumber: number,
+            newUnit: newValue,
+          );
         },
         itemBuilder: (BuildContext context) {
           return allUnits.map<PopupMenuEntry<String>>((String unit) {
@@ -424,7 +431,8 @@ class _UnitRightPanelState extends State<UnitRightPanel> {
           }).toList();
         },
         child: Obx(() {
-          final currentValue = controller.customUnits[index];
+          final number = controller.getUnitNumber(index);
+          final currentValue = controller.customUnits[number] ?? '';
           return Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Row(
@@ -453,7 +461,7 @@ class _UnitRightPanelState extends State<UnitRightPanel> {
     );
   }
 
-  Widget _radio(OptionsController controller, UnitSystem value, String label) {
+  Widget _radio(UnitSystemController controller, UnitSystem value, String label) {
     return Expanded(
       child: Container(
         height: 38,
@@ -521,7 +529,7 @@ class _UnitRightPanelState extends State<UnitRightPanel> {
     );
   }
 
-  void _openCustomizationPage(BuildContext context, OptionsController controller) {
+  void _openCustomizationPage(BuildContext context, UnitSystemController controller) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(

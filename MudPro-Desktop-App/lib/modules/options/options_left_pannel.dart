@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:mudpro_desktop_app/modules/dashboard/controller/options_controller.dart';
+import 'package:mudpro_desktop_app/modules/options/controller/unit_system_controller.dart';
+import 'package:mudpro_desktop_app/modules/options/model/unit_system_model.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class OptionsLeftPanel extends StatelessWidget {
@@ -8,7 +9,7 @@ class OptionsLeftPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.find<OptionsController>();
+    final controller = Get.find<UnitSystemController>();
 
     final tabs = [
       'Unit',

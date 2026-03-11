@@ -1,6 +1,5 @@
 import 'package:get/get.dart';
-
-enum UnitSystem { us, si, customized }
+import 'package:mudpro_desktop_app/modules/options/model/unit_system_model.dart';
 
 class OptionsController extends GetxController {
   // Left tab index

@@ -50,7 +50,7 @@ class _IntervalMudPlanTabState extends State<IntervalMudPlanTab> {
 
   Widget _buildDesktopLayout() {
     return Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      SizedBox(width: 380, child: _leftPanel()),
+      Expanded(child: _leftPanel()),
       VerticalDivider(width: 1, color: Colors.grey.shade300),
       Expanded(child: _rightPanel()),
     ]);
@@ -200,19 +200,23 @@ class _IntervalMudPlanTabState extends State<IntervalMudPlanTab> {
                 _tableHeader(),
                 // Data rows + add row
                 Expanded(
-                  child: SingleChildScrollView(
+                  child: Scrollbar(
                     controller: _propertyScrollCtrl,
-                      child: Column(children: [
-                        // Existing rows from propertyTable map
-                        ...c.propertyTable.entries.map((entry) {
-                          final name   = entry.key;
-                          final values = entry.value;
-                          final isLast = entry.key == c.propertyTable.keys.last;
-                          return _propertyRow(name, values, isLast);
-                        }),
-                        // Dynamic add-property row (dropdown)
-                        _DynamicAddRows(c: c),
-                      ]),
+                    thumbVisibility: true,
+                    child: SingleChildScrollView(
+                      controller: _propertyScrollCtrl,
+                        child: Column(children: [
+                          // Existing rows from propertyTable map
+                          ...c.propertyTable.entries.map((entry) {
+                            final name   = entry.key;
+                            final values = entry.value;
+                            final isLast = entry.key == c.propertyTable.keys.last;
+                            return _propertyRow(name, values, isLast);
+                          }),
+                          // Dynamic add-property row (dropdown)
+                          _DynamicAddRows(c: c),
+                        ]),
+                    ),
                   ),
                 ),
               ]),
@@ -235,7 +239,7 @@ class _IntervalMudPlanTabState extends State<IntervalMudPlanTab> {
           topLeft: Radius.circular(4), topRight: Radius.circular(4)),
       ),
       child: Row(children: [
-        _headerCell('Property', width: 130),
+        _headerCell('Property', width: 100),
         ..._planSamples.map((s) => Expanded(child: _headerCell(s, center: true))),
       ]),
     );
@@ -251,7 +255,7 @@ class _IntervalMudPlanTabState extends State<IntervalMudPlanTab> {
       child: Row(children: [
         // Property name
         Container(
-          width: 130,
+          width: 100,
           padding: const EdgeInsets.symmetric(horizontal: 6),
           decoration: BoxDecoration(
             border: Border(right: BorderSide(color: Colors.grey.shade200))),
@@ -356,84 +360,88 @@ class _IntervalMudPlanTabState extends State<IntervalMudPlanTab> {
                         topLeft: Radius.circular(4), topRight: Radius.circular(4)),
                     ),
                     child: Row(children: [
-                      _headerCell('RPM', width: 110),
+                      _headerCell('RPM', width: 80),
                       ..._planSamples.map((s) => Expanded(child: _headerCell(s, center: true))),
                     ]),
                   ),
                   // Rows — only Plan-L and Plan-H columns
                   Expanded(
-                    child: SingleChildScrollView(
+                    child: Scrollbar(
                       controller: _rheologyScrollCtrl,
-                      child: Column(
-                        children: c.rheologyTable.entries.map((entry) {
-                          final isCalc = double.tryParse(entry.key) == null;
-                          final isLast = entry.key == c.rheologyTable.keys.last;
-                          return Container(
-                            height: 26,
-                            decoration: BoxDecoration(
-                              color: isCalc ? const Color(0xFFFFFDE7) : Colors.white,
-                              border: Border(bottom: BorderSide(
-                                color: isLast ? Colors.transparent : Colors.grey.shade100)),
-                            ),
-                            child: Row(children: [
-                              Container(
-                                width: 110,
-                                padding: const EdgeInsets.symmetric(horizontal: 6),
-                                decoration: BoxDecoration(
-                                  border: Border(right: BorderSide(color: Colors.grey.shade200))),
-                                child: Text(entry.key,
-                                    style: AppTheme.caption.copyWith(
-                                        color: AppTheme.textSecondary, fontSize: 9),
-                                    overflow: TextOverflow.ellipsis),
+                      thumbVisibility: true,
+                      child: SingleChildScrollView(
+                        controller: _rheologyScrollCtrl,
+                        child: Column(
+                          children: c.rheologyTable.entries.map((entry) {
+                            final isCalc = double.tryParse(entry.key) == null;
+                            final isLast = entry.key == c.rheologyTable.keys.last;
+                            return Container(
+                              height: 26,
+                              decoration: BoxDecoration(
+                                color: isCalc ? const Color(0xFFFFFDE7) : Colors.white,
+                                border: Border(bottom: BorderSide(
+                                  color: isLast ? Colors.transparent : Colors.grey.shade100)),
                               ),
-                              // Only Plan-L (index 3) and Plan-H (index 4)
-                              ..._planIndices.asMap().entries.map((e) {
-                                final colIdx = e.key;
-                                final dataIdx = e.value;
-                                final isLastCol = colIdx == _planIndices.length - 1;
-                                final cell = entry.value[dataIdx];
-                                return Expanded(
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 2),
-                                    decoration: BoxDecoration(
-                                      border: Border(right: BorderSide(
-                                        color: isLastCol ? Colors.transparent : Colors.grey.shade200))),
-                                    child: isCalc
-                                        ? Obx(() => Center(
-                                              child: Text(
-                                                cell.value.isEmpty ? '-' : cell.value,
+                              child: Row(children: [
+                                Container(
+                                  width: 80,
+                                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                                  decoration: BoxDecoration(
+                                    border: Border(right: BorderSide(color: Colors.grey.shade200))),
+                                  child: Text(entry.key,
+                                      style: AppTheme.caption.copyWith(
+                                          color: AppTheme.textSecondary, fontSize: 9),
+                                      overflow: TextOverflow.ellipsis),
+                                ),
+                                // Only Plan-L (index 3) and Plan-H (index 4)
+                                ..._planIndices.asMap().entries.map((e) {
+                                  final colIdx = e.key;
+                                  final dataIdx = e.value;
+                                  final isLastCol = colIdx == _planIndices.length - 1;
+                                  final cell = entry.value[dataIdx];
+                                  return Expanded(
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 2),
+                                      decoration: BoxDecoration(
+                                        border: Border(right: BorderSide(
+                                          color: isLastCol ? Colors.transparent : Colors.grey.shade200))),
+                                      child: isCalc
+                                          ? Obx(() => Center(
+                                                child: Text(
+                                                  cell.value.isEmpty ? '-' : cell.value,
+                                                  style: AppTheme.caption.copyWith(
+                                                      color: cell.value.isEmpty
+                                                          ? Colors.grey.shade400
+                                                          : AppTheme.textPrimary,
+                                                      fontSize: 9,
+                                                      fontWeight: FontWeight.w600),
+                                                  textAlign: TextAlign.center,
+                                                ),
+                                              ))
+                                          : Obx(() => TextField(
+                                                key: ValueKey('rheo_${entry.key}_$dataIdx'),
+                                                controller: TextEditingController(
+                                                    text: cell.value)
+                                                  ..selection = TextSelection.collapsed(
+                                                      offset: cell.value.length),
+                                                onChanged: (v) => cell.value = v,
                                                 style: AppTheme.caption.copyWith(
-                                                    color: cell.value.isEmpty
-                                                        ? Colors.grey.shade400
-                                                        : AppTheme.textPrimary,
-                                                    fontSize: 9,
-                                                    fontWeight: FontWeight.w600),
+                                                    color: AppTheme.textPrimary, fontSize: 9),
+                                                decoration: const InputDecoration(
+                                                  isDense: true, border: InputBorder.none,
+                                                  contentPadding: EdgeInsets.symmetric(
+                                                      horizontal: 4, vertical: 5),
+                                                ),
                                                 textAlign: TextAlign.center,
-                                              ),
-                                            ))
-                                        : Obx(() => TextField(
-                                              key: ValueKey('rheo_${entry.key}_$dataIdx'),
-                                              controller: TextEditingController(
-                                                  text: cell.value)
-                                                ..selection = TextSelection.collapsed(
-                                                    offset: cell.value.length),
-                                              onChanged: (v) => cell.value = v,
-                                              style: AppTheme.caption.copyWith(
-                                                  color: AppTheme.textPrimary, fontSize: 9),
-                                              decoration: const InputDecoration(
-                                                isDense: true, border: InputBorder.none,
-                                                contentPadding: EdgeInsets.symmetric(
-                                                    horizontal: 4, vertical: 5),
-                                              ),
-                                              textAlign: TextAlign.center,
-                                              keyboardType: TextInputType.number,
-                                            )),
-                                  ),
-                                );
-                              }),
-                            ]),
-                          );
-                        }).toList(),
+                                                keyboardType: TextInputType.number,
+                                              )),
+                                    ),
+                                  );
+                                }),
+                              ]),
+                            );
+                          }).toList(),
+                        ),
                       ),
                     ),
                   ),

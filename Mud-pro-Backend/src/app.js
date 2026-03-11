@@ -11,6 +11,8 @@ import pitRoutes from "./routes/pit/pit.routes.js";
 import inventoryRoutes from "./routes/inventory/inventory.routes.js";
 
 import nozzleRoutes from "./routes/nozzle/nozzle.routes.js";
+import unitSystemRoutes from "./routes/unitSystem/unitSystem.js";
+
 
 import engineerRoutes from "./routes/engineer/engineer.routes.js";
 import companyRoutes from "./routes/company/company.routes.js";
@@ -57,6 +59,7 @@ import inventorySnapshotRoutes from "./routes/FullInventory/inventorySnapshotRou
 import exportRoutes from "./routes/Export/exportRoutes.js";
 
 import solidanalysisroute from "./routes/SolidAnalysis/solidanalysisroute.js"
+import casingRoutes from "./routes/casing/casing.routes.js";
 
 
 
@@ -161,10 +164,14 @@ app.use("/api/well-general", wellGeneralRoutes);
 app.use("/api/nozzle", nozzleRoutes);
 
 
+app.use("/api/unit-systems", unitSystemRoutes);
+
+
 //mud properties
 app.use('/api/mud-properties', mudPropertiesRoute);
 
 app.use('/api/solids',solidanalysisroute);
+app.use('/api/casing', casingRoutes);
 
 
 // Error handler (ALWAYS LAST)
