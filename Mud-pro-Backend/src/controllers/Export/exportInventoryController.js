@@ -2,33 +2,50 @@ import ExcelJS from "exceljs";
 import path from "path";
 import Company from "../../modules/company/company.model.js";
 import InventorySnapshot from "../../modules/FullInventory/InventorySnapshot.js";
+import Pit from "../../modules/pit/pit.model.js";
 
 export const exportInventoryReport = async (req, res) => {
   try {
     const company = await Company.findOne().sort({ createdAt: -1 });
     const inventoryData = await InventorySnapshot.find().sort({ category: 1 });
+    const products = inventoryData.filter(i => i.category === "Product");
+const services = inventoryData.filter(i => i.category === "Service");
+const engineers = inventoryData.filter(i => i.category === "Engineering");
+const pits = await Pit.find();
+
+const activePits = pits.filter(p => p.initialActive === true);
+const reservePits = pits.filter(p => p.initialActive === false);
 
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet("Daily Inventory Report");
+
+    worksheet.pageSetup = {
+  paperSize: 9,
+  orientation: "landscape",
+  fitToPage: true,
+  fitToWidth: 1,
+  fitToHeight: false
+};
+
 
     // ===========================
     // 1. PERFECT COLUMN WIDTHS
     // ===========================
     worksheet.columns = [
       { key: 'name', width: 20 },   // A: Product Name
-      { key: 'size', width: 10 },   // B: Size
+      { key: 'size', width: 12 },   // B: Size
       { key: 'price', width: 12 },  // C: Price
-      { key: 'start', width: 10 },  // D: Start Qty
-      { key: 'rec', width: 10 },    // E: Received
+      { key: 'start', width: 14 },  // D: Start Qty
+      { key: 'rec', width: 14 },    // E: Received
       { key: 'cumrec', width: 12 }, // F: Cum Rec
-      { key: 'ret', width: 10 },    // G: Returned
-      { key: 'cumret', width: 12 }, // H: Cum Ret
-      { key: 'used', width: 10 },   // I: Used
-      { key: 'cumused', width: 12 },// J: Cum Used
-      { key: 'final', width: 10 },  // K: Final
+      { key: 'ret', width: 12 },    // G: Returned
+      { key: 'cumret', width: 14 }, // H: Cum Ret
+      { key: 'used', width: 12 },   // I: Used
+      { key: 'cumused', width: 14 },// J: Cum Used
+      { key: 'final', width: 12 },  // K: Final
       { key: 'cost', width: 14 },   // L: Cost
-      { key: 'cstart', width: 10 }, // M: Conc Start
-      { key: 'cend', width: 10 }    // N: Conc End
+      { key: 'cstart', width: 12 }, // M: Conc Start
+      { key: 'cend', width: 12 }    // N: Conc End
     ];
 
     // ===========================
@@ -209,7 +226,7 @@ export const exportInventoryReport = async (req, res) => {
     // 6. DYNAMIC DATA INJECTION
     // ===========================
 
-    inventoryData.forEach(item => {
+    products.forEach(item => {
       const row = worksheet.addRow([
         item.itemName,              // Product Name
         item.unit,                         // Size
@@ -246,7 +263,412 @@ export const exportInventoryReport = async (req, res) => {
         }
       });
     });
+// ===========================
+// 7. VOLUME ACCOUNTING SUMMARY UI
+// ===========================
 
+const startRow = worksheet.lastRow.number + 2;
+
+// Main Title
+worksheet.mergeCells(`A${startRow}:N${startRow}`);
+const volTitle = worksheet.getCell(`A${startRow}`);
+volTitle.value = "Volume Accounting Summary";
+volTitle.font = { bold: true, size: 12, color: { argb: "FFFFFFFF" } };
+volTitle.alignment = { horizontal: "center", vertical: "middle" };
+volTitle.fill = {
+  type: "pattern",
+  pattern: "solid",
+  fgColor: { argb: "FF006100" }
+};
+
+// Section Headers
+const headerRow = startRow + 1;
+
+worksheet.mergeCells(`A${headerRow}:E${headerRow}`);
+worksheet.getCell(`A${headerRow}`).value = "Volume Additions (bbl)";
+worksheet.getCell(`A${headerRow}`).font = { bold: true };
+worksheet.getCell(`A${headerRow}`).alignment = { horizontal: "center" };
+
+worksheet.mergeCells(`F${headerRow}:J${headerRow}`);
+worksheet.getCell(`F${headerRow}`).value = "Volume Transfers (bbl)";
+worksheet.getCell(`F${headerRow}`).font = { bold: true };
+worksheet.getCell(`F${headerRow}`).alignment = { horizontal: "center" };
+
+worksheet.mergeCells(`K${headerRow}:N${headerRow}`);
+worksheet.getCell(`K${headerRow}`).value = "Volume Losses (bbl)";
+worksheet.getCell(`K${headerRow}`).font = { bold: true };
+worksheet.getCell(`K${headerRow}`).alignment = { horizontal: "center" };
+
+
+// Sub Headers
+const subHeaderRow = headerRow + 1;
+
+worksheet.getRow(subHeaderRow).values = [
+  "Type", "Daily", "Interval", "Well",
+  "",
+  "Type", "Daily", "Interval", "Well",
+  "",
+  "Type", "Daily", "Interval", "Well"
+];
+
+worksheet.getRow(subHeaderRow).eachCell(cell => {
+  cell.font = { bold: true };
+  cell.alignment = { horizontal: "center" };
+  cell.border = {
+    top: { style: "thin" },
+    left: { style: "thin" },
+    bottom: { style: "thin" },
+    right: { style: "thin" }
+  };
+});
+
+
+// UI Rows (Dynamic Data Later)
+const rows = [
+  ["Whole Mud", "", "", ""],
+  ["Oil", "", "", ""],
+  ["Water", "", "", ""],
+  ["Products", "", "", ""],
+  ["Weight Material", "", "", ""],
+  ["Transferred from Reserve System", "", "", ""]
+];
+
+let currentRow = subHeaderRow + 1;
+
+rows.forEach(r => {
+
+  worksheet.getCell(`A${currentRow}`).value = r[0];
+  worksheet.getCell(`B${currentRow}`).value = "";
+  worksheet.getCell(`C${currentRow}`).value = "";
+  worksheet.getCell(`D${currentRow}`).value = "";
+
+  worksheet.getCell(`F${currentRow}`).value = "";
+  worksheet.getCell(`G${currentRow}`).value = "";
+  worksheet.getCell(`H${currentRow}`).value = "";
+  worksheet.getCell(`I${currentRow}`).value = "";
+
+  worksheet.getCell(`K${currentRow}`).value = "";
+  worksheet.getCell(`L${currentRow}`).value = "";
+  worksheet.getCell(`M${currentRow}`).value = "";
+  worksheet.getCell(`N${currentRow}`).value = "";
+
+  for (let c = 1; c <= 14; c++) {
+    worksheet.getCell(currentRow, c).border = {
+      top: { style: "thin" },
+      left: { style: "thin" },
+      bottom: { style: "thin" },
+      right: { style: "thin" }
+    };
+
+    worksheet.getCell(currentRow, c).alignment = {
+      horizontal: "center",
+      vertical: "middle"
+    };
+  }
+
+  currentRow++;
+
+});
+
+
+// Total Rows
+
+worksheet.getCell(`A${currentRow}`).value = "Total Volume Additions";
+worksheet.mergeCells(`A${currentRow}:D${currentRow}`);
+
+worksheet.getCell(`F${currentRow}`).value = "Transfers Total";
+worksheet.mergeCells(`F${currentRow}:I${currentRow}`);
+
+worksheet.getCell(`K${currentRow}`).value = "Total Volume Losses";
+worksheet.mergeCells(`K${currentRow}:N${currentRow}`);
+
+worksheet.getRow(currentRow).eachCell(cell => {
+  cell.font = { bold: true };
+  cell.border = {
+    top: { style: "thin" },
+    left: { style: "thin" },
+    bottom: { style: "thin" },
+    right: { style: "thin" }
+  };
+});
+
+// =====================================================
+// SERVICES | PIT INFORMATION | TIME BREAKDOWN
+// =====================================================
+
+let sectionRow = worksheet.lastRow.number + 2;
+
+// ---------------- SERVICES ----------------
+
+worksheet.mergeCells(`A${sectionRow}:D${sectionRow}`);
+const srvTitle = worksheet.getCell(`A${sectionRow}`);
+srvTitle.value = "Services";
+srvTitle.font = { bold: true, color: { argb: "FFFFFFFF" } };
+srvTitle.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF006100" } };
+srvTitle.alignment = { horizontal: "center" };
+
+// ---------------- PIT INFO ----------------
+
+worksheet.mergeCells(`E${sectionRow}:H${sectionRow}`);
+const pitTitle = worksheet.getCell(`E${sectionRow}`);
+pitTitle.value = "Pit Information";
+pitTitle.font = { bold: true, color: { argb: "FFFFFFFF" } };
+pitTitle.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF006100" } };
+pitTitle.alignment = { horizontal: "center" };
+
+// ---------------- TIME BREAKDOWN ----------------
+
+worksheet.mergeCells(`J${sectionRow}:N${sectionRow}`);
+const timeTitle = worksheet.getCell(`J${sectionRow}`);
+timeTitle.value = "Time Breakdown";
+timeTitle.font = { bold: true, color: { argb: "FFFFFFFF" } };
+timeTitle.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF006100" } };
+timeTitle.alignment = { horizontal: "center" };
+
+
+// ================= HEADER ROW =================
+
+sectionRow++;
+
+worksheet.getRow(sectionRow).values = [
+  "Description","Qty.","Cum.","Cost (Kwd)",
+  "Pit","Vol (bbl)","Density","Fluid Type","",
+  "Rig-up / Service","Hours","","",""
+];
+
+worksheet.getRow(sectionRow).eachCell(cell=>{
+  cell.font={bold:true};
+  cell.alignment={horizontal:"center"};
+  cell.border={top:{style:"thin"},left:{style:"thin"},bottom:{style:"thin"},right:{style:"thin"}};
+});
+
+
+// ================= SERVICES DATA =================
+
+let serviceStartRow = sectionRow + 1;
+
+services.forEach(service => {
+
+  const row = worksheet.getRow(serviceStartRow);
+
+  row.values = [
+    service.itemName,
+    service.qty || 0,
+    service.cumulativeUsed || 0,
+    service.costDollar || 0
+  ];
+
+  row.eachCell(cell=>{
+    cell.border={
+      top:{style:"thin"},
+      left:{style:"thin"},
+      bottom:{style:"thin"},
+      right:{style:"thin"}
+    };
+  });
+
+  serviceStartRow++;
+
+});
+
+sectionRow = serviceStartRow;
+
+// ================= ACTIVE PITS DATA =================
+
+let pitRow = sectionRow + 1;
+
+activePits.forEach(pit => {
+
+  const row = worksheet.getRow(pitRow);
+
+  row.getCell(5).value = pit.pitName;
+  row.getCell(6).value = pit.capacity;
+  row.getCell(7).value = "";
+  row.getCell(8).value = "";
+
+  for (let c = 5; c <= 8; c++) {
+    row.getCell(c).border = {
+      top:{style:"thin"},
+      left:{style:"thin"},
+      bottom:{style:"thin"},
+      right:{style:"thin"}
+    };
+  }
+
+  pitRow++;
+
+});
+
+// IMPORTANT
+sectionRow = pitRow;
+
+
+// =====================================================
+// ENGINEERING
+// =====================================================
+
+sectionRow++;
+
+worksheet.mergeCells(`A${sectionRow}:D${sectionRow}`);
+const engTitle = worksheet.getCell(`A${sectionRow}`);
+engTitle.value="Engineering";
+engTitle.font={bold:true,color:{argb:"FFFFFFFF"}};
+engTitle.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FF006100"}};
+engTitle.alignment={horizontal:"center"};
+
+sectionRow++;
+
+worksheet.getRow(sectionRow).values=[
+"Description","Qty.","Cum.","Cost (Kwd)"
+];
+
+let engRow = sectionRow + 1;
+
+engineers.forEach(engineer => {
+
+  const row = worksheet.getRow(engRow);
+
+  row.values = [
+    engineer.itemName,
+    engineer.qty || 0,
+    engineer.cumulativeUsed || 0,
+    engineer.costDollar || 0
+  ];
+
+  row.eachCell(cell=>{
+    cell.border={
+      top:{style:"thin"},
+      left:{style:"thin"},
+      bottom:{style:"thin"},
+      right:{style:"thin"}
+    };
+  });
+
+  engRow++;
+
+});
+
+sectionRow = engRow;
+// ================= RESERVE =================
+
+let reserveRow = engRow + 2;
+
+// Title
+worksheet.mergeCells(`E${reserveRow}:H${reserveRow}`);
+
+const reserveTitle = worksheet.getCell(`E${reserveRow}`);
+
+reserveTitle.value = "Reserve";
+
+reserveTitle.font = { bold: true };
+
+reserveTitle.alignment = { horizontal: "center" };
+
+reserveTitle.fill = {
+  type: "pattern",
+  pattern: "solid",
+  fgColor: { argb: "FFEBF1DE" }
+};
+
+// Header
+reserveRow++;
+
+const reserveHeader = worksheet.getRow(reserveRow);
+
+reserveHeader.getCell(5).value = "Pit";
+reserveHeader.getCell(6).value = "Vol (bbl)";
+reserveHeader.getCell(7).value = "Density";
+reserveHeader.getCell(8).value = "Fluid Type";
+
+for (let c = 5; c <= 8; c++) {
+
+  const cell = reserveHeader.getCell(c);
+
+  cell.font = { bold: true };
+
+  cell.alignment = { horizontal: "center" };
+
+  cell.fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FFE2EFDA" }
+  };
+
+  cell.border = {
+    top: { style: "thin" },
+    left: { style: "thin" },
+    bottom: { style: "thin" },
+    right: { style: "thin" }
+  };
+
+}
+
+// Grid rows
+
+reservePits.forEach(pit => {
+
+  reserveRow++;
+
+  const row = worksheet.getRow(reserveRow);
+
+  row.getCell(5).value = pit.pitName;
+  row.getCell(6).value = pit.capacity;
+  row.getCell(7).value = "";
+  row.getCell(8).value = "";
+
+  for (let c = 5; c <= 8; c++) {
+    row.getCell(c).border = {
+      top:{style:"thin"},
+      left:{style:"thin"},
+      bottom:{style:"thin"},
+      right:{style:"thin"}
+    };
+  }
+
+});
+
+// =====================================================
+// COST SUMMARY
+// =====================================================
+
+sectionRow+=6;
+
+worksheet.mergeCells(`A${sectionRow}:D${sectionRow}`);
+
+const costTitle = worksheet.getCell(`A${sectionRow}`);
+
+costTitle.value="Cost Summary";
+
+costTitle.font={bold:true,color:{argb:"FFFFFFFF"}};
+
+costTitle.fill={
+type:"pattern",
+pattern:"solid",
+fgColor:{argb:"FF006100"}
+};
+
+costTitle.alignment={horizontal:"center"};
+
+
+// =====================================================
+// CUTTINGS ANALYSIS
+// =====================================================
+
+worksheet.mergeCells(`J${sectionRow}:N${sectionRow}`);
+
+const cutTitle = worksheet.getCell(`J${sectionRow}`);
+
+cutTitle.value="Cuttings Analysis";
+
+cutTitle.font={bold:true,color:{argb:"FFFFFFFF"}};
+
+cutTitle.fill={
+type:"pattern",
+pattern:"solid",
+fgColor:{argb:"FF006100"}
+};
+
+cutTitle.alignment={horizontal:"center"};
     // ===========================
     // RESPONSE
     // ===========================

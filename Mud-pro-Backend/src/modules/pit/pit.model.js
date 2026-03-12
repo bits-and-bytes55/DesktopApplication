@@ -15,11 +15,11 @@ const pitSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
-  wellId: {
-    type: String,
-    required: true,
-    index: true
-  },
+  // wellId: {
+  //   type: String,
+  //   required: true,
+  //   index: true
+  // },
   reportId: {
     type: String,
     index: true
@@ -41,8 +41,8 @@ const pitSchema = new mongoose.Schema({
 });
 
 // Index for faster queries
-pitSchema.index({ wellId: 1, pitName: 1 });
-pitSchema.index({ wellId: 1, initialActive: 1 });
+pitSchema.index({pitName: 1 });
+pitSchema.index({initialActive: 1 });
 
 // ✅ FIXED: Updated pre-save middleware for Mongoose v7+
 pitSchema.pre('save', async function() {
