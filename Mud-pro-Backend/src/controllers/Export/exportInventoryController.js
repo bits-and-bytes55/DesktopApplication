@@ -482,9 +482,9 @@ activePits.forEach(pit => {
   const row = worksheet.getRow(pitRow);
 
   row.getCell(5).value = pit.pitName;
-  row.getCell(6).value = pit.capacity;
-  row.getCell(7).value = "";
-  row.getCell(8).value = "";
+  row.getCell(6).value = pit.volume || pit.capacity;
+row.getCell(7).value = pit.density || "";
+row.getCell(8).value = pit.fluidType || "";
 
   for (let c = 5; c <= 8; c++) {
     row.getCell(c).border = {

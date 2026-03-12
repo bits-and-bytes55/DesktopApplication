@@ -274,7 +274,7 @@ export const getPitById = async (req, res) => {
 export const updatePit = async (req, res) => {
   try {
     const { id } = req.params;
-    const { pitName, capacity, initialActive } = req.body;
+   const { pitName, capacity, initialActive, volume, density, fluidType } = req.body;
 
     const pit = await Pit.findById(id);
 
@@ -297,6 +297,9 @@ export const updatePit = async (req, res) => {
     if (pitName) pit.pitName = pitName;
     if (capacity !== undefined) pit.capacity = capacity;
     if (initialActive !== undefined) pit.initialActive = initialActive;
+    if (volume !== undefined) pit.volume = volume;
+if (density !== undefined) pit.density = density;
+if (fluidType !== undefined) pit.fluidType = fluidType;
 
     await pit.save();
 
