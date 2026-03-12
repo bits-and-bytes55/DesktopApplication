@@ -11,7 +11,7 @@ export const exportInventoryReport = async (req, res) => {
     const products = inventoryData.filter(i => i.category === "Product");
 const services = inventoryData.filter(i => i.category === "Service");
 const engineers = inventoryData.filter(i => i.category === "Engineering");
-const pits = await Pit.find({ wellId: req.query.wellId });
+const pits = await Pit.find();
 
 const activePits = pits.filter(p => p.initialActive === true);
 const reservePits = pits.filter(p => p.initialActive === false);
