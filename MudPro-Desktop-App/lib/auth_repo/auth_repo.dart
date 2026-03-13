@@ -2252,6 +2252,35 @@ class UnitSystemApiService {
     }
   }
 
+  // ════════════════════════════════════════════════════════════════════════════
+  // POST /api/unit-systems/seed
+  // Seeds default systems (Pegasus Default 1, SI, US).
+  // ════════════════════════════════════════════════════════════════════════════
+  Future<UnitSystemListResponse> seedDefaultSystems() async {
+    try {
+      final res = await http.post(
+        Uri.parse('${baseUrl}unit-systems/seed'),
+        headers: _jsonHeaders,
+      );
+
+      if (res.statusCode == 201 || res.statusCode == 200) {
+        final body = jsonDecode(res.body);
+        final List rawList = body['data'] ?? [];
+        final systems = rawList
+            .map((j) => UnitSystemModel.fromJson(j as Map<String, dynamic>))
+            .toList();
+        return UnitSystemListResponse(success: true, data: systems);
+      } else {
+        final msg = _parseError(res.body);
+        debugPrint('[UnitSystemApiService] seed failed: $msg');
+        return UnitSystemListResponse(success: false, data: [], message: msg);
+      }
+    } catch (e) {
+      debugPrint('[UnitSystemApiService] seed error: $e');
+      return UnitSystemListResponse(success: false, data: [], message: e.toString());
+    }
+  }
+
   // ── Helper: extract error message from response body ─────────────────────
   String _parseError(String body) {
     try {

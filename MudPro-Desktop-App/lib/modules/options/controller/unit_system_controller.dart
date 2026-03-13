@@ -193,6 +193,7 @@ class UnitSystemController extends GetxController {
     required String paramNumber,
     required String newUnit,
   }) {
+    if (systemId.isEmpty) return;
     customUnits[paramNumber] = newUnit;
     customUnits.refresh();
 

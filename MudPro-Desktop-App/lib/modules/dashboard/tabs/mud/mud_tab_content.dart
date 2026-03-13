@@ -310,9 +310,13 @@ Tooltip(
           padding: const EdgeInsets.symmetric(horizontal: 8),
           decoration: BoxDecoration(
             border: Border(right: BorderSide(color: Colors.grey.shade200))),
-          child: Text(name,
-              style: AppTheme.caption.copyWith(color: AppTheme.textSecondary, fontSize: 10),
-              overflow: TextOverflow.ellipsis),
+          child: Obx(() {
+            final unit = c.propertyUnits[name] ?? '';
+            final displayName = unit.isNotEmpty ? '$name ($unit)' : name;
+            return Text(displayName,
+                style: AppTheme.caption.copyWith(color: AppTheme.textSecondary, fontSize: 10),
+                overflow: TextOverflow.ellipsis);
+          }),
         ),
         // Sample cells — Obx each cell individually for reactive updates
         ...values.asMap().entries.map((cell) {

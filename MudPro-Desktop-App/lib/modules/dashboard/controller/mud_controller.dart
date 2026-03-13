@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:mudpro_desktop_app/modules/company_setup/controller/others_controller.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/controller/mud_properties_controller.dart';
+import 'package:mudpro_desktop_app/modules/company_setup/model/mud_properties_model.dart';
 import 'package:mudpro_desktop_app/api_endpoint/api_endpoint.dart';
 
 // ─── Change to your actual backend base URL ───────────────────────────────────
@@ -22,6 +23,7 @@ class MudController extends GetxController {
   var selectedFluidType = 'Water-based'.obs;
 
   final propertyTable      = <String, List<RxString>>{}.obs;
+  final propertyUnits      = <String, String>{}.obs;
   final availableProperties = <String>[].obs;
   final rheologyTable       = <String, List<RxString>>{}.obs;
 
@@ -112,16 +114,17 @@ class MudController extends GetxController {
   Future<void> _loadLeftTableFromMudProperties() async {
     try {
       final selected = await _mudPropsCtrl.getSelectedMudProperties();
-      List<String> props = switch (selectedFluidType.value) {
+      List<MudPropertyItem> props = switch (selectedFluidType.value) {
         'Water-based' => selected.waterBased,
         'Oil-based'   => selected.oilBased,
         'Synthetic'   => selected.synthetic,
-        _             => <String>[],
+        _             => <MudPropertyItem>[],
       };
       _addCommonFields();
-      for (final name in props) {
-        if (name.isNotEmpty) {
-          propertyTable[name] = List.generate(samples.length, (_) => ''.obs);
+      for (final item in props) {
+        if (item.name.isNotEmpty) {
+          propertyTable[item.name] = List.generate(samples.length, (_) => ''.obs);
+          propertyUnits[item.name] = item.unit;
         }
       }
     } catch (e) {
@@ -149,8 +152,13 @@ class MudController extends GetxController {
   }
 
   void _addCommonFields() {
-    for (final field in ['Description', 'Sample from', 'Time Sample Taken (hh:mm)']) {
+    for (final field in [
+      'Description',
+      'Sample from',
+      'Time Sample Taken (hh:mm)'
+    ]) {
       propertyTable[field] = List.generate(samples.length, (_) => ''.obs);
+      propertyUnits[field] = ''; // No units for these fields
     }
   }
 
