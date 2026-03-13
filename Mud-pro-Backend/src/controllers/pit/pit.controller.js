@@ -297,9 +297,6 @@ export const updatePit = async (req, res) => {
     if (pitName) pit.pitName = pitName;
     if (capacity !== undefined) pit.capacity = capacity;
     if (initialActive !== undefined) pit.initialActive = initialActive;
-    if (volume !== undefined) pit.volume = volume;
-if (density !== undefined) pit.density = density;
-if (fluidType !== undefined) pit.fluidType = fluidType;
 
     await pit.save();
 

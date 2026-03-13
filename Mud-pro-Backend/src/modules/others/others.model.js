@@ -2,9 +2,9 @@
 
 import mongoose from "mongoose";
 
-// Activity Schema
 const activitySchema = new mongoose.Schema({
   description: { type: String, required: true },
+  hours: { type: Number, default: 0 }   // 👈 new field
 }, { timestamps: true });
 
 export const Activity = mongoose.model("Activity", activitySchema);

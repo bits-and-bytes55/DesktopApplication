@@ -3,6 +3,7 @@ import path from "path";
 import Company from "../../modules/company/company.model.js";
 import InventorySnapshot from "../../modules/FullInventory/InventorySnapshot.js";
 import Pit from "../../modules/pit/pit.model.js";
+import { Activity } from "../../modules/others/others.model.js";
 
 export const exportInventoryReport = async (req, res) => {
   try {
@@ -12,6 +13,7 @@ export const exportInventoryReport = async (req, res) => {
 const services = inventoryData.filter(i => i.category === "Service");
 const engineers = inventoryData.filter(i => i.category === "Engineering");
 const pits = await Pit.find();
+const activities = await Activity.find();
 
 const activePits = pits.filter(p => p.initialActive === true);
 const reservePits = pits.filter(p => p.initialActive === false);
@@ -243,7 +245,6 @@ const reservePits = pits.filter(p => p.initialActive === false);
         "",                         // Starting Conc
         ""                          // Ending Conc
       ]);
-
       row.eachCell((cell, colNum) => {
         // Border har ek cell pe
         cell.border = { top: { style: "thin" }, left: { style: "thin" }, bottom: { style: "thin" }, right: { style: "thin" } };
@@ -263,6 +264,39 @@ const reservePits = pits.filter(p => p.initialActive === false);
         }
       });
     });
+
+          // ===========================
+// FIXED 50 PRODUCT ROWS
+// ===========================
+
+const productRows = 40;
+const currentProducts = products.length;
+
+if (currentProducts < productRows) {
+
+  for (let i = 0; i < productRows - currentProducts; i++) {
+
+    const row = worksheet.addRow([
+      "", "", "", "", "", "", "", "", "", "", "", "", "", ""
+    ]);
+
+    row.eachCell((cell) => {
+      cell.border = {
+        top: { style: "thin" },
+        left: { style: "thin" },
+        bottom: { style: "thin" },
+        right: { style: "thin" }
+      };
+
+      cell.alignment = {
+        horizontal: "center",
+        vertical: "middle"
+      };
+    });
+
+  }
+
+}
 // ===========================
 // 7. VOLUME ACCOUNTING SUMMARY UI
 // ===========================
@@ -430,6 +464,30 @@ timeTitle.alignment = { horizontal: "center" };
 
 sectionRow++;
 
+// ================= TIME BREAKDOWN DATA =================
+let timeRow = sectionRow + 1;
+
+activities.forEach((act) => {
+
+  const row = worksheet.getRow(timeRow);
+
+  row.getCell(10).value = act.description; // Rig-up / Service
+  row.getCell(11).value = act.hours || 0;  // Hours
+
+  for (let c = 10; c <= 11; c++) {
+    row.getCell(c).border = {
+      top:{style:"thin"},
+      left:{style:"thin"},
+      bottom:{style:"thin"},
+      right:{style:"thin"}
+    };
+    row.getCell(c).alignment = { horizontal:"center" };
+  }
+
+  timeRow++;
+
+});
+
 worksheet.getRow(sectionRow).values = [
   "Description","Qty.","Cum.","Cost (Kwd)",
   "Pit","Vol (bbl)","Density","Fluid Type","",
@@ -443,50 +501,25 @@ worksheet.getRow(sectionRow).eachCell(cell=>{
 });
 
 
-// ================= SERVICES DATA =================
 
 let serviceStartRow = sectionRow + 1;
 
-services.forEach(service => {
+const maxServices = 10;
 
-  const row = worksheet.getRow(serviceStartRow);
+for (let i = 0; i < maxServices; i++) {
 
-  row.values = [
-    service.itemName,
-    service.qty || 0,
-    service.cumulativeUsed || 0,
-    service.costDollar || 0
-  ];
+  const row = worksheet.getRow(serviceStartRow + i);
 
-  row.eachCell(cell=>{
-    cell.border={
-      top:{style:"thin"},
-      left:{style:"thin"},
-      bottom:{style:"thin"},
-      right:{style:"thin"}
-    };
-  });
+  const service = services[i];
 
-  serviceStartRow++;
+  if (service) {
+    row.getCell(1).value = service.itemName;
+    row.getCell(2).value = service.qty || 0;
+    row.getCell(3).value = service.cumulativeUsed || 0;
+    row.getCell(4).value = service.costDollar || 0;
+  }
 
-});
-
-sectionRow = serviceStartRow;
-
-// ================= ACTIVE PITS DATA =================
-
-let pitRow = sectionRow + 1;
-
-activePits.forEach(pit => {
-
-  const row = worksheet.getRow(pitRow);
-
-  row.getCell(5).value = pit.pitName;
-  row.getCell(6).value = pit.volume || pit.capacity;
-row.getCell(7).value = pit.density || "";
-row.getCell(8).value = pit.fluidType || "";
-
-  for (let c = 5; c <= 8; c++) {
+  for (let c = 1; c <= 4; c++) {
     row.getCell(c).border = {
       top:{style:"thin"},
       left:{style:"thin"},
@@ -495,12 +528,44 @@ row.getCell(8).value = pit.fluidType || "";
     };
   }
 
-  pitRow++;
+}
 
-});
+sectionRow = serviceStartRow + maxServices - 1;
 
-// IMPORTANT
-sectionRow = pitRow;
+// ================= ACTIVE PITS DATA =================
+
+// ================= ACTIVE PITS DATA =================
+
+// ================= ACTIVE PITS DATA =================
+
+let pitRow = serviceStartRow;
+
+const maxPits = 10;
+
+for (let i = 0; i < maxPits; i++) {
+
+  const row = worksheet.getRow(pitRow + i);
+
+  const pit = activePits[i];
+
+  if (pit) {
+    row.getCell(5).value = pit.pitName;
+    row.getCell(6).value = pit.volume || pit.capacity;
+    row.getCell(7).value = pit.density || "";
+    row.getCell(8).value = pit.fluidType || "";
+  }
+
+  for (let c = 5; c <= 8; c++) {
+    row.getCell(c).border = {
+      top:{style:"thin"},
+      left:{style:"thin"},
+      bottom:{style:"thin"},
+      right:{style:"thin"}
+    };
+    row.getCell(c).alignment = { horizontal:"center" };
+  }
+
+}
 
 
 // =====================================================
@@ -523,32 +588,33 @@ worksheet.getRow(sectionRow).values=[
 ];
 
 let engRow = sectionRow + 1;
+const maxEngineers = 10;
 
-engineers.forEach(engineer => {
+for (let i = 0; i < maxEngineers; i++) {
 
-  const row = worksheet.getRow(engRow);
+  const row = worksheet.getRow(engRow + i);
 
-  row.values = [
-    engineer.itemName,
-    engineer.qty || 0,
-    engineer.cumulativeUsed || 0,
-    engineer.costDollar || 0
-  ];
+  const engineer = engineers[i];
 
-  row.eachCell(cell=>{
-    cell.border={
+  if (engineer) {
+    row.getCell(1).value = engineer.itemName;
+    row.getCell(2).value = engineer.qty || 0;
+    row.getCell(3).value = engineer.cumulativeUsed || 0;
+    row.getCell(4).value = engineer.costDollar || 0;
+  }
+
+  for (let c = 1; c <= 4; c++) {
+    row.getCell(c).border = {
       top:{style:"thin"},
       left:{style:"thin"},
       bottom:{style:"thin"},
       right:{style:"thin"}
     };
-  });
+  }
 
-  engRow++;
+}
 
-});
-
-sectionRow = engRow;
+sectionRow = engRow + maxEngineers - 1;
 // ================= RESERVE =================
 
 let reserveRow = engRow + 2;
@@ -605,16 +671,20 @@ for (let c = 5; c <= 8; c++) {
 
 // Grid rows
 
-reservePits.forEach(pit => {
+const maxReservePits = 15;
 
-  reserveRow++;
+for (let i = 0; i < maxReservePits; i++) {
 
-  const row = worksheet.getRow(reserveRow);
+  const row = worksheet.getRow(reserveRow + 1 + i);
 
-  row.getCell(5).value = pit.pitName;
-  row.getCell(6).value = pit.capacity;
-  row.getCell(7).value = "";
-  row.getCell(8).value = "";
+  const pit = reservePits[i];
+
+  if (pit) {
+    row.getCell(5).value = pit.pitName;
+    row.getCell(6).value = pit.capacity;
+    row.getCell(7).value = "";
+    row.getCell(8).value = "";
+  }
 
   for (let c = 5; c <= 8; c++) {
     row.getCell(c).border = {
@@ -625,7 +695,7 @@ reservePits.forEach(pit => {
     };
   }
 
-});
+}
 
 // =====================================================
 // COST SUMMARY
