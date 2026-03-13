@@ -1,44 +1,51 @@
 import mongoose from 'mongoose';
 
 const pitSchema = new mongoose.Schema({
+
   pitName: {
     type: String,
     required: true,
     trim: true
   },
+
   capacity: {
     type: Number,
     required: true,
     min: 0
   },
+
   initialActive: {
     type: Boolean,
     default: false
   },
-  // wellId: {
-  //   type: String,
-  //   required: true,
-  //   index: true
-  // },
+
+  // NEW FIELDS
+  volume: {
+    type: Number,
+    default: 0
+  },
+
+  density: {
+    type: Number,
+    default: 0
+  },
+
+  fluidType: {
+    type: String,
+    default: ""
+  },
+
   reportId: {
     type: String,
     index: true
   },
+
   isLocked: {
     type: Boolean,
     default: false
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  },
-  updatedAt: {
-    type: Date,
-    default: Date.now
   }
-}, {
-  timestamps: true
-});
+
+}, { timestamps: true });
 
 // Index for faster queries
 pitSchema.index({pitName: 1 });

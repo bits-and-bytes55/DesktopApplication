@@ -274,7 +274,7 @@ export const getPitById = async (req, res) => {
 export const updatePit = async (req, res) => {
   try {
     const { id } = req.params;
-    const { pitName, capacity, initialActive } = req.body;
+   const { pitName, capacity, initialActive, volume, density, fluidType } = req.body;
 
     const pit = await Pit.findById(id);
 
