@@ -16,58 +16,53 @@ class UnitConversionService {
   static const Map<String, List<String>> parameterUnits = {
     '1':  ['(ft)', '(m)'],                                              // Length
     '2':  ['(in)', '(mm)', '(cm)', '(dm)', '(m)', '(ft)'],              // Pipe diameter
-    '3':  ['(1/32in)', '(mm)', '(in)'],                                 // Nozzle diameter
+    '3':  ['(in)', '(mm)', '(1/32in)'],                                 // Nozzle diameter
     '4':  ['(ft2)', '(m2)'],                                            // Surface area
     '5':  ['(in2)', '(mm2)', '(cm2)', '(dm2)', '(m2)', '(ft2)'],        // Cross section
     '6':  ['(bbl)', '(m3)', '(mL)', '(L)', '(in3)', '(ft3)', '(oz)', '(gal)', '(qt)'], // Fluid volume
-    '7':  ['(bbl/ft)', '(m3/m)', '(ft3/m)', '(bbl/m)', '(L/m)', '(gal/ft)'], // Pipe cap vol/len
-    '8':  ['(ft/bbl)', '(m/m3)', '(ft/gal)', '(m/bbl)', '(m/ft3)', '(m/L)'], // Pipe cap len/vol
+    '7':  ['(bbl/ft)', '(m3/m)', '(ft3/m)', '(bbl/m)', '(L/m)', '(gal/ft)'], // Pipe capacity (vol/len)
+    '8':  ['(ft/bbl)', '(m/m3)', '(ft/gal)', '(m/bbl)', '(m/ft3)', '(m/L)'], // Pipe capacity (len/vol)
     '9':  ['(ft3)', '(in3)', '(m3)'],                                   // Solid volume
-    '10': ['(in3)', '(m3)'],                                            // Small volume
+    '10': ['(in3)', '(m3)', '(L)'],                                     // Small volume
     '11': ['(bbl/stk)', '(m3/stk)', '(gal/stk)', '(L/stk)'],           // Stroke displacement
     '12': ['(scf)', '(m3)'],                                            // Gas volume
     '13': ['(ft/min)', '(m/min)', '(ft/s)', '(m/s)', '(ft/hr)', '(m/hr)'], // Velocity
     '14': ['(ft/s)', '(m/s)', '(mph)', '(km/h)'],                       // Nozzle velocity
     '15': ['(ft/hr)', '(m/hr)', '(m/day)', '(ft/day)'],                 // ROP
     '16': ['(rpm)'],                                                    // Rotation
-    '17': ['(gpm)', '(m3/min)', '(bpm)', '(L/min)', '(L/s)'],           // Liquid flow rate drilling
-    '18': ['(bpm)', '(gpm)', '(m3/min)', '(L/min)'],                    // Liquid flow rate cementing
-    '19': ['(psi)', '(kPa)', '(MPa)', '(bar)', '(atm)', '(kgf/cm2)'],   // Pressure
-    '20': ['(ppg)', '(kg/m3)', '(g/cm3)', '(lb/ft3)', '(sg)'],          // Mud weight / ECD
-    '21': ['(ppg)', '(kg/m3)', '(g/cm3)', '(lb/ft3)', '(sg)'],          // ECD
-    '22': ['(°F)', '(°C)', '(K)'],                                      // Temperature
-    '23': ['(°F/100ft)', '(°C/100m)', '(°F/1000ft)', '(°C/m)'],        // Temperature gradient
-    '24': ['(°/100ft)', '(°/30m)', '(°/10m)', '(°/m)'],                // Dogleg
-    '25': ['(lb/bbl)', '(kg/m3)', '(lb/gal)', '(lb/ft3)'],              // Spacer conc solid
-    '26': ['(lb/bbl)', '(kg/m3)', '(g/L)'],                             // Mass-volume ratio
-    '27': ['(gal/bbl)', '(L/m3)', '(mL/m3)'],                          // Volume-volume ratio
-    '28': ['(sk)', '(bag)', '(kg)', '(lb)'],                            // Sack of cement
-    '29': ['(lb/sk)', '(kg/bag)', '(kg/sk)'],                           // Cement solid additive
-    '30': ['(gal/sk)', '(L/bag)', '(L/sk)', '(mL/sk)'],                 // Spacer conc liquid
-    '31': ['(ft3/sk)', '(m3/bag)', '(L/sk)', '(gal/sk)'],               // Cement slurry yield
-    '32': ['(gal/sk)', '(L/bag)', '(mL/sk)'],                           // Cement liq additive
-    '33': [r'($/bbl)', r'($/m3)', r'($/gal)'],                          // Leasing fee
-    '34': ['(mph)', '(km/h)', '(ft/s)', '(m/s)', '(knots)'],            // Sea current
-    '35': ['(Btu/lb/°F)', '(J/kg/°C)', '(kcal/kg/°C)'],                // Heat capacity
-    '36': ['(°F)', '(°C)', '(K)'],                                      // Temperature change
-    '37': ['(Btu/hr/ft/°F)', '(W/m/K)', '(kcal/hr/m/°C)'],             // Thermal conductivity
-    '38': ['(10-6/°F)', '(10-6/°C)'],                                   // Thermal expansion
-    '39': ['(MPa)', '(GPa)', '(psi)', '(kPa)'],                        // Elasticity
-    '40': ['(gal)', '(L)', '(bbl)', '(m3)', '(qt)', '(oz)'],            // Liquid volume
-    '41': ['(sec/qt)', '(sec/L)', '(s/L)'],                             // Funnel viscosity
-    '42': ['(rev)'],                                                    // Revolution
-    '43': ['(ft/day)', '(m/day)', '(ft/hr)', '(m/hr)'],                 // ROP (cutting transport)
-    '44': ['(US ton/h)', '(tonne/h)', '(kg/h)', '(lb/h)'],              // Cutting transport rate
-    // 45-53 use bracketed unit codes from original
-    '45': ['(rpm)'],
-    '46': ['(lbf)', '(N)', '(kN)'],
-    '47': ['(N)', '(lbf)', '(kN)'],
-    '48': ['(fbf/ft)', '(N/m)'],
-    '49': ['(N/m)', '(lbf/ft)'],
-    '50': ['(ft-lb)', '(J)', '(N-m)'],
-    '51': ['(J)', '(ft-lb)', '(N-m)'],
-    '52': ['(psi)', '(kPa)', '(MPa)'],
-    '53': ['(psi/ft)', '(kPa/m)', '(MPa/m)'],
+    '17': ['(gpm)', '(m3/min)', '(bpm)', '(L/min)', '(L/s)'],           // Liquid flow rate for drilling
+    '18': ['(bpm)', '(gpm)', '(m3/min)', '(L/min)'],                    // Liquid flow rate for cementing
+    '19': ['(stk/min)'],                                                // Stroke rate
+    '20': ['(lbf)', '(N)', '(kN)'],                                     // Force
+    '21': ['(ft-lb)', '(J)', '(N-m)'],                                  // Torque
+    '22': ['(psi)', '(kPa)', '(MPa)', '(bar)', '(atm)', '(kgf/cm2)'],   // Pressure
+    '23': ['(psi/ft)', '(kPa/m)', '(MPa/m)'],                           // Pressure gradient
+    '24': ['(kPa)', '(MPa)', '(Pa)', '(psi)'],                          // Stress
+    '25': ['(lbf/100ft2)', '(Pa)', '(N/m2)'],                          // Yield point
+    '26': ['(HP)', '(KW)', '(W)'],                                      // Power
+    '27': ['(cP)', '(Pa-s)', '(mPa-s)'],                                // Viscosity
+    '28': ['(lbf-s^n/100ft2)', '(Pa-s^n)'],                             // Consistency
+    '29': ['(lbm)', '(kg)', '(g)'],                                     // Weight
+    '30': ['(lbm/min)', '(kg/min)', '(kg/s)'],                          // Mass rate
+    '31': ['(lb/ft)', '(kg/m)'],                                        // Line density
+    '32': ['(lb/ft3)', '(kg/m3)', '(g/cm3)'],                           // Density
+    '33': ['(ppg)', '(kg/m3)', '(g/cm3)', '(lb/ft3)', '(sg)'],          // Mud weight
+    '34': ['(°F)', '(°C)', '(K)'],                                      // Temperature
+    '35': ['(°F/100ft)', '(°C/100m)', '(°C/m)'],                       // Temperature gradient
+    '36': ['(min)', '(sec)', '(hr)'],                                   // Schedule time
+    '37': ['(°/100ft)', '(°/30m)', '(°/10m)', '(°/m)'],                // Dogleg
+    '38': ['(°)'],                                                      // Degree
+    '39': ['(lb/bbl)', '(kg/m3)', '(lb/gal)', '(lb/ft3)'],              // Mass - volume ratio
+    '40': ['(gal/bbl)', '(L/m3)', '(mL/m3)'],                          // Volume - volume ratio
+    '41': ['(lb/sk)', '(kg/bag)', '(kg/sk)'],                           // Cement/solid additive Wt/sk
+    '42': ['(ft3/sk)', '(m3/bag)', '(L/sk)', '(gal/sk)'],               // Cement slurry yield
+    '43': ['(gal/sk)', '(L/bag)', '(L/sk)', '(m3/sk)'],                 // Cement liquid additive/water requirement
+    '44': ['(mg/L)', '(ppm)'],                                          // Concentration
+    '45': ['(Btu/hr/ft/°F)', '(W/m/K)', '(kcal/hr/m/°C)'],             // Conductivity
+    '46': ['(Btu/lbm/°F)', '(J/kg/°C)', '(kcal/kg/°C)'],                // Heat Capacity
+    '47': ['(Btu/hr/ft2/°F)', '(W/m2/K)'],                              // Heat transfer coefficient
+    '48': ['(°F)', '(°C)'],                                             // Temperature Drop
+    '49': ['(sec/qt)', '(sec/L)'],                                      // Funnel viscosity
   };
 
   // ════════════════════════════════════════════════════════════════════════════

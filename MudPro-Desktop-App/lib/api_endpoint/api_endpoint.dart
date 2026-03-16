@@ -95,6 +95,14 @@ static const String deleteOperator = 'operators'; // DELETE /:id
   static const String updateObm = "inventory/update-obm"; // PUT /:id
   static const String deleteObm = "inventory/delete-obm"; // DELETE /:id
 
-  
+  // ============ UNIT SYSTEM ENDPOINTS ============
+  static const String unitSystems = "unit-systems";
+  static const String seedUnitSystems = "unit-systems/seed";
+
+  // ============ WELL GENERAL ENDPOINTS ============
+  static const String wellGeneral = "well-general";
+
+  // ============ NOZZLE ENDPOINTS ============
+  static const String nozzle = "nozzle";
 
 }

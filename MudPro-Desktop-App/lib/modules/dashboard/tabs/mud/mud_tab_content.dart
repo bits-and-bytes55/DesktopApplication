@@ -42,20 +42,27 @@ class _MudViewState extends State<MudView> {
   // ═══════════════════════════════════════════════════════════════════════════
   bool _isAutoCalcField(String name) {
     final k = name.toLowerCase().replaceAll('*', '').trim();
-    // Oil/Water Ratio
-    if (k.contains('oil') && k.contains('water') && k.contains('ratio')) return true;
-    // Total Solids (not corrected)
-    if ((k == 'total solids' || k.contains('total solids')) && !k.contains('corr')) return true;
-    // Corrected Solids
-    if (k.contains('corrected solids') || k.contains('corr. solids')) return true;
-    // Excess Lime
-    if (k.contains('excess lime')) return true;
-    // Whole Mud Alkalinity (POM) — computed from MBT
-    if (k.contains('whole mud alkalinity') || k.contains('alkalinity (pom)') || k.contains('alkalinity(pom)')) return true;
-    // Water Phase Salinity — any variant (VPS, WPS, ppm, %)
-    if (k.contains('water phase salinity') || k.contains('water phase sal')) return true;
     // LSRYP
     if (k == 'lsryp' || k.contains('lsryp')) return true;
+    // Oil/Water Ratio
+    if (k.contains('oil') && k.contains('water') && k.contains('ratio')) return true;
+    // Total Solids — "*Solids (% vol)" → after stripping *: "solids (% vol)"
+    if ((k == 'solids' || k.contains('total solids') ||
+        (k.startsWith('solids') && !k.contains('corr') && !k.contains('drill'))) &&
+        !k.contains('corr') && !k.contains('drill')) return true;
+    // Corrected Solids
+    if (k.contains('corrected solids') || k.contains('corr. solids')) return true;
+    // Excess Lime — auto-calc = Whole Mud Alkalinity (POM) × 1.295
+    if (k.contains('excess lime')) return true;
+    // CaCl2 Concentration (mg/l) — auto-calc = 1.565 × Whole Mud Chlorides
+    if (k.contains('cacl2 concentration') || k.contains('cacl2 conc') ||
+        (k.startsWith('cacl2') && k.contains('mg'))) return true;
+    // CaCl2 (% wt) — auto-calc from Whole Mud Chlorides + Water
+    if (k.startsWith('cacl2') && (k.contains('wt') || k.contains('%'))) return true;
+    // Water Phase Salinity — cascades from CaCl2 Concentration
+    if (k.contains('water phase salinity') || k.contains('water phase sal')) return true;
+    // Whole Mud Alkalinity (POM) — EDITABLE user input, drives Excess Lime
+    // Whole Mud Chlorides — EDITABLE user input, drives CaCl2 chain
     return false;
   }
 
@@ -367,8 +374,8 @@ class _MudViewState extends State<MudView> {
     return Container(
       height: 30,
       decoration: BoxDecoration(
-        // Yellow tint for auto-calculated rows, white for editable
-        color: isAutoCalc ? const Color(0xFFFFFDE7) : Colors.white,
+        // Grey tint for auto-calculated rows, white for editable
+        color: isAutoCalc ? Colors.grey.shade100 : Colors.white,
         border: Border(
             bottom: BorderSide(
                 color: isLast ? Colors.transparent : Colors.grey.shade100)),
@@ -394,12 +401,12 @@ class _MudViewState extends State<MudView> {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                // Small "auto" indicator icon for calculated fields
+                // Small indicator icon for calculated fields
                 if (isAutoCalc)
                   Padding(
                     padding: const EdgeInsets.only(left: 2),
                     child: Icon(Icons.functions,
-                        size: 10, color: Colors.orange.shade400),
+                        size: 10, color: Colors.grey.shade500),
                   ),
               ],
             );
@@ -427,7 +434,7 @@ class _MudViewState extends State<MudView> {
                           style: AppTheme.caption.copyWith(
                             color: cell.value.value.isEmpty
                                 ? Colors.grey.shade400
-                                : Colors.orange.shade800,
+                                : Colors.grey.shade700,
                             fontSize: 10,
                             fontWeight: FontWeight.w600,
                           ),
