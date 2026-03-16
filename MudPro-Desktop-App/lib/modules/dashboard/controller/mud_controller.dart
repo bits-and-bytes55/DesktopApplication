@@ -171,15 +171,25 @@ class MudController extends GetxController {
       (k.contains('whole mud alkalinity') || k.contains('alkalinity (pom)') ||
        k.contains('alkalinity(pom)') || k.contains('mud alkalinity (pm)')));
 
-  // Matches: "Water phase Salinity (WPS)", "Water phase Salinity (VPS)", etc.
-  // The output row: single water phase salinity field (% or ppm comes from context)
+  // Water Phase Salinity (WPS) ppm — first WPS row
+  // Excel row 55: =IFERROR(10000*L54,"")  — L54=CaCl2(% wt)
   String? get _wpsSaltPercentKey => _findKey((k) =>
-      k.contains('water phase salinity') || k.contains('water phase sal'));
-
-  // If there's a separate ppm row
-  String? get _wpsSaltPpmKey => _findKey((k) =>
       (k.contains('water phase salinity') || k.contains('water phase sal')) &&
       k.contains('ppm'));
+
+  // Water Phase Salinity (WPS) mg/l — second WPS row
+  // Excel row 56: =IFERROR(10000*L54*L61,"")  — L54=CaCl2(% wt), L61=Brine Density SG
+  String? get _wpsSaltPpmKey => _findKey((k) =>
+      (k.contains('water phase salinity') || k.contains('water phase sal')) &&
+      (k.contains('mg') || k.contains('mg/l')));
+
+  // Brine Density (SG) — L61 in Excel, used for WPS mg/l calculation
+  // This is in the Solid Analysis section of the table
+  String? get _brineDensitySgKey => _findKey((k) =>
+      k == 'brine density' ||
+      k.contains('brine density') ||
+      k == 'brine density (sg)' ||
+      k == 'brine sg');
 
   String? get _bariteKey => _findKey((k) =>
       k == 'barite' || (k.contains('barite') && !k.contains('brine')));
@@ -294,7 +304,7 @@ class MudController extends GetxController {
     debugPrint('[AutoCalc] _excessLimeKey=$_excessLimeKey');
     debugPrint('[AutoCalc] _wholeMudChlorideKey=$_wholeMudChlorideKey  (→ CaCl2 Conc & CaCl2 wt)');
     debugPrint('[AutoCalc] _cacl2ConcKey=$_cacl2ConcKey  _cacl2PctWtKey=$_cacl2PctWtKey');
-    debugPrint('[AutoCalc] _wpsSaltPercentKey=$_wpsSaltPercentKey  _wpsSaltPpmKey=$_wpsSaltPpmKey');
+    debugPrint('[AutoCalc] _wpsSaltPercentKey(ppm)=$_wpsSaltPercentKey  _wpsSaltPpmKey(mgl)=$_wpsSaltPpmKey  _brineDensitySgKey=$_brineDensitySgKey');
 
     for (int i = 0; i < samples.length; i++) {
 
@@ -437,26 +447,29 @@ class MudController extends GetxController {
         });
       }
 
-      // ── 11. Water Phase Salinity (WPS) ppm = CaCl2 Conc × 10000 ──────────
-      //    Excel: =IFERROR(10000*L55,"")  — L55=CaCl2 Concentration(mg/l)
-      //    CaCl2 Conc is itself auto-calc (step 9), so WPS cascades from MBT
+      // ── 11. Water Phase Salinity (WPS) ppm = CaCl2(% wt) × 10000 ──────────
+      //    Excel row 55: =IFERROR(10000*L54,"")
+      //    L54 = CaCl2 (% wt) — auto-calc field
       final wpsTarget = _wpsSaltPercentKey;
       if (wpsTarget != null) {
-        _watchOneOpt(i, _cacl2ConcKey, wpsTarget, (a) {
+        _watchOneOpt(i, _cacl2PctWtKey, wpsTarget, (a) {
           final v = double.tryParse(a) ?? 0;
           return v == 0 ? '' : (v * 10000).toStringAsFixed(0);
         });
       }
 
-      // ── 12. Water Phase Salinity (WPS) mg/l = CaCl2 Conc × 10000 × BrineSG
-      //    Excel: =IFERROR(10000*L55*L61,"")
-      final wpsPpmTarget = _wpsSaltPpmKey;
-      if (wpsPpmTarget != null && wpsPpmTarget != wpsTarget) {
-        _watchTwoOpt(i, _cacl2ConcKey, _lgsKey, wpsPpmTarget, (a, b) {
-          final conc   = double.tryParse(a) ?? 0;
-          final factor = double.tryParse(b) ?? 0;
-          if (conc == 0) return '';
-          return (conc * 10000 * (factor == 0 ? 1.0 : factor)).toStringAsFixed(0);
+      // ── 12. Water Phase Salinity (WPS) mg/l = CaCl2(% wt) × 10000 × BrineDensity(SG)
+      //    Excel row 56: =IFERROR(10000*L54*L61,"")
+      //    L54 = CaCl2 (% wt), L61 = Brine Density (SG)
+      final wpsMglTarget = _wpsSaltPpmKey;
+      if (wpsMglTarget != null && wpsMglTarget != wpsTarget) {
+        _watchTwoOpt(i, _cacl2PctWtKey, _brineDensitySgKey, wpsMglTarget, (a, b) {
+          final cacl2    = double.tryParse(a) ?? 0;
+          final brineSg  = double.tryParse(b) ?? 0;
+          if (cacl2 == 0) return '';
+          // If no brine density row found, fall back to 1.0
+          final sg = brineSg == 0 ? 1.0 : brineSg;
+          return (cacl2 * 10000 * sg).toStringAsFixed(0);
         });
       }
     }
