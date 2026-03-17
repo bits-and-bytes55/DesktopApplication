@@ -30,9 +30,9 @@ class MudController extends GetxController {
   var isWeightedMud       = false.obs;
 
   final fluidnameController = TextEditingController();
-  final oilSgController     = TextEditingController(text: '0.80');
-  final hgsSgController     = TextEditingController(text: '4.20');
-  final lgsSgController     = TextEditingController(text: '2.60');
+  final oilSgController     = TextEditingController(text: '0.81');
+  final hgsSgController     = TextEditingController(text: '4.10');
+  final lgsSgController     = TextEditingController(text: '2.40');
   final shaleCecController  = TextEditingController(text: '15.00');
   final bentCecController   = TextEditingController(text: '65.00');
 
