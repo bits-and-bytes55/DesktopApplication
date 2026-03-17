@@ -60,6 +60,12 @@ class _MudViewState extends State<MudView> {
     if (k.startsWith('cacl2') && (k.contains('wt') || k.contains('%'))) return true;
     // Water Phase Salinity — cascades from CaCl2 Concentration
     if (k.contains('water phase salinity') || k.contains('water phase sal')) return true;
+    // ── WBM-only auto-calc fields ────────────────────────────────────────────
+    if (k == 'sand content' || k.contains('sand content')) return true;
+    if (k.contains('filtrate alkalinity')) return true;
+    if (k == 'calcium' || (k.startsWith('calcium') && !k.contains('chloride'))) return true;
+    if ((k.contains('mud chloride') || k == 'mud chlorides') && !k.contains('whole')) return true;
+    if (k == 'kcl' || k.startsWith('kcl')) return true;
     // Whole Mud Alkalinity (POM) — EDITABLE user input, drives Excess Lime
     // Whole Mud Chlorides — EDITABLE user input, drives CaCl2 chain
     return false;

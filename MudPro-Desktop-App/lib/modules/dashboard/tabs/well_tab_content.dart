@@ -11,6 +11,8 @@ import 'package:mudpro_desktop_app/modules/dashboard/widgets/tabular_database.da
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 const double _kRowH = 22.0;
+const double _kHeaderH = 28.0;
+const double _kFooterH = 28.0;
 
 const List<String> _kTimeSlots = [
   '00:00','00:30','01:00','01:30','02:00','02:30','03:00','03:30',
@@ -629,8 +631,8 @@ class _MiddlePortionState extends State<MiddlePortion> {
   Widget build(BuildContext context) {
     return LayoutBuilder(builder: (ctx, bc) {
       const double cementRowH = 28.0;
-      const double gap        = 5.0;
-      const double bottomPad  = 8.0;
+      const double gap        = 2.0;
+      const double bottomPad  = 4.0;
       final double totalH     = bc.maxHeight - bottomPad;
       final double flexH      = totalH - cementRowH - gap * 3;
 
@@ -639,13 +641,13 @@ class _MiddlePortionState extends State<MiddlePortion> {
         child: Column(
           mainAxisSize: MainAxisSize.max,
           children: [
-            SizedBox(height: flexH * 3 / 9, child: CasedHoleSection()),
+            SizedBox(height: flexH * 3.2 / 10, child: CasedHoleSection()),
             const SizedBox(height: gap),
-            SizedBox(height: flexH * 2 / 9, child: OpenHoleSection()),
+            SizedBox(height: flexH * 2.8 / 10, child: OpenHoleSection()),
             const SizedBox(height: gap),
             SizedBox(height: cementRowH, child: _cementRow()),
             const SizedBox(height: gap),
-            SizedBox(height: flexH * 4 / 9, child: DrillStringSection()),
+            SizedBox(height: flexH * 4.0 / 10, child: DrillStringSection()),
           ],
         ),
       );
@@ -705,34 +707,44 @@ class _CasedHoleSectionState extends State<CasedHoleSection> {
   @override
   Widget build(BuildContext context) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(children: [
-        Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), color: AppTheme.primaryColor.withOpacity(0.1),
-          child: Text("Cased Hole", style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.primaryColor))),
-        const Spacer(),
-        const Text("Add New Casing", style: TextStyle(fontSize: 9)),
-        const SizedBox(width: 6),
-        Container(
-          height: 22, padding: const EdgeInsets.symmetric(horizontal: 6),
-          decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300)),
-          child: DropdownButtonHideUnderline(child: DropdownButton<String>(
-            value: selectedCasingType,
-            icon: const Icon(Icons.arrow_drop_down, size: 13),
-            style: const TextStyle(fontSize: 9, color: Colors.black),
-            menuMaxHeight: 200,
-            onChanged: (v) { if (v != null) setState(() => selectedCasingType = v); },
-            items: casingTypes.map((t) => DropdownMenuItem(value: t, child: Text(t, style: const TextStyle(fontSize: 9)))).toList(),
-          )),
-        ),
-        const SizedBox(width: 6),
-        InkWell(
-          onTap: () => setState(() {
-            tableData.add(List.generate(7, (_) => TextEditingController()));
-            tableData.last[0].text = selectedCasingType;
-          }),
-          child: Icon(Icons.add_box, color: AppTheme.primaryColor, size: 16)),
-        const SizedBox(width: 4),
-      ]),
-      const SizedBox(height: 3),
+      SizedBox(
+        height: _kHeaderH,
+        child: Row(children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            color: AppTheme.primaryColor.withOpacity(0.1),
+            child: Text("Cased Hole", style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.primaryColor)),
+          ),
+          const Spacer(),
+          const Text("Add New Casing", style: TextStyle(fontSize: 9)),
+          const SizedBox(width: 6),
+          Container(
+            height: 22,
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300)),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: selectedCasingType,
+                icon: const Icon(Icons.arrow_drop_down, size: 13),
+                style: const TextStyle(fontSize: 9, color: Colors.black),
+                menuMaxHeight: 200,
+                onChanged: (v) { if (v != null) setState(() => selectedCasingType = v); },
+                items: casingTypes.map((t) => DropdownMenuItem(value: t, child: Text(t, style: const TextStyle(fontSize: 9)))).toList(),
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+          InkWell(
+            onTap: () => setState(() {
+              tableData.add(List.generate(7, (_) => TextEditingController()));
+              tableData.last[0].text = selectedCasingType;
+            }),
+            child: Icon(Icons.add_box, color: AppTheme.primaryColor, size: 16),
+          ),
+          const SizedBox(width: 4),
+        ]),
+      ),
+      const SizedBox(height: 2),
       Expanded(child: LayoutBuilder(builder: (ctx, bc) {
         final double avail = bc.maxWidth - 28;
         final double cw = avail / 7;
@@ -774,6 +786,13 @@ class _CasedHoleSectionState extends State<CasedHoleSection> {
           ),
         );
       })),
+      SizedBox(
+        height: _kFooterH,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          color: AppTheme.primaryColor.withOpacity(0.05),
+        ),
+      ),
     ]);
   }
 }
@@ -801,9 +820,17 @@ class _OpenHoleSectionState extends State<OpenHoleSection> {
   @override
   Widget build(BuildContext context) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), color: AppTheme.primaryColor.withOpacity(0.1),
-        child: Text("Open Hole", style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.primaryColor))),
-      const SizedBox(height: 3),
+      SizedBox(
+        height: _kHeaderH,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          color: AppTheme.primaryColor.withOpacity(0.1),
+          alignment: Alignment.centerLeft,
+          child: Text("Open Hole", style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.primaryColor)),
+        ),
+      ),
+      const SizedBox(height: 2),
       Expanded(child: LayoutBuilder(builder: (ctx, bc) {
         final double avail = bc.maxWidth - 28;
         final double cw = avail / 4;
@@ -835,6 +862,13 @@ class _OpenHoleSectionState extends State<OpenHoleSection> {
           ),
         );
       })),
+      SizedBox(
+        height: _kFooterH,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          color: AppTheme.primaryColor.withOpacity(0.05),
+        ),
+      ),
     ]);
   }
 }
@@ -856,10 +890,15 @@ class _DrillStringSectionState extends State<DrillStringSection> {
   @override
   Widget build(BuildContext context) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(children: [
-        Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), color: AppTheme.primaryColor.withOpacity(0.1),
-          child: Text("Drill String", style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.primaryColor))),
-        const Spacer(),
+      SizedBox(
+        height: _kHeaderH,
+        child: Row(children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            color: AppTheme.primaryColor.withOpacity(0.1),
+            child: Text("Drill String", style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.primaryColor)),
+          ),
+          const Spacer(),
         Tooltip(onTriggered: () => Get.to(() => TabularDatabaseView()), message: 'Tabular Database',
           child: Icon(Icons.table_chart, color: AppTheme.primaryColor, size: 16)),
         const SizedBox(width: 4),
@@ -879,6 +918,7 @@ class _DrillStringSectionState extends State<DrillStringSection> {
                   child: const Text('Save All', style: TextStyle(fontSize: 9, color: Colors.white, fontWeight: FontWeight.w600))))),
         const SizedBox(width: 4),
       ]),
+      ),
       const SizedBox(height: 3),
       Expanded(child: Obx(() {
         if (ds.isLoading.value) return const Center(child: CircularProgressIndicator());
@@ -911,21 +951,24 @@ class _DrillStringSectionState extends State<DrillStringSection> {
           );
         });
       })),
-      Obx(() => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        color: AppTheme.primaryColor.withOpacity(0.05),
-        child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          const Text("Total String Length < Well Depth", style: TextStyle(fontSize: 9, color: Colors.black54)),
-          Row(children: [
-            const Text("Total Length (ft)", style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600)),
-            const SizedBox(width: 6),
-            Container(
-              width: 70, height: 20,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), color: Colors.white),
-              child: Text(ds.totalLength.value.toStringAsFixed(1), style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w600))),
+      Obx(() => SizedBox(
+        height: _kFooterH,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          color: AppTheme.primaryColor.withOpacity(0.05),
+          child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            const Text("Total String Length < Well Depth", style: TextStyle(fontSize: 9, color: Colors.black54)),
+            Row(children: [
+              const Text("Total Length (ft)", style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600)),
+              const SizedBox(width: 6),
+              Container(
+                width: 70, height: 20,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), color: Colors.white),
+                child: Text(ds.totalLength.value.toStringAsFixed(1), style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w600))),
+            ]),
           ]),
-        ]),
+        ),
       )),
     ]);
   }
@@ -971,8 +1014,8 @@ class RightPortion extends StatelessWidget {
         : Get.put(OthersController());
     return LayoutBuilder(builder: (ctx, bc) {
       const double cementRowH = 28.0;
-      const double gap        = 5.0;
-      const double bottomPad  = 8.0;
+      const double gap        = 2.0;
+      const double bottomPad  = 4.0;
       final double totalH     = bc.maxHeight - bottomPad;
       final double flexH      = totalH - cementRowH - gap * 3;
 
@@ -981,13 +1024,13 @@ class RightPortion extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.max,
           children: [
-            SizedBox(height: flexH * 3 / 9, child: BitSection()),
+            SizedBox(height: flexH * 3.2 / 10, child: BitSection()),
             const SizedBox(height: gap),
-            SizedBox(height: flexH * 2 / 9, child: NozzleSection()),
+            SizedBox(height: flexH * 2.8 / 10, child: NozzleSection()),
             const SizedBox(height: gap),
             const SizedBox(height: cementRowH),
             const SizedBox(height: gap),
-            SizedBox(height: flexH * 4 / 9, child: TimeDistributionSection(activityController: ac)),
+            SizedBox(height: flexH * 4.0 / 10, child: TimeDistributionSection(activityController: ac)),
           ],
         ),
       );
@@ -1016,16 +1059,40 @@ class _BitSectionState extends State<BitSection> {
   @override
   Widget build(BuildContext context) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), color: AppTheme.primaryColor.withOpacity(0.1),
-        child: Text("Bit", style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.primaryColor))),
-      Table(
-        border: TableBorder.all(color: Colors.grey.shade300, width: 1),
-        defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-        columnWidths: const {0: FlexColumnWidth(2), 1: FlexColumnWidth(2), 2: FlexColumnWidth(1)},
-        children: [
-          _bRow("Mft","Mft",""), _bRow("Type","Type",""), _bRow("No. of Bits","No. of Bits",""),
-          _bRow("Size","Size","(in)"), _bRow("Depth-in","Depth-in","(ft)"), _bRow("Depth","Depth","(ft)"),
-        ],
+      SizedBox(
+        height: _kHeaderH,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          color: AppTheme.primaryColor.withOpacity(0.1),
+          alignment: Alignment.centerLeft,
+          child: Text("Bit", style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.primaryColor)),
+        ),
+      ),
+      const SizedBox(height: 3),
+      Expanded(
+        child: SingleChildScrollView(
+          child: Table(
+            border: TableBorder.all(color: Colors.grey.shade300, width: 1),
+            defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+            columnWidths: const {0: FlexColumnWidth(2), 1: FlexColumnWidth(2), 2: FlexColumnWidth(1)},
+            children: [
+              _bRow("Mft", "Mft", ""),
+              _bRow("Type", "Type", ""),
+              _bRow("No. of Bits", "No. of Bits", ""),
+              _bRow("Size", "Size", "(in)"),
+              _bRow("Depth-in", "Depth-in", "(ft)"),
+              _bRow("Depth", "Depth", "(ft)"),
+            ],
+          ),
+        ),
+      ),
+      SizedBox(
+        height: _kFooterH,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          color: AppTheme.primaryColor.withOpacity(0.05),
+        ),
       ),
     ]);
   }
@@ -1087,12 +1154,18 @@ class _NozzleSectionState extends State<NozzleSection> {
   @override
   Widget build(BuildContext context) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        color: AppTheme.primaryColor.withOpacity(0.1),
-        child: Text("Nozzle (1/32in)", style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.primaryColor)),
+      SizedBox(
+        height: _kHeaderH,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          color: AppTheme.primaryColor.withOpacity(0.1),
+          alignment: Alignment.centerLeft,
+          child: Text("Nozzle (1/32in)", style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.primaryColor)),
+        ),
       ),
-      Flexible(
+      const SizedBox(height: 2),
+      Expanded(
         child: Obx(() {
           final entries = nc.entries;
           for (int i = 0; i < entries.length; i++) {
@@ -1155,26 +1228,29 @@ class _NozzleSectionState extends State<NozzleSection> {
           );
         }),
       ),
-      Obx(() => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        color: AppTheme.primaryColor.withOpacity(0.05),
-        child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          Row(children: [
-            const Text("TFA (in²)", style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600)),
-            const SizedBox(width: 4),
-            if (nc.isSaving.value)
-              const SizedBox(width: 10, height: 10, child: CircularProgressIndicator(strokeWidth: 1.5)),
-          ]),
-          Container(
-            width: 60, height: 20,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), color: Colors.white),
-            child: Text(
-              nc.tfa.value.toStringAsFixed(4),
-              style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w600),
+      Obx(() => SizedBox(
+        height: _kFooterH,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          color: AppTheme.primaryColor.withOpacity(0.05),
+          child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            Row(children: [
+              const Text("TFA (in²)", style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600)),
+              const SizedBox(width: 4),
+              if (nc.isSaving.value)
+                const SizedBox(width: 10, height: 10, child: CircularProgressIndicator(strokeWidth: 1.5)),
+            ]),
+            Container(
+              width: 60, height: 20,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), color: Colors.white),
+              child: Text(
+                nc.tfa.value.toStringAsFixed(4),
+                style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w600),
+              ),
             ),
-          ),
-        ]),
+          ]),
+        ),
       )),
     ]);
   }
@@ -1224,7 +1300,7 @@ class _TimeDistributionSectionState extends State<TimeDistributionSection> {
   @override
   void initState() {
     super.initState();
-    tableData = List.generate(5, (_) => {'activity': '', 'time': TextEditingController()});
+    tableData = List.generate(6, (_) => {'activity': '', 'time': TextEditingController()});
     _fetchActivities();
   }
 
@@ -1259,11 +1335,17 @@ class _TimeDistributionSectionState extends State<TimeDistributionSection> {
   @override
   Widget build(BuildContext context) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        color: AppTheme.primaryColor.withOpacity(0.1),
-        child: Text("Time Distribution", style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.primaryColor)),
+      SizedBox(
+        height: _kHeaderH,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          color: AppTheme.primaryColor.withOpacity(0.1),
+          alignment: Alignment.centerLeft,
+          child: Text("Time Distribution", style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.primaryColor)),
+        ),
       ),
+      const SizedBox(height: 2),
       Expanded(child: SingleChildScrollView(
         child: Table(
           border: TableBorder.all(color: Colors.grey.shade300, width: 1),
@@ -1344,6 +1426,13 @@ class _TimeDistributionSectionState extends State<TimeDistributionSection> {
           ],
         ),
       )),
+      SizedBox(
+        height: _kFooterH,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          color: AppTheme.primaryColor.withOpacity(0.05),
+        ),
+      ),
     ]);
   }
 }

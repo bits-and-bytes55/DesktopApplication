@@ -204,6 +204,48 @@ class MudController extends GetxController {
   String? get _brineDensityKey => _findKey((k) =>
       k == 'brine density' || k.contains('brine density'));
 
+  // ── WBM-specific key getters ─────────────────────────────────────────────
+  // Sand Content row — WBM auto-calc
+  String? get _sandContentKey => _findKey((k) =>
+      k == 'sand content' || k.contains('sand content'));
+
+  // Filtrate Alkalinity (Pf) — WBM auto-calc = API Filtrate × 1.295
+  String? get _filtAlkPfKey => _findKey((k) =>
+      k.contains('filtrate alkalinity') && (k.contains('pf') || k.contains('(pf)')));
+
+  // Filtrate Alkalinity (Mf) — WBM auto-calc = Mud Filtrate × 1.295
+  String? get _filtAlkMfKey => _findKey((k) =>
+      k.contains('filtrate alkalinity') && (k.contains('mf') || k.contains('(mf)')));
+
+  // Calcium — WBM auto-calc = 1.565 × Chlorides
+  String? get _calciumKey => _findKey((k) =>
+      k == 'calcium' || k.startsWith('calcium') && !k.contains('chloride'));
+
+  // Chlorides input — WBM source for Calcium and Mud Chlorides
+  // Must NOT match 'whole mud chlorides' (that's OBM)
+  String? get _chloridesInputKey => _findKey((k) =>
+      (k == 'chlorides' || k.startsWith('chlorides') || k == '*chlorides') &&
+      !k.contains('whole') && !k.contains('mud') && !k.contains('calcium'));
+
+  // Mud Chlorides — WBM auto-calc = 10000 × CaCl2 (% wt)
+  String? get _mudChloridesMglKey => _findKey((k) =>
+      (k.contains('mud chloride') || k == 'mud chlorides') &&
+      !k.contains('whole'));
+
+  // KCl — WBM auto-calc = 10000 × CaCl2 × BrineSG
+  String? get _kclKey => _findKey((k) =>
+      k == 'kcl' || k.startsWith('kcl'));
+
+  // API Filtrate — source for Filtrate Alkalinity Pf (WBM)
+  String? get _apiFiltratePfKey => _findKey((k) =>
+      k.contains('api filtrate') ||
+      (k.contains('filtrate') && !k.contains('alkalinity') && !k.contains('hthp')));
+
+  // Mud Filtrate — source for Filtrate Alkalinity Mf (WBM)
+  String? get _mudFiltrateMfKey => _findKey((k) =>
+      (k == 'mud filtrate' || k.contains('mud filtrate') || k.contains('filtrate alkalinity (mf)')) &&
+      !k.contains('api') && !k.contains('hthp') && !k.contains('alkalinity'));
+
   // ═══════════════════════════════════════════════════════════════════════════
   // LIFECYCLE
   // ═══════════════════════════════════════════════════════════════════════════
@@ -486,7 +528,77 @@ class MudController extends GetxController {
           return (0.99707 + (0.007923 * s) + (0.00004964 * s * s)).toStringAsFixed(3);
         });
       }
-    }
+
+      // ── WBM-only auto-calculations ──────────────────────────────────────
+      if (selectedFluidType.value == 'Water-based') {
+
+        // WBM-1. Sand Content = ROUNDUP(100*Solids/(Solids+Oil)) & "/" & ROUNDDOWN(100*Oil/(Oil+Solids))
+        //   Excel: =IFERROR(ROUNDUP(100*L46/(L46+L47),0) & "/" & ROUNDDOWN(100*L47/(L47+L46),0), "")
+        //   L46 = *Solids (% vol), L47 = *Oil (% vol)  [for WBM, 'Oil' cell holds the sand fraction]
+        final scTarget = _sandContentKey;
+        if (scTarget != null) {
+          _watchTwoOpt(i, _solidsKey, _oilKey, scTarget, (a, b) {
+            final s = double.tryParse(a) ?? 0;
+            final o = double.tryParse(b) ?? 0;
+            if (s == 0 && o == 0) return '';
+            final total = s + o;
+            if (total == 0) return '';
+            return '${(100 * s / total).ceil()}/${(100 * o / total).floor()}';
+          });
+        }
+
+        // WBM-2. Filtrate Alkalinity (Pf) = API Filtrate × 1.295
+        //   Excel: =IFERROR(L49*1.295,"")  — L49 = API Filtrate
+        final filtPfTarget = _filtAlkPfKey;
+        if (filtPfTarget != null) {
+          _watchOneOpt(i, _apiFiltratePfKey, filtPfTarget, (a) {
+            final v = double.tryParse(a) ?? 0;
+            return v == 0 ? '' : (v * 1.295).toStringAsFixed(2);
+          });
+        }
+
+        // WBM-3. Filtrate Alkalinity (Mf) = Mud Filtrate × 1.295
+        final filtMfTarget = _filtAlkMfKey;
+        if (filtMfTarget != null) {
+          _watchOneOpt(i, _mudFiltrateMfKey, filtMfTarget, (a) {
+            final v = double.tryParse(a) ?? 0;
+            return v == 0 ? '' : (v * 1.295).toStringAsFixed(2);
+          });
+        }
+
+        // WBM-4. Calcium = 1.565 × Chlorides
+        //   Excel: =1.565*L51  — L51 = Chlorides
+        final calciumTarget = _calciumKey;
+        if (calciumTarget != null) {
+          _watchOneOpt(i, _chloridesInputKey, calciumTarget, (a) {
+            final v = double.tryParse(a) ?? 0;
+            return v == 0 ? '' : (v * 1.565).toStringAsFixed(2);
+          });
+        }
+
+        // WBM-5. Mud Chlorides = 10000 × CaCl2 (% wt)
+        //   Excel: =IFERROR(10000*L54,"")  — L54 = CaCl2 (% wt)
+        final mudChlTarget = _mudChloridesMglKey;
+        if (mudChlTarget != null) {
+          _watchOneOpt(i, _cacl2PctWtKey, mudChlTarget, (a) {
+            final v = double.tryParse(a) ?? 0;
+            return v == 0 ? '' : (v * 10000).toStringAsFixed(0);
+          });
+        }
+
+        // WBM-6. KCl = 10000 × CaCl2 (% wt) × BrineSG
+        //   Excel: =IFERROR(10000*L54*L61,"")  — L54=CaCl2, L61=BrineSG
+        final kclTarget = _kclKey;
+        if (kclTarget != null) {
+          _watchOneOpt(i, _cacl2PctWtKey, kclTarget, (a) {
+            final s = double.tryParse(a) ?? 0;
+            if (s == 0) return '';
+            final brineSG = 0.99707 + (0.007923 * s) + (0.00004964 * s * s);
+            return (s * 10000 * brineSG).toStringAsFixed(0);
+          });
+        }
+      }
+    } // end for loop
   }
 
 
@@ -520,6 +632,12 @@ class MudController extends GetxController {
     if (k.startsWith('cacl2') && (k.contains('wt') || k.contains('%'))) return true;
     // Water Phase Salinity
     if (k.contains('water phase salinity') || k.contains('water phase sal')) return true;
+    // WBM auto-calc fields
+    if (k == 'sand content' || k.contains('sand content')) return true;
+    if (k.contains('filtrate alkalinity')) return true;
+    if (k == 'calcium' || (k.startsWith('calcium') && !k.contains('chloride'))) return true;
+    if ((k.contains('mud chloride') || k == 'mud chlorides') && !k.contains('whole')) return true;
+    if (k == 'kcl' || k.startsWith('kcl')) return true;
     return false;
   }
 
@@ -573,6 +691,7 @@ class MudController extends GetxController {
         'hgsSG':        vals['hgsSG'],
         'lgsSG':        vals['lgsSG'],
         'sampleIndex':  sampleIdx,
+        'fluidType':    selectedFluidType.value,  // WBM vs OBM branching
       });
 
       final existingId = _solidAnalysisIds[sampleIdx];

@@ -51,7 +51,7 @@ class UgStController extends GetxController {
   Future<void> fetchCasings() async {
     isLoading.value = true;
     try {
-      final response = await http.get(Uri.parse('${ApiEndpoint.baseUrl}/api/casing'));
+      final response = await http.get(Uri.parse('${ApiEndpoint.baseUrl}casing'));
       if (response.statusCode == 200) {
         final Map<String, dynamic> body = json.decode(response.body);
         if (body['success']) {
@@ -69,7 +69,7 @@ class UgStController extends GetxController {
   Future<void> addCasing(CasingRow casing) async {
     try {
       final response = await http.post(
-        Uri.parse('${ApiEndpoint.baseUrl}/api/casing'),
+        Uri.parse('${ApiEndpoint.baseUrl}casing'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode(casing.toJson()),
       );
@@ -85,7 +85,7 @@ class UgStController extends GetxController {
     if (casing.dbId == null) return;
     try {
       final response = await http.put(
-        Uri.parse('${ApiEndpoint.baseUrl}/api/casing/${casing.dbId}'),
+        Uri.parse('${ApiEndpoint.baseUrl}casing/${casing.dbId}'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode(casing.toJson()),
       );
@@ -99,7 +99,7 @@ class UgStController extends GetxController {
 
   Future<void> deleteCasing(String dbId) async {
     try {
-      final response = await http.delete(Uri.parse('${ApiEndpoint.baseUrl}/api/casing/$dbId'));
+      final response = await http.delete(Uri.parse('${ApiEndpoint.baseUrl}casing/$dbId'));
       if (response.statusCode == 200) {
         fetchCasings();
       }

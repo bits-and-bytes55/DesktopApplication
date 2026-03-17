@@ -3,7 +3,7 @@ import SolidsAnalysis from "../../modules/SolidAnalysis/solidanalysismodel.js";
 // ═══════════════════════════════════════════════════════════════════════════
 // HELPER: pure calculation — no DB touch
 // ═══════════════════════════════════════════════════════════════════════════
-function computeSolidsAnalysis({ mudWeight, retortSolids, oilVol, waterVol, bariteLb, bentoniteLb, cacl2Pct, oilSG, hgsSG, lgsSG }) {
+function computeSolidsAnalysis({ mudWeight, retortSolids, oilVol, waterVol, bariteLb, bentoniteLb, cacl2Pct, oilSG, hgsSG, lgsSG, fluidType }) {
   const MW = Number(mudWeight) || 0;
   const S = Number(retortSolids) || 0;
   const O = Number(oilVol) || 0;
@@ -13,37 +13,52 @@ function computeSolidsAnalysis({ mudWeight, retortSolids, oilVol, waterVol, bari
   const LSG = Number(lgsSG) || 2.40;
   const saltPct = Number(cacl2Pct) || 0;
   const bentLb = Number(bentoniteLb) || 0;
+  const isWBM = (fluidType === 'Water-based');
 
   if (MW <= 0) return null;
 
-  // 1. Brine Density (SG) = 0.99707 + (0.007923 * CaCl2%) + (0.00004964 * (CaCl2%^2))
-  const brineSG = 0.99707 + (0.007923 * saltPct) + (0.00004964 * Math.pow(saltPct, 2));
+  let brineSG, brineVol, avgSG, dissolvedSolids, correctedSolids;
 
-  // 2. Brine % vol = (100 * Water) / (BrineSG * (100 - CaCl2%))
-  // Based on user Excel: =IFERROR((100*L47)/(L61*(100-L54)),"")
-  const brineVol = (brineSG > 0 && (100 - saltPct) > 0)
-    ? (100 * W) / (brineSG * (100 - saltPct))
-    : W;
+  if (isWBM) {
+    // ── Water-Based Mud formulas ──────────────────────────────────────────
+    // For simple WBM: no CaCl2 salt correction; brine ≈ fresh water (SG=1.0)
+    brineSG = 1.0;
+    brineVol = W;  // All water vol is brine vol for WBM
 
-  // 3. Average Solids SG (Avg. SG of Solids)
-  // Formula: =IFERROR((100*(L25/8.34)-(L46*L59)-(L61*L62))/L45,"")
-  // L25=MW, L46=Oil, L59=OilSG, L61=BrineSG, L62=BrineVol, L45=Solids(retort)
-  const avgSG = S > 0
-    ? ( (100 * (MW / 8.34)) - (O * OSG) - (brineSG * brineVol) ) / S
-    : 0;
+    // dissolvedSolids = 0 for pure WBM (no dissolved salts in retort reading)
+    dissolvedSolids = 0;
 
-  // 4. Dissolved Solids (%) = (Brine SG - 1) * 100
-  const dissolvedSolids = (brineSG - 1) * 100;
+    // correctedSolids = retortSolids (no salt correction needed)
+    correctedSolids = S;
 
-  // 5. Corrected Solids (%) = retortSolids - dissolvedSolids
-  const correctedSolids = S - dissolvedSolids;
+    // avgSG = (100*(MW/8.34) - W*brineSG) / S    [no oil term]
+    avgSG = S > 0 ? ((100 * (MW / 8.34)) - (W * brineSG)) / S : 0;
 
-  // 6. HGS % vol = ((AvgSG - LSG) / (HSG - LSG)) * correctedSolids
-  // NOTE: In professional solids analysis, we use Corrected Solids as the base (L45 in Excel refers to the solid fraction being analyzed)
+  } else {
+    // ── Oil-Based Mud formulas (original) ─────────────────────────────────
+    // 1. Brine Density (SG) = 0.99707 + (0.007923 * CaCl2%) + (0.00004964 * (CaCl2%^2))
+    brineSG = 0.99707 + (0.007923 * saltPct) + (0.00004964 * Math.pow(saltPct, 2));
+
+    // 2. Brine % vol = (100 * Water) / (BrineSG * (100 - CaCl2%))
+    brineVol = (brineSG > 0 && (100 - saltPct) > 0)
+      ? (100 * W) / (brineSG * (100 - saltPct))
+      : W;
+
+    // 3. Average Solids SG
+    avgSG = S > 0
+      ? ((100 * (MW / 8.34)) - (O * OSG) - (brineSG * brineVol)) / S
+      : 0;
+
+    // 4. Dissolved Solids (%) = (Brine SG - 1) * 100
+    dissolvedSolids = (brineSG - 1) * 100;
+
+    // 5. Corrected Solids (%) = retortSolids - dissolvedSolids
+    correctedSolids = S - dissolvedSolids;
+  }
+
+  // Common downstream formulas (same for WBM and OBM)
+  // 6. HGS % vol
   const hgsPercent = (HSG - LSG) !== 0 ? ((avgSG - LSG) / (HSG - LSG)) * S : 0;
-  // If we follow the user's Excel exactly, L45 is the multiplier. 
-  // In the user's screenshot, L45 is "Total Solids" (retort solids).
-  // So I will keep 'S' (retortSolids) as the multiplier to match Excel exactly.
 
   // 7. LGS % vol = retortSolids - HGS % vol
   const lgsPercent = S - hgsPercent;
