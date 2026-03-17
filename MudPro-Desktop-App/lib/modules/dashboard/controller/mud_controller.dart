@@ -533,36 +533,35 @@ class MudController extends GetxController {
       // ── WBM-only auto-calculations ──────────────────────────────────────
       if (selectedFluidType.value == 'Water-based') {
 
-        // WBM-1. Sand Content = ROUNDUP(100*Solids/(Solids+Oil)) & "/" & ROUNDDOWN(100*Oil/(Oil+Solids))
-        //   Excel: =IFERROR(ROUNDUP(100*L46/(L46+L47),0) & "/" & ROUNDDOWN(100*L47/(L47+L46),0), "")
-        //   L46 = *Solids (% vol), L47 = *Oil (% vol)  [for WBM, 'Oil' cell holds the sand fraction]
+        // WBM-1. Sand Content = ROUNDUP(100*Oil/(Oil+Water)) & "/" & ROUNDDOWN(100*Water/(Water+Oil))
+        //   Excel: L45=Oil, L46=Water
         final scTarget = _sandContentKey;
         if (scTarget != null) {
-          _watchTwoOpt(i, _solidsKey, _oilKey, scTarget, (a, b) {
-            final s = double.tryParse(a) ?? 0;
-            final o = double.tryParse(b) ?? 0;
-            if (s == 0 && o == 0) return '';
-            final total = s + o;
+          _watchTwoOpt(i, _oilKey, _waterKey, scTarget, (a, b) {
+            final o = double.tryParse(a) ?? 0;
+            final w = double.tryParse(b) ?? 0;
+            if (o == 0 && w == 0) return '';
+            final total = o + w;
             if (total == 0) return '';
-            return '${(100 * s / total).ceil()}/${(100 * o / total).floor()}';
+            return '${(100 * o / total).ceil()}/${(100 * w / total).floor()}';
           });
         }
 
-        // WBM-3. Filtrate Alkalinity (Mf) = API Filtrate × 1.295
-        //   Source: API Filtrate (L49 in Excel)
+        // WBM-3. Filtrate Alkalinity (Mf) = Pf × 1.295
+        //   Source: Pf (L51 in user's Excel sheet)
         final filtMfTarget = _filtAlkMfKey;
         if (filtMfTarget != null) {
-          _watchOneOpt(i, _apiFiltratePfKey, filtMfTarget, (a) {
+          _watchOneOpt(i, _filtAlkPfKey, filtMfTarget, (a) {
             final v = double.tryParse(a) ?? 0;
             return v == 0 ? '' : (v * 1.295).toStringAsFixed(2);
           });
         }
 
-        // WBM-4. Calcium = 1.565 × Chlorides
-        //   Excel: =1.565*L51  — L51 = Chlorides
+        // WBM-4. Calcium = Pf × 1.565
+        //   Source: Pf (L51 in user's Excel sheet)
         final calciumTarget = _calciumKey;
         if (calciumTarget != null) {
-          _watchOneOpt(i, _chloridesInputKey, calciumTarget, (a) {
+          _watchOneOpt(i, _filtAlkPfKey, calciumTarget, (a) {
             final v = double.tryParse(a) ?? 0;
             return v == 0 ? '' : (v * 1.565).toStringAsFixed(2);
           });
