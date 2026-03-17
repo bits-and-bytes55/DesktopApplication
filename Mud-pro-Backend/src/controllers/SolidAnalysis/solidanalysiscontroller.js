@@ -3,33 +3,72 @@ import SolidsAnalysis from "../../modules/SolidAnalysis/solidanalysismodel.js";
 // ═══════════════════════════════════════════════════════════════════════════
 // HELPER: pure calculation — no DB touch
 // ═══════════════════════════════════════════════════════════════════════════
-function computeSolidsAnalysis({ mudWeight, retortSolids, bariteLb, bentoniteLb, brineSG }) {
+function computeSolidsAnalysis({ mudWeight, retortSolids, oilVol, waterVol, bariteLb, bentoniteLb, cacl2Pct, oilSG, hgsSG, lgsSG }) {
   const MW = Number(mudWeight) || 0;
-  const RS = Number(retortSolids) || 0;
+  // Solids (%) = 100 - (Oil + Water) according to user requirement
+  // But backend receives 'retortSolids' as input. We will use that as the base "Solids" (L45 in Excel)
+  const S = Number(retortSolids) || 0;
+  const O = Number(oilVol) || 0;
+  const W = Number(waterVol) || 0;
+  const OSG = Number(oilSG) || 0.80;
+  const HSG = Number(hgsSG) || 4.20;
+  const LSG = Number(lgsSG) || 2.60;
+  const saltPct = Number(cacl2Pct) || 0;
   const barite = Number(bariteLb) || 0;
   const bent = Number(bentoniteLb) || 0;
-  const brine = Number(brineSG) || 1.00;
 
   if (MW <= 0) return null;
 
-  const totalSolidsLb = MW * 42 * (RS / 100);
-  const hgsLb = barite;
-  const hgsPercent = totalSolidsLb > 0 ? (hgsLb / (MW * 42)) * 100 : 0;
-  const lgsLb = Math.max(0, totalSolidsLb - hgsLb);
-  const lgsPercent = (lgsLb / (MW * 42)) * 100;
-  const dissolvedSolids = (brine - 1) * 100;
-  const correctedSolids = Math.max(0, RS - dissolvedSolids);
-  const bentPercent = (bent / (MW * 42)) * 100;
-  const drillSolidsLb = Math.max(0, lgsLb - bent);
-  const drillSolidsPercent = (drillSolidsLb / (MW * 42)) * 100;
-  const dsBentRatio = bent > 0 ? drillSolidsLb / bent : 0;
-  const avgSG = totalSolidsLb > 0
-    ? ((barite * 4.2) + (bent * 2.65) + (drillSolidsLb * 2.6)) / totalSolidsLb
+  // 1. Brine Density (SG) = 0.99707 + (0.007923 * CaCl2%) + (0.00004964 * (CaCl2%^2))
+  const brineSG = 0.99707 + (0.007923 * saltPct) + (0.00004964 * Math.pow(saltPct, 2));
+
+  // 2. Brine (% vol) calculation
+  // Usually BrineVol = WaterVol * (100 / (100 - saltPct)) mass-wise adjusted for density?
+  // User says Corrected Solids = 100 - (Oil + Brine).
+  // In OBM, Salt volume is included in Brine. 
+  // Brine Phase Density = (MassWater + MassSalt) / (VolWater + VolSalt)
+  // BrineVol = WaterVol * (BrineRelativeVolumeCorrection?)
+  // Let's use the assumption that salt increases volume: BrineVol = WaterVol / (1 - (saltPct/100) * (1 - (1/brineSG)))?
+  // Simplified for now based on common OBM practice: Salt Vol % = (Brine Mass / Brine SG) - Water Vol
+  const brineMass = W * (100 / (100 - saltPct)); // This is an approximation for brine mass contribution per 100 units mud
+  const brineVol = saltPct > 0 ? (brineMass / brineSG) : W;
+
+  // 3. Average Solids SG (Avg. SG of Solids)
+  // Formula: =IFERROR((100*(L25/8.34)-(L46*L59)-(L61*L62))/L45,"")
+  // L25=MW, 8.34 conversion, L46=Oil%, L59=OilSG, L61=BrineSG, L62=BrineVol, L45=Solids%
+  const avgSG = S > 0
+    ? ( (100 * (MW / 8.34)) - (O * OSG) - (brineVol * brineSG) ) / S
     : 0;
 
+  // 4. HGS % vol = ((avgSG - lgsSG) / (hgsSG - lgsSG)) * Solids%
+  const hgsPercent = (HSG - LSG) > 0 ? ((avgSG - LSG) / (HSG - LSG)) * S : 0;
+
+  // 5. LGS % vol = Solids% - HGS % vol
+  const lgsPercent = Math.max(0, S - hgsPercent);
+
+  // 6. LGS ppb = 3.5 * LSG * LGS %
+  const lgsLb = 3.5 * LSG * lgsPercent;
+
+  // 7. HGS ppb = 3.5 * HSG * HGS %
+  const hgsLb = 3.5 * HSG * hgsPercent;
+
+  // 8. Corrected Solids (%) = 100 - (Oil + Brine)
+  const correctedSolids = Math.max(0, 100 - (O + brineVol));
+
+  // 9. Dissolved Solids (%) = Salt Volume % (BrineVol - WaterVol)
+  const dissolvedSolids = Math.max(0, brineVol - W);
+
+  // 10. Bentonite fields
+  const bentPercent = S > 0 ? (bent / (MW * 42)) * 100 : 0; // Keeping existing logic for bent percentage of mud if needed
+  // Drill Solids
+  const drillSolidsPercent = Math.max(0, lgsPercent - (bentPercent)); // Approximation
+  const drillSolidsLb = 3.5 * LSG * drillSolidsPercent;
+  const dsBentRatio = bent > 0 ? drillSolidsPercent / bentPercent : 0;
+
   return {
-    mudWeight: MW, retortSolids: RS, bariteLb: barite, bentoniteLb: bent, brineSG: brine,
-    totalSolidsLb, hgsLb, hgsPercent, lgsLb, lgsPercent,
+    mudWeight: MW, retortSolids: S, bariteLb: barite, bentoniteLb: bent, brineSG,
+    totalSolidsLb: (MW * 42 * (S / 100)), // Just for record
+    hgsLb, hgsPercent, lgsLb, lgsPercent,
     dissolvedSolids, correctedSolids, bentPercent,
     drillSolidsLb, drillSolidsPercent, dsBentRatio, avgSG,
   };

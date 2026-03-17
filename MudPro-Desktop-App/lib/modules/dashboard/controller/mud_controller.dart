@@ -348,68 +348,60 @@ class MudController extends GetxController {
         return '${(100*oil/total).ceil()}/${(100*water/total).floor()}';
       });
 
-      // ── 5. Total Solids = 100 − (Oil% + Water%) ───────────────────────────
+      // ── 5. Solids (% vol) = 100 − (Oil% + Water%) ─────────────────────────
       //    Excel: =IF(100-(L46+L47)<100, 100-(L46+L47), "")
-      //    TARGET: "Total Solids (% vol)" — a dedicated output row (NOT "*Solids" retort input)
-      //    If no "Total Solids" row exists in the table, skip silently
-      final tsTarget = _totalSolidsKey;
-      if (tsTarget != null) {
+      //    This applies to BOTH "Solids (% vol)" and "Total Solids (% vol)"
+      final solidsTarget = _solidsKey;
+      final tsTarget     = _totalSolidsKey;
+      _watchTwoOpt(i, _oilKey, _waterKey, solidsTarget, (a, b) {
+        final oil   = double.tryParse(a) ?? 0;
+        final water = double.tryParse(b) ?? 0;
+        if (oil == 0 && water == 0) return '';
+        final solids = 100 - (oil + water);
+        return solids < 100 ? solids.toStringAsFixed(2) : '';
+      });
+      if (tsTarget != null && tsTarget != solidsTarget) {
         _watchTwoOpt(i, _oilKey, _waterKey, tsTarget, (a, b) {
           final oil   = double.tryParse(a) ?? 0;
           final water = double.tryParse(b) ?? 0;
           if (oil == 0 && water == 0) return '';
           final solids = 100 - (oil + water);
-          if (solids >= 100) return '';
-          return solids.toStringAsFixed(2);
+          return solids < 100 ? solids.toStringAsFixed(2) : '';
         });
       }
 
       // ── 6. Corrected Solids = 100 − (Oil% + Brine%) ──────────────────────
       //    Excel: =IFERROR(100-(L46+L62),"")
-      //    L46=Oil(% vol), L62=Brine(% vol) row in Solid Analysis section
-      //    IMPORTANT: When Brine row is not filled / not in table → Brine = 0
-      //    Do NOT fall back to Water — that gives wrong result same as Total Solids
+      //    L46=Oil%, L62=Brine(% vol).
+      //    Brine(% vol) is NOT always a row. We calculate it.
       final csTarget = _correctedSolidsKey;
-      if (csTarget != null && _oilKey != null) {
-
+      if (csTarget != null) {
         void recalcCorrectedSolids() {
-          final oilVals  = propertyTable[_oilKey!];
-          final tgt      = propertyTable[csTarget];
-          if (oilVals == null || tgt == null) return;
-          if (i >= oilVals.length || i >= tgt.length) return;
+          final oilVal    = propertyTable[_oilKey]?[i].value ?? '';
+          final waterVal  = propertyTable[_waterKey]?[i].value ?? '';
+          final saltPctVal = propertyTable[_cacl2PctWtKey]?[i].value ?? '';
 
-          final oil = double.tryParse(oilVals[i].value) ?? 0;
+          final O = double.tryParse(oilVal) ?? 0;
+          final W = double.tryParse(waterVal) ?? 0;
+          final S = double.tryParse(saltPctVal) ?? 0;
 
-          // Use Brine row if it exists and has a value; otherwise use 0 (NOT Water)
-          final brineK    = _brinePercentKey;
-          final brineVals = brineK != null ? propertyTable[brineK] : null;
-          final brine     = (brineVals != null && i < brineVals.length)
-              ? (double.tryParse(brineVals[i].value) ?? 0)
-              : 0.0;
-
-          if (oil == 0 && brine == 0) {
-            tgt[i].value = '';
-          } else {
-            tgt[i].value = (100 - (oil + brine)).toStringAsFixed(2);
+          if (O == 0 && W == 0) {
+            propertyTable[csTarget]?[i].value = '';
+            return;
           }
+
+          // Brine Density SG = 0.99707 + (0.007923 * S) + (0.00004964 * S^2)
+          final brineSG = 0.99707 + (0.007923 * S) + (0.00004964 * S * S);
+          // Brine Vol % = (W * (100 / (100 - S))) / brineSG
+          final brineVol = S > 0 ? (W * (100 / (100 - S)) / brineSG) : W;
+
+          propertyTable[csTarget]?[i].value = (100 - (O + brineVol)).toStringAsFixed(2);
         }
 
-        // Initial calculation
-        recalcCorrectedSolids();
-
-        // Watch Oil changes
-        final oilList = propertyTable[_oilKey!];
-        if (oilList != null && i < oilList.length) {
-          ever(oilList[i], (_) => recalcCorrectedSolids());
-        }
-
-        // Watch Brine row changes (if it exists)
-        final brineK = _brinePercentKey;
-        if (brineK != null) {
-          final brineList = propertyTable[brineK];
-          if (brineList != null && i < brineList.length) {
-            ever(brineList[i], (_) => recalcCorrectedSolids());
-          }
+        ever(propertyTable[_oilKey]![i], (_) => recalcCorrectedSolids());
+        ever(propertyTable[_waterKey]![i], (_) => recalcCorrectedSolids());
+        if (_cacl2PctWtKey != null) {
+          ever(propertyTable[_cacl2PctWtKey!]![i], (_) => recalcCorrectedSolids());
         }
       }
 
@@ -468,14 +460,30 @@ class MudController extends GetxController {
       //    Excel row 56: =IFERROR(10000*L54*L61,"")
       //    L54 = CaCl2 (% wt), L61 = Brine Density (SG)
       final wpsMglTarget = _wpsSaltPpmKey;
-      if (wpsMglTarget != null && wpsMglTarget != wpsTarget) {
-        _watchTwoOpt(i, _cacl2PctWtKey, _brineDensitySgKey, wpsMglTarget, (a, b) {
-          final cacl2    = double.tryParse(a) ?? 0;
-          final brineSg  = double.tryParse(b) ?? 0;
-          if (cacl2 == 0) return '';
-          // If no brine density row found, fall back to 1.0
-          final sg = brineSg == 0 ? 1.0 : brineSg;
-          return (cacl2 * 10000 * sg).toStringAsFixed(0);
+      if (wpsMglTarget != null) {
+        void recalcWpsMgl() {
+          final saltPctVal = propertyTable[_cacl2PctWtKey]?[i].value ?? '';
+          final S = double.tryParse(saltPctVal) ?? 0;
+          if (S == 0) {
+            propertyTable[wpsMglTarget]?[i].value = '';
+            return;
+          }
+          final brineSG = 0.99707 + (0.007923 * S) + (0.00004964 * S * S);
+          propertyTable[wpsMglTarget]?[i].value = (S * 10000 * brineSG).toStringAsFixed(0);
+        }
+
+        if (_cacl2PctWtKey != null) {
+          ever(propertyTable[_cacl2PctWtKey!]![i], (_) => recalcWpsMgl());
+        }
+      }
+
+      // ── 13. Brine Density (SG) Row (if exists) ───────────────────────────
+      final bdTarget = _brineDensitySgKey;
+      if (bdTarget != null) {
+        _watchOneOpt(i, _cacl2PctWtKey, bdTarget, (a) {
+          final s = double.tryParse(a) ?? 0;
+          if (s == 0) return '';
+          return (0.99707 + (0.007923 * s) + (0.00004964 * s * s)).toStringAsFixed(3);
         });
       }
     }
@@ -493,6 +501,11 @@ class MudController extends GetxController {
     if (k == 'lsryp' || k.contains('lsryp')) return true;
     // Oil/Water Ratio
     if (k.contains('oil') && k.contains('water') && k.contains('ratio')) return true;
+    // Solids row - MUST match _solidsKey logic and be read-only
+    if ((k == 'solids' || k.startsWith('solids') || k == 'retort solids') &&
+        !k.contains('total') && !k.contains('corr') &&
+        !k.contains('drill') && !k.contains('adj') && !k.contains('salt')) return true;
+
     // Total Solids output row only — NOT "*Solids (% vol)" retort input
     if ((k == 'total solids' || k.contains('total solids')) &&
         !k.contains('corr') && !k.contains('drill')) return true;
