@@ -46,9 +46,8 @@ class _MudViewState extends State<MudView> {
     if (k == 'lsryp' || k.contains('lsryp')) return true;
     // Oil/Water Ratio
     if (k.contains('oil') && k.contains('water') && k.contains('ratio')) return true;
-    // Total Solids — "*Solids (% vol)" → after stripping *: "solids (% vol)"
-    if ((k == 'solids' || k.contains('total solids') ||
-        (k.startsWith('solids') && !k.contains('corr') && !k.contains('drill'))) &&
+    // Total Solids OUTPUT row only — NOT "*Solids (% vol)" retort input (user types it)
+    if ((k == 'total solids' || k.contains('total solids')) &&
         !k.contains('corr') && !k.contains('drill')) return true;
     // Corrected Solids
     if (k.contains('corrected solids') || k.contains('corr. solids')) return true;

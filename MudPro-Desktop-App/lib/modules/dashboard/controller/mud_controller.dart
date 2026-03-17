@@ -67,10 +67,14 @@ class MudController extends GetxController {
   String? get _mwKey => _findKey((k) =>
       k == 'mw' || k.contains('mud weight'));
 
+  // Retort solids input row — "*Solids (% vol)" from API
+  // After _findKey strips '*': "solids (% vol)"
+  // Must NOT match "Total Solids", "Corrected Solids", "Drill Solids"
+  // Must NOT match the auto-calc Total Solids output row
   String? get _solidsKey => _findKey((k) =>
-      (k == 'solids' || k == 'total solids') &&
-      !k.contains('drill') && !k.contains('adj') &&
-      !k.contains('salt') && !k.contains('corr'));
+      (k == 'solids' || k.startsWith('solids') || k == 'retort solids') &&
+      !k.contains('total') && !k.contains('corr') &&
+      !k.contains('drill') && !k.contains('adj') && !k.contains('salt'));
 
   String? get _oilKey => _findKey((k) =>
       (k == 'oil' || k == 'oil (% vol)' || k == 'oil%') &&
@@ -102,10 +106,12 @@ class MudController extends GetxController {
 
   // "Whole Mud Chlorides (mg/l)" — L51 in Excel, source for CaCl2 Concentration
   // Excel: CaCl2 Concentration = 1.565 * L51
+  // Must match: "Whole Mud Chlorides (mg/l)", "Whole Mud Chlorides"
+  // Must NOT match: "Mud Alkalinity", "Water", or other mud fields
   String? get _wholeMudChlorideKey => _findKey((k) =>
       k.contains('whole mud chloride') ||
-      k.contains('mud chloride') ||
-      k == 'whole mud chlorides');
+      k == 'whole mud chlorides' ||
+      (k.contains('chloride') && k.contains('mud') && !k.contains('calcium')));
 
   // MBT source field
   String? get _mbtKey => _findKey((k) =>
@@ -153,13 +159,11 @@ class MudController extends GetxController {
   String? get _owRatioKey => _findKey((k) =>
       k.contains('oil') && k.contains('water') && k.contains('ratio'));
 
-  // Matches "*Solids (% vol)" — the retort/total solids INPUT row
-  // After _findKey strips '*' prefix: "solids (% vol)"
+  // "Total Solids" OUTPUT row — auto-calculated as 100-(Oil+Water)
+  // Must NOT match "*Solids (% vol)" retort input row
   String? get _totalSolidsKey => _findKey((k) =>
-      (k == 'solids' || k == 'total solids' ||
-       k.contains('total solids') ||
-       (k.startsWith('solids') && !k.contains('corr') && !k.contains('drill'))) &&
-      !k.contains('corr') && !k.contains('drill') && !k.contains('adj'));
+      (k == 'total solids' || k.contains('total solids')) &&
+      !k.contains('corr') && !k.contains('drill'));
 
   String? get _correctedSolidsKey => _findKey((k) =>
       k.contains('corrected solids') || k.contains('corr. solids'));
@@ -346,8 +350,8 @@ class MudController extends GetxController {
 
       // ── 5. Total Solids = 100 − (Oil% + Water%) ───────────────────────────
       //    Excel: =IF(100-(L46+L47)<100, 100-(L46+L47), "")
-      //    L46=Oil(% vol), L47=Water(% vol)
-      //    TARGET: "*Solids (% vol)" row — after _findKey strips '*': "solids (% vol)"
+      //    TARGET: "Total Solids (% vol)" — a dedicated output row (NOT "*Solids" retort input)
+      //    If no "Total Solids" row exists in the table, skip silently
       final tsTarget = _totalSolidsKey;
       if (tsTarget != null) {
         _watchTwoOpt(i, _oilKey, _waterKey, tsTarget, (a, b) {
@@ -362,45 +366,47 @@ class MudController extends GetxController {
 
       // ── 6. Corrected Solids = 100 − (Oil% + Brine%) ──────────────────────
       //    Excel: =IFERROR(100-(L46+L62),"")
-      //    L46=Oil(% vol), L62=Brine(% vol) row (separate from Water row)
-      //    Brine row is added dynamically from API — must be watched separately
+      //    L46=Oil(% vol), L62=Brine(% vol) row in Solid Analysis section
+      //    IMPORTANT: When Brine row is not filled / not in table → Brine = 0
+      //    Do NOT fall back to Water — that gives wrong result same as Total Solids
       final csTarget = _correctedSolidsKey;
       if (csTarget != null && _oilKey != null) {
-        // Helper to recalculate corrected solids using Brine row if it exists,
-        // otherwise falls back to Water. Called whenever oil, water, or brine changes.
+
         void recalcCorrectedSolids() {
-          final oilVals   = propertyTable[_oilKey!];
-          // Prefer Brine row; fall back to Water if Brine not in table
-          final brineK    = _brinePercentKey ?? _waterKey;
+          final oilVals  = propertyTable[_oilKey!];
+          final tgt      = propertyTable[csTarget];
+          if (oilVals == null || tgt == null) return;
+          if (i >= oilVals.length || i >= tgt.length) return;
+
+          final oil = double.tryParse(oilVals[i].value) ?? 0;
+
+          // Use Brine row if it exists and has a value; otherwise use 0 (NOT Water)
+          final brineK    = _brinePercentKey;
           final brineVals = brineK != null ? propertyTable[brineK] : null;
-          final tgt       = propertyTable[csTarget];
-          if (oilVals == null || brineVals == null || tgt == null) return;
-          if (i >= oilVals.length || i >= brineVals.length || i >= tgt.length) return;
-          final oil   = double.tryParse(oilVals[i].value) ?? 0;
-          final brine = double.tryParse(brineVals[i].value) ?? 0;
-          tgt[i].value = (oil == 0 && brine == 0)
-              ? ''
-              : (100 - (oil + brine)).toStringAsFixed(2);
+          final brine     = (brineVals != null && i < brineVals.length)
+              ? (double.tryParse(brineVals[i].value) ?? 0)
+              : 0.0;
+
+          if (oil == 0 && brine == 0) {
+            tgt[i].value = '';
+          } else {
+            tgt[i].value = (100 - (oil + brine)).toStringAsFixed(2);
+          }
         }
-        // Set initial value
+
+        // Initial calculation
         recalcCorrectedSolids();
-        // Watch Oil
+
+        // Watch Oil changes
         final oilList = propertyTable[_oilKey!];
         if (oilList != null && i < oilList.length) {
           ever(oilList[i], (_) => recalcCorrectedSolids());
         }
-        // Watch Water (fallback)
-        final waterK = _waterKey;
-        if (waterK != null) {
-          final waterList = propertyTable[waterK];
-          if (waterList != null && i < waterList.length) {
-            ever(waterList[i], (_) => recalcCorrectedSolids());
-          }
-        }
-        // Watch Brine (primary) — may be same as Water if Brine not in table
-        final brineK2 = _brinePercentKey;
-        if (brineK2 != null && brineK2 != _waterKey) {
-          final brineList = propertyTable[brineK2];
+
+        // Watch Brine row changes (if it exists)
+        final brineK = _brinePercentKey;
+        if (brineK != null) {
+          final brineList = propertyTable[brineK];
           if (brineList != null && i < brineList.length) {
             ever(brineList[i], (_) => recalcCorrectedSolids());
           }
@@ -487,9 +493,8 @@ class MudController extends GetxController {
     if (k == 'lsryp' || k.contains('lsryp')) return true;
     // Oil/Water Ratio
     if (k.contains('oil') && k.contains('water') && k.contains('ratio')) return true;
-    // Total Solids — "*Solids (% vol)" matches as "solids (% vol)" after stripping *
-    if ((k == 'solids' || k.contains('total solids') ||
-        (k.startsWith('solids') && !k.contains('corr') && !k.contains('drill'))) &&
+    // Total Solids output row only — NOT "*Solids (% vol)" retort input
+    if ((k == 'total solids' || k.contains('total solids')) &&
         !k.contains('corr') && !k.contains('drill')) return true;
     // Corrected Solids
     if (k.contains('corrected solids') || k.contains('corr. solids')) return true;
