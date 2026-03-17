@@ -62,7 +62,7 @@ class _MudViewState extends State<MudView> {
     if (k.contains('water phase salinity') || k.contains('water phase sal')) return true;
     // ── WBM-only auto-calc fields ────────────────────────────────────────────
     if (k == 'sand content' || k.contains('sand content')) return true;
-    if (k.contains('filtrate alkalinity')) return true;
+    if (k.contains('filtrate alkalinity') && (k.contains('mf') || k.contains('(mf)'))) return true;
     if (k == 'calcium' || (k.startsWith('calcium') && !k.contains('chloride'))) return true;
     if ((k.contains('mud chloride') || k == 'mud chlorides') && !k.contains('whole')) return true;
     if (k == 'kcl' || k.startsWith('kcl')) return true;

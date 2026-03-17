@@ -434,8 +434,9 @@ class MudController extends GetxController {
 
           // Brine Density SG = 0.99707 + (0.007923 * S) + (0.00004964 * S^2)
           final brineSG = 0.99707 + (0.007923 * S) + (0.00004964 * S * S);
-          // Brine Vol % = (W * (100 / (100 - S))) / brineSG
-          final brineVol = S > 0 ? (W * (100 / (100 - S)) / brineSG) : W;
+          // Brine Vol % = (W * 100) / (BrineSG * (100 - S) * 0.99707)
+          // Matching Excel logic exactly
+          final brineVol = (100 * W) / (brineSG * (100 - S) * 0.99707);
 
           propertyTable[csTarget]?[i].value = (100 - (O + brineVol)).toStringAsFixed(2);
         }
@@ -547,20 +548,11 @@ class MudController extends GetxController {
           });
         }
 
-        // WBM-2. Filtrate Alkalinity (Pf) = API Filtrate × 1.295
-        //   Excel: =IFERROR(L49*1.295,"")  — L49 = API Filtrate
-        final filtPfTarget = _filtAlkPfKey;
-        if (filtPfTarget != null) {
-          _watchOneOpt(i, _apiFiltratePfKey, filtPfTarget, (a) {
-            final v = double.tryParse(a) ?? 0;
-            return v == 0 ? '' : (v * 1.295).toStringAsFixed(2);
-          });
-        }
-
-        // WBM-3. Filtrate Alkalinity (Mf) = Mud Filtrate × 1.295
+        // WBM-3. Filtrate Alkalinity (Mf) = API Filtrate × 1.295
+        //   Source: API Filtrate (L49 in Excel)
         final filtMfTarget = _filtAlkMfKey;
         if (filtMfTarget != null) {
-          _watchOneOpt(i, _mudFiltrateMfKey, filtMfTarget, (a) {
+          _watchOneOpt(i, _apiFiltratePfKey, filtMfTarget, (a) {
             final v = double.tryParse(a) ?? 0;
             return v == 0 ? '' : (v * 1.295).toStringAsFixed(2);
           });
@@ -634,7 +626,7 @@ class MudController extends GetxController {
     if (k.contains('water phase salinity') || k.contains('water phase sal')) return true;
     // WBM auto-calc fields
     if (k == 'sand content' || k.contains('sand content')) return true;
-    if (k.contains('filtrate alkalinity')) return true;
+    if (k.contains('filtrate alkalinity') && (k.contains('mf') || k.contains('(mf)'))) return true;
     if (k == 'calcium' || (k.startsWith('calcium') && !k.contains('chloride'))) return true;
     if ((k.contains('mud chloride') || k == 'mud chlorides') && !k.contains('whole')) return true;
     if (k == 'kcl' || k.startsWith('kcl')) return true;

@@ -18,41 +18,42 @@ function computeSolidsAnalysis({ mudWeight, retortSolids, oilVol, waterVol, bari
   if (MW <= 0) return null;
 
   let brineSG, brineVol, avgSG, dissolvedSolids, correctedSolids;
+  const waterDensity = 0.99707; // Base density factor used in Excel for precise volume/mass conversion
 
   if (isWBM) {
-    // ── Water-Based Mud formulas ──────────────────────────────────────────
-    // For simple WBM: no CaCl2 salt correction; brine ≈ fresh water (SG=1.0)
+    // ── Water-Based Mud formulas (Refined) ────────────────────────────────
+    // Brine Density (SG) for WBM usually 1.0 (fresh) unless salt is added
     brineSG = 1.0;
-    brineVol = W;  // All water vol is brine vol for WBM
+    
+    // Brine % vol = (Water * 100) / (BrineSG * (100 - CaCl2%) * waterDensity)
+    // In Excel: =IFERROR((100*Water)/(BrineSG*(100-SaltPct)*0.99707),"")
+    brineVol = (100 * W) / (brineSG * (100 - saltPct) * waterDensity);
 
-    // dissolvedSolids = 0 for pure WBM (no dissolved salts in retort reading)
+    // dissolvedSolids = 0 for simple WBM
     dissolvedSolids = 0;
 
-    // correctedSolids = retortSolids (no salt correction needed)
+    // correctedSolids = retortSolids
     correctedSolids = S;
 
-    // avgSG = (100*(MW/8.34) - W*brineSG) / S    [no oil term]
-    avgSG = S > 0 ? ((100 * (MW / 8.34)) - (W * brineSG)) / S : 0;
+    // avgSG = ( (100*(MW/8.34)) - (Oil*OilSG) - (BrineSG*BrineVol*waterDensity) ) / Solids
+    // Note: Excel formula L65 includes the oil term for WBM avgSG calculation
+    avgSG = S > 0 ? ((100 * (MW / 8.34)) - (O * OSG) - (brineSG * brineVol * waterDensity)) / S : 0;
 
   } else {
-    // ── Oil-Based Mud formulas (original) ─────────────────────────────────
-    // 1. Brine Density (SG) = 0.99707 + (0.007923 * CaCl2%) + (0.00004964 * (CaCl2%^2))
+    // ── Oil-Based Mud formulas (Original + Density Correction) ────────────
     brineSG = 0.99707 + (0.007923 * saltPct) + (0.00004964 * Math.pow(saltPct, 2));
 
-    // 2. Brine % vol = (100 * Water) / (BrineSG * (100 - CaCl2%))
+    // Brine % vol
     brineVol = (brineSG > 0 && (100 - saltPct) > 0)
-      ? (100 * W) / (brineSG * (100 - saltPct))
+      ? (100 * W) / (brineSG * (100 - saltPct) * waterDensity)
       : W;
 
-    // 3. Average Solids SG
+    // Average Solids SG
     avgSG = S > 0
-      ? ((100 * (MW / 8.34)) - (O * OSG) - (brineSG * brineVol)) / S
+      ? ((100 * (MW / 8.34)) - (O * OSG) - (brineSG * brineVol * waterDensity)) / S
       : 0;
 
-    // 4. Dissolved Solids (%) = (Brine SG - 1) * 100
     dissolvedSolids = (brineSG - 1) * 100;
-
-    // 5. Corrected Solids (%) = retortSolids - dissolvedSolids
     correctedSolids = S - dissolvedSolids;
   }
 
