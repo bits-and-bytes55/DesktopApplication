@@ -18,29 +18,26 @@ function computeSolidsAnalysis({ mudWeight, retortSolids, oilVol, waterVol, bari
   if (MW <= 0) return null;
 
   let brineSG, brineVol, avgSG, dissolvedSolids, correctedSolids;
-  const waterDensity = 0.99707; // Base density factor used in Excel for precise volume/mass conversion
+  const waterDensity = 0.99707; // Base density factor for volume calculation in Excel
 
   if (isWBM) {
-    // ── Water-Based Mud formulas (Refined) ────────────────────────────────
-    // Brine Density (SG) for WBM usually 1.0 (fresh) unless salt is added
+    // ── Water-Based Mud formulas ──────────────────────────────────────────
     brineSG = 1.0;
     
-    // Brine % vol = (Water * 100) / (BrineSG * (100 - CaCl2%) * waterDensity)
-    // In Excel: =IFERROR((100*Water)/(BrineSG*(100-SaltPct)*0.99707),"")
+    // Brine % vol = (Water * 100) / (BrineSG * (100 - SaltPct) * 0.99707)
+    // Excel: L62 formula
     brineVol = (100 * W) / (brineSG * (100 - saltPct) * waterDensity);
 
-    // dissolvedSolids = 0 for simple WBM
     dissolvedSolids = 0;
-
-    // correctedSolids = retortSolids
     correctedSolids = S;
 
-    // avgSG = ( (100*(MW/8.34)) - (Oil*OilSG) - (BrineSG*BrineVol*waterDensity) ) / Solids
-    // Note: Excel formula L65 includes the oil term for WBM avgSG calculation
-    avgSG = S > 0 ? ((100 * (MW / 8.34)) - (O * OSG) - (brineSG * brineVol * waterDensity)) / S : 0;
+    // Average Solids SG
+    // Literal User Formula: avg solid dnesity - =IFERROR((100*(L25/8.34)-(L46*L59)-(L61*L62))/L45,"")
+    // Note: No extra waterDensity in the mass term (brineSG * brineVol) here.
+    avgSG = S > 0 ? ((100 * (MW / 8.34)) - (O * OSG) - (brineSG * brineVol)) / S : 0;
 
   } else {
-    // ── Oil-Based Mud formulas (Original + Density Correction) ────────────
+    // ── Oil-Based Mud formulas ────────────────────────────────────────────
     brineSG = 0.99707 + (0.007923 * saltPct) + (0.00004964 * Math.pow(saltPct, 2));
 
     // Brine % vol
@@ -49,25 +46,24 @@ function computeSolidsAnalysis({ mudWeight, retortSolids, oilVol, waterVol, bari
       : W;
 
     // Average Solids SG
-    avgSG = S > 0
-      ? ((100 * (MW / 8.34)) - (O * OSG) - (brineSG * brineVol * waterDensity)) / S
-      : 0;
+    // Literal User Formula: avg solid dnesity - =IFERROR((100*(L25/8.34)-(L46*L59)-(L61*L62))/L45,"")
+    avgSG = S > 0 ? ((100 * (MW / 8.34)) - (O * OSG) - (brineSG * brineVol)) / S : 0;
 
     dissolvedSolids = (brineSG - 1) * 100;
     correctedSolids = S - dissolvedSolids;
   }
 
-  // Common downstream formulas (same for WBM and OBM)
-  // 6. HGS % vol
+  // Common downstream formulas (Literally from User text)
+  // hgs % - =IFERROR(((L67-L57)/(L58-L57))*L45,"")
   const hgsPercent = (HSG - LSG) !== 0 ? ((avgSG - LSG) / (HSG - LSG)) * S : 0;
 
-  // 7. LGS % vol = retortSolids - HGS % vol
+  // lgs % - =IFERROR(L45-L65,"")
   const lgsPercent = S - hgsPercent;
 
-  // 8. LGS ppb = 3.5 * LSG * LGS % vol
+  // lgs ppb - =IFERROR(3.5*L57*L63,"")
   const lgsLb = 3.5 * LSG * lgsPercent;
 
-  // 9. HGS ppb = 3.5 * HSG * HGS % vol
+  // hgs ppb - =IFERROR(3.5*L58*L65,"")
   const hgsLb = 3.5 * HSG * hgsPercent;
 
   // 10. Bentonite (%) = bentoniteLb / (2.6 * 3.5)

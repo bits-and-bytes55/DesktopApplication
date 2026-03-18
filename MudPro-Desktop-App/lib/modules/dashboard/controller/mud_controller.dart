@@ -547,11 +547,11 @@ class MudController extends GetxController {
           });
         }
 
-        // WBM-3. Filtrate Alkalinity (Mf) = Pf × 1.295
-        //   Source: Pf (L51 in user's Excel sheet)
+        // WBM-3. Filtrate Alkalinity (Mf) = MBT × 1.295
+        //   Source: MBT (L49 in user's Excel sheet)
         final filtMfTarget = _filtAlkMfKey;
         if (filtMfTarget != null) {
-          _watchOneOpt(i, _filtAlkPfKey, filtMfTarget, (a) {
+          _watchOneOpt(i, _mbtKey, filtMfTarget, (a) {
             final v = double.tryParse(a) ?? 0;
             return v == 0 ? '' : (v * 1.295).toStringAsFixed(2);
           });
