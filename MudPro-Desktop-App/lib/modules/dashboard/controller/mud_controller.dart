@@ -63,8 +63,9 @@ class MudController extends GetxController {
     return null;
   }
 
+  // Matches: "MW (ppg)", "*MW (ppg)", "Mud Weight", "Mud Weight (ppg)"
   String? get _mwKey => _findKey((k) =>
-      k == 'mw' || k.contains('mud weight'));
+      k == 'mw' || k.startsWith('mw') || k.contains('mud weight'));
 
   // Retort solids — "*Solids (% vol)" USER INPUT. NOT auto-calc.
   // Must NOT match Total Solids, Corrected Solids, Drill Solids
@@ -157,6 +158,26 @@ class MudController extends GetxController {
   String? get _brineDensitySgKey => _findKey((k) =>
       k == 'brine density' || k.contains('brine density') ||
       k == 'brine density (sg)' || k == 'brine sg');
+
+  // LGS Density row in table (L57 in Excel) — different from panel lgsSgController
+  String? get _lgsTableDensityKey => _findKey((k) =>
+      (k == 'lgs density' || k.startsWith('lgs density') || k == 'lgs') &&
+      !k.contains('%') && !k.contains('lb'));
+
+  // HGS Density row in table (L58)
+  String? get _hgsTableDensityKey => _findKey((k) =>
+      (k == 'hgs density' || k.startsWith('hgs density') || k == 'hgs') &&
+      !k.contains('%') && !k.contains('lb'));
+
+  // Corrected Solids value row (L45) — for passing to backend
+  String? get _corrSolidsValueKey => _findKey((k) =>
+      k.contains('corrected solids') || k.contains('corr. solids'));
+
+  // Brine % vol row (L62) — from Solid Analysis section
+  String? get _brineVolPctKey => _findKey((k) =>
+      k == 'brine' || k == 'brine (% vol)' || k == 'brine%' ||
+      (k.startsWith('brine') && !k.contains('density') && !k.contains('sg') &&
+       !k.contains('salt') && !k.contains('water')));
 
   String? get _bariteKey => _findKey((k) =>
       k == 'barite' || (k.contains('barite') && !k.contains('brine')));
@@ -313,18 +334,47 @@ class MudController extends GetxController {
         return '${(100*oil/total).ceil()}/${(100*water/total).floor()}';
       });
 
-      // ── 5. Total Solids = 100 − (Oil% + Water%) ───────────────────────────
-      //    FIX: Only write to "Total Solids" named OUTPUT row.
-      //    NEVER write to "*Solids (% vol)" — that is user's retort input!
+      // ── 5. Solids (% vol) = 100 − (Oil% + Water%) ───────────────────────────
+      //    Excel: =IF(100-(L46+L47)<100, 100-(L46+L47), "")
+      //    Writes to BOTH "*Solids (% vol)" and "Total Solids" rows if they exist
+      //    This is how Excel works — solids is derived from oil+water retort readings
+      void calcSolids(String a, String b, String targetKey) {
+        final oil   = double.tryParse(a) ?? 0;
+        final water = double.tryParse(b) ?? 0;
+        if (oil == 0 && water == 0) {
+          propertyTable[targetKey]?[i].value = '';
+          return;
+        }
+        final solids = 100 - (oil + water);
+        propertyTable[targetKey]?[i].value = solids < 100 ? solids.toStringAsFixed(2) : '';
+      }
+
+      // Write to "*Solids (% vol)" row
+      final solidsTarget = _solidsKey;
+      if (solidsTarget != null && _oilKey != null && _waterKey != null) {
+        final oilL  = propertyTable[_oilKey!];
+        final watL  = propertyTable[_waterKey!];
+        final solL  = propertyTable[solidsTarget];
+        if (oilL != null && watL != null && solL != null &&
+            i < oilL.length && i < watL.length && i < solL.length) {
+          calcSolids(oilL[i].value, watL[i].value, solidsTarget);
+          ever(oilL[i], (_) => calcSolids(oilL[i].value, watL[i].value, solidsTarget));
+          ever(watL[i], (_) => calcSolids(oilL[i].value, watL[i].value, solidsTarget));
+        }
+      }
+      // Also write to "Total Solids" named row if it exists and is different
       final tsTarget = _totalSolidsKey;
-      if (tsTarget != null) {
-        _watchTwoOpt(i, _oilKey, _waterKey, tsTarget, (a, b) {
-          final oil   = double.tryParse(a) ?? 0;
-          final water = double.tryParse(b) ?? 0;
-          if (oil == 0 && water == 0) return '';
-          final solids = 100 - (oil + water);
-          return solids < 100 ? solids.toStringAsFixed(2) : '';
-        });
+      if (tsTarget != null && tsTarget != solidsTarget &&
+          _oilKey != null && _waterKey != null) {
+        final oilL = propertyTable[_oilKey!];
+        final watL = propertyTable[_waterKey!];
+        final tsL  = propertyTable[tsTarget];
+        if (oilL != null && watL != null && tsL != null &&
+            i < oilL.length && i < watL.length && i < tsL.length) {
+          calcSolids(oilL[i].value, watL[i].value, tsTarget);
+          ever(oilL[i], (_) => calcSolids(oilL[i].value, watL[i].value, tsTarget));
+          ever(watL[i], (_) => calcSolids(oilL[i].value, watL[i].value, tsTarget));
+        }
       }
 
       // ── 6. Corrected Solids = 100 − (Oil% + Brine%) ──────────────────────
@@ -543,10 +593,11 @@ class MudController extends GetxController {
     final k = fieldName.toLowerCase().replaceAll('*', '').trim();
     if (k == 'lsryp' || k.contains('lsryp')) return true;
     if (k.contains('oil') && k.contains('water') && k.contains('ratio')) return true;
-    // FIX: "*Solids (% vol)" is USER INPUT — NOT auto-calc, do NOT mark grey
-    // Only "Total Solids" named output row is auto-calc
-    if ((k == 'total solids' || k.contains('total solids')) &&
-        !k.contains('corr') && !k.contains('drill')) return true;
+    // Solids row (auto-calculated from Oil+Water) — grey read-only
+    if ((k == 'solids' || k.startsWith('solids') || k == 'total solids' ||
+         k.contains('total solids')) &&
+        !k.contains('corr') && !k.contains('drill') &&
+        !k.contains('adj') && !k.contains('salt')) return true;
     if (k.contains('corrected solids') || k.contains('corr. solids')) return true;
     if (k.contains('excess lime')) return true;
     if (k.contains('cacl2 concentration') || k.contains('cacl2 conc') ||
@@ -595,18 +646,20 @@ class MudController extends GetxController {
     solidSaveStatus['$sampleIdx']?.value = 'saving';
     try {
       final body = jsonEncode({
-        'mudWeight':    vals['mudWeight'],
-        'retortSolids': vals['retortSolids'],
-        'oilVol':       vals['oilVol'],
-        'waterVol':     vals['waterVol'],
-        'bariteLb':     vals['bariteLb'],
-        'bentoniteLb':  vals['bentoniteLb'],
-        'cacl2Pct':     vals['cacl2Pct'],
-        'oilSG':        vals['oilSG'],
-        'hgsSG':        vals['hgsSG'],
-        'lgsSG':        vals['lgsSG'],
-        'sampleIndex':  sampleIdx,
-        'fluidType':    selectedFluidType.value,
+        'mudWeight':     vals['mudWeight'],
+        'retortSolids':  vals['retortSolids'],
+        'oilVol':        vals['oilVol'],
+        'waterVol':      vals['waterVol'],
+        'bariteLb':      vals['bariteLb'],
+        'bentoniteLb':   vals['bentoniteLb'],
+        'cacl2Pct':      vals['cacl2Pct'],
+        'brineVolPct':   vals['brineVolPct'],   // L62 Brine % vol
+        'corrSolidsPct': vals['corrSolidsPct'], // L45 Corrected Solids %
+        'oilSG':         vals['oilSG'],
+        'hgsSG':         vals['hgsSG'],         // L58 HGS density
+        'lgsSG':         vals['lgsSG'],         // L57 LGS density
+        'sampleIndex':   sampleIdx,
+        'fluidType':     selectedFluidType.value,
       });
 
       final existingId = _solidAnalysisIds[sampleIdx];
@@ -691,17 +744,29 @@ class MudController extends GetxController {
       if (vals == null || index >= vals.length) return 0;
       return double.tryParse(vals[index].value) ?? 0;
     }
+
+    // LGS/HGS SG: prefer table row values (L57/L58 in Excel),
+    // fall back to Specific Gravity panel controllers
+    final lgsTableSG = readField(_lgsTableDensityKey);
+    final hgsTableSG = readField(_hgsTableDensityKey);
+    final lgsUsed = lgsTableSG > 0 ? lgsTableSG
+        : (double.tryParse(lgsSgController.text) ?? 2.60);
+    final hgsUsed = hgsTableSG > 0 ? hgsTableSG
+        : (double.tryParse(hgsSgController.text) ?? 4.10);
+
     return {
-      'mudWeight':    readField(_mwKey),
-      'retortSolids': readField(_solidsKey),   // reads user's actual retort input
-      'oilVol':       readField(_oilKey),
-      'waterVol':     readField(_waterKey),
-      'bariteLb':     readField(_bariteKey),
-      'bentoniteLb':  readField(_bentoniteKey),
-      'cacl2Pct':     readField(_cacl2PctWtKey),
-      'oilSG':   double.tryParse(oilSgController.text)  ?? 0.81,
-      'hgsSG':   double.tryParse(hgsSgController.text)  ?? 4.10,
-      'lgsSG':   double.tryParse(lgsSgController.text)  ?? 2.40,
+      'mudWeight':     readField(_mwKey),
+      'retortSolids':  readField(_solidsKey),   // Total Solids % (L44)
+      'oilVol':        readField(_oilKey),       // Oil % vol (L46)
+      'waterVol':      readField(_waterKey),     // Water % vol
+      'bariteLb':      readField(_bariteKey),
+      'bentoniteLb':   readField(_bentoniteKey),
+      'cacl2Pct':      readField(_cacl2PctWtKey),   // CaCl2 % wt (L54)
+      'brineVolPct':   readField(_brineVolPctKey),  // Brine % vol (L62) if exists
+      'corrSolidsPct': readField(_corrSolidsValueKey), // Corrected Solids % (L45)
+      'oilSG':   double.tryParse(oilSgController.text) ?? 0.81,
+      'hgsSG':   hgsUsed,  // L58 — HGS density
+      'lgsSG':   lgsUsed,  // L57 — LGS density
     };
   }
 

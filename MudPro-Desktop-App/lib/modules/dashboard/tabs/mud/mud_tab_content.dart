@@ -46,9 +46,11 @@ class _MudViewState extends State<MudView> {
     if (k == 'lsryp' || k.contains('lsryp')) return true;
     // Oil/Water Ratio
     if (k.contains('oil') && k.contains('water') && k.contains('ratio')) return true;
-    // Total Solids OUTPUT row only — NOT "*Solids (% vol)" retort input (user types it)
-    if ((k == 'total solids' || k.contains('total solids')) &&
-        !k.contains('corr') && !k.contains('drill')) return true;
+    // Solids (% vol) and Total Solids — auto-calculated as 100-(Oil+Water)
+    if ((k == 'solids' || k.startsWith('solids') || k == 'total solids' ||
+         k.contains('total solids')) &&
+        !k.contains('corr') && !k.contains('drill') &&
+        !k.contains('adj') && !k.contains('salt')) return true;
     // Corrected Solids
     if (k.contains('corrected solids') || k.contains('corr. solids')) return true;
     // Excess Lime — auto-calc = Whole Mud Alkalinity (POM) × 1.295
@@ -60,12 +62,6 @@ class _MudViewState extends State<MudView> {
     if (k.startsWith('cacl2') && (k.contains('wt') || k.contains('%'))) return true;
     // Water Phase Salinity — cascades from CaCl2 Concentration
     if (k.contains('water phase salinity') || k.contains('water phase sal')) return true;
-    // ── WBM-only auto-calc fields ────────────────────────────────────────────
-    if (k == 'sand content' || k.contains('sand content')) return true;
-    if (k.contains('filtrate alkalinity') && (k.contains('mf') || k.contains('(mf)'))) return true;
-    if (k == 'calcium' || (k.startsWith('calcium') && !k.contains('chloride'))) return true;
-    if ((k.contains('mud chloride') || k == 'mud chlorides') && !k.contains('whole')) return true;
-    if (k == 'kcl' || k.startsWith('kcl')) return true;
     // Whole Mud Alkalinity (POM) — EDITABLE user input, drives Excess Lime
     // Whole Mud Chlorides — EDITABLE user input, drives CaCl2 chain
     return false;

@@ -1,129 +1,148 @@
 import SolidsAnalysis from "../../modules/SolidAnalysis/solidanalysismodel.js";
 
 // ═══════════════════════════════════════════════════════════════════════════
-// PURE CALCULATION — Industry-standard lb/bbl Material Balance Method
-// Matches Excel DMR sheet formulas exactly.
+// PURE CALCULATION — Exact Excel DMR formulas
 //
-// References (from industry tutorial documents):
-//   TotalSolids(lb/bbl) = MW × 42 × (RetortSolids% / 100)
-//   HGS(lb/bbl)         = Barite added (lb/bbl)
-//   LGS(lb/bbl)         = TotalSolids - HGS
-//   LGS%                = LGS_lb / (MW×42) × 100
-//   HGS%                = HGS_lb / (MW×42) × 100
-//   Bentonite%          = Bent_lb / (MW×42) × 100
-//   DrillSolids(lb/bbl) = LGS - Bentonite
-//   DrillSolids%        = DS_lb / (MW×42) × 100
-//   DS/Bent Ratio       = DrillSolids_lb / Bentonite_lb
-//   DissolvedSolids%    = (BrineSG - 1) × 100
-//   CorrectedSolids%    = RetortSolids% - DissolvedSolids%
-//   AvgSG               = (HGS_lb×hgsSG + Bent_lb×2.65 + DS_lb×lgsSG) / TotalSolids_lb
+// Excel row references:
+//   L25  = Mud Weight (ppg)
+//   L44  = Total Solids % vol = 100-(Oil+Water)
+//   L45  = Corrected Solids % vol
+//   L46  = Oil % vol
+//   L54  = CaCl2 % wt
+//   L57  = LGS Density (SG)   ← from table row, default 2.6
+//   L58  = HGS Density (SG)   ← from table row, default 4.2
+//   L59  = Oil Density (SG)
+//   L61  = Brine Density SG   = 0.99707 + 0.007923*CaCl2 + 0.00004964*CaCl2²
+//   L62  = Brine % vol        (from Solid Analysis section)
+//   L63  = LGS % = CorrSolids - HGS%
+//   L65  = HGS % = ((AvgSG - LGS_SG)/(HGS_SG - LGS_SG)) * CorrSolids
+//   L67  = Avg Solids Density  = (100*(MW/8.34) - Oil%*OilSG - BrineSG*Brine%) / CorrSolids%
 //
-// BrineSG (OBM): = 0.99707 + 0.007923×CaCl2% + 0.00004964×CaCl2%²
-// BrineSG (WBM): = 1.0 (fresh water) or computed from NaCl/CaCl2 if known
+// Formulas (from Excel):
+//   BrineSG    = 0.99707 + 0.007923*CaCl2 + 0.00004964*CaCl2²
+//   AvgSG      = (100*(MW/8.34) - Oil%*OilSG - BrineSG*Brine%) / CorrSolids%
+//   HGS%       = ((AvgSG - LGS_SG) / (HGS_SG - LGS_SG)) * CorrSolids%
+//   LGS%       = CorrSolids% - HGS%
+//   LGS lb/bbl = 3.5 * LGS_SG * LGS%
+//   HGS lb/bbl = 3.5 * HGS_SG * HGS%
 // ═══════════════════════════════════════════════════════════════════════════
 
 function computeSolidsAnalysis({
-  mudWeight,
-  retortSolids,
-  oilVol,
-  waterVol,
-  bariteLb,
-  bentoniteLb,
-  cacl2Pct,
-  oilSG    = 0.81,
-  hgsSG    = 4.20,
-  lgsSG    = 2.60,
+  mudWeight, retortSolids, oilVol, waterVol,
+  bariteLb, bentoniteLb, cacl2Pct,
+  oilSG = 0.81, hgsSG = 4.20, lgsSG = 2.60,
+  brineVolPct,   // Brine % vol (L62) — if provided, use directly
+  corrSolidsPct, // Corrected Solids % (L45) — if provided, use directly
   fluidType = 'Oil-based',
 }) {
-  const MW      = Number(mudWeight)    || 0;
-  const RS      = Number(retortSolids) || 0;   // % vol — retort solids reading
-  const barite  = Number(bariteLb)     || 0;   // lb/bbl added
-  const bent    = Number(bentoniteLb)  || 0;   // lb/bbl added
-  const saltPct = Number(cacl2Pct)     || 0;   // CaCl2 % wt
-  const OSG     = Number(oilSG)        || 0.81;
-  const HSG     = Number(hgsSG)        || 4.20; // HGS (Barite) SG
-  const LSG     = Number(lgsSG)        || 2.60; // LGS (Drill Solids) SG
-  const isWBM   = String(fluidType).toLowerCase().includes('water');
+  const MW      = Number(mudWeight)     || 0;
+  const RS      = Number(retortSolids)  || 0;   // Total Solids % vol (L44)
+  const O       = Number(oilVol)        || 0;   // Oil % vol (L46)
+  const W       = Number(waterVol)      || 0;   // Water % vol
+  const barite  = Number(bariteLb)      || 0;   // lb/bbl
+  const bent    = Number(bentoniteLb)   || 0;   // lb/bbl
+  const saltPct = Number(cacl2Pct)      || 0;   // CaCl2 % wt (L54)
+  const OSG     = Number(oilSG)         || 0.81;
+  const HSG     = Number(hgsSG)         || 4.20; // L58
+  const LSG     = Number(lgsSG)         || 2.60; // L57
 
   if (MW <= 0) return null;
 
-  const bblFactor = 42; // gallons per barrel
+  // ── 1. Brine Density SG (L61) ─────────────────────────────────────────────
+  // =0.99707+(0.007923*L54)+(0.00004964*(L54^2))
+  const brineSG = 0.99707 + (0.007923 * saltPct) + (0.00004964 * saltPct * saltPct);
 
-  // ── 1. Total Mud Mass per bbl ─────────────────────────────────────────────
-  const totalMudLb = MW * bblFactor;
-
-  // ── 2. Total Solids lb/bbl (from retort) ─────────────────────────────────
-  // Formula: MW × 42 × (RetortSolids% / 100)
-  const totalSolidsLb = totalMudLb * (RS / 100);
-
-  // ── 3. HGS = Barite added ────────────────────────────────────────────────
-  const hgsLb      = barite;
-  const hgsPercent = (hgsLb / totalMudLb) * 100;
-
-  // ── 4. LGS = TotalSolids - HGS ───────────────────────────────────────────
-  const lgsLb      = Math.max(0, totalSolidsLb - hgsLb);
-  const lgsPercent = (lgsLb / totalMudLb) * 100;
-
-  // ── 5. Bentonite ──────────────────────────────────────────────────────────
-  const bentPercent = (bent / totalMudLb) * 100;
-
-  // ── 6. Drill Solids = LGS - Bentonite ────────────────────────────────────
-  const drillSolidsLb      = Math.max(0, lgsLb - bent);
-  const drillSolidsPercent = (drillSolidsLb / totalMudLb) * 100;
-
-  // ── 7. DS / Bentonite Ratio ───────────────────────────────────────────────
-  const dsBentRatio = bent > 0 ? drillSolidsLb / bent : 0;
-
-  // ── 8. Brine SG ───────────────────────────────────────────────────────────
-  // OBM: polynomial formula from CaCl2% wt
-  // WBM: default 1.0 (fresh water / NaCl brine approximation)
-  let brineSG;
-  if (isWBM) {
-    // For WBM with NaCl brine: approximate from saltPct if available
-    brineSG = saltPct > 0
-      ? 0.99707 + (0.007923 * saltPct) + (0.00004964 * saltPct * saltPct)
-      : 1.0;
+  // ── 2. Brine % vol (L62) ──────────────────────────────────────────────────
+  // If explicitly passed use it, otherwise compute from Water% and BrineSG
+  let brineVol;
+  if (brineVolPct !== undefined && brineVolPct !== null && Number(brineVolPct) > 0) {
+    brineVol = Number(brineVolPct);
+  } else if (saltPct > 0 && W > 0) {
+    // Brine vol correction: brineVol = (100*W) / (brineSG*(100-saltPct)*0.99707)
+    brineVol = (100 * W) / (brineSG * (100 - saltPct) * 0.99707);
   } else {
-    // OBM: CaCl2-based brine density formula
-    brineSG = 0.99707 + (0.007923 * saltPct) + (0.00004964 * saltPct * saltPct);
+    brineVol = W; // No salt correction — use Water% directly
   }
 
-  // ── 9. Dissolved Solids % ─────────────────────────────────────────────────
-  // Formula: (BrineSG - 1) × 100
+  // ── 3. Dissolved Solids % ─────────────────────────────────────────────────
   const dissolvedSolids = Math.max(0, (brineSG - 1) * 100);
 
-  // ── 10. Corrected Solids % ───────────────────────────────────────────────
-  // Formula: RetortSolids% - DissolvedSolids%
-  const correctedSolids = Math.max(0, RS - dissolvedSolids);
+  // ── 4. Corrected Solids % (L45) ───────────────────────────────────────────
+  // If explicitly passed use it, otherwise compute: 100 - (Oil + Brine)
+  let CS;
+  if (corrSolidsPct !== undefined && corrSolidsPct !== null && Number(corrSolidsPct) > 0) {
+    CS = Number(corrSolidsPct);
+  } else {
+    CS = 100 - (O + brineVol);
+  }
+  CS = Math.max(0, CS);
 
-  // ── 11. Average SG of Solids ─────────────────────────────────────────────
-  // Formula: (HGS_lb×hgsSG + Bent_lb×bentSG + DS_lb×lgsSG) / TotalSolids_lb
-  // Uses actual SG values from Specific Gravity panel (passed in from Flutter)
-  const bentSG = 2.65; // Bentonite SG is always 2.65 (industry standard)
-  const avgSG = totalSolidsLb > 0
-    ? ((hgsLb * HSG) + (bent * bentSG) + (drillSolidsLb * LSG)) / totalSolidsLb
-    : 0;
+  // ── 5. Total Solids % (L44) ───────────────────────────────────────────────
+  const totalSolids = RS > 0 ? RS : Math.max(0, 100 - (O + W));
+
+  // ── 6. Avg Solids Density (L67) ───────────────────────────────────────────
+  // =IFERROR((100*(L25/8.34)-(L46*L59)-(L61*L62))/L45,"")
+  let avgSG = 0;
+  if (CS > 0) {
+    avgSG = (100 * (MW / 8.34) - O * OSG - brineSG * brineVol) / CS;
+  }
+
+  // ── 7. HGS % vol (L65) ────────────────────────────────────────────────────
+  // =IFERROR(((L67-L57)/(L58-L57))*L45,"")
+  // L67=AvgSG, L57=LGS_SG, L58=HGS_SG, L45=CorrSolids%
+  let hgsPercent = 0;
+  if (HSG !== LSG && CS > 0) {
+    hgsPercent = ((avgSG - LSG) / (HSG - LSG)) * CS;
+  }
+
+  // ── 8. LGS % vol (L63) ────────────────────────────────────────────────────
+  // =IFERROR(L45-L65,"")
+  const lgsPercent = CS - hgsPercent;
+
+  // ── 9. LGS lb/bbl ─────────────────────────────────────────────────────────
+  // =IFERROR(3.5*L57*L63,"")
+  const lgsLb = 3.5 * LSG * lgsPercent;
+
+  // ── 10. HGS lb/bbl ────────────────────────────────────────────────────────
+  // =IFERROR(3.5*L58*L65,"")
+  const hgsLb = 3.5 * HSG * hgsPercent;
+
+  // ── 11. Bentonite % and lb/bbl ────────────────────────────────────────────
+  const bentSG = 2.65;
+  const bentPercent = bent > 0 ? bent / (3.5 * bentSG) : 0;
+
+  // ── 12. Drill Solids ──────────────────────────────────────────────────────
+  const drillSolidsPercent = lgsPercent - bentPercent;
+  const drillSolidsLb = 3.5 * LSG * drillSolidsPercent;
+
+  // ── 13. DS/Bent Ratio ─────────────────────────────────────────────────────
+  const dsBentRatio = bentPercent > 0 ? drillSolidsPercent / bentPercent : 0;
+
+  // ── 14. Total Solids lb/bbl (for reference) ───────────────────────────────
+  const totalSolidsLb = MW * 42 * (totalSolids / 100);
+
+  const fmt = (v) => isNaN(v) || !isFinite(v) ? 0 : +v.toFixed(2);
 
   return {
-    // inputs echoed back
-    mudWeight:    +MW.toFixed(3),
-    retortSolids: +RS.toFixed(2),
-    bariteLb:     +barite.toFixed(2),
-    bentoniteLb:  +bent.toFixed(2),
-    // calculated
-    brineSG:            +brineSG.toFixed(4),
-    totalSolidsLb:      +totalSolidsLb.toFixed(2),
-    hgsLb:              +hgsLb.toFixed(2),
-    hgsPercent:         +hgsPercent.toFixed(2),
-    lgsLb:              +lgsLb.toFixed(2),
-    lgsPercent:         +lgsPercent.toFixed(2),
-    dissolvedSolids:    +dissolvedSolids.toFixed(2),
-    correctedSolids:    +correctedSolids.toFixed(2),
-    bentPercent:        +bentPercent.toFixed(2),
-    drillSolidsLb:      +drillSolidsLb.toFixed(2),
-    drillSolidsPercent: +drillSolidsPercent.toFixed(2),
-    dsBentRatio:        +dsBentRatio.toFixed(2),
-    avgSG:              +avgSG.toFixed(2),
+    mudWeight:          fmt(MW),
+    retortSolids:       fmt(RS),
+    bariteLb:           fmt(barite),
+    bentoniteLb:        fmt(bent),
+    brineSG:            +(brineSG.toFixed(4)),
+    brineVol:           fmt(brineVol),
+    totalSolids:        fmt(totalSolids),
+    totalSolidsLb:      fmt(totalSolidsLb),
+    correctedSolids:    fmt(CS),
+    dissolvedSolids:    fmt(dissolvedSolids),
+    avgSG:              fmt(avgSG),
+    hgsPercent:         fmt(hgsPercent),
+    hgsLb:              fmt(hgsLb),
+    lgsPercent:         fmt(lgsPercent),
+    lgsLb:              fmt(lgsLb),
+    bentPercent:        fmt(bentPercent),
+    drillSolidsPercent: fmt(drillSolidsPercent),
+    drillSolidsLb:      fmt(drillSolidsLb),
+    dsBentRatio:        fmt(dsBentRatio),
   };
 }
 
@@ -159,13 +178,7 @@ export const updateSolidsAnalysis = async (req, res) => {
     }
     const updated = await SolidsAnalysis.findByIdAndUpdate(
       id,
-      {
-        $set: {
-          ...computed,
-          reportId:    req.body.reportId    ?? undefined,
-          sampleIndex: req.body.sampleIndex ?? undefined,
-        },
-      },
+      { $set: { ...computed, reportId: req.body.reportId ?? undefined, sampleIndex: req.body.sampleIndex ?? undefined } },
       { new: true, runValidators: true }
     );
     if (!updated) {
@@ -185,25 +198,18 @@ export const getLatestSolidsAnalysis = async (req, res) => {
     const limit    = parseInt(req.query.limit) || 1;
     const reportId = req.query.reportId || null;
     const query    = reportId ? { reportId } : {};
-    const records  = await SolidsAnalysis.find(query)
-      .sort({ createdAt: -1 })
-      .limit(limit)
-      .lean();
+    const records  = await SolidsAnalysis.find(query).sort({ createdAt: -1 }).limit(limit).lean();
     if (!records || records.length === 0) {
       return res.status(404).json({ success: false, message: "No records found" });
     }
-    return res.status(200).json({
-      success: true,
-      count:   records.length,
-      data:    limit === 1 ? records[0] : records,
-    });
+    return res.status(200).json({ success: true, count: records.length, data: limit === 1 ? records[0] : records });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
-// POST /api/solids/calculate  — compute only, no DB write
+// POST /api/solids/calculate
 // ═══════════════════════════════════════════════════════════════════════════
 export const calculateOnly = async (req, res) => {
   try {
