@@ -30,16 +30,15 @@ class MudController extends GetxController {
   var isWeightedMud       = false.obs;
 
   final fluidnameController = TextEditingController();
-  final oilSgController     = TextEditingController(text: '0.80');
-  final hgsSgController     = TextEditingController(text: '4.20');
-  final lgsSgController     = TextEditingController(text: '2.60');
+  final oilSgController     = TextEditingController(text: '0.81');
+  final hgsSgController     = TextEditingController(text: '4.10');
+  final lgsSgController     = TextEditingController(text: '2.40');
   final shaleCecController  = TextEditingController(text: '15.00');
   final bentCecController   = TextEditingController(text: '65.00');
 
   var sampleForCalculation = '1'.obs;
   var isLoading            = false.obs;
 
-  // ── Solid Analysis state ──────────────────────────────────────────────────
   final solidAnalysisResult  = <String, List<String>>{}.obs;
   var isSolidAnalysisLoading = false.obs;
   var solidAnalysisError     = ''.obs;
@@ -67,10 +66,8 @@ class MudController extends GetxController {
   String? get _mwKey => _findKey((k) =>
       k == 'mw' || k.contains('mud weight'));
 
-  // Retort solids input row — "*Solids (% vol)" from API
-  // After _findKey strips '*': "solids (% vol)"
-  // Must NOT match "Total Solids", "Corrected Solids", "Drill Solids"
-  // Must NOT match the auto-calc Total Solids output row
+  // Retort solids — "*Solids (% vol)" USER INPUT. NOT auto-calc.
+  // Must NOT match Total Solids, Corrected Solids, Drill Solids
   String? get _solidsKey => _findKey((k) =>
       (k == 'solids' || k.startsWith('solids') || k == 'retort solids') &&
       !k.contains('total') && !k.contains('corr') &&
@@ -86,60 +83,34 @@ class MudController extends GetxController {
       !k.contains('activity') && !k.contains('sg') &&
       !k.contains('oil') && !k.contains('phase') && !k.contains('salinity'));
 
-  // "Brine (% vol)" — L62 in Excel, source for Corrected Solids
-  // Must NOT match "Brine Density" (that's a different field)
   String? get _brinePercentKey => _findKey((k) =>
-      (k == 'brine' ||
-       k == 'brine (% vol)' ||
-       k == 'brine%' ||
-       k == 'brine (% vol)' ||
-       k.startsWith('brine') && !k.contains('density') && !k.contains('sg') &&
+      k == 'brine' || k == 'brine (% vol)' || k == 'brine%' ||
+      (k.startsWith('brine') && !k.contains('density') && !k.contains('sg') &&
        !k.contains('salt') && !k.contains('water')));
 
-  // Source for Excess Lime = "Whole Mud Alkalinity (POM)" — L49 in Excel
-  // Excel: =IFERROR(L49*1.295,"") where L49 = Whole Mud Alkalinity (POM)
-  // This is the EDITABLE user-input row that drives Excess Lime auto-calc
   String? get _alkalinityKey => _findKey((k) =>
       k.contains('whole mud alkalinity') ||
       k.contains('alkalinity (pom)') ||
       k.contains('alkalinity(pom)'));
 
-  // "Whole Mud Chlorides (mg/l)" — L51 in Excel, source for CaCl2 Concentration
-  // Excel: CaCl2 Concentration = 1.565 * L51
-  // Must match: "Whole Mud Chlorides (mg/l)", "Whole Mud Chlorides"
-  // Must NOT match: "Mud Alkalinity", "Water", or other mud fields
   String? get _wholeMudChlorideKey => _findKey((k) =>
       k.contains('whole mud chloride') ||
       k == 'whole mud chlorides' ||
       (k.contains('chloride') && k.contains('mud') && !k.contains('calcium')));
 
-  // MBT source field
   String? get _mbtKey => _findKey((k) =>
-      k == 'mbt' ||
-      k.startsWith('mbt') ||
-      k.contains('methylene blue') ||
-      k.contains('mbt (') ||
-      k == 'mbt (ppb)');
+      k == 'mbt' || k.startsWith('mbt') ||
+      k.contains('methylene blue') || k.contains('mbt (') || k == 'mbt (ppb)');
 
-  // CaCl2 (% wt) — this is the AUTO-CALC OUTPUT in oil-based (computed from MBT+Water)
-  // Formula: =100*(1.565*MBT/10000)/((1.565*MBT/10000)+Water%)
   String? get _cacl2PctWtKey => _findKey((k) =>
-      k == 'cacl2' ||
-      k == 'cacl2 (% wt)' || k == 'cacl2 % wt' ||
+      k == 'cacl2' || k == 'cacl2 (% wt)' || k == 'cacl2 % wt' ||
       (k.startsWith('cacl2') && (k.contains('wt') || k.contains('%'))));
 
-  // CaCl2 Concentration (mg/l) — AUTO-CALC target: =1.565 * MBT
-  // Also SOURCE for Water Phase Salinity: WPS(ppm) = CaCl2Conc * 10000
   String? get _cacl2ConcKey => _findKey((k) =>
-      k.contains('cacl2 concentration') ||
-      k.contains('cacl2 conc') ||
+      k.contains('cacl2 concentration') || k.contains('cacl2 conc') ||
       k.contains('calcium chloride') ||
       (k.startsWith('cacl2') && k.contains('mg')) ||
       (k.startsWith('cacl2') && k.contains('concentration')));
-
-  String? get _lgsKey => _findKey((k) =>
-      (k == 'lgs' || k == 'lgs density' || k.startsWith('lgs density')) &&
-      !k.contains('%') && !k.contains('lb'));
 
   String? get _r600Key => _findKey((k) => k == 'r600' || k == 'r600 (rpm)');
   String? get _r300Key => _findKey((k) => k == 'r300' || k == 'r300 (rpm)');
@@ -159,8 +130,7 @@ class MudController extends GetxController {
   String? get _owRatioKey => _findKey((k) =>
       k.contains('oil') && k.contains('water') && k.contains('ratio'));
 
-  // "Total Solids" OUTPUT row — auto-calculated as 100-(Oil+Water)
-  // Must NOT match "*Solids (% vol)" retort input row
+  // "Total Solids" OUTPUT row only — NOT "*Solids" retort input
   String? get _totalSolidsKey => _findKey((k) =>
       (k == 'total solids' || k.contains('total solids')) &&
       !k.contains('corr') && !k.contains('drill'));
@@ -172,28 +142,21 @@ class MudController extends GetxController {
       k.contains('excess lime'));
 
   String? get _wholeMudAlkKey => _findKey((k) =>
-      (k.contains('whole mud alkalinity') || k.contains('alkalinity (pom)') ||
-       k.contains('alkalinity(pom)') || k.contains('mud alkalinity (pm)')));
+      k.contains('whole mud alkalinity') || k.contains('alkalinity (pom)') ||
+      k.contains('alkalinity(pom)') || k.contains('mud alkalinity (pm)'));
 
-  // Water Phase Salinity (WPS) ppm — FIRST water phase salinity row found
-  // Excel: =IFERROR(10000*L54,"")  — L54=CaCl2(% wt)
-  // Field name: "Water phase Salinity (WPS)" or "Water phase Salinity (VPS)" — no 'ppm' in name
+  // FIX: Match any "water phase salinity" row — field name does NOT contain 'ppm'
   String? get _wpsSaltPercentKey => _findKey((k) =>
       k.contains('water phase salinity') || k.contains('water phase sal'));
 
-  // Water Phase Salinity (WPS) mg/l — SECOND row (has 'mg' or 'mg/l' in name)
-  // Excel: =IFERROR(10000*L54*L61,"")  — L54=CaCl2(% wt), L61=Brine Density SG
+  // Second WPS row (mg/l) — has 'mg' in name
   String? get _wpsSaltPpmKey => _findKey((k) =>
       (k.contains('water phase salinity') || k.contains('water phase sal')) &&
       (k.contains('mg') || k.contains('mg/l') || k.contains('ppm')));
 
-  // Brine Density (SG) — L61 in Excel, used for WPS mg/l calculation
-  // This is in the Solid Analysis section of the table
   String? get _brineDensitySgKey => _findKey((k) =>
-      k == 'brine density' ||
-      k.contains('brine density') ||
-      k == 'brine density (sg)' ||
-      k == 'brine sg');
+      k == 'brine density' || k.contains('brine density') ||
+      k == 'brine density (sg)' || k == 'brine sg');
 
   String? get _bariteKey => _findKey((k) =>
       k == 'barite' || (k.contains('barite') && !k.contains('brine')));
@@ -203,6 +166,16 @@ class MudController extends GetxController {
 
   String? get _brineDensityKey => _findKey((k) =>
       k == 'brine density' || k.contains('brine density'));
+
+  // WBM-specific
+  String? get _sandContentKey   => _findKey((k) => k == 'sand content' || k.contains('sand content'));
+  String? get _filtAlkPfKey     => _findKey((k) => k.contains('filtrate alkalinity') && (k.contains('pf') || k.contains('(pf)')));
+  String? get _filtAlkMfKey     => _findKey((k) => k.contains('filtrate alkalinity') && (k.contains('mf') || k.contains('(mf)')));
+  String? get _calciumKey       => _findKey((k) => k == 'calcium' || (k.startsWith('calcium') && !k.contains('chloride')));
+  String? get _mudChloridesMglKey => _findKey((k) => (k.contains('mud chloride') || k == 'mud chlorides') && !k.contains('whole'));
+  String? get _kclKey           => _findKey((k) => k == 'kcl' || k.startsWith('kcl'));
+  String? get _apiFiltratePfKey => _findKey((k) => k.contains('api filtrate') || (k.contains('filtrate') && !k.contains('alkalinity') && !k.contains('hthp')));
+  String? get _mbtAlkKey        => _findKey((k) => k == 'mbt' || k.startsWith('mbt') || k.contains('methylene blue'));
 
   // ═══════════════════════════════════════════════════════════════════════════
   // LIFECYCLE
@@ -294,21 +267,14 @@ class MudController extends GetxController {
 
   // ═══════════════════════════════════════════════════════════════════════════
   // AUTO CALCULATIONS
-  // All formulas match the Excel DMR sheet exactly.
   // ═══════════════════════════════════════════════════════════════════════════
 
   void _setupAutoCalculations() {
-    debugPrint('[AutoCalc] propertyTable keys: ${propertyTable.keys.toList()}');
-    debugPrint('[AutoCalc] _oilKey=$_oilKey  _waterKey=$_waterKey  _brinePercentKey=$_brinePercentKey');
-    // Extra: print all keys containing 'brine' to diagnose Corrected Solids issue
-    final brineKeys = propertyTable.keys.where((k) => k.toLowerCase().contains('brine')).toList();
-    debugPrint('[AutoCalc] All brine keys in table: $brineKeys  <-- Corrected Solids source');
-    debugPrint('[AutoCalc] _totalSolidsKey=$_totalSolidsKey  _correctedSolidsKey=$_correctedSolidsKey');
-    debugPrint('[AutoCalc] _alkalinityKey=$_alkalinityKey  (Whole Mud Alk POM → Excess Lime)');
-    debugPrint('[AutoCalc] _excessLimeKey=$_excessLimeKey');
-    debugPrint('[AutoCalc] _wholeMudChlorideKey=$_wholeMudChlorideKey  (→ CaCl2 Conc & CaCl2 wt)');
-    debugPrint('[AutoCalc] _cacl2ConcKey=$_cacl2ConcKey  _cacl2PctWtKey=$_cacl2PctWtKey');
-    debugPrint('[AutoCalc] _wpsSaltPercentKey(ppm)=$_wpsSaltPercentKey  _wpsSaltPpmKey(mgl)=$_wpsSaltPpmKey  _brineDensitySgKey=$_brineDensitySgKey');
+    debugPrint('[AutoCalc] keys: ${propertyTable.keys.toList()}');
+    debugPrint('[AutoCalc] _solidsKey=$_solidsKey (retort INPUT - NOT auto-calc target)');
+    debugPrint('[AutoCalc] _totalSolidsKey=$_totalSolidsKey (auto-calc OUTPUT)');
+    debugPrint('[AutoCalc] _wpsSaltPercentKey=$_wpsSaltPercentKey _wpsSaltPpmKey=$_wpsSaltPpmKey');
+    debugPrint('[AutoCalc] _cacl2PctWtKey=$_cacl2PctWtKey _cacl2ConcKey=$_cacl2ConcKey');
 
     for (int i = 0; i < samples.length; i++) {
 
@@ -337,7 +303,6 @@ class MudController extends GetxController {
       });
 
       // ── 4. Oil/Water Ratio ────────────────────────────────────────────────
-      //    =IFERROR(ROUNDUP(100*Oil/(Oil+Water),0) & "/" & ROUNDDOWN(100*Water/(Oil+Water),0),"")
       final owTarget = _owRatioKey ?? 'Oil/water Ratio';
       _watchTwoOpt(i, _oilKey, _waterKey, owTarget, (a, b) {
         final oil   = double.tryParse(a) ?? 0;
@@ -349,9 +314,8 @@ class MudController extends GetxController {
       });
 
       // ── 5. Total Solids = 100 − (Oil% + Water%) ───────────────────────────
-      //    Excel: =IF(100-(L46+L47)<100, 100-(L46+L47), "")
-      //    TARGET: "Total Solids (% vol)" — a dedicated output row (NOT "*Solids" retort input)
-      //    If no "Total Solids" row exists in the table, skip silently
+      //    FIX: Only write to "Total Solids" named OUTPUT row.
+      //    NEVER write to "*Solids (% vol)" — that is user's retort input!
       final tsTarget = _totalSolidsKey;
       if (tsTarget != null) {
         _watchTwoOpt(i, _oilKey, _waterKey, tsTarget, (a, b) {
@@ -359,33 +323,49 @@ class MudController extends GetxController {
           final water = double.tryParse(b) ?? 0;
           if (oil == 0 && water == 0) return '';
           final solids = 100 - (oil + water);
-          if (solids >= 100) return '';
-          return solids.toStringAsFixed(2);
+          return solids < 100 ? solids.toStringAsFixed(2) : '';
         });
       }
 
       // ── 6. Corrected Solids = 100 − (Oil% + Brine%) ──────────────────────
       //    Excel: =IFERROR(100-(L46+L62),"")
-      //    L46=Oil(% vol), L62=Brine(% vol) row in Solid Analysis section
-      //    IMPORTANT: When Brine row is not filled / not in table → Brine = 0
-      //    Do NOT fall back to Water — that gives wrong result same as Total Solids
+      //    Brine% = Water% corrected for salt content
+      //    If Brine(% vol) row exists: use it directly
+      //    Otherwise: compute from Water% and CaCl2%
       final csTarget = _correctedSolidsKey;
       if (csTarget != null && _oilKey != null) {
-
         void recalcCorrectedSolids() {
-          final oilVals  = propertyTable[_oilKey!];
-          final tgt      = propertyTable[csTarget];
+          final oilVals   = propertyTable[_oilKey!];
+          final tgt       = propertyTable[csTarget];
           if (oilVals == null || tgt == null) return;
           if (i >= oilVals.length || i >= tgt.length) return;
 
           final oil = double.tryParse(oilVals[i].value) ?? 0;
 
-          // Use Brine row if it exists and has a value; otherwise use 0 (NOT Water)
+          // Use Brine (% vol) row if it exists (has actual value)
           final brineK    = _brinePercentKey;
           final brineVals = brineK != null ? propertyTable[brineK] : null;
-          final brine     = (brineVals != null && i < brineVals.length)
+          final brineRowVal = (brineVals != null && i < brineVals.length)
               ? (double.tryParse(brineVals[i].value) ?? 0)
               : 0.0;
+
+          double brine;
+          if (brineRowVal > 0) {
+            // Explicit Brine row filled
+            brine = brineRowVal;
+          } else {
+            // Compute from Water% and CaCl2%
+            final waterVal   = propertyTable[_waterKey]?[i].value ?? '';
+            final saltPctVal = propertyTable[_cacl2PctWtKey]?[i].value ?? '';
+            final W = double.tryParse(waterVal) ?? 0;
+            final S = double.tryParse(saltPctVal) ?? 0;
+            if (S > 0 && W > 0) {
+              final brineSG = 0.99707 + (0.007923 * S) + (0.00004964 * S * S);
+              brine = (100 * W) / (brineSG * (100 - S) * 0.99707);
+            } else {
+              brine = 0.0; // No brine row and no salt → brine = 0
+            }
+          }
 
           if (oil == 0 && brine == 0) {
             tgt[i].value = '';
@@ -394,16 +374,23 @@ class MudController extends GetxController {
           }
         }
 
-        // Initial calculation
         recalcCorrectedSolids();
-
-        // Watch Oil changes
         final oilList = propertyTable[_oilKey!];
         if (oilList != null && i < oilList.length) {
           ever(oilList[i], (_) => recalcCorrectedSolids());
         }
-
-        // Watch Brine row changes (if it exists)
+        if (_waterKey != null) {
+          final waterList = propertyTable[_waterKey!];
+          if (waterList != null && i < waterList.length) {
+            ever(waterList[i], (_) => recalcCorrectedSolids());
+          }
+        }
+        if (_cacl2PctWtKey != null) {
+          final saltList = propertyTable[_cacl2PctWtKey!];
+          if (saltList != null && i < saltList.length) {
+            ever(saltList[i], (_) => recalcCorrectedSolids());
+          }
+        }
         final brineK = _brinePercentKey;
         if (brineK != null) {
           final brineList = propertyTable[brineK];
@@ -413,9 +400,7 @@ class MudController extends GetxController {
         }
       }
 
-      // ── 7. Excess Lime = Mud Alkalinity (Pm) × 1.295 ─────────────────────
-      //    Excel: =IFERROR(L49*1.295,"")
-      //    L49 = "Mud Alkalinity (Pm)" user-input row
+      // ── 7. Excess Lime = Whole Mud Alkalinity (POM) × 1.295 ──────────────
       final elTarget = _excessLimeKey;
       if (elTarget != null) {
         _watchOneOpt(i, _alkalinityKey, elTarget, (a) {
@@ -424,12 +409,7 @@ class MudController extends GetxController {
         });
       }
 
-      // ── 8. Whole Mud Alkalinity (POM) — EDITABLE, user enters directly ────
-      //    Not auto-calculated. Used as source for CaCl2 Conc below.
-
-      // ── 9. CaCl2 Concentration (mg/l) = 1.565 × Whole Mud Chlorides ───────
-      //    Excel: =1.565*L51  where L51 = "Whole Mud Chlorides (mg/l)" row
-      //    User enters Whole Mud Chlorides → CaCl2 Concentration auto-fills
+      // ── 8. CaCl2 Concentration (mg/l) = 1.565 × Whole Mud Chlorides ───────
       final cacl2ConcTarget = _cacl2ConcKey;
       if (cacl2ConcTarget != null) {
         _watchOneOpt(i, _wholeMudChlorideKey, cacl2ConcTarget, (a) {
@@ -438,9 +418,7 @@ class MudController extends GetxController {
         });
       }
 
-      // ── 10. CaCl2 (% wt) = 100*(1.565*WholeMudChlorides/10000)/
-      //                            ((1.565*WholeMudChlorides/10000)+Water%)
-      //    Formula: =100*(1.565*L51/10000)/((1.565*L51/10000)+L47)
+      // ── 9. CaCl2 (% wt) = 100*(1.565*WMChl/10000)/((1.565*WMChl/10000)+Water%)
       final cacl2WtTarget = _cacl2PctWtKey;
       if (cacl2WtTarget != null) {
         _watchTwoOpt(i, _wholeMudChlorideKey, _waterKey, cacl2WtTarget, (a, b) {
@@ -453,34 +431,109 @@ class MudController extends GetxController {
         });
       }
 
-      // ── 11. Water Phase Salinity (WPS) ppm = CaCl2(% wt) × 10000 ──────────
-      //    Excel row 55: =IFERROR(10000*L54,"")
-      //    L54 = CaCl2 (% wt) — auto-calc field
+      // ── 10. Water Phase Salinity ppm = CaCl2(% wt) × 10000 ───────────────
+      //    FIX: _wpsSaltPercentKey now matches ANY "water phase salinity" row
+      //    (field name is "Water phase Salinity (WPS)" — no 'ppm' in it)
       final wpsTarget = _wpsSaltPercentKey;
-      if (wpsTarget != null) {
-        _watchOneOpt(i, _cacl2PctWtKey, wpsTarget, (a) {
-          final v = double.tryParse(a) ?? 0;
-          return v == 0 ? '' : (v * 10000).toStringAsFixed(0);
+      if (wpsTarget != null && _cacl2PctWtKey != null) {
+        final cacl2List = propertyTable[_cacl2PctWtKey!];
+        final wpsList   = propertyTable[wpsTarget];
+        if (cacl2List != null && wpsList != null &&
+            i < cacl2List.length && i < wpsList.length) {
+          // Set initial value
+          final s0 = double.tryParse(cacl2List[i].value) ?? 0;
+          wpsList[i].value = s0 == 0 ? '' : (s0 * 10000).toStringAsFixed(0);
+          // Watch changes
+          ever(cacl2List[i], (_) {
+            final s = double.tryParse(cacl2List[i].value) ?? 0;
+            wpsList[i].value = s == 0 ? '' : (s * 10000).toStringAsFixed(0);
+          });
+        }
+      }
+
+      // ── 11. Water Phase Salinity mg/l = CaCl2(% wt) × 10000 × BrineSG ────
+      final wpsMglTarget = _wpsSaltPpmKey;
+      if (wpsMglTarget != null && wpsMglTarget != wpsTarget && _cacl2PctWtKey != null) {
+        final cacl2List = propertyTable[_cacl2PctWtKey!];
+        final wpsLList  = propertyTable[wpsMglTarget];
+        if (cacl2List != null && wpsLList != null &&
+            i < cacl2List.length && i < wpsLList.length) {
+          void calcWpsMgl() {
+            final s = double.tryParse(cacl2List[i].value) ?? 0;
+            if (s == 0) { wpsLList[i].value = ''; return; }
+            final bSG = 0.99707 + (0.007923 * s) + (0.00004964 * s * s);
+            wpsLList[i].value = (s * 10000 * bSG).toStringAsFixed(0);
+          }
+          calcWpsMgl();
+          ever(cacl2List[i], (_) => calcWpsMgl());
+        }
+      }
+
+      // ── 12. Brine Density (SG) row ────────────────────────────────────────
+      final bdTarget = _brineDensitySgKey;
+      if (bdTarget != null) {
+        _watchOneOpt(i, _cacl2PctWtKey, bdTarget, (a) {
+          final s = double.tryParse(a) ?? 0;
+          if (s == 0) return '';
+          return (0.99707 + (0.007923 * s) + (0.00004964 * s * s)).toStringAsFixed(3);
         });
       }
 
-      // ── 12. Water Phase Salinity (WPS) mg/l = CaCl2(% wt) × 10000 × BrineDensity(SG)
-      //    Excel row 56: =IFERROR(10000*L54*L61,"")
-      //    L54 = CaCl2 (% wt), L61 = Brine Density (SG)
-      final wpsMglTarget = _wpsSaltPpmKey;
-      if (wpsMglTarget != null && wpsMglTarget != wpsTarget) {
-        _watchTwoOpt(i, _cacl2PctWtKey, _brineDensitySgKey, wpsMglTarget, (a, b) {
-          final cacl2    = double.tryParse(a) ?? 0;
-          final brineSg  = double.tryParse(b) ?? 0;
-          if (cacl2 == 0) return '';
-          // If no brine density row found, fall back to 1.0
-          final sg = brineSg == 0 ? 1.0 : brineSg;
-          return (cacl2 * 10000 * sg).toStringAsFixed(0);
-        });
+      // ── WBM-only ──────────────────────────────────────────────────────────
+      if (selectedFluidType.value == 'Water-based') {
+        // Sand Content = same formula as Oil/Water Ratio
+        final scTarget = _sandContentKey;
+        if (scTarget != null) {
+          _watchTwoOpt(i, _oilKey, _waterKey, scTarget, (a, b) {
+            final o = double.tryParse(a) ?? 0;
+            final w = double.tryParse(b) ?? 0;
+            if (o == 0 && w == 0) return '';
+            final total = o + w;
+            if (total == 0) return '';
+            return '${(100*o/total).ceil()}/${(100*w/total).floor()}';
+          });
+        }
+
+        // Filtrate Alkalinity (Mf) = MBT × 1.295
+        final filtMfTarget = _filtAlkMfKey;
+        if (filtMfTarget != null) {
+          _watchOneOpt(i, _mbtKey, filtMfTarget, (a) {
+            final v = double.tryParse(a) ?? 0;
+            return v == 0 ? '' : (v * 1.295).toStringAsFixed(2);
+          });
+        }
+
+        // Calcium = Pf × 1.565
+        final calciumTarget = _calciumKey;
+        if (calciumTarget != null) {
+          _watchOneOpt(i, _filtAlkPfKey, calciumTarget, (a) {
+            final v = double.tryParse(a) ?? 0;
+            return v == 0 ? '' : (v * 1.565).toStringAsFixed(2);
+          });
+        }
+
+        // Mud Chlorides = 10000 × CaCl2%
+        final mudChlTarget = _mudChloridesMglKey;
+        if (mudChlTarget != null) {
+          _watchOneOpt(i, _cacl2PctWtKey, mudChlTarget, (a) {
+            final v = double.tryParse(a) ?? 0;
+            return v == 0 ? '' : (v * 10000).toStringAsFixed(0);
+          });
+        }
+
+        // KCl = 10000 × CaCl2% × BrineSG
+        final kclTarget = _kclKey;
+        if (kclTarget != null) {
+          _watchOneOpt(i, _cacl2PctWtKey, kclTarget, (a) {
+            final s = double.tryParse(a) ?? 0;
+            if (s == 0) return '';
+            final bSG = 0.99707 + (0.007923 * s) + (0.00004964 * s * s);
+            return (s * 10000 * bSG).toStringAsFixed(0);
+          });
+        }
       }
     }
   }
-
 
   // ═══════════════════════════════════════════════════════════════════════════
   // isAutoCalc
@@ -488,44 +541,37 @@ class MudController extends GetxController {
 
   bool isAutoCalc(String fieldName) {
     final k = fieldName.toLowerCase().replaceAll('*', '').trim();
-    // PV, YP (in property table — transferred from rheology, but keep editable)
-    // LSRYP
     if (k == 'lsryp' || k.contains('lsryp')) return true;
-    // Oil/Water Ratio
     if (k.contains('oil') && k.contains('water') && k.contains('ratio')) return true;
-    // Total Solids output row only — NOT "*Solids (% vol)" retort input
+    // FIX: "*Solids (% vol)" is USER INPUT — NOT auto-calc, do NOT mark grey
+    // Only "Total Solids" named output row is auto-calc
     if ((k == 'total solids' || k.contains('total solids')) &&
         !k.contains('corr') && !k.contains('drill')) return true;
-    // Corrected Solids
     if (k.contains('corrected solids') || k.contains('corr. solids')) return true;
-    // Excess Lime
     if (k.contains('excess lime')) return true;
-    // CaCl2 Concentration (mg/l) — auto-calc = 1.565 × MBT
     if (k.contains('cacl2 concentration') || k.contains('cacl2 conc') ||
         (k.startsWith('cacl2') && k.contains('mg'))) return true;
-    // CaCl2 (% wt) — auto-calc from MBT + Water
     if (k.startsWith('cacl2') && (k.contains('wt') || k.contains('%'))) return true;
-    // Water Phase Salinity
+    // FIX: match any water phase salinity row (no 'ppm' requirement)
     if (k.contains('water phase salinity') || k.contains('water phase sal')) return true;
+    if (k == 'sand content' || k.contains('sand content')) return true;
+    if (k.contains('filtrate alkalinity') && (k.contains('mf') || k.contains('(mf)'))) return true;
+    if (k == 'calcium' || (k.startsWith('calcium') && !k.contains('chloride'))) return true;
+    if ((k.contains('mud chloride') || k == 'mud chlorides') && !k.contains('whole')) return true;
+    if (k == 'kcl' || k.startsWith('kcl')) return true;
     return false;
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // DEBOUNCED SOLID ANALYSIS SAVE WATCHERS
+  // SOLID ANALYSIS WATCHERS & SAVE
   // ═══════════════════════════════════════════════════════════════════════════
 
   void _setupSolidAnalysisWatchers() {
     for (int si = 0; si < 3; si++) {
       final sampleIdx = si;
-      // Watch all fields that affect Solid Analysis calculation
       final sourceKeys = [
-        _mwKey,
-        _solidsKey,
-        _oilKey,
-        _waterKey,
-        _bariteKey,
-        _bentoniteKey,
-        _cacl2PctWtKey,   // drives brineSG via formula
+        _mwKey, _solidsKey, _oilKey, _waterKey,
+        _bariteKey, _bentoniteKey, _cacl2PctWtKey,
       ];
       for (final key in sourceKeys) {
         if (key == null) continue;
@@ -560,6 +606,7 @@ class MudController extends GetxController {
         'hgsSG':        vals['hgsSG'],
         'lgsSG':        vals['lgsSG'],
         'sampleIndex':  sampleIdx,
+        'fluidType':    selectedFluidType.value,
       });
 
       final existingId = _solidAnalysisIds[sampleIdx];
@@ -598,7 +645,6 @@ class MudController extends GetxController {
 
   void _updateResultFromData(int sampleIdx, Map<String, dynamic> data) {
     final result = Map<String, List<String>>.from(solidAnalysisResult);
-
     void set(String key, dynamic val) {
       result.putIfAbsent(key, () => ['-', '-', '-']);
       final list = List<String>.from(result[key]!);
@@ -606,8 +652,6 @@ class MudController extends GetxController {
       list[sampleIdx] = _fmt(val);
       result[key] = list;
     }
-
-    // Map backend response fields → dialog row names
     set('LGS (%)',               data['lgsPercent']);
     set('LGS (lb/bbl)',          data['lgsLb']);
     set('HGS (%)',               data['hgsPercent']);
@@ -621,7 +665,6 @@ class MudController extends GetxController {
     set('Drill Solids (lb/bbl)', data['drillSolidsLb']);
     set('DS/Bent Ratio',         data['dsBentRatio']);
     set('Avg. SG of Solids',     data['avgSG']);
-
     solidAnalysisResult.value = result;
   }
 
@@ -638,7 +681,7 @@ class MudController extends GetxController {
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // _extractSampleValues — collects all inputs for Solid Analysis backend
+  // _extractSampleValues
   // ═══════════════════════════════════════════════════════════════════════════
 
   Map<String, double> _extractSampleValues(int index) {
@@ -648,23 +691,17 @@ class MudController extends GetxController {
       if (vals == null || index >= vals.length) return 0;
       return double.tryParse(vals[index].value) ?? 0;
     }
-
-    // Read CaCl2 (% wt) — used by backend for Brine Density formula
-    // Formula: brineSG = 0.99707 + 0.007923*CaCl2 + 0.00004964*CaCl2²
-    final cacl2Pct = readField(_cacl2PctWtKey);
-
     return {
       'mudWeight':    readField(_mwKey),
-      'retortSolids': readField(_solidsKey),
+      'retortSolids': readField(_solidsKey),   // reads user's actual retort input
       'oilVol':       readField(_oilKey),
       'waterVol':     readField(_waterKey),
       'bariteLb':     readField(_bariteKey),
       'bentoniteLb':  readField(_bentoniteKey),
-      'cacl2Pct':     cacl2Pct,
-      // SG values from Specific Gravity panel (user-editable TextControllers)
+      'cacl2Pct':     readField(_cacl2PctWtKey),
       'oilSG':   double.tryParse(oilSgController.text)  ?? 0.81,
-      'hgsSG':   double.tryParse(hgsSgController.text)  ?? 4.20,
-      'lgsSG':   double.tryParse(lgsSgController.text)  ?? 2.60,
+      'hgsSG':   double.tryParse(hgsSgController.text)  ?? 4.10,
+      'lgsSG':   double.tryParse(lgsSgController.text)  ?? 2.40,
     };
   }
 
@@ -724,7 +761,6 @@ class MudController extends GetxController {
       final r300 = double.tryParse(rheologyTable['300']?[i].value ?? '') ?? 0;
       final r3   = double.tryParse(rheologyTable['3']?[i].value   ?? '') ?? 0;
       final r6   = double.tryParse(rheologyTable['6']?[i].value   ?? '') ?? 0;
-
       switch (rheologyModel.value) {
         case 'Bingham':
           if (r600 > 0 || r300 > 0) {
@@ -786,7 +822,6 @@ class MudController extends GetxController {
   // REACTIVE HELPERS
   // ═══════════════════════════════════════════════════════════════════════════
 
-  /// Watch one source field → update target (if both exist in propertyTable)
   void _watchOneOpt(int si, String? src, String? target, String Function(String) fn) {
     if (src == null || target == null) return;
     final s = propertyTable[src];
@@ -796,7 +831,6 @@ class MudController extends GetxController {
     ever(s[si], (_) => t[si].value = fn(s[si].value));
   }
 
-  /// Watch two source fields → update target (if all exist in propertyTable)
   void _watchTwoOpt(int si, String? srcA, String? srcB, String? target,
       String Function(String, String) fn) {
     if (srcA == null || srcB == null || target == null) return;
@@ -810,10 +844,8 @@ class MudController extends GetxController {
     ever(b[si], (_) => t[si].value = fn(a[si].value, b[si].value));
   }
 
-  // Keep old _watchOne/_watchTwo signatures for backward compatibility
   void _watchOne(int si, String? src, String target, String Function(String) fn) =>
       _watchOneOpt(si, src, target, fn);
-
   void _watchTwo(int si, String? srcA, String? srcB, String target,
       String Function(String, String) fn) =>
       _watchTwoOpt(si, srcA, srcB, target, fn);
@@ -823,17 +855,13 @@ class MudController extends GetxController {
   // ═══════════════════════════════════════════════════════════════════════════
 
   double _log10(double x) => x > 0 ? 0.4342944819 * _ln(x) : 0;
-
   double _ln(double x) {
     if (x <= 0) return 0;
     double r = 0, y = (x - 1) / (x + 1), y2 = y * y, t = y;
     for (int i = 0; i < 50; i++) { r += t / (2 * i + 1); t *= y2; }
     return 2 * r;
   }
-
-  double _pow(double base, double exp) =>
-      base <= 0 ? 0 : _expM(exp * _ln(base));
-
+  double _pow(double base, double exp) => base <= 0 ? 0 : _expM(exp * _ln(base));
   double _expM(double x) {
     double r = 1, t = 1;
     for (int i = 1; i <= 50; i++) { t *= x / i; r += t; }
