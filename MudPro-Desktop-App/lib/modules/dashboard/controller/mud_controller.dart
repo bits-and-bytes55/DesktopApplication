@@ -490,13 +490,18 @@ class MudController extends GetxController {
 
       // ── 11. Water Phase Salinity (WPS) ppm = CaCl2(% wt) × 10000 ──────────
       //    Excel row 55: =IFERROR(10000*L54,"")
-      //    L54 = CaCl2 (% wt) — auto-calc field
+      //    L54 = CaCl2 (% wt)
       final wpsTarget = _wpsSaltPercentKey;
       if (wpsTarget != null) {
-        _watchOneOpt(i, _cacl2PctWtKey, wpsTarget, (a) {
-          final v = double.tryParse(a) ?? 0;
-          return v == 0 ? '' : (v * 10000).toStringAsFixed(0);
-        });
+        void recalcWpsPpm() {
+          final saltPctVal = propertyTable[_cacl2PctWtKey]?[i].value ?? '';
+          final S = double.tryParse(saltPctVal) ?? 0;
+          propertyTable[wpsTarget]?[i].value = S == 0 ? '' : (S * 10000).toStringAsFixed(0);
+        }
+
+        if (_cacl2PctWtKey != null) {
+          ever(propertyTable[_cacl2PctWtKey!]![i], (_) => recalcWpsPpm());
+        }
       }
 
       // ── 12. Water Phase Salinity (WPS) mg/l = CaCl2(% wt) × 10000 × BrineDensity(SG)

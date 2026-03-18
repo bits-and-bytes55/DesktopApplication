@@ -17,72 +17,63 @@ function computeSolidsAnalysis({ mudWeight, retortSolids, oilVol, waterVol, bari
 
   if (MW <= 0) return null;
 
-  let brineSG, brineVol, avgSG, dissolvedSolids, correctedSolids;
-  const waterDensity = 0.99707; // Base density factor for volume calculation in Excel
+  const bariteSG = 4.2;
+  const bentoniteSG = 2.65;
+  const drillSolidsSG = 2.6;
+  const bblFactor = 42;
 
+  const totalMudMassLb = MW * bblFactor; // Total mass per bbl
+  const totalSolidsLb = totalMudMassLb * (S / 100); // Total solids mass per bbl (from retort)
+
+  // 1. Additive inputs (lb/bbl)
+  const hgsLb = bariteLb;
+  const bentLbActual = bentoniteLb;
+  const lgsLbTotal = totalSolidsLb - hgsLb;
+  const drillSolidsLb = lgsLbTotal - bentLbActual;
+
+  // 2. Brine & Dissolved Solids logic
+  let brineSG;
   if (isWBM) {
-    // ── Water-Based Mud formulas ──────────────────────────────────────────
     brineSG = 1.0;
-    
-    // Brine % vol = (Water * 100) / (BrineSG * (100 - SaltPct) * 0.99707)
-    // Excel: L62 formula
-    brineVol = (100 * W) / (brineSG * (100 - saltPct) * waterDensity);
-
-    dissolvedSolids = 0;
-    correctedSolids = S;
-
-    // Average Solids SG
-    // Literal User Formula: avg solid dnesity - =IFERROR((100*(L25/8.34)-(L46*L59)-(L61*L62))/L45,"")
-    // Note: No extra waterDensity in the mass term (brineSG * brineVol) here.
-    avgSG = S > 0 ? ((100 * (MW / 8.34)) - (O * OSG) - (brineSG * brineVol)) / S : 0;
-
   } else {
-    // ── Oil-Based Mud formulas ────────────────────────────────────────────
+    // Brine Density SG = 0.99707 + (0.007923 * saltPct) + (0.00004964 * saltPct^2)
     brineSG = 0.99707 + (0.007923 * saltPct) + (0.00004964 * Math.pow(saltPct, 2));
-
-    // Brine % vol
-    brineVol = (brineSG > 0 && (100 - saltPct) > 0)
-      ? (100 * W) / (brineSG * (100 - saltPct) * waterDensity)
-      : W;
-
-    // Average Solids SG
-    // Literal User Formula: avg solid dnesity - =IFERROR((100*(L25/8.34)-(L46*L59)-(L61*L62))/L45,"")
-    avgSG = S > 0 ? ((100 * (MW / 8.34)) - (O * OSG) - (brineSG * brineVol)) / S : 0;
-
-    dissolvedSolids = (brineSG - 1) * 100;
-    correctedSolids = S - dissolvedSolids;
   }
+  const dissolvedSolidsPct = (brineSG - 1) * 100;
+  const correctedSolidsPct = S - dissolvedSolidsPct;
 
-  // Common downstream formulas (Literally from User text)
-  // hgs % - =IFERROR(((L67-L57)/(L58-L57))*L45,"")
-  const hgsPercent = (HSG - LSG) !== 0 ? ((avgSG - LSG) / (HSG - LSG)) * S : 0;
+  // 3. Volumetric % Calculation (Relative to Total Mud Weight as per industry tutorial)
+  const hgsPercent = (hgsLb / totalMudMassLb) * 100;
+  const lgsPercent = (lgsLbTotal / totalMudMassLb) * 100;
+  const bentPercent = (bentLbActual / totalMudMassLb) * 100;
+  const drillSolidsPercent = (drillSolidsLb / totalMudMassLb) * 100;
 
-  // lgs % - =IFERROR(L45-L65,"")
-  const lgsPercent = S - hgsPercent;
+  // 4. Average Solids SG (Mass-weighted formula from tutorial)
+  // Formula: ((HGS_lb * 4.2) + (Bent_lb * 2.65) + (DS_lb * 2.6)) / TotalSolids_lb
+  const avgSG = totalSolidsLb > 0
+    ? ((hgsLb * bariteSG) + (bentLbActual * bentoniteSG) + (drillSolidsLb * drillSolidsSG)) / totalSolidsLb
+    : 0;
 
-  // lgs ppb - =IFERROR(3.5*L57*L63,"")
-  const lgsLb = 3.5 * LSG * lgsPercent;
-
-  // hgs ppb - =IFERROR(3.5*L58*L65,"")
-  const hgsLb = 3.5 * HSG * hgsPercent;
-
-  // 10. Bentonite (%) = bentoniteLb / (2.6 * 3.5)
-  const bentPercent = bentLb / (2.6 * 3.5);
-
-  // 11. Drill Solids (%) = LGS % vol - Bentonite % vol
-  const drillSolidsPercent = lgsPercent - bentPercent;
-
-  // 12. Drill Solids (lb/bbl) = 3.5 * LSG * Drill Solids %
-  const drillSolidsLb = 3.5 * LSG * drillSolidsPercent;
-
-  // 13. DS/Bent Ratio
-  const dsBentRatio = bentPercent > 0 ? drillSolidsPercent / bentPercent : 0;
+  // 5. DS/Bent Ratio
+  const dsBentRatio = bentLbActual > 0 ? drillSolidsLb / bentLbActual : 0;
 
   return {
-    mudWeight: MW, retortSolids: S, bariteLb: hgsLb, bentoniteLb: bentLb, brineSG,
-    hgsPercent, lgsPercent, lgsLb, hgsLb,
-    dissolvedSolids, correctedSolids, bentPercent,
-    drillSolidsLb, drillSolidsPercent, dsBentRatio, avgSG,
+    mudWeight: MW,
+    retortSolids: S,
+    bariteLb: hgsLb,
+    bentoniteLb: bentLbActual,
+    brineSG,
+    hgsPercent,
+    lgsPercent,
+    lgsLb: lgsLbTotal,
+    hgsLb: hgsLb,
+    dissolvedSolids: dissolvedSolidsPct,
+    correctedSolids: correctedSolidsPct,
+    bentPercent,
+    drillSolidsLb,
+    drillSolidsPercent,
+    dsBentRatio,
+    avgSG,
   };
 }
 
