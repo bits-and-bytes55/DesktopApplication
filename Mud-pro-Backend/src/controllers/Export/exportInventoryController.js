@@ -1,138 +1,309 @@
 import ExcelJS from "exceljs";
-import path from "path";
-
-import Company from "../../modules/company/company.model.js";
+import { fileURLToPath } from "url";
 import InventorySnapshot from "../../modules/FullInventory/InventorySnapshot.js";
 import Pit from "../../modules/pit/pit.model.js";
 import { Activity } from "../../modules/others/others.model.js";
 
+const TEMPLATE_PATH = fileURLToPath(
+  new URL("../../../assets/template.xlsx", import.meta.url)
+);
+
+const INVENTORY_SHEET_NAME = "Inventory";
+const REPORT_NUMBER = "1";
+
+const PRODUCT_ROWS = { start: 14, end: 63 };
+const SERVICE_ROWS = { start: 76, end: 84 };
+const ACTIVE_PIT_ROWS = { start: 77, end: 84 };
+const TIME_ROWS = { start: 75, end: 84 };
+const ENGINEERING_ROWS = { start: 87, end: 91 };
+const RESERVE_ROWS = { start: 95, end: 101 };
+
+const PRODUCT_COLUMNS = [
+  "A",
+  "F",
+  "I",
+  "K",
+  "M",
+  "O",
+  "Q",
+  "S",
+  "U",
+  "W",
+  "Y",
+  "AA",
+  "AC",
+  "AE",
+];
+const SERVICE_COLUMNS = ["A", "G", "I", "K"];
+const PIT_COLUMNS = ["M", "S", "U", "W"];
+const TIME_COLUMNS = ["AA", "AE"];
+
+const SUMMARY_VALUE_CELLS = [
+  "G67",
+  "J67",
+  "M67",
+  "G68",
+  "J68",
+  "M68",
+  "G69",
+  "J69",
+  "M69",
+  "G70",
+  "J70",
+  "M70",
+  "G71",
+  "J71",
+  "M71",
+  "G72",
+  "J72",
+  "M72",
+  "G73",
+  "J73",
+  "M73",
+  "X67",
+  "AA67",
+  "AD67",
+  "X68",
+  "AA68",
+  "AD68",
+  "X71",
+  "AA71",
+  "AD71",
+  "X72",
+  "AA72",
+  "AD72",
+  "X73",
+  "AA73",
+  "AD73",
+];
+
+const COST_SUMMARY_VALUE_CELLS = [
+  "G94",
+  "G95",
+  "G96",
+  "G97",
+  "G98",
+  "G99",
+  "G100",
+  "G101",
+  "AE94",
+  "AE95",
+  "AE96",
+  "AE97",
+  "AE98",
+  "AE99",
+  "AE100",
+  "AE101",
+];
+
+const setCellValue = (worksheet, address, value = "") => {
+  worksheet.getCell(address).value = value ?? "";
+};
+
+const clearRows = (worksheet, range, columns) => {
+  for (let row = range.start; row <= range.end; row += 1) {
+    for (const column of columns) {
+      setCellValue(worksheet, `${column}${row}`, "");
+    }
+  }
+};
+
+const writeRows = (worksheet, range, columns, items, mapItem) => {
+  clearRows(worksheet, range, columns);
+
+  const maxRows = range.end - range.start + 1;
+
+  items.slice(0, maxRows).forEach((item, index) => {
+    const rowNumber = range.start + index;
+    const rowData = mapItem(item);
+
+    Object.entries(rowData).forEach(([column, value]) => {
+      setCellValue(worksheet, `${column}${rowNumber}`, value);
+    });
+  });
+};
+
+const clearCells = (worksheet, addresses) => {
+  addresses.forEach((address) => setCellValue(worksheet, address, ""));
+};
+
+const toNumber = (value, fallback = 0) => {
+  const parsedValue = Number(value);
+  return Number.isFinite(parsedValue) ? parsedValue : fallback;
+};
+
+const getReportDate = () => new Date().toLocaleDateString("en-GB");
+
+const getPitVolume = (pit) => pit.volume || pit.capacity || "";
+
 export const exportInventoryReport = async (req, res) => {
   try {
+    const [inventoryData, pits, activities] = await Promise.all([
+      InventorySnapshot.find().sort({ category: 1 }),
+      Pit.find(),
+      Activity.find(),
+    ]);
 
-    // =========================
-    // DATA FETCH
-    // =========================
-    const inventoryData = await InventorySnapshot.find().sort({ category: 1 });
+    const products = inventoryData.filter(
+      (item) => item.category === "Product"
+    );
+    const services = inventoryData.filter(
+      (item) => item.category === "Service"
+    );
+    const engineers = inventoryData.filter(
+      (item) => item.category === "Engineering"
+    );
+    const activePits = pits.filter((pit) => pit.initialActive === true);
+    const reservePits = pits.filter((pit) => pit.initialActive === false);
 
-    const products = inventoryData.filter(i => i.category === "Product");
-    const services = inventoryData.filter(i => i.category === "Service");
-    const engineers = inventoryData.filter(i => i.category === "Engineering");
-
-    const pits = await Pit.find();
-    const activities = await Activity.find();
-
-    const activePits = pits.filter(p => p.initialActive === true);
-    const reservePits = pits.filter(p => p.initialActive === false);
-
-    // =========================
-    // LOAD TEMPLATE (IMPORTANT)
-    // =========================
     const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.readFile(TEMPLATE_PATH);
 
-    await workbook.xlsx.readFile(
-      path.join("assets", "template.xlsx")   // 👉 अपनी file का नाम
+    const worksheet = workbook.getWorksheet(INVENTORY_SHEET_NAME);
+
+    if (!worksheet) {
+      throw new Error(
+        `${INVENTORY_SHEET_NAME} sheet not found in assets/template.xlsx`
+      );
+    }
+
+    const inventorySheetIndex = workbook.worksheets.findIndex(
+      (sheet) => sheet.name === INVENTORY_SHEET_NAME
     );
 
-    const worksheet = workbook.getWorksheet(1);
+    if (inventorySheetIndex >= 0) {
+      const currentView = workbook.views?.[0] ?? { visibility: "visible" };
 
-    // =========================
-    // PRODUCTS (Row 14)
-    // =========================
-    let productRow = 14;
+      workbook.views = [
+        {
+          ...currentView,
+          firstSheet: inventorySheetIndex,
+          activeTab: inventorySheetIndex,
+        },
+      ];
+    }
 
-    products.forEach((item, i) => {
-      const row = worksheet.getRow(productRow + i);
+    setCellValue(worksheet, "I2", "Daily Inventory Report");
+    setCellValue(worksheet, "V2", REPORT_NUMBER);
 
-      row.getCell(1).value = item.itemName || "";
-      row.getCell(2).value = item.unit || "";
-      row.getCell(3).value = item.price || 0;
-      row.getCell(4).value = item.initial || 0;
-      row.getCell(5).value = item.rec || 0;
-      row.getCell(6).value = item.cumulativeRec || 0;
-      row.getCell(7).value = item.ret || 0;
-      row.getCell(8).value = item.cumulativeRet || 0;
-      row.getCell(9).value = item.used || 0;
-      row.getCell(10).value = item.cumulativeUsed || 0;
-      row.getCell(11).value = item.final || 0;
-      row.getCell(12).value = item.costDollar || 0;
-    });
+    setCellValue(worksheet, "L7", "");
+    setCellValue(worksheet, "U7", getReportDate());
+    setCellValue(worksheet, "AC7", REPORT_NUMBER);
 
-    // =========================
-    // SERVICES (Row 76)
-    // =========================
-    let serviceRow = 76;
+    setCellValue(worksheet, "D8", "-");
+    setCellValue(worksheet, "L8", "-");
+    setCellValue(worksheet, "U8", "-");
+    setCellValue(worksheet, "AC8", "-");
 
-    services.forEach((s, i) => {
-      const row = worksheet.getRow(serviceRow + i);
+    setCellValue(worksheet, "D9", "-");
+    setCellValue(worksheet, "L9", "-");
+    setCellValue(worksheet, "U9", "-");
+    setCellValue(worksheet, "AC9", "-");
 
-      row.getCell(1).value = s.itemName || "";
-      row.getCell(2).value = s.qty || 0;
-      row.getCell(3).value = s.cumulativeUsed || 0;
-      row.getCell(4).value = s.costDollar || 0;
-    });
+    setCellValue(worksheet, "D10", "-");
+    setCellValue(worksheet, "L10", "-");
+    setCellValue(worksheet, "U10", "-");
+    setCellValue(worksheet, "AC10", "-");
 
-    // =========================
-    // PIT (Active) (Row 77)
-    // =========================
-    let pitRow = 77;
+    setCellValue(worksheet, "D11", "-");
+    setCellValue(worksheet, "L11", "-");
+    setCellValue(worksheet, "U11", "-");
+    setCellValue(worksheet, "AC11", "-");
 
-    activePits.forEach((pit, i) => {
-      const row = worksheet.getRow(pitRow + i);
+    writeRows(
+      worksheet,
+      PRODUCT_ROWS,
+      PRODUCT_COLUMNS,
+      products,
+      (item) => ({
+        A: item.itemName || "",
+        F: item.unit || "",
+        I: toNumber(item.price),
+        K: toNumber(item.initial),
+        M: toNumber(item.rec),
+        O: toNumber(item.cumulativeRec),
+        Q: toNumber(item.ret),
+        S: toNumber(item.cumulativeRet),
+        U: toNumber(item.used),
+        W: toNumber(item.cumulativeUsed),
+        Y: toNumber(item.final),
+        AA: toNumber(item.costDollar),
+        AC: "",
+        AE: "",
+      })
+    );
 
-      row.getCell(5).value = pit.pitName || "";
-      row.getCell(6).value = pit.capacity || 0;
-      row.getCell(7).value = pit.density || "";
-      row.getCell(8).value = pit.fluidType || "";
-    });
+    clearCells(worksheet, SUMMARY_VALUE_CELLS);
 
-    // =========================
-    // TIME BREAKDOWN (Row 76)
-    // =========================
-    let timeRow = 76;
+    writeRows(
+      worksheet,
+      SERVICE_ROWS,
+      SERVICE_COLUMNS,
+      services,
+      (item) => ({
+        A: item.itemName || "",
+        G: toNumber(item.qty),
+        I: toNumber(item.cumulativeUsed),
+        K: toNumber(item.costDollar),
+      })
+    );
 
-    activities.forEach((act, i) => {
-      const row = worksheet.getRow(timeRow + i);
+    writeRows(
+      worksheet,
+      ACTIVE_PIT_ROWS,
+      PIT_COLUMNS,
+      activePits,
+      (pit) => ({
+        M: pit.pitName || "",
+        S: getPitVolume(pit),
+        U: pit.density || "",
+        W: pit.fluidType || "",
+      })
+    );
 
-      row.getCell(10).value = act.description || "";
-      row.getCell(11).value = act.hours || 0;
-    });
+    writeRows(
+      worksheet,
+      TIME_ROWS,
+      TIME_COLUMNS,
+      activities,
+      (activity) => ({
+        AA: activity.description || "",
+        AE: toNumber(activity.hours),
+      })
+    );
 
-    // =========================
-    // ENGINEERING (Row 87)
-    // =========================
-    let engRow = 87;
+    writeRows(
+      worksheet,
+      ENGINEERING_ROWS,
+      SERVICE_COLUMNS,
+      engineers,
+      (item) => ({
+        A: item.itemName || "",
+        G: toNumber(item.qty),
+        I: toNumber(item.cumulativeUsed),
+        K: toNumber(item.costDollar),
+      })
+    );
 
-    engineers.forEach((e, i) => {
-      const row = worksheet.getRow(engRow + i);
+    writeRows(
+      worksheet,
+      RESERVE_ROWS,
+      PIT_COLUMNS,
+      reservePits,
+      (pit) => ({
+        M: pit.pitName || "",
+        S: pit.capacity ?? "",
+        U: "",
+        W: "",
+      })
+    );
 
-      row.getCell(1).value = e.itemName || "";
-      row.getCell(2).value = e.qty || 0;
-      row.getCell(3).value = e.cumulativeUsed || 0;
-      row.getCell(4).value = e.costDollar || 0;
-    });
+    clearCells(worksheet, COST_SUMMARY_VALUE_CELLS);
 
-    // =========================
-    // RESERVE PITS (Row 95)
-    // =========================
-    let reserveRow = 95;
-
-    reservePits.forEach((pit, i) => {
-      const row = worksheet.getRow(reserveRow + i);
-
-      row.getCell(5).value = pit.pitName || "";
-      row.getCell(6).value = pit.capacity || 0;
-      row.getCell(7).value = pit.density || "";
-      row.getCell(8).value = pit.fluidType || "";
-    });
-
-    // =========================
-    // RESPONSE
-    // =========================
     res.setHeader(
       "Content-Type",
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     );
-
     res.setHeader(
       "Content-Disposition",
       "attachment; filename=Daily_Inventory_Report.xlsx"
@@ -140,12 +311,11 @@ export const exportInventoryReport = async (req, res) => {
 
     await workbook.xlsx.write(res);
     res.end();
-
   } catch (error) {
     console.error(error);
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message,
     });
   }
 };

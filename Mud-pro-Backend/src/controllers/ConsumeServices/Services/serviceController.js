@@ -10,7 +10,7 @@ export const createService = async (req, res) => {
       price = 0,
     } = req.body;
 
-    // 🔥 Auto Cost Calculation
+    // 🔥 Auto Costa Calculation
     const cost = Number(usage) * Number(price);
 
     const newService = await Service.create({
