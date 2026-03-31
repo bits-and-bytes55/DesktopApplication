@@ -44,6 +44,8 @@ import sceRoutes from "./routes/sce/sce.routes.js";
 
 
 import wellGeneralRoutes from "./routes/wellGeneral/wellGeneralRoutes.js";
+import intervalRoutes from "./routes/wellInterval/intervalRoutes.js";
+
 
 
 import activityRoutes from './routes/others/otherActivity.routes.js';
@@ -172,6 +174,8 @@ app.use('/api/mud-properties', mudPropertiesRoute);
 
 app.use('/api/solids',solidanalysisroute);
 app.use('/api/casing', casingRoutes);
+
+app.use("/api/intervals", intervalRoutes);
 
 
 // Error handler (ALWAYS LAST)

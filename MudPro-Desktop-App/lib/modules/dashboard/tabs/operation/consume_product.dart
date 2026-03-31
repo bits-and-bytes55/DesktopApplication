@@ -77,16 +77,13 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       for (final item in data) {
         final row = ProductRowData();
 
-        // ✅ DB se seedha product name lo — yahi dropdown mein dikhega
         final productName = item['product']?.toString() ?? '';
         row.productName = productName;
 
-        // Store mein match karo agar mile — editing ke liye helpful
         if (productName.isNotEmpty) {
           row.selectedProduct.value = _findByName(productName);
         }
 
-        // ✅ Saari details DB se directly load karo
         row.code    = item['code']?.toString() ?? '';
         row.sg      = item['sg']?.toString() ?? '';
         row.unit    = item['unit']?.toString() ?? '';
@@ -160,7 +157,6 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
   void _onFieldChanged(int index) {
     if (index >= productRows.length) return;
     final row = productRows[index];
-    // productName set hona chahiye — selectedProduct null ho tab bhi chale
     if (row.productName.isEmpty && row.selectedProduct.value == null) return;
 
     row.recalculate();
@@ -199,7 +195,6 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     if (index >= productRows.length) return;
     final row = productRows[index];
 
-    // productName — selectedProduct se lo ya row.productName se
     final productName = row.selectedProduct.value?.product.isNotEmpty == true
         ? row.selectedProduct.value!.product
         : row.productName;
@@ -559,6 +554,13 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                   width: _colWidth(h),
                   alignment: _isRightCol(h) ? Alignment.centerRight : Alignment.centerLeft,
                   padding: const EdgeInsets.symmetric(horizontal: 8),
+                  // ── CHANGE 1: highlight "Used" / "Final" header based on selectedMethod ──
+                  decoration: BoxDecoration(
+                    color: (h == 'Used' && selectedMethod.value == 'Used') ||
+                           (h == 'Final' && selectedMethod.value == 'Final')
+                        ? const Color(0xFFD6EAF8)   // slightly deeper ice-blue for header
+                        : null,
+                  ),
                   child: Text(h),
                 ))).toList(),
                 rows: List.generate(productRows.length, (i) => DataRow(
@@ -605,19 +607,15 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
           final storeProducts = _inventoryStore.selectedProducts;
           final currentVal = row.selectedProduct.value;
 
-          // ✅ KEY FIX: Agar selectedProduct null hai lekin productName set hai
-          // toh wo naam directly text ke roop mein dikha do — "Select" mat dikha
           if (currentVal == null && row.productName.isNotEmpty) {
-            // DB se aaya hua naam — sirf text dikhao, dropdown bhi rakhenge
             return DropdownButtonHideUnderline(
               child: DropdownButton<ProductModel>(
                 value: null,
-                // ✅ Yahan productName as hint dikhao — "Select" ki jagah
                 hint: Text(
                   row.productName,
                   style: AppTheme.bodySmall.copyWith(
                     fontSize: 10,
-                    color: Colors.black87, // Dark color — data hai toh clearly dikhe
+                    color: Colors.black87,
                     fontWeight: FontWeight.w500,
                   ),
                   overflow: TextOverflow.ellipsis,
@@ -652,7 +650,6 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
             );
           }
 
-          // Normal case — selectedProduct available hai
           final validVal = currentVal != null &&
               storeProducts.any((p) => p.id == currentVal.id)
               ? currentVal : null;
@@ -694,45 +691,70 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       )),
 
       // 2–5. Static read-only cells
-      _staticCell(row.code, 80),
-      _staticCell(row.sg, 70),
-      _staticCell(row.unit, 70),
-      _staticCell(row.price > 0 ? row.price.toStringAsFixed(2) : '', 90, right: true),
+      DataCell(_staticField(row.code, 80)),
+      DataCell(_staticField(row.sg, 70)),
+      DataCell(_staticField(row.unit, 70)),
+      DataCell(_staticField(row.price > 0 ? row.price.toStringAsFixed(2) : '', 90, right: true)),
 
       // 6. Initial
-      _editCell(
+      DataCell(_editField(
         key: ValueKey('init_${row.savedId ?? i}_${row.productName}'),
         value: row.initial, width: 75, locked: locked,
         onChange: (v) { row.initial = v; _onFieldChanged(i); _checkAndAddProductRow(); },
-      ),
+      )),
+
       // 7. Adjust
-      _editCell(
+      DataCell(_editField(
         key: ValueKey('adj_${row.savedId ?? i}_${row.productName}'),
         value: row.adjust, width: 75, locked: locked,
         onChange: (v) { row.adjust = v; _onFieldChanged(i); _checkAndAddProductRow(); },
-      ),
-      // 8. Used
-      _editCell(
-        key: ValueKey('used_${row.savedId ?? i}_${row.productName}'),
-        value: row.used, width: 75, locked: locked,
-        onChange: (v) { row.used = v; _onFieldChanged(i); _checkAndAddProductRow(); },
-      ),
+      )),
 
-      // 9. Final — reactive
-      DataCell(Container(
-        width: 75, padding: const EdgeInsets.symmetric(horizontal: 8),
-        child: Obx(() {
-          final fv = row.calculatedFinal.value;
-          return Text(
+      // ── CHANGE 2: Used — highlighted & editable only in "Used" mode ──────
+      DataCell(Obx(() {
+        final isUsedMode = selectedMethod.value == "Used";
+        return _editField(
+          key: ValueKey('used_${row.savedId ?? i}_${row.productName}_$isUsedMode'),
+          value: row.used,
+          width: 75,
+          locked: locked || !isUsedMode,   // disabled when Final mode selected
+          highlighted: isUsedMode,          // ice-blue highlight when active
+          onChange: (v) { row.used = v; _onFieldChanged(i); _checkAndAddProductRow(); },
+        );
+      })),
+
+      // ── CHANGE 3: Final — editable & highlighted in "Final" mode,
+      //              read-only calculated value in "Used" mode ─────────────
+      DataCell(Obx(() {
+        final isFinalMode = selectedMethod.value == "Final";
+
+        if (isFinalMode) {
+          // User types the final stock value directly
+          return _editField(
+            key: ValueKey('final_edit_${row.savedId ?? i}_${row.productName}'),
+            value: row.used,   // Final mode input also maps to row.used for backend
+            width: 75,
+            locked: locked,
+            highlighted: true, // ice-blue highlight
+            onChange: (v) { row.used = v; _onFieldChanged(i); _checkAndAddProductRow(); },
+          );
+        }
+
+        // Used mode — read-only, shows calculated final value
+        final fv = row.calculatedFinal.value;
+        return Container(
+          width: 75,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Text(
             row.productName.isNotEmpty ? fv.toStringAsFixed(2) : '',
             textAlign: TextAlign.right,
             style: AppTheme.bodySmall.copyWith(
               fontSize: 10, fontWeight: FontWeight.w600,
               color: fv < 0 ? Colors.red : Colors.grey.shade700,
             ),
-          );
-        }),
-      )),
+          ),
+        );
+      })),
 
       // 10. Cost — reactive
       DataCell(Container(
@@ -777,24 +799,32 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     ];
   }
 
-  DataCell _staticCell(String text, double width, {bool right = false}) {
-    return DataCell(Container(
+  Widget _staticField(String text, double width, {bool right = false}) {
+    return Container(
       width: width, padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Text(text,
         textAlign: right ? TextAlign.right : TextAlign.left,
         overflow: TextOverflow.ellipsis,
         style: AppTheme.bodySmall.copyWith(fontSize: 10)),
-    ));
+    );
   }
 
-  DataCell _editCell({
-    required Key key, required String value, required double width,
-    required Function(String) onChange, bool locked = false,
+  Widget _editField({
+    required Key key,
+    required String value,
+    required double width,
+    required Function(String) onChange,
+    bool locked = false,
+    bool highlighted = false,
   }) {
-    return DataCell(Container(
-      key: key, width: width, padding: const EdgeInsets.symmetric(horizontal: 6),
+    return Container(
+      key: key,
+      width: width,
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      color: highlighted ? const Color(0xFFE8F4FD) : null,
       child: TextFormField(
-        initialValue: value, enabled: !locked,
+        initialValue: value,
+        enabled: !locked,
         style: AppTheme.bodySmall.copyWith(fontSize: 10),
         textAlign: TextAlign.right,
         keyboardType: const TextInputType.numberWithOptions(signed: true, decimal: true),
@@ -805,7 +835,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
         ),
         onChanged: onChange,
       ),
-    ));
+    );
   }
 
   // ── Bottom Section ────────────────────────────────────────────────────────
@@ -1066,9 +1096,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
 class ProductRowData {
   final Rx<ProductModel?> selectedProduct = Rx<ProductModel?>(null);
 
-  // ✅ DB se aaya hua product name — selectedProduct null ho tab bhi kaam karta hai
   String productName = '';
-
   String code    = '';
   String sg      = '';
   String unit    = '';
