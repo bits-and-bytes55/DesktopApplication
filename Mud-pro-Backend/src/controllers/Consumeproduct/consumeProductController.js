@@ -5,29 +5,65 @@ import ConsumeProduct from "../../modules/Consumeproduct/ConsumeProduct.js";
  */
 export const createConsumeProduct = async (req, res) => {
   try {
-    const initial = Number(req.body.initial ?? 0);
-    const adjust = Number(req.body.adjust ?? 0);
-    const used = Number(req.body.used ?? 0);
-    const price = Number(req.body.price ?? 0);
 
-    const numberOfBags = Number(req.body.numberOfBags ?? 0);
-    const weightPerBag = Number(req.body.weightPerBag ?? 0);
-    const sg = Number(req.body.sg ?? 1);
+    let {
+      initial = 0,
+      adjust = 0,
+      used = 0,
+      price = 0,
+      numberOfBags = 0,
+      weightPerBag = 0,
+      sg = 1,
+      productUnit = "KG" // KG | LB | GAL
+    } = req.body;
 
-    const finalVal = initial + adjust - used;
-    const cost = used * price;
+    // 🔥 Basic Calculations
+    const final = Number(initial) - Number(adjust) - Number(used);
+    const cost = Number(used) * Number(price);
 
-    const totalWeight = numberOfBags * weightPerBag;
     let volumeBbl = 0;
-    if (sg > 0) {
-      volumeBbl = totalWeight / (sg * 158.987);
+
+    // =========================
+    // VOLUME CALCULATION
+    // =========================
+
+    if (productUnit === "KG") {
+
+      // Formula: (N × Wb) / (SG × 158.987)
+
+      const totalWeight = Number(numberOfBags) * Number(weightPerBag)*6.2898;
+
+      if (Number(sg) > 0) {
+        volumeBbl = totalWeight / (Number(sg) * 1000);
+      }
+
+    }
+
+    else if (productUnit === "LB") {
+
+      // Formula: (N × Wb) / (SG × 350)
+
+      const totalWeight = Number(numberOfBags) * Number(weightPerBag)*0.002854;
+
+      if (Number(sg) > 0) {
+        volumeBbl = totalWeight / (Number(sg));
+      }
+
+    }
+
+    else if (productUnit === "GAL") {
+
+      // Formula: N × (Wb / 42)
+
+      volumeBbl = Number(numberOfBags) * (Number(weightPerBag) / 42);
+
     }
 
     const consumeProduct = await ConsumeProduct.create({
       ...req.body,
-      final: finalVal,
+      final,
       cost,
-      volumeBbl: +volumeBbl.toFixed(3),
+      volumeBbl: +volumeBbl.toFixed(3)
     });
 
     res.status(201).json({
@@ -37,7 +73,10 @@ export const createConsumeProduct = async (req, res) => {
     });
 
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
   }
 };
 
@@ -91,16 +130,16 @@ export const updateConsumeProduct = async (req, res) => {
     }
 
     const initial = Number(req.body.initial ?? existing.initial ?? 0);
-    const adjust = Number(req.body.adjust ?? existing.adjust ?? 0);
-    const used = Number(req.body.used ?? existing.used ?? 0);
-    const price = Number(req.body.price ?? existing.price ?? 0);
+    const adjust  = Number(req.body.adjust  ?? existing.adjust  ?? 0);
+    const used    = Number(req.body.used    ?? existing.used    ?? 0);
+    const price   = Number(req.body.price   ?? existing.price   ?? 0);
 
     const numberOfBags = Number(req.body.numberOfBags ?? existing.numberOfBags ?? 0);
     const weightPerBag = Number(req.body.weightPerBag ?? existing.weightPerBag ?? 0);
-    const sg = Number(req.body.sg ?? existing.sg ?? 1);
+    const sg           = Number(req.body.sg ?? existing.sg ?? 1);
 
-    const finalVal = initial + adjust - used;
-    const cost = used * price;
+    const finalVal = initial - adjust - used;
+    const cost     = used * price;
 
     const totalWeight = numberOfBags * weightPerBag;
     let volumeBbl = 0;
@@ -112,7 +151,7 @@ export const updateConsumeProduct = async (req, res) => {
       req.params.id,
       {
         ...req.body,
-        final: finalVal,
+        final:     finalVal,
         cost,
         volumeBbl: +volumeBbl.toFixed(3),
       },
