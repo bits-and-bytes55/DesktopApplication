@@ -1,69 +1,57 @@
 import mongoose from "mongoose";
 
-const consumeProductSchema = new mongoose.Schema(
+const returnLostMudSchema = new mongoose.Schema(
   {
     wellId: {
       type: String,
       required: true,
       index: true,
     },
-
-    product: {
+    premixedMud: {
+      type: String,
+      required: true,
+      default: "",
+    },
+    from: {
+      type: String,
+      required: true,
+      default: "",
+    },
+    to: {
+      type: String,
+      required: true,
+      default: "",
+    },
+    volReturned: {
+      type: Number,
+      default: 0,
+    },
+    mw: {
+      type: Number,
+      default: 0,
+    },
+    mudType: {
       type: String,
       default: "",
     },
-
-    code: {
-      type: String,
-      default: "",
-    },
-
-    sg: {
-      type: Number,
-      default: null,
-    },
-
-    unit: {
-      type: String,
-      default: "",
-    },
-
-    price: {
+    bol: {
       type: Number,
       default: 0,
     },
-
-    initial: {
+    volLost: {
       type: Number,
       default: 0,
     },
-
-    adjust: {
+    costOfLostPreTax: {
       type: Number,
       default: 0,
     },
-
-    used: {
-      type: Number,
-      default: 0,
-    },
-
-    final: {
-      type: Number,
-      default: 0,
-    },
-
-    cost: {
-      type: Number,
-      default: 0,
-    },
-
-    volumeBbl: {
-      type: Number,
-      default: 0,
+    leased: {
+      type: Boolean,
+      default: false,
     },
   },
   { timestamps: true }
 );
 
-export default mongoose.model("ConsumeProduct", consumeProductSchema);
+export default mongoose.model("ReturnLostMud", returnLostMudSchema);

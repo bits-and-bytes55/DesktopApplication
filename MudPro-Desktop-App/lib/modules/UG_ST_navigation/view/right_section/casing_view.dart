@@ -1,213 +1,95 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/controller/UG_ST_controller.dart';
+import 'package:mudpro_desktop_app/modules/UG_ST_navigation/model/UG_ST_model.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/widgets/tabular_database.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
-class CasingView extends StatelessWidget {
-  CasingView({super.key});
-  final c = Get.find<UgStController>();
+// ── Column widths ─────────────────────────────────────────────
+const double _wIdx  = 36.0;
+const double _wDesc = 150.0;
+const double _wType = 90.0;
+const double _wStd  = 76.0;   // OD, Wt, ID, Top, Shoe, Bit, TOC  (7 cols)
+const double _wAct  = 90.0;
+const double _totalW = _wIdx + _wDesc + _wType + (_wStd * 7) + _wAct + 12;
 
-  static const rowH = 32.0;
+const double _rowH  = 30.0;
+const double _headH = 36.0;
+const int    _emptyRows = 10;
+
+// ── No-border input decoration ────────────────────────────────
+const InputDecoration _noBorder = InputDecoration(
+  isDense: true,
+  contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+  border: InputBorder.none,
+  enabledBorder: InputBorder.none,
+  focusedBorder: InputBorder.none,
+  errorBorder: InputBorder.none,
+  disabledBorder: InputBorder.none,
+);
+
+class CasingView extends StatefulWidget {
+  const CasingView({super.key});
+
+  @override
+  State<CasingView> createState() => _CasingViewState();
+}
+
+class _CasingViewState extends State<CasingView> {
+  late final UgStController c;
+  final _vScroll = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    c = Get.find<UgStController>();
+  }
+
+  @override
+  void dispose() {
+    _vScroll.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(12),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ================= MAIN TABLE =================
+          _toolbar(),
+          const SizedBox(height: 8),
           Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey.shade300),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  // TABLE HEADER
-                  Container(
-                    height: 40,
-                    decoration: BoxDecoration(
-                      gradient: AppTheme.headerGradient,
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(8),
-                        topRight: Radius.circular(8),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              primary: false,
+              child: SizedBox(
+                width: _totalW,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey.shade300),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
                       ),
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Row(
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Column(
                       children: [
-                        Icon(Icons.bubble_chart, size: 18, color: Colors.white),
-                        const SizedBox(width: 8),
-                        Text(
-                          "Casing Configuration",
-                          style: AppTheme.bodyLarge.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const Spacer(),
-                        Obx(() => Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            "${c.casings.length} casings",
-                            style: AppTheme.caption.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        )),
+                        _headerRow(),
+                        Expanded(child: _body()),
                       ],
                     ),
                   ),
-                  Expanded(
-                    child: _tableBody(),
-                  ),
-                ],
+                ),
               ),
-            ),
-          ),
-
-          const SizedBox(width: 12),
-
-          // ================= SIMPLE BUTTON =================
-          Container(
-            width: 180,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey.shade300),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 6,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                // BUTTON HEADER
-                Container(
-                  height: 40,
-                  decoration: BoxDecoration(
-                    gradient: AppTheme.secondaryGradient,
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(8),
-                      topRight: Radius.circular(8),
-                    ),
-                  ),
-                  padding: const EdgeInsets.symmetric(horizontal: 12), // Reduced padding
-                  child: Row(
-                    children: [
-                      Icon(Icons.add_circle, size: 16, color: Colors.white), // Smaller icon
-                      const SizedBox(width: 6), // Reduced spacing
-                      Expanded( // Wrap text in Expanded
-                        child: Text(
-                          "Add Casing",
-                          style: AppTheme.bodySmall.copyWith( // Use smaller font
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          overflow: TextOverflow.ellipsis, // Add ellipsis if needed
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // BUTTON CONTENT
-                Padding(
-                  padding: const EdgeInsets.all(12), // Reduced padding
-                  child: Column(
-                    children: [
-                      Obx(() => ElevatedButton(
-                        onPressed: c.isLocked.value ? null : () {
-                          _showAddCasingDialog();
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.primaryColor,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8), // Reduced padding
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          elevation: 2,
-                          minimumSize: const Size(double.infinity, 44), // Slightly smaller
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.add, size: 16), // Smaller icon
-                            const SizedBox(width: 6), // Reduced spacing
-                            Expanded( // Wrap text in Expanded
-                              child: Text(
-                                "Add Casing", // Shorter text
-                                textAlign: TextAlign.center,
-                                style: AppTheme.caption.copyWith( // Use caption font size
-                                  fontWeight: FontWeight.w600,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      )),
-
-                      const SizedBox(height: 12),
-
-                      // INFO
-                      Container(
-                        padding: const EdgeInsets.all(10), // Reduced padding
-                        decoration: BoxDecoration(
-                          color: AppTheme.infoColor.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: AppTheme.infoColor.withOpacity(0.3)),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(Icons.info_outline, size: 12, color: AppTheme.infoColor), // Smaller icon
-                                const SizedBox(width: 6),
-                                Text(
-                                  "Note",
-                                  style: AppTheme.caption.copyWith( // Use caption font
-                                    fontWeight: FontWeight.w600,
-                                    color: AppTheme.infoColor,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 4), // Reduced spacing
-                            Text(
-                              "Add new casing configurations",
-                              style: AppTheme.caption.copyWith(
-                                color: AppTheme.textSecondary,
-                                fontSize: 9, // Smaller font
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
             ),
           ),
         ],
@@ -215,283 +97,608 @@ class CasingView extends StatelessWidget {
     );
   }
 
-  // ================= TABLE BODY =================
-  Widget _tableBody() {
-    final ScrollController horizontalController = ScrollController();
-    final ScrollController verticalController = ScrollController();
-
-    return Scrollbar(
-      thumbVisibility: true,
-      controller: verticalController,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.vertical,
-        controller: verticalController,
-        child: Scrollbar(
-          thumbVisibility: true,
-          controller: horizontalController,
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            controller: horizontalController,
-            child: SizedBox(
-              width: 1100,
-              child: Obx(() {
-                final casingsLength = c.casings.length;
-                return Table(
-                  border: TableBorder.all(
-                    color: Colors.grey.shade200,
-                    width: 1,
-                  ),
-                  defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-                  columnWidths: const {
-                    0: FixedColumnWidth(50),
-                    1: FixedColumnWidth(200),
-                    2: FixedColumnWidth(120),
-                    3: FixedColumnWidth(90),
-                    4: FixedColumnWidth(100),
-                    5: FixedColumnWidth(90),
-                    6: FixedColumnWidth(90),
-                    7: FixedColumnWidth(90),
-                    8: FixedColumnWidth(90),
-                    9: FixedColumnWidth(90),
-                  },
-                  children: [
-                    _headerRow(),
-                    ...List.generate(20, (index) {
-                      final row = index < casingsLength ? c.casings[index] : null;
-                      return _dataRow(index, row);
-                    }),
-                  ],
-                );
-              }),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ================= HEADER ROW =================
-  TableRow _headerRow() {
-    return TableRow(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [AppTheme.primaryColor.withOpacity(0.1), AppTheme.primaryColor.withOpacity(0.05)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
+  // ── TOOLBAR ────────────────────────────────────────────────
+  Widget _toolbar() {
+    return Row(
       children: [
-        _headerCell('#'),
-        _headerCell('Description'),
-        _headerCell('Type'),
-        _headerCell('OD\n(in)'),
-        _headerCell('Wt.\n(lb/ft)'),
-        _headerCell('ID\n(in)'),
-        _headerCell('Top\n(m)'),
-        _headerCell('Shoe\n(m)'),
-        _headerCell('Bit\n(in)'),
-        _headerCell('TOC\n(m)'),
-      ],
-    );
-  }
-
-  Widget _headerCell(String text) {
-    return Container(
-      height: 36,
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      alignment: Alignment.center,
-      child: Text(
-        text,
-        textAlign: TextAlign.center,
-        style: AppTheme.bodySmall.copyWith(
-          fontWeight: FontWeight.w600,
-          color: AppTheme.textPrimary,
-        ),
-      ),
-    );
-  }
-
-  // ================= DATA ROW =================
-  TableRow _dataRow(int index, dynamic row) {
-    return TableRow(
-      decoration: BoxDecoration(
-        color: index.isEven ? Colors.white : AppTheme.cardColor,
-      ),
-      children: [
-        _indexCell(index + 1),
-        _editableCell(row?.description, width: 200),
-        _editableCell(row?.type, width: 120),
-        _editableCell(row?.od, width: 90),
-        _editableCell(row?.wt, width: 100),
-        _editableCell(row?.id, width: 90),
-        _editableCell(row?.top, width: 90),
-        _editableCell(row?.shoe, width: 90),
-        _editableCell(row?.bit, width: 90),
-        _editableCell(row?.toc, width: 90),
-      ],
-    );
-  }
-
-  Widget _indexCell(int index) {
-    return Container(
-      height: rowH,
-      alignment: Alignment.center,
-      child: Text(
-        '$index',
-        style: AppTheme.caption.copyWith(
-          color: AppTheme.textPrimary,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
-
-  Widget _editableCell(RxString? value, {double? width}) {
-    return SizedBox(
-      width: width,
-      height: rowH,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        child: Obx(() => c.isLocked.value || value == null
-            ? Center(
-                child: Text(
-                  value?.value ?? '',
-                  style: AppTheme.caption.copyWith(
-                    color: value?.value?.isEmpty == true 
-                        ? Colors.grey.shade400 
-                        : AppTheme.textPrimary,
-                  ),
-                ),
-              )
-            : Container(
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade300),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: TextField(
-                  controller: TextEditingController(text: value.value),
-                  onChanged: (text) => value.value = text,
-                  textAlign: TextAlign.center,
-                  style: AppTheme.caption.copyWith(
-                    color: AppTheme.textPrimary,
-                  ),
-                  decoration: const InputDecoration(
-                    isDense: true,
-                    contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-                    border: InputBorder.none,
-                  ),
-                ),
-              )),
-      ),
-    );
-  }
-
-  // ================= ADD CASING DIALOG =================
-  void _showAddCasingDialog() {
-    Get.dialog(
-      AlertDialog(
-        title: Text(
-          "Add New Casing",
-          style: AppTheme.titleMedium.copyWith(
-            color: AppTheme.primaryColor,
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            gradient: AppTheme.headerGradient,
+            borderRadius: BorderRadius.circular(6),
           ),
-        ),
-        content: SizedBox(
-          width: 400,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Row(
             children: [
-              _dialogField("Description", "Conductor, Surface, etc."),
-              const SizedBox(height: 12),
-              _dialogField("Type", "Casing, Liner, etc."),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(child: _dialogField("OD (in)", "13.375")),
-                  const SizedBox(width: 12),
-                  Expanded(child: _dialogField("Weight (lb/ft)", "68")),
-                ],
+              const Icon(Icons.bubble_chart, size: 16, color: Colors.white),
+              const SizedBox(width: 6),
+              Text(
+                "Casing Configuration",
+                style: AppTheme.bodySmall.copyWith(
+                    color: Colors.white, fontWeight: FontWeight.w600),
               ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(child: _dialogField("ID (in)", "12.415")),
-                  const SizedBox(width: 12),
-                  Expanded(child: _dialogField("Bit Size (in)", "17.5")),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(child: _dialogField("Top (m)", "0")),
-                  const SizedBox(width: 12),
-                  Expanded(child: _dialogField("Shoe (m)", "500")),
-                  const SizedBox(width: 12),
-                  Expanded(child: _dialogField("TOC (m)", "0")),
-                ],
-              ),
+              const SizedBox(width: 8),
+              Obx(() => Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.25),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      "${c.casings.length} casings",
+                      style: AppTheme.caption
+                          .copyWith(color: Colors.white, fontSize: 10),
+                    ),
+                  )),
             ],
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: Text(
-              "Cancel",
-              style: AppTheme.bodySmall.copyWith(
-                color: AppTheme.textSecondary,
+        const Spacer(),
+        Tooltip(
+          message: "Tubular Database",
+          child: InkWell(
+            borderRadius: BorderRadius.circular(6),
+            onTap: () => Get.to(() => TabularDatabaseView()),
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: Colors.grey.shade300),
+                boxShadow: [
+                  BoxShadow(
+                      color: Colors.black.withOpacity(0.04), blurRadius: 4),
+                ],
               ),
+              child: Icon(Icons.table_chart_outlined,
+                  size: 20, color: AppTheme.primaryColor),
             ),
           ),
-          ElevatedButton(
-            onPressed: () {
-              // Add casing logic here
-              Get.back();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor,
-              foregroundColor: Colors.white,
-            ),
-            child: Text(
-              "Add Casing",
-              style: AppTheme.bodySmall.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
+        ),
+      ],
+    );
+  }
+
+  // ── HEADER ─────────────────────────────────────────────────
+  Widget _headerRow() {
+    return Container(
+      height: _headH,
+      decoration: BoxDecoration(gradient: AppTheme.headerGradient),
+      child: Row(
+        children: [
+          _hc('#',            _wIdx),
+          _hDiv(),
+          _hc('Description',  _wDesc),
+          _hDiv(),
+          _hc('Type',         _wType),
+          _hDiv(),
+          _hc('OD\n(in)',     _wStd),
+          _hDiv(),
+          _hc('Wt.\n(lb/ft)', _wStd),
+          _hDiv(),
+          _hc('ID\n(in)',     _wStd),
+          _hDiv(),
+          _hc('Top\n(m)',     _wStd),
+          _hDiv(),
+          _hc('Shoe\n(m)',    _wStd),
+          _hDiv(),
+          _hc('Bit\n(in)',    _wStd),
+          _hDiv(),
+          _hc('TOC\n(m)',     _wStd),
+          _hDiv(),
+          _hc('Actions',      _wAct),
         ],
       ),
     );
   }
 
-  Widget _dialogField(String label, String hint) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: AppTheme.bodySmall.copyWith(
-            fontWeight: FontWeight.w600,
-            color: AppTheme.textPrimary,
+  Widget _hc(String label, double w) => SizedBox(
+        width: w,
+        child: Center(
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: AppTheme.caption.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+              fontSize: 11,
+              height: 1.3,
+            ),
           ),
         ),
-        const SizedBox(height: 4),
-        TextField(
-          decoration: InputDecoration(
-            hintText: hint,
-            hintStyle: AppTheme.caption.copyWith(
-              color: Colors.grey.shade400,
-            ),
-            border: OutlineInputBorder(
-              borderSide: BorderSide(color: Colors.grey.shade400),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      );
+
+  Widget _hDiv() => Container(
+        width: 1,
+        height: _headH,
+        color: Colors.white.withOpacity(0.25),
+      );
+
+  // ── BODY ───────────────────────────────────────────────────
+  Widget _body() {
+    return Scrollbar(
+      controller: _vScroll,
+      thumbVisibility: true,
+      child: Obx(() {
+      if (c.isLoading.value) {
+        return const Center(child: CircularProgressIndicator());
+      }
+
+      final db    = c.casings;
+      final dbLen = db.length;
+      final total = dbLen + _emptyRows;
+
+        return ListView.builder(
+          controller: _vScroll,
+          itemCount: total,
+          itemExtent: _rowH,
+          itemBuilder: (context, i) {
+            if (i < dbLen) {
+              return _DataRow(
+                key: ValueKey(db[i].dbId ?? 'db_$i'),
+                index: i,
+                row: db[i],
+                isEven: i.isEven,
+                ctrl: c,
+              );
+            }
+            return _EmptyRow(
+              key: ValueKey('empty_$i'),
+              index: i,
+              isEven: i.isEven,
+              ctrl: c,
+            );
+          },
+        );
+      }),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+//  Shared cell helpers
+// ─────────────────────────────────────────────────────────────
+
+Widget _vDiv() => Container(
+      width: 1,
+      height: _rowH,
+      color: Colors.grey.shade200,
+    );
+
+Widget _textCell(String text, double w, {bool grey = false}) => SizedBox(
+      width: w,
+      height: _rowH,
+      child: Center(
+        child: Text(
+          text,
+          textAlign: TextAlign.center,
+          style: AppTheme.caption.copyWith(
+            fontSize: 11,
+            color: grey ? Colors.grey.shade400 : AppTheme.textPrimary,
           ),
-          style: AppTheme.bodySmall,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+    );
+
+Widget _lockedCell(double w) => Container(
+      width: w,
+      height: _rowH,
+      color: const Color(0xFFF0F0F0),
+    );
+
+Widget _inputCell(TextEditingController ctrl, double w, RxString rx) => SizedBox(
+      width: w,
+      height: _rowH,
+      child: TextField(
+        controller: ctrl,
+        onChanged: (v) => rx.value = v,
+        textAlign: TextAlign.center,
+        style: AppTheme.caption
+            .copyWith(fontSize: 11, color: AppTheme.textPrimary),
+        decoration: _noBorder,
+      ),
+    );
+
+Widget _inputCellPlain(TextEditingController ctrl, double w) => SizedBox(
+      width: w,
+      height: _rowH,
+      child: TextField(
+        controller: ctrl,
+        textAlign: TextAlign.center,
+        style: AppTheme.caption
+            .copyWith(fontSize: 11, color: AppTheme.textPrimary),
+        decoration: _noBorder,
+      ),
+    );
+
+// ─────────────────────────────────────────────────────────────
+//  _DataRow
+// ─────────────────────────────────────────────────────────────
+class _DataRow extends StatefulWidget {
+  final int index;
+  final CasingRow row;
+  final bool isEven;
+  final UgStController ctrl;
+
+  const _DataRow({
+    super.key,
+    required this.index,
+    required this.row,
+    required this.isEven,
+    required this.ctrl,
+  });
+
+  @override
+  State<_DataRow> createState() => _DataRowState();
+}
+
+class _DataRowState extends State<_DataRow> {
+  late final TextEditingController
+      _desc, _od, _wt, _id, _top, _shoe, _bit, _toc;
+
+  @override
+  void initState() {
+    super.initState();
+    final r = widget.row;
+    _desc = TextEditingController(text: r.description.value);
+    _od   = TextEditingController(text: r.od.value);
+    _wt   = TextEditingController(text: r.wt.value);
+    _id   = TextEditingController(text: r.id.value);
+    _top  = TextEditingController(text: r.top.value);
+    _shoe = TextEditingController(text: r.shoe.value);
+    _bit  = TextEditingController(text: r.bit.value);
+    _toc  = TextEditingController(text: r.toc.value);
+  }
+
+  @override
+  void dispose() {
+    for (final c in [_desc, _od, _wt, _id, _top, _shoe, _bit, _toc]) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final r  = widget.row;
+    final c  = widget.ctrl;
+    final bg = widget.isEven ? Colors.white : const Color(0xFFF7F9FC);
+
+    return Obx(() {
+      final locked  = c.isLocked.value;
+      final isLiner = r.type.value == 'Liner';
+
+      return Container(
+        height: _rowH,
+        color: bg,
+        foregroundDecoration: BoxDecoration(
+          border: Border(
+              bottom: BorderSide(color: Colors.grey.shade200, width: 0.8)),
+        ),
+        child: Row(
+          children: [
+            // #
+            SizedBox(
+              width: _wIdx,
+              child: Center(
+                child: Text(
+                  '${widget.index + 1}',
+                  style: AppTheme.caption.copyWith(
+                    color: Colors.grey.shade500,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+            _vDiv(),
+            locked
+                ? _textCell(r.description.value, _wDesc)
+                : _inputCell(_desc, _wDesc, r.description),
+            _vDiv(),
+            _typeCell(r, locked),
+            _vDiv(),
+            locked
+                ? _textCell(r.od.value, _wStd)
+                : _inputCell(_od, _wStd, r.od),
+            _vDiv(),
+            locked
+                ? _textCell(r.wt.value, _wStd)
+                : _inputCell(_wt, _wStd, r.wt),
+            _vDiv(),
+            locked
+                ? _textCell(r.id.value, _wStd)
+                : _inputCell(_id, _wStd, r.id),
+            _vDiv(),
+            // Top — editable only for Liner
+            if (locked)
+              _textCell(isLiner ? r.top.value : '', _wStd, grey: !isLiner)
+            else if (isLiner)
+              _inputCell(_top, _wStd, r.top)
+            else
+              _lockedCell(_wStd),
+            _vDiv(),
+            locked
+                ? _textCell(r.shoe.value, _wStd)
+                : _inputCell(_shoe, _wStd, r.shoe),
+            _vDiv(),
+            locked
+                ? _textCell(r.bit.value, _wStd)
+                : _inputCell(_bit, _wStd, r.bit),
+            _vDiv(),
+            locked
+                ? _textCell(r.toc.value, _wStd)
+                : _inputCell(_toc, _wStd, r.toc),
+            _vDiv(),
+            SizedBox(width: _wAct, child: _actionsCell(r, c)),
+          ],
+        ),
+      );
+    });
+  }
+
+  Widget _typeCell(CasingRow r, bool locked) {
+    const opts = ['', 'Casing', 'Liner'];
+    final val  = opts.contains(r.type.value) ? r.type.value : '';
+
+    if (locked) return _textCell(val, _wType);
+
+    return SizedBox(
+      width: _wType,
+      height: _rowH,
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: val,
+          isDense: true,
+          isExpanded: true,
+          icon: const Icon(Icons.arrow_drop_down, size: 16),
+          style: AppTheme.caption
+              .copyWith(fontSize: 11, color: AppTheme.textPrimary),
+          alignment: Alignment.center,
+          items: [
+            const DropdownMenuItem(value: '', child: SizedBox.shrink()),
+            ...['Casing', 'Liner'].map((o) => DropdownMenuItem(
+                  value: o,
+                  child: Center(
+                    child: Text(o,
+                        style: AppTheme.caption.copyWith(
+                            fontSize: 11, color: AppTheme.textPrimary)),
+                  ),
+                )),
+          ],
+          onChanged: (v) {
+            r.type.value = v ?? '';
+            if (v == 'Casing') {
+              r.top.value = '';
+              _top.clear();
+            }
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _actionsCell(CasingRow row, UgStController c) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Tooltip(
+          message: 'Save',
+          child: InkWell(
+            borderRadius: BorderRadius.circular(4),
+            onTap: () => row.dbId != null
+                ? c.updateCasing(row)
+                : c.addCasing(row),
+            child: Padding(
+              padding: const EdgeInsets.all(4),
+              child: Icon(Icons.save_outlined,
+                  size: 15, color: AppTheme.primaryColor),
+            ),
+          ),
+        ),
+        const SizedBox(width: 4),
+        Tooltip(
+          message: 'Delete',
+          child: InkWell(
+            borderRadius: BorderRadius.circular(4),
+            onTap: () => row.dbId != null
+                ? c.deleteCasing(row.dbId!)
+                : c.casings.remove(row),
+            child: Padding(
+              padding: const EdgeInsets.all(4),
+              child: Icon(Icons.delete_outline,
+                  size: 15, color: Colors.red.shade400),
+            ),
+          ),
         ),
       ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+//  _EmptyRow
+// ─────────────────────────────────────────────────────────────
+class _EmptyRow extends StatefulWidget {
+  final int index;
+  final bool isEven;
+  final UgStController ctrl;
+
+  const _EmptyRow({
+    super.key,
+    required this.index,
+    required this.isEven,
+    required this.ctrl,
+  });
+
+  @override
+  State<_EmptyRow> createState() => _EmptyRowState();
+}
+
+class _EmptyRowState extends State<_EmptyRow> {
+  late final TextEditingController
+      _desc, _od, _wt, _id, _top, _shoe, _bit, _toc;
+  String _selType = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _desc  = TextEditingController();
+    _od    = TextEditingController();
+    _wt    = TextEditingController();
+    _id    = TextEditingController();
+    _top   = TextEditingController();
+    _shoe  = TextEditingController();
+    _bit   = TextEditingController();
+    _toc   = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    for (final c in [_desc, _od, _wt, _id, _top, _shoe, _bit, _toc]) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  bool get _hasData =>
+      [_desc, _od, _wt, _id, _shoe, _bit, _toc]
+          .any((c) => c.text.isNotEmpty) ||
+      (_selType == 'Liner' && _top.text.isNotEmpty) ||
+      _selType.isNotEmpty;
+
+  void _save() {
+    if (!_hasData) return;
+    widget.ctrl.addCasing(CasingRow(
+      description: _desc.text,
+      type: _selType,
+      od:   _od.text,
+      wt:   _wt.text,
+      id:   _id.text,
+      top:  _selType == 'Liner' ? _top.text : '',
+      shoe: _shoe.text,
+      bit:  _bit.text,
+      toc:  _toc.text,
+    ));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c  = widget.ctrl;
+    final bg = widget.isEven ? Colors.white : const Color(0xFFF7F9FC);
+
+    return Obx(() {
+      final locked  = c.isLocked.value;
+      final isLiner = _selType == 'Liner';
+
+      return Container(
+        height: _rowH,
+        color: bg,
+        foregroundDecoration: BoxDecoration(
+          border: Border(
+              bottom: BorderSide(color: Colors.grey.shade200, width: 0.8)),
+        ),
+        child: Row(
+          children: [
+            SizedBox(
+              width: _wIdx,
+              child: Center(
+                child: Text(
+                  '${widget.index + 1}',
+                  style: AppTheme.caption.copyWith(
+                    color: Colors.grey.shade400,
+                    fontSize: 11,
+                  ),
+                ),
+              ),
+            ),
+            _vDiv(),
+            locked
+                ? SizedBox(width: _wDesc)
+                : _inputCellPlain(_desc, _wDesc),
+            _vDiv(),
+            _emptyTypeCell(locked),
+            _vDiv(),
+            locked ? SizedBox(width: _wStd) : _inputCellPlain(_od, _wStd),
+            _vDiv(),
+            locked ? SizedBox(width: _wStd) : _inputCellPlain(_wt, _wStd),
+            _vDiv(),
+            locked ? SizedBox(width: _wStd) : _inputCellPlain(_id, _wStd),
+            _vDiv(),
+            if (locked)
+              SizedBox(width: _wStd)
+            else if (isLiner)
+              _inputCellPlain(_top, _wStd)
+            else
+              _lockedCell(_wStd),
+            _vDiv(),
+            locked ? SizedBox(width: _wStd) : _inputCellPlain(_shoe, _wStd),
+            _vDiv(),
+            locked ? SizedBox(width: _wStd) : _inputCellPlain(_bit, _wStd),
+            _vDiv(),
+            locked ? SizedBox(width: _wStd) : _inputCellPlain(_toc, _wStd),
+            _vDiv(),
+            SizedBox(
+              width: _wAct,
+              child: Center(
+                child: Tooltip(
+                  message: 'Save',
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(4),
+                    onTap: locked ? null : _save,
+                    child: Padding(
+                      padding: const EdgeInsets.all(4),
+                      child: Icon(
+                        Icons.save_outlined,
+                        size: 15,
+                        color: locked
+                            ? Colors.grey.shade300
+                            : AppTheme.primaryColor,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    });
+  }
+
+  Widget _emptyTypeCell(bool locked) {
+    if (locked) return SizedBox(width: _wType);
+
+    return SizedBox(
+      width: _wType,
+      height: _rowH,
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: _selType,
+          isDense: true,
+          isExpanded: true,
+          icon: const Icon(Icons.arrow_drop_down, size: 16),
+          alignment: Alignment.center,
+          style: AppTheme.caption
+              .copyWith(fontSize: 11, color: AppTheme.textPrimary),
+          items: [
+            const DropdownMenuItem(value: '', child: SizedBox.shrink()),
+            ...['Casing', 'Liner'].map((o) => DropdownMenuItem(
+                  value: o,
+                  child: Center(
+                    child: Text(o,
+                        style: AppTheme.caption.copyWith(
+                            fontSize: 11, color: AppTheme.textPrimary)),
+                  ),
+                )),
+          ],
+          onChanged: (v) => setState(() {
+            _selType = v ?? '';
+            if (_selType == 'Casing') _top.clear();
+          }),
+        ),
+      ),
     );
   }
 }

@@ -3,15 +3,15 @@ import mongoose from 'mongoose';
 const selectedMudPropertiesSchema = new mongoose.Schema(
   {
     waterBased: {
-      type: [String],
+      type: [{ name: String, unit: String }],
       default: [],
     },
     oilBased: {
-      type: [String],
+      type: [{ name: String, unit: String }],
       default: [],
     },
     synthetic: {
-      type: [String],
+      type: [{ name: String, unit: String }],
       default: [],
     },
     userId: {

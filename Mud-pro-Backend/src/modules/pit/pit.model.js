@@ -43,7 +43,12 @@ const pitSchema = new mongoose.Schema({
   isLocked: {
     type: Boolean,
     default: false
-  }
+  },
+  wellId: {
+  type: String,
+  required: true,
+  index: true
+},
 
 }, { timestamps: true });
 

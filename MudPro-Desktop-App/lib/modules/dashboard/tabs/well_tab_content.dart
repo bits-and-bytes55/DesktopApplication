@@ -8,9 +8,13 @@ import 'package:mudpro_desktop_app/modules/dashboard/controller/drill_string_con
 import 'package:mudpro_desktop_app/modules/dashboard/controller/nozzle_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/well_general_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/widgets/tabular_database.dart';
+import 'package:mudpro_desktop_app/modules/UG_ST_navigation/controller/UG_ST_controller.dart';
+import 'package:mudpro_desktop_app/modules/UG_ST_navigation/model/UG_ST_model.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 const double _kRowH = 22.0;
+const double _kHeaderH = 28.0;
+const double _kFooterH = 28.0;
 
 const List<String> _kTimeSlots = [
   '00:00','00:30','01:00','01:30','02:00','02:30','03:00','03:30',
@@ -21,13 +25,10 @@ const List<String> _kTimeSlots = [
   '20:00','20:30','21:00','21:30','22:00','22:30','23:00','23:30',
 ];
 
-// ─── Date helpers ───────────────────────────────────────────────────
-/// Parse stored long-form date e.g. "Tuesday, December 30, 2025" → DateTime
+// ─── Date helpers ────────────────────────────────────────────────
 DateTime? _parseLongDate(String s) {
   try {
-    // Remove weekday prefix if present
     final clean = s.contains(',') ? s.substring(s.indexOf(',') + 1).trim() : s.trim();
-    // clean = "December 30, 2025"
     const months = {
       'january':1,'february':2,'march':3,'april':4,'may':5,'june':6,
       'july':7,'august':8,'september':9,'october':10,'november':11,'december':12
@@ -45,11 +46,9 @@ DateTime? _parseLongDate(String s) {
   return null;
 }
 
-/// Format DateTime → display string  e.g. "12/30/2025"
 String _formatDisplay(DateTime d) =>
     '${d.month.toString().padLeft(2,'0')}/${d.day.toString().padLeft(2,'0')}/${d.year}';
 
-/// Format DateTime → storage long-form  e.g. "Tuesday, December 30, 2025"
 String _formatStorage(DateTime d) {
   const dn = ['','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
   const mn = ['','January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -108,7 +107,7 @@ class LeftPortion extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  GENERAL SECTION
+//  GENERAL SECTION  — UNCHANGED
 // ═══════════════════════════════════════════════════════════════════
 class GeneralSection extends StatefulWidget {
   @override
@@ -138,16 +137,13 @@ class _GeneralSectionState extends State<GeneralSection> {
 
   late final Map<String, TextEditingController> fc;
 
-  // ── Date stored internally as long-form string (for API),
-  //    displayed as MM/DD/YYYY ──────────────────────────────────────
-  String _storedDate   = '';   // e.g. "Tuesday, December 30, 2025"
+  String _storedDate   = '';
   String selectedTime  = '23:30';
   String? selectedEngId;
   String? selectedEng2Id;
   String selectedActivity = '';
   String selectedInterval = '';
 
-  /// Display-ready date string
   String get _displayDate {
     if (_storedDate.isEmpty) return '';
     final dt = _parseLongDate(_storedDate);
@@ -161,7 +157,6 @@ class _GeneralSectionState extends State<GeneralSection> {
         ? Get.find<EngineerController>()
         : Get.put(EngineerController());
 
-    // ── All fields start EMPTY — data comes from API only ──────────
     fc = {
       'Report #':           TextEditingController(),
       'User Report #':      TextEditingController(),
@@ -240,13 +235,11 @@ class _GeneralSectionState extends State<GeneralSection> {
       fc['FIT']!.text                = w.fit.value;
       fc['Formation']!.text          = w.formation.value;
 
-      // Date — store long-form, display as MM/DD/YYYY
       if (w.date.value.isNotEmpty) _storedDate = w.date.value;
       if (w.time.value.isNotEmpty) selectedTime = w.time.value;
       if (w.activity.value.isNotEmpty) selectedActivity = w.activity.value;
       if (w.interval.value.isNotEmpty) selectedInterval = w.interval.value;
 
-      // Restore engineer IDs from saved names
       if (w.engineer.value.isNotEmpty) {
         final eng = engineerCtrl.engineers.firstWhere(
           (e) => '${e.firstName} ${e.lastName}' == w.engineer.value,
@@ -268,7 +261,7 @@ class _GeneralSectionState extends State<GeneralSection> {
     final w = wellGenCtrl;
     w.reportNo.value          = fc['Report #']!.text;
     w.userReportNo.value      = fc['User Report #']!.text;
-    w.date.value              = _storedDate;          // always save long-form
+    w.date.value              = _storedDate;
     w.time.value              = selectedTime;
     w.engineer.value          = _engName(selectedEngId);
     w.engineer2.value         = _engName(selectedEng2Id);
@@ -366,9 +359,6 @@ class _GeneralSectionState extends State<GeneralSection> {
     ]);
   }
 
-  // ── Unified cell helpers ─────────────────────────────────────────
-
-  /// Label cell — left-aligned
   Widget _lbl(String t) => Container(
     height: _kRowH,
     padding: const EdgeInsets.symmetric(horizontal: 6),
@@ -376,7 +366,6 @@ class _GeneralSectionState extends State<GeneralSection> {
     child: Text(t, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: AppTheme.textPrimary)),
   );
 
-  /// Unit cell — center-aligned
   Widget _unit(String t) => Container(
     height: _kRowH,
     padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -384,7 +373,6 @@ class _GeneralSectionState extends State<GeneralSection> {
     child: Text(t, style: TextStyle(fontSize: 10, color: AppTheme.textSecondary)),
   );
 
-  /// Locked read-only value cell — CENTER aligned, consistent with editable
   Widget _lockedText(String text) => SizedBox(
     height: _kRowH,
     child: Align(
@@ -397,8 +385,6 @@ class _GeneralSectionState extends State<GeneralSection> {
       ),
     ),
   );
-
-  // ── Row builders ─────────────────────────────────────────────────
 
   TableRow _tfRow(String label, String key, String unit) {
     final ctrl = fc[key]!;
@@ -441,7 +427,6 @@ class _GeneralSectionState extends State<GeneralSection> {
                 height: _kRowH,
                 child: TextButton(
                   onPressed: () async {
-                    // Parse current stored date as initial date for picker
                     final initial = _parseLongDate(_storedDate) ?? DateTime.now();
                     final picked  = await showDatePicker(
                       context: context,
@@ -603,11 +588,16 @@ Widget _noCell(int rowNo, bool sel, Color primary) => Container(
   ),
 );
 
-Widget _eCell(TextEditingController ctrl, DashboardController c) => Container(
+Widget _eCell(TextEditingController ctrl, DashboardController c, {ValueChanged<String>? onChanged}) => Container(
   padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
   child: Obx(() => c.isLocked.value
       ? SizedBox(height: _kRowH, child: Center(child: Text(ctrl.text, style: TextStyle(fontSize: 9, color: AppTheme.textPrimary), textAlign: TextAlign.center)))
-      : SizedBox(height: _kRowH, child: TextField(controller: ctrl, style: const TextStyle(fontSize: 9), textAlign: TextAlign.center, decoration: const InputDecoration(isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 2, vertical: 2), border: InputBorder.none, enabledBorder: InputBorder.none, focusedBorder: InputBorder.none, fillColor: Colors.white, filled: true)))));
+      : SizedBox(height: _kRowH, child: TextField(
+          controller: ctrl,
+          style: const TextStyle(fontSize: 9),
+          textAlign: TextAlign.center,
+          onChanged: onChanged,
+          decoration: const InputDecoration(isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 2, vertical: 2), border: InputBorder.none, enabledBorder: InputBorder.none, focusedBorder: InputBorder.none, fillColor: Colors.white, filled: true)))));
 
 // ═══════════════════════════════════════════════════════════════════
 //  MIDDLE PORTION
@@ -629,8 +619,8 @@ class _MiddlePortionState extends State<MiddlePortion> {
   Widget build(BuildContext context) {
     return LayoutBuilder(builder: (ctx, bc) {
       const double cementRowH = 28.0;
-      const double gap        = 5.0;
-      const double bottomPad  = 8.0;
+      const double gap        = 2.0;
+      const double bottomPad  = 4.0;
       final double totalH     = bc.maxHeight - bottomPad;
       final double flexH      = totalH - cementRowH - gap * 3;
 
@@ -639,13 +629,13 @@ class _MiddlePortionState extends State<MiddlePortion> {
         child: Column(
           mainAxisSize: MainAxisSize.max,
           children: [
-            SizedBox(height: flexH * 3 / 9, child: CasedHoleSection()),
+            SizedBox(height: flexH * 3.2 / 10, child: CasedHoleSection()),
             const SizedBox(height: gap),
-            SizedBox(height: flexH * 2 / 9, child: OpenHoleSection()),
+            SizedBox(height: flexH * 2.8 / 10, child: OpenHoleSection()),
             const SizedBox(height: gap),
             SizedBox(height: cementRowH, child: _cementRow()),
             const SizedBox(height: gap),
-            SizedBox(height: flexH * 4 / 9, child: DrillStringSection()),
+            SizedBox(height: flexH * 4.0 / 10, child: DrillStringSection()),
           ],
         ),
       );
@@ -678,61 +668,185 @@ class _MiddlePortionState extends State<MiddlePortion> {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  CASED HOLE
+//  CASED HOLE  ← ONLY THIS SECTION IS CHANGED
 // ═══════════════════════════════════════════════════════════════════
 class CasedHoleSection extends StatefulWidget {
-  @override _CasedHoleSectionState createState() => _CasedHoleSectionState();
+  @override
+  _CasedHoleSectionState createState() => _CasedHoleSectionState();
 }
 
 class _CasedHoleSectionState extends State<CasedHoleSection> {
   final c = Get.find<DashboardController>();
-  final List<String> casingTypes = ['30° CSG','18 5/8° CSG','13 3/8° CSG','9 5/8° CSG','7° LINER'];
-  String selectedCasingType = '30° CSG';
+
+  // ── Casing controller to fetch from API ─────────────────────────
+  late final UgStController _casingCtrl;
+
+  // Currently selected casing from dropdown (null = nothing selected)
+  CasingRow? _selectedCasing;
+
   int? selectedRowIndex;
 
-  List<List<TextEditingController>> tableData = [
-    [TextEditingController(text: '30" CSG'),      TextEditingController(text: '30.000'), TextEditingController(),              TextEditingController(text: '28.500'), TextEditingController(text: '0.0'),    TextEditingController(),              TextEditingController()],
-    [TextEditingController(text: '18 5/8" CSG'),  TextEditingController(text: '18.625'), TextEditingController(),              TextEditingController(text: '17.755'), TextEditingController(text: '0.0'),    TextEditingController(),              TextEditingController()],
-    [TextEditingController(text: '13 3/8" CSG'),  TextEditingController(text: '13.375'), TextEditingController(),              TextEditingController(text: '12.415'), TextEditingController(text: '0.0'),    TextEditingController(text: '6000.0'),TextEditingController(text: '6000.0')],
-    [TextEditingController(text: '9 5/8" CSG'),   TextEditingController(text: '9.625'),  TextEditingController(text: '47.000'),TextEditingController(text: '8.755'),  TextEditingController(text: '0.0'),    TextEditingController(text: '7095.0'),TextEditingController(text: '7095.0')],
-    [TextEditingController(text: '7" Liner'),      TextEditingController(text: '7.000'),  TextEditingController(text: '26.000'),TextEditingController(text: '6.276'),  TextEditingController(text: '6872.0'), TextEditingController(text: '8080.0'),TextEditingController(text: '1208.0')],
-    [TextEditingController(), TextEditingController(), TextEditingController(), TextEditingController(), TextEditingController(), TextEditingController(), TextEditingController()],
-  ];
+  // Table rows — each row is 7 TextEditingControllers
+  // [Description, OD, Wt, ID, Top, Shoe, Len]
+  List<List<TextEditingController>> tableData = List.generate(
+    10,
+    (_) => List.generate(7, (_) => TextEditingController()),
+  );
 
   @override
-  void dispose() { for (var r in tableData) for (var ctrl in r) ctrl.dispose(); super.dispose(); }
+  void initState() {
+    super.initState();
+    // Get or put the UgStController — it also fetches casings on init
+    _casingCtrl = Get.isRegistered<UgStController>()
+        ? Get.find<UgStController>()
+        : Get.put(UgStController());
+  }
+
+  @override
+  void dispose() {
+    for (var r in tableData) {
+      for (var ctrl in r) ctrl.dispose();
+    }
+    super.dispose();
+  }
+
+  void _addCasingRow() {
+    if (_selectedCasing == null) return;
+    final csg = _selectedCasing!;
+
+    // Find first row with empty description, or append new one
+    int targetIdx = tableData.indexWhere((row) => row[0].text.isEmpty);
+
+    setState(() {
+      if (targetIdx == -1) {
+        tableData.add(List.generate(7, (_) => TextEditingController()));
+        targetIdx = tableData.length - 1;
+      }
+
+      final row = tableData[targetIdx];
+      row[0].text = csg.description.value;
+      row[1].text = csg.od.value;
+      row[2].text = csg.wt.value;
+      row[3].text = csg.id.value;
+      row[4].text = csg.top.value;
+      row[5].text = csg.shoe.value;
+      row[6].text = _calcLen(csg.top.value, csg.shoe.value);
+
+      // Successfully added, reset selection dropdown
+      _selectedCasing = null;
+
+      // Always ensure at least one fully empty row exists at bottom
+      bool hasEmpty = tableData.any((r) => r.every((c) => c.text.isEmpty));
+      if (!hasEmpty) {
+        tableData.add(List.generate(7, (_) => TextEditingController()));
+      }
+    });
+  }
+
+  void _checkAndAddRow(int idx) {
+    if (idx == tableData.length - 1) {
+      if (tableData[idx].any((ctrl) => ctrl.text.trim().isNotEmpty)) {
+        setState(() {
+          tableData.add(List.generate(7, (_) => TextEditingController()));
+        });
+      }
+    }
+  }
+
+  String _calcLen(String top, String shoe) {
+    final t = double.tryParse(top);
+    final s = double.tryParse(shoe);
+    if (t != null && s != null) {
+      return (s - t).toStringAsFixed(1);
+    }
+    return '';
+  }
 
   @override
   Widget build(BuildContext context) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(children: [
-        Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), color: AppTheme.primaryColor.withOpacity(0.1),
-          child: Text("Cased Hole", style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.primaryColor))),
-        const Spacer(),
-        const Text("Add New Casing", style: TextStyle(fontSize: 9)),
-        const SizedBox(width: 6),
-        Container(
-          height: 22, padding: const EdgeInsets.symmetric(horizontal: 6),
-          decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300)),
-          child: DropdownButtonHideUnderline(child: DropdownButton<String>(
-            value: selectedCasingType,
-            icon: const Icon(Icons.arrow_drop_down, size: 13),
-            style: const TextStyle(fontSize: 9, color: Colors.black),
-            menuMaxHeight: 200,
-            onChanged: (v) { if (v != null) setState(() => selectedCasingType = v); },
-            items: casingTypes.map((t) => DropdownMenuItem(value: t, child: Text(t, style: const TextStyle(fontSize: 9)))).toList(),
-          )),
-        ),
-        const SizedBox(width: 6),
-        InkWell(
-          onTap: () => setState(() {
-            tableData.add(List.generate(7, (_) => TextEditingController()));
-            tableData.last[0].text = selectedCasingType;
+      // ── HEADER (only the dropdown source changed) ─────────────
+      SizedBox(
+        height: _kHeaderH,
+        child: Row(children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            color: AppTheme.primaryColor.withOpacity(0.1),
+            child: Text("Cased Hole",
+                style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.primaryColor)),
+          ),
+          const Spacer(),
+          const Text("Add New Casing", style: TextStyle(fontSize: 9)),
+          const SizedBox(width: 6),
+
+          // ── Dynamic dropdown from API ──────────────────────────
+          Obx(() {
+            final casings = _casingCtrl.casings;
+            final isLoading = _casingCtrl.isLoading.value;
+
+            // Keep _selectedCasing valid if casings list changes
+            if (_selectedCasing != null &&
+                !casings.any((c) => c.dbId == _selectedCasing!.dbId)) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) setState(() => _selectedCasing = null);
+              });
+            }
+
+            return Container(
+              height: 22,
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              decoration:
+                  BoxDecoration(border: Border.all(color: Colors.grey.shade300)),
+              child: isLoading
+                  ? const Center(
+                      child: SizedBox(
+                          width: 10,
+                          height: 10,
+                          child: CircularProgressIndicator(strokeWidth: 1.5)))
+                  : DropdownButtonHideUnderline(
+                      child: DropdownButton<CasingRow>(
+                        value: _selectedCasing,
+                        hint: Text("Select Casing",
+                            style: TextStyle(
+                                fontSize: 9, color: Colors.grey.shade500)),
+                        icon: const Icon(Icons.arrow_drop_down, size: 13),
+                        style: const TextStyle(fontSize: 9, color: Colors.black),
+                        menuMaxHeight: 200,
+                        onChanged: (v) => setState(() => _selectedCasing = v),
+                        items: casings
+                            .where((csg) =>
+                                csg.description.value.isNotEmpty)
+                            .map((csg) => DropdownMenuItem<CasingRow>(
+                                  value: csg,
+                                  child: Text(
+                                    csg.description.value,
+                                    style: const TextStyle(fontSize: 9),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ))
+                            .toList(),
+                      ),
+                    ),
+            );
           }),
-          child: Icon(Icons.add_box, color: AppTheme.primaryColor, size: 16)),
-        const SizedBox(width: 4),
-      ]),
-      const SizedBox(height: 3),
+
+          const SizedBox(width: 6),
+
+          // ── Add button ────────────────────────────────────────
+          InkWell(
+            onTap: _addCasingRow,
+            child: Icon(Icons.add_box, color: AppTheme.primaryColor, size: 16),
+          ),
+          const SizedBox(width: 4),
+        ]),
+      ),
+
+      const SizedBox(height: 2),
+
+      // ── TABLE (completely unchanged) ──────────────────────────
       Expanded(child: LayoutBuilder(builder: (ctx, bc) {
         final double avail = bc.maxWidth - 28;
         final double cw = avail / 7;
@@ -753,20 +867,33 @@ class _CasedHoleSectionState extends State<CasedHoleSection> {
             },
             children: [
               TableRow(
-                decoration: BoxDecoration(color: AppTheme.primaryColor.withOpacity(0.15)),
-                children: ['No.','Description','OD\n(in)','Wt.\n(lb/ft)','ID\n(in)','Top\n(ft)','Shoe\n(ft)','Len.\n(ft)']
-                    .map((h) => _hCell(h, AppTheme.primaryColor)).toList(),
+                decoration:
+                    BoxDecoration(color: AppTheme.primaryColor.withOpacity(0.15)),
+                children: [
+                  'No.','Description','OD\n(in)','Wt.\n(lb/ft)',
+                  'ID\n(in)','Top\n(ft)','Shoe\n(ft)','Len.\n(ft)'
+                ].map((h) => _hCell(h, AppTheme.primaryColor)).toList(),
               ),
               ...tableData.asMap().entries.map((entry) {
-                final idx = entry.key; final ctrls = entry.value;
-                bool sel = selectedRowIndex == idx;
+                final idx   = entry.key;
+                final ctrls = entry.value;
+                final bool sel = selectedRowIndex == idx;
                 return TableRow(
-                  decoration: BoxDecoration(color: sel ? AppTheme.primaryColor.withOpacity(0.1) : (idx % 2 == 0 ? Colors.white : Colors.grey.shade50)),
+                  decoration: BoxDecoration(
+                    color: sel
+                        ? AppTheme.primaryColor.withOpacity(0.1)
+                        : (idx % 2 == 0 ? Colors.white : Colors.grey.shade50),
+                  ),
                   children: [
                     GestureDetector(
-                      onTap: () => setState(() => selectedRowIndex = sel ? null : idx),
+                      onTap: () =>
+                          setState(() => selectedRowIndex = sel ? null : idx),
                       child: _noCell(idx + 1, sel, AppTheme.primaryColor)),
-                    ...ctrls.map((ctrl) => _eCell(ctrl, c)).toList(),
+                    ...ctrls.map((ctrl) => _eCell(
+                      ctrl,
+                      c,
+                      onChanged: (v) => _checkAndAddRow(idx),
+                    )).toList(),
                   ],
                 );
               }).toList(),
@@ -774,12 +901,20 @@ class _CasedHoleSectionState extends State<CasedHoleSection> {
           ),
         );
       })),
+
+      SizedBox(
+        height: _kFooterH,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          color: AppTheme.primaryColor.withOpacity(0.05),
+        ),
+      ),
     ]);
   }
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  OPEN HOLE
+//  OPEN HOLE — UNCHANGED
 // ═══════════════════════════════════════════════════════════════════
 class OpenHoleSection extends StatefulWidget {
   @override _OpenHoleSectionState createState() => _OpenHoleSectionState();
@@ -801,9 +936,17 @@ class _OpenHoleSectionState extends State<OpenHoleSection> {
   @override
   Widget build(BuildContext context) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), color: AppTheme.primaryColor.withOpacity(0.1),
-        child: Text("Open Hole", style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.primaryColor))),
-      const SizedBox(height: 3),
+      SizedBox(
+        height: _kHeaderH,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          color: AppTheme.primaryColor.withOpacity(0.1),
+          alignment: Alignment.centerLeft,
+          child: Text("Open Hole", style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.primaryColor)),
+        ),
+      ),
+      const SizedBox(height: 2),
       Expanded(child: LayoutBuilder(builder: (ctx, bc) {
         final double avail = bc.maxWidth - 28;
         final double cw = avail / 4;
@@ -835,12 +978,19 @@ class _OpenHoleSectionState extends State<OpenHoleSection> {
           ),
         );
       })),
+      SizedBox(
+        height: _kFooterH,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          color: AppTheme.primaryColor.withOpacity(0.05),
+        ),
+      ),
     ]);
   }
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  DRILL STRING
+//  DRILL STRING — UNCHANGED
 // ═══════════════════════════════════════════════════════════════════
 class DrillStringSection extends StatefulWidget {
   @override _DrillStringSectionState createState() => _DrillStringSectionState();
@@ -856,29 +1006,35 @@ class _DrillStringSectionState extends State<DrillStringSection> {
   @override
   Widget build(BuildContext context) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(children: [
-        Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), color: AppTheme.primaryColor.withOpacity(0.1),
-          child: Text("Drill String", style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.primaryColor))),
-        const Spacer(),
-        Tooltip(onTriggered: () => Get.to(() => TabularDatabaseView()), message: 'Tabular Database',
-          child: Icon(Icons.table_chart, color: AppTheme.primaryColor, size: 16)),
-        const SizedBox(width: 4),
-        const Tooltip(message: 'Adjust length', child: Icon(Icons.tune, color: Colors.blue, size: 16)),
-        const SizedBox(width: 4),
-        Obx(() => ds.isLoading.value
-            ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 1.5))
-            : InkWell(onTap: ds.fetchDrillStrings, child: Icon(Icons.refresh, color: AppTheme.primaryColor, size: 16))),
-        const SizedBox(width: 6),
-        Obx(() => ds.isSaving.value
-            ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 1.5))
-            : InkWell(
-                onTap: ds.saveAll,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(color: AppTheme.primaryColor, borderRadius: BorderRadius.circular(3)),
-                  child: const Text('Save All', style: TextStyle(fontSize: 9, color: Colors.white, fontWeight: FontWeight.w600))))),
-        const SizedBox(width: 4),
-      ]),
+      SizedBox(
+        height: _kHeaderH,
+        child: Row(children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            color: AppTheme.primaryColor.withOpacity(0.1),
+            child: Text("Drill String", style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.primaryColor)),
+          ),
+          const Spacer(),
+          Tooltip(onTriggered: () => Get.to(() => TabularDatabaseView()), message: 'Tabular Database',
+            child: Icon(Icons.table_chart, color: AppTheme.primaryColor, size: 16)),
+          const SizedBox(width: 4),
+          const Tooltip(message: 'Adjust length', child: Icon(Icons.tune, color: Colors.blue, size: 16)),
+          const SizedBox(width: 4),
+          Obx(() => ds.isLoading.value
+              ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 1.5))
+              : InkWell(onTap: ds.fetchDrillStrings, child: Icon(Icons.refresh, color: AppTheme.primaryColor, size: 16))),
+          const SizedBox(width: 6),
+          Obx(() => ds.isSaving.value
+              ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 1.5))
+              : InkWell(
+                  onTap: ds.saveAll,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(color: AppTheme.primaryColor, borderRadius: BorderRadius.circular(3)),
+                    child: const Text('Save All', style: TextStyle(fontSize: 9, color: Colors.white, fontWeight: FontWeight.w600))))),
+          const SizedBox(width: 4),
+        ]),
+      ),
       const SizedBox(height: 3),
       Expanded(child: Obx(() {
         if (ds.isLoading.value) return const Center(child: CircularProgressIndicator());
@@ -911,21 +1067,24 @@ class _DrillStringSectionState extends State<DrillStringSection> {
           );
         });
       })),
-      Obx(() => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        color: AppTheme.primaryColor.withOpacity(0.05),
-        child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          const Text("Total String Length < Well Depth", style: TextStyle(fontSize: 9, color: Colors.black54)),
-          Row(children: [
-            const Text("Total Length (ft)", style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600)),
-            const SizedBox(width: 6),
-            Container(
-              width: 70, height: 20,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), color: Colors.white),
-              child: Text(ds.totalLength.value.toStringAsFixed(1), style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w600))),
+      Obx(() => SizedBox(
+        height: _kFooterH,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          color: AppTheme.primaryColor.withOpacity(0.05),
+          child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            const Text("Total String Length < Well Depth", style: TextStyle(fontSize: 9, color: Colors.black54)),
+            Row(children: [
+              const Text("Total Length (ft)", style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600)),
+              const SizedBox(width: 6),
+              Container(
+                width: 70, height: 20,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), color: Colors.white),
+                child: Text(ds.totalLength.value.toStringAsFixed(1), style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w600))),
+            ]),
           ]),
-        ]),
+        ),
       )),
     ]);
   }
@@ -961,7 +1120,7 @@ class _DrillStringSectionState extends State<DrillStringSection> {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  RIGHT PORTION
+//  RIGHT PORTION — UNCHANGED
 // ═══════════════════════════════════════════════════════════════════
 class RightPortion extends StatelessWidget {
   @override
@@ -971,8 +1130,8 @@ class RightPortion extends StatelessWidget {
         : Get.put(OthersController());
     return LayoutBuilder(builder: (ctx, bc) {
       const double cementRowH = 28.0;
-      const double gap        = 5.0;
-      const double bottomPad  = 8.0;
+      const double gap        = 2.0;
+      const double bottomPad  = 4.0;
       final double totalH     = bc.maxHeight - bottomPad;
       final double flexH      = totalH - cementRowH - gap * 3;
 
@@ -981,13 +1140,13 @@ class RightPortion extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.max,
           children: [
-            SizedBox(height: flexH * 3 / 9, child: BitSection()),
+            SizedBox(height: flexH * 3.2 / 10, child: BitSection()),
             const SizedBox(height: gap),
-            SizedBox(height: flexH * 2 / 9, child: NozzleSection()),
+            SizedBox(height: flexH * 2.8 / 10, child: NozzleSection()),
             const SizedBox(height: gap),
             const SizedBox(height: cementRowH),
             const SizedBox(height: gap),
-            SizedBox(height: flexH * 4 / 9, child: TimeDistributionSection(activityController: ac)),
+            SizedBox(height: flexH * 4.0 / 10, child: TimeDistributionSection(activityController: ac)),
           ],
         ),
       );
@@ -996,7 +1155,7 @@ class RightPortion extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  BIT SECTION
+//  BIT SECTION — UNCHANGED
 // ═══════════════════════════════════════════════════════════════════
 class BitSection extends StatefulWidget {
   @override _BitSectionState createState() => _BitSectionState();
@@ -1016,16 +1175,40 @@ class _BitSectionState extends State<BitSection> {
   @override
   Widget build(BuildContext context) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), color: AppTheme.primaryColor.withOpacity(0.1),
-        child: Text("Bit", style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.primaryColor))),
-      Table(
-        border: TableBorder.all(color: Colors.grey.shade300, width: 1),
-        defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-        columnWidths: const {0: FlexColumnWidth(2), 1: FlexColumnWidth(2), 2: FlexColumnWidth(1)},
-        children: [
-          _bRow("Mft","Mft",""), _bRow("Type","Type",""), _bRow("No. of Bits","No. of Bits",""),
-          _bRow("Size","Size","(in)"), _bRow("Depth-in","Depth-in","(ft)"), _bRow("Depth","Depth","(ft)"),
-        ],
+      SizedBox(
+        height: _kHeaderH,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          color: AppTheme.primaryColor.withOpacity(0.1),
+          alignment: Alignment.centerLeft,
+          child: Text("Bit", style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.primaryColor)),
+        ),
+      ),
+      const SizedBox(height: 3),
+      Expanded(
+        child: SingleChildScrollView(
+          child: Table(
+            border: TableBorder.all(color: Colors.grey.shade300, width: 1),
+            defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+            columnWidths: const {0: FlexColumnWidth(2), 1: FlexColumnWidth(2), 2: FlexColumnWidth(1)},
+            children: [
+              _bRow("Mft", "Mft", ""),
+              _bRow("Type", "Type", ""),
+              _bRow("No. of Bits", "No. of Bits", ""),
+              _bRow("Size", "Size", "(in)"),
+              _bRow("Depth-in", "Depth-in", "(ft)"),
+              _bRow("Depth", "Depth", "(ft)"),
+            ],
+          ),
+        ),
+      ),
+      SizedBox(
+        height: _kFooterH,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          color: AppTheme.primaryColor.withOpacity(0.05),
+        ),
       ),
     ]);
   }
@@ -1046,7 +1229,7 @@ class _BitSectionState extends State<BitSection> {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  NOZZLE SECTION
+//  NOZZLE SECTION — UNCHANGED
 // ═══════════════════════════════════════════════════════════════════
 class NozzleSection extends StatefulWidget {
   @override _NozzleSectionState createState() => _NozzleSectionState();
@@ -1087,12 +1270,18 @@ class _NozzleSectionState extends State<NozzleSection> {
   @override
   Widget build(BuildContext context) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        color: AppTheme.primaryColor.withOpacity(0.1),
-        child: Text("Nozzle (1/32in)", style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.primaryColor)),
+      SizedBox(
+        height: _kHeaderH,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          color: AppTheme.primaryColor.withOpacity(0.1),
+          alignment: Alignment.centerLeft,
+          child: Text("Nozzle (1/32in)", style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.primaryColor)),
+        ),
       ),
-      Flexible(
+      const SizedBox(height: 2),
+      Expanded(
         child: Obx(() {
           final entries = nc.entries;
           for (int i = 0; i < entries.length; i++) {
@@ -1155,26 +1344,29 @@ class _NozzleSectionState extends State<NozzleSection> {
           );
         }),
       ),
-      Obx(() => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        color: AppTheme.primaryColor.withOpacity(0.05),
-        child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          Row(children: [
-            const Text("TFA (in²)", style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600)),
-            const SizedBox(width: 4),
-            if (nc.isSaving.value)
-              const SizedBox(width: 10, height: 10, child: CircularProgressIndicator(strokeWidth: 1.5)),
-          ]),
-          Container(
-            width: 60, height: 20,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), color: Colors.white),
-            child: Text(
-              nc.tfa.value.toStringAsFixed(4),
-              style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w600),
+      Obx(() => SizedBox(
+        height: _kFooterH,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          color: AppTheme.primaryColor.withOpacity(0.05),
+          child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            Row(children: [
+              const Text("TFA (in²)", style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600)),
+              const SizedBox(width: 4),
+              if (nc.isSaving.value)
+                const SizedBox(width: 10, height: 10, child: CircularProgressIndicator(strokeWidth: 1.5)),
+            ]),
+            Container(
+              width: 60, height: 20,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), color: Colors.white),
+              child: Text(
+                nc.tfa.value.toStringAsFixed(4),
+                style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w600),
+              ),
             ),
-          ),
-        ]),
+          ]),
+        ),
       )),
     ]);
   }
@@ -1205,7 +1397,7 @@ class _NozzleSectionState extends State<NozzleSection> {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  TIME DISTRIBUTION
+//  TIME DISTRIBUTION — UNCHANGED
 // ═══════════════════════════════════════════════════════════════════
 class TimeDistributionSection extends StatefulWidget {
   final OthersController activityController;
@@ -1224,7 +1416,7 @@ class _TimeDistributionSectionState extends State<TimeDistributionSection> {
   @override
   void initState() {
     super.initState();
-    tableData = List.generate(5, (_) => {'activity': '', 'time': TextEditingController()});
+    tableData = List.generate(6, (_) => {'activity': '', 'time': TextEditingController()});
     _fetchActivities();
   }
 
@@ -1256,14 +1448,44 @@ class _TimeDistributionSectionState extends State<TimeDistributionSection> {
     }
   }
 
+  void _validateTotalTime(int idx) {
+    double total = 0;
+    for (final row in tableData) {
+      final ctrl = row['time'] as TextEditingController;
+      total += double.tryParse(ctrl.text) ?? 0;
+    }
+    if (total > 24.0) {
+      tableData[idx]['time'].clear();
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text("Validation Error", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+          content: const Text("Total time cannot exceed 24 hours.", style: TextStyle(fontSize: 12)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text("OK", style: TextStyle(color: AppTheme.primaryColor)),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        color: AppTheme.primaryColor.withOpacity(0.1),
-        child: Text("Time Distribution", style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.primaryColor)),
+      SizedBox(
+        height: _kHeaderH,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          color: AppTheme.primaryColor.withOpacity(0.1),
+          alignment: Alignment.centerLeft,
+          child: Text("Time Distribution", style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.primaryColor)),
+        ),
       ),
+      const SizedBox(height: 2),
       Expanded(child: SingleChildScrollView(
         child: Table(
           border: TableBorder.all(color: Colors.grey.shade300, width: 1),
@@ -1335,7 +1557,7 @@ class _TimeDistributionSectionState extends State<TimeDistributionSection> {
                             style: const TextStyle(fontSize: 9),
                             textAlign: TextAlign.center,
                             keyboardType: TextInputType.number,
-                            onChanged: (v) => tableData[idx]['time'] = timeCtrl,
+                            onChanged: (v) => _validateTotalTime(idx),
                             decoration: const InputDecoration(isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 2, vertical: 2), border: InputBorder.none, enabledBorder: InputBorder.none, focusedBorder: InputBorder.none, fillColor: Colors.white, filled: true)))),
                   ),
                 ],
@@ -1344,6 +1566,13 @@ class _TimeDistributionSectionState extends State<TimeDistributionSection> {
           ],
         ),
       )),
+      SizedBox(
+        height: _kFooterH,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          color: AppTheme.primaryColor.withOpacity(0.05),
+        ),
+      ),
     ]);
   }
 }

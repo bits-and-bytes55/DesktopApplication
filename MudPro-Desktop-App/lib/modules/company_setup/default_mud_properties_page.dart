@@ -80,18 +80,18 @@ class _DefaultMudPropertiesPageState extends State<DefaultMudPropertiesPage> {
     );
   }
 
-  void _toggleItem(String col, String item) {
+  void _toggleItem(String col, MudPropertyItem item) {
     setState(() {
       if (col == 'water') {
-        final list = List<String>.from(_selected.waterBased);
+        final list = List<MudPropertyItem>.from(_selected.waterBased);
         list.contains(item) ? list.remove(item) : list.add(item);
         _selected = _selected.copyWith(waterBased: list);
       } else if (col == 'oil') {
-        final list = List<String>.from(_selected.oilBased);
+        final list = List<MudPropertyItem>.from(_selected.oilBased);
         list.contains(item) ? list.remove(item) : list.add(item);
         _selected = _selected.copyWith(oilBased: list);
       } else if (col == 'synthetic') {
-        final list = List<String>.from(_selected.synthetic);
+        final list = List<MudPropertyItem>.from(_selected.synthetic);
         list.contains(item) ? list.remove(item) : list.add(item);
         _selected = _selected.copyWith(synthetic: list);
       }
@@ -200,13 +200,16 @@ class _DefaultMudPropertiesPageState extends State<DefaultMudPropertiesPage> {
             ),
             child: Row(
               children: [
-                _buildHeaderCell('#', 60, isFixed: true),
+                _buildHeaderCell('#', 50, isFixed: true),
                 _buildHeaderCell('Water-based', null,
-                    col: 'water', showSelectAll: true),
+                    col: 'water', showSelectAll: true, flex: 2),
+                _buildHeaderCell('Unit', 80, isFixed: true),
                 _buildHeaderCell('Oil-based', null,
-                    col: 'oil', showSelectAll: true),
+                    col: 'oil', showSelectAll: true, flex: 2),
+                _buildHeaderCell('Unit', 80, isFixed: true),
                 _buildHeaderCell('Synthetic', null,
-                    col: 'synthetic', showSelectAll: true),
+                    col: 'synthetic', showSelectAll: true, flex: 2),
+                _buildHeaderCell('Unit', 80, isFixed: true),
               ],
             ),
           ),
@@ -247,6 +250,7 @@ class _DefaultMudPropertiesPageState extends State<DefaultMudPropertiesPage> {
                               backgroundColor:
                                   AppTheme.primaryColor.withOpacity(0.03),
                             ),
+                            _buildUnitCell(index, _staticData.waterBased),
                             _buildSelectableCell(
                               col: 'oil',
                               index: index,
@@ -255,6 +259,7 @@ class _DefaultMudPropertiesPageState extends State<DefaultMudPropertiesPage> {
                               backgroundColor:
                                   const Color(0xff8B4513).withOpacity(0.03),
                             ),
+                            _buildUnitCell(index, _staticData.oilBased),
                             _buildSelectableCell(
                               col: 'synthetic',
                               index: index,
@@ -263,6 +268,7 @@ class _DefaultMudPropertiesPageState extends State<DefaultMudPropertiesPage> {
                               backgroundColor:
                                   const Color(0xff20B2AA).withOpacity(0.03),
                             ),
+                            _buildUnitCell(index, _staticData.synthetic),
                           ],
                         ),
                       );
@@ -280,6 +286,7 @@ class _DefaultMudPropertiesPageState extends State<DefaultMudPropertiesPage> {
     bool isFixed = false,
     String? col,
     bool showSelectAll = false,
+    int flex = 1,
   }) {
     final content = Row(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -333,6 +340,7 @@ class _DefaultMudPropertiesPageState extends State<DefaultMudPropertiesPage> {
       );
     } else {
       return Expanded(
+        flex: flex,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 8),
           decoration: decoration,
@@ -340,6 +348,32 @@ class _DefaultMudPropertiesPageState extends State<DefaultMudPropertiesPage> {
         ),
       );
     }
+  }
+
+  Widget _buildUnitCell(int index, List<MudPropertyItem> items) {
+    final hasItem = index < items.length;
+    final unit = hasItem ? items[index].unit : '-';
+    return Container(
+      width: 80,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          right: BorderSide(color: Colors.grey.shade300, width: 1),
+        ),
+      ),
+      child: Center(
+        child: Text(
+          unit,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w400,
+            color: Colors.grey.shade600,
+          ),
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+    );
   }
 
   Widget _buildNumberCell(int index) {
@@ -384,17 +418,19 @@ class _DefaultMudPropertiesPageState extends State<DefaultMudPropertiesPage> {
   Widget _buildSelectableCell({
     required String col,
     required int index,
-    required List<String> items,
-    required List<String> selectedItems,
+    required List<MudPropertyItem> items,
+    required List<MudPropertyItem> selectedItems,
     required Color backgroundColor,
   }) {
     final hasItem = index < items.length;
-    final text = hasItem ? items[index] : '-';
-    final isSelected = hasItem && selectedItems.contains(text);
+    final item = hasItem ? items[index] : null;
+    final text = item?.name ?? '-';
+    final isSelected = item != null && selectedItems.contains(item);
 
     return Expanded(
+      flex: 2,
       child: GestureDetector(
-        onTap: hasItem ? () => _toggleItem(col, text) : null,
+        onTap: item != null ? () => _toggleItem(col, item) : null,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(

@@ -12,6 +12,8 @@ import 'package:mudpro_desktop_app/modules/company_setup/model/company_model.dar
 import 'package:mudpro_desktop_app/modules/company_setup/model/engineers_model.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/model/products_model.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/model/service_model.dart';
+import 'package:mudpro_desktop_app/modules/options/model/unit_system_model.dart';
+import 'package:flutter/foundation.dart';
 
 class AuthRepository {
   final String baseUrl = ApiEndpoint.baseUrl;
@@ -2055,6 +2057,238 @@ Future<Map<String, dynamic>> deleteProduct(String productId) async {
       'cost': cost,
       'volumeBbl': double.parse(volumeBbl.toStringAsFixed(3)),
     };
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// UNIT SYSTEM API SERVICE
+// ════════════════════════════════════════════════════════════════════════════
+class UnitSystemApiService {
+  final String baseUrl = ApiEndpoint.baseUrl;
+
+  // Singleton ──────────────────────────────────────────────────────────────────
+  UnitSystemApiService._();
+  static final UnitSystemApiService instance = UnitSystemApiService._();
+
+  // ── Shared headers ───────────────────────────────────────────────────────────
+  static const Map<String, String> _jsonHeaders = {
+    'Content-Type': 'application/json',
+  };
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // GET /api/unit-systems
+  // Returns all unit systems for the left panel list.
+  // ════════════════════════════════════════════════════════════════════════════
+  Future<UnitSystemListResponse> fetchAll() async {
+    try {
+      final res = await http.get(
+        Uri.parse('${baseUrl}unit-systems'),
+        headers: _jsonHeaders,
+      );
+
+      if (res.statusCode == 200) {
+        final body = jsonDecode(res.body);
+        final List rawList = body['data'] ?? [];
+        final systems = rawList
+            .map((j) => UnitSystemModel.fromJson(j as Map<String, dynamic>))
+            .toList();
+        return UnitSystemListResponse(success: true, data: systems);
+      } else {
+        final msg = _parseError(res.body);
+        debugPrint('[UnitSystemApiService] fetchAll failed: $msg');
+        return UnitSystemListResponse(success: false, data: [], message: msg);
+      }
+    } catch (e) {
+      debugPrint('[UnitSystemApiService] fetchAll error: $e');
+      return UnitSystemListResponse(success: false, data: [], message: e.toString());
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // GET /api/unit-systems/:id
+  // Returns a single unit system with all 53 parameters.
+  // ════════════════════════════════════════════════════════════════════════════
+  Future<UnitSystemResponse> fetchById(String id) async {
+    try {
+      final res = await http.get(
+        Uri.parse('${baseUrl}unit-systems/$id'),
+        headers: _jsonHeaders,
+      );
+
+      if (res.statusCode == 200) {
+        final body = jsonDecode(res.body);
+        final system = UnitSystemModel.fromJson(body['data'] as Map<String, dynamic>);
+        return UnitSystemResponse(success: true, data: system);
+      } else {
+        final msg = _parseError(res.body);
+        debugPrint('[UnitSystemApiService] fetchById failed: $msg');
+        return UnitSystemResponse(success: false, message: msg);
+      }
+    } catch (e) {
+      debugPrint('[UnitSystemApiService] fetchById error: $e');
+      return UnitSystemResponse(success: false, message: e.toString());
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // POST /api/unit-systems
+  // Creates a new unit system seeded from baseTemplate ("us" | "si").
+  // Body: { name, baseTemplate }
+  // ════════════════════════════════════════════════════════════════════════════
+  Future<UnitSystemResponse> create({
+    required String name,
+    required String baseTemplate,
+  }) async {
+    try {
+      final res = await http.post(
+        Uri.parse('${baseUrl}unit-systems'),
+        headers: _jsonHeaders,
+        body: jsonEncode({'name': name, 'baseTemplate': baseTemplate}),
+      );
+
+      if (res.statusCode == 201) {
+        final body = jsonDecode(res.body);
+        final system = UnitSystemModel.fromJson(body['data'] as Map<String, dynamic>);
+        debugPrint('[UnitSystemApiService] Created system: ${system.name}');
+        return UnitSystemResponse(success: true, data: system);
+      } else {
+        final msg = _parseError(res.body);
+        debugPrint('[UnitSystemApiService] create failed: $msg');
+        return UnitSystemResponse(success: false, message: msg);
+      }
+    } catch (e) {
+      debugPrint('[UnitSystemApiService] create error: $e');
+      return UnitSystemResponse(success: false, message: e.toString());
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // PUT /api/unit-systems/:id
+  // Full update — replaces all parameters at once (Save Changes button).
+  // Body: { parameters: [ { number, name, unit }, ... ] }
+  // ════════════════════════════════════════════════════════════════════════════
+  Future<UnitSystemResponse> updateAll({
+    required String id,
+    required List<Map<String, String>> parameters,
+    String? name,
+  }) async {
+    try {
+      final body = <String, dynamic>{'parameters': parameters};
+      if (name != null) body['name'] = name;
+
+      final res = await http.put(
+        Uri.parse('${baseUrl}unit-systems/$id'),
+        headers: _jsonHeaders,
+        body: jsonEncode(body),
+      );
+
+      if (res.statusCode == 200) {
+        final resBody = jsonDecode(res.body);
+        final system = UnitSystemModel.fromJson(resBody['data'] as Map<String, dynamic>);
+        debugPrint('[UnitSystemApiService] updateAll saved for $id');
+        return UnitSystemResponse(success: true, data: system);
+      } else {
+        final msg = _parseError(res.body);
+        debugPrint('[UnitSystemApiService] updateAll failed: $msg');
+        return UnitSystemResponse(success: false, message: msg);
+      }
+    } catch (e) {
+      debugPrint('[UnitSystemApiService] updateAll error: $e');
+      return UnitSystemResponse(success: false, message: e.toString());
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // PATCH /api/unit-systems/:id/parameter/:number
+  // Auto-saves a single parameter unit on every dropdown change.
+  // Called debounced (600ms) from the controller.
+  // Body: { unit }
+  // ════════════════════════════════════════════════════════════════════════════
+  Future<bool> patchParameterUnit({
+    required String systemId,
+    required String paramNumber,
+    required String unit,
+  }) async {
+    try {
+      final res = await http.patch(
+        Uri.parse('${baseUrl}unit-systems/$systemId/parameter/$paramNumber'),
+        headers: _jsonHeaders,
+        body: jsonEncode({'unit': unit}),
+      );
+
+      if (res.statusCode == 200) {
+        debugPrint('[UnitSystemApiService] Saved param $paramNumber = $unit');
+        return true;
+      } else {
+        debugPrint('[UnitSystemApiService] patchParameterUnit failed: ${res.body}');
+        return false;
+      }
+    } catch (e) {
+      debugPrint('[UnitSystemApiService] patchParameterUnit error: $e');
+      return false;
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // DELETE /api/unit-systems/:id
+  // ════════════════════════════════════════════════════════════════════════════
+  Future<bool> delete(String id) async {
+    try {
+      final res = await http.delete(
+        Uri.parse('${baseUrl}unit-systems/$id'),
+        headers: _jsonHeaders,
+      );
+
+      if (res.statusCode == 200) {
+        debugPrint('[UnitSystemApiService] Deleted system $id');
+        return true;
+      } else {
+        debugPrint('[UnitSystemApiService] delete failed: ${res.body}');
+        return false;
+      }
+    } catch (e) {
+      debugPrint('[UnitSystemApiService] delete error: $e');
+      return false;
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // POST /api/unit-systems/seed
+  // Seeds default systems (Pegasus Default 1, SI, US).
+  // ════════════════════════════════════════════════════════════════════════════
+  Future<UnitSystemListResponse> seedDefaultSystems() async {
+    try {
+      final res = await http.post(
+        Uri.parse('${baseUrl}unit-systems/seed'),
+        headers: _jsonHeaders,
+      );
+
+      if (res.statusCode == 201 || res.statusCode == 200) {
+        final body = jsonDecode(res.body);
+        final List rawList = body['data'] ?? [];
+        final systems = rawList
+            .map((j) => UnitSystemModel.fromJson(j as Map<String, dynamic>))
+            .toList();
+        return UnitSystemListResponse(success: true, data: systems);
+      } else {
+        final msg = _parseError(res.body);
+        debugPrint('[UnitSystemApiService] seed failed: $msg');
+        return UnitSystemListResponse(success: false, data: [], message: msg);
+      }
+    } catch (e) {
+      debugPrint('[UnitSystemApiService] seed error: $e');
+      return UnitSystemListResponse(success: false, data: [], message: e.toString());
+    }
+  }
+
+  // ── Helper: extract error message from response body ─────────────────────
+  String _parseError(String body) {
+    try {
+      final decoded = jsonDecode(body);
+      return (decoded['message'] ?? 'Unknown error').toString();
+    } catch (_) {
+      return body.isNotEmpty ? body : 'Unknown error';
+    }
   }
   
 }

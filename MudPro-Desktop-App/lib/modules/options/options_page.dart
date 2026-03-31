@@ -10,7 +10,7 @@ import 'package:mudpro_desktop_app/theme/app_theme.dart';
 class OptionsPage extends StatelessWidget {
   OptionsPage({super.key});
 
-  final OptionsController controller = Get.put(OptionsController());
+  final OptionsController controller = Get.isRegistered<OptionsController>() ? Get.find<OptionsController>() : Get.put(OptionsController());
 
   @override
   Widget build(BuildContext context) {

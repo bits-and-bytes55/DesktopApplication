@@ -1,10 +1,31 @@
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:get/get.dart';
 import 'package:get/get_state_manager/src/simple/get_controllers.dart';
+import 'package:mudpro_desktop_app/api_endpoint/api_endpoint.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/model/UG_ST_model.dart';
 
 class UgStController extends GetxController {
   var selectedWellTab = 0.obs; // 0 = Well
   var isLocked = true.obs;
+  var isLoading = false.obs;
+
+  final casingVerticalScroll = ScrollController();
+  final casingHorizontalScroll = ScrollController();
+
+  @override
+  void onInit() {
+    fetchCasings();
+    super.onInit();
+  }
+
+  @override
+  void onClose() {
+    casingVerticalScroll.dispose();
+    casingHorizontalScroll.dispose();
+    super.onClose();
+  }
 
   // Summary table data
   var summaryData = [
@@ -25,30 +46,67 @@ class UgStController extends GetxController {
     ["8", "5500.00", "105", "158,234.10", "16.20", "16.80", "85", "95", "30", "40", "45", "24", "30", "42", "48", "11.2"],
   ].obs;
 
-  final casings = <CasingRow>[
-  CasingRow(
-    description: '9 5/8" Casing',
-    type: 'Casing',
-    od: '9.625',
-    wt: '47.000',
-    id: '8.681',
-    top: '0.00',
-    shoe: '2386.59',
-    bit: '12.250',
-    toc: '',
-  ),
-  CasingRow(
-    description: '7" Liner',
-    type: 'Liner',
-    od: '7.000',
-    wt: '26.000',
-    id: '6.276',
-    top: '2313.44',
-    shoe: '2759.36',
-    bit: '8.500',
-    toc: '',
-  ),
-].obs;
+  final casings = <CasingRow>[].obs;
+
+  Future<void> fetchCasings() async {
+    isLoading.value = true;
+    try {
+      final response = await http.get(Uri.parse('${ApiEndpoint.baseUrl}casing'));
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> body = json.decode(response.body);
+        if (body['success']) {
+          final List<dynamic> data = body['data'];
+          casings.assignAll(data.map((e) => CasingRow.fromJson(e)).toList());
+        }
+      }
+    } catch (e) {
+      print('Error fetching casings: $e');
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  Future<void> addCasing(CasingRow casing) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiEndpoint.baseUrl}casing'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(casing.toJson()),
+      );
+      if (response.statusCode == 201) {
+        fetchCasings();
+      }
+    } catch (e) {
+      print('Error adding casing: $e');
+    }
+  }
+
+  Future<void> updateCasing(CasingRow casing) async {
+    if (casing.dbId == null) return;
+    try {
+      final response = await http.put(
+        Uri.parse('${ApiEndpoint.baseUrl}casing/${casing.dbId}'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(casing.toJson()),
+      );
+      if (response.statusCode == 200) {
+        fetchCasings();
+      }
+    } catch (e) {
+      print('Error updating casing: $e');
+    }
+  }
+
+  Future<void> deleteCasing(String dbId) async {
+    try {
+      final response = await http.delete(Uri.parse('${ApiEndpoint.baseUrl}casing/$dbId'));
+      if (response.statusCode == 200) {
+        fetchCasings();
+      }
+    } catch (e) {
+      print('Error deleting casing: $e');
+    }
+  }
 
 
   // Interval list

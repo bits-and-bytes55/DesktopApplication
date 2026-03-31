@@ -4,6 +4,8 @@ import 'package:mudpro_desktop_app/modules/dashboard/controller/options_controll
 import 'package:mudpro_desktop_app/modules/options/tabs/unit_customization_popup.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
+import '../model/unit_system_model.dart';
+
 class UnitRightPanel extends StatefulWidget {
   const UnitRightPanel({super.key});
 
@@ -13,24 +15,9 @@ class UnitRightPanel extends StatefulWidget {
 
 class _UnitRightPanelState extends State<UnitRightPanel> {
   final ScrollController _scrollController = ScrollController();
-  final List<String> allUnits = [
-    'ft', 'm', 'in', 'mm', 'in²', 'mm²',
-    'bbl', 'm³', 'ft/min', 'm/min', 'psi', 'kPa',
-    'ppg', '°F', '°C', 'lb/min', 'kg/min', 'lb/ft', 'kg/m',
-    'lb/ft³', 'kg/m³', '°F/100ft', '°C/100m', '°/100ft', '°/100m',
-    'lb/bbl', 'gal/bbl', 'L/m³', 'sk', 'bag', 'lb/sk', 'kg/bag',
-    'ft³/sk', 'm³/bag', 'gal/sk', 'L/bag', '\$/bbl', '\$/m³', 'mph', 'km/h',
-    'Btu/lb/°F', 'J/kg/°C', 'Mpa', 'GPa', 'Btu/hr/ft/°F', 'W/m/K',
-    '10⁻⁶/°F', '10⁻⁶/°C', 'gal', 'L', 'sec/qt', 'sec/L', 'rev',
-    'US ton/h', 'tonne/h', 'ft/day', 'm/day', '(rpm)', '(lbf)', '(N)',
-    '(fbf/ft)', '(N/m)', '(ft-lb)', '(J)', '(psi/ft)', '(kPa/m)',
-    '(psi)', '(kPa)',
-    '(f1)', '(n1)', '(n2)', '(bbl)', '(bbl./f1)', '(f1/bbl)', '(f13)',
-    '(n3)', '(bbl./aik)', '(acf)', '(f1/min)', '(f1/a)', '(f1/hr)'
-  ];
 
   // Store which dropdown is open
-  final List<GlobalKey> _dropdownKeys = List.generate(53, (index) => GlobalKey());
+  final List<GlobalKey> _dropdownKeys = List.generate(49, (index) => GlobalKey());
 
   @override
   void dispose() {
@@ -45,41 +32,9 @@ class _UnitRightPanelState extends State<UnitRightPanel> {
     return Container(
       color: Colors.white,
       child: Obx(() {
-        final selectedTab = controller.selectedTab.value;
+        const selectedTab = 0; // Fixed for this tab
         final unitSystem = controller.unitSystem.value;
         final customSystem = controller.selectedCustomSystem.value;
-
-        if (selectedTab != 0) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.build_circle_outlined,
-                  size: 48,
-                  color: AppTheme.textSecondary,
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Coming Soon',
-                  style: TextStyle(
-                    fontSize: 18,
-                    color: AppTheme.textSecondary,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'This feature is under development',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey.shade500,
-                  ),
-                ),
-              ],
-            ),
-          );
-        }
 
         return Padding(
           padding: const EdgeInsets.all(16),
@@ -132,7 +87,7 @@ class _UnitRightPanelState extends State<UnitRightPanel> {
                                 SizedBox(
                                   width: 220,
                                   child: DropdownButtonFormField<String>(
-                                    value: customSystem,
+                                    value: controller.unitSystemNames.contains(customSystem) ? customSystem : (controller.unitSystemNames.isNotEmpty ? controller.unitSystemNames.first : null),
                                     isExpanded: true,
                                     decoration: InputDecoration(
                                       labelText: 'Select Template',
@@ -148,44 +103,24 @@ class _UnitRightPanelState extends State<UnitRightPanel> {
                                       ),
                                     ),
                                     onChanged: unitSystem == UnitSystem.customized
-                                        ? (v) => controller.selectedCustomSystem.value = v!
+                                        ? (v) => controller.selectUnitSystemByName(v!)
                                         : null,
-                                    items: const [
-                                      DropdownMenuItem(
-                                        value: 'Pegasus Default 1',
-                                        child: Text(
-                                          'Pegasus Default 1',
-                                          style: TextStyle(fontSize: 13),
-                                        ),
-                                      ),
-                                      DropdownMenuItem(
-                                        value: 'SI',
-                                        child: Text(
-                                          'SI',
-                                          style: TextStyle(fontSize: 13),
-                                        ),
-                                      ),
-                                      DropdownMenuItem(
-                                        value: 'US',
-                                        child: Text(
-                                          'US',
-                                          style: TextStyle(fontSize: 13),
-                                        ),
-                                      ),
-                                    ],
+                                    items: controller.unitSystemNames.map((name) => DropdownMenuItem(
+                                      value: name,
+                                      child: Text(name, style: const TextStyle(fontSize: 13)),
+                                    )).toList(),
                                   ),
                                 ),
                                 const SizedBox(width: 12),
                                 
-                                // Button for new page
+                                // Button for customization popup
                                 ElevatedButton.icon(
                                   onPressed: (){
                                     showDialog(
-  context: context,
-  barrierDismissible: false,
-  builder: (_) =>  UnitSystemCustomizationPopup(),
-);
-
+                                      context: context,
+                                      barrierDismissible: false,
+                                      builder: (_) => const UnitSystemCustomizationPopup(),
+                                    );
                                   },
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: AppTheme.primaryColor,
@@ -227,7 +162,7 @@ class _UnitRightPanelState extends State<UnitRightPanel> {
               // Parameters Table - Smaller and takes half width
               Expanded(
                 child: SizedBox(
-                  width: MediaQuery.of(context).size.width * 0.5,
+                  width: double.infinity,
                   child: Card(
                     elevation: 1,
                     shape: RoundedRectangleBorder(
@@ -271,7 +206,7 @@ class _UnitRightPanelState extends State<UnitRightPanel> {
                               ),
                               SizedBox(width: 12),
                               SizedBox(
-                                width: 120,
+                                width: 140,
                                 child: Text(
                                   'Unit',
                                   style: TextStyle(
@@ -293,13 +228,13 @@ class _UnitRightPanelState extends State<UnitRightPanel> {
                             child: ListView.builder(
                               controller: _scrollController,
                               padding: EdgeInsets.zero,
-                              itemCount: controller.parameters.length,
+                              itemCount: OptionsController.parameters.length,
                               itemBuilder: (context, index) {
-                                final parameter = controller.parameters[index];
+                                final parameter = OptionsController.parameters[index];
                                 final isEven = index % 2 == 0;
                                 
                                 return Container(
-                                  height: 40,
+                                  height: 44,
                                   padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
                                   decoration: BoxDecoration(
                                     color: isEven ? Colors.white : Colors.grey.shade50,
@@ -341,14 +276,15 @@ class _UnitRightPanelState extends State<UnitRightPanel> {
                                       
                                       // Column 3: Unit
                                       SizedBox(
-                                        width: 120,
+                                        width: 140,
                                         child: unitSystem == UnitSystem.customized
                                             // Custom Dropdown Menu - Opens below row
                                             ? _buildCustomDropdown(index, controller)
                                             // Normal unit display for US and SI
                                             : Container(
                                                 height: 32,
-                                                padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
+                                                alignment: Alignment.centerLeft,
+                                                padding: const EdgeInsets.symmetric(horizontal: 10),
                                                 decoration: BoxDecoration(
                                                   color: AppTheme.primaryColor.withOpacity(0.1),
                                                   borderRadius: BorderRadius.circular(4),
@@ -358,7 +294,7 @@ class _UnitRightPanelState extends State<UnitRightPanel> {
                                                   style: TextStyle(
                                                     fontSize: 12,
                                                     color: AppTheme.primaryColor,
-                                                    fontWeight: FontWeight.w500,
+                                                    fontWeight: FontWeight.w600,
                                                   ),
                                                 ),
                                               ),
@@ -384,47 +320,42 @@ class _UnitRightPanelState extends State<UnitRightPanel> {
 
   // Custom dropdown that opens below the row
   Widget _buildCustomDropdown(int index, OptionsController controller) {
+    final number = OptionsController.parameters[index]['number']!;
+    final unitOptions = controller.getUnitsForParam(number);
+
     return Container(
       height: 32,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(4),
-        border: Border.all(
-          color: Colors.grey.shade300,
-          width: 1,
-        ),
+        border: Border.all(color: Colors.grey.shade300),
       ),
       child: PopupMenuButton<String>(
         key: _dropdownKeys[index],
         position: PopupMenuPosition.under,
-        constraints: BoxConstraints(
-          maxHeight: 200, // Fixed height for dropdown
-          minWidth: 120,
-        ),
+        constraints: const BoxConstraints(maxHeight: 250, minWidth: 140),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(8),
           side: BorderSide(color: Colors.grey.shade300),
         ),
         onSelected: (String newValue) {
-          controller.customUnits[index] = newValue;
+          controller.onUnitChanged(
+            systemId: controller.selectedCustomSystemId.value,
+            paramNumber: number,
+            newUnit: newValue,
+          );
         },
         itemBuilder: (BuildContext context) {
-          return allUnits.map<PopupMenuEntry<String>>((String unit) {
+          return unitOptions.map<PopupMenuEntry<String>>((String unit) {
             return PopupMenuItem<String>(
               value: unit,
-              height: 32,
-              child: SizedBox(
-                width: 100,
-                child: Text(
-                  unit,
-                  style: const TextStyle(fontSize: 12),
-                ),
-              ),
+              height: 36,
+              child: Text(unit, style: const TextStyle(fontSize: 12)),
             );
           }).toList();
         },
         child: Obx(() {
-          final currentValue = controller.customUnits[index];
+          final currentValue = controller.customUnits[number] ?? '';
           return Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Row(
@@ -432,19 +363,12 @@ class _UnitRightPanelState extends State<UnitRightPanel> {
               children: [
                 Expanded(
                   child: Text(
-                    currentValue,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppTheme.textPrimary, // Fixed text color
-                    ),
+                    currentValue.isEmpty ? '-' : currentValue,
+                    style: TextStyle(fontSize: 12, color: AppTheme.textPrimary),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const Icon(
-                  Icons.arrow_drop_down,
-                  size: 18,
-                  color: Colors.grey,
-                ),
+                const Icon(Icons.arrow_drop_down, size: 18, color: Colors.grey),
               ],
             ),
           );
@@ -517,41 +441,6 @@ class _UnitRightPanelState extends State<UnitRightPanel> {
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  void _openCustomizationPage(BuildContext context, OptionsController controller) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Customize Unit System'),
-        content: SizedBox(
-          width: 400,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                decoration: const InputDecoration(
-                  labelText: 'Unit System Name',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text('Advanced customization options would go here...'),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Save'),
-          ),
-        ],
       ),
     );
   }

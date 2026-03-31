@@ -23,23 +23,14 @@ const premixedSchema = new mongoose.Schema({
     default: false
   },
   wellId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Well',
-    required: true
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  },
-  updatedAt: {
-    type: Date,
-    default: Date.now
+    type: String,
+    required: true,
+    index: true
   }
 }, {
   timestamps: true
 });
 
-// Index for faster queries
 premixedSchema.index({ wellId: 1 });
 
 const Premixed = mongoose.model('Premixed', premixedSchema);
