@@ -44,6 +44,8 @@ import sceRoutes from "./routes/sce/sce.routes.js";
 
 
 import wellGeneralRoutes from "./routes/wellGeneral/wellGeneralRoutes.js";
+import intervalRoutes from "./routes/wellInterval/intervalRoutes.js";
+
 
 
 import activityRoutes from './routes/others/otherActivity.routes.js';
@@ -178,6 +180,8 @@ app.use('/api/casing', casingRoutes);
 app.use("/api/volume-name", volumeNameRoutes);
 app.use("/api/transfer-mud", transferMudRoutes);
 app.use("/api/receive-mud", receiveMudRoutes);
+
+app.use("/api/intervals", intervalRoutes);
 
 
 // Error handler (ALWAYS LAST)
