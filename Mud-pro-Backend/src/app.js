@@ -65,7 +65,12 @@ import casingRoutes from "./routes/casing/casing.routes.js";
 import volumeNameRoutes from "./routes/pitvolumename/volumeName.routes.js";
 import transferMudRoutes from "./routes/transfermud/transferMud.routes.js";
 import receiveMudRoutes from "./routes/receivemud/receiveMud.routes.js";
-
+import returnLostMudRoutes from "./routes/returnlostmud/returnLostMud.routes.js";
+import addWaterRoutes from "./routes/addwater/addWater.routes.js";
+import movePitStatusRoutes from "./routes/movepit/movePitStatus.routes.js";
+import otherVolAdditionRoutes from "./routes/othervol/otherVolAddition.routes.js";
+import mudLossRoutes from "./routes/mudloss/mudLoss.routes.js";
+import mudLossStorageRoutes from "./routes/mudlossstorage/mudLossStorage.routes.js";
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -180,6 +185,12 @@ app.use('/api/casing', casingRoutes);
 app.use("/api/volume-name", volumeNameRoutes);
 app.use("/api/transfer-mud", transferMudRoutes);
 app.use("/api/receive-mud", receiveMudRoutes);
+app.use("/api/return-lost-mud", returnLostMudRoutes);
+app.use("/api/add-water", addWaterRoutes);
+app.use("/api/move-pit-status", movePitStatusRoutes);
+app.use("/api/other-vol-addition", otherVolAdditionRoutes);
+app.use("/api/mud-loss", mudLossRoutes);
+app.use("/api/mud-loss-storage", mudLossStorageRoutes);
 
 app.use("/api/intervals", intervalRoutes);
 

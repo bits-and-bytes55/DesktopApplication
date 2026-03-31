@@ -3,6 +3,11 @@ import Casing from "../../modules/casing/casing.model.js";
 import Pit from "../../modules/pit/pit.model.js";
 import ConsumeProduct from "../../modules/Consumeproduct/ConsumeProduct.js";
 import ReceiveMud from "../../modules/receivemud/ReceiveMud.js";
+import ReturnLostMud from "../../modules/returnlostmud/ReturnLostMud.js";
+import AddWater from "../../modules/addwater/AddWater.js";
+import OtherVolAddition from "../../modules/othervol/OtherVolAddition.js";
+import MudLoss from "../../modules/mudloss/MudLoss.js";
+import MudLossStorage from "../../modules/mudlossstorage/MudLossStorage.js";
 
 const toNumber = (value) => {
   if (value === null || value === undefined || value === "") return 0;
@@ -259,6 +264,7 @@ export const createConsumeProduct = async (req, res) => {
   }
 };
 
+
 // ------------------ GET VOLUME NAME ------------------
 export const getVolumeNameCalculation = async (req, res) => {
   try {
@@ -275,6 +281,12 @@ export const getVolumeNameCalculation = async (req, res) => {
     const casings = await Casing.find({ wellId }).sort({ createdAt: 1 });
     const pits = await Pit.find({ wellId }).sort({ createdAt: 1 });
     const consumeProducts = await ConsumeProduct.find({ wellId }).sort({ createdAt: 1 });
+    const receivedMud = await ReceiveMud.find({ wellId }).sort({ createdAt: 1 });
+const returnLostMud = await ReturnLostMud.find({ wellId }).sort({ createdAt: 1 });
+const addWaterEntries = await AddWater.find({ wellId }).sort({ createdAt: 1 });
+const otherVolAdditions = await OtherVolAddition.find({ wellId }).sort({ createdAt: 1 });
+const mudLossEntries = await MudLoss.find({ wellId }).sort({ createdAt: 1 });
+const mudLossStorageEntries = await MudLossStorage.find({ wellId }).sort({ createdAt: 1 });
 
     const md = toNumber(wellGeneral?.md);
 
@@ -313,9 +325,43 @@ if (endVolMinusActiveSystem < 0) {
   endVolMinusActiveSystem = 0;
 }
 
-    const totalOnLocation = Number(
-      consumeProducts.reduce((sum, item) => sum + toNumber(item.volumeBbl), 0).toFixed(2)
-    );
+    const consumeProductTotal = Number(
+  consumeProducts.reduce((sum, item) => sum + toNumber(item.volumeBbl), 0).toFixed(2)
+);
+
+const receivedMudTotal = Number(
+  receivedMud.reduce((sum, item) => sum + toNumber(item.netVolume), 0).toFixed(2)
+);
+
+const lostMudTotal = Number(
+  returnLostMud.reduce((sum, item) => sum + toNumber(item.volLost), 0).toFixed(2)
+);
+
+const addWaterTotal = Number(
+  addWaterEntries.reduce((sum, item) => sum + toNumber(item.volume), 0).toFixed(2)
+);
+
+const mudLossTotal = Number(
+  mudLossEntries.reduce((sum, item) => sum + toNumber(item.totalLoss), 0).toFixed(2)
+);
+
+const mudLossStorageTotal = Number(
+  mudLossStorageEntries.reduce((sum, item) => sum + toNumber(item.totalLoss), 0).toFixed(2)
+);
+const otherVolAdditionTotal = Number(
+  otherVolAdditions.reduce((sum, item) => sum + toNumber(item.totalVolume), 0).toFixed(2)
+);
+const totalOnLocation = Number(
+  (
+    consumeProductTotal +
+    receivedMudTotal +
+    addWaterTotal +
+    otherVolAdditionTotal -
+    lostMudTotal -
+    mudLossTotal -
+    mudLossStorageTotal
+  ).toFixed(2)
+);
 
     const heldVolDifference = Number((totalOnLocation - activeSystem).toFixed(2));
 
@@ -341,6 +387,17 @@ if (endVolMinusActiveSystem < 0) {
           totalStorage,
           totalOnLocation,
         },
+
+   totalsBreakdown: {
+  consumeProductTotal,
+  receivedMudTotal,
+  addWaterTotal,
+  otherVolAdditionTotal,
+  lostMudTotal,
+  mudLossTotal,
+  mudLossStorageTotal,
+},
+
         activePitsTable: activePitsList.map((pit) => ({
           _id: pit._id,
           pitName: pit.pitName,
