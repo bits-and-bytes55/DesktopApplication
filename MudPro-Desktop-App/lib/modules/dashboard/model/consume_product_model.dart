@@ -86,7 +86,7 @@ class ConsumeProductModel {
   // Calculate values locally
   void calculate() {
     // Calculate final
-    final_ = initial + adjust - used;
+    final_ = initial - adjust - used;
     
     // Calculate cost
     cost = used * price;

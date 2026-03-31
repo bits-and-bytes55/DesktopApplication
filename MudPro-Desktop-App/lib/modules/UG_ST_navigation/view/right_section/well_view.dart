@@ -6,6 +6,8 @@ import 'package:mudpro_desktop_app/theme/app_theme.dart';
 class WellView extends StatelessWidget {
   WellView({super.key});
   final c = Get.find<UgStController>();
+  final _tableScrollCtrl = ScrollController();
+  final _memoScrollCtrl  = ScrollController();
 
   static const double rowH = 32;
   static const double tableWidth = 700;
@@ -148,8 +150,10 @@ class WellView extends StatelessWidget {
                       maxHeight: 350, // Fixed height for table with scroll
                     ),
                     child: Scrollbar(
+                      controller: _tableScrollCtrl,
                       thumbVisibility: true,
                       child: SingleChildScrollView(
+                        controller: _tableScrollCtrl,
                         child: Column(
                           children: [
                             _row("Well Name/No.", "UG-0293 ST"),
@@ -253,6 +257,7 @@ class WellView extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Scrollbar(
+                                controller: _memoScrollCtrl,
                                 thumbVisibility: true,
                                 child: TextFormField(
                                   maxLines: null,

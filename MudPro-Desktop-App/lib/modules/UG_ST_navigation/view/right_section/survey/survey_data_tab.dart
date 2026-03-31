@@ -7,6 +7,7 @@ class SurveyDataTab extends StatelessWidget {
 
   final RxBool isLocked = true.obs;
   final ScrollController _horizontalScrollController = ScrollController();
+  final ScrollController _verticalScrollController = ScrollController();
 
   final headers = const [
     "#",
@@ -179,8 +180,10 @@ class SurveyDataTab extends StatelessWidget {
           // TABLE CONTENT
           Expanded(
             child: Scrollbar(
+              controller: _verticalScrollController,
               thumbVisibility: true,
               child: SingleChildScrollView(
+                controller: _verticalScrollController,
                 scrollDirection: Axis.vertical,
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,

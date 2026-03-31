@@ -8,6 +8,7 @@ import 'package:mudpro_desktop_app/modules/UG_ST_navigation/model/UG_ST_model.da
 
 class UgStController extends GetxController {
   var selectedWellTab = 0.obs; // 0 = Well
+  var selectedWellId = Rx<String?>(null);
   var isLocked = true.obs;
   var isLoading = false.obs;
 
