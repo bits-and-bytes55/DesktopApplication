@@ -60,6 +60,9 @@ import exportRoutes from "./routes/Export/exportRoutes.js";
 
 import solidanalysisroute from "./routes/SolidAnalysis/solidanalysisroute.js"
 import casingRoutes from "./routes/casing/casing.routes.js";
+import volumeNameRoutes from "./routes/pitvolumename/volumeName.routes.js";
+import transferMudRoutes from "./routes/transfermud/transferMud.routes.js";
+import receiveMudRoutes from "./routes/receivemud/receiveMud.routes.js";
 
 
 
@@ -172,6 +175,9 @@ app.use('/api/mud-properties', mudPropertiesRoute);
 
 app.use('/api/solids',solidanalysisroute);
 app.use('/api/casing', casingRoutes);
+app.use("/api/volume-name", volumeNameRoutes);
+app.use("/api/transfer-mud", transferMudRoutes);
+app.use("/api/receive-mud", receiveMudRoutes);
 
 
 // Error handler (ALWAYS LAST)

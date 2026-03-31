@@ -2,11 +2,10 @@ import mongoose from 'mongoose';
 
 const casingSchema = new mongoose.Schema({
   wellId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Well',
-    required: false,
-    index: true
-  },
+      type: String,
+      required: true,
+      index: true,
+    },
   description: { type: String, default: '' },
   type: { type: String, default: '' },
   od: { type: String, default: '' },
