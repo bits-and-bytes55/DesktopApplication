@@ -21,6 +21,7 @@ class OperationController extends GetxController {
   RxBool isLocked = true.obs;
   RxInt selectedRowIndex = 0.obs;
   RxString addWaterVolume = "".obs; // Track Add Water locally
+  RxDouble totalVolume = 0.0.obs; // Track overall total volume (Products + Water)
 
 
   final List<OperationType> dropdownItems = OperationType.values;

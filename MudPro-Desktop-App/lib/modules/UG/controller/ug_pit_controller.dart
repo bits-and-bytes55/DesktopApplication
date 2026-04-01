@@ -50,14 +50,10 @@ class PitController extends GetxController {
 
         if (data != null) {
           if (data is List) {
-            if (data.isNotEmpty && data.first is PitModel) {
-              pits.value = List<PitModel>.from(data);
-            } else {
-              pits.value = data
-                  .map((item) =>
-                      PitModel.fromJson(item as Map<String, dynamic>))
-                  .toList();
-            }
+            final allPits = data.isNotEmpty && data.first is PitModel
+                ? List<PitModel>.from(data)
+                : data.map((item) => PitModel.fromJson(item as Map<String, dynamic>)).toList();
+            pits.value = _filterLatestPits(allPits);
           } else {
             pits.clear();
           }
@@ -93,14 +89,10 @@ class PitController extends GetxController {
         final data = result['data'];
 
         if (data != null && data is List) {
-          if (data.isNotEmpty && data.first is PitModel) {
-            selectedPits.value = List<PitModel>.from(data);
-          } else {
-            selectedPits.value = data
-                .map((item) =>
-                    PitModel.fromJson(item as Map<String, dynamic>))
-                .toList();
-          }
+          final allPits = data.isNotEmpty && data.first is PitModel
+              ? List<PitModel>.from(data)
+              : data.map((item) => PitModel.fromJson(item as Map<String, dynamic>)).toList();
+          selectedPits.value = _filterLatestPits(allPits);
         } else {
           selectedPits.clear();
         }
@@ -121,14 +113,10 @@ class PitController extends GetxController {
         final data = result['data'];
 
         if (data != null && data is List) {
-          if (data.isNotEmpty && data.first is PitModel) {
-            unselectedPits.value = List<PitModel>.from(data);
-          } else {
-            unselectedPits.value = data
-                .map((item) =>
-                    PitModel.fromJson(item as Map<String, dynamic>))
-                .toList();
-          }
+          final allPits = data.isNotEmpty && data.first is PitModel
+              ? List<PitModel>.from(data)
+              : data.map((item) => PitModel.fromJson(item as Map<String, dynamic>)).toList();
+          unselectedPits.value = _filterLatestPits(allPits);
         } else {
           unselectedPits.clear();
         }
@@ -136,6 +124,23 @@ class PitController extends GetxController {
     } catch (e) {
       debugPrint('Error fetching unselected pits: $e');
     }
+  }
+
+  /// Groups pits by name and keeps only the latest one for each name.
+  List<PitModel> _filterLatestPits(List<PitModel> input) {
+    if (input.isEmpty) return [];
+    
+    // Using a Map where key is name, value is the most recent PitModel
+    final Map<String, PitModel> uniquePits = {};
+    for (var pit in input) {
+      final name = pit.pitName.trim();
+      if (name.isEmpty) continue;
+      
+      // Since fetch results are usually sorted by createdAt, 
+      // the later items in the list are newer. 
+      uniquePits[name] = pit;
+    }
+    return uniquePits.values.toList();
   }
 
   // ================= BULK SAVE NEW PITS =================
@@ -155,6 +160,9 @@ class PitController extends GetxController {
               'pitName': pit.pitName,
               'capacity': pit.capacity.value,
               'initialActive': pit.initialActive.value,
+              'volume': pit.volume?.value ?? 0.0,
+              'density': pit.density?.value ?? 0.0,
+              'fluidType': pit.fluidType?.value ?? '',
             })
         .toList();
 
@@ -198,11 +206,20 @@ class PitController extends GetxController {
   }) async {
     try {
       final authRepo = AuthRepository();
+
+      // Find the pit model to get its name & other details (required by backend)
+      final pitModel = pits.firstWhereOrNull((p) => p.id == pitId);
+      final String pitName = pitModel?.pitName ?? 'Unknown Pit';
+
       final result = await authRepo.updatePitVolumeData(
         id: pitId,
+        wellId: currentWellId ?? kControllerWellId,
+        pitName: pitName,
         volume: volume,
         density: density,
         fluidType: fluidType,
+        capacity: pitModel?.capacity?.value ?? 0,
+        initialActive: pitModel?.initialActive?.value ?? true,
       );
       if (result['success'] == true) {
         // Update local model
@@ -238,6 +255,29 @@ class PitController extends GetxController {
         final payload = (inner is Map && inner['data'] != null)
             ? Map<String, dynamic>.from(inner['data'])
             : Map<String, dynamic>.from(inner ?? {});
+        
+        // --- Added: Filter duplication in calculation summary tables ---
+        if (payload['activePitsTable'] != null && payload['activePitsTable'] is List) {
+          final List table = payload['activePitsTable'];
+          final Map<String, dynamic> unique = {};
+          for (var item in table) {
+            if (item is Map && item['pitName'] != null) {
+              unique[item['pitName'].toString().trim()] = item;
+            }
+          }
+          payload['activePitsTable'] = unique.values.toList();
+        }
+        if (payload['storageTable'] != null && payload['storageTable'] is List) {
+          final List table = payload['storageTable'];
+          final Map<String, dynamic> unique = {};
+          for (var item in table) {
+            if (item is Map && item['pitName'] != null) {
+              unique[item['pitName'].toString().trim()] = item;
+            }
+          }
+          payload['storageTable'] = unique.values.toList();
+        }
+        
         volumeNameData.value = payload;
       }
     } catch (e) {
@@ -252,17 +292,17 @@ class PitController extends GetxController {
     if (!activePitControllers.containsKey(pitId)) {
       activePitControllers[pitId] = {
         'volume': TextEditingController(
-            text: vol > 0 ? vol.toStringAsFixed(2) : ''),
+            text: vol.toStringAsFixed(2)),
         'density': TextEditingController(
-            text: density > 0 ? density.toStringAsFixed(2) : ''),
+            text: density.toStringAsFixed(2)),
         'fluidType': TextEditingController(text: fluid),
       };
     } else {
       // Refresh values from latest API data so UI stays up to date after refetch
       final existing = activePitControllers[pitId]!;
-      if (vol > 0) existing['volume']!.text = vol.toStringAsFixed(2);
-      if (density > 0) existing['density']!.text = density.toStringAsFixed(2);
-      if (fluid.isNotEmpty) existing['fluidType']!.text = fluid;
+      existing['volume']!.text = vol.toStringAsFixed(2);
+      existing['density']!.text = density.toStringAsFixed(2);
+      existing['fluidType']!.text = fluid;
     }
     return activePitControllers[pitId]!;
   }
@@ -275,13 +315,25 @@ class PitController extends GetxController {
     for (final entry in activePitControllers.entries) {
       final pitId = entry.key;
       if (pitId.isEmpty) continue;
+
+      // Find the pit model across all lists to get its name & latest config
+      final pitModel = pits.firstWhereOrNull((p) => p.id == pitId) ??
+                      selectedPits.firstWhereOrNull((p) => p.id == pitId) ??
+                      unselectedPits.firstWhereOrNull((p) => p.id == pitId);
+                      
+      final String pitName = pitModel?.pitName ?? 'Unknown Pit';
+
       final ctrls = entry.value;
       try {
         final result = await authRepo.updatePitVolumeData(
           id: pitId,
+          wellId: currentWellId ?? kControllerWellId,
+          pitName: pitName,
           volume: double.tryParse(ctrls['volume']!.text) ?? 0,
           density: double.tryParse(ctrls['density']!.text) ?? 0,
           fluidType: ctrls['fluidType']!.text,
+          capacity: pitModel?.capacity?.value ?? 0,
+          initialActive: pitModel?.initialActive?.value ?? true,
         );
         if (result['success'] == true) {
           successCount++;

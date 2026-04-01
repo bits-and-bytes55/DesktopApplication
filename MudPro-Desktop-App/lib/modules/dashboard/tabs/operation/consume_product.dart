@@ -150,6 +150,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       total += double.tryParse(waterVolumeController.text) ?? 0.0;
     }
     totalVolumeDisplay.value = total.toStringAsFixed(3);
+    operationController.totalVolume.value = total;
   }
 
   bool _isCostCalculated(ProductRowData row) {

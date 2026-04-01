@@ -30,9 +30,9 @@ class AuthRepository {
       Map<String, dynamic> body) async {
     try {
       final wellId = body['wellId'] ?? '';
-      print('Hitting POST ${baseUrl}volume-name/well-general/$wellId');
+      print('Hitting POST ${baseUrl}volume-name/$wellId/well-general');
       final response = await http.post(
-        Uri.parse('${baseUrl}volume-name/well-general/$wellId'),
+        Uri.parse('${baseUrl}volume-name/$wellId/well-general'),
         headers: _headers,
         body: jsonEncode(body),
       );
@@ -54,9 +54,10 @@ class AuthRepository {
   Future<Map<String, dynamic>> saveCasing(
       Map<String, dynamic> body) async {
     try {
-      print('Hitting POST ${baseUrl}volume-name/casing');
+      final wellId = body['wellId'] ?? '';
+      print('Hitting POST ${baseUrl}volume-name/$wellId/casing');
       final response = await http.post(
-        Uri.parse('${baseUrl}volume-name/casing'),
+        Uri.parse('${baseUrl}volume-name/$wellId/casing'),
         headers: _headers,
         body: jsonEncode(body),
       );
@@ -78,9 +79,10 @@ class AuthRepository {
   Future<Map<String, dynamic>> saveConsumeProductVolumeName(
       Map<String, dynamic> body) async {
     try {
-      print('Hitting POST ${baseUrl}volume-name/consume-product');
+      final wellId = body['wellId'] ?? '';
+      print('Hitting POST ${baseUrl}volume-name/$wellId/consume-product');
       final response = await http.post(
-        Uri.parse('${baseUrl}volume-name/consume-product'),
+        Uri.parse('${baseUrl}volume-name/$wellId/consume-product'),
         headers: _headers,
         body: jsonEncode(body),
       );
@@ -99,30 +101,46 @@ class AuthRepository {
   }
 
   // ── Update Pit Volume Data (volume, density, fluidType) ───────────────────────
+  // Note: Backend uses POST /:wellId/pit for this flow
   Future<Map<String, dynamic>> updatePitVolumeData({
-    required String id,
+    String? id,
+    required String wellId,
+    required String pitName,
     required double volume,
     required double density,
     required String fluidType,
+    double capacity = 0,
+    bool initialActive = true,
   }) async {
     try {
-      print('Hitting PUT ${baseUrl}volume-name/pit/$id');
-      final response = await http.put(
-        Uri.parse('${baseUrl}volume-name/pit/$id'),
-        headers: _headers,
-        body: jsonEncode({
-          'volume': volume,
-          'density': density,
-          'fluidType': fluidType,
-        }),
+      // User specifically requested to always use the volume-name/pit API
+      final endpoint = '${baseUrl}volume-name/$wellId/pit';
+      
+      print('Hitting POST $endpoint');
+
+      final bodyData = {
+        'wellId': wellId,
+        'pitName': pitName,
+        'volume': volume,
+        'density': density,
+        'fluidType': fluidType,
+        'capacity': capacity,
+        'initialActive': initialActive,
+      };
+
+      final response = await http.post(
+        Uri.parse(endpoint), 
+        headers: _headers, 
+        body: jsonEncode(bodyData)
       );
+
       print('statuscode------${response.statusCode}');
       print('response body------${response.body}');
       final data = jsonDecode(response.body);
       return {
-        'success': response.statusCode == 200,
+        'success': response.statusCode == 200 || response.statusCode == 201,
         'data': data,
-        'message': data['message'] ?? 'Updated successfully',
+        'message': data['message'] ?? 'Saved successfully',
       };
     } catch (e) {
       print('Error in updatePitVolumeData: $e');

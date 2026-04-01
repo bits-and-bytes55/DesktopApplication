@@ -358,20 +358,19 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
           }
 
           final opCtrl = Get.isRegistered<OperationController>() ? Get.find<OperationController>() : null;
-          if (opCtrl != null && opCtrl.addWaterVolume.value.isNotEmpty) {
+          if (opCtrl != null && opCtrl.totalVolume.value > 0) {
              final authRepo = AuthRepository();
-             final wVol = double.tryParse(opCtrl.addWaterVolume.value) ?? 0;
-             if (wVol > 0) {
-                 final res = await authRepo.saveConsumeProductVolumeName({
-                    'wellId': kStaticWellId,
-                    'product': 'Water',
-                    'volumeBbl': wVol,
-                 });
-                 if (res['success'] == true) {
-                    successMessage = "Add Water volume saved";
-                 } else {
-                    errorMessages.add('Add Water API: ${res['message'] ?? 'Failed'}');
-                 }
+             final tVol = opCtrl.totalVolume.value;
+             
+             final res = await authRepo.saveConsumeProductVolumeName({
+                'wellId': kStaticWellId,
+                'product': 'Water',
+                'volumeBbl': tVol,
+             });
+             if (res['success'] == true) {
+                successMessage = "Operations volume data saved";
+             } else {
+                errorMessages.add('Operations API: ${res['message'] ?? 'Failed'}');
              }
           }
         } catch (e) {

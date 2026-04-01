@@ -44,9 +44,10 @@ class _PitPageState extends State<PitPage> {
     final ctrls = controller.activePitControllers[pitId];
     if (ctrls == null) return;
     try {
-      final authRepo = AuthRepository();
-      await authRepo.updatePitVolumeData(
-        id: pitId,
+      // Use the controller's update method instead of direct repository call
+      // to ensure wellId and pitNames are resolved correctly.
+      await controller.updatePitVolumeData(
+        pitId: pitId,
         volume: double.tryParse(ctrls['volume']!.text) ?? 0,
         density: double.tryParse(ctrls['density']!.text) ?? 0,
         fluidType: ctrls['fluidType']!.text,
@@ -389,13 +390,29 @@ class _PitPageState extends State<PitPage> {
         4: FlexColumnWidth(2),
       },
       children: [
-        ...dataRows.map<TableRow>((row) => TableRow(children: [
-          _readOnlyCell(row['pitName']?.toString() ?? ''),
-          _readOnlyCell((row['calculatedVol'] ?? 0).toStringAsFixed(2)),
-          _readOnlyCell((row['measuredVol'] ?? 0).toStringAsFixed(2)),
-          _readOnlyCell((row['mw'] ?? 0).toStringAsFixed(2)),
-          _readOnlyCell(row['fluidType']?.toString() ?? ''),
-        ])).toList(),
+        ...dataRows.map<TableRow>((row) {
+          final pitId = row['_id']?.toString() ?? '';
+          final pitName = row['pitName']?.toString() ?? '';
+          final calculatedVol = (row['calculatedVol'] ?? 0).toString();
+          final measuredVol = (row['measuredVol'] ?? 0).toString();
+          final mw = (row['mw'] ?? 0).toString();
+          final fluid = row['fluidType']?.toString() ?? '';
+          
+          final ctrls = controller.getPitCtrl(
+            pitId,
+            vol: double.tryParse(measuredVol) ?? 0,
+            density: double.tryParse(mw) ?? 0,
+            fluid: fluid,
+          );
+
+          return TableRow(children: [
+            _readOnlyCell(pitName),
+            _readOnlyCell(double.tryParse(calculatedVol)?.toStringAsFixed(2) ?? '0.00'),
+            _editableCellWithSave(ctrls['volume']!, pitId, 'volume'),
+            _editableCellWithSave(ctrls['density']!, pitId, 'density'),
+            _editableCellWithSave(ctrls['fluidType']!, pitId, 'fluidType'),
+          ]);
+        }).toList(),
         ...List.generate(kEmptyFillRows, (_) => TableRow(children: [
           _emptyCell(), _emptyCell(), _emptyCell(), _emptyCell(), _emptyCell(),
         ])),
