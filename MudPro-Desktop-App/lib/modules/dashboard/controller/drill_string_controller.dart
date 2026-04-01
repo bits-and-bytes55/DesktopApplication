@@ -193,7 +193,6 @@ class DrillStringController extends GetxController {
         entry.dispose();
         entries[rowIndex] = updated;
         entries.refresh();
-        Get.snackbar('Success', 'Row saved', duration: const Duration(seconds: 1), snackPosition: SnackPosition.BOTTOM);
       }
     } catch (e) {
       print('DrillString save error: $e');
@@ -203,13 +202,13 @@ class DrillStringController extends GetxController {
   }
 
   // ─── API: SAVE ALL unsaved rows ───────────────
-  Future<void> saveAll() async {
+  Future<Map<String, dynamic>> saveAll() async {
     final unsaved = entries.asMap().entries.where((e) => e.value.id == null && e.value.description.text.isNotEmpty).toList();
     if (unsaved.isEmpty) {
-      Get.snackbar('Info', 'No new rows to save', duration: const Duration(seconds: 1), snackPosition: SnackPosition.BOTTOM);
-      return;
+      return {'success': true, 'message': 'No new Drill String rows to save'};
     }
     isSaving.value = true;
+    int successCount = 0;
     try {
       for (final entry in unsaved) {
         final rowIndex = entry.key;
@@ -220,6 +219,7 @@ class DrillStringController extends GetxController {
           body: jsonEncode(e.toJson()),
         );
         if (response.statusCode == 201) {
+          successCount++;
           final json = jsonDecode(response.body);
           final newId = json['data']['_id'];
           final updated = DrillStringEntry(
@@ -238,9 +238,10 @@ class DrillStringController extends GetxController {
       }
       entries.refresh();
       _recalcTotal();
-      Get.snackbar('Saved', 'Drill String saved successfully', duration: const Duration(seconds: 2), snackPosition: SnackPosition.BOTTOM);
+      return {'success': true, 'message': '$successCount Drill String rows saved successfully'};
     } catch (e) {
       print('DrillString saveAll error: $e');
+      return {'success': false, 'message': 'Error saving Drill String: $e'};
     } finally {
       isSaving.value = false;
     }

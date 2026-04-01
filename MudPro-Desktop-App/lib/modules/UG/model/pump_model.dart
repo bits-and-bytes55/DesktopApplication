@@ -190,4 +190,8 @@ void recalculateDisplacement() {
       surfaceId: surfaceId.value,
     );
   }
+
+  bool operator [](String other) {
+    return false;
+  }
 }

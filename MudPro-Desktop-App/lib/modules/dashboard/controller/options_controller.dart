@@ -12,12 +12,13 @@ import 'package:get/get.dart';
 
 import 'package:mudpro_desktop_app/modules/options/model/unit_system_model.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
+import 'package:mudpro_desktop_app/modules/options/services/unit_system_api_service.dart';
 import 'package:mudpro_desktop_app/modules/options/unit_conversion_service.dart';
 
 const Duration _kDebounce = Duration(milliseconds: 600);
 
 class OptionsController extends GetxController {
-  final _api  = UnitSystemApiService.instance;
+  final _api  = UnitSystemApiService();
   final _conv = UnitConversionService.instance;
 
   // ── Main page radio ──────────────────────────────────────────────────────

@@ -4,13 +4,59 @@ import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart'
 import 'package:mudpro_desktop_app/modules/dashboard/tabs/pit/pit_concentration.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/tabs/pit/pit_snapshot.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
+import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
-class PitPage extends StatelessWidget {
+// Static well ID
+const String kPitWellId = '67f1a2b3c4d5e6f7890a1111';
+
+// Row heights and filler
+const double kRowHeight = 22.0;
+const double kHeaderHeight = 26.0;
+const int kEmptyFillRows = 8; // filler rows to fill height if needed
+
+class PitPage extends StatefulWidget {
   PitPage({super.key});
-  
+
+  @override
+  State<PitPage> createState() => _PitPageState();
+}
+
+class _PitPageState extends State<PitPage> {
   final PitController controller = Get.put(PitController());
   final dashboard = Get.find<DashboardController>();
+
+  @override
+  void initState() {
+    super.initState();
+    controller.fetchVolumeNameData();
+  }
+
+  @override
+  void dispose() {
+    // Only clear if navigating completely away, keeping the values in the controller
+    // allows for switching tabs without losing data if they haven't saved.
+    super.dispose();
+  }
+
+  // Save active pit volume/density/fluidType then refresh volume name
+  Future<void> _saveActivePitData(String pitId) async {
+    final ctrls = controller.activePitControllers[pitId];
+    if (ctrls == null) return;
+    try {
+      final authRepo = AuthRepository();
+      await authRepo.updatePitVolumeData(
+        id: pitId,
+        volume: double.tryParse(ctrls['volume']!.text) ?? 0,
+        density: double.tryParse(ctrls['density']!.text) ?? 0,
+        fluidType: ctrls['fluidType']!.text,
+      );
+      // Refresh volume name table after save
+      await controller.fetchVolumeNameData();
+    } catch (e) {
+      debugPrint('Error saving pit data: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -18,16 +64,11 @@ class PitPage extends StatelessWidget {
       color: Colors.white,
       child: Obx(() {
         if (controller.isLoading.value) {
-          return const Center(
-            child: CircularProgressIndicator(),
-          );
+          return const Center(child: CircularProgressIndicator());
         }
-        
         return LayoutBuilder(
           builder: (context, constraints) {
-            final width = constraints.maxWidth;
-
-            if (width < 900) {
+            if (constraints.maxWidth < 900) {
               return _buildMobileLayout(context);
             } else {
               return _buildDesktopLayout(context);
@@ -62,39 +103,40 @@ class PitPage extends StatelessWidget {
 
   // ================= DESKTOP LAYOUT =================
   Widget _buildDesktopLayout(BuildContext context) {
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // LEFT COLUMN - Active Pits
-            Flexible(
-              flex: 2,
-              child: Column(
-                children: [
-                  _activePitsSection(),
-                  const SizedBox(height: 12),
-                  _volumeSummarySection(),
-                  const SizedBox(height: 12),
-                  _pitSnapshotButton(),
-                ],
-              ),
+    return Padding(
+      padding: const EdgeInsets.all(12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // LEFT COLUMN
+          Expanded(
+            flex: 2,
+            child: Column(
+              children: [
+                Expanded(child: _activePitsSection()),
+                const SizedBox(height: 12),
+                Expanded(child: _volumeSummarySection()),
+                const SizedBox(height: 12),
+                _pitSnapshotButton(),
+              ],
             ),
-            const SizedBox(width: 12),
-            // RIGHT COLUMN - Storage & Haul Off
-            Flexible(
-              flex: 3,
-              child: Column(
-                children: [
-                  _storageSection(),
-                  const SizedBox(height: 12),
-                  _haulOffSection(context),
-                ],
-              ),
+          ),
+          const SizedBox(width: 12),
+          // RIGHT COLUMN
+          Expanded(
+            flex: 3,
+            child: Column(
+              children: [
+                Expanded(child: _storageSection()),
+                const SizedBox(height: 12),
+                Expanded(child: _haulOffSection(context)),
+                const SizedBox(height: 12),
+                // Aligns with Pit Snapshot button
+                const SizedBox(height: 40),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -104,9 +146,9 @@ class PitPage extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Header
+        // Blue Header
         Container(
-          height: 36,
+          height: 32,
           decoration: BoxDecoration(
             color: AppTheme.primaryColor,
             borderRadius: const BorderRadius.only(
@@ -119,51 +161,35 @@ class PitPage extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    const Icon(Icons.water_damage, color: Colors.white, size: 16),
-                    const SizedBox(width: 8),
-                    const Text(
-                      "Active Pits",
+                Row(children: [
+                  const Icon(Icons.water_damage, color: Colors.white, size: 14),
+                  const SizedBox(width: 6),
+                  const Text("Active Pits",
                       style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white)),
+                ]),
                 Tooltip(
                   message: "View Concentration",
                   child: InkWell(
                     onTap: () => Get.to(() => PitConcentrationPage()),
                     borderRadius: BorderRadius.circular(4),
                     child: Container(
-                      padding: const EdgeInsets.all(6),
-                      child: const Icon(
-                        Icons.bar_chart,
-                        size: 16,
-                        color: Colors.white,
-                      ),
-                    ),
+                        padding: const EdgeInsets.all(4),
+                        child: const Icon(Icons.bar_chart,
+                            size: 14, color: Colors.white)),
                   ),
                 ),
               ],
             ),
           ),
         ),
-        
-        // Table - Simple without card wrapper
-        Obx(() {
-          if (controller.isLoading.value) {
-            return const SizedBox(
-              height: 200,
-              child: Center(child: CircularProgressIndicator()),
-            );
-          }
-          
-          return Container(
-            constraints: const BoxConstraints(maxHeight: 250),
+        // Table Column Header (Sticky)
+        _buildActivePitsTableHeader(),
+        // Table Body (Scrollable)
+        Expanded(
+          child: Container(
             decoration: BoxDecoration(
               border: Border.all(color: Colors.grey.shade300, width: 1),
               borderRadius: const BorderRadius.only(
@@ -171,16 +197,56 @@ class PitPage extends StatelessWidget {
                 bottomRight: Radius.circular(4),
               ),
             ),
-            child: SingleChildScrollView(
-              child: _buildActivePitsTable(),
-            ),
-          );
-        }),
+            child: Obx(() {
+              final apiRows = controller.volumeNameData['activePitsTable'];
+              return SingleChildScrollView(
+                child: _buildActivePitsTableBody(apiRows),
+              );
+            }),
+          ),
+        ),
       ],
     );
   }
 
-  Widget _buildActivePitsTable() {
+  Widget _buildActivePitsTableHeader() {
+    return Table(
+      border: TableBorder(
+        verticalInside: BorderSide(color: Colors.grey.shade300, width: 1),
+        left: BorderSide(color: Colors.grey.shade300, width: 1),
+        right: BorderSide(color: Colors.grey.shade300, width: 1),
+      ),
+      columnWidths: const {
+        0: FlexColumnWidth(2),
+        1: FlexColumnWidth(2),
+        2: FlexColumnWidth(1.5),
+        3: FlexColumnWidth(2),
+      },
+      children: [
+        TableRow(
+          decoration: BoxDecoration(color: Colors.grey.shade100),
+          children: [
+            _headerCell("Pit"),
+            _headerCell("Measured Vol\n(bbl)"),
+            _headerCell("MW\n(ppg)"),
+            _headerCell("Mud"),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActivePitsTableBody(dynamic apiRows) {
+    final dataRows = (apiRows != null && apiRows is List && apiRows.isNotEmpty)
+        ? apiRows
+        : controller.selectedPits.map((p) => {
+            '_id': p.id ?? '',
+            'pitName': p.pitName,
+            'measuredVol': p.volume?.value ?? 0,
+            'mw': p.density?.value ?? 0,
+            'mud': p.fluidType?.value ?? '',
+          }).toList();
+
     return Table(
       border: TableBorder(
         horizontalInside: BorderSide(color: Colors.grey.shade300, width: 1),
@@ -194,23 +260,28 @@ class PitPage extends StatelessWidget {
         3: FlexColumnWidth(2),
       },
       children: [
-        // Header row
-        TableRow(
-          decoration: BoxDecoration(
-            color: Colors.grey.shade100,
-          ),
-          children: [
-            _buildCompactTableHeaderCell("Pit"),
-            _buildCompactTableHeaderCell("Measured Vol\n(bbl)"),
-            _buildCompactTableHeaderCell("MW\n(ppg)"),
-            _buildCompactTableHeaderCell("Mud"),
-          ],
-        ),
-        
-        // Data rows
-        ...controller.selectedPits.map((pit) {
-          return _buildActivePitDataRow(pit);
+        ...dataRows.map<TableRow>((row) {
+          final pitId = row['_id']?.toString() ?? '';
+          final pitName = row['pitName']?.toString() ?? '';
+          final measuredVol = (row['measuredVol'] ?? 0).toString();
+          final mw = (row['mw'] ?? 0).toString();
+          final mud = row['mud']?.toString() ?? '';
+          final ctrls = controller.getPitCtrl(
+            pitId,
+            vol: double.tryParse(measuredVol) ?? 0,
+            density: double.tryParse(mw) ?? 0,
+            fluid: mud,
+          );
+          return TableRow(children: [
+            _readOnlyCell(pitName),
+            _editableCellWithSave(ctrls['volume']!, pitId, 'volume'),
+            _editableCellWithSave(ctrls['density']!, pitId, 'density'),
+            _editableCellWithSave(ctrls['fluidType']!, pitId, 'fluidType'),
+          ]);
         }).toList(),
+        ...List.generate(kEmptyFillRows, (_) => TableRow(children: [
+          _emptyCell(), _emptyCell(), _emptyCell(), _emptyCell(),
+        ])),
       ],
     );
   }
@@ -220,9 +291,8 @@ class PitPage extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Header
         Container(
-          height: 36,
+          height: 32,
           decoration: BoxDecoration(
             color: AppTheme.primaryColor,
             borderRadius: const BorderRadius.only(
@@ -232,34 +302,20 @@ class PitPage extends StatelessWidget {
           ),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Row(
-              children: [
-                const Icon(Icons.warehouse, color: Colors.white, size: 16),
-                const SizedBox(width: 8),
-                const Text(
-                  "Storage",
+            child: Row(children: [
+              const Icon(Icons.warehouse, color: Colors.white, size: 14),
+              const SizedBox(width: 6),
+              const Text("Storage",
                   style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
-                ),
-              ],
-            ),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white)),
+            ]),
           ),
         ),
-        
-        // Table - Simple without card wrapper
-        Obx(() {
-          if (controller.isLoading.value) {
-            return const SizedBox(
-              height: 200,
-              child: Center(child: CircularProgressIndicator()),
-            );
-          }
-          
-          return Container(
-            constraints: const BoxConstraints(maxHeight: 250),
+        _buildStorageTableHeader(),
+        Expanded(
+          child: Container(
             decoration: BoxDecoration(
               border: Border.all(color: Colors.grey.shade300, width: 1),
               borderRadius: const BorderRadius.only(
@@ -267,16 +323,58 @@ class PitPage extends StatelessWidget {
                 bottomRight: Radius.circular(4),
               ),
             ),
-            child: SingleChildScrollView(
-              child: _buildStorageTable(),
-            ),
-          );
-        }),
+            child: Obx(() {
+              final apiRows = controller.volumeNameData['storageTable'];
+              return SingleChildScrollView(
+                child: _buildStorageTableBody(apiRows),
+              );
+            }),
+          ),
+        ),
       ],
     );
   }
 
-  Widget _buildStorageTable() {
+  Widget _buildStorageTableHeader() {
+    return Table(
+      border: TableBorder(
+        verticalInside: BorderSide(color: Colors.grey.shade300, width: 1),
+        left: BorderSide(color: Colors.grey.shade300, width: 1),
+        right: BorderSide(color: Colors.grey.shade300, width: 1),
+      ),
+      columnWidths: const {
+        0: FlexColumnWidth(2),
+        1: FlexColumnWidth(2),
+        2: FlexColumnWidth(2),
+        3: FlexColumnWidth(1.5),
+        4: FlexColumnWidth(2),
+      },
+      children: [
+        TableRow(
+          decoration: BoxDecoration(color: Colors.grey.shade100),
+          children: [
+            _headerCell("Pit"),
+            _headerCell("Calculated Vol\n(bbl)"),
+            _headerCell("Measured Vol\n(bbl)"),
+            _headerCell("MW\n(ppg)"),
+            _headerCell("Fluid Type"),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStorageTableBody(dynamic apiRows) {
+    final dataRows = (apiRows != null && apiRows is List && apiRows.isNotEmpty)
+        ? apiRows
+        : controller.unselectedPits.map((p) => {
+            'pitName': p.pitName,
+            'calculatedVol': 0,
+            'measuredVol': p.capacity.value,
+            'mw': 0,
+            'fluidType': '',
+          }).toList();
+
     return Table(
       border: TableBorder(
         horizontalInside: BorderSide(color: Colors.grey.shade300, width: 1),
@@ -291,24 +389,16 @@ class PitPage extends StatelessWidget {
         4: FlexColumnWidth(2),
       },
       children: [
-        // Header row
-        TableRow(
-          decoration: BoxDecoration(
-            color: Colors.grey.shade100,
-          ),
-          children: [
-            _buildCompactTableHeaderCell("Pit"),
-            _buildCompactTableHeaderCell("Calculated Vol\n(bbl)"),
-            _buildCompactTableHeaderCell("Measured Vol\n(bbl)"),
-            _buildCompactTableHeaderCell("MW\n(ppg)"),
-            _buildCompactTableHeaderCell("Fluid Type"),
-          ],
-        ),
-        
-        // Data rows
-        ...controller.unselectedPits.map((pit) {
-          return _buildStorageDataRow(pit);
-        }).toList(),
+        ...dataRows.map<TableRow>((row) => TableRow(children: [
+          _readOnlyCell(row['pitName']?.toString() ?? ''),
+          _readOnlyCell((row['calculatedVol'] ?? 0).toStringAsFixed(2)),
+          _readOnlyCell((row['measuredVol'] ?? 0).toStringAsFixed(2)),
+          _readOnlyCell((row['mw'] ?? 0).toStringAsFixed(2)),
+          _readOnlyCell(row['fluidType']?.toString() ?? ''),
+        ])).toList(),
+        ...List.generate(kEmptyFillRows, (_) => TableRow(children: [
+          _emptyCell(), _emptyCell(), _emptyCell(), _emptyCell(), _emptyCell(),
+        ])),
       ],
     );
   }
@@ -318,7 +408,6 @@ class PitPage extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Header
         Container(
           height: 36,
           decoration: BoxDecoration(
@@ -330,96 +419,21 @@ class PitPage extends StatelessWidget {
           ),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Row(
-              children: [
-                const Icon(Icons.summarize, color: Colors.white, size: 16),
-                const SizedBox(width: 8),
-                const Text(
-                  "Volume Name",
+            child: Row(children: [
+              const Icon(Icons.summarize, color: Colors.white, size: 16),
+              const SizedBox(width: 8),
+              const Text("Volume Name",
                   style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
-                ),
-              ],
-            ),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white)),
+            ]),
           ),
         ),
-        
-        // Content - Simple table layout
-        Container(
-          decoration: BoxDecoration(
-            border: Border.all(color: Colors.grey.shade300, width: 1),
-            borderRadius: const BorderRadius.only(
-              bottomLeft: Radius.circular(4),
-              bottomRight: Radius.circular(4),
-            ),
-          ),
-          child: Table(
-            border: TableBorder(
-              horizontalInside: BorderSide(color: Colors.grey.shade300, width: 1),
-              verticalInside: BorderSide(color: Colors.grey.shade300, width: 1),
-            ),
-            defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-            columnWidths: const {
-              0: FlexColumnWidth(3),
-              1: FlexColumnWidth(1.5),
-            },
-            children: [
-              _buildVolumeTableRow("Held Vol. Difference", "32.75"),
-              _buildVolumeTableRow("Hole", "574.75"),
-              _buildVolumeTableRow("Active Pits", "329.40"),
-              _buildVolumeTableRow("Active System", "904.15"),
-              _buildVolumeTableRow("End Vol.", "0.00"),
-              _buildVolumeTableRow("End Vol. - Active System", "0.00"),
-              _buildVolumeTableRow("Total Storage", "0.00"),
-              _buildVolumeTableRow("Total on Location", "904.15"),
-              _buildVolumeTableRow("Previous Total on Location", "0.00"),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ================= HAUL OFF SECTION =================
-  Widget _haulOffSection(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Header
-        Container(
-          height: 36,
-          decoration: BoxDecoration(
-            color: AppTheme.primaryColor,
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(4),
-              topRight: Radius.circular(4),
-            ),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Row(
-              children: [
-                const Icon(Icons.local_shipping, color: Colors.white, size: 16),
-                const SizedBox(width: 8),
-                const Text(
-                  "Haul Off",
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-
-        // Content - Reduced width, simple table
-        SizedBox(
-          width: MediaQuery.of(context).size.width / 2,
+        // Volume Name header row
+        _buildVolumeNameHeader(),
+        // Table Body
+        Expanded(
           child: Container(
             decoration: BoxDecoration(
               border: Border.all(color: Colors.grey.shade300, width: 1),
@@ -428,270 +442,336 @@ class PitPage extends StatelessWidget {
                 bottomRight: Radius.circular(4),
               ),
             ),
-            child: Table(
-              border: TableBorder(
-                horizontalInside: BorderSide(color: Colors.grey.shade300, width: 1),
-                verticalInside: BorderSide(color: Colors.grey.shade300, width: 1),
+            child: Obx(() {
+              if (controller.isLoadingVolume.value) {
+                return const Center(child: Padding(
+                  padding: EdgeInsets.all(20.0),
+                  child: CircularProgressIndicator(),
+                ));
+              }
+              final vn = controller.volumeNameData['volumeName'];
+              return SingleChildScrollView(
+                child: _buildVolumeNameTableBody(vn),
+              );
+            }),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildVolumeNameHeader() {
+    return Table(
+      border: TableBorder(
+        verticalInside: BorderSide(color: Colors.grey.shade300, width: 1),
+        left: BorderSide(color: Colors.grey.shade300, width: 1),
+        right: BorderSide(color: Colors.grey.shade300, width: 1),
+      ),
+      columnWidths: const {
+        0: FlexColumnWidth(3),
+        1: FlexColumnWidth(1.5),
+      },
+      children: [
+        TableRow(
+          decoration: BoxDecoration(color: Colors.grey.shade100),
+          children: [
+            _headerCell("Volume Name"),
+            _headerCell("Volume\n(bbl)"),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildVolumeNameTableBody(dynamic vn) {
+    double _d(String key) {
+      if (vn == null) return 0.0;
+      final v = vn[key];
+      if (v is num) return v.toDouble();
+      return double.tryParse(v?.toString() ?? '') ?? 0.0;
+    }
+
+    String _fmt(double v) => v.toStringAsFixed(2);
+
+    final rows = [
+      ['Hole Vol. Difference', _fmt(_d('heldVolDifference'))],
+      ['Hole', _fmt(_d('hole'))],
+      ['Active Pits', _fmt(_d('activePits'))],
+      ['Active System', _fmt(_d('activeSystem'))],
+      ['End Vol.', _fmt(_d('endVol'))],
+      ['End Vol. - Active System', _fmt(_d('endVolMinusActiveSystem'))],
+      ['Total Storage', _fmt(_d('totalStorage'))],
+      ['Total on Location', _fmt(_d('totalOnLocation'))],
+      ['Previous Total on Location', '0.00'],
+    ];
+
+    return Table(
+      border: TableBorder(
+        horizontalInside: BorderSide(color: Colors.grey.shade300, width: 1),
+        verticalInside: BorderSide(color: Colors.grey.shade300, width: 1),
+      ),
+      defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+      columnWidths: const {
+        0: FlexColumnWidth(3),
+        1: FlexColumnWidth(1.5),
+      },
+      children: rows.map((row) {
+        final label = row[0];
+        final value = row[1];
+        final numVal = double.tryParse(value) ?? 0.0;
+        final isNegativeWarning = label == 'End Vol. - Active System';
+        final isRed = isNegativeWarning && numVal < 0;
+
+        return TableRow(children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            child: Text(label,
+                style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.black87)),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: isRed ? Colors.red : Colors.black87,
               ),
-              defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-              columnWidths: const {
-                0: FlexColumnWidth(2),
-                1: FlexColumnWidth(1.5),
-                2: FlexColumnWidth(1),
-              },
-              children: [
-                _buildHaulOffTableRow("No. of Loads", "", ""),
-                _buildHaulOffTableRow("Vol.", "", "(bbl)"),
-                _buildHaulOffTableRow("Weight", "", "(lbm)"),
-                _buildHaulOffTableRow("Oil", "", "(%)"),
-                _buildHaulOffTableRow("Water", "", "(%)"),
-                _buildHaulOffTableRow("Solids", "", "(%)"),
-                _buildHaulOffTableRow("OOC Wt.", "", "(%)"),
-              ],
+            ),
+          ),
+        ]);
+      }).toList(),
+    );
+  }
+
+  // ================= HAUL OFF SECTION =================
+  Widget _haulOffSection(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Blue Header
+        Container(
+          height: 36,
+          decoration: BoxDecoration(
+            color: AppTheme.primaryColor,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(4),
+              topRight: Radius.circular(4),
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Row(children: [
+              const Icon(Icons.local_shipping, color: Colors.white, size: 16),
+              const SizedBox(width: 8),
+              const Text("Haul Off",
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white)),
+            ]),
+          ),
+        ),
+        // Table Column Header (Sticky)
+        _buildHaulOffTableHeader(),
+        // Table Body (Scrollable)
+        Expanded(
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey.shade300, width: 1),
+              borderRadius: const BorderRadius.only(
+                bottomLeft: Radius.circular(4),
+                bottomRight: Radius.circular(4),
+              ),
+            ),
+            child: SingleChildScrollView(
+              child: _buildHaulOffTableBody(),
             ),
           ),
         ),
       ],
     );
+  }
+
+  Widget _buildHaulOffTableHeader() {
+    return Table(
+      border: TableBorder(
+        verticalInside: BorderSide(color: Colors.grey.shade300, width: 1),
+        left: BorderSide(color: Colors.grey.shade300, width: 1),
+        right: BorderSide(color: Colors.grey.shade300, width: 1),
+      ),
+      columnWidths: const {
+        0: FlexColumnWidth(2),
+        1: FlexColumnWidth(1.5),
+        2: FlexColumnWidth(1),
+      },
+      children: [
+        TableRow(
+          decoration: BoxDecoration(color: Colors.grey.shade100),
+          children: [
+            _headerCell("Item"),
+            _headerCell("Value"),
+            _headerCell("Unit"),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHaulOffTableBody() {
+    final rows = [
+      ["No. of Loads", "0", ""],
+      ["Vol.", "0.00", "(bbl)"],
+      ["Weight", "0", "(lbm)"],
+      ["Oil", "0", "(%)"],
+      ["Water", "0", "(%)"],
+      ["Solids", "0", "(%)"],
+      ["OOC Wt.", "0", "(%)"],
+    ];
+
+    return Table(
+      border: TableBorder(
+        horizontalInside: BorderSide(color: Colors.grey.shade300, width: 1),
+        verticalInside: BorderSide(color: Colors.grey.shade300, width: 1),
+      ),
+      defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+      columnWidths: const {
+        0: FlexColumnWidth(2),
+        1: FlexColumnWidth(1.5),
+        2: FlexColumnWidth(1),
+      },
+      children: rows
+          .map((row) => _buildHaulOffRow(row[0], row[1], row[2]))
+          .toList(),
+    );
+  }
+
+  TableRow _buildHaulOffRow(String label, String value, String unit) {
+    return TableRow(children: [
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        child: Text(label,
+            style: const TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w500,
+                color: Colors.black87)),
+      ),
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        child: Obx(() {
+          if (dashboard.isLocked.value) {
+            return Text(value,
+                style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87),
+                textAlign: TextAlign.right);
+          }
+          return TextFormField(
+            initialValue: value,
+            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600),
+            textAlign: TextAlign.right,
+            decoration: const InputDecoration(
+                isDense: true,
+                contentPadding: EdgeInsets.zero,
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none),
+          );
+        }),
+      ),
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+        child: Text(unit,
+            style: TextStyle(fontSize: 10, color: Colors.grey.shade700)),
+      ),
+    ]);
   }
 
   // ================= PIT SNAPSHOT BUTTON =================
   Widget _pitSnapshotButton() {
-    return Container(
+    return SizedBox(
       width: double.infinity,
       child: ElevatedButton.icon(
         onPressed: () => Get.to(() => PitSnapshotPage()),
         icon: const Icon(Icons.camera_alt, size: 16),
-        label: const Text(
-          "Pit Snapshot",
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
-          ),
-        ),
+        label: const Text("Pit Snapshot",
+            style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Colors.white)),
         style: ElevatedButton.styleFrom(
           backgroundColor: AppTheme.primaryColor,
           minimumSize: const Size(double.infinity, 40),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(4),
-          ),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
         ),
       ),
     );
   }
 
-  // ================= HELPER METHODS =================
-  
-  Widget _buildCompactTableHeaderCell(String text) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      child: Text(
-        text,
-        style: const TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-          color: Colors.black87,
-        ),
-        textAlign: TextAlign.center,
-      ),
-    );
-  }
+  // ================= SHARED CELL BUILDERS =================
 
-  // Active Pits Data Row
-  TableRow _buildActivePitDataRow(dynamic pit) {
-    return TableRow(
-      children: [
-        // Pit Name - Read Only
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-          child: Text(
-            pit.pitName ?? '',
-            style: const TextStyle(
-              fontSize: 11,
-              color: Colors.black87,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ),
-        // Measured Vol - Editable
-        _buildCompactEditableCell(pit.capacity.toString()),
-        // MW - Editable
-        _buildCompactEditableCell(""),
-        // Mud - Editable
-        _buildCompactEditableCell(""),
-      ],
-    );
-  }
-
-  // Storage Data Row
-  TableRow _buildStorageDataRow(dynamic pit) {
-    return TableRow(
-      children: [
-        // Pit Name - Read Only
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-          child: Text(
-            pit.pitName ?? '',
-            style: const TextStyle(
-              fontSize: 11,
-              color: Colors.black87,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ),
-        // Calculated Vol - Editable
-        _buildCompactEditableCell("0.00"),
-        // Measured Vol - Editable
-        _buildCompactEditableCell(pit.capacity.toString()),
-        // MW - Editable
-        _buildCompactEditableCell(""),
-        // Fluid Type - Editable
-        _buildCompactEditableCell(""),
-      ],
-    );
-  }
-
-  // Compact Editable Cell
-  Widget _buildCompactEditableCell(String value) {
+  Widget _headerCell(String text) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      child: Text(text,
+          style: const TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              color: Colors.black87),
+          textAlign: TextAlign.center),
+    );
+  }
+
+  Widget _readOnlyCell(String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+      child: Text(text,
+          style: const TextStyle(fontSize: 10, color: Colors.black87),
+          textAlign: TextAlign.center),
+    );
+  }
+
+  Widget _emptyCell() {
+    return const SizedBox(height: kRowHeight);
+  }
+
+  // Editable cell — on save button hit from secondary tabbar,
+  // also allows inline edit and triggers save + volume name refresh
+  Widget _editableCellWithSave(
+      TextEditingController ctrl, String pitId, String field) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
       child: Obx(() {
         if (dashboard.isLocked.value) {
-          return Text(
-            value,
-            style: const TextStyle(
-              fontSize: 11,
-              color: Colors.black87,
-            ),
-            textAlign: TextAlign.center,
-          );
+          return Text(ctrl.text,
+              style: const TextStyle(fontSize: 10, color: Colors.black87),
+              textAlign: TextAlign.center);
         }
         return TextFormField(
-          initialValue: value,
-          style: const TextStyle(fontSize: 11),
+          controller: ctrl,
+          style: const TextStyle(fontSize: 10),
           textAlign: TextAlign.center,
+          keyboardType: field == 'fluidType'
+              ? TextInputType.text
+              : const TextInputType.numberWithOptions(decimal: true),
           decoration: const InputDecoration(
-            isDense: true,
-            contentPadding: EdgeInsets.symmetric(vertical: 4, horizontal: 4),
-            border: InputBorder.none,
-            enabledBorder: InputBorder.none,
-            focusedBorder: InputBorder.none,
-          ),
+              isDense: true,
+              contentPadding:
+                  EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none),
+          onEditingComplete: () {
+            if (pitId.isNotEmpty) _saveActivePitData(pitId);
+          },
         );
       }),
-    );
-  }
-
-  // Volume Table Row (2 columns: label, value)
-  TableRow _buildVolumeTableRow(String label, String value) {
-    return TableRow(
-    
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          child: Text(
-            label,
-            style: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-              color: Colors.black87,
-            ),
-          ),
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          child: Obx(() {
-            if (dashboard.isLocked.value) {
-              return Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
-                ),
-                textAlign: TextAlign.right,
-              );
-            }
-            return TextFormField(
-              initialValue: value,
-              style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-              ),
-              textAlign: TextAlign.right,
-              decoration: const InputDecoration(
-                isDense: true,
-                contentPadding: EdgeInsets.zero,
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-              ),
-            );
-          }),
-        ),
-      ],
-    );
-  }
-
-  // Haul Off Table Row (3 columns: label, value, unit)
-  TableRow _buildHaulOffTableRow(String label, String value, String unit) {
-    return TableRow(
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          child: Text(
-            label,
-            style: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-              color: Colors.black87,
-            ),
-          ),
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          child: Obx(() {
-            if (dashboard.isLocked.value) {
-              return Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
-                ),
-                textAlign: TextAlign.right,
-              );
-            }
-            return TextFormField(
-              initialValue: value,
-              style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-              ),
-              textAlign: TextAlign.right,
-              decoration: const InputDecoration(
-                isDense: true,
-                contentPadding: EdgeInsets.zero,
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-              ),
-            );
-          }),
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-          child: Text(
-            unit,
-            style: TextStyle(
-              fontSize: 10,
-              color: Colors.grey.shade700,
-            ),
-            textAlign: TextAlign.left,
-          ),
-        ),
-      ],
     );
   }
 }

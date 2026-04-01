@@ -188,10 +188,10 @@ class SceController extends GetxController {
 
       Map<String, dynamic> result;
       if (shaker.id != null) {
-        result = await repository.updateShaker(shaker.id!, shaker.toJson());
+        result = (await repository.updateShaker(shaker.id!, shaker.toJson())) as Map<String, dynamic>;
       } else {
         result =
-            await repository.createShaker(currentWellId!, shaker.toJson());
+            (await repository.createShaker(currentWellId!, shaker.toJson())) as Map<String, dynamic>;
       }
 
       if (result['success']) {
@@ -273,10 +273,10 @@ class SceController extends GetxController {
 
       Map<String, dynamic> result;
       if (sce.id != null) {
-        result = await repository.updateOtherSce(sce.id!, sce.toJson());
+        result = (await repository.updateOtherSce(sce.id!, sce.toJson())) as Map<String, dynamic>;
       } else {
         result =
-            await repository.createOtherSce(currentWellId!, sce.toJson());
+            (await repository.createOtherSce(currentWellId!, sce.toJson())) as Map<String, dynamic>;
       }
 
       if (result['success']) {

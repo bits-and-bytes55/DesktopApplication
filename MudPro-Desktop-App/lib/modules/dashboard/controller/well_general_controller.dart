@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:mudpro_desktop_app/api_endpoint/api_endpoint.dart';
+import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
+import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart' show kControllerWellId;
 
 class WellGeneralController extends GetxController {
   final String baseUrl = ApiEndpoint.baseUrl;
@@ -119,7 +121,7 @@ class WellGeneralController extends GetxController {
     isLoading.value = true;
     try {
       final response = await http.get(
-        Uri.parse('${baseUrl}well-general'),
+        Uri.parse('${baseUrl}well-general/$kControllerWellId'),
         headers: _headers,
       );
 
@@ -141,37 +143,32 @@ print('WellGeneral fetch response: ${response.statusCode} ${response.body}');
   }
 
   // ─── SAVE (create or update) ───────────────────
-  Future<void> save() async {
+  Future<Map<String, dynamic>> save() async {
     isSaving.value = true;
     try {
-      http.Response response;
-      if (savedId.value.isNotEmpty) {
-        response = await http.put(
-          Uri.parse('${baseUrl}well-general/${savedId.value}'),
-          headers: _headers,
-          body: jsonEncode(_toJson()),
-        );
-      } else {
-        response = await http.post(
-          Uri.parse('${baseUrl}well-general'),
-          headers: _headers,
-          body: jsonEncode(_toJson()),
-        );
-      }
-print('WellGeneral save response: ${response.statusCode} ${response.body}');
+      final authRepo = AuthRepository();
+      
+      // We always send the wellId from kControllerWellId to the new unified Save endpoint
+      final payload = _toJson();
+      payload['wellId'] = kControllerWellId;
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final json = jsonDecode(response.body);
-        _fromJson(json['data']);
-        Get.snackbar(
-          'Saved',
-          'Well General data saved successfully',
-          duration: const Duration(seconds: 2),
-          snackPosition: SnackPosition.BOTTOM,
-        );
+      final result = await authRepo.saveWellGeneral(payload);
+
+      if (result['success'] == true) {
+        final data = result['data']?['data']; // auth_repo returns {success, data: {success, data, message}}
+        if (data != null) {
+          _fromJson(data);
+        }
+        return {'success': true, 'message': 'Well General data saved successfully'};
+      } else {
+        return {
+          'success': false, 
+          'message': result['message'] ?? 'Failed to save Well General data'
+        };
       }
     } catch (e) {
       print('WellGeneral save error: $e');
+      return {'success': false, 'message': 'Error saving Well General: $e'};
     } finally {
       isSaving.value = false;
     }

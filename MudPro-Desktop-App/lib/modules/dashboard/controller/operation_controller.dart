@@ -20,6 +20,8 @@ enum OperationType {
 class OperationController extends GetxController {
   RxBool isLocked = true.obs;
   RxInt selectedRowIndex = 0.obs;
+  RxString addWaterVolume = "".obs; // Track Add Water locally
+
 
   final List<OperationType> dropdownItems = OperationType.values;
 

@@ -230,10 +230,6 @@ class MudController extends GetxController {
       _setupSolidAnalysisWatchers();
     } catch (e) {
       debugPrint('[MudController] loadFluidTypeData error: $e');
-      Get.snackbar('Error', 'Failed to load data: $e',
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.red.withOpacity(0.1),
-          colorText: Colors.red);
     } finally {
       isLoading.value = false;
     }

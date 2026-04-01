@@ -79,7 +79,7 @@ class PumpController extends GetxController {
       final result = await repository.updatePump(pump.id!, pumpData);
 
       if (result['success']) {
-        final updated = PumpModel.fromJson(result['data']);
+        final updated = PumpModel.fromJson(result['data'] as Map<String, dynamic>);
         pump.displacement.value = updated.displacement.value;
         pump.rate.value = updated.rate.value;
         print('✅ Auto-updated pump row ${index + 1}');
@@ -170,9 +170,9 @@ class PumpController extends GetxController {
       final pumpData = pump.toJson();
 
       if (pump.id != null) {
-        result = await repository.updatePump(pump.id!, pumpData);
+        result = (await repository.updatePump(pump.id!, pumpData)) as Map<String, dynamic>;
       } else {
-        result = await repository.createPump(currentWellId, pumpData);
+        result = (await repository.createPump(currentWellId, pumpData)) as Map<String, dynamic>;
       }
 
       if (result['success']) {

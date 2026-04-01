@@ -51,6 +51,9 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     _fetchAllConsumeProducts();
     for (int i = 0; i < 5; i++) distributeRows.add(DistributeRowData());
     waterVolumeController.addListener(_recalculateTotalVolume);
+    waterVolumeController.addListener(() {
+      operationController.addWaterVolume.value = waterVolumeController.text;
+    });
   }
 
   @override
