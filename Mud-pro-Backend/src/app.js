@@ -73,6 +73,7 @@ import mudLossRoutes from "./routes/mudloss/mudLoss.routes.js";
 import mudLossStorageRoutes from "./routes/mudlossstorage/mudLossStorage.routes.js";
 import padRoutes from "./routes/pad/pad.routes.js";
 import wellRoutes from "./routes/well/well.routes.js";
+import emptyFluidActiveSystemRoutes from "./routes/emptyfluidactivesystem/emptyFluidActiveSystem.routes.js";
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -193,6 +194,7 @@ app.use("/api/move-pit-status", movePitStatusRoutes);
 app.use("/api/other-vol-addition", otherVolAdditionRoutes);
 app.use("/api/mud-loss", mudLossRoutes);
 app.use("/api/mud-loss-storage", mudLossStorageRoutes);
+app.use("/api/empty-fluid-active-system", emptyFluidActiveSystemRoutes);
 
 app.use("/api/intervals", intervalRoutes);
 app.use("/api/pads", padRoutes);
