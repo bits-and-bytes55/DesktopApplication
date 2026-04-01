@@ -9,10 +9,10 @@ import {
 
 const router = express.Router();
 
-router.post("/", createWellGeneral);
-router.get("/", getWellGenerals);
-router.get("/:id", getWellGeneralById);
-router.put("/:id", updateWellGeneral);
-router.delete("/:id", deleteWellGeneral);
+router.post("/:wellId", createWellGeneral);
+router.get("/:wellId", getWellGenerals);
+router.get("/:wellId/:id", getWellGeneralById);
+router.put("/:wellId/:id", updateWellGeneral);
+router.delete("/:wellId/:id", deleteWellGeneral);
 
 export default router;
