@@ -1,6 +1,7 @@
 import Pit from "../../modules/pit/pit.model.js";
 import AddWater from "../../modules/addwater/AddWater.js";
 
+
 const toNumber = (value) => {
   if (value === null || value === undefined || value === "") return 0;
   const n = Number(String(value).replace(/[^0-9.-]/g, ""));
@@ -8,10 +9,12 @@ const toNumber = (value) => {
 };
 
 const round2 = (num) => Number(num.toFixed(2));
+const getWellId = (req) => String(req.params.wellId || "").trim();
 
 export const createAddWater = async (req, res) => {
   try {
-    const { wellId, to, volume } = req.body;
+    const wellId = getWellId(req);
+    const { to, volume } = req.body;
 
     if (!wellId || !to || volume === undefined || volume === null) {
       return res.status(400).json({
@@ -20,7 +23,6 @@ export const createAddWater = async (req, res) => {
       });
     }
 
-    const safeWellId = String(wellId).trim();
     const safeTo = String(to).trim();
     const waterVol = round2(toNumber(volume));
 
@@ -31,7 +33,7 @@ export const createAddWater = async (req, res) => {
       });
     }
 
-    const allPits = await Pit.find({ wellId: safeWellId }).sort({ createdAt: 1 });
+    const allPits = await Pit.find({ wellId }).sort({ createdAt: 1 });
 
     if (!allPits.length) {
       return res.status(404).json({
@@ -40,7 +42,6 @@ export const createAddWater = async (req, res) => {
       });
     }
 
-    // CASE 1: To = Active System
     if (safeTo === "Active System") {
       const activePits = allPits.filter((pit) => pit.initialActive === true);
 
@@ -59,17 +60,12 @@ export const createAddWater = async (req, res) => {
         const add = round2(remaining / pitsLeft);
 
         pit.volume = round2(toNumber(pit.volume) + add);
-
-        // optional: water add hone par fluidType set karna ho to uncomment
-        // pit.fluidType = "Water";
-
         remaining = round2(remaining - add);
         await pit.save();
       }
     } else {
-      // CASE 2: Specific pit
       const targetPit = await Pit.findOne({
-        wellId: safeWellId,
+        wellId,
         pitName: safeTo,
       });
 
@@ -81,15 +77,11 @@ export const createAddWater = async (req, res) => {
       }
 
       targetPit.volume = round2(toNumber(targetPit.volume) + waterVol);
-
-      // optional
-      // targetPit.fluidType = targetPit.fluidType || "Water";
-
       await targetPit.save();
     }
 
     const item = await AddWater.create({
-      wellId: safeWellId,
+      wellId,
       to: safeTo,
       volume: waterVol,
     });

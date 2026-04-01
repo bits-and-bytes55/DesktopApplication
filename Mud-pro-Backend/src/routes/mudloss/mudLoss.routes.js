@@ -3,6 +3,6 @@ import { createMudLoss } from "../../controllers/mudloss/mudLoss.controller.js";
 
 const router = express.Router();
 
-router.post("/", createMudLoss);
+router.post("/:wellId", createMudLoss);
 
 export default router;

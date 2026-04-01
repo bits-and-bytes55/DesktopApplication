@@ -7,10 +7,12 @@ const toNumber = (value) => {
 };
 
 const round2 = (num) => Number(num.toFixed(2));
+const getWellId = (req) => String(req.params.wellId || "").trim();
 
 export const transferMud = async (req, res) => {
   try {
-    const { wellId, from, transfers } = req.body;
+    const wellId = getWellId(req);
+    const { from, transfers } = req.body;
 
     if (!wellId || !from || !Array.isArray(transfers) || transfers.length === 0) {
       return res.status(400).json({
@@ -53,9 +55,6 @@ export const transferMud = async (req, res) => {
       activePits.reduce((sum, pit) => sum + toNumber(pit.volume), 0)
     );
 
-    // ---------------------------------------------------
-    // CASE 1: FROM ACTIVE SYSTEM -> STORAGE PITS
-    // ---------------------------------------------------
     if (from === "Active System") {
       if (!activePits.length) {
         return res.status(400).json({
@@ -71,7 +70,6 @@ export const transferMud = async (req, res) => {
         });
       }
 
-      // 1. target storage pits me volume add karo
       for (const item of cleanTransfers) {
         const targetPit = storagePits.find((pit) => pit.pitName === item.pitName);
 
@@ -86,7 +84,6 @@ export const transferMud = async (req, res) => {
         await targetPit.save();
       }
 
-      // 2. active pits se evenly minus karo
       let remainingToDeduct = totalTransferVol;
 
       for (let i = 0; i < activePits.length; i++) {
@@ -107,7 +104,6 @@ export const transferMud = async (req, res) => {
         await pit.save();
       }
 
-      // safety second pass
       if (remainingToDeduct > 0) {
         for (const pit of activePits) {
           if (remainingToDeduct <= 0) break;
@@ -142,9 +138,6 @@ export const transferMud = async (req, res) => {
       });
     }
 
-    // ---------------------------------------------------
-    // CASE 2: FROM STORAGE PIT -> ACTIVE SYSTEM
-    // ---------------------------------------------------
     const sourceStoragePit = storagePits.find((pit) => pit.pitName === from);
 
     if (!sourceStoragePit) {
@@ -179,11 +172,9 @@ export const transferMud = async (req, res) => {
       });
     }
 
-    // source storage se minus
     sourceStoragePit.volume = round2(toNumber(sourceStoragePit.volume) - totalOutgoing);
     await sourceStoragePit.save();
 
-    // active pits me evenly add
     let remainingToAdd = totalOutgoing;
 
     for (let i = 0; i < activePits.length; i++) {

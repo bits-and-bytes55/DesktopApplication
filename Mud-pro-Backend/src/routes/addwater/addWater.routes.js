@@ -3,6 +3,6 @@ import { createAddWater } from "../../controllers/addwater/addWater.controller.j
 
 const router = express.Router();
 
-router.post("/", createAddWater);
+router.post("/:wellId", createAddWater);
 
 export default router;

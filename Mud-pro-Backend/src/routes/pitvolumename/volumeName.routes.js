@@ -9,10 +9,10 @@ import {
 
 const router = express.Router();
 
-router.post("/well-general", createWellGeneral);
-router.post("/casing", createCasing);
-router.post("/pit", createPit);
-router.post("/consume-product", createConsumeProduct);
+router.post("/:wellId/well-general", createWellGeneral);
+router.post("/:wellId/casing", createCasing);
+router.post("/:wellId/pit", createPit);
+router.post("/:wellId/consume-product", createConsumeProduct);
 router.get("/:wellId", getVolumeNameCalculation);
 
 export default router;

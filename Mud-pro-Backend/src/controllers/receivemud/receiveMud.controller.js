@@ -9,11 +9,12 @@ const toNumber = (value) => {
 };
 
 const round2 = (num) => Number(num.toFixed(2));
+const getWellId = (req) => String(req.params.wellId || "").trim();
 
 export const createReceiveMud = async (req, res) => {
   try {
+    const wellId = getWellId(req);
     const {
-      wellId,
       bolNo,
       premixedMud,
       mw,
@@ -51,10 +52,9 @@ export const createReceiveMud = async (req, res) => {
       });
     }
 
-    // premixed fetch
     const premixed = await Premixed.findOne({
-      wellId: String(wellId).trim(),
-      description: String(premixedMud).trim(),
+      wellId,
+      description: { $regex: `^${String(premixedMud).trim()}$`, $options: "i" },
     });
 
     if (!premixed) {
@@ -79,7 +79,7 @@ export const createReceiveMud = async (req, res) => {
         ? round2(toNumber(leasingFee))
         : round2(toNumber(premixed.leasingFee));
 
-    const allPits = await Pit.find({ wellId: String(wellId).trim() }).sort({ createdAt: 1 });
+    const allPits = await Pit.find({ wellId }).sort({ createdAt: 1 });
 
     if (!allPits.length) {
       return res.status(404).json({
@@ -88,7 +88,6 @@ export const createReceiveMud = async (req, res) => {
       });
     }
 
-    // CASE 1: TO = ACTIVE SYSTEM
     if (String(to).trim() === "Active System") {
       const activePits = allPits.filter((pit) => pit.initialActive === true);
 
@@ -114,9 +113,8 @@ export const createReceiveMud = async (req, res) => {
         await pit.save();
       }
     } else {
-      // CASE 2: TO = SPECIFIC PIT
       const targetPit = await Pit.findOne({
-        wellId: String(wellId).trim(),
+        wellId,
         pitName: String(to).trim(),
       });
 
@@ -135,7 +133,7 @@ export const createReceiveMud = async (req, res) => {
     }
 
     const item = await ReceiveMud.create({
-      wellId: String(wellId).trim(),
+      wellId,
       bolNo: bolNo || "",
       premixedMud: String(premixedMud).trim(),
       mw: finalMw,

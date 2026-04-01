@@ -8,11 +8,12 @@ const toNumber = (value) => {
 };
 
 const round2 = (num) => Number(num.toFixed(2));
+const getWellId = (req) => String(req.params.wellId || "").trim();
 
 export const createMudLoss = async (req, res) => {
   try {
+    const wellId = getWellId(req);
     const {
-      wellId,
       cuttingsRetention,
       seepage,
       dump,
@@ -32,8 +33,6 @@ export const createMudLoss = async (req, res) => {
         message: "wellId is required",
       });
     }
-
-    const safeWellId = String(wellId).trim();
 
     const lossData = {
       cuttingsRetention: round2(toNumber(cuttingsRetention)),
@@ -61,7 +60,7 @@ export const createMudLoss = async (req, res) => {
     }
 
     const activePits = await Pit.find({
-      wellId: safeWellId,
+      wellId,
       initialActive: true,
     }).sort({ createdAt: 1 });
 
@@ -83,7 +82,6 @@ export const createMudLoss = async (req, res) => {
       });
     }
 
-    // active system se evenly minus
     let remaining = totalLoss;
 
     for (let i = 0; i < activePits.length; i++) {
@@ -103,7 +101,6 @@ export const createMudLoss = async (req, res) => {
       await pit.save();
     }
 
-    // safety pass
     if (remaining > 0) {
       for (const pit of activePits) {
         if (remaining <= 0) break;
@@ -127,7 +124,7 @@ export const createMudLoss = async (req, res) => {
     }
 
     const item = await MudLoss.create({
-      wellId: safeWellId,
+      wellId,
       ...lossData,
       totalLoss,
     });

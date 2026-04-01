@@ -3,6 +3,6 @@ import { transferMud } from "../../controllers/transfermud/transferMud.controlle
 
 const router = express.Router();
 
-router.post("/", transferMud);
+router.post("/:wellId", transferMud);
 
 export default router;

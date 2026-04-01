@@ -8,10 +8,12 @@ const toNumber = (value) => {
 };
 
 const round2 = (num) => Number(num.toFixed(2));
+const getWellId = (req) => String(req.params.wellId || "").trim();
 
 export const createMudLossStorage = async (req, res) => {
   try {
-    const { wellId, storage, dump, evaporation, pitCleaning } = req.body;
+    const wellId = getWellId(req);
+    const { storage, dump, evaporation, pitCleaning } = req.body;
 
     if (!wellId || !storage) {
       return res.status(400).json({
@@ -20,7 +22,6 @@ export const createMudLossStorage = async (req, res) => {
       });
     }
 
-    const safeWellId = String(wellId).trim();
     const safeStorage = String(storage).trim();
 
     const dumpVol = round2(toNumber(dump));
@@ -37,7 +38,7 @@ export const createMudLossStorage = async (req, res) => {
     }
 
     const sourcePit = await Pit.findOne({
-      wellId: safeWellId,
+      wellId,
       pitName: safeStorage,
       initialActive: false,
     });
@@ -62,7 +63,7 @@ export const createMudLossStorage = async (req, res) => {
     await sourcePit.save();
 
     const item = await MudLossStorage.create({
-      wellId: safeWellId,
+      wellId,
       storage: safeStorage,
       dump: dumpVol,
       evaporation: evaporationVol,

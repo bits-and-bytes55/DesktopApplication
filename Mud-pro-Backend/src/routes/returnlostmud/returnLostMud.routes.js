@@ -3,6 +3,6 @@ import { createReturnLostMud } from "../../controllers/returnlostmud/returnLostM
 
 const router = express.Router();
 
-router.post("/", createReturnLostMud);
+router.post("/:wellId", createReturnLostMud);
 
 export default router;

@@ -3,6 +3,6 @@ import { createReceiveMud } from "../../controllers/receivemud/receiveMud.contro
 
 const router = express.Router();
 
-router.post("/", createReceiveMud);
+router.post("/:wellId", createReceiveMud);
 
 export default router;

@@ -1,8 +1,11 @@
 import Pit from "../../modules/pit/pit.model.js";
 
+const getWellId = (req) => String(req.params.wellId || "").trim();
+
 export const movePitStatus = async (req, res) => {
   try {
-    const { wellId, moveToStorage = [], moveToActive = [] } = req.body;
+    const wellId = getWellId(req);
+    const { moveToStorage = [], moveToActive = [] } = req.body;
 
     if (!wellId) {
       return res.status(400).json({
@@ -10,8 +13,6 @@ export const movePitStatus = async (req, res) => {
         message: "wellId is required",
       });
     }
-
-    const safeWellId = String(wellId).trim();
 
     const activeToStorage = Array.isArray(moveToStorage)
       ? moveToStorage.map((name) => String(name).trim()).filter(Boolean)
@@ -34,10 +35,9 @@ export const movePitStatus = async (req, res) => {
       notFound: [],
     };
 
-    // Active -> Storage
     for (const pitName of activeToStorage) {
       const pit = await Pit.findOne({
-        wellId: safeWellId,
+        wellId,
         pitName,
         initialActive: true,
       });
@@ -60,10 +60,9 @@ export const movePitStatus = async (req, res) => {
       });
     }
 
-    // Storage -> Active
     for (const pitName of storageToActive) {
       const pit = await Pit.findOne({
-        wellId: safeWellId,
+        wellId,
         pitName,
         initialActive: false,
       });
@@ -87,12 +86,12 @@ export const movePitStatus = async (req, res) => {
     }
 
     const activePits = await Pit.find({
-      wellId: safeWellId,
+      wellId,
       initialActive: true,
     }).sort({ createdAt: 1 });
 
     const storagePits = await Pit.find({
-      wellId: safeWellId,
+      wellId,
       initialActive: false,
     }).sort({ createdAt: 1 });
 
@@ -100,7 +99,7 @@ export const movePitStatus = async (req, res) => {
       success: true,
       message: "Pit status updated successfully",
       data: {
-        wellId: safeWellId,
+        wellId,
         ...updated,
         activePits: activePits.map((pit) => ({
           _id: pit._id,

@@ -3,6 +3,6 @@ import { movePitStatus } from "../../controllers/movepit/movePitStatus.controlle
 
 const router = express.Router();
 
-router.post("/", movePitStatus);
+router.post("/:wellId", movePitStatus);
 
 export default router;

@@ -9,6 +9,8 @@ import OtherVolAddition from "../../modules/othervol/OtherVolAddition.js";
 import MudLoss from "../../modules/mudloss/MudLoss.js";
 import MudLossStorage from "../../modules/mudlossstorage/MudLossStorage.js";
 
+const getWellId = (req) => String(req.params.wellId || "").trim();
+
 const toNumber = (value) => {
   if (value === null || value === undefined || value === "") return 0;
   const n = Number(String(value).replace(/[^0-9.-]/g, ""));
@@ -27,8 +29,9 @@ const calculateHoleVolume = (idInInches, mdInFeet) => {
 // ------------------ SAVE WELL GENERAL ------------------
 export const createWellGeneral = async (req, res) => {
   try {
+    const wellId = getWellId(req);
+
     const {
-      wellId,
       reportNo,
       userReportNo,
       date,
@@ -69,7 +72,7 @@ export const createWellGeneral = async (req, res) => {
     }
 
     const item = await WellGeneral.create({
-      wellId: String(wellId).trim(),
+      wellId,
       reportNo: reportNo || "",
       userReportNo: userReportNo || "",
       date: date || "",
@@ -118,8 +121,9 @@ export const createWellGeneral = async (req, res) => {
 // ------------------ SAVE CASING ------------------
 export const createCasing = async (req, res) => {
   try {
+    const wellId = getWellId(req);
+
     const {
-      wellId,
       description,
       type,
       od,
@@ -139,7 +143,7 @@ export const createCasing = async (req, res) => {
     }
 
     const item = await Casing.create({
-      wellId: String(wellId).trim(),
+      wellId,
       description: description || "",
       type: type || "",
       od: od || "",
@@ -167,8 +171,9 @@ export const createCasing = async (req, res) => {
 // ------------------ SAVE PIT ------------------
 export const createPit = async (req, res) => {
   try {
+    const wellId = getWellId(req);
+
     const {
-      wellId,
       pitName,
       capacity,
       initialActive,
@@ -187,7 +192,7 @@ export const createPit = async (req, res) => {
     }
 
     const item = await Pit.create({
-      wellId: String(wellId).trim(),
+      wellId,
       pitName: pitName.trim(),
       capacity: Number(capacity) || 0,
       initialActive: initialActive === true || initialActive === "true",
@@ -214,8 +219,9 @@ export const createPit = async (req, res) => {
 // ------------------ SAVE CONSUME PRODUCT ------------------
 export const createConsumeProduct = async (req, res) => {
   try {
+    const wellId = getWellId(req);
+
     const {
-      wellId,
       product,
       code,
       sg,
@@ -237,7 +243,7 @@ export const createConsumeProduct = async (req, res) => {
     }
 
     const item = await ConsumeProduct.create({
-      wellId: String(wellId).trim(),
+      wellId,
       product: product || "",
       code: code || "",
       sg: sg === null || sg === undefined || sg === "" ? null : Number(sg),
@@ -268,7 +274,7 @@ export const createConsumeProduct = async (req, res) => {
 // ------------------ GET VOLUME NAME ------------------
 export const getVolumeNameCalculation = async (req, res) => {
   try {
-    const wellId = String(req.params.wellId).trim();
+    const wellId = getWellId(req);
 
     if (!wellId) {
       return res.status(400).json({

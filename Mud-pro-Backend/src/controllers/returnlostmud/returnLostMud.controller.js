@@ -2,6 +2,8 @@ import Pit from "../../modules/pit/pit.model.js";
 import Premixed from "../../modules/inventory/premixed.model.js";
 import ReturnLostMud from "../../modules/returnlostmud/ReturnLostMud.js";
 
+const getWellId = (req) => String(req.params.wellId || "").trim();
+
 const toNumber = (value) => {
   if (value === null || value === undefined || value === "") return 0;
   const n = Number(String(value).replace(/[^0-9.-]/g, ""));
@@ -12,28 +14,28 @@ const round2 = (num) => Number(num.toFixed(2));
 
 export const createReturnLostMud = async (req, res) => {
   try {
-    const {
-      wellId,
-      premixedMud,
-      from,
-      to,
-      volReturned,
-      mw,
-      mudType,
-      bol,
-      volLost,
-      costOfLostPreTax,
-      leased,
-    } = req.body;
+    const wellId = getWellId(req);
+const {
+  premixedMud,
+  from,
+  to,
+  volReturned,
+  mw,
+  mudType,
+  bol,
+  volLost,
+  costOfLostPreTax,
+  leased,
+} = req.body;
 
-    if (!wellId || !premixedMud || !from || !to) {
-      return res.status(400).json({
-        success: false,
-        message: "wellId, premixedMud, from and to are required",
-      });
-    }
+if (!wellId || !premixedMud || !from || !to) {
+  return res.status(400).json({
+    success: false,
+    message: "wellId, premixedMud, from and to are required",
+  });
+}
 
-    const safeWellId = String(wellId).trim();
+const safeWellId = wellId;
     const safePremixedMud = String(premixedMud).trim();
     const safeFrom = String(from).trim();
     const safeTo = String(to).trim();
