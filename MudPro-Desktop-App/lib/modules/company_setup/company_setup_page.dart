@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:mudpro_desktop_app/modules/company_setup/controller/company_setup_controller.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/tabs/mud_company_page.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/tabs/operatos_tab.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/tabs/others_page.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/tabs/products_page.dart';
-import 'package:mudpro_desktop_app/modules/company_setup/tabs/safety_page.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/tabs/service_page.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
@@ -20,12 +21,23 @@ class CompanySetupPage extends StatefulWidget {
 class _CompanySetupPageState extends State<CompanySetupPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  bool isLocked = false;
+  final companySetupController = Get.put(CompanySetupController());
+  final _passwordController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 5, vsync: this);
+    _tabController.addListener(() {
+      companySetupController.currentTabIndex.value = _tabController.index;
+    });
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    _passwordController.dispose();
+    super.dispose();
   }
 
   @override
@@ -109,34 +121,49 @@ class _CompanySetupPageState extends State<CompanySetupPage>
             ),
           ),
           const Spacer(),
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            child: Row(
-              children: [
-                Icon(
-                  isLocked ? Icons.lock : Icons.lock_open,
-                  color: Colors.white,
-                  size: 18,
+          Obx(() => InkWell(
+            onTap: () {
+              if (companySetupController.isLocked.value) {
+                _showPasswordDialog();
+              } else {
+                companySetupController.lock();
+              }
+            },
+            child: Container(
+              decoration: BoxDecoration(
+                color: companySetupController.isLocked.value 
+                    ? const Color(0xffEF4444).withOpacity(0.2) 
+                    : const Color(0xff10B981).withOpacity(0.2),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: companySetupController.isLocked.value ? const Color(0xffEF4444) : const Color(0xff10B981),
+                  width: 1,
                 ),
-                const SizedBox(width: 6),
-                Text(
-                  isLocked ? 'Locked' : 'Editable',
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              child: Row(
+                children: [
+                  Icon(
+                    companySetupController.isLocked.value ? Icons.lock : Icons.lock_open,
                     color: Colors.white,
+                    size: 18,
                   ),
-                ),
-              ],
+                  const SizedBox(width: 6),
+                  Text(
+                    companySetupController.isLocked.value ? 'Locked' : 'Editable',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
+          )),
           const SizedBox(width: 12),
           ElevatedButton.icon(
-            onPressed: () {},
+            onPressed: () => companySetupController.handleImport(),
             style: AppTheme.secondaryButtonStyle.copyWith(
               backgroundColor: MaterialStateProperty.all(Colors.white.withOpacity(0.9)),
               foregroundColor: MaterialStateProperty.all(AppTheme.primaryColor),
@@ -160,7 +187,7 @@ class _CompanySetupPageState extends State<CompanySetupPage>
           ),
           const SizedBox(width: 8),
           ElevatedButton.icon(
-            onPressed: () {},
+            onPressed: () => companySetupController.handleExport(),
             style: AppTheme.primaryButtonStyle.copyWith(
               padding: MaterialStateProperty.all(
                 const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -214,6 +241,42 @@ class _CompanySetupPageState extends State<CompanySetupPage>
           Tab(text: 'Operator'),
           Tab(text: 'Others'),
           // Tab(text: 'Safety'),
+        ],
+      ),
+    );
+  }
+
+  void _showPasswordDialog() {
+    _passwordController.clear();
+    Get.dialog(
+      AlertDialog(
+        title: const Text('Enter Password'),
+        content: TextField(
+          controller: _passwordController,
+          obscureText: true,
+          decoration: const InputDecoration(
+            hintText: 'Enter password to unlock',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (companySetupController.checkPassword(_passwordController.text)) {
+                Get.back();
+                Get.snackbar('Success', 'Pages unlocked successfully.',
+                    backgroundColor: Colors.green.withOpacity(0.1));
+              } else {
+                Get.snackbar('Error', 'Incorrect password.',
+                    backgroundColor: Colors.red.withOpacity(0.1));
+              }
+            },
+            child: const Text('Unlock'),
+          ),
         ],
       ),
     );

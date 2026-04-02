@@ -1116,6 +1116,9 @@ class AuthRepository {
     String? pitName,
     double? capacity,
     bool? initialActive,
+    double? volume,
+    double? density,
+    String? fluidType,
   }) async {
     try {
       final response = await http.put(
@@ -1125,6 +1128,9 @@ class AuthRepository {
           if (pitName != null) 'pitName': pitName,
           if (capacity != null) 'capacity': capacity,
           if (initialActive != null) 'initialActive': initialActive,
+          if (volume != null) 'volume': volume,
+          if (density != null) 'density': density,
+          if (fluidType != null) 'fluidType': fluidType,
         }),
       );
 
@@ -1133,7 +1139,7 @@ class AuthRepository {
       if (response.statusCode == 200) {
         return {
           'success': true,
-          'data': PitModel.fromJson(data['data']),
+          'data': data['data'] != null ? PitModel.fromJson(data['data']) : null,
           'message': data['message'],
         };
       } else {

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
@@ -21,6 +22,7 @@ class PitController extends GetxController {
   final RxMap<String, dynamic> volumeNameData = <String, dynamic>{}.obs;
   final RxBool isLoadingVolume = false.obs;
   final Map<String, Map<String, TextEditingController>> activePitControllers = {};
+  Timer? _debounceTimer;
 
   @override
   void onInit() {
@@ -197,7 +199,65 @@ class PitController extends GetxController {
 
   // ================= UPDATE ACTIVE PIT VOLUME DATA =================
 
-  /// Called from save button or pit page on editing complete
+  /// Called on every keystroke with a debounce to update the master pit record (PUT)
+  void onPitFieldChanged({
+    required String pitId,
+    required double volume,
+    required double density,
+    required String fluidType,
+  }) {
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 1500), () {
+      updatePitMaster(
+        pitId: pitId,
+        volume: volume,
+        density: density,
+        fluidType: fluidType,
+      );
+    });
+  }
+
+  /// Updates the master pit record via PUT /pit/:id (No new records created)
+  Future<void> updatePitMaster({
+    required String pitId,
+    required double volume,
+    required double density,
+    required String fluidType,
+  }) async {
+    if (pitId.isEmpty) return;
+    try {
+      final authRepo = AuthRepository();
+      // Find the pit model context
+      final pitModel = pits.firstWhereOrNull((p) => p.id == pitId) ??
+                      selectedPits.firstWhereOrNull((p) => p.id == pitId) ??
+                      unselectedPits.firstWhereOrNull((p) => p.id == pitId);
+      
+      final result = await authRepo.updatePit(
+        id: pitId,
+        pitName: pitModel?.pitName,
+        capacity: pitModel?.capacity?.value,
+        initialActive: pitModel?.initialActive?.value,
+        volume: volume,
+        density: density,
+        fluidType: fluidType,
+      );
+
+      if (result['success'] == true) {
+        debugPrint('Master pit $pitId updated successfully');
+        // Update local model values if different
+        if (pitModel != null) {
+          pitModel.volume?.value = volume;
+          pitModel.density?.value = density;
+          pitModel.fluidType?.value = fluidType;
+          pits.refresh();
+        }
+      }
+    } catch (e) {
+      debugPrint('Error in updatePitMaster: $e');
+    }
+  }
+
+  /// Called from save button to trigger calculation (POST)
   Future<void> updatePitVolumeData({
     required String pitId,
     required double volume,

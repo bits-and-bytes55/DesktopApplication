@@ -182,6 +182,21 @@ class _PitPageState extends State<PitPage> {
                             size: 14, color: Colors.white)),
                   ),
                 ),
+                const SizedBox(width: 8),
+                Tooltip(
+                  message: "Save & Calculate",
+                  child: InkWell(
+                    onTap: () async {
+                      await controller.saveAllActivePits();
+                      await controller.fetchVolumeNameData();
+                    },
+                    borderRadius: BorderRadius.circular(4),
+                    child: Container(
+                        padding: const EdgeInsets.all(4),
+                        child: const Icon(Icons.save,
+                            size: 14, color: Colors.white)),
+                  ),
+                ),
               ],
             ),
           ),
@@ -275,9 +290,9 @@ class _PitPageState extends State<PitPage> {
           );
           return TableRow(children: [
             _readOnlyCell(pitName),
-            _editableCellWithSave(ctrls['volume']!, pitId, 'volume'),
-            _editableCellWithSave(ctrls['density']!, pitId, 'density'),
-            _editableCellWithSave(ctrls['fluidType']!, pitId, 'fluidType'),
+            _editableCellWithSave(ctrls, pitId, 'volume'),
+            _editableCellWithSave(ctrls, pitId, 'density'),
+            _editableCellWithSave(ctrls, pitId, 'fluidType'),
           ]);
         }).toList(),
         ...List.generate(kEmptyFillRows, (_) => TableRow(children: [
@@ -408,9 +423,9 @@ class _PitPageState extends State<PitPage> {
           return TableRow(children: [
             _readOnlyCell(pitName),
             _readOnlyCell(double.tryParse(calculatedVol)?.toStringAsFixed(2) ?? '0.00'),
-            _editableCellWithSave(ctrls['volume']!, pitId, 'volume'),
-            _editableCellWithSave(ctrls['density']!, pitId, 'density'),
-            _editableCellWithSave(ctrls['fluidType']!, pitId, 'fluidType'),
+            _editableCellWithSave(ctrls, pitId, 'volume'),
+            _editableCellWithSave(ctrls, pitId, 'density'),
+            _editableCellWithSave(ctrls, pitId, 'fluidType'),
           ]);
         }).toList(),
         ...List.generate(kEmptyFillRows, (_) => TableRow(children: [
@@ -761,7 +776,8 @@ class _PitPageState extends State<PitPage> {
   // Editable cell — on save button hit from secondary tabbar,
   // also allows inline edit and triggers save + volume name refresh
   Widget _editableCellWithSave(
-      TextEditingController ctrl, String pitId, String field) {
+      Map<String, TextEditingController> ctrls, String pitId, String field) {
+    final ctrl = ctrls[field]!;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
       child: Obx(() {
@@ -784,8 +800,18 @@ class _PitPageState extends State<PitPage> {
               border: InputBorder.none,
               enabledBorder: InputBorder.none,
               focusedBorder: InputBorder.none),
+          onChanged: (val) {
+            if (pitId.isNotEmpty) {
+              controller.onPitFieldChanged(
+                pitId: pitId,
+                volume: double.tryParse(ctrls['volume']!.text) ?? 0,
+                density: double.tryParse(ctrls['density']!.text) ?? 0,
+                fluidType: ctrls['fluidType']!.text,
+              );
+            }
+          },
           onEditingComplete: () {
-            if (pitId.isNotEmpty) _saveActivePitData(pitId);
+            // Manual Save is now handled by the header save icon to prevents duplicate records creation
           },
         );
       }),
