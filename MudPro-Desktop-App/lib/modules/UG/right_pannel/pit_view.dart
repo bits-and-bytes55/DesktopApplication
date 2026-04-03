@@ -91,13 +91,6 @@ class PitView extends StatelessWidget {
             ),
           )),
           const SizedBox(width: 10),
-          IconButton(
-            onPressed: () => c.bulkSavePits(),
-            icon: const Icon(Icons.save, color: Colors.white, size: 16),
-            tooltip: "Save Pits",
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
-          ),
         ],
       ),
     );
@@ -308,18 +301,7 @@ class PitView extends StatelessWidget {
 
   Widget _buildActionsCell(PitModel pit, bool hasData) {
     if (!hasData) {
-      return Container(
-        width: 80,
-        alignment: Alignment.centerLeft,
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        child: IconButton(
-          onPressed: () => c.bulkSavePits(),
-          icon: const Icon(Icons.cloud_upload, color: Colors.blue, size: 16),
-          tooltip: "Save Pit",
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(),
-        ),
-      );
+      return const SizedBox(width: 80);
     }
 
     return Container(

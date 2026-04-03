@@ -26,7 +26,10 @@ class _TransferMudViewState extends State<TransferMudView> {
   final RxInt selectedRow = 0.obs;
 
   // From dropdown selection
-  final Rx<PitModel?> selectedFromPit = Rx<PitModel?>(null);
+  final RxString selectedFromPit = ''.obs;
+  
+  static const String kActiveSystem = 'Active System';
+  static const String kEmpty = '';
 
   // Not Treated Mud checkbox
   final RxBool notTreatedMud = false.obs;
@@ -43,15 +46,11 @@ class _TransferMudViewState extends State<TransferMudView> {
 
   Future<void> _loadData() async {
     try {
-      await pitController.fetchAllPits();
-      pits.value = pitController.pits.where((pit) => pit.id != null).toList();
-      
-      // Set first pit as default in "From" dropdown if available
-      if (pits.isNotEmpty) {
-        selectedFromPit.value = pits.first;
-      }
+      await pitController.fetchUnselectedPits();
+      // Default to empty or Active System as per requirement
+      selectedFromPit.value = kActiveSystem;
     } catch (e) {
-      print("Error loading pits: $e");
+      debugPrint("Error loading pits: $e");
     }
   }
 
@@ -101,54 +100,76 @@ class _TransferMudViewState extends State<TransferMudView> {
               border: Border.all(color: Colors.grey.shade300),
               borderRadius: BorderRadius.circular(4),
             ),
-            child: Obx(() => DropdownButtonHideUnderline(
-              child: DropdownButton<PitModel>(
-                value: selectedFromPit.value,
-                isExpanded: true,
-                isDense: true,
-                hint: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: Text(
-                    "Select pit",
-                    style: AppTheme.bodySmall.copyWith(
-                      fontSize: 10,
-                      color: Colors.grey.shade400,
-                    ),
-                  ),
-                ),
-                icon: Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: Icon(
-                    Icons.arrow_drop_down,
-                    size: 18,
-                    color: Colors.grey.shade600,
-                  ),
-                ),
-                style: AppTheme.bodySmall.copyWith(
-                  fontSize: 10,
-                  color: AppTheme.textPrimary,
-                ),
-                menuMaxHeight: 200,
-                items: pits.map((pit) {
-                  return DropdownMenuItem<PitModel>(
-                    value: pit,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: Text(
-                        pit.pitName,
-                        style: AppTheme.bodySmall.copyWith(fontSize: 10),
-                        overflow: TextOverflow.ellipsis,
+            child: Obx(() {
+              final unselectedPits = pitController.unselectedPits;
+              
+              return DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: selectedFromPit.value.isEmpty ? kEmpty : selectedFromPit.value,
+                  isExpanded: true,
+                  isDense: true,
+                  hint: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Text(
+                      "Select pit",
+                      style: AppTheme.bodySmall.copyWith(
+                        fontSize: 10,
+                        color: Colors.grey.shade400,
                       ),
                     ),
-                  );
-                }).toList(),
-                onChanged: dashboardController.isLocked.value
-                    ? null
-                    : (PitModel? value) {
-                        selectedFromPit.value = value;
-                      },
-              ),
-            )),
+                  ),
+                  icon: Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: Icon(
+                      Icons.arrow_drop_down,
+                      size: 18,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                  style: AppTheme.bodySmall.copyWith(
+                    fontSize: 10,
+                    color: AppTheme.textPrimary,
+                  ),
+                  menuMaxHeight: 200,
+                  items: [
+                    const DropdownMenuItem<String>(
+                      value: kEmpty,
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 8),
+                        child: Text(""),
+                      ),
+                    ),
+                    const DropdownMenuItem<String>(
+                      value: kActiveSystem,
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 8),
+                        child: Text(kActiveSystem, style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
+                      ),
+                    ),
+                    ...unselectedPits.map((pit) {
+                      return DropdownMenuItem<String>(
+                        value: pit.pitName,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          child: Text(
+                            pit.pitName,
+                            style: AppTheme.bodySmall.copyWith(fontSize: 10),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      );
+                    }),
+                  ],
+                  onChanged: dashboardController.isLocked.value
+                      ? null
+                      : (String? value) {
+                          if (value != null) {
+                            selectedFromPit.value = value;
+                          }
+                        },
+                ),
+              );
+            }),
           ),
         ),
         const SizedBox(width: 8),
@@ -340,15 +361,8 @@ class _TransferMudViewState extends State<TransferMudView> {
             // Dropdown
             Expanded(
               child: DropdownButtonHideUnderline(
-                child: DropdownButton<PitModel>(
-                  value: row.selectedPit,
-                  hint: Text(
-                    "",
-                    style: AppTheme.bodySmall.copyWith(
-                      fontSize: 10,
-                      color: Colors.grey,
-                    ),
-                  ),
+                child: DropdownButton<String>(
+                  value: row.pitName.isEmpty ? kEmpty : row.pitName,
                   isExpanded: true,
                   isDense: true,
                   icon: const SizedBox.shrink(),
@@ -357,22 +371,33 @@ class _TransferMudViewState extends State<TransferMudView> {
                     color: AppTheme.textPrimary,
                   ),
                   menuMaxHeight: 250,
-                  items: pits.map((pit) {
-                    return DropdownMenuItem<PitModel>(
-                      value: pit,
-                      child: Text(
-                        pit.pitName,
-                        style: AppTheme.bodySmall.copyWith(fontSize: 10),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    );
-                  }).toList(),
+                  // Build the items list: empty + Active System + unselected pits
+                  items: [
+                    const DropdownMenuItem<String>(
+                      value: kEmpty,
+                      child: Text("", style: TextStyle(fontSize: 10)),
+                    ),
+                    const DropdownMenuItem<String>(
+                      value: kActiveSystem,
+                      child: Text(kActiveSystem, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
+                    ),
+                    ...pitController.unselectedPits.map((pit) {
+                      return DropdownMenuItem<String>(
+                        value: pit.pitName,
+                        child: Text(
+                          pit.pitName,
+                          style: AppTheme.bodySmall.copyWith(fontSize: 10),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      );
+                    }),
+                  ],
                   onChanged: dashboardController.isLocked.value
                       ? null
-                      : (PitModel? value) {
+                      : (String? value) {
                           if (value != null) {
                             selectedRow.value = index;
-                            row.selectedPit = value;
+                            row.pitName = value;
                             transferRows.refresh();
                             _checkAndAddRow();
                           }
@@ -415,7 +440,7 @@ class _TransferMudViewState extends State<TransferMudView> {
         ),
       ),
       child: TextField(
-        controller: TextEditingController(text: row.volume),
+        controller: row.volumeController,
         enabled: !dashboardController.isLocked.value,
         style: AppTheme.bodySmall.copyWith(fontSize: 10),
         decoration: const InputDecoration(
@@ -423,7 +448,7 @@ class _TransferMudViewState extends State<TransferMudView> {
           contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 6),
           border: InputBorder.none,
         ),
-        keyboardType: TextInputType.number,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
         textAlign: TextAlign.right,
         onChanged: (val) {
           row.volume = val;
@@ -435,7 +460,7 @@ class _TransferMudViewState extends State<TransferMudView> {
   void _checkAndAddRow() {
     if (transferRows.length >= 5) {
       final lastRow = transferRows.last;
-      if (lastRow.selectedPit != null) {
+      if (lastRow.pitName.isNotEmpty) {
         transferRows.add(TransferRowData());
       }
     }
@@ -443,12 +468,17 @@ class _TransferMudViewState extends State<TransferMudView> {
 
   @override
   void dispose() {
+    // Dispose all controllers to prevent leaks
+    for (var row in transferRows) {
+      row.volumeController.dispose();
+    }
     super.dispose();
   }
 }
 
 // Row data class
 class TransferRowData {
-  PitModel? selectedPit;
+  String pitName = '';
   String volume = '';
+  final TextEditingController volumeController = TextEditingController();
 }
