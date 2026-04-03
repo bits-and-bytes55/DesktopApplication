@@ -168,53 +168,7 @@ export const createCasing = async (req, res) => {
   }
 };
 
-// ------------------ SAVE PIT ------------------
-export const createPit = async (req, res) => {
-  try {
-    const wellId = getWellId(req);
 
-    const {
-      pitName,
-      capacity,
-      initialActive,
-      volume,
-      density,
-      fluidType,
-      reportId,
-      isLocked,
-    } = req.body;
-
-    if (!wellId || !pitName) {
-      return res.status(400).json({
-        success: false,
-        message: "wellId and pitName are required",
-      });
-    }
-
-    const item = await Pit.create({
-      wellId,
-      pitName: pitName.trim(),
-      capacity: Number(capacity) || 0,
-      initialActive: initialActive === true || initialActive === "true",
-      volume: Number(volume) || 0,
-      density: Number(density) || 0,
-      fluidType: fluidType || "",
-      reportId: reportId || "",
-      isLocked: isLocked === true || isLocked === "true",
-    });
-
-    return res.status(201).json({
-      success: true,
-      message: "Pit saved successfully",
-      data: item,
-    });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-};
 
 // ------------------ SAVE CONSUME PRODUCT ------------------
 export const createConsumeProduct = async (req, res) => {
@@ -307,7 +261,7 @@ const mudLossStorageEntries = await MudLossStorage.find({ wellId }).sort({ creat
     const activePitsList = pits.filter((pit) => pit.initialActive === true);
     const storagePitsList = pits.filter((pit) => pit.initialActive === false);
 
-    let activePits = Number(
+ const activePits = Number(
   activePitsList.reduce((sum, pit) => sum + toNumber(pit.volume), 0).toFixed(2)
 );
 
@@ -315,21 +269,11 @@ const totalStorage = Number(
   storagePitsList.reduce((sum, pit) => sum + toNumber(pit.volume), 0).toFixed(2)
 );
 
-let activeSystem = Number((activePits + hole).toFixed(2));
-let endVol = Number((activeSystem - totalStorage).toFixed(2));
-let endVolMinusActiveSystem = Number((endVol - activeSystem).toFixed(2));
+const activeSystem = Number((activePits + hole).toFixed(2));
 
-// ✅ agar negative aaye to utna activePits me add karo
-if (endVolMinusActiveSystem < 0) {
-  const adjustment = Math.abs(endVolMinusActiveSystem);
-
-  activePits = Number((activePits + adjustment).toFixed(2));
-  activeSystem = Number((activePits + hole).toFixed(2));
-  endVol = Number((activeSystem - totalStorage).toFixed(2));
-
-  // tumhari requirement ke hisaab se final 0 fix kar diya
-  endVolMinusActiveSystem = 0;
-}
+// screenshot ke hisaab se
+const endVol = activeSystem;
+const endVolMinusActiveSystem = 0;
 
     const consumeProductTotal = Number(
   consumeProducts.reduce((sum, item) => sum + toNumber(item.volumeBbl), 0).toFixed(2)
@@ -369,7 +313,7 @@ const totalOnLocation = Number(
   ).toFixed(2)
 );
 
-    const heldVolDifference = Number((totalOnLocation - activeSystem).toFixed(2));
+    const heldVolDifference = hole;
 
     return res.status(200).json({
       success: true,
