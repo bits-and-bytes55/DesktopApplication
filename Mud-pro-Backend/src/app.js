@@ -74,6 +74,8 @@ import mudLossStorageRoutes from "./routes/mudlossstorage/mudLossStorage.routes.
 import padRoutes from "./routes/pad/pad.routes.js";
 import wellRoutes from "./routes/well/well.routes.js";
 import emptyFluidActiveSystemRoutes from "./routes/emptyfluidactivesystem/emptyFluidActiveSystem.routes.js";
+import operationRoutes from "./routes/operation/operation.routes.js";
+
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -199,6 +201,7 @@ app.use("/api/empty-fluid-active-system", emptyFluidActiveSystemRoutes);
 app.use("/api/intervals", intervalRoutes);
 app.use("/api/pads", padRoutes);
 app.use("/api/wells", wellRoutes);
+app.use("/api/operations", operationRoutes);
 
 
 // Error handler (ALWAYS LAST)
