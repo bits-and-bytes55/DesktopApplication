@@ -3,6 +3,9 @@ import { fileURLToPath } from "url";
 import InventorySnapshot from "../../modules/FullInventory/InventorySnapshot.js";
 import Pit from "../../modules/pit/pit.model.js";
 import { Activity } from "../../modules/others/others.model.js";
+import Well from "../../modules/well/well.model.js";
+import Pad from "../../modules/pad/pad.model.js";
+import WellGeneral from "../../modules/wellGeneral/wellGeneralModel.js";
 
 const TEMPLATE_PATH = fileURLToPath(
   new URL("../../../assets/template.xlsx", import.meta.url)
@@ -138,11 +141,24 @@ const getPitVolume = (pit) => pit.volume || pit.capacity || "";
 
 export const exportInventoryReport = async (req, res) => {
   try {
-    const [inventoryData, pits, activities] = await Promise.all([
-      InventorySnapshot.find().sort({ category: 1 }),
-      Pit.find(),
-      Activity.find(),
-    ]);
+    const { wellId } = req.params;
+
+const [inventoryData, pits, activities, well, wellGeneral] = await Promise.all([
+  InventorySnapshot.find().sort({ category: 1 }),
+  Pit.find({ wellId }),
+  Activity.find(),
+  Well.findById(wellId),
+  WellGeneral.findOne({ wellId }).sort({ createdAt: -1 }),
+]);
+let pad = null;
+
+if (well?.padId) {
+  pad = await Pad.findById(well.padId);
+}
+console.log("PARAM wellId:", wellId);
+console.log("WELL:", well);
+console.log("WELL GENERAL:", wellGeneral);
+console.log("PAD:", pad);
 
     const products = inventoryData.filter(
       (item) => item.category === "Product"
@@ -186,29 +202,35 @@ export const exportInventoryReport = async (req, res) => {
     setCellValue(worksheet, "I2", "Daily Inventory Report");
     setCellValue(worksheet, "V2", REPORT_NUMBER);
 
-    setCellValue(worksheet, "L7", "");
-    setCellValue(worksheet, "U7", getReportDate());
-    setCellValue(worksheet, "AC7", REPORT_NUMBER);
+    setCellValue(worksheet, "L7", well?._id?.toString() || "");
+    setCellValue(worksheet, "U7", wellGeneral?.date || getReportDate());
+    setCellValue(worksheet, "AC7", wellGeneral?.reportNo || REPORT_NUMBER);
 
-    setCellValue(worksheet, "D8", "-");
-    setCellValue(worksheet, "L8", "-");
-    setCellValue(worksheet, "U8", "-");
-    setCellValue(worksheet, "AC8", "-");
+    setCellValue(worksheet, "D8", well?.wellNameNo || "-");
+setCellValue(worksheet, "L8", pad?.rig || "-");
+setCellValue(worksheet, "U8", pad?.fieldBlock || "-");
+setCellValue(worksheet, "AC8", pad?.stateProvince || "-");
 
-    setCellValue(worksheet, "D9", "-");
-    setCellValue(worksheet, "L9", "-");
-    setCellValue(worksheet, "U9", "-");
-    setCellValue(worksheet, "AC9", "-");
+setCellValue(worksheet, "D9", pad?.operator || "-");
+setCellValue(worksheet, "L9", pad?.contractor || "-");
+setCellValue(worksheet, "U9", wellGeneral?.formation || "-");
+setCellValue(worksheet, "AC9", wellGeneral?.md || "-");
 
-    setCellValue(worksheet, "D10", "-");
-    setCellValue(worksheet, "L10", "-");
-    setCellValue(worksheet, "U10", "-");
-    setCellValue(worksheet, "AC10", "-");
+setCellValue(worksheet, "D10", wellGeneral?.operatorRep || pad?.operatorRep || "-");
+setCellValue(worksheet, "L10", wellGeneral?.contractorRep || pad?.contractorRep || "-");
+setCellValue(
+  worksheet,
+  "U10",
+  wellGeneral?.inc || wellGeneral?.azi
+    ? `${wellGeneral?.inc || 0} / ${wellGeneral?.azi || 0}`
+    : "-"
+);
+setCellValue(worksheet, "AC10", wellGeneral?.tvd || "-");
 
-    setCellValue(worksheet, "D11", "-");
-    setCellValue(worksheet, "L11", "-");
-    setCellValue(worksheet, "U11", "-");
-    setCellValue(worksheet, "AC11", "-");
+setCellValue(worksheet, "D11", well?.spudDate || "-");
+setCellValue(worksheet, "L11", "-");
+setCellValue(worksheet, "U11", wellGeneral?.activity || "-");
+setCellValue(worksheet, "AC11", wellGeneral?.depthDrilled || "-");
 
     writeRows(
       worksheet,

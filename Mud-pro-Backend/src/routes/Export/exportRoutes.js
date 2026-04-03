@@ -3,6 +3,6 @@ import {exportInventoryReport}  from "../../controllers/Export/exportInventoryCo
 
 const router = express.Router();
 
-router.get("/inventory-export", exportInventoryReport);
+router.get("/inventory-export/:wellId", exportInventoryReport);
 
 export default router;
