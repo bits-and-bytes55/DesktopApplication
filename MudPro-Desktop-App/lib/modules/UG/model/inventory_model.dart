@@ -73,6 +73,7 @@ class ObmModel {
   String code;
   String sg;
   String conc;
+  String unit;
 
   ObmModel({
     this.id,
@@ -80,6 +81,7 @@ class ObmModel {
     required this.code,
     required this.sg,
     required this.conc,
+    required this.unit,
   });
 
   // Convert from JSON
@@ -90,6 +92,7 @@ class ObmModel {
       code: json['code'] ?? '',
       sg: json['sg'] ?? '',
       conc: json['conc'] ?? '',
+      unit: json['unit'] ?? '',
     );
   }
 
@@ -101,6 +104,7 @@ class ObmModel {
       'code': code,
       'sg': sg,
       'conc': conc,
+      'unit': unit,
     };
   }
 
@@ -119,6 +123,7 @@ class ObmModel {
     String? code,
     String? sg,
     String? conc,
+    String? unit,
   }) {
     return ObmModel(
       id: id ?? this.id,
@@ -126,6 +131,7 @@ class ObmModel {
       code: code ?? this.code,
       sg: sg ?? this.sg,
       conc: conc ?? this.conc,
+      unit: unit ?? this.unit,
     );
   }
 }

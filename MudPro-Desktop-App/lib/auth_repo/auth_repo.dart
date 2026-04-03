@@ -215,6 +215,52 @@ class AuthRepository {
     }
   }
 
+  // ── Create Add Water ─────────────────────────────────────────────────────────
+  Future<Map<String, dynamic>> createAddWater(String wellId, Map<String, dynamic> body) async {
+    try {
+      print('Hitting POST ${baseUrl}add-water/$wellId');
+      final response = await http.post(
+        Uri.parse('${baseUrl}add-water/$wellId'),
+        headers: _headers,
+        body: jsonEncode(body),
+      );
+      print('statuscode------${response.statusCode}');
+      print('response body------${response.body}');
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200 || response.statusCode == 201,
+        'data': data,
+        'message': data['message'] ?? 'Add Water saved successfully',
+      };
+    } catch (e) {
+      print('Error in createAddWater: $e');
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  // ── Create Receive Mud ─────────────────────────────────────────────────────
+  Future<Map<String, dynamic>> createReceiveMud(String wellId, Map<String, dynamic> body) async {
+    try {
+      print('Hitting POST ${baseUrl}receive-mud/$wellId');
+      final response = await http.post(
+        Uri.parse('${baseUrl}receive-mud/$wellId'),
+        headers: _headers,
+        body: jsonEncode(body),
+      );
+      print('statuscode------${response.statusCode}');
+      print('response body------${response.body}');
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200 || response.statusCode == 201,
+        'data': data,
+        'message': data['message'] ?? 'Receive Mud saved successfully',
+      };
+    } catch (e) {
+      print('Error in createReceiveMud: $e');
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
   // ── Delete Transfer Mud ─────────────────────────────────────────────────────
   Future<Map<String, dynamic>> deleteTransferMud(String id) async {
     try {
@@ -1371,7 +1417,7 @@ class AuthRepository {
   Future<Map<String, dynamic>> getObm(String wellId) async {
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl/api/obm/$wellId'),
+        Uri.parse('$baseUrl${ApiEndpoint.getObm}/$wellId'),
         headers: _headers,
       );
       final data = jsonDecode(response.body);
@@ -1393,7 +1439,7 @@ class AuthRepository {
   Future<ObmModel> createObm(String wellId, ObmModel obm) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/api/obm/$wellId'),
+        Uri.parse('$baseUrl${ApiEndpoint.addObm}/$wellId'),
         headers: _headers,
         body: jsonEncode(obm.toJson()),
       );
@@ -1410,7 +1456,7 @@ class AuthRepository {
   Future<ObmModel> updateObm(String id, ObmModel obm) async {
     try {
       final response = await http.put(
-        Uri.parse('$baseUrl/api/obm/$id'),
+        Uri.parse('$baseUrl${ApiEndpoint.updateObm}/$id'),
         headers: _headers,
         body: jsonEncode(obm.toJson()),
       );
@@ -1427,7 +1473,7 @@ class AuthRepository {
   Future<Map<String, dynamic>> deleteObm(String id) async {
     try {
       final response = await http.delete(
-        Uri.parse('$baseUrl/api/obm/$id'),
+        Uri.parse('$baseUrl${ApiEndpoint.deleteObm}/$id'),
         headers: _headers,
       );
       final data = jsonDecode(response.body);
@@ -1694,3 +1740,5 @@ class AuthRepository {
     };
   }
 }
+
+

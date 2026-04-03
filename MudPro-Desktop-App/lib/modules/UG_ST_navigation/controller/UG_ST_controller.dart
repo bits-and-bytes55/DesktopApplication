@@ -5,6 +5,8 @@ import 'package:get/get.dart';
 import 'package:get/get_state_manager/src/simple/get_controllers.dart';
 import 'package:mudpro_desktop_app/api_endpoint/api_endpoint.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/model/UG_ST_model.dart';
+import 'package:mudpro_desktop_app/modules/UG/controller/UG_controller.dart';
+import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class UgStController extends GetxController {
   var selectedWellTab = 0.obs; // 0 = Well
@@ -168,7 +170,42 @@ class UgStController extends GetxController {
 
 
 
-  void switchWellTab(int index) {
+  void switchWellTab(int index) async {
+    // If moving AWAY from Inventory tab (index 1)
+    if (selectedWellTab.value == 1 && index != 1) {
+      final ugCtrl = Get.isRegistered<UgController>() ? Get.find<UgController>() : null;
+      
+      if (ugCtrl != null && ugCtrl.isInventoryDirty()) {
+        final result = await Get.dialog<String>(
+          AlertDialog(
+            title: Text('Unsaved Changes', style: TextStyle(color: AppTheme.primaryColor)),
+            content: Text('You have unsaved data in the new entry rows. Would you like to save before switching?'),
+            actions: [
+              TextButton(
+                onPressed: () => Get.back(result: 'cancel'),
+                child: Text('Cancel', style: TextStyle(color: Colors.grey)),
+              ),
+              TextButton(
+                onPressed: () => Get.back(result: 'discard'),
+                child: Text('Discard', style: TextStyle(color: Colors.red)),
+              ),
+              ElevatedButton(
+                onPressed: () => Get.back(result: 'save'),
+                style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor),
+                child: Text('Save', style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          ),
+        );
+
+        if (result == 'cancel') return;
+        if (result == 'save') {
+          await ugCtrl.saveInventory();
+        }
+        // If 'discard' or successful 'save', proceed to switch
+      }
+    }
+    
     selectedWellTab.value = index;
   }
 

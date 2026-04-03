@@ -15,16 +15,24 @@ class ReceiveMudController extends GetxController {
 
   // Form controllers
   final bolNoController = TextEditingController();
+  final fromController = TextEditingController(); // From: manual text input
   final toController = TextEditingController();
   final volController = TextEditingController();
   final lossVolumeController = TextEditingController();
+  final mwController = TextEditingController();
+  final mudTypeController = TextEditingController();
+  final leasingFeeController = TextEditingController();
+
+  // To dropdown selection
+  final selectedToDestination = ''.obs;
 
   // Checkbox states
-  final isLeased = false.obs;
+  final isLeased = true.obs;
   final hasLossVolume = false.obs;
 
   // Dropdown data
   final premixedList = <PremixModel>[].obs;
+  final obmRows = <ObmModel>[].obs; // For concentration dialog
 
   // Selected values
   final selectedPremixedId = ''.obs;
@@ -34,7 +42,7 @@ class ReceiveMudController extends GetxController {
   final Rx<PremixModel?> selectedPremixed = Rx<PremixModel?>(null);
   final Rx<PitModel?> selectedPit = Rx<PitModel?>(null);
 
-  // Well ID - replace with actual well ID from your system
+  // Well ID 
   String get wellId => '507f1f77bcf86cd799439011';
   
   @override
@@ -46,9 +54,13 @@ class ReceiveMudController extends GetxController {
   @override
   void onClose() {
     bolNoController.dispose();
+    fromController.dispose();
     toController.dispose();
     volController.dispose();
     lossVolumeController.dispose();
+    mwController.dispose();
+    mudTypeController.dispose();
+    leasingFeeController.dispose();
     super.onClose();
   }
   
@@ -58,6 +70,7 @@ class ReceiveMudController extends GetxController {
     isLoading.value = true;
     try {
       await _loadPremixedMud();
+      await pitController.fetchUnselectedPits();
     } catch (e) {
       _showToast('Failed to load data', isError: true);
       print('Error loading initial data: $e');
@@ -86,10 +99,15 @@ class ReceiveMudController extends GetxController {
   void selectPremixed(String premixedId) {
     try {
       selectedPremixedId.value = premixedId;
-      selectedPremixed.value = premixedList.firstWhere(
-        (p) => p.id == premixedId,
-      );
-      print('✅ Selected premixed mud: ${selectedPremixed.value?.description}');
+      final premixed = premixedList.firstWhere((p) => p.id == premixedId);
+      selectedPremixed.value = premixed;
+      
+      // Auto-populate MW, Mud Type, Leasing Fee
+      mwController.text = premixed.mw;
+      mudTypeController.text = premixed.mudType;
+      leasingFeeController.text = premixed.leasingFee;
+
+      print('✅ Selected premixed mud: ${premixed.description}');
     } catch (e) {
       print('❌ Error selecting premixed mud: $e');
       selectedPremixed.value = null;
@@ -113,36 +131,16 @@ class ReceiveMudController extends GetxController {
   
   // ================= SAVE RECEIVE MUD =================
   
-  Future<void> saveReceiveMud() async {
+  Future<Map<String, dynamic>> saveReceiveMud() async {
     // Validation
-    if (bolNoController.text.isEmpty) {
-      _showToast('BOL No. is required', isError: true);
-      return;
-    }
-    
     if (selectedPremixed.value == null) {
       _showToast('Please select Premixed Mud', isError: true);
-      return;
+      return {'success': false, 'message': 'Please select Premixed Mud'};
     }
     
-    if (selectedPit.value == null) {
-      _showToast('Please select From Pit', isError: true);
-      return;
-    }
-    
-    if (toController.text.isEmpty) {
+    if (selectedToDestination.value.isEmpty) {
       _showToast('To field is required', isError: true);
-      return;
-    }
-    
-    if (volController.text.isEmpty) {
-      _showToast('Volume is required', isError: true);
-      return;
-    }
-    
-    if (hasLossVolume.value && lossVolumeController.text.isEmpty) {
-      _showToast('Loss Volume is required when checked', isError: true);
-      return;
+      return {'success': false, 'message': 'To field is required'};
     }
     
     isSaving.value = true;
@@ -151,31 +149,37 @@ class ReceiveMudController extends GetxController {
       // Prepare data
       final data = {
         'bolNo': bolNoController.text,
-        'premixedMudId': selectedPremixed.value!.id,
-        'fromPitId': selectedPit.value!.id,
-        'to': toController.text,
+        'premixedMud': selectedPremixed.value!.description,
+        'mw': mwController.text,
+        'mudType': mudTypeController.text,
+        'leasingFee': leasingFeeController.text,
+        'from': fromController.text,
+        'to': selectedToDestination.value,
         'volume': double.tryParse(volController.text) ?? 0.0,
-        'isLeased': isLeased.value,
+        'leased': true, // Always true since UI is locked to true
         'lossVolume': hasLossVolume.value 
             ? (double.tryParse(lossVolumeController.text) ?? 0.0)
-            : null,
+            : 0,
         'wellId': wellId,
       };
       
       print('📤 Saving receive mud data: $data');
       
-      // TODO: Implement API call to save receive mud
-      // final result = await _repository.saveReceiveMud(data);
+      // Perform API call
+      final result = await _repository.createReceiveMud(wellId, data);
       
-      // Simulate API call
-      await Future.delayed(Duration(seconds: 1));
+      if (result['success'] == true) {
+        _showToast('Mud received successfully', isError: false);
+        _clearForm();
+      } else {
+        _showToast('Failed to save: ${result['message']}', isError: true);
+      }
       
-      _showToast('Mud received successfully', isError: false);
-      _clearForm();
-      
+      return result;
     } catch (e) {
       print('❌ Error saving receive mud: $e');
       _showToast('Failed to save receive mud', isError: true);
+      return {'success': false, 'message': e.toString()};
     } finally {
       isSaving.value = false;
     }
@@ -185,16 +189,21 @@ class ReceiveMudController extends GetxController {
   
   void _clearForm() {
     bolNoController.clear();
+    fromController.clear();
     toController.clear();
     volController.clear();
     lossVolumeController.clear();
+    mwController.clear();
+    mudTypeController.clear();
+    leasingFeeController.clear();
     
     selectedPremixedId.value = '';
     selectedPitId.value = '';
     selectedPremixed.value = null;
     selectedPit.value = null;
+    selectedToDestination.value = '';
     
-    isLeased.value = false;
+    isLeased.value = true;
     hasLossVolume.value = false;
   }
   
@@ -208,69 +217,19 @@ class ReceiveMudController extends GetxController {
   // ================= TOAST NOTIFICATIONS =================
   
   void _showToast(String message, {required bool isError}) {
-    final overlay = Get.overlayContext;
-    if (overlay == null) return;
-    
-    final overlayState = Overlay.of(overlay);
-    final overlayEntry = OverlayEntry(
-      builder: (context) => Positioned(
-        top: 80,
-        right: 20,
-        child: Material(
-          color: Colors.transparent,
-          child: TweenAnimationBuilder<double>(
-            tween: Tween(begin: 0.0, end: 1.0),
-            duration: const Duration(milliseconds: 300),
-            builder: (context, value, child) {
-              return Transform.translate(
-                offset: Offset(0, -20 * (1 - value)),
-                child: Opacity(
-                  opacity: value,
-                  child: child,
-                ),
-              );
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: isError ? Colors.red.shade600 : Colors.green.shade600,
-                borderRadius: BorderRadius.circular(8),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    isError ? Icons.error_outline : Icons.check_circle_outline,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    message,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
+    Get.snackbar(
+      isError ? 'Error' : 'Success',
+      message,
+      backgroundColor: isError ? Colors.red.shade600 : Colors.green.shade600,
+      colorText: Colors.white,
+      snackPosition: SnackPosition.TOP,
+      margin: const EdgeInsets.only(top: 16, right: 16, left: 200),
+      duration: const Duration(seconds: 3),
+      icon: Icon(
+        isError ? Icons.error_outline : Icons.check_circle_outline,
+        color: Colors.white,
+        size: 20,
       ),
     );
-    
-    overlayState.insert(overlayEntry);
-    Future.delayed(const Duration(seconds: 3), () {
-      overlayEntry.remove();
-    });
   }
-}
+}

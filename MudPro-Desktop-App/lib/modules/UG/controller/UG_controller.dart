@@ -33,9 +33,24 @@ class UgController extends GetxController {
   final applyChangedPricesOption = 'To All'.obs;
   final fromDate = ''.obs;
 
+
   // Footer fields
   final bulkTankSetupFee = ''.obs;
   final taxRate = ''.obs;
+
+  // Inventory Input State (Empty Row)
+  final premixedDescController = TextEditingController();
+  final premixedMwController = TextEditingController();
+  final premixedLeasingFeeController = TextEditingController();
+  final premixedMudTypeController = TextEditingController();
+
+  final obmProductController = TextEditingController();
+  final obmCodeController = TextEditingController();
+  final obmSgController = TextEditingController();
+  final obmConcController = TextEditingController();
+  final obmUnitController = TextEditingController();
+
+  final premixedTaxNew = false.obs;
 
   // REPORT TAB STATE
 final considerROP = true.obs;
@@ -73,15 +88,19 @@ final safetyMargin = '80.0'.obs;
     try {
       // Load Premixed
       final premixedList = await repository.getPremixed(wellId);
-      premixed.value = premixedList;
+      premixed.assignAll(premixedList);
 
       // Load OBM
-      final obmList = await repository.getObm(wellId);
-      obm.value = obmList as List<ObmModel>;
+      final res = await repository.getObm(wellId);
+      if (res['success'] == true && res['data'] is List) {
+        obm.assignAll(res['data'] as List<ObmModel>);
+      } else {
+        obm.clear();
+      }
 
       print('✅ Inventory data loaded successfully');
       print('Premixed count: ${premixedList.length}');
-      print('OBM count: ${obmList.length}');
+      print('OBM count: ${obm.length}');
     } catch (e) {
       print('❌ Error loading inventory data: $e');
 
@@ -409,5 +428,101 @@ final services = <ServiceModel>[
 
   void toggleLock() {
     isLocked.toggle();
+  }
+
+  bool isInventoryDirty() {
+    return premixedDescController.text.isNotEmpty ||
+           premixedMwController.text.isNotEmpty ||
+           premixedLeasingFeeController.text.isNotEmpty ||
+           premixedMudTypeController.text.isNotEmpty ||
+           obmProductController.text.isNotEmpty ||
+           obmCodeController.text.isNotEmpty ||
+           obmSgController.text.isNotEmpty ||
+           obmConcController.text.isNotEmpty ||
+           obmUnitController.text.isNotEmpty;
+  }
+
+  // ================= SAVE INVENTORY =================
+  Future<Map<String, dynamic>> saveInventory() async {
+    final List<String> successMessages = [];
+    final List<String> errorMessages = [];
+
+    // 1. Save New Premixed Mud (if data present)
+    if (premixedDescController.text.isNotEmpty ||
+        premixedMwController.text.isNotEmpty ||
+        premixedLeasingFeeController.text.isNotEmpty ||
+        premixedMudTypeController.text.isNotEmpty) {
+      
+      final newPremixed = PremixModel(
+        description: premixedDescController.text,
+        mw: premixedMwController.text,
+        leasingFee: premixedLeasingFeeController.text,
+        mudType: premixedMudTypeController.text,
+        tax: premixedTaxNew.value,
+      );
+
+      try {
+        await repository.createPremixed(wellId, newPremixed);
+        
+        premixedDescController.clear();
+        premixedMwController.clear();
+        premixedLeasingFeeController.clear();
+        premixedMudTypeController.clear();
+        premixedTaxNew.value = false;
+        
+        successMessages.add('Premixed mud saved');
+      } catch (e) {
+        errorMessages.add('Failed to save premixed: $e');
+      }
+    }
+
+    // 2. Save New OBM (if data present)
+    if (obmProductController.text.isNotEmpty ||
+        obmCodeController.text.isNotEmpty ||
+        obmSgController.text.isNotEmpty ||
+        obmConcController.text.isNotEmpty ||
+        obmUnitController.text.isNotEmpty) {
+
+      final newObm = ObmModel(
+        product: obmProductController.text,
+        code: obmCodeController.text,
+        sg: obmSgController.text,
+        conc: obmConcController.text,
+        unit: obmUnitController.text,
+      );
+
+      try {
+        await repository.createObm(wellId, newObm);
+
+        obmProductController.clear();
+        obmCodeController.clear();
+        obmSgController.clear();
+        obmConcController.clear();
+        obmUnitController.clear();
+
+        successMessages.add('OBM saved');
+      } catch (e) {
+        errorMessages.add('Failed to save OBM: $e');
+      }
+    }
+
+    if (errorMessages.isNotEmpty) {
+      return {
+        'success': false, 
+        'message': errorMessages.join(', ')
+      };
+    }
+
+    if (successMessages.isNotEmpty) {
+      // FORCE A FRESH LOAD FROM API
+      await loadInventoryData(wellId);
+      
+      return {
+        'success': true, 
+        'message': '${successMessages.join(', ')} successfully'
+      };
+    }
+
+    return {'success': true, 'message': 'No changes to save'};
   }
 }

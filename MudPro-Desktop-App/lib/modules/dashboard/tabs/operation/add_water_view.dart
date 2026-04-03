@@ -12,14 +12,13 @@ class AddWaterView extends StatelessWidget {
   final DashboardController dashboardController = Get.find<DashboardController>();
   final PitController pitController = Get.put(PitController());
 
-  // Table data - starts with 2 empty rows
-  final selectedTo = "Active System".obs;
-  final volValues = <String>["", ""].obs;
+  // Bind to OperationController for global state
+  // selectedTo, addWaterMainVol, and addWaterExtraRows are now in operationController
 
   @override
   Widget build(BuildContext context) {
-    // Fetch selected pits on init
-    pitController.fetchSelectedPits();
+    // Fetch all pits (including unselected/storage) on init
+    pitController.fetchAllPits();
 
     return Padding(
       padding: const EdgeInsets.all(12),
@@ -134,7 +133,7 @@ class AddWaterView extends StatelessWidget {
                                         children: [
                                           Expanded(
                                             child: Text(
-                                              selectedTo.value,
+                                              controller.addWaterTo.value,
                                               style: AppTheme.bodySmall.copyWith(
                                                 fontSize: 11,
                                                 color: Colors.white,
@@ -151,13 +150,13 @@ class AddWaterView extends StatelessWidget {
                                       ),
                                     ),
                                     onSelected: (String value) {
-                                      selectedTo.value = value;
+                                      controller.addWaterTo.value = value;
                                     },
                                     itemBuilder: (BuildContext context) {
                                       // Build dropdown items
                                       final items = <PopupMenuItem<String>>[];
 
-                                      // Add "Active System" at top
+                                      // Add "Active System" and "Empty" at top
                                       items.add(
                                         PopupMenuItem<String>(
                                           value: "Active System",
@@ -172,9 +171,21 @@ class AddWaterView extends StatelessWidget {
                                           ),
                                         ),
                                       );
+                                      items.add(
+                                        PopupMenuItem<String>(
+                                          value: "",
+                                          height: 32,
+                                          child: Text(
+                                            "",
+                                            style: AppTheme.bodySmall.copyWith(
+                                              fontSize: 11,
+                                            ),
+                                          ),
+                                        ),
+                                      );
 
                                       // Add divider
-                                      if (pitController.selectedPits.isNotEmpty) {
+                                      if (pitController.pits.isNotEmpty) {
                                         items.add(
                                           const PopupMenuItem<String>(
                                             enabled: false,
@@ -184,9 +195,9 @@ class AddWaterView extends StatelessWidget {
                                         );
                                       }
 
-                                      // Add selected pits dynamically
+                                      // Add all pits (Active & Storage)
                                       items.addAll(
-                                        pitController.selectedPits.map((pit) {
+                                        pitController.pits.map((pit) {
                                           return PopupMenuItem<String>(
                                             value: pit.pitName,
                                             height: 32,
@@ -273,6 +284,12 @@ class AddWaterView extends StatelessWidget {
                                       color: AppTheme.textPrimary,
                                       fontWeight: FontWeight.w500,
                                     ),
+                                    controller: TextEditingController(text: controller.addWaterMainVol.value)
+                                      ..selection = TextSelection.fromPosition(
+                                          TextPosition(offset: controller.addWaterMainVol.value.length)),
+                                    onChanged: (val) {
+                                      controller.addWaterMainVol.value = val;
+                                    },
                                     keyboardType: TextInputType.number,
                                   ),
                                 ),
@@ -283,7 +300,7 @@ class AddWaterView extends StatelessWidget {
 
                         // ================= DYNAMIC EMPTY ROWS (2 initial) =================
                         ...List.generate(
-                          volValues.length,
+                          controller.addWaterExtraRows.length,
                           (index) => Container(
                             height: 36,
                             decoration: BoxDecoration(
@@ -291,13 +308,13 @@ class AddWaterView extends StatelessWidget {
                                   ? Colors.white 
                                   : Colors.grey.shade50,
                               border: Border(
-                                bottom: index == volValues.length - 1
+                                bottom: index == controller.addWaterExtraRows.length - 1
                                     ? BorderSide.none
                                     : BorderSide(
                                         color: Colors.grey.shade200,
                                       ),
                               ),
-                              borderRadius: index == volValues.length - 1
+                              borderRadius: index == controller.addWaterExtraRows.length - 1
                                   ? const BorderRadius.only(
                                       bottomLeft: Radius.circular(8),
                                       bottomRight: Radius.circular(8),
@@ -339,8 +356,10 @@ class AddWaterView extends StatelessWidget {
                                         horizontal: 8),
                                     child: TextField(
                                       controller: TextEditingController(
-                                        text: volValues[index],
-                                      ),
+                                        text: controller.addWaterExtraRows[index],
+                                      )
+                                        ..selection = TextSelection.fromPosition(
+                                            TextPosition(offset: controller.addWaterExtraRows[index].length)),
                                       enabled:
                                           !dashboardController.isLocked.value,
                                       decoration: InputDecoration(
@@ -358,11 +377,11 @@ class AddWaterView extends StatelessWidget {
                                       ),
                                       keyboardType: TextInputType.number,
                                       onChanged: (val) {
-                                        volValues[index] = val;
+                                        controller.addWaterExtraRows[index] = val;
                                         // Auto-generate next row if current is last and has value
-                                        if (index == volValues.length - 1 &&
+                                        if (index == controller.addWaterExtraRows.length - 1 &&
                                             val.isNotEmpty) {
-                                          volValues.add("");
+                                          controller.addWaterExtraRows.add("");
                                         }
                                       },
                                     ),
