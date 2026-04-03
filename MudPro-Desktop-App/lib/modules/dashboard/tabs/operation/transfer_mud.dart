@@ -16,42 +16,26 @@ class _TransferMudViewState extends State<TransferMudView> {
   final DashboardController dashboardController = Get.find<DashboardController>();
   final PitController pitController = Get.put(PitController());
 
-  // Data lists
-  final RxList<PitModel> pits = <PitModel>[].obs;
-
-  // Row data for the table
-  final RxList<TransferRowData> transferRows = <TransferRowData>[].obs;
-
-  // Selected row index
   final RxInt selectedRow = 0.obs;
 
-  // From dropdown selection
-  final Rx<PitModel?> selectedFromPit = Rx<PitModel?>(null);
-
-  // Not Treated Mud checkbox
-  final RxBool notTreatedMud = false.obs;
+  static const String kActiveSystem = 'Active System';
+  static const String kEmpty = '';
 
   @override
   void initState() {
     super.initState();
     _loadData();
-    // Initialize with 5 empty rows
-    for (int i = 0; i < 5; i++) {
-      transferRows.add(TransferRowData());
-    }
   }
 
   Future<void> _loadData() async {
     try {
-      await pitController.fetchAllPits();
-      pits.value = pitController.pits.where((pit) => pit.id != null).toList();
-      
-      // Set first pit as default in "From" dropdown if available
-      if (pits.isNotEmpty) {
-        selectedFromPit.value = pits.first;
+      await pitController.fetchUnselectedPits();
+      // Initialize selectedFromPit if it's currently empty
+      if (pitController.selectedFromPit.value.isEmpty) {
+        pitController.selectedFromPit.value = kActiveSystem;
       }
     } catch (e) {
-      print("Error loading pits: $e");
+      debugPrint("Error loading pits: $e");
     }
   }
 
@@ -101,54 +85,76 @@ class _TransferMudViewState extends State<TransferMudView> {
               border: Border.all(color: Colors.grey.shade300),
               borderRadius: BorderRadius.circular(4),
             ),
-            child: Obx(() => DropdownButtonHideUnderline(
-              child: DropdownButton<PitModel>(
-                value: selectedFromPit.value,
-                isExpanded: true,
-                isDense: true,
-                hint: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: Text(
-                    "Select pit",
-                    style: AppTheme.bodySmall.copyWith(
-                      fontSize: 10,
-                      color: Colors.grey.shade400,
-                    ),
-                  ),
-                ),
-                icon: Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: Icon(
-                    Icons.arrow_drop_down,
-                    size: 18,
-                    color: Colors.grey.shade600,
-                  ),
-                ),
-                style: AppTheme.bodySmall.copyWith(
-                  fontSize: 10,
-                  color: AppTheme.textPrimary,
-                ),
-                menuMaxHeight: 200,
-                items: pits.map((pit) {
-                  return DropdownMenuItem<PitModel>(
-                    value: pit,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: Text(
-                        pit.pitName,
-                        style: AppTheme.bodySmall.copyWith(fontSize: 10),
-                        overflow: TextOverflow.ellipsis,
+            child: Obx(() {
+              final unselectedPits = pitController.unselectedPits;
+              
+              return DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: pitController.selectedFromPit.value.isEmpty ? kEmpty : pitController.selectedFromPit.value,
+                  isExpanded: true,
+                  isDense: true,
+                  hint: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Text(
+                      "Select pit",
+                      style: AppTheme.bodySmall.copyWith(
+                        fontSize: 10,
+                        color: Colors.grey.shade400,
                       ),
                     ),
-                  );
-                }).toList(),
-                onChanged: dashboardController.isLocked.value
-                    ? null
-                    : (PitModel? value) {
-                        selectedFromPit.value = value;
-                      },
-              ),
-            )),
+                  ),
+                  icon: Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: Icon(
+                      Icons.arrow_drop_down,
+                      size: 18,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                  style: AppTheme.bodySmall.copyWith(
+                    fontSize: 10,
+                    color: AppTheme.textPrimary,
+                  ),
+                  menuMaxHeight: 200,
+                  items: [
+                    const DropdownMenuItem<String>(
+                      value: kEmpty,
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 8),
+                        child: Text(""),
+                      ),
+                    ),
+                    const DropdownMenuItem<String>(
+                      value: kActiveSystem,
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 8),
+                        child: Text(kActiveSystem, style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
+                      ),
+                    ),
+                    ...unselectedPits.map((pit) {
+                      return DropdownMenuItem<String>(
+                        value: pit.pitName,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          child: Text(
+                            pit.pitName,
+                            style: AppTheme.bodySmall.copyWith(fontSize: 10),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      );
+                    }),
+                  ],
+                  onChanged: dashboardController.isLocked.value
+                      ? null
+                      : (String? value) {
+                          if (value != null) {
+                            pitController.selectedFromPit.value = value;
+                          }
+                        },
+                ),
+              );
+            }),
           ),
         ),
         const SizedBox(width: 8),
@@ -177,24 +183,24 @@ class _TransferMudViewState extends State<TransferMudView> {
           onTap: dashboardController.isLocked.value
               ? null
               : () {
-                  notTreatedMud.value = !notTreatedMud.value;
+                  pitController.notTreatedMud.value = !pitController.notTreatedMud.value;
                 },
           child: Container(
             width: 16,
             height: 16,
             decoration: BoxDecoration(
               border: Border.all(
-                color: notTreatedMud.value
+                color: pitController.notTreatedMud.value
                     ? AppTheme.primaryColor
                     : Colors.grey.shade400,
                 width: 1.5,
               ),
               borderRadius: BorderRadius.circular(3),
-              color: notTreatedMud.value
+              color: pitController.notTreatedMud.value
                   ? AppTheme.primaryColor.withOpacity(0.1)
                   : Colors.transparent,
             ),
-            child: notTreatedMud.value
+            child: pitController.notTreatedMud.value
                 ? Icon(
                     Icons.check,
                     size: 12,
@@ -230,7 +236,7 @@ class _TransferMudViewState extends State<TransferMudView> {
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Container(
-                width: 500, // Fixed width for 3 columns
+                width: 500, // Fixed width for 4 columns (added action cell)
                 child: Column(
                   children: [
                     // Table Header - Fixed
@@ -244,8 +250,9 @@ class _TransferMudViewState extends State<TransferMudView> {
                       child: Row(
                         children: [
                           _buildHeaderCell("No", 50),
-                          _buildHeaderCell("Pit", 300),
-                          _buildHeaderCell("Vol. (bbl)", 150),
+                          _buildHeaderCell("Pit", 260),
+                          _buildHeaderCell("Vol. (bbl)", 140),
+                          _buildHeaderCell("", 50),
                         ],
                       ),
                     ),
@@ -254,8 +261,8 @@ class _TransferMudViewState extends State<TransferMudView> {
                     Expanded(
                       child: Obx(() => SingleChildScrollView(
                         child: Column(
-                          children: List.generate(transferRows.length, (index) {
-                            final row = transferRows[index];
+                          children: List.generate(pitController.transferRows.length, (index) {
+                            final row = pitController.transferRows[index];
                             final isSelected = selectedRow.value == index;
 
                             return Container(
@@ -273,9 +280,11 @@ class _TransferMudViewState extends State<TransferMudView> {
                                   // Number cell
                                   _buildNumberCell(index + 1, 50),
                                   // Pit dropdown cell
-                                  _buildPitDropdownCell(row, index, isSelected, 300),
+                                  _buildPitDropdownCell(row, index, isSelected, 260),
                                   // Volume cell
-                                  _buildVolumeCell(row, 150),
+                                  _buildVolumeCell(row, 140),
+                                  // Action cell
+                                  _buildActionCell(index, 50),
                                 ],
                               ),
                             );
@@ -329,26 +338,22 @@ class _TransferMudViewState extends State<TransferMudView> {
         ),
         child: Row(
           children: [
-            // Dropdown icon
-            Icon(
-              isSelected ? Icons.arrow_drop_down : Icons.arrow_right,
-              size: 16,
-              color: isSelected ? AppTheme.primaryColor : Colors.grey.shade400,
+            // Dropdown icon - logic: show if 1st row or if currently selected
+            Opacity(
+              opacity: (index == 0 || isSelected) ? 1.0 : 0.0,
+              child: Icon(
+                isSelected ? Icons.arrow_drop_down : Icons.arrow_right,
+                size: 16,
+                color: isSelected ? AppTheme.primaryColor : Colors.grey.shade400,
+              ),
             ),
             const SizedBox(width: 4),
 
             // Dropdown
             Expanded(
               child: DropdownButtonHideUnderline(
-                child: DropdownButton<PitModel>(
-                  value: row.selectedPit,
-                  hint: Text(
-                    "",
-                    style: AppTheme.bodySmall.copyWith(
-                      fontSize: 10,
-                      color: Colors.grey,
-                    ),
-                  ),
+                child: DropdownButton<String>(
+                  value: row.pitName.isEmpty ? kEmpty : row.pitName,
                   isExpanded: true,
                   isDense: true,
                   icon: const SizedBox.shrink(),
@@ -357,24 +362,35 @@ class _TransferMudViewState extends State<TransferMudView> {
                     color: AppTheme.textPrimary,
                   ),
                   menuMaxHeight: 250,
-                  items: pits.map((pit) {
-                    return DropdownMenuItem<PitModel>(
-                      value: pit,
-                      child: Text(
-                        pit.pitName,
-                        style: AppTheme.bodySmall.copyWith(fontSize: 10),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    );
-                  }).toList(),
+                  // Build the items list: empty + Active System + unselected pits
+                  items: [
+                    const DropdownMenuItem<String>(
+                      value: kEmpty,
+                      child: Text("", style: TextStyle(fontSize: 10)),
+                    ),
+                    const DropdownMenuItem<String>(
+                      value: kActiveSystem,
+                      child: Text(kActiveSystem, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
+                    ),
+                    ...pitController.unselectedPits.map((pit) {
+                      return DropdownMenuItem<String>(
+                        value: pit.pitName,
+                        child: Text(
+                          pit.pitName,
+                          style: AppTheme.bodySmall.copyWith(fontSize: 10),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      );
+                    }),
+                  ],
                   onChanged: dashboardController.isLocked.value
                       ? null
-                      : (PitModel? value) {
+                      : (String? value) {
                           if (value != null) {
                             selectedRow.value = index;
-                            row.selectedPit = value;
-                            transferRows.refresh();
-                            _checkAndAddRow();
+                            row.pitName = value;
+                            pitController.transferRows.refresh();
+                            pitController.checkAndAddTransferRow();
                           }
                         },
                 ),
@@ -415,7 +431,7 @@ class _TransferMudViewState extends State<TransferMudView> {
         ),
       ),
       child: TextField(
-        controller: TextEditingController(text: row.volume),
+        controller: row.volumeController,
         enabled: !dashboardController.isLocked.value,
         style: AppTheme.bodySmall.copyWith(fontSize: 10),
         decoration: const InputDecoration(
@@ -423,7 +439,7 @@ class _TransferMudViewState extends State<TransferMudView> {
           contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 6),
           border: InputBorder.none,
         ),
-        keyboardType: TextInputType.number,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
         textAlign: TextAlign.right,
         onChanged: (val) {
           row.volume = val;
@@ -432,23 +448,25 @@ class _TransferMudViewState extends State<TransferMudView> {
     );
   }
 
-  void _checkAndAddRow() {
-    if (transferRows.length >= 5) {
-      final lastRow = transferRows.last;
-      if (lastRow.selectedPit != null) {
-        transferRows.add(TransferRowData());
-      }
-    }
+  Widget _buildActionCell(int index, double width) {
+    return Container(
+      width: width,
+      height: 32,
+      alignment: Alignment.center,
+      child: IconButton(
+        icon: Icon(Icons.delete_outline, size: 16, color: Colors.red.shade400),
+        onPressed: dashboardController.isLocked.value 
+            ? null 
+            : () => pitController.deleteTransferRow(index),
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(),
+        tooltip: 'Delete row',
+      ),
+    );
   }
 
   @override
   void dispose() {
     super.dispose();
   }
-}
-
-// Row data class
-class TransferRowData {
-  PitModel? selectedPit;
-  String volume = '';
-}
+}

@@ -298,6 +298,64 @@ class EngineerController extends GetxController {
     }
   }
 
+  // ─── Export/Import Helpers ────────────────────────────────────────────────
+
+  List<List<String>> getExportData() {
+    List<List<String>> data = [['First Name', 'Last Name', 'Cell', 'Office', 'E-mail']];
+    for (var eng in engineers) {
+      data.add([
+        eng.firstName,
+        eng.lastName,
+        eng.cell,
+        eng.office,
+        eng.email,
+      ]);
+    }
+    return data;
+  }
+
+  void importFromData(List<List<String>> rows) {
+    // We will reuse existing unsaved rows instead of deleting and recreating them
+    var unsavedRows = rowControllers.where((r) => r.engineerId == null).toList();
+    int currentUnsavedIndex = 0;
+
+    // Map rows to row controllers
+    for (var row in rows) {
+      if (row.length < 5) continue;
+      EngineerRowControllers targetRow;
+      if (currentUnsavedIndex < unsavedRows.length) {
+         targetRow = unsavedRows[currentUnsavedIndex];
+         currentUnsavedIndex++;
+      } else {
+         targetRow = EngineerRowControllers();
+         rowControllers.add(targetRow);
+      }
+      
+      targetRow.firstNameController.text = row[0];
+      targetRow.lastNameController.text  = row[1];
+      targetRow.cellController.text      = row[2];
+      targetRow.officeController.text    = row[3];
+      targetRow.emailController.text     = row[4];
+    }
+
+    // Clear any remaining unsaved rows we didn't use!
+    while (currentUnsavedIndex < unsavedRows.length) {
+      var unused = unsavedRows[currentUnsavedIndex];
+      unused.firstNameController.text = '';
+      unused.lastNameController.text = '';
+      unused.cellController.text = '';
+      unused.officeController.text = '';
+      unused.emailController.text = '';
+      currentUnsavedIndex++;
+    }
+
+    // Add empty spacer rows if needed
+    if (rowControllers.length < 10) {
+      _initializeRows(2);
+    }
+    update(); // Notify UI
+  }
+
   void showDeleteConfirmation(BuildContext context, String engineerId, String engineerName) {
     showDialog(
       context: context,

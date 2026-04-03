@@ -11,6 +11,7 @@ import 'package:mudpro_desktop_app/modules/dashboard/widgets/tabular_database.da
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/controller/UG_ST_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/model/UG_ST_model.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/cased_hole_controller.dart';
 
 const double _kRowH = 22.0;
 const double _kHeaderH = 28.0;
@@ -257,7 +258,7 @@ class _GeneralSectionState extends State<GeneralSection> {
     });
   }
 
-  void _syncAndSave() {
+  void _sync() {
     final w = wellGenCtrl;
     w.reportNo.value          = fc['Report #']!.text;
     w.userReportNo.value      = fc['User Report #']!.text;
@@ -289,7 +290,6 @@ class _GeneralSectionState extends State<GeneralSection> {
     w.nptTime.value           = fc['NPT Time']!.text;
     w.nptCost.value           = fc['NPT Cost']!.text;
     w.depthDrilled.value      = fc['Depth Drilled']!.text;
-    w.save();
   }
 
   @override
@@ -305,15 +305,6 @@ class _GeneralSectionState extends State<GeneralSection> {
           child: Text("General", style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.primaryColor)),
         ),
         const Spacer(),
-        Obx(() => wellGenCtrl.isSaving.value
-            ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 1.5))
-            : InkWell(
-                onTap: _syncAndSave,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(color: AppTheme.primaryColor, borderRadius: BorderRadius.circular(3)),
-                  child: const Text('Save', style: TextStyle(fontSize: 9, color: Colors.white, fontWeight: FontWeight.w600))))),
-        const SizedBox(width: 4),
       ]),
       Expanded(
         child: SingleChildScrollView(
@@ -326,11 +317,11 @@ class _GeneralSectionState extends State<GeneralSection> {
               _tfRow("User Report #", "User Report #", ""),
               _dateRow(),
               _timeRow(),
-              _engRow("Engineer",   selectedEngId,  (v) => setState(() => selectedEngId  = v)),
-              _engRow("Engineer 2", selectedEng2Id, (v) => setState(() => selectedEng2Id = v)),
+              _engRow("Engineer",   selectedEngId,  (v) { setState(() => selectedEngId  = v); _sync(); }),
+              _engRow("Engineer 2", selectedEng2Id, (v) { setState(() => selectedEng2Id = v); _sync(); }),
               _tfRow("Operator Rep.", "Operator Rep.", ""),
               _tfRow("Contractor Rep.", "Contractor Rep.", ""),
-              _ddRow("Activity", selectedActivity, activityOptions, (v) => setState(() => selectedActivity = v!)),
+              _ddRow("Activity", selectedActivity, activityOptions, (v) { setState(() => selectedActivity = v!); _sync(); }),
               _tfRow("MD", "MD", "ft"),
               _tfRow("TVD", "TVD", "ft"),
               _tfRow("Inc", "Inc", "°"),
@@ -345,7 +336,7 @@ class _GeneralSectionState extends State<GeneralSection> {
               _tfRow("On-bottom TQ", "On-bottom TQ", "ft-lb"),
               _tfRow("Suction T.", "Suction T.", "°F"),
               _tfRow("Bottom T.", "Bottom T.", "°F"),
-              _ddRow("Interval", selectedInterval, intervalOptions, (v) => setState(() => selectedInterval = v!)),
+              _ddRow("Interval", selectedInterval, intervalOptions, (v) { setState(() => selectedInterval = v!); _sync(); }),
               _tfRow("FIT", "FIT", "ppg"),
               _tfRow("Formation", "Formation", ""),
               _tfRow("Additional Footage", "Additional Footage", "ft"),
@@ -398,6 +389,7 @@ class _GeneralSectionState extends State<GeneralSection> {
                 height: _kRowH,
                 child: TextField(
                   controller: ctrl,
+                  onChanged: (val) => _sync(),
                   style: const TextStyle(fontSize: 10),
                   textAlign: TextAlign.center,
                   decoration: const InputDecoration(
@@ -436,6 +428,7 @@ class _GeneralSectionState extends State<GeneralSection> {
                     );
                     if (picked != null) {
                       setState(() => _storedDate = _formatStorage(picked));
+                      _sync();
                     }
                   },
                   style: TextButton.styleFrom(
@@ -476,7 +469,7 @@ class _GeneralSectionState extends State<GeneralSection> {
                     icon: const Icon(Icons.arrow_drop_down, size: 13),
                     style: const TextStyle(fontSize: 10, color: Colors.black),
                     menuMaxHeight: 200,
-                    onChanged: (v) { if (v != null) setState(() => selectedTime = v); },
+                    onChanged: (v) { if (v != null) { setState(() => selectedTime = v); _sync(); } },
                     items: _kTimeSlots.map((t) => DropdownMenuItem(
                       value: t,
                       child: Center(child: Text(t, style: const TextStyle(fontSize: 10))),
@@ -576,7 +569,9 @@ class _GeneralSectionState extends State<GeneralSection> {
 // ═══════════════════════════════════════════════════════════════════
 Widget _hCell(String t, Color primary) => Container(
   padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 4),
-  child: Text(t, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: primary), textAlign: TextAlign.center));
+  alignment: Alignment.center,
+  child: Text(t, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: primary), textAlign: TextAlign.center, overflow: TextOverflow.ellipsis),
+);
 
 Widget _noCell(int rowNo, bool sel, Color primary) => Container(
   height: _kRowH,
@@ -588,14 +583,15 @@ Widget _noCell(int rowNo, bool sel, Color primary) => Container(
   ),
 );
 
-Widget _eCell(TextEditingController ctrl, DashboardController c, {ValueChanged<String>? onChanged}) => Container(
+Widget _eCell(TextEditingController ctrl, DashboardController c, {ValueChanged<String>? onChanged, bool readOnly = false}) => Container(
   padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
-  child: Obx(() => c.isLocked.value
+  child: Obx(() => (c.isLocked.value || readOnly)
       ? SizedBox(height: _kRowH, child: Center(child: Text(ctrl.text, style: TextStyle(fontSize: 9, color: AppTheme.textPrimary), textAlign: TextAlign.center)))
       : SizedBox(height: _kRowH, child: TextField(
           controller: ctrl,
           style: const TextStyle(fontSize: 9),
           textAlign: TextAlign.center,
+          readOnly: readOnly,
           onChanged: onChanged,
           decoration: const InputDecoration(isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 2, vertical: 2), border: InputBorder.none, enabledBorder: InputBorder.none, focusedBorder: InputBorder.none, fillColor: Colors.white, filled: true)))));
 
@@ -642,21 +638,24 @@ class _MiddlePortionState extends State<MiddlePortion> {
     });
   }
 
-  Widget _cementRow() => Row(children: [
-    Obx(() => Checkbox(
-      value: cementPlug,
-      onChanged: c.isLocked.value ? null : (v) => setState(() => cementPlug = v ?? false),
-      visualDensity: VisualDensity.compact,
-      activeColor: AppTheme.primaryColor,
-    )),
-    const Text("Cement Plug Vol. (bbl)", style: TextStyle(fontSize: 10)),
-    const SizedBox(width: 6),
-    SizedBox(width: 130, child: _field(_cemCtrl)),
-    const SizedBox(width: 12),
-    const Text("Plug Top (ft)", style: TextStyle(fontSize: 10)),
-    const SizedBox(width: 6),
-    SizedBox(width: 130, child: _field(_plugCtrl)),
-  ]);
+  Widget _cementRow() => SingleChildScrollView(
+    scrollDirection: Axis.horizontal,
+    child: Row(children: [
+      Obx(() => Checkbox(
+        value: cementPlug,
+        onChanged: c.isLocked.value ? null : (v) => setState(() => cementPlug = v ?? false),
+        visualDensity: VisualDensity.compact,
+        activeColor: AppTheme.primaryColor,
+      )),
+      const Text("Cement Plug Vol. (bbl)", style: TextStyle(fontSize: 10)),
+      const SizedBox(width: 6),
+      SizedBox(width: 110, child: _field(_cemCtrl)),
+      const SizedBox(width: 8),
+      const Text("Plug Top (ft)", style: TextStyle(fontSize: 10)),
+      const SizedBox(width: 6),
+      SizedBox(width: 110, child: _field(_plugCtrl)),
+    ]),
+  );
 
   Widget _field(TextEditingController ctrl) => Container(
     height: 22,
@@ -680,18 +679,14 @@ class _CasedHoleSectionState extends State<CasedHoleSection> {
 
   // ── Casing controller to fetch from API ─────────────────────────
   late final UgStController _casingCtrl;
+  final CasedHoleUIController uiCtrl = Get.isRegistered<CasedHoleUIController>()
+      ? Get.find<CasedHoleUIController>()
+      : Get.put(CasedHoleUIController());
 
   // Currently selected casing from dropdown (null = nothing selected)
   CasingRow? _selectedCasing;
 
   int? selectedRowIndex;
-
-  // Table rows — each row is 7 TextEditingControllers
-  // [Description, OD, Wt, ID, Top, Shoe, Len]
-  List<List<TextEditingController>> tableData = List.generate(
-    10,
-    (_) => List.generate(7, (_) => TextEditingController()),
-  );
 
   @override
   void initState() {
@@ -704,62 +699,17 @@ class _CasedHoleSectionState extends State<CasedHoleSection> {
 
   @override
   void dispose() {
-    for (var r in tableData) {
-      for (var ctrl in r) ctrl.dispose();
-    }
     super.dispose();
   }
 
   void _addCasingRow() {
     if (_selectedCasing == null) return;
-    final csg = _selectedCasing!;
+    uiCtrl.addRowFromCasing(_selectedCasing!);
 
-    // Find first row with empty description, or append new one
-    int targetIdx = tableData.indexWhere((row) => row[0].text.isEmpty);
-
-    setState(() {
-      if (targetIdx == -1) {
-        tableData.add(List.generate(7, (_) => TextEditingController()));
-        targetIdx = tableData.length - 1;
-      }
-
-      final row = tableData[targetIdx];
-      row[0].text = csg.description.value;
-      row[1].text = csg.od.value;
-      row[2].text = csg.wt.value;
-      row[3].text = csg.id.value;
-      row[4].text = csg.top.value;
-      row[5].text = csg.shoe.value;
-      row[6].text = _calcLen(csg.top.value, csg.shoe.value);
-
-      // Successfully added, reset selection dropdown
-      _selectedCasing = null;
-
-      // Always ensure at least one fully empty row exists at bottom
-      bool hasEmpty = tableData.any((r) => r.every((c) => c.text.isEmpty));
-      if (!hasEmpty) {
-        tableData.add(List.generate(7, (_) => TextEditingController()));
-      }
+    // Successfully added, reset selection dropdown
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() => _selectedCasing = null);
     });
-  }
-
-  void _checkAndAddRow(int idx) {
-    if (idx == tableData.length - 1) {
-      if (tableData[idx].any((ctrl) => ctrl.text.trim().isNotEmpty)) {
-        setState(() {
-          tableData.add(List.generate(7, (_) => TextEditingController()));
-        });
-      }
-    }
-  }
-
-  String _calcLen(String top, String shoe) {
-    final t = double.tryParse(top);
-    final s = double.tryParse(shoe);
-    if (t != null && s != null) {
-      return (s - t).toStringAsFixed(1);
-    }
-    return '';
   }
 
   @override
@@ -852,7 +802,7 @@ class _CasedHoleSectionState extends State<CasedHoleSection> {
         final double cw = avail / 7;
         return SingleChildScrollView(
           scrollDirection: Axis.vertical,
-          child: Table(
+          child: Obx(() => Table(
             border: TableBorder.all(color: Colors.grey.shade300, width: 1),
             defaultVerticalAlignment: TableCellVerticalAlignment.middle,
             columnWidths: {
@@ -874,31 +824,33 @@ class _CasedHoleSectionState extends State<CasedHoleSection> {
                   'ID\n(in)','Top\n(ft)','Shoe\n(ft)','Len.\n(ft)'
                 ].map((h) => _hCell(h, AppTheme.primaryColor)).toList(),
               ),
-              ...tableData.asMap().entries.map((entry) {
-                final idx   = entry.key;
-                final ctrls = entry.value;
-                final bool sel = selectedRowIndex == idx;
-                return TableRow(
-                  decoration: BoxDecoration(
-                    color: sel
-                        ? AppTheme.primaryColor.withOpacity(0.1)
-                        : (idx % 2 == 0 ? Colors.white : Colors.grey.shade50),
-                  ),
-                  children: [
-                    GestureDetector(
-                      onTap: () =>
-                          setState(() => selectedRowIndex = sel ? null : idx),
-                      child: _noCell(idx + 1, sel, AppTheme.primaryColor)),
-                    ...ctrls.map((ctrl) => _eCell(
-                      ctrl,
-                      c,
-                      onChanged: (v) => _checkAndAddRow(idx),
-                    )).toList(),
-                  ],
-                );
-              }).toList(),
+              ...uiCtrl.entries.asMap().entries.map((entry) {
+                  final idx   = entry.key;
+                  final e = entry.value;
+                  final bool sel = selectedRowIndex == idx;
+                  return TableRow(
+                    decoration: BoxDecoration(
+                      color: sel
+                          ? AppTheme.primaryColor.withOpacity(0.1)
+                          : (idx % 2 == 0 ? Colors.white : Colors.grey.shade50),
+                    ),
+                    children: [
+                      GestureDetector(
+                        onTap: () =>
+                            setState(() => selectedRowIndex = sel ? null : idx),
+                        child: _noCell(idx + 1, sel, AppTheme.primaryColor)),
+                      _eCell(e.description, c, onChanged: (v) => uiCtrl.checkAndAddRow(idx)),
+                      _eCell(e.od, c, onChanged: (v) => uiCtrl.checkAndAddRow(idx)),
+                      _eCell(e.wt, c, onChanged: (v) => uiCtrl.checkAndAddRow(idx)),
+                      _eCell(e.idCtrl, c, onChanged: (v) => uiCtrl.checkAndAddRow(idx)),
+                      _eCell(e.top, c, onChanged: (v) => uiCtrl.checkAndAddRow(idx)),
+                      _eCell(e.shoe, c, onChanged: (v) => uiCtrl.checkAndAddRow(idx)),
+                      _eCell(e.length, c, readOnly: true),
+                    ],
+                  );
+                }).toList(),
             ],
-          ),
+          )),
         );
       })),
 

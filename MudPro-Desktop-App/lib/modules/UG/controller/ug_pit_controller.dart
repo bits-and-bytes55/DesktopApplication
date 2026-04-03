@@ -1,7 +1,32 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/pit_model.dart';
+
+// ── Transfer Mud Row Data ────
+class TransferRowData {
+  String pitName = '';
+  String volume = '';
+  String? savedId;
+  final TextEditingController volumeController = TextEditingController();
+
+  TransferRowData({this.pitName = '', this.volume = '', this.savedId}) {
+    volumeController.text = volume;
+  }
+
+  Map<String, dynamic> toJson(String wellId, bool notTreated) {
+    return {
+      'wellId': wellId,
+      'pitName': pitName,
+      'volumeBbl': double.tryParse(volume) ?? 0.0,
+      'notTreatedMud': notTreated,
+    };
+  }
+}
+
+// Static well ID
+const String kControllerWellId = '67f1a2b3c4d5e6f7890a1111';
 
 class PitController extends GetxController {
   final isLoading = false.obs;
@@ -9,20 +34,51 @@ class PitController extends GetxController {
   final pits = <PitModel>[].obs;
   final selectedPits = <PitModel>[].obs;
   final unselectedPits = <PitModel>[].obs;
-  
+
+  // Transfer Mud State
+  final transferRows = <TransferRowData>[].obs;
+  final isLoadingTransfer = false.obs;
+  final notTreatedMud = false.obs;
+  final selectedFromPit = 'Active System'.obs;
+  final selectedRowIndex = 0.obs;
+
   final totalCapacity = 0.0.obs;
-  
+
   String? currentWellId;
+
+  // UI state migrated from PitPage for global Save access
+  final RxMap<String, dynamic> volumeNameData = <String, dynamic>{}.obs;
+  final RxBool isLoadingVolume = false.obs;
+  final Map<String, Map<String, TextEditingController>> activePitControllers = {};
+  
+  // Track modified pits for single-pit update on global Save
+  final Set<String> modifiedPitIds = {};
+  
+  Timer? _debounceTimer;
 
   @override
   void onInit() {
     super.onInit();
-    currentWellId = Get.arguments?['wellId'] ?? 'UG-0293 ST';
+    // Use static well ID; override if passed via arguments
+    currentWellId =
+        Get.arguments?['wellId'] ?? kControllerWellId;
     fetchAllPits();
+    fetchVolumeNameData();
+    // Initialize Transfer Mud
+    _initializeTransferRows();
+    fetchTransferMud();
+  }
+
+  void _initializeTransferRows() {
+    if (transferRows.isEmpty) {
+      for (int i = 0; i < 5; i++) {
+        transferRows.add(TransferRowData());
+      }
+    }
   }
 
   // ================= FETCH OPERATIONS =================
-  
+
   Future<void> fetchAllPits() async {
     if (currentWellId == null) {
       _showAlert('Well ID is required', isError: true);
@@ -36,16 +92,13 @@ class PitController extends GetxController {
 
       if (result['success'] == true) {
         final data = result['data'];
-        
+
         if (data != null) {
           if (data is List) {
-            if (data.isNotEmpty && data.first is PitModel) {
-              pits.value = List<PitModel>.from(data);
-            } else {
-              pits.value = data
-                  .map((item) => PitModel.fromJson(item as Map<String, dynamic>))
-                  .toList();
-            }
+            final allPits = data.isNotEmpty && data.first is PitModel
+                ? List<PitModel>.from(data)
+                : data.map((item) => PitModel.fromJson(item as Map<String, dynamic>)).toList();
+            pits.value = allPits;
           } else {
             pits.clear();
           }
@@ -57,11 +110,12 @@ class PitController extends GetxController {
         _updateSeparatedLists();
         _ensureEmptyRow();
       } else {
-        _showAlert(result['message'] ?? 'Failed to fetch pits', isError: true);
+        _showAlert(result['message'] ?? 'Failed to fetch pits',
+            isError: true);
         _ensureEmptyRow();
       }
     } catch (e) {
-      print('Error fetching pits: $e');
+      debugPrint('Error fetching pits: $e');
       _showAlert('Error fetching pits', isError: true);
       _ensureEmptyRow();
     } finally {
@@ -78,21 +132,18 @@ class PitController extends GetxController {
 
       if (result['success'] == true) {
         final data = result['data'];
-        
+
         if (data != null && data is List) {
-          if (data.isNotEmpty && data.first is PitModel) {
-            selectedPits.value = List<PitModel>.from(data);
-          } else {
-            selectedPits.value = data
-                .map((item) => PitModel.fromJson(item as Map<String, dynamic>))
-                .toList();
-          }
+          final allPits = data.isNotEmpty && data.first is PitModel
+              ? List<PitModel>.from(data)
+              : data.map((item) => PitModel.fromJson(item as Map<String, dynamic>)).toList();
+          selectedPits.value = allPits;
         } else {
           selectedPits.clear();
         }
       }
     } catch (e) {
-      print('Error fetching selected pits: $e');
+      debugPrint('Error fetching selected pits: $e');
     }
   }
 
@@ -105,39 +156,43 @@ class PitController extends GetxController {
 
       if (result['success'] == true) {
         final data = result['data'];
-        
+
         if (data != null && data is List) {
-          if (data.isNotEmpty && data.first is PitModel) {
-            unselectedPits.value = List<PitModel>.from(data);
-          } else {
-            unselectedPits.value = data
-                .map((item) => PitModel.fromJson(item as Map<String, dynamic>))
-                .toList();
-          }
+          final allPits = data.isNotEmpty && data.first is PitModel
+              ? List<PitModel>.from(data)
+              : data.map((item) => PitModel.fromJson(item as Map<String, dynamic>)).toList();
+          unselectedPits.value = allPits;
         } else {
           unselectedPits.clear();
         }
       }
     } catch (e) {
-      print('Error fetching unselected pits: $e');
+      debugPrint('Error fetching unselected pits: $e');
     }
   }
 
+  // _filterLatestPits method removed 
+
   // ================= BULK SAVE NEW PITS =================
-  
+
   Future<void> bulkSavePits() async {
     if (currentWellId == null) {
       _showAlert('Well ID is required', isError: true);
       return;
     }
 
-    // Get only new pits (without id and with data)
     final newPits = pits
-        .where((pit) => pit.id == null && pit.pitName.isNotEmpty && pit.capacity.value > 0)
+        .where((pit) =>
+            pit.id == null &&
+            pit.pitName.isNotEmpty &&
+            pit.capacity.value > 0)
         .map((pit) => {
               'pitName': pit.pitName,
               'capacity': pit.capacity.value,
               'initialActive': pit.initialActive.value,
+              'volume': pit.volume?.value ?? 0.0,
+              'density': pit.density?.value ?? 0.0,
+              'fluidType': pit.fluidType?.value ?? '',
             })
         .toList();
 
@@ -155,21 +210,251 @@ class PitController extends GetxController {
       );
 
       if (result['success'] == true) {
-        _showAlert('${newPits.length} pit(s) saved successfully', isError: false);
-        await fetchAllPits(); // Auto refresh
+        _showAlert('${newPits.length} pit(s) saved successfully',
+            isError: false);
+        await fetchAllPits();
       } else {
-        _showAlert(result['message'] ?? 'Failed to save pits', isError: true);
+        _showAlert(result['message'] ?? 'Failed to save pits',
+            isError: true);
       }
     } catch (e) {
-      print('Error saving pits: $e');
+      debugPrint('Error saving pits: $e');
       _showAlert('Error saving pits', isError: true);
     } finally {
       isSaving.value = false;
     }
   }
 
+  // ================= UPDATE ACTIVE PIT VOLUME DATA =================
+
+  /// Called on every keystroke with a debounce to update the master pit record (PUT)
+  void onPitFieldChanged({
+    required String pitId,
+    required double volume,
+    required double density,
+    required String fluidType,
+  }) {
+    _debounceTimer?.cancel();
+    
+    // Mark as modified immediately
+    if (pitId.isNotEmpty) {
+      modifiedPitIds.add(pitId);
+    }
+
+    _debounceTimer = Timer(const Duration(milliseconds: 1500), () {
+      updatePitMaster(
+        pitId: pitId,
+        volume: volume,
+        density: density,
+        fluidType: fluidType,
+      );
+    });
+  }
+
+  /// Updates the master pit record via PUT /pit/:id (No new records created)
+  Future<void> updatePitMaster({
+    required String pitId,
+    required double volume,
+    required double density,
+    required String fluidType,
+  }) async {
+    if (pitId.isEmpty) return;
+    try {
+      final authRepo = AuthRepository();
+      // Find the pit model context
+      final pitModel = pits.firstWhereOrNull((p) => p.id == pitId) ??
+                      selectedPits.firstWhereOrNull((p) => p.id == pitId) ??
+                      unselectedPits.firstWhereOrNull((p) => p.id == pitId);
+      
+      final result = await authRepo.updatePit(
+        id: pitId,
+        pitName: pitModel?.pitName,
+        capacity: pitModel?.capacity?.value,
+        initialActive: pitModel?.initialActive?.value,
+        volume: volume,
+        density: density,
+        fluidType: fluidType,
+      );
+
+      if (result['success'] == true) {
+        debugPrint('Master pit $pitId updated successfully');
+        // Update local model values if different
+        if (pitModel != null) {
+          pitModel.volume?.value = volume;
+          pitModel.density?.value = density;
+          pitModel.fluidType?.value = fluidType;
+          pits.refresh();
+        }
+      }
+    } catch (e) {
+      debugPrint('Error in updatePitMaster: $e');
+    }
+  }
+
+  /// Called from save button to trigger calculation (POST)
+  Future<void> updatePitVolumeData({
+    required String pitId,
+    required double volume,
+    required double density,
+    required String fluidType,
+  }) async {
+    try {
+      final authRepo = AuthRepository();
+
+      // Find the pit model to get its name & other details (required by backend)
+      final pitModel = pits.firstWhereOrNull((p) => p.id == pitId);
+      final String pitName = pitModel?.pitName ?? 'Unknown Pit';
+
+      final result = await authRepo.updatePitVolumeData(
+        id: pitId,
+        wellId: currentWellId ?? kControllerWellId,
+        pitName: pitName,
+        volume: volume,
+        density: density,
+        fluidType: fluidType,
+        capacity: pitModel?.capacity?.value ?? 0,
+        initialActive: pitModel?.initialActive?.value ?? true,
+      );
+      if (result['success'] == true) {
+        // Update local model
+        final idx = pits.indexWhere((p) => p.id == pitId);
+        if (idx != -1) {
+          pits[idx].volume?.value = volume;
+          pits[idx].density?.value = density;
+          pits[idx].fluidType?.value = fluidType;
+          pits.refresh();
+          _updateSeparatedLists();
+        }
+      } else {
+        _showAlert(result['message'] ?? 'Failed to update pit volume',
+            isError: true);
+      }
+    } catch (e) {
+      debugPrint('Error updating pit volume: $e');
+      _showAlert('Error updating pit volume', isError: true);
+    }
+  }
+
+  // ================= NEW VOLUME NAME & SAVE DATA =================
+  Future<void> fetchVolumeNameData() async {
+    if (currentWellId == null) return;
+    isLoadingVolume.value = true;
+    try {
+      final authRepo = AuthRepository();
+      final result = await authRepo.getVolumeNameCalculation(currentWellId!);
+      if (result['success'] == true) {
+        final inner = result['data'];
+        // auth_repo wraps the raw JSON as result['data'], so the actual
+        // calculation payload is at inner['data']
+        final payload = (inner is Map && inner['data'] != null)
+            ? Map<String, dynamic>.from(inner['data'])
+            : Map<String, dynamic>.from(inner ?? {});
+        
+        // Duplication filters removed to display all database records correctly
+        
+        volumeNameData.value = payload;
+      }
+    } catch (e) {
+      debugPrint('Error fetching volume name: $e');
+    } finally {
+      isLoadingVolume.value = false;
+    }
+  }
+
+  Map<String, TextEditingController> getPitCtrl(String pitId,
+      {double vol = 0, double density = 0, String fluid = ''}) {
+    if (!activePitControllers.containsKey(pitId)) {
+      activePitControllers[pitId] = {
+        'volume': TextEditingController(
+            text: vol.toStringAsFixed(2)),
+        'density': TextEditingController(
+            text: density.toStringAsFixed(2)),
+        'fluidType': TextEditingController(text: fluid),
+      };
+    } else {
+      // Refresh values from latest API data so UI stays up to date after refetch
+      final existing = activePitControllers[pitId]!;
+      existing['volume']!.text = vol.toStringAsFixed(2);
+      existing['density']!.text = density.toStringAsFixed(2);
+      existing['fluidType']!.text = fluid;
+    }
+    return activePitControllers[pitId]!;
+  }
+
+  // Refined: Update only modified pits individually via PUT /pit/:id
+  Future<Map<String, dynamic>> saveAllActivePits() async {
+    if (modifiedPitIds.isEmpty) {
+      return {'success': true, 'message': 'No changes to save'};
+    }
+
+    final List<String> errors = [];
+    final authRepo = AuthRepository();
+    int successCount = 0;
+    
+    // Create a copy to iterate to avoid concurrent modification issues
+    final idsToUpdate = List<String>.from(modifiedPitIds);
+    
+    for (final pitId in idsToUpdate) {
+      if (pitId.isEmpty) continue;
+
+      final ctrls = activePitControllers[pitId];
+      if (ctrls == null) continue;
+
+      // Find the pit model across all lists to get its name & latest config
+      final pitModel = pits.firstWhereOrNull((p) => p.id == pitId) ??
+                      selectedPits.firstWhereOrNull((p) => p.id == pitId) ??
+                      unselectedPits.firstWhereOrNull((p) => p.id == pitId);
+                      
+      final String pitName = pitModel?.pitName ?? 'Unknown Pit';
+
+      try {
+        // Hit the single-pit update API (PUT /pit/:id) as requested
+        final result = await authRepo.updatePit(
+          id: pitId,
+          pitName: pitName,
+          volume: double.tryParse(ctrls['volume']!.text) ?? 0,
+          density: double.tryParse(ctrls['density']!.text) ?? 0,
+          fluidType: ctrls['fluidType']!.text,
+          capacity: pitModel?.capacity?.value ?? 0,
+          initialActive: pitModel?.initialActive?.value ?? true,
+        );
+
+        if (result['success'] == true) {
+          successCount++;
+          modifiedPitIds.remove(pitId);
+          
+          // Update local model
+          if (pitModel != null) {
+            pitModel.volume?.value = double.tryParse(ctrls['volume']!.text) ?? 0;
+            pitModel.density?.value = double.tryParse(ctrls['density']!.text) ?? 0;
+            pitModel.fluidType?.value = ctrls['fluidType']!.text;
+          }
+        } else {
+          errors.add('Pit "$pitName" update failed: ${result['message']}');
+        }
+      } catch (e) {
+        errors.add('Pit "$pitName" update error: $e');
+      }
+    }
+    
+    // Refresh both master list and calculations summary to ensure UI reflects the latest state
+    await fetchAllPits();
+    await fetchVolumeNameData();
+    pits.refresh();
+    
+    if (errors.isEmpty) {
+      return {'success': true, 'message': 'All $successCount pits updated successfully'};
+    } else {
+      return {
+        'success': successCount > 0, 
+        'message': 'Pits: $successCount saved, ${errors.length} failed',
+        'errors': errors
+      };
+    }
+  }
+
   // ================= UPDATE OPERATIONS =================
-  
+
   Future<void> togglePitActive(PitModel pit) async {
     if (pit.id == null) return;
 
@@ -184,18 +469,18 @@ class PitController extends GetxController {
 
       if (result['success'] == true) {
         _showAlert('Status updated', isError: false);
-        await fetchAllPits(); // Auto refresh
+        await fetchAllPits();
       } else {
         _showAlert(result['message'] ?? 'Failed to update', isError: true);
       }
     } catch (e) {
-      print('Error toggling status: $e');
+      debugPrint('Error toggling status: $e');
       _showAlert('Error updating status', isError: true);
     }
   }
 
   // ================= DELETE OPERATIONS =================
-  
+
   Future<void> deletePit(PitModel pit) async {
     if (pit.id == null) return;
 
@@ -210,7 +495,8 @@ class PitController extends GetxController {
           ),
           ElevatedButton(
             onPressed: () => Get.back(result: true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style:
+                ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('Delete'),
           ),
         ],
@@ -225,21 +511,23 @@ class PitController extends GetxController {
 
       if (result['success'] == true) {
         _showAlert('Pit deleted', isError: false);
-        await fetchAllPits(); // Auto refresh
+        await fetchAllPits();
       } else {
         _showAlert(result['message'] ?? 'Failed to delete', isError: true);
       }
     } catch (e) {
-      print('Error deleting pit: $e');
+      debugPrint('Error deleting pit: $e');
       _showAlert('Error deleting', isError: true);
     }
   }
 
   // ================= HELPER METHODS =================
-  
+
   void _updateSeparatedLists() {
-    selectedPits.value = pits.where((p) => p.id != null && p.initialActive.value).toList();
-    unselectedPits.value = pits.where((p) => p.id != null && !p.initialActive.value).toList();
+    selectedPits.value =
+        pits.where((p) => p.id != null && p.initialActive.value).toList();
+    unselectedPits.value =
+        pits.where((p) => p.id != null && !p.initialActive.value).toList();
     _updateCapacities();
   }
 
@@ -250,9 +538,9 @@ class PitController extends GetxController {
   }
 
   void _ensureEmptyRow() {
-    // Always keep one empty row at the end
-    final hasEmptyRow = pits.any((p) => p.id == null && p.pitName.isEmpty && p.capacity.value == 0);
-    
+    final hasEmptyRow = pits.any(
+        (p) => p.id == null && p.pitName.isEmpty && p.capacity.value == 0);
+
     if (!hasEmptyRow) {
       pits.add(PitModel(
         pitName: '',
@@ -262,11 +550,11 @@ class PitController extends GetxController {
     }
   }
 
-  // Auto-generate new row when current empty row is filled
   void onRowFilled(int index) {
     final pit = pits[index];
-    if (pit.id == null && pit.pitName.isNotEmpty && pit.capacity.value > 0) {
-      // Add new empty row
+    if (pit.id == null &&
+        pit.pitName.isNotEmpty &&
+        pit.capacity.value > 0) {
       pits.add(PitModel(
         pitName: '',
         capacity: 0.0,
@@ -287,34 +575,133 @@ class PitController extends GetxController {
     return 0.0;
   }
 
-  // ================= SIMPLE TOP-RIGHT ALERTS =================
-  
-  void _showAlert(String message, {required bool isError}) {
-    Get.rawSnackbar(
-      message: message,
-      backgroundColor: isError ? Colors.red : Colors.green,
-      duration: const Duration(seconds: 2),
-      snackPosition: SnackPosition.TOP,
-      margin: const EdgeInsets.only(top: 10, right: 10),
-      borderRadius: 4,
-      maxWidth: 300,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      icon: Icon(
-        isError ? Icons.error_outline : Icons.check_circle_outline,
-        color: Colors.white,
-        size: 20,
-      ),
-      messageText: Text(
-        message,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 13,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-    );
+  void showError(String message) => debugPrint('Error: $message');
+  void showSuccess(String message) => debugPrint('Success: $message');
+
+  void _showAlert(String message, {bool isError = false}) {
+    if (isError) {
+      showError(message);
+    } else {
+      showSuccess(message);
+    }
   }
 
-  void showError(String message) => _showAlert(message, isError: true);
-  void showSuccess(String message) => _showAlert(message, isError: false);
-}
+  // ================= TRANSFER MUD OPERATIONS =================
+
+  Future<void> fetchTransferMud() async {
+    if (currentWellId == null) return;
+    isLoadingTransfer.value = true;
+    try {
+      final authRepo = AuthRepository();
+      final result = await authRepo.getTransferMud(currentWellId!);
+      if (result['success'] == true) {
+        final List data = result['data'] is List ? result['data'] : (result['data']['data'] ?? []);
+        
+        for (var r in transferRows) r.volumeController.dispose();
+        transferRows.clear();
+
+        for (var item in data) {
+          transferRows.add(TransferRowData(
+            pitName: item['pitName']?.toString() ?? '',
+            volume: item['volumeBbl']?.toString() ?? '',
+            savedId: item['_id']?.toString(),
+          ));
+        }
+
+        while (transferRows.length < 5) {
+          transferRows.add(TransferRowData());
+        }
+        transferRows.refresh();
+      }
+    } catch (e) {
+      debugPrint('Error fetching transfer mud: $e');
+    } finally {
+      isLoadingTransfer.value = false;
+    }
+  }
+
+  Future<Map<String, dynamic>> saveTransferMud() async {
+    if (currentWellId == null) return {'success': false, 'message': 'Well ID missing'};
+
+    final authRepo = AuthRepository();
+    int successCount = 0;
+    int failCount = 0;
+
+    final unsavedRows = transferRows.where((r) => r.pitName.isNotEmpty && r.savedId == null).toList();
+
+    if (unsavedRows.isEmpty) {
+      return {'success': true, 'message': 'No new transfers to save'};
+    }
+
+    for (var row in unsavedRows) {
+      try {
+        final payload = row.toJson(currentWellId!, notTreatedMud.value);
+        final result = await authRepo.createTransferMud(currentWellId!, payload);
+        
+        if (result['success'] == true) {
+          successCount++;
+          final newId = result['data']?['_id'] ?? result['data']?['data']?['_id'];
+          row.savedId = newId?.toString();
+        } else {
+          failCount++;
+        }
+      } catch (e) {
+        failCount++;
+        debugPrint('Error saving transfer mud row: $e');
+      }
+    }
+
+    if (successCount > 0) {
+      transferRows.refresh();
+    }
+
+    return {
+      'success': failCount == 0,
+      'message': 'Saved $successCount transfers successfully${failCount > 0 ? ', $failCount failed' : ''}'
+    };
+  }
+
+  Future<void> deleteTransferRow(int index) async {
+    if (index >= transferRows.length) return;
+
+    final row = transferRows[index];
+    if (row.savedId != null) {
+      try {
+        final authRepo = AuthRepository();
+        final res = await authRepo.deleteTransferMud(row.savedId!);
+        if (res['success'] != true) {
+          _showAlert('Failed to delete transfer: ${res['message']}', isError: true);
+          return;
+        }
+      } catch (e) {
+        _showAlert('Error deleting transfer: $e', isError: true);
+        return;
+      }
+    }
+
+    row.volumeController.dispose();
+    transferRows.removeAt(index);
+    
+    while (transferRows.length < 5) {
+      transferRows.add(TransferRowData());
+    }
+    transferRows.refresh();
+  }
+
+  void checkAndAddTransferRow() {
+    if (transferRows.length >= 5) {
+      final lastRow = transferRows.last;
+      if (lastRow.pitName.isNotEmpty) {
+        transferRows.add(TransferRowData());
+      }
+    }
+  }
+
+  @override
+  void onClose() {
+    for (var row in transferRows) {
+      row.volumeController.dispose();
+    }
+    super.onClose();
+  }
+}

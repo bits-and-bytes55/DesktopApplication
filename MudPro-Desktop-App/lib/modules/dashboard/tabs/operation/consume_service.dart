@@ -62,6 +62,14 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
     _fetchAllData();
   }
 
+  @override
+  void dispose() {
+    for (var r in packageRows) r.dispose();
+    for (var r in serviceRows) r.dispose();
+    for (var r in engineeringRows) r.dispose();
+    super.dispose();
+  }
+
   // ─────────────────────────────────────────────
   //  Load dropdown source data
   // ─────────────────────────────────────────────
@@ -88,6 +96,7 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
     try {
       // ── PACKAGES ──
       final pkgData = await consumeServiceController.getAllConsumePackages();
+      for (var r in packageRows) r.dispose();
       packageRows.clear();
       packageRowLoading.clear();
       packageRowSaving.clear();
@@ -118,6 +127,7 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
 
       // ── SERVICES ──
       final srvData = await consumeServiceController.getAllConsumeServices();
+      for (var r in serviceRows) r.dispose();
       serviceRows.clear();
       serviceRowLoading.clear();
       serviceRowSaving.clear();
@@ -146,6 +156,7 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
 
       // ── ENGINEERING ──
       final engData = await consumeServiceController.getAllConsumeEngineering();
+      for (var r in engineeringRows) r.dispose();
       engineeringRows.clear();
       engineeringRowLoading.clear();
       engineeringRowSaving.clear();
@@ -531,6 +542,7 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
       }
     } else {
       if (packageRows.length > 1) {
+        packageRows[index].dispose();
         packageRows.removeAt(index);
         if (index < packageRowLoading.length)  packageRowLoading.removeAt(index);
         if (index < packageRowSaving.length)   packageRowSaving.removeAt(index);
@@ -568,6 +580,7 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
       }
     } else {
       if (serviceRows.length > 1) {
+        serviceRows[index].dispose();
         serviceRows.removeAt(index);
         if (index < serviceRowLoading.length)  serviceRowLoading.removeAt(index);
         if (index < serviceRowSaving.length)   serviceRowSaving.removeAt(index);
@@ -605,6 +618,7 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
       }
     } else {
       if (engineeringRows.length > 1) {
+        engineeringRows[index].dispose();
         engineeringRows.removeAt(index);
         if (index < engineeringRowLoading.length)  engineeringRowLoading.removeAt(index);
         if (index < engineeringRowSaving.length)   engineeringRowSaving.removeAt(index);
@@ -941,23 +955,11 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
         dropdownItems: dropdownItems, onDropdownChanged: onDropdownChanged,
         onRowSelected: onRowSelected, width: 160, getName: (i) => i.name,
       ),
-      _editCell(row.code, 90, (v) => row.code = v),
-      _editCell(row.unit, 70, (v) => row.unit = v),
-      _editCell(row.price > 0 ? row.price.toStringAsFixed(2) : '', 90, (v) {
-        row.price = double.tryParse(v) ?? 0.0;
-        _autoSavePackage(index);
-        _autoSavePackage(index);
-      }),
-      _editCell(row.initial, 80, (v) {
-        row.initial = v;
-        _autoSavePackage(index);
-        _autoSavePackage(index);
-      }),
-      _editCell(row.used, 80, (v) {
-        row.used = v;
-        _autoSavePackage(index);
-        _autoSavePackage(index);
-      }),
+      _editCell(row.codeCtrl, 90, (v) => {}),
+      _editCell(row.unitCtrl, 70, (v) => {}),
+      _editCell(row.priceCtrl, 90, (v) => _autoSavePackage(index)),
+      _editCell(row.initialCtrl, 80, (v) => _autoSavePackage(index)),
+      _editCell(row.usedCtrl, 80, (v) => _autoSavePackage(index)),
       // Final — read-only, negative = red
       DataCell(Container(
         width: 80,
@@ -995,18 +997,10 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
         dropdownItems: dropdownItems, onDropdownChanged: onDropdownChanged,
         onRowSelected: onRowSelected, width: 160, getName: (i) => i.name,
       ),
-      _editCell(row.code, 90, (v) => row.code = v),
-      _editCell(row.unit, 70, (v) => row.unit = v),
-      _editCell(row.price > 0 ? row.price.toStringAsFixed(2) : '', 90, (v) {
-        row.price = double.tryParse(v) ?? 0.0;
-        _autoSaveService(index);
-        _autoSaveService(index);
-      }),
-      _editCell(row.usage, 80, (v) {
-        row.usage = v;
-        _autoSaveService(index);
-        _autoSaveService(index);
-      }),
+      _editCell(row.codeCtrl, 90, (v) => {}),
+      _editCell(row.unitCtrl, 70, (v) => {}),
+      _editCell(row.priceCtrl, 90, (v) => _autoSaveService(index)),
+      _editCell(row.usedCtrl, 80, (v) => _autoSaveService(index)),
       _readCell(row.cost > 0 ? row.cost.toStringAsFixed(2) : '', 90,
           rightAlign: true, bold: true, color: AppTheme.successColor),
       DataCell(_deleteButton(index: index, isDeleting: isDeleting, onDelete: () => onDelete(index))),
@@ -1030,18 +1024,10 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
         dropdownItems: dropdownItems, onDropdownChanged: onDropdownChanged,
         onRowSelected: onRowSelected, width: 160, getName: (i) => i.name,
       ),
-      _editCell(row.code, 90, (v) => row.code = v),
-      _editCell(row.unit, 70, (v) => row.unit = v),
-      _editCell(row.price > 0 ? row.price.toStringAsFixed(2) : '', 90, (v) {
-        row.price = double.tryParse(v) ?? 0.0;
-        _autoSaveEngineering(index);
-        _autoSaveEngineering(index);
-      }),
-      _editCell(row.usage, 80, (v) {
-        row.usage = v;
-        _autoSaveEngineering(index);
-        _autoSaveEngineering(index);
-      }),
+      _editCell(row.codeCtrl, 90, (v) => {}),
+      _editCell(row.unitCtrl, 70, (v) => {}),
+      _editCell(row.priceCtrl, 90, (v) => _autoSaveEngineering(index)),
+      _editCell(row.usageCtrl, 80, (v) => _autoSaveEngineering(index)),
       _readCell(row.cost > 0 ? row.cost.toStringAsFixed(2) : '', 90,
           rightAlign: true, bold: true, color: AppTheme.infoColor),
       DataCell(_deleteButton(index: index, isDeleting: isDeleting, onDelete: () => onDelete(index))),
@@ -1114,15 +1100,12 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
     ));
   }
 
-  DataCell _editCell(String value, double width, Function(String) onChanged) {
+  DataCell _editCell(TextEditingController ctrl, double width, Function(String) onChanged) {
     return DataCell(Container(
-      // ✅ FIX: key ensures widget rebuilds when value changes (backend fetch ke baad)
-      key: ValueKey(value),
       width: width,
       padding: const EdgeInsets.symmetric(horizontal: 6),
       child: TextFormField(
-        // ✅ FIX: initialValue use karo — backend se aaya value correctly show hoga
-        initialValue: value,
+        controller: ctrl,
         enabled: !dashboardController.isLocked.value,
         style: AppTheme.bodySmall.copyWith(fontSize: 9),
         decoration: const InputDecoration(
@@ -1131,7 +1114,9 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
           border: InputBorder.none,
         ),
         keyboardType: const TextInputType.numberWithOptions(signed: true, decimal: true),
-        onChanged: onChanged,
+        onChanged: (v) {
+          onChanged(v);
+        },
       ),
     ));
   }
@@ -1215,15 +1200,40 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
 //  DATA MODELS
 // ─────────────────────────────────────────────
 abstract class BaseRowData {
-  String  selectedItem = '';
-  String  code         = '';
-  String  unit         = '';
-  double  price        = 0.0;
-  double  cost         = 0.0;
-  String  initial      = '';
-  String  used         = '';
-  String  finalValue   = '';
+  String selectedItem = '';
   String? savedId;
+
+  final codeCtrl    = TextEditingController();
+  final unitCtrl    = TextEditingController();
+  final priceCtrl   = TextEditingController();
+  final initialCtrl = TextEditingController();
+  final usedCtrl    = TextEditingController();
+
+  String get code => codeCtrl.text;
+  set code(String v) => codeCtrl.text = v;
+
+  String get unit => unitCtrl.text;
+  set unit(String v) => unitCtrl.text = v;
+
+  double get price => double.tryParse(priceCtrl.text) ?? 0.0;
+  set price(double v) => priceCtrl.text = (v == 0.0) ? '' : v.toStringAsFixed(2);
+
+  String get initial => initialCtrl.text;
+  set initial(String v) => initialCtrl.text = v;
+
+  String get used => usedCtrl.text;
+  set used(String v) => usedCtrl.text = v;
+
+  double cost = 0.0;
+  String finalValue = '';
+
+  void dispose() {
+    codeCtrl.dispose();
+    unitCtrl.dispose();
+    priceCtrl.dispose();
+    initialCtrl.dispose();
+    usedCtrl.dispose();
+  }
 }
 
 class PackageRowData extends BaseRowData {}
@@ -1234,5 +1244,13 @@ class ServiceRowData extends BaseRowData {
 }
 
 class EngineeringRowData extends BaseRowData {
-  String usage = '';
+  final usageCtrl = TextEditingController();
+  String get usage => usageCtrl.text;
+  set usage(String v) => usageCtrl.text = v;
+
+  @override
+  void dispose() {
+    super.dispose();
+    usageCtrl.dispose();
+  }
 }

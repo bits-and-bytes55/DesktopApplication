@@ -91,7 +91,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
 
       // Load OBM
       final obmList = await _repository.getObm(wellId);
-      c.obm.value = obmList;
+      c.obm.value = obmList as List<ObmModel>;
 
       print('✅ Data loaded successfully');
       print('Premixed count: ${premixedList.length}');

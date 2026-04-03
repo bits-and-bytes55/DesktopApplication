@@ -77,7 +77,7 @@ final safetyMargin = '80.0'.obs;
 
       // Load OBM
       final obmList = await repository.getObm(wellId);
-      obm.value = obmList;
+      obm.value = obmList as List<ObmModel>;
 
       print('✅ Inventory data loaded successfully');
       print('Premixed count: ${premixedList.length}');

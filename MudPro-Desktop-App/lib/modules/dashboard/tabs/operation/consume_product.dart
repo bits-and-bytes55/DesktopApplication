@@ -35,11 +35,18 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
   final RxList<bool> productRowSaving = <bool>[].obs;
   final RxList<bool> productRowDeleting = <bool>[].obs;
 
+  // Selected distribute row index for delete
+  final RxInt selectedDistributeRow = (-1).obs;
+
   final Set<int> _savingInProgress = {};
 
   final RxInt selectedProductRow = 0.obs;
   final Rx<ProductModel?> selectedTopProduct = Rx<ProductModel?>(null);
   final RxBool isSavingAll = false.obs;
+
+  // Special option constants
+  static const String kActiveSystem = 'Active System';
+  static const String kEmpty = '';
 
   RxList<ProductModel> get products => _inventoryStore.selectedProducts;
 
@@ -48,15 +55,29 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     super.initState();
     _inventoryStore = Get.find<InventoryProductsStore>();
     pitController.fetchAllPits();
+    pitController.fetchUnselectedPits();
     _fetchAllConsumeProducts();
-    for (int i = 0; i < 5; i++) distributeRows.add(DistributeRowData());
+    // Start with 1 row in distribute table
+    _addDistributeRow();
+    
     waterVolumeController.addListener(_recalculateTotalVolume);
+    waterVolumeController.addListener(() {
+      operationController.addWaterVolume.value = waterVolumeController.text;
+    });
+
+    // Automatically rebalance distribution whenever total volume changes
+    ever(operationController.totalVolume, (_) => _rebalanceDistributeVolumes());
   }
 
   @override
   void dispose() {
     waterVolumeController.removeListener(_recalculateTotalVolume);
     waterVolumeController.dispose();
+    
+    // Dispose all distribution row controllers
+    for (var row in distributeRows) {
+      row.volumeController.dispose();
+    }
     super.dispose();
   }
 
@@ -147,6 +168,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       total += double.tryParse(waterVolumeController.text) ?? 0.0;
     }
     totalVolumeDisplay.value = total.toStringAsFixed(3);
+    operationController.totalVolume.value = total;
   }
 
   bool _isCostCalculated(ProductRowData row) {
@@ -180,10 +202,92 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     }
   }
 
-  void _checkAndAddDistributeRow() {
-    if (distributeRows.isNotEmpty &&
-        (distributeRows.last.pit.isNotEmpty || distributeRows.last.volume.isNotEmpty)) {
-      distributeRows.add(DistributeRowData());
+  // ─────────────────────────────────────────────
+  //  Distribute table helpers
+  // ─────────────────────────────────────────────
+
+  /// Add a new distribute row
+  void _addDistributeRow() {
+    final newRow = DistributeRowData();
+    distributeRows.add(newRow);
+    // Rebalance volumes to ensure first row is correct
+    _rebalanceDistributeVolumes();
+  }
+
+  /// Delete selected/specific distribute row
+  void _deleteDistributeRow(int index) {
+    if (distributeRows.length <= 1) {
+      // Clear the last row instead of deleting
+      distributeRows[0].pit = '';
+      distributeRows[0].volume = '';
+      distributeRows[0].volumeController.text = '';
+      distributeRows.refresh();
+      return;
+    }
+    
+    // Dispose the controller before removing to avoid leaks
+    distributeRows[index].volumeController.dispose();
+    distributeRows.removeAt(index);
+    
+    if (selectedDistributeRow.value >= distributeRows.length) {
+      selectedDistributeRow.value = distributeRows.length - 1;
+    }
+    _rebalanceDistributeVolumes();
+  }
+
+  /// Auto-fill first row with total vol when a pit is selected
+  void _onDistributePitSelected(int index, String pitName) {
+    distributeRows[index].pit = pitName;
+
+    if (pitName == kEmpty) {
+      // Clear volume if empty selected
+      distributeRows[index].volume = '';
+      distributeRows[index].volumeController.text = '';
+      distributeRows.refresh();
+      return;
+    }
+
+    if (index == 0) {
+      // First row always gets total volume (minus other assigned rows)
+      _rebalanceDistributeVolumes();
+    }
+    distributeRows.refresh();
+  }
+
+  /// Called when user manually changes volume (triggered on every keystroke)
+  void _onDistributeVolumeChanged(int index, String value) {
+    // Update internal value only
+    distributeRows[index].volume = value;
+    // We don't automatically trigger rebalance on every keypress for other rows 
+    // to prevent Row 1's volume jumping while the user is typing.
+    // Rebalance will happen when user clicks Calculate or on lose focus/submit.
+  }
+
+  /// Calculate button: recalculate first row as the remainder of Total Vol.
+  void _calculateDistribution() {
+    _rebalanceDistributeVolumes();
+  }
+
+  /// Rebalance: update row 0 volume = totalVol - sum of other rows
+  void _rebalanceDistributeVolumes() {
+    if (distributeRows.isEmpty) return;
+
+    final totalVol = operationController.totalVolume.value;
+    
+    // Sum volumes allocated to all rows except the first one
+    double otherVolumes = 0.0;
+    for (int i = 1; i < distributeRows.length; i++) {
+      otherVolumes += double.tryParse(distributeRows[i].volume) ?? 0.0;
+    }
+
+    // First row automatically adjusts to take the remainder of Total Volume
+    if (distributeRows[0].pit.isNotEmpty) {
+      final remaining = totalVol - otherVolumes;
+      final formattedVol = remaining >= 0 ? remaining.toStringAsFixed(3) : '0.000';
+      
+      distributeRows[0].volume = formattedVol;
+      distributeRows[0].volumeController.text = formattedVol;
+      distributeRows.refresh();
     }
   }
 
@@ -554,11 +658,10 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                   width: _colWidth(h),
                   alignment: _isRightCol(h) ? Alignment.centerRight : Alignment.centerLeft,
                   padding: const EdgeInsets.symmetric(horizontal: 8),
-                  // ── CHANGE 1: highlight "Used" / "Final" header based on selectedMethod ──
                   decoration: BoxDecoration(
                     color: (h == 'Used' && selectedMethod.value == 'Used') ||
                            (h == 'Final' && selectedMethod.value == 'Final')
-                        ? const Color(0xFFD6EAF8)   // slightly deeper ice-blue for header
+                        ? const Color(0xFFD6EAF8)
                         : null,
                   ),
                   child: Text(h),
@@ -710,37 +813,34 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
         onChange: (v) { row.adjust = v; _onFieldChanged(i); _checkAndAddProductRow(); },
       )),
 
-      // ── CHANGE 2: Used — highlighted & editable only in "Used" mode ──────
+      // 8. Used
       DataCell(Obx(() {
         final isUsedMode = selectedMethod.value == "Used";
         return _editField(
           key: ValueKey('used_${row.savedId ?? i}_${row.productName}_$isUsedMode'),
           value: row.used,
           width: 75,
-          locked: locked || !isUsedMode,   // disabled when Final mode selected
-          highlighted: isUsedMode,          // ice-blue highlight when active
+          locked: locked || !isUsedMode,
+          highlighted: isUsedMode,
           onChange: (v) { row.used = v; _onFieldChanged(i); _checkAndAddProductRow(); },
         );
       })),
 
-      // ── CHANGE 3: Final — editable & highlighted in "Final" mode,
-      //              read-only calculated value in "Used" mode ─────────────
+      // 9. Final
       DataCell(Obx(() {
         final isFinalMode = selectedMethod.value == "Final";
 
         if (isFinalMode) {
-          // User types the final stock value directly
           return _editField(
             key: ValueKey('final_edit_${row.savedId ?? i}_${row.productName}'),
-            value: row.used,   // Final mode input also maps to row.used for backend
+            value: row.used,
             width: 75,
             locked: locked,
-            highlighted: true, // ice-blue highlight
+            highlighted: true,
             onChange: (v) { row.used = v; _onFieldChanged(i); _checkAndAddProductRow(); },
           );
         }
 
-        // Used mode — read-only, shows calculated final value
         final fv = row.calculatedFinal.value;
         return Container(
           width: 75,
@@ -756,7 +856,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
         );
       })),
 
-      // 10. Cost — reactive
+      // 10. Cost
       DataCell(Container(
         width: 90, padding: const EdgeInsets.symmetric(horizontal: 8),
         decoration: BoxDecoration(color: AppTheme.primaryColor.withOpacity(0.05)),
@@ -769,7 +869,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
         }),
       )),
 
-      // 11. Vol — reactive
+      // 11. Vol
       DataCell(Container(
         width: 75, padding: const EdgeInsets.symmetric(horizontal: 8),
         decoration: BoxDecoration(color: AppTheme.primaryColor.withOpacity(0.03)),
@@ -838,117 +938,265 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     );
   }
 
-  // ── Bottom Section ────────────────────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════════
+  //  BOTTOM SECTION
+  // ══════════════════════════════════════════════════════════════════════════
   Widget _buildBottomSection() {
     return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      SizedBox(width: 280, child: _buildDistributeTable()),
+      SizedBox(width: 310, child: _buildDistributeTable()),
       const SizedBox(width: 12),
       Expanded(child: _buildRightControls()),
     ]);
   }
 
+  // ── Distribute Table ──────────────────────────────────────────────────────
   Widget _buildDistributeTable() {
     return Container(
-      height: 240,
       decoration: BoxDecoration(
         border: Border.all(color: Colors.grey.shade300),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Column(children: [
+        // ── Header row with title + action buttons ──
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
           decoration: BoxDecoration(
             color: AppTheme.successColor,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
           ),
           child: Row(children: [
-            const Icon(Icons.share, color: Colors.white, size: 16),
-            const SizedBox(width: 8),
+            const Icon(Icons.share, color: Colors.white, size: 14),
+            const SizedBox(width: 6),
             Text("Distribute to", style: AppTheme.bodySmall.copyWith(
                 fontWeight: FontWeight.w600, fontSize: 11, color: Colors.white)),
+            const Spacer(),
+            // Calculate button
+            Obx(() => _distributeHeaderBtn(
+              icon: Icons.calculate_outlined,
+              tooltip: 'Calculate distribution',
+              onTap: dashboardController.isLocked.value ? null : _calculateDistribution,
+            )),
+            const SizedBox(width: 4),
+            // Delete selected row button
+            Obx(() => _distributeHeaderBtn(
+              icon: Icons.delete_outline,
+              tooltip: 'Delete selected row',
+              color: Colors.red.shade100,
+              iconColor: Colors.red.shade700,
+              onTap: dashboardController.isLocked.value
+                  ? null
+                  : (selectedDistributeRow.value >= 0 &&
+                          selectedDistributeRow.value < distributeRows.length
+                      ? () => _deleteDistributeRow(selectedDistributeRow.value)
+                      : null),
+            )),
+            const SizedBox(width: 4),
+            // Add row button
+            Obx(() => _distributeHeaderBtn(
+              icon: Icons.add,
+              tooltip: 'Add row',
+              onTap: dashboardController.isLocked.value ? null : _addDistributeRow,
+            )),
           ]),
         ),
-        Expanded(child: SingleChildScrollView(
-          child: Obx(() {
-            final pitList = pitController.pits
-                .where((p) => p.id != null && p.pitName.isNotEmpty)
-                .toList();
 
-            return DataTable(
-              headingRowHeight: 32, dataRowHeight: 32,
-              columnSpacing: 0, horizontalMargin: 0, dividerThickness: 0,
-              headingRowColor: MaterialStateProperty.all(Colors.grey.shade50),
-              border: TableBorder(
-                verticalInside: BorderSide(color: Colors.grey.shade300),
-                horizontalInside: BorderSide(color: Colors.grey.shade200),
-              ),
-              headingTextStyle: AppTheme.bodySmall.copyWith(
-                  fontSize: 10, fontWeight: FontWeight.w600, color: AppTheme.successColor),
-              columns: [
-                DataColumn(label: Container(width: 150,
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: const Text("Pit"))),
-                DataColumn(label: Container(width: 100,
-                    alignment: Alignment.centerRight,
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: const Text("Vol (bbl)"))),
-              ],
-              rows: List.generate(distributeRows.length, (i) {
-                final dr = distributeRows[i];
-                return DataRow(
-                  color: MaterialStateProperty.all(
-                      i % 2 == 0 ? Colors.white : Colors.grey.shade50),
-                  cells: [
-                    DataCell(Container(
-                      width: 150, padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: dr.pit.isNotEmpty &&
-                              pitList.any((p) => p.pitName == dr.pit)
-                              ? dr.pit : null,
-                          hint: Text("Select Pit",
-                              style: AppTheme.bodySmall.copyWith(fontSize: 10, color: Colors.grey)),
-                          isExpanded: true, isDense: true,
-                          icon: const SizedBox.shrink(), menuMaxHeight: 250,
-                          items: pitList.map((p) => DropdownMenuItem(value: p.pitName,
-                            child: Text(p.pitName,
-                                style: AppTheme.bodySmall.copyWith(fontSize: 10),
-                                overflow: TextOverflow.ellipsis))).toList(),
-                          onChanged: dashboardController.isLocked.value
-                              ? null : (v) {
-                            if (v == null) return;
-                            dr.pit = v;
-                            distributeRows.refresh();
-                            _checkAndAddDistributeRow();
-                          },
+        // ── Table header ──
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
+          ),
+          child: Row(children: [
+            _distHeaderCell('Pit', 180),
+            _distHeaderCell('Vol (bbl)', 110, right: true),
+          ]),
+        ),
+
+        // ── Rows ──
+        SizedBox(
+          height: 185,
+          child: SingleChildScrollView(
+            child: Obx(() {
+              // Build the dropdown items list: empty + Active System + unselected pits
+              final unselectedPits = pitController.unselectedPits
+                  .where((p) => p.id != null && p.pitName.isNotEmpty)
+                  .toList();
+
+              return Column(
+                children: List.generate(distributeRows.length, (i) {
+                  final dr = distributeRows[i];
+                  final isSelected = selectedDistributeRow.value == i;
+
+                  return GestureDetector(
+                    onTap: () => selectedDistributeRow.value = i,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? AppTheme.successColor.withOpacity(0.06)
+                            : (i % 2 == 0 ? Colors.white : Colors.grey.shade50),
+                        border: Border(
+                          left: isSelected
+                              ? BorderSide(color: AppTheme.successColor, width: 2)
+                              : BorderSide.none,
+                          bottom: BorderSide(color: Colors.grey.shade200, width: 0.5),
                         ),
                       ),
-                    )),
-                    DataCell(Container(
-                      width: 100, padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: TextFormField(
-                        initialValue: dr.volume,
-                        enabled: !dashboardController.isLocked.value,
-                        style: AppTheme.bodySmall.copyWith(fontSize: 10),
-                        textAlign: TextAlign.right,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                            isDense: true,
-                            contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-                            border: InputBorder.none),
-                        onChanged: (v) { dr.volume = v; _checkAndAddDistributeRow(); },
-                      ),
-                    )),
-                  ],
-                );
-              }),
-            );
-          }),
-        )),
+                      child: Row(children: [
+                        // Pit dropdown cell
+                        SizedBox(
+                          width: 180,
+                          height: 32,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 6),
+                            child: _buildDistributePitDropdown(dr, i, unselectedPits),
+                          ),
+                        ),
+                        // Volume divider
+                        Container(width: 1, height: 32, color: Colors.grey.shade200),
+                        // Volume input cell
+                        SizedBox(
+                          width: 110,
+                          height: 32,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 6),
+                            child: TextField(
+                              controller: dr.volumeController,
+                              enabled: !dashboardController.isLocked.value,
+                              style: AppTheme.bodySmall.copyWith(fontSize: 10),
+                              textAlign: TextAlign.right,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              decoration: const InputDecoration(
+                                isDense: true,
+                                contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 4, vertical: 6),
+                                border: InputBorder.none,
+                              ),
+                              onChanged: (v) => _onDistributeVolumeChanged(i, v),
+                            ),
+                          ),
+                        ),
+                      ]),
+                    ),
+                  );
+                }),
+              );
+            }),
+          ),
+        ),
       ]),
     );
   }
 
+  Widget _buildDistributePitDropdown(
+      DistributeRowData dr, int index, List unselectedPits) {
+    // Build items: empty option + Active System + unselected pits
+    final items = <DropdownMenuItem<String>>[
+      // Empty option to clear selection
+      DropdownMenuItem<String>(
+        value: kEmpty,
+        child: Text('',
+            style: AppTheme.bodySmall.copyWith(fontSize: 10)),
+      ),
+      // Active System fixed option
+      DropdownMenuItem<String>(
+        value: kActiveSystem,
+        child: Row(children: [
+          Icon(Icons.layers_outlined, size: 12,
+              color: AppTheme.primaryColor.withOpacity(0.7)),
+          const SizedBox(width: 4),
+          Text(kActiveSystem,
+              style: AppTheme.bodySmall.copyWith(
+                  fontSize: 10,
+                  color: AppTheme.primaryColor,
+                  fontWeight: FontWeight.w600)),
+        ]),
+      ),
+      // Unselected pits from API
+      ...unselectedPits.map((p) => DropdownMenuItem<String>(
+        value: p.pitName,
+        child: Text(p.pitName,
+            style: AppTheme.bodySmall.copyWith(fontSize: 10),
+            overflow: TextOverflow.ellipsis),
+      )),
+    ];
+
+    // Validate current value
+    final validValues = {kEmpty, kActiveSystem, ...unselectedPits.map((p) => p.pitName)};
+    final currentValue = validValues.contains(dr.pit) ? dr.pit : kEmpty;
+
+    return DropdownButtonHideUnderline(
+      child: DropdownButton<String>(
+        value: currentValue,
+        isExpanded: true,
+        isDense: true,
+        icon: Icon(
+          Icons.arrow_drop_down,
+          size: 14,
+          color: Colors.grey.shade500,
+        ),
+        style: AppTheme.bodySmall.copyWith(fontSize: 10, color: AppTheme.textPrimary),
+        menuMaxHeight: 250,
+        items: items,
+        onChanged: dashboardController.isLocked.value
+            ? null
+            : (String? val) {
+                if (val == null) return;
+                selectedDistributeRow.value = index;
+                _onDistributePitSelected(index, val);
+              },
+      ),
+    );
+  }
+
+  Widget _distributeHeaderBtn({
+    required IconData icon,
+    required String tooltip,
+    VoidCallback? onTap,
+    Color? color,
+    Color? iconColor,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(3),
+        child: Container(
+          width: 22,
+          height: 22,
+          decoration: BoxDecoration(
+            color: onTap == null
+                ? Colors.white.withOpacity(0.1)
+                : (color ?? Colors.white.withOpacity(0.2)),
+            borderRadius: BorderRadius.circular(3),
+          ),
+          child: Icon(
+            icon,
+            size: 13,
+            color: onTap == null
+                ? Colors.white.withOpacity(0.3)
+                : (iconColor ?? Colors.white),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _distHeaderCell(String text, double width, {bool right = false}) {
+    return Container(
+      width: width,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      child: Text(
+        text,
+        textAlign: right ? TextAlign.right : TextAlign.left,
+        style: AppTheme.bodySmall.copyWith(
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+            color: AppTheme.successColor),
+      ),
+    );
+  }
+
+  // ── Right Controls ────────────────────────────────────────────────────────
   Widget _buildRightControls() {
     return Container(
       height: 240,
@@ -1046,7 +1294,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
             Icon(Icons.info_outline, size: 13, color: Colors.amber.shade700),
             const SizedBox(width: 6),
             Expanded(child: Text(
-              "Products distributed evenly if multiple pits selected",
+              "If the total volume is 0 and multiple pits are selected, the consumed products will be evenly distributed.",
               style: AppTheme.bodySmall.copyWith(fontSize: 9, color: Colors.amber.shade900),
             )),
           ]),
@@ -1125,6 +1373,7 @@ class ProductRowData {
 }
 
 class DistributeRowData {
-  String pit    = '';
+  String pit = '';
   String volume = '';
+  final TextEditingController volumeController = TextEditingController();
 }

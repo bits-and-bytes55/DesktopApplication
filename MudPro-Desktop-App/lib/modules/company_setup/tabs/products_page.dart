@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/controller/products_controller.dart';
+import 'package:mudpro_desktop_app/modules/company_setup/controller/company_setup_controller.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/model/products_model.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
@@ -9,7 +10,8 @@ class ProductsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ProductsController controller = Get.put(ProductsController(), tag: 'products_controller');
+    final ProductsController controller = Get.find<ProductsController>(tag: 'products_controller');
+    final CompanySetupController setupController = Get.find<CompanySetupController>();
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
@@ -66,30 +68,36 @@ class ProductsPage extends StatelessWidget {
 
             // Table
             Expanded(
-              child: Container(
-                margin: EdgeInsets.fromLTRB(20, 20, 20, 0),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Color(0xffD1D5DB), width: 1),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 8,
-                      offset: Offset(0, 2),
+              child: IgnorePointer(
+                ignoring: setupController.isLocked.value,
+                child: Opacity(
+                  opacity: setupController.isLocked.value ? 0.6 : 1.0,
+                  child: Container(
+                    margin: EdgeInsets.fromLTRB(20, 20, 20, 0),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Color(0xffD1D5DB), width: 1),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 8,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    return SingleChildScrollView(
-                      scrollDirection: Axis.vertical,
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: _buildTable(controller, constraints),
-                      ),
-                    );
-                  },
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        return SingleChildScrollView(
+                          scrollDirection: Axis.vertical,
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: _buildTable(controller, constraints),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -122,23 +130,29 @@ class ProductsPage extends StatelessWidget {
                     ),
                   ),
                   SizedBox(width: 12),
-                  ElevatedButton(
-                    onPressed: controller.isSaving.value
-                        ? null
-                        : () => controller.saveProducts(),
-                    style: AppTheme.primaryButtonStyle,
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                      child: controller.isSaving.value
-                          ? SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                              ),
-                            )
-                          : Text('Save'),
+                  IgnorePointer(
+                    ignoring: setupController.isLocked.value,
+                    child: Opacity(
+                      opacity: setupController.isLocked.value ? 0.6 : 1.0,
+                      child: ElevatedButton(
+                        onPressed: (controller.isSaving.value || setupController.isLocked.value)
+                            ? null
+                            : () => controller.saveProducts(),
+                        style: AppTheme.primaryButtonStyle,
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          child: controller.isSaving.value
+                              ? SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                  ),
+                                )
+                              : Text('Save'),
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -288,6 +302,7 @@ class ProductsPage extends StatelessWidget {
   }
 
   Widget _buildTableRow(ProductsController controller, int index, double tableWidth) {
+    final setupController = Get.find<CompanySetupController>();
     final product = controller.products[index];
     final isLocked = controller.isExistingProduct(index);
     final isEditing = isLocked && controller.editingProductId.value == product.id;
@@ -346,105 +361,112 @@ class ProductsPage extends StatelessWidget {
               ],
             ),
           ),
-          _buildCell(
-            controller,
-            tableWidth * 0.16,
-            product.product,
-            (val) => _updateField(controller, index, 'product', val),
-            isLocked: isLocked && !isEditing,
-            isEditing: isEditing,
-          ),
-          _buildCell(
-            controller,
-            tableWidth * 0.11,
-            product.code,
-            (val) => _updateField(controller, index, 'code', val),
-            isLocked: isLocked && !isEditing,
-            isEditing: isEditing,
-          ),
-          _buildCell(
-            controller,
-            tableWidth * 0.07,
-            product.sg,
-            (val) => _updateField(controller, index, 'sg', val),
-            isNumeric: true,
-            isLocked: isLocked && !isEditing,
-            isEditing: isEditing,
-          ),
-          Container(
-            width: tableWidth * 0.14,
-            decoration: BoxDecoration(
-              border: Border(
-                left: BorderSide(color: Color(0xffE5E7EB), width: 0.5),
-                right: BorderSide(color: Color(0xffE5E7EB), width: 0.5),
-              ),
-            ),
-            child: Row(
+          Obx(() {
+            final globalLocked = setupController.isLocked.value;
+            return Row(
               children: [
-                Expanded(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      border: Border(
-                        right: BorderSide(color: Color(0xffE5E7EB), width: 0.5),
+                _buildCell(
+                  controller,
+                  tableWidth * 0.16,
+                  product.product,
+                  (val) => _updateField(controller, index, 'product', val, setupController),
+                  isLocked: (isLocked && !isEditing) || globalLocked,
+                  isEditing: isEditing && !globalLocked,
+                ),
+                _buildCell(
+                  controller,
+                  tableWidth * 0.11,
+                  product.code,
+                  (val) => _updateField(controller, index, 'code', val, setupController),
+                  isLocked: (isLocked && !isEditing) || globalLocked,
+                  isEditing: isEditing && !globalLocked,
+                ),
+                _buildCell(
+                  controller,
+                  tableWidth * 0.07,
+                  product.sg,
+                  (val) => _updateField(controller, index, 'sg', val, setupController),
+                  isNumeric: true,
+                  isLocked: (isLocked && !isEditing) || globalLocked,
+                  isEditing: isEditing && !globalLocked,
+                ),
+                Container(
+                  width: tableWidth * 0.14,
+                  decoration: BoxDecoration(
+                    border: Border(
+                      left: BorderSide(color: Color(0xffE5E7EB), width: 0.5),
+                      right: BorderSide(color: Color(0xffE5E7EB), width: 0.5),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            border: Border(
+                              right: BorderSide(color: Color(0xffE5E7EB), width: 0.5),
+                            ),
+                          ),
+                          child: _buildCellContent(
+                            controller,
+                            product.unitNum,
+                            (val) => _updateField(controller, index, 'unitNum', val, setupController),
+                            isNumeric: true,
+                            isLocked: (isLocked && !isEditing) || globalLocked,
+                            isEditing: isEditing && !globalLocked,
+                          ),
+                        ),
                       ),
-                    ),
-                    child: _buildCellContent(
-                      controller,
-                      product.unitNum,
-                      (val) => _updateField(controller, index, 'unitNum', val),
-                      isNumeric: true,
-                      isLocked: isLocked && !isEditing,
-                      isEditing: isEditing,
-                    ),
+                      Expanded(
+                        child: _buildCellContent(
+                          controller,
+                          product.unitClass,
+                          (val) => _updateField(controller, index, 'unitClass', val, setupController),
+                          isLocked: (isLocked && !isEditing) || globalLocked,
+                          isEditing: isEditing && !globalLocked,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                Expanded(
-                  child: _buildCellContent(
-                    controller,
-                    product.unitClass,
-                    (val) => _updateField(controller, index, 'unitClass', val),
-                    isLocked: isLocked && !isEditing,
-                    isEditing: isEditing,
-                  ),
+                _buildCell(
+                  controller,
+                  tableWidth * 0.11,
+                  product.group,
+                  (val) => _updateField(controller, index, 'group', val, setupController),
+                  isLocked: (isLocked && !isEditing) || globalLocked,
+                  isEditing: isEditing && !globalLocked,
                 ),
+                _buildCell(
+                  controller,
+                  tableWidth * 0.09,
+                  product.retail,
+                  (val) => _updateField(controller, index, 'retail', val, setupController),
+                  isLocked: (isLocked && !isEditing) || globalLocked,
+                  isEditing: isEditing && !globalLocked,
+                ),
+                _buildCell(
+                  controller,
+                  tableWidth * 0.09,
+                  product.a,
+                  (val) => _updateField(controller, index, 'sales price', val, setupController),
+                  isNumeric: true,
+                  isLocked: (isLocked && !isEditing) || globalLocked,
+                  isEditing: isEditing && !globalLocked,
+                ),
+                _buildCell(
+                  controller,
+                  tableWidth * 0.09,
+                  product.b,
+                  (val) => _updateField(controller, index, 'COGS', val, setupController),
+                  isNumeric: true,
+                  isLocked: (isLocked && !isEditing) || globalLocked,
+                  isEditing: isEditing && !globalLocked,
+                ),
+                _buildActionsCell(controller, tableWidth * 0.09, product, index, isLocked, isEditing, setupController),
               ],
-            ),
-          ),
-          _buildCell(
-            controller,
-            tableWidth * 0.11,
-            product.group,
-            (val) => _updateField(controller, index, 'group', val),
-            isLocked: isLocked && !isEditing,
-            isEditing: isEditing,
-          ),
-          _buildCell(
-            controller,
-            tableWidth * 0.09,
-            product.retail,
-            (val) => _updateField(controller, index, 'retail', val),
-            isLocked: isLocked && !isEditing,
-            isEditing: isEditing,
-          ),
-          _buildCell(
-            controller,
-            tableWidth * 0.09,
-            product.a,
-            (val) => _updateField(controller, index, 'sales price', val),
-            isNumeric: true,
-            isLocked: isLocked && !isEditing,
-            isEditing: isEditing,
-          ),
-          _buildCell(
-            controller,
-            tableWidth * 0.09,
-            product.b,
-            (val) => _updateField(controller, index, 'COGS', val),
-            isNumeric: true,
-            isLocked: isLocked && !isEditing,
-            isEditing: isEditing,
-          ),
-          _buildActionsCell(controller, tableWidth * 0.09, product, index, isLocked, isEditing),
+            );
+          }),
         ],
       ),
     );
@@ -527,6 +549,7 @@ class ProductsPage extends StatelessWidget {
     int index,
     bool isLocked,
     bool isEditing,
+    CompanySetupController setupController,
   ) {
     if (!isLocked) {
       return Container(
@@ -621,8 +644,9 @@ class ProductsPage extends StatelessWidget {
     );
   }
 
-  void _updateField(ProductsController controller, int index, String field, String value) {
+  void _updateField(ProductsController controller, int index, String field, String value, CompanySetupController setupController) {
     if (index < 0 || index >= controller.products.length) return;
+    if (setupController.isLocked.value) return;
 
     final product = controller.products[index];
     final isExisting = controller.isExistingProduct(index);

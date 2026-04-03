@@ -10,186 +10,129 @@ class OperatorController extends GetxController {
   final _repo = AuthRepository();
   final ImagePicker _picker = ImagePicker();
 
-  // Observable list of operators
   final RxList<OperatorModel> operators = <OperatorModel>[].obs;
   final RxBool isLoading = false.obs;
-  RxBool isSaving = false.obs;
+  final RxBool isSaving = false.obs;
 
-  // Store selected logo images for each row (index -> base64 string)
   final RxMap<int, String> selectedLogos = <int, String>{}.obs;
+
+  // New entry controllers held in the controller for global access (Import)
+  final RxList<List<TextEditingController>> newEntryControllers = <List<TextEditingController>>[].obs;
 
   @override
   void onInit() {
     super.onInit();
+    _resetNewEntries();
     fetchOperators();
   }
 
-  /// Pick logo image from gallery
-  Future<void> pickLogoImage(int rowIndex) async {
-    try {
-      final XFile? image = await _picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 800,
-        maxHeight: 800,
-        imageQuality: 80,
-      );
-
-      if (image != null) {
-        // Convert to base64
-        final bytes = await File(image.path).readAsBytes();
-        final base64Image = 'data:image/jpeg;base64,${base64Encode(bytes)}';
-        
-        selectedLogos[rowIndex] = base64Image;
-        selectedLogos.refresh();
-      }
-    } catch (e) {
-      print("Error picking logo image: $e");
+  void _resetNewEntries() {
+    for (var row in newEntryControllers) {
+      for (var ctrl in row) ctrl.text = '';
+    }
+    // We reuse existing row controllers rather than recreating them during normal flush
+    if (newEntryControllers.isEmpty) {
+      newEntryControllers.add(List.generate(6, (_) => TextEditingController()));
     }
   }
 
-  /// Clear logo for a specific row
+  Future<void> pickLogoImage(int rowIndex) async {
+    try {
+      final XFile? image = await _picker.pickImage(source: ImageSource.gallery, maxWidth: 800, maxHeight: 800, imageQuality: 80);
+      if (image != null) {
+        final bytes = await File(image.path).readAsBytes();
+        selectedLogos[rowIndex] = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+        selectedLogos.refresh();
+      }
+    } catch (e) {
+      debugPrint("Error picking logo image: $e");
+    }
+  }
+
   void clearLogo(int rowIndex) {
     selectedLogos.remove(rowIndex);
     selectedLogos.refresh();
   }
 
-  /// Get logo for a row (from selectedLogos map)
-  String? getLogoForRow(int rowIndex) {
-    return selectedLogos[rowIndex];
-  }
-
-  /// SAVE FROM UI CONTROLLERS
-  Future<Map<String, dynamic>> saveOperators(
-      List<List<TextEditingController>> uiControllers) async {
+  Future<Map<String, dynamic>> saveOperators() async {
     isSaving.value = true;
-
     final List<OperatorModel> list = [];
-
-    for (var i = 0; i < uiControllers.length; i++) {
-      var row = uiControllers[i];
-      // skip empty rows
+    for (var i = 0; i < newEntryControllers.length; i++) {
+      var row = newEntryControllers[i];
       if (row[0].text.trim().isEmpty) continue;
-
-      // Get logo from selectedLogos map or use empty string
-      String logoUrl = selectedLogos[i] ?? '';
-
-      final newOperator = OperatorModel(
+      list.add(OperatorModel(
         company: row[0].text.trim(),
         contact: row[1].text.trim(),
         address: row[2].text.trim(),
         phone: row[3].text.trim(),
         email: row[4].text.trim(),
-        logoUrl: logoUrl,
-      );
-
-      // Check if this operator already exists in the fetched operators list
-      final exists = operators.any((existing) =>
-          existing.company == newOperator.company &&
-          existing.contact == newOperator.contact &&
-          existing.address == newOperator.address &&
-          existing.phone == newOperator.phone &&
-          existing.email == newOperator.email);
-
-      if (!exists) {
-        list.add(newOperator);
-      }
+        logoUrl: selectedLogos[i] ?? '',
+      ));
     }
-
-    if (list.isEmpty) {
-      isSaving.value = false;
-      return {
-        'success': false,
-        'message': 'No new operator data to save',
-      };
-    }
-
-    final body = list.map((e) => e.toJson()).toList();
-    final res = await _repo.saveOperators(body);
-
-    print("response body====${body}");
-    print("response res====${res}");
-    print("response statuscode====${res['statusCode']}");
-
-    if (res['success'] == true || res['statusCode'] == 200) {
-      // Refresh the operators list after saving
+    if (list.isEmpty) { isSaving.value = false; return {'success': false, 'message': 'No data to save'}; }
+    final res = await _repo.saveOperators(list.map((e) => e.toJson()).toList());
+    if (res['success'] == true) {
       await fetchOperators();
-      // Clear selected logos after save
+      _resetNewEntries();
       selectedLogos.clear();
       isSaving.value = false;
-      return {
-        'success': true,
-        'message': 'Operators saved successfully',
-      };
+      return {'success': true, 'message': 'Operators saved successfully'};
     } else {
       isSaving.value = false;
-      return {
-        'success': false,
-        'message': res['message'] ?? 'Save failed',
-      };
+      return {'success': false, 'message': res['message'] ?? 'Save failed'};
     }
   }
 
-  /// FETCH OPERATORS
+  List<List<String>> getExportData() {
+    List<List<String>> data = [['Company', 'Contact', 'Address', 'Phone', 'E-mail', 'Logo URL']];
+    for (var op in operators) data.add([op.company, op.contact, op.address, op.phone, op.email, op.logoUrl]);
+    return data;
+  }
+
+  void importFromData(List<List<String>> rows) {
+    _resetNewEntries();
+    newEntryControllers.clear();
+    for (int i = 0; i < rows.length; i++) {
+      if (rows[i].length < 5) continue;
+      final controllers = List.generate(6, (_) => TextEditingController());
+      controllers[0].text = rows[i][0];
+      controllers[1].text = rows[i][1];
+      controllers[2].text = rows[i][2];
+      controllers[3].text = rows[i][3];
+      controllers[4].text = rows[i][4];
+      if (rows[i].length > 5 && rows[i][5].startsWith('data:image')) selectedLogos[i] = rows[i][5];
+      newEntryControllers.add(controllers);
+    }
+    if (newEntryControllers.isEmpty) newEntryControllers.add(List.generate(6, (_) => TextEditingController()));
+    selectedLogos.refresh();
+  }
+
   Future<void> fetchOperators() async {
     isLoading.value = true;
-
     final result = await _repo.getOperators();
-
-    if (result['success'] == true) {
-      operators.value = (result['data'] as List<dynamic>?)
-              ?.map((item) =>
-                  OperatorModel.fromJson(item as Map<String, dynamic>))
-              .toList() ??
-          [];
-    } else {
-      // No snackbar, handle in widget if needed
-      operators.value = [];
-    }
-
+    if (result['success'] == true) operators.assignAll((result['data'] as List).map((i) => OperatorModel.fromJson(i)).toList());
     isLoading.value = false;
   }
 
-  /// UPDATE OPERATOR
   Future<Map<String, dynamic>> updateOperator(String id, OperatorModel operator) async {
     isSaving.value = true;
-
-    final result = await _repo.updateOperator(id, operator.toJson());
-
-    if (result['success'] == true) {
-      await fetchOperators();
-      isSaving.value = false;
-      return {
-        'success': true,
-        'message': 'Operator updated successfully',
-      };
-    } else {
-      isSaving.value = false;
-      return {
-        'success': false,
-        'message': result['message'] ?? 'Failed to update operator',
-      };
-    }
+    final res = await _repo.updateOperator(id, operator.toJson());
+    if (res['success'] == true) { await fetchOperators(); isSaving.value = false; return {'success': true, 'message': 'Updated'}; }
+    isSaving.value = false;
+    return {'success': false, 'message': res['message'] ?? 'Failed'};
   }
 
-  /// DELETE OPERATOR
   Future<Map<String, dynamic>> deleteOperator(String id) async {
     isSaving.value = true;
+    final res = await _repo.deleteOperator(id);
+    if (res['success'] == true) { await fetchOperators(); isSaving.value = false; return {'success': true, 'message': 'Deleted'}; }
+    isSaving.value = false;
+    return {'success': false, 'message': res['message'] ?? 'Failed'};
+  }
 
-    final result = await _repo.deleteOperator(id);
-
-    if (result['success'] == true) {
-      await fetchOperators();
-      isSaving.value = false;
-      return {
-        'success': true,
-        'message': 'Operator deleted successfully',
-      };
-    } else {
-      isSaving.value = false;
-      return {
-        'success': false,
-        'message': result['message'] ?? 'Failed to delete operator',
-      };
-    }
+  @override
+  void onClose() {
+    for (var row in newEntryControllers) { for (var ctrl in row) ctrl.dispose(); }
+    super.onClose();
   }
 }

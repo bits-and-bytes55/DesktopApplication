@@ -5,74 +5,57 @@ class PitModel {
   String pitName;
   RxDouble capacity;
   RxBool initialActive;
+  bool isLocked;
   String? wellId;
   String? reportId;
-  bool isLocked;
-  DateTime? createdAt;
-  DateTime? updatedAt;
+
+  // ── New editable fields ──────────────────────────────────────────────────
+  RxDouble? volume;
+  RxDouble? density;
+  RxString? fluidType;
 
   PitModel({
     this.id,
     required this.pitName,
     required double capacity,
-    required bool initialActive,
+    bool initialActive = false,
+    this.isLocked = false,
     this.wellId,
     this.reportId,
-    this.isLocked = false,
-    this.createdAt,
-    this.updatedAt,
+    double volumeVal = 0.0,
+    double densityVal = 0.0,
+    String fluidTypeVal = '',
   })  : capacity = capacity.obs,
-        initialActive = initialActive.obs;
+        initialActive = initialActive.obs,
+        volume = volumeVal.obs,
+        density = densityVal.obs,
+        fluidType = fluidTypeVal.obs;
 
-  // From JSON - FIXED: Handle both int and double for capacity
   factory PitModel.fromJson(Map<String, dynamic> json) {
     return PitModel(
-      id: json['_id']?.toString() ?? json['id']?.toString(),
+      id: json['_id']?.toString(),
       pitName: json['pitName']?.toString() ?? '',
-      capacity: _toDouble(json['capacity'] ?? 0),
+      capacity: (json['capacity'] as num?)?.toDouble() ?? 0.0,
       initialActive: json['initialActive'] == true,
+      isLocked: json['isLocked'] == true,
       wellId: json['wellId']?.toString(),
       reportId: json['reportId']?.toString(),
-      isLocked: json['isLocked'] == true,
-      createdAt: json['createdAt'] != null 
-          ? DateTime.tryParse(json['createdAt'].toString())
-          : null,
-      updatedAt: json['updatedAt'] != null 
-          ? DateTime.tryParse(json['updatedAt'].toString())
-          : null,
+      volumeVal: (json['volume'] as num?)?.toDouble() ?? 0.0,
+      densityVal: (json['density'] as num?)?.toDouble() ?? 0.0,
+      fluidTypeVal: json['fluidType']?.toString() ?? '',
     );
   }
 
-  // Helper to convert int/double to double
-  static double _toDouble(dynamic value) {
-    if (value == null) return 0.0;
-    if (value is double) return value;
-    if (value is int) return value.toDouble();
-    if (value is String) return double.tryParse(value) ?? 0.0;
-    return 0.0;
-  }
-
-  // To JSON
-  Map<String, dynamic> toJson() {
-    return {
-      if (id != null) '_id': id,
-      'pitName': pitName,
-      'capacity': capacity.value,
-      'initialActive': initialActive.value,
-      if (wellId != null) 'wellId': wellId,
-      if (reportId != null) 'reportId': reportId,
-      'isLocked': isLocked,
-    };
-  }
-
-  // For create/update requests
-  Map<String, dynamic> toCreateJson() {
-    return {
-      'pitName': pitName,
-      'capacity': capacity.value,
-      'initialActive': initialActive.value,
-      if (wellId != null) 'wellId': wellId,
-      if (reportId != null) 'reportId': reportId,
-    };
-  }
+  Map<String, dynamic> toJson() => {
+        if (id != null) '_id': id,
+        'pitName': pitName,
+        'capacity': capacity.value,
+        'initialActive': initialActive.value,
+        'isLocked': isLocked,
+        if (wellId != null) 'wellId': wellId,
+        if (reportId != null) 'reportId': reportId,
+        'volume': volume?.value ?? 0,
+        'density': density?.value ?? 0,
+        'fluidType': fluidType?.value ?? '',
+      };
 }

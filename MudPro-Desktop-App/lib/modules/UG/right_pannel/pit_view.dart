@@ -90,6 +90,7 @@ class PitView extends StatelessWidget {
               ),
             ),
           )),
+          const SizedBox(width: 10),
         ],
       ),
     );

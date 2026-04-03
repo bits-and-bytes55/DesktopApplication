@@ -17,6 +17,19 @@ import 'package:path_provider/path_provider.dart';
 import '../controller/dashboard_controller.dart';
 import '../../options/options_page.dart';
 
+// ── Import controllers needed for save ──
+import 'package:mudpro_desktop_app/modules/dashboard/controller/well_general_controller.dart';
+import 'package:mudpro_desktop_app/modules/UG_ST_navigation/controller/UG_ST_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/consume_product_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/operation_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/cased_hole_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/drill_string_controller.dart';
+import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart';
+import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
+
+// Static well ID — change as needed
+const String kStaticWellId = '67f1a2b3c4d5e6f7890a1111';
+
 class HomeSecondaryTabbar extends StatefulWidget {
   const HomeSecondaryTabbar({super.key});
 
@@ -30,8 +43,6 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
   final CompanyController companyController = Get.put(CompanyController());
   final ProductsController productsController =
       Get.put(ProductsController(), tag: 'products_controller');
-
-  // ✅ InventorySnapshotController — calls POST /api/inventory-snapshot/generate
   final InventorySnapshotController _snapshotController =
       InventorySnapshotController();
 
@@ -120,14 +131,11 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
                           controller.activeSecondaryTab.value == index;
 
                       return MouseRegion(
-                        onEnter: (_) =>
-                            setState(() => _hoveredIndex = index),
-                        onExit: (_) =>
-                            setState(() => _hoveredIndex = -1),
+                        onEnter: (_) => setState(() => _hoveredIndex = index),
+                        onExit: (_) => setState(() => _hoveredIndex = -1),
                         child: Tooltip(
                           message: tooltips[index],
-                          waitDuration:
-                              const Duration(milliseconds: 300),
+                          waitDuration: const Duration(milliseconds: 300),
                           decoration: BoxDecoration(
                             gradient: AppTheme.primaryGradient,
                             borderRadius: BorderRadius.circular(6),
@@ -138,11 +146,9 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
                             fontWeight: FontWeight.w500,
                           ),
                           child: GestureDetector(
-                            onTap: () =>
-                                _handleTabAction(context, index),
+                            onTap: () => _handleTabAction(context, index),
                             child: AnimatedContainer(
-                              duration:
-                                  const Duration(milliseconds: 250),
+                              duration: const Duration(milliseconds: 250),
                               curve: Curves.easeInOut,
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 14, vertical: 10),
@@ -162,15 +168,13 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
                                             end: Alignment.bottomCenter,
                                           )
                                         : null,
-                                color: isActive ||
-                                        _hoveredIndex == index
+                                color: isActive || _hoveredIndex == index
                                     ? null
                                     : Colors.transparent,
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(
                                   color: isActive
-                                      ? AppTheme.primaryColor
-                                          .withOpacity(0.3)
+                                      ? AppTheme.primaryColor.withOpacity(0.3)
                                       : _hoveredIndex == index
                                           ? AppTheme.primaryColor
                                               .withOpacity(0.15)
@@ -189,23 +193,19 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
                                     : _hoveredIndex == index
                                         ? [
                                             BoxShadow(
-                                              color:
-                                                  AppTheme.primaryColor
-                                                      .withOpacity(0.1),
+                                              color: AppTheme.primaryColor
+                                                  .withOpacity(0.1),
                                               blurRadius: 4,
-                                              offset:
-                                                  const Offset(0, 2),
+                                              offset: const Offset(0, 2),
                                             ),
                                           ]
                                         : null,
                               ),
                               child: AnimatedContainer(
-                                duration:
-                                    const Duration(milliseconds: 200),
+                                duration: const Duration(milliseconds: 200),
                                 transform: Matrix4.identity()
-                                  ..scale(_hoveredIndex == index
-                                      ? 1.15
-                                      : 1.0),
+                                  ..scale(
+                                      _hoveredIndex == index ? 1.15 : 1.0),
                                 child: Icon(
                                   tabs[index]["icon"] as IconData,
                                   size: 16,
@@ -229,8 +229,7 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
             decoration: BoxDecoration(
               border: Border(
                 left: BorderSide(
-                    color: AppTheme.textSecondary.withOpacity(0.12),
-                    width: 1),
+                    color: AppTheme.textSecondary.withOpacity(0.12), width: 1),
               ),
               gradient: const LinearGradient(
                 colors: [Color(0xffF1F5F9), Color(0xffE2E8F0)],
@@ -242,8 +241,7 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
               children: [
                 _buildInfoField("Well", "UG-0293 ST", Icons.location_on),
                 const SizedBox(width: 20),
-                _buildInfoFieldWithDatePicker(
-                    "Date", Icons.calendar_today),
+                _buildInfoFieldWithDatePicker("Date", Icons.calendar_today),
                 const SizedBox(width: 20),
                 _buildInfoField("Report #", "12", Icons.numbers),
                 const SizedBox(width: 20),
@@ -257,7 +255,215 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
     );
   }
 
-  // ── Info fields (unchanged) ───────────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════════
+  //  SAVE — hits all APIs in sequence
+  // ══════════════════════════════════════════════════════════════════════════
+  Future<void> _saveAll(BuildContext context) async {
+    if (controller.isLocked.value) {
+      _showDesktopAlert(context, "Report is locked. Unlock to save.",
+          isSuccess: false);
+      return;
+    }
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => PopScope(
+        canPop: false,
+        child: Dialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          backgroundColor: Colors.transparent,
+          child: Container(
+            padding:
+                const EdgeInsets.symmetric(vertical: 24, horizontal: 28),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(
+                    color: Colors.black.withOpacity(0.15),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8))
+              ],
+            ),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              CircularProgressIndicator(
+                  color: AppTheme.primaryColor, strokeWidth: 2.5),
+              const SizedBox(width: 20),
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text("Saving...",
+                      style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.textPrimary)),
+                  const SizedBox(height: 4),
+                  Text("Saving all data",
+                      style: TextStyle(
+                          fontSize: 12, color: AppTheme.textSecondary)),
+                ],
+              ),
+            ]),
+          ),
+        ),
+      ),
+    );
+
+    final List<String> errorMessages = [];
+    final activeTab = controller.activeSectionTab.value;
+    String successMessage = "Data saved successfully!";
+
+    try {
+      if (activeTab == 0) { // Well Tab
+        // ── 1. Save Well General ──────────────────────────────────────────
+        final wellGenCtrl = Get.isRegistered<WellGeneralController>() ? Get.find<WellGeneralController>() : null;
+        if (wellGenCtrl != null) {
+          final res = await wellGenCtrl.save();
+          if (res['success'] == true) {
+            successMessage = res['message'];
+          } else {
+            errorMessages.add(res['message'] ?? 'Well General save failed');
+          }
+        }
+
+        // ── 2. Save Casing ──────────────────────────────────────────────
+        final casedCtrl = Get.isRegistered<CasedHoleUIController>() ? Get.find<CasedHoleUIController>() : null;
+        if (casedCtrl != null) {
+          final res = await casedCtrl.saveAll();
+          if (res['success'] == true) {
+            successMessage = res['message'];
+          } else {
+            errorMessages.add(res['message'] ?? 'Casing save failed');
+          }
+        }
+
+        // ── 3. Save Drill String ──────────────────────────────────────────
+        final drillStrCtrl = Get.isRegistered<DrillStringController>() ? Get.find<DrillStringController>() : null;
+        if (drillStrCtrl != null) {
+          final res = await drillStrCtrl.saveAll();
+          if (res['success'] == true) {
+            successMessage = res['message'];
+          } else {
+            errorMessages.add(res['message'] ?? 'Drill String save failed');
+          }
+        }
+      } else if (activeTab == 3) { // Operations Tab -> Consume Product
+        try {
+          final snapResult = await _snapshotController.generateInventorySnapshot();
+          if (snapResult['success'] != true) {
+            errorMessages.add('Consume Product snapshot: ${snapResult['message'] ?? 'Failed'}');
+          }
+
+          final opCtrl = Get.isRegistered<OperationController>() ? Get.find<OperationController>() : null;
+          if (opCtrl != null && opCtrl.totalVolume.value > 0) {
+             final authRepo = AuthRepository();
+             final tVol = opCtrl.totalVolume.value;
+             
+             final res = await authRepo.saveConsumeProductVolumeName({
+                'wellId': kStaticWellId,
+                'product': 'Water',
+                'volumeBbl': tVol,
+             });
+             if (res['success'] == true) {
+                successMessage = "Operations volume data saved";
+             } else {
+                errorMessages.add('Operations API: ${res['message'] ?? 'Failed'}');
+             }
+          }
+          // ── Transfer Mud ───────────────────────────────────────────────
+          final pitCtrl = Get.isRegistered<PitController>() ? Get.find<PitController>() : null;
+          if (pitCtrl != null) {
+            final res = await pitCtrl.saveTransferMud();
+            if (res['success'] != true) {
+              errorMessages.add('Transfer Mud: ${res['message'] ?? 'Failed'}');
+            }
+          }
+        } catch (e) {
+          errorMessages.add('Operations save error: $e');
+        }
+      } else if (activeTab == 4) { // Pit Tab
+        final pitCtrl = Get.isRegistered<PitController>() ? Get.find<PitController>() : null;
+        if (pitCtrl != null) {
+          final res = await pitCtrl.saveAllActivePits();
+          if (res['success'] == true) {
+            successMessage = res['message'];
+          } else {
+            errorMessages.add(res['message'] ?? 'Pit save failed');
+          }
+          await pitCtrl.fetchVolumeNameData();
+        }
+      }
+    } finally {
+      // Close progress dialog
+      if (context.mounted && Navigator.canPop(context)) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+    }
+
+    if (errorMessages.isEmpty) {
+      _showDesktopAlert(context, successMessage);
+    } else {
+      _showDesktopAlert(
+        context,
+        "Issues found:\n${errorMessages.join('\n')}",
+        isSuccess: false,
+      );
+    }
+  }
+
+  // ── Tab handler ───────────────────────────────────────────────────────────
+  void _handleTabAction(BuildContext context, int index) async {
+    controller.activeSecondaryTab.value = index;
+    _playTabAnimation(index);
+
+    switch (index) {
+      case 0:
+        _createNewReport(context);
+        break;
+      case 1:
+        await _openFolder(context);
+        break;
+      case 2:
+        // ✅ Save button → save all
+        await _saveAll(context);
+        break;
+      case 3:
+        await _saveReport(context, true);
+        break;
+      case 4:
+        _carryOverPad(context);
+        break;
+      case 5:
+        _createNewReport(context);
+        break;
+      case 6:
+        _carryOver(context);
+        break;
+      case 7:
+        _toggleLock(context);
+        break;
+      case 8:
+        Get.to(() => DailyReportPage());
+        break;
+      case 9:
+        Get.to(() => OptionsPage());
+        break;
+      case 10:
+        Get.to(() => const CompanySetupPage());
+        break;
+      case 11:
+        await _uploadFile(context);
+        break;
+      case 12:
+        await _batchUpload(context);
+        break;
+    }
+  }
+
+  // ── Info fields ───────────────────────────────────────────────────────────
 
   Widget _buildInfoField(String label, String value, IconData icon) {
     return Column(
@@ -276,47 +482,48 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
         ]),
         const SizedBox(height: 4),
         Obx(() => MouseRegion(
-          cursor: SystemMouseCursors.click,
-          child: GestureDetector(
-            onTap: () {
-              if (!controller.isLocked.value) {
-                _showEditFieldDialog(context, label, value);
-              }
-            },
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                gradient: AppTheme.secondaryGradient,
-                border: Border.all(
-                  color: controller.isLocked.value
-                      ? Colors.black.withOpacity(0.1)
-                      : AppTheme.primaryColor.withOpacity(0.3),
-                  width: controller.isLocked.value ? 0.5 : 1,
+              cursor: SystemMouseCursors.click,
+              child: GestureDetector(
+                onTap: () {
+                  if (!controller.isLocked.value) {
+                    _showEditFieldDialog(context, label, value);
+                  }
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    gradient: AppTheme.secondaryGradient,
+                    border: Border.all(
+                      color: controller.isLocked.value
+                          ? Colors.black.withOpacity(0.1)
+                          : AppTheme.primaryColor.withOpacity(0.3),
+                      width: controller.isLocked.value ? 0.5 : 1,
+                    ),
+                    borderRadius: BorderRadius.circular(6),
+                    boxShadow: [
+                      BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 3,
+                          offset: const Offset(0, 1))
+                    ],
+                  ),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Text(value,
+                        style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.textPrimary)),
+                    if (!controller.isLocked.value) ...[
+                      const SizedBox(width: 6),
+                      Icon(Icons.edit,
+                          size: 10, color: AppTheme.primaryColor),
+                    ],
+                  ]),
                 ),
-                borderRadius: BorderRadius.circular(6),
-                boxShadow: [
-                  BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 3,
-                      offset: const Offset(0, 1))
-                ],
               ),
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                Text(value,
-                    style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: AppTheme.textPrimary)),
-                if (!controller.isLocked.value) ...[
-                  const SizedBox(width: 6),
-                  Icon(Icons.edit, size: 10, color: AppTheme.primaryColor),
-                ],
-              ]),
-            ),
-          ),
-        )),
+            )),
       ],
     );
   }
@@ -338,48 +545,48 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
         ]),
         const SizedBox(height: 4),
         Obx(() => MouseRegion(
-          cursor: SystemMouseCursors.click,
-          child: GestureDetector(
-            onTap: () {
-              if (!controller.isLocked.value) {
-                _showDatePickerDialog(context, label);
-              }
-            },
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                gradient: AppTheme.secondaryGradient,
-                border: Border.all(
-                  color: controller.isLocked.value
-                      ? Colors.black.withOpacity(0.1)
-                      : AppTheme.primaryColor.withOpacity(0.3),
-                  width: controller.isLocked.value ? 0.5 : 1,
+              cursor: SystemMouseCursors.click,
+              child: GestureDetector(
+                onTap: () {
+                  if (!controller.isLocked.value) {
+                    _showDatePickerDialog(context, label);
+                  }
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    gradient: AppTheme.secondaryGradient,
+                    border: Border.all(
+                      color: controller.isLocked.value
+                          ? Colors.black.withOpacity(0.1)
+                          : AppTheme.primaryColor.withOpacity(0.3),
+                      width: controller.isLocked.value ? 0.5 : 1,
+                    ),
+                    borderRadius: BorderRadius.circular(6),
+                    boxShadow: [
+                      BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 3,
+                          offset: const Offset(0, 1))
+                    ],
+                  ),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Text(_dateController.text,
+                        style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.textPrimary)),
+                    if (!controller.isLocked.value) ...[
+                      const SizedBox(width: 6),
+                      Icon(Icons.calendar_today,
+                          size: 10, color: AppTheme.primaryColor),
+                    ],
+                  ]),
                 ),
-                borderRadius: BorderRadius.circular(6),
-                boxShadow: [
-                  BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 3,
-                      offset: const Offset(0, 1))
-                ],
               ),
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                Text(_dateController.text,
-                    style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: AppTheme.textPrimary)),
-                if (!controller.isLocked.value) ...[
-                  const SizedBox(width: 6),
-                  Icon(Icons.calendar_today,
-                      size: 10, color: AppTheme.primaryColor),
-                ],
-              ]),
-            ),
-          ),
-        )),
+            )),
       ],
     );
   }
@@ -404,8 +611,7 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
       setState(() {
         _dateController.text = DateFormat('MM/dd/yyyy').format(picked);
       });
-      _showDesktopAlert(
-          context, "$label updated to ${_dateController.text}");
+      _showDesktopAlert(context, "$label updated to ${_dateController.text}");
     }
   }
 
@@ -480,8 +686,7 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
                   TextButton(
                     onPressed: () => Navigator.pop(context),
                     child: Text("Cancel",
-                        style:
-                            TextStyle(color: AppTheme.textSecondary)),
+                        style: TextStyle(color: AppTheme.textSecondary)),
                   ),
                   const SizedBox(width: 10),
                   ElevatedButton(
@@ -509,150 +714,6 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
     );
   }
 
-  // ══════════════════════════════════════════════════════════════════════════
-  //  ✅ NEW: SAVE — calls generateInventorySnapshot API
-  //  This hits POST /api/inventory-snapshot/generate
-  //  which reads all saved consume-products + consume-services from DB
-  //  and creates a snapshot record.
-  // ══════════════════════════════════════════════════════════════════════════
-  Future<void> _saveInventorySnapshot(BuildContext context) async {
-    // Don't save if locked
-    if (controller.isLocked.value) {
-      _showDesktopAlert(context, "Report is locked. Unlock to save.",
-          isSuccess: false);
-      return;
-    }
-
-    // Show saving progress dialog
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => PopScope(
-        canPop: false,
-        child: Dialog(
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14)),
-          backgroundColor: Colors.transparent,
-          child: Container(
-            padding:
-                const EdgeInsets.symmetric(vertical: 24, horizontal: 28),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              boxShadow: [
-                BoxShadow(
-                    color: Colors.black.withOpacity(0.15),
-                    blurRadius: 20,
-                    offset: const Offset(0, 8))
-              ],
-            ),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              CircularProgressIndicator(
-                  color: AppTheme.primaryColor, strokeWidth: 2.5),
-              const SizedBox(width: 20),
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text("Saving...",
-                      style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.textPrimary)),
-                  const SizedBox(height: 4),
-                  Text("Generating inventory snapshot",
-                      style: TextStyle(
-                          fontSize: 12, color: AppTheme.textSecondary)),
-                ],
-              ),
-            ]),
-          ),
-        ),
-      ),
-    );
-
-    try {
-      // ✅ Call POST /api/inventory-snapshot/generate
-      final result =
-          await _snapshotController.generateInventorySnapshot();
-
-      // Close the progress dialog
-      if (context.mounted && Navigator.canPop(context)) {
-        Navigator.of(context, rootNavigator: true).pop();
-      }
-
-      if (result['success'] == true) {
-        final count = result['count'] ?? 0;
-        _showDesktopAlert(
-          context,
-          "Saved successfully! Snapshot created ($count items)",
-        );
-      } else {
-        _showDesktopAlert(
-          context,
-          "Save failed: ${result['message'] ?? 'Unknown error'}",
-          isSuccess: false,
-        );
-      }
-    } catch (e) {
-      if (context.mounted && Navigator.canPop(context)) {
-        Navigator.of(context, rootNavigator: true).pop();
-      }
-      _showDesktopAlert(context, "Save error: $e", isSuccess: false);
-    }
-  }
-
-  // ══════════════════════════════════════════════════════════════════════════
-  //  Tab handler — index 2 = Save now calls _saveInventorySnapshot
-  // ══════════════════════════════════════════════════════════════════════════
-  void _handleTabAction(BuildContext context, int index) async {
-    controller.activeSecondaryTab.value = index;
-    _playTabAnimation(index);
-
-    switch (index) {
-      case 0:
-        _createNewReport(context);
-        break;
-      case 1:
-        await _openFolder(context);
-        break;
-      case 2:
-        // ✅ Save button → generate inventory snapshot
-        await _saveInventorySnapshot(context);
-        break;
-      case 3:
-        await _saveReport(context, true);
-        break;
-      case 4:
-        _carryOverPad(context);
-        break;
-      case 5:
-        _createNewReport(context);
-        break;
-      case 6:
-        _carryOver(context);
-        break;
-      case 7:
-        _toggleLock(context);
-        break;
-      case 8:
-        Get.to(() => DailyReportPage());
-        break;
-      case 9:
-        Get.to(() => OptionsPage());
-        break;
-      case 10:
-        Get.to(() => const CompanySetupPage());
-        break;
-      case 11:
-        await _uploadFile(context);
-        break;
-      case 12:
-        await _batchUpload(context);
-        break;
-    }
-  }
-
   void _playTabAnimation(int index) {
     final AnimationController animationController = AnimationController(
       duration: const Duration(milliseconds: 150),
@@ -664,10 +725,6 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
       });
     });
   }
-
-  // ══════════════════════════════════════════════════════════════════════════
-  //  ALL REMAINING METHODS UNCHANGED FROM ORIGINAL
-  // ══════════════════════════════════════════════════════════════════════════
 
   void _showDesktopAlert(BuildContext context, String message,
       {bool isSuccess = true}) {
@@ -689,14 +746,8 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: isSuccess
-                    ? [
-                        const Color(0xff38B2AC),
-                        const Color(0xff319795)
-                      ]
-                    : [
-                        const Color(0xffFC8181),
-                        const Color(0xffF56565)
-                      ],
+                    ? [const Color(0xff38B2AC), const Color(0xff319795)]
+                    : [const Color(0xffFC8181), const Color(0xffF56565)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -723,8 +774,7 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
               const SizedBox(width: 8),
               IconButton(
                 icon: Icon(Icons.close,
-                    size: 16,
-                    color: Colors.white.withOpacity(0.8)),
+                    size: 16, color: Colors.white.withOpacity(0.8)),
                 onPressed: () => overlayEntry.remove(),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
@@ -747,27 +797,19 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
       final company = companyController.company.value;
       if (company == null) {
         Navigator.pop(context);
-        _showDesktopAlert(context, "Company data not found",
-            isSuccess: false);
+        _showDesktopAlert(context, "Company data not found", isSuccess: false);
         return;
       }
       await productsController.loadProducts();
-      final products = productsController.products
-          .where((p) => p.id != null && p.hasData())
-          .toList();
-
       var excel = Excel.createExcel();
       excel.delete('Sheet1');
       var sheet = excel['Inventory'];
       sheet.setColWidth(0, 20);
       sheet.setColWidth(1, 12);
-      // ... (rest of excel generation unchanged)
       if (Navigator.canPop(context)) Navigator.pop(context);
       final dir = await getApplicationDocumentsDirectory();
-      final timestamp =
-          DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
-      final filePath =
-          "${dir.path}/Daily_Inventory_$timestamp.xlsx";
+      final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
+      final filePath = "${dir.path}/Daily_Inventory_$timestamp.xlsx";
       var fileBytes = excel.encode();
       if (fileBytes == null) {
         _showDesktopAlert(context, "Failed to generate Excel file",
@@ -786,15 +828,11 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
     }
   }
 
-  void _setCellValue(
-    Sheet sheet,
-    String cellAddress,
-    String value, {
-    bool bold = false,
-    int fontSize = 10,
-    String? bgColor,
-    bool isNumber = false,
-  }) {
+  void _setCellValue(Sheet sheet, String cellAddress, String value,
+      {bool bold = false,
+      int fontSize = 10,
+      String? bgColor,
+      bool isNumber = false}) {
     var cell = sheet.cell(CellIndex.indexByString(cellAddress));
     if (isNumber && value.isNotEmpty) {
       final numValue = double.tryParse(value);
@@ -811,19 +849,17 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
   }
 
   void _createNewReport(BuildContext context) {
-    final TextEditingController wellNameController =
-        TextEditingController();
+    final TextEditingController wellNameController = TextEditingController();
     final TextEditingController reportNumberController =
         TextEditingController();
     final TextEditingController dateController =
-        TextEditingController(
-            text: DateFormat('MM/dd/yyyy').format(DateTime.now()));
+        TextEditingController(text: DateFormat('MM/dd/yyyy').format(DateTime.now()));
 
     showDialog(
       context: context,
       builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16)),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         elevation: 0,
         backgroundColor: Colors.transparent,
         child: Container(
@@ -854,8 +890,7 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
                   ),
                 ),
                 child: Row(children: [
-                  const Icon(Icons.add_circle_outline,
-                      color: Colors.white),
+                  const Icon(Icons.add_circle_outline, color: Colors.white),
                   const SizedBox(width: 12),
                   const Text("Create New Report",
                       style: TextStyle(
@@ -870,16 +905,16 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
                   _buildFormField(
                       "Well Name", Icons.location_on, wellNameController),
                   const SizedBox(height: 16),
-                  _buildFormField("Report Number", Icons.numbers,
-                      reportNumberController),
+                  _buildFormField(
+                      "Report Number", Icons.numbers, reportNumberController),
                   const SizedBox(height: 16),
                   _buildDateField(
                       "Date", Icons.calendar_today, dateController, context),
                 ]),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 20, vertical: 16),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                 decoration: BoxDecoration(
                     border: Border(
                         top: BorderSide(
@@ -890,24 +925,19 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
                     TextButton(
                       onPressed: () => Navigator.pop(context),
                       child: Text("Cancel",
-                          style:
-                              TextStyle(color: AppTheme.textSecondary)),
+                          style: TextStyle(color: AppTheme.textSecondary)),
                     ),
                     const SizedBox(width: 12),
                     ElevatedButton.icon(
                       onPressed: () {
                         if (wellNameController.text.isEmpty ||
                             reportNumberController.text.isEmpty) {
-                          _showDesktopAlert(
-                              context, "Please fill all fields",
+                          _showDesktopAlert(context, "Please fill all fields",
                               isSuccess: false);
                           return;
                         }
-                        _generateReportOnSystem(
-                          wellNameController.text,
-                          reportNumberController.text,
-                          dateController.text,
-                        );
+                        _generateReportOnSystem(wellNameController.text,
+                            reportNumberController.text, dateController.text);
                         controller.generateDummyReports();
                         Navigator.pop(context);
                         _showDesktopAlert(
@@ -935,8 +965,8 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
     );
   }
 
-  Widget _buildFormField(String label, IconData icon,
-      TextEditingController controller) {
+  Widget _buildFormField(
+      String label, IconData icon, TextEditingController controller) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Text(label,
           style: TextStyle(
@@ -952,11 +982,10 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
         child: TextField(
           controller: controller,
           decoration: InputDecoration(
-            prefixIcon:
-                Icon(icon, size: 18, color: AppTheme.primaryColor),
+            prefixIcon: Icon(icon, size: 18, color: AppTheme.primaryColor),
             border: InputBorder.none,
-            contentPadding: const EdgeInsets.symmetric(
-                horizontal: 12, vertical: 14),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
           ),
         ),
       ),
@@ -982,8 +1011,7 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
             builder: (context, child) => Theme(
               data: ThemeData.light().copyWith(
                 colorScheme: const ColorScheme.light(
-                    primary: AppTheme.primaryColor,
-                    onPrimary: Colors.white),
+                    primary: AppTheme.primaryColor, onPrimary: Colors.white),
               ),
               child: child!,
             ),
@@ -1021,8 +1049,7 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
 
   Future<void> _openFolder(BuildContext context) async {
     try {
-      String? selectedDirectory =
-          await FilePicker.platform.getDirectoryPath(
+      String? selectedDirectory = await FilePicker.platform.getDirectoryPath(
         dialogTitle: 'Select MudPro Reports Folder',
       );
       if (selectedDirectory != null) {
@@ -1031,23 +1058,21 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
           final files = directory.listSync();
           _showFilesDialog(context, files, selectedDirectory);
         } else {
-          _showDesktopAlert(context, "Folder does not exist",
-              isSuccess: false);
+          _showDesktopAlert(context, "Folder does not exist", isSuccess: false);
         }
       }
     } catch (e) {
-      _showDesktopAlert(context, "Failed to open folder: $e",
-          isSuccess: false);
+      _showDesktopAlert(context, "Failed to open folder: $e", isSuccess: false);
     }
   }
 
-  void _showFilesDialog(BuildContext context,
-      List<FileSystemEntity> files, String folderPath) {
+  void _showFilesDialog(BuildContext context, List<FileSystemEntity> files,
+      String folderPath) {
     showDialog(
       context: context,
       builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16)),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         elevation: 0,
         backgroundColor: Colors.transparent,
         child: Container(
@@ -1068,8 +1093,8 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 gradient: AppTheme.primaryGradient,
-                borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(16)),
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(16)),
               ),
               child: Row(children: [
                 const Icon(Icons.folder_open, color: Colors.white),
@@ -1090,14 +1115,13 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
               itemBuilder: (context, index) {
                 final file = files[index];
                 final isDir = file is Directory;
-                final name =
-                    file.path.split(Platform.pathSeparator).last;
+                final name = file.path.split(Platform.pathSeparator).last;
                 return ListTile(
                   leading: Icon(
                       isDir ? Icons.folder : Icons.insert_drive_file,
-                      color: isDir ? Colors.orange : AppTheme.primaryColor),
-                  title: Text(name,
-                      style: const TextStyle(fontSize: 12)),
+                      color:
+                          isDir ? Colors.orange : AppTheme.primaryColor),
+                  title: Text(name, style: const TextStyle(fontSize: 12)),
                   subtitle: Text(isDir ? "Folder" : "File",
                       style: const TextStyle(fontSize: 10)),
                 );
@@ -1105,45 +1129,21 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
             )),
             Padding(
               padding: const EdgeInsets.all(16),
-              child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    ElevatedButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primaryColor,
-                        foregroundColor: Colors.white,
-                      ),
-                      child: const Text("Close"),
-                    ),
-                  ]),
+              child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryColor,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text("Close"),
+                ),
+              ]),
             ),
           ]),
         ),
       ),
     );
-  }
-
-  Widget _buildStatItem(IconData icon, String label, String value) {
-    return Expanded(
-      child: Column(children: [
-        Icon(icon, size: 20, color: AppTheme.primaryColor),
-        const SizedBox(height: 4),
-        Text(value,
-            style: const TextStyle(
-                fontSize: 14, fontWeight: FontWeight.w700)),
-        Text(label,
-            style: TextStyle(
-                fontSize: 10, color: AppTheme.textSecondary)),
-      ]),
-    );
-  }
-
-  String _formatFileSize(int bytes) {
-    if (bytes < 1024) return '$bytes B';
-    if (bytes < 1048576)
-      return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    return '${(bytes / 1048576).toStringAsFixed(1)} MB';
   }
 
   Future<void> _saveReport(BuildContext context, bool saveAs) async {
@@ -1168,15 +1168,14 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
         _showDesktopAlert(context, "Report saved successfully");
       }
     } catch (e) {
-      _showDesktopAlert(context, "Failed to save report: $e",
-          isSuccess: false);
+      _showDesktopAlert(context, "Failed to save report: $e", isSuccess: false);
     }
   }
 
   Future<Directory> getDocumentsDirectory() async {
     if (Platform.isWindows) {
-      return Directory(path.join(Platform.environment['USERPROFILE']!,
-          'Documents', 'MudPro Reports'));
+      return Directory(path.join(
+          Platform.environment['USERPROFILE']!, 'Documents', 'MudPro Reports'));
     } else if (Platform.isMacOS || Platform.isLinux) {
       return Directory(path.join(
           Platform.environment['HOME']!, 'Documents', 'MudPro Reports'));
@@ -1196,8 +1195,8 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
         reportsDir.path,
         '${wellName.replaceAll(' ', '_')}_${reportNumber}_${date.replaceAll('/', '-')}.json',
       ));
-      await reportFile
-          .writeAsString(jsonEncode({'wellName': wellName, 'reportNumber': reportNumber, 'date': date}));
+      await reportFile.writeAsString(jsonEncode(
+          {'wellName': wellName, 'reportNumber': reportNumber, 'date': date}));
     } catch (e) {
       debugPrint('Error generating report: $e');
     }
@@ -1207,8 +1206,8 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12)),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         title: const Text("Carry-over Pad"),
         content: const Text(
             "This will copy all current pad data to a new report. Continue?"),
@@ -1219,8 +1218,7 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              _showDesktopAlert(
-                  context, "Pad data carried over successfully");
+              _showDesktopAlert(context, "Pad data carried over successfully");
             },
             style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.warningColor,
@@ -1236,8 +1234,8 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12)),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         title: const Text("Carry-over Report"),
         content: const Text(
             "This will carry selected data to the next report."),
@@ -1248,8 +1246,7 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              _showDesktopAlert(
-                  context, "Data carried over successfully");
+              _showDesktopAlert(context, "Data carried over successfully");
             },
             style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.warningColor,
@@ -1258,41 +1255,6 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildCheckboxOption(String text, bool value) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.black.withOpacity(0.1)),
-      ),
-      child: Row(children: [
-        Container(
-          width: 20,
-          height: 20,
-          decoration: BoxDecoration(
-            color: value ? AppTheme.successColor : Colors.white,
-            borderRadius: BorderRadius.circular(4),
-            border: Border.all(
-                color: value
-                    ? AppTheme.successColor
-                    : Colors.grey.shade300),
-          ),
-          child: value
-              ? const Icon(Icons.check, size: 14, color: Colors.white)
-              : null,
-        ),
-        const SizedBox(width: 12),
-        Text(text,
-            style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: AppTheme.textPrimary)),
-      ]),
     );
   }
 
@@ -1318,12 +1280,10 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
         _showUploadProgress(context, file.name);
         await Future.delayed(const Duration(seconds: 1));
         if (Navigator.canPop(context)) Navigator.pop(context);
-        _showDesktopAlert(
-            context, "File '${file.name}' uploaded successfully");
+        _showDesktopAlert(context, "File '${file.name}' uploaded successfully");
       }
     } catch (e) {
-      _showDesktopAlert(context, "Failed to upload: $e",
-          isSuccess: false);
+      _showDesktopAlert(context, "Failed to upload: $e", isSuccess: false);
     }
   }
 
@@ -1332,8 +1292,8 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
       context: context,
       barrierDismissible: false,
       builder: (ctx) => Dialog(
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16)),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -1362,12 +1322,11 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
         _showUploadProgress(context, "${result.files.length} files");
         await Future.delayed(const Duration(seconds: 1));
         if (Navigator.canPop(context)) Navigator.pop(context);
-        _showDesktopAlert(context,
-            "${result.files.length} files uploaded successfully");
+        _showDesktopAlert(
+            context, "${result.files.length} files uploaded successfully");
       }
     } catch (e) {
-      _showDesktopAlert(context, "Batch upload failed: $e",
-          isSuccess: false);
+      _showDesktopAlert(context, "Batch upload failed: $e", isSuccess: false);
     }
   }
 }

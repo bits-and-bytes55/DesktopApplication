@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/controller/company_controller.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/controller/engineers_controller.dart';
+import 'package:mudpro_desktop_app/modules/company_setup/controller/company_setup_controller.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/model/engineers_model.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
@@ -15,14 +16,17 @@ class MudCompanyPage extends StatefulWidget {
 }
 
 class _MudCompanyPageState extends State<MudCompanyPage> {
-  final EngineerController engineerController = Get.put(EngineerController());
-  final CompanyController companyController   = Get.put(CompanyController());
+  final EngineerController engineerController = Get.find<EngineerController>();
+  final CompanyController companyController   = Get.find<CompanyController>();
+  final CompanySetupController companySetupController = Get.find<CompanySetupController>();
 
   final ScrollController _tableScrollController = ScrollController();
+  final ScrollController _horizontalScrollController = ScrollController();
 
   @override
   void dispose() {
     _tableScrollController.dispose();
+    _horizontalScrollController.dispose();
     super.dispose();
   }
 
@@ -34,13 +38,19 @@ class _MudCompanyPageState extends State<MudCompanyPage> {
         children: [
           Padding(
             padding: const EdgeInsets.all(12),
-            child: Row(
-              children: [
-                _leftSection(),
-                const SizedBox(width: 12),
-                Expanded(child: _rightSection()),
-              ],
-            ),
+            child: Obx(() => IgnorePointer(
+              ignoring: companySetupController.isLocked.value,
+              child: Opacity(
+                opacity: companySetupController.isLocked.value ? 0.6 : 1.0,
+                child: Row(
+                  children: [
+                    _leftSection(),
+                    const SizedBox(width: 12),
+                    Expanded(child: _rightSection()),
+                  ],
+                ),
+              ),
+            )),
           ),
           // Top right alerts
           Positioned(
@@ -215,7 +225,7 @@ class _MudCompanyPageState extends State<MudCompanyPage> {
                       width: double.infinity,
                       height: 38,
                       child: ElevatedButton.icon(
-                        onPressed: companyController.isSaving.value
+                        onPressed: (companyController.isSaving.value || companySetupController.isLocked.value)
                             ? null
                             : () => companyController.saveCompanyDetails(),
                         style: ElevatedButton.styleFrom(
@@ -322,8 +332,9 @@ class _MudCompanyPageState extends State<MudCompanyPage> {
           Expanded(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: TextField(
+              child: Obx(() => TextField(
                 controller: controller,
+                readOnly: companySetupController.isLocked.value,
                 style: TextStyle(fontSize: 12, color: AppTheme.textPrimary),
                 decoration: InputDecoration(
                   border: InputBorder.none,
@@ -334,7 +345,7 @@ class _MudCompanyPageState extends State<MudCompanyPage> {
                     color: AppTheme.textSecondary.withOpacity(0.5),
                   ),
                 ),
-              ),
+              )),
             ),
           ),
         ],
@@ -450,21 +461,22 @@ class _MudCompanyPageState extends State<MudCompanyPage> {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                ElevatedButton.icon(
-                  onPressed: () =>
-                      companyController
-                          .pickLogoAndConvert(),
+                Obx(() => ElevatedButton.icon(
+                  onPressed: companySetupController.isLocked.value 
+                      ? null 
+                      : () => companyController.pickLogoAndConvert(),
                   icon: const Icon(Icons.upload_file,
                       size: 12),
                   label: const Text('Browse',
                       style: TextStyle(fontSize: 11)),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor:
-                        AppTheme.primaryColor,
+                    backgroundColor: companySetupController.isLocked.value 
+                        ? Colors.grey 
+                        : AppTheme.primaryColor,
                     minimumSize:
                         const Size(80, 28),
                   ),
-                ),
+                )),
               ],
             ),
           ),
@@ -525,7 +537,7 @@ class _MudCompanyPageState extends State<MudCompanyPage> {
                   isExpanded: true,
                   icon: Icon(Icons.arrow_drop_down, size: 18, color: AppTheme.primaryColor),
                   style: TextStyle(fontSize: 12, color: AppTheme.textPrimary),
-                  onChanged: (v) => companyController.currencySymbol.value = v!,
+                  onChanged: companySetupController.isLocked.value ? null : (v) => companyController.currencySymbol.value = v!,
                   items: const ['₹', '\$', '€', '£', '¥', '₩']
                       .map((e) => DropdownMenuItem(
                             value: e,
@@ -591,7 +603,7 @@ class _MudCompanyPageState extends State<MudCompanyPage> {
                   isExpanded: true,
                   icon: Icon(Icons.arrow_drop_down, size: 18, color: AppTheme.primaryColor),
                   style: TextStyle(fontSize: 12, color: AppTheme.textPrimary),
-                  onChanged: (v) => companyController.currencyFormat.value = v!,
+                  onChanged: companySetupController.isLocked.value ? null : (v) => companyController.currencyFormat.value = v!,
                   items: const ['0', '0.0', '0.00', '0.000', '0.0000']
                       .map((e) => DropdownMenuItem(
                             value: e,
@@ -623,132 +635,149 @@ class _MudCompanyPageState extends State<MudCompanyPage> {
       decoration: AppTheme.elevatedCardDecoration,
       child: Column(
         children: [
-          // Header
-          Container(
-            height: 48,
-            decoration: BoxDecoration(
-              gradient: AppTheme.headerGradient,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(12),
-                topRight: Radius.circular(12),
-              ),
-            ),
-            child: Row(
-              children: [
-                _HeaderCell(numberWidth, '#', Icons.numbers),
-                _verticalDivider(),
-                _HeaderCell(firstNameWidth, 'First Name', Icons.person),
-                _verticalDivider(),
-                _HeaderCell(lastNameWidth, 'Last Name', Icons.person_outline),
-                _verticalDivider(),
-                _HeaderCell(cellWidth, 'Cell', Icons.phone_android),
-                _verticalDivider(),
-                _HeaderCell(officeWidth, 'Office', Icons.phone),
-                _verticalDivider(),
-                _HeaderCell(emailWidth, 'E-mail', Icons.email),
-                _verticalDivider(),
-                _HeaderCell(actionsWidth, 'Actions', Icons.settings),
-              ],
-            ),
-          ),
-
-          // Table Body
           Expanded(
-            child: Obx(() {
-              if (engineerController.isLoading.value) {
-                return const Center(child: CircularProgressIndicator());
-              }
-
-              final rowCount = engineerController.rowControllers.length;
-
-              return Scrollbar(
-                controller: _tableScrollController,
-                thumbVisibility: true,
-                trackVisibility: true,
-                child: ListView.builder(
-                  controller: _tableScrollController,
-                  itemCount: rowCount,
-                  itemBuilder: (_, index) {
-                    final row     = engineerController.rowControllers[index];
-                    final isSaved = row.engineerId != null;
-                    final isEditing = isSaved &&
-                        engineerController.editingEngineerId.value == row.engineerId;
-
-                    return Container(
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: isEditing
-                            ? const Color(0xffEFF6FF)
-                            : isSaved
-                                ? const Color(0xffF3F4F6)
-                                : (index % 2 == 0 ? Colors.white : AppTheme.cardColor),
-                        border: Border(
-                          bottom: BorderSide(color: Colors.grey.shade200, width: 0.5),
+            child: Scrollbar(
+              controller: _horizontalScrollController,
+              thumbVisibility: true,
+              child: SingleChildScrollView(
+                controller: _horizontalScrollController,
+                scrollDirection: Axis.horizontal,
+                child: SizedBox(
+                  width: 966, // Exact total of fixed widths (50+130+130+130+180+230+100 + 6 dividers)
+                  child: Column(
+                    children: [
+                      // Header
+                      Container(
+                        height: 48,
+                        decoration: BoxDecoration(
+                          gradient: AppTheme.headerGradient,
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(12),
+                            topRight: Radius.circular(12),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            _HeaderCell(numberWidth, '#', Icons.numbers),
+                            _verticalDivider(),
+                            _HeaderCell(firstNameWidth, 'First Name', Icons.person),
+                            _verticalDivider(),
+                            _HeaderCell(lastNameWidth, 'Last Name', Icons.person_outline),
+                            _verticalDivider(),
+                            _HeaderCell(cellWidth, 'Cell', Icons.phone_android),
+                            _verticalDivider(),
+                            _HeaderCell(officeWidth, 'Office', Icons.phone),
+                            _verticalDivider(),
+                            _HeaderCell(emailWidth, 'E-mail', Icons.email),
+                            _verticalDivider(),
+                            _HeaderCell(actionsWidth, 'Actions', Icons.settings),
+                          ],
                         ),
                       ),
-                      child: Row(
-                        children: [
-                          _numberCell(numberWidth, index + 1, isSaved, isEditing: isEditing),
-                          _verticalDivider(),
-                          _editableCell(
-                            firstNameWidth,
-                            isEditing
-                                ? engineerController.inlineFirstName
-                                : row.firstNameController,
-                            'First name',
-                            index,
-                            // Locked if saved and NOT currently being edited
-                            isSaved && !isEditing,
-                          ),
-                          _verticalDivider(),
-                          _editableCell(
-                            lastNameWidth,
-                            isEditing
-                                ? engineerController.inlineLastName
-                                : row.lastNameController,
-                            'Last name',
-                            index,
-                            isSaved && !isEditing,
-                          ),
-                          _verticalDivider(),
-                          _editableCell(
-                            cellWidth,
-                            isEditing
-                                ? engineerController.inlineCell
-                                : row.cellController,
-                            'Cell',
-                            index,
-                            isSaved && !isEditing,
-                          ),
-                          _verticalDivider(),
-                          _editableCell(
-                            officeWidth,
-                            isEditing
-                                ? engineerController.inlineOffice
-                                : row.officeController,
-                            'Office',
-                            index,
-                            isSaved && !isEditing,
-                          ),
-                          _verticalDivider(),
-                          _editableCell(
-                            emailWidth,
-                            isEditing
-                                ? engineerController.inlineEmail
-                                : row.emailController,
-                            'Email',
-                            index,
-                            isSaved && !isEditing,
-                          ),
-                          _verticalDivider(),
-                          _actionsCell(actionsWidth, row, index, isEditing),
-                        ],
+
+                      // Table Body
+                      Expanded(
+                        child: Obx(() {
+                          if (engineerController.isLoading.value) {
+                            return const Center(child: CircularProgressIndicator());
+                          }
+
+                          final rowCount = engineerController.rowControllers.length;
+
+                          return Scrollbar(
+                            controller: _tableScrollController,
+                            thumbVisibility: true,
+                            trackVisibility: true,
+                            child: ListView.builder(
+                              controller: _tableScrollController,
+                              itemCount: rowCount,
+                              itemBuilder: (_, index) {
+                                final row     = engineerController.rowControllers[index];
+                                final isSaved = row.engineerId != null;
+                                final isEditing = isSaved &&
+                                    engineerController.editingEngineerId.value == row.engineerId;
+
+                                return Container(
+                                  height: 36,
+                                  decoration: BoxDecoration(
+                                    color: isEditing
+                                        ? const Color(0xffEFF6FF)
+                                        : isSaved
+                                            ? const Color(0xffF3F4F6)
+                                            : (index % 2 == 0 ? Colors.white : AppTheme.cardColor),
+                                    border: Border(
+                                      bottom: BorderSide(color: Colors.grey.shade200, width: 0.5),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      _numberCell(numberWidth, index + 1, isSaved, isEditing: isEditing),
+                                      _verticalDivider(),
+                                      _editableCell(
+                                        firstNameWidth,
+                                        isEditing
+                                            ? engineerController.inlineFirstName
+                                            : row.firstNameController,
+                                        'First name',
+                                        index,
+                                        isSaved && !isEditing,
+                                      ),
+                                      _verticalDivider(),
+                                      _editableCell(
+                                        lastNameWidth,
+                                        isEditing
+                                            ? engineerController.inlineLastName
+                                            : row.lastNameController,
+                                        'Last name',
+                                        index,
+                                        isSaved && !isEditing,
+                                      ),
+                                      _verticalDivider(),
+                                      _editableCell(
+                                        cellWidth,
+                                        isEditing
+                                            ? engineerController.inlineCell
+                                            : row.cellController,
+                                        'Cell',
+                                        index,
+                                        isSaved && !isEditing,
+                                      ),
+                                      _verticalDivider(),
+                                      _editableCell(
+                                        officeWidth,
+                                        isEditing
+                                            ? engineerController.inlineOffice
+                                            : row.officeController,
+                                        'Office',
+                                        index,
+                                        isSaved && !isEditing,
+                                      ),
+                                      _verticalDivider(),
+                                      _editableCell(
+                                        emailWidth,
+                                        isEditing
+                                            ? engineerController.inlineEmail
+                                            : row.emailController,
+                                        'Email',
+                                        index,
+                                        (row.engineerId != null && !isEditing) ||
+                                            companySetupController.isLocked.value,
+                                      ),
+                                      _verticalDivider(),
+                                      _actionsCell(actionsWidth, row, index, isEditing),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                          );
+                        }),
                       ),
-                    );
-                  },
+                    ],
+                  ),
                 ),
-              );
-            }),
+              ),
+            ),
           ),
 
           // Footer
@@ -784,7 +813,7 @@ class _MudCompanyPageState extends State<MudCompanyPage> {
                   Row(
                     children: [
                       ElevatedButton.icon(
-                        onPressed: engineerController.isSaving.value
+                        onPressed: (engineerController.isSaving.value || companySetupController.isLocked.value)
                             ? null
                             : () => engineerController.saveAllRows(),
                         style: AppTheme.primaryButtonStyle.copyWith(
@@ -877,16 +906,16 @@ class _MudCompanyPageState extends State<MudCompanyPage> {
     TextEditingController controller,
     String hint,
     int rowIndex,
-    bool isLocked,
+    bool isCellLocked,
   ) {
     return Container(
       width: width,
-      color: isLocked ? null : Colors.white,
+      color: companySetupController.isLocked.value ? null : Colors.white,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       alignment: Alignment.centerLeft,
       child: TextField(
         controller: controller,
-        enabled: !isLocked,
+        enabled: !isCellLocked,
         onChanged: (_) {
           // Only trigger auto-add for truly new (unsaved) rows
           final row = engineerController.rowControllers[rowIndex];
@@ -896,13 +925,13 @@ class _MudCompanyPageState extends State<MudCompanyPage> {
         },
         style: TextStyle(
           fontSize: 12,
-          color: isLocked ? AppTheme.textSecondary : AppTheme.textPrimary,
+          color: isCellLocked ? AppTheme.textSecondary : AppTheme.textPrimary,
         ),
         decoration: InputDecoration(
           border: InputBorder.none,
           isDense: true,
           contentPadding: EdgeInsets.zero,
-          hintText: isLocked ? '' : hint,
+          hintText: isCellLocked ? '' : hint,
           hintStyle: TextStyle(
             fontSize: 11,
             color: AppTheme.textSecondary.withOpacity(0.4),

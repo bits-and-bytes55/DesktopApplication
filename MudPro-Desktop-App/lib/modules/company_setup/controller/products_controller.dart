@@ -246,6 +246,53 @@ class ProductsController extends GetxController {
     }
   }
 
+  // ─── Export/Import Helpers ────────────────────────────────────────────────
+
+  List<List<String>> getExportData() {
+    List<List<String>> data = [['Product', 'Code', 'SG', 'Unit Num', 'Unit Class', 'Group', 'Retail', 'Sales Price', 'COGS']];
+    for (var p in products) {
+      if (p.id != null || p.hasData()) {
+        data.add([
+          p.product.toString(),
+          p.code.toString(),
+          p.sg.toString(),
+          p.unitNum.toString(),
+          p.unitClass.toString(),
+          p.group.toString(),
+          p.retail.toString(),
+          p.a.toString(),
+          p.b.toString(),
+        ]);
+      }
+    }
+    return data;
+  }
+
+  void importFromData(List<List<String>> rows) {
+    // Clear unsaved products
+    products.removeWhere((p) => p.id == null || !existingProductIds.contains(p.id));
+
+    for (var row in rows) {
+      if (row.length < 9) continue;
+      final product = ProductModel(
+        product: row[0],
+        code: row[1],
+        sg: row[2],
+        unitNum: row[3],
+        unitClass: row[4],
+        group: row[5],
+        retail: row[6],
+        a: row[7],
+        b: row[8],
+      );
+      products.add(product);
+    }
+    
+    // Add empty row for new input
+    addProduct();
+    products.refresh();
+  }
+
   void showSuccessAlert(String message) {
     Get.rawSnackbar(
       messageText: Row(
