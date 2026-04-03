@@ -38,10 +38,10 @@ export const createReceiveMud = async (req, res) => {
     const loss = round2(toNumber(lossVolume));
     const netVolume = round2(grossVolume - loss);
 
-    if (grossVolume <= 0) {
+    if (grossVolume < 0) {
       return res.status(400).json({
         success: false,
-        message: "Volume must be greater than 0",
+        message: "Volume cannot be negative",
       });
     }
 
