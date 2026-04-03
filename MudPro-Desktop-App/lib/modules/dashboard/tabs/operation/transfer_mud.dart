@@ -16,39 +16,24 @@ class _TransferMudViewState extends State<TransferMudView> {
   final DashboardController dashboardController = Get.find<DashboardController>();
   final PitController pitController = Get.put(PitController());
 
-  // Data lists
-  final RxList<PitModel> pits = <PitModel>[].obs;
-
-  // Row data for the table
-  final RxList<TransferRowData> transferRows = <TransferRowData>[].obs;
-
-  // Selected row index
   final RxInt selectedRow = 0.obs;
 
-  // From dropdown selection
-  final RxString selectedFromPit = ''.obs;
-  
   static const String kActiveSystem = 'Active System';
   static const String kEmpty = '';
-
-  // Not Treated Mud checkbox
-  final RxBool notTreatedMud = false.obs;
 
   @override
   void initState() {
     super.initState();
     _loadData();
-    // Initialize with 5 empty rows
-    for (int i = 0; i < 5; i++) {
-      transferRows.add(TransferRowData());
-    }
   }
 
   Future<void> _loadData() async {
     try {
       await pitController.fetchUnselectedPits();
-      // Default to empty or Active System as per requirement
-      selectedFromPit.value = kActiveSystem;
+      // Initialize selectedFromPit if it's currently empty
+      if (pitController.selectedFromPit.value.isEmpty) {
+        pitController.selectedFromPit.value = kActiveSystem;
+      }
     } catch (e) {
       debugPrint("Error loading pits: $e");
     }
@@ -105,7 +90,7 @@ class _TransferMudViewState extends State<TransferMudView> {
               
               return DropdownButtonHideUnderline(
                 child: DropdownButton<String>(
-                  value: selectedFromPit.value.isEmpty ? kEmpty : selectedFromPit.value,
+                  value: pitController.selectedFromPit.value.isEmpty ? kEmpty : pitController.selectedFromPit.value,
                   isExpanded: true,
                   isDense: true,
                   hint: Padding(
@@ -164,7 +149,7 @@ class _TransferMudViewState extends State<TransferMudView> {
                       ? null
                       : (String? value) {
                           if (value != null) {
-                            selectedFromPit.value = value;
+                            pitController.selectedFromPit.value = value;
                           }
                         },
                 ),
@@ -198,24 +183,24 @@ class _TransferMudViewState extends State<TransferMudView> {
           onTap: dashboardController.isLocked.value
               ? null
               : () {
-                  notTreatedMud.value = !notTreatedMud.value;
+                  pitController.notTreatedMud.value = !pitController.notTreatedMud.value;
                 },
           child: Container(
             width: 16,
             height: 16,
             decoration: BoxDecoration(
               border: Border.all(
-                color: notTreatedMud.value
+                color: pitController.notTreatedMud.value
                     ? AppTheme.primaryColor
                     : Colors.grey.shade400,
                 width: 1.5,
               ),
               borderRadius: BorderRadius.circular(3),
-              color: notTreatedMud.value
+              color: pitController.notTreatedMud.value
                   ? AppTheme.primaryColor.withOpacity(0.1)
                   : Colors.transparent,
             ),
-            child: notTreatedMud.value
+            child: pitController.notTreatedMud.value
                 ? Icon(
                     Icons.check,
                     size: 12,
@@ -251,7 +236,7 @@ class _TransferMudViewState extends State<TransferMudView> {
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Container(
-                width: 500, // Fixed width for 3 columns
+                width: 500, // Fixed width for 4 columns (added action cell)
                 child: Column(
                   children: [
                     // Table Header - Fixed
@@ -265,8 +250,9 @@ class _TransferMudViewState extends State<TransferMudView> {
                       child: Row(
                         children: [
                           _buildHeaderCell("No", 50),
-                          _buildHeaderCell("Pit", 300),
-                          _buildHeaderCell("Vol. (bbl)", 150),
+                          _buildHeaderCell("Pit", 260),
+                          _buildHeaderCell("Vol. (bbl)", 140),
+                          _buildHeaderCell("", 50),
                         ],
                       ),
                     ),
@@ -275,8 +261,8 @@ class _TransferMudViewState extends State<TransferMudView> {
                     Expanded(
                       child: Obx(() => SingleChildScrollView(
                         child: Column(
-                          children: List.generate(transferRows.length, (index) {
-                            final row = transferRows[index];
+                          children: List.generate(pitController.transferRows.length, (index) {
+                            final row = pitController.transferRows[index];
                             final isSelected = selectedRow.value == index;
 
                             return Container(
@@ -294,9 +280,11 @@ class _TransferMudViewState extends State<TransferMudView> {
                                   // Number cell
                                   _buildNumberCell(index + 1, 50),
                                   // Pit dropdown cell
-                                  _buildPitDropdownCell(row, index, isSelected, 300),
+                                  _buildPitDropdownCell(row, index, isSelected, 260),
                                   // Volume cell
-                                  _buildVolumeCell(row, 150),
+                                  _buildVolumeCell(row, 140),
+                                  // Action cell
+                                  _buildActionCell(index, 50),
                                 ],
                               ),
                             );
@@ -350,11 +338,14 @@ class _TransferMudViewState extends State<TransferMudView> {
         ),
         child: Row(
           children: [
-            // Dropdown icon
-            Icon(
-              isSelected ? Icons.arrow_drop_down : Icons.arrow_right,
-              size: 16,
-              color: isSelected ? AppTheme.primaryColor : Colors.grey.shade400,
+            // Dropdown icon - logic: show if 1st row or if currently selected
+            Opacity(
+              opacity: (index == 0 || isSelected) ? 1.0 : 0.0,
+              child: Icon(
+                isSelected ? Icons.arrow_drop_down : Icons.arrow_right,
+                size: 16,
+                color: isSelected ? AppTheme.primaryColor : Colors.grey.shade400,
+              ),
             ),
             const SizedBox(width: 4),
 
@@ -398,8 +389,8 @@ class _TransferMudViewState extends State<TransferMudView> {
                           if (value != null) {
                             selectedRow.value = index;
                             row.pitName = value;
-                            transferRows.refresh();
-                            _checkAndAddRow();
+                            pitController.transferRows.refresh();
+                            pitController.checkAndAddTransferRow();
                           }
                         },
                 ),
@@ -457,28 +448,25 @@ class _TransferMudViewState extends State<TransferMudView> {
     );
   }
 
-  void _checkAndAddRow() {
-    if (transferRows.length >= 5) {
-      final lastRow = transferRows.last;
-      if (lastRow.pitName.isNotEmpty) {
-        transferRows.add(TransferRowData());
-      }
-    }
+  Widget _buildActionCell(int index, double width) {
+    return Container(
+      width: width,
+      height: 32,
+      alignment: Alignment.center,
+      child: IconButton(
+        icon: Icon(Icons.delete_outline, size: 16, color: Colors.red.shade400),
+        onPressed: dashboardController.isLocked.value 
+            ? null 
+            : () => pitController.deleteTransferRow(index),
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(),
+        tooltip: 'Delete row',
+      ),
+    );
   }
 
   @override
   void dispose() {
-    // Dispose all controllers to prevent leaks
-    for (var row in transferRows) {
-      row.volumeController.dispose();
-    }
     super.dispose();
   }
-}
-
-// Row data class
-class TransferRowData {
-  String pitName = '';
-  String volume = '';
-  final TextEditingController volumeController = TextEditingController();
-}
+}

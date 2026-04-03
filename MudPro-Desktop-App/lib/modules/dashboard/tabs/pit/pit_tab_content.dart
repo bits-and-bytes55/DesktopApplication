@@ -29,6 +29,7 @@ class _PitPageState extends State<PitPage> {
   @override
   void initState() {
     super.initState();
+    controller.fetchAllPits();
     controller.fetchVolumeNameData();
   }
 
@@ -188,7 +189,6 @@ class _PitPageState extends State<PitPage> {
                   child: InkWell(
                     onTap: () async {
                       await controller.saveAllActivePits();
-                      await controller.fetchVolumeNameData();
                     },
                     borderRadius: BorderRadius.circular(4),
                     child: Container(

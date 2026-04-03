@@ -170,6 +170,72 @@ class AuthRepository {
     }
   }
 
+  // ── Get Transfer Mud ─────────────────────────────────────────────────────────
+  Future<Map<String, dynamic>> getTransferMud(String wellId) async {
+    try {
+      print('Hitting GET ${baseUrl}transfer-mud/$wellId');
+      final response = await http.get(
+        Uri.parse('${baseUrl}transfer-mud/$wellId'),
+        headers: _headers,
+      );
+      print('statuscode------${response.statusCode}');
+      print('response body------${response.body}');
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200,
+        'data': data,
+        'message': data['message'] ?? 'Success',
+      };
+    } catch (e) {
+      print('Error in getTransferMud: $e');
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  // ── Create Transfer Mud ─────────────────────────────────────────────────────
+  Future<Map<String, dynamic>> createTransferMud(String wellId, Map<String, dynamic> body) async {
+    try {
+      print('Hitting POST ${baseUrl}transfer-mud/$wellId');
+      final response = await http.post(
+        Uri.parse('${baseUrl}transfer-mud/$wellId'),
+        headers: _headers,
+        body: jsonEncode(body),
+      );
+      print('statuscode------${response.statusCode}');
+      print('response body------${response.body}');
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200 || response.statusCode == 201,
+        'data': data,
+        'message': data['message'] ?? 'Saved successfully',
+      };
+    } catch (e) {
+      print('Error in createTransferMud: $e');
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  // ── Delete Transfer Mud ─────────────────────────────────────────────────────
+  Future<Map<String, dynamic>> deleteTransferMud(String id) async {
+    try {
+      print('Hitting DELETE ${baseUrl}transfer-mud/$id');
+      final response = await http.delete(
+        Uri.parse('${baseUrl}transfer-mud/$id'),
+        headers: _headers,
+      );
+      print('statuscode------${response.statusCode}');
+      print('response body------${response.body}');
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200,
+        'message': data['message'] ?? 'Deleted successfully',
+      };
+    } catch (e) {
+      print('Error in deleteTransferMud: $e');
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
   // ══════════════════════════════════════════════════════════════════════════════
   // EXISTING METHODS (Engineer, Company, Product, Pit CRUD - ALL PRESERVED)
   // ══════════════════════════════════════════════════════════════════════════════

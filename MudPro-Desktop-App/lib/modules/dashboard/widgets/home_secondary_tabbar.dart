@@ -373,6 +373,14 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
                 errorMessages.add('Operations API: ${res['message'] ?? 'Failed'}');
              }
           }
+          // ── Transfer Mud ───────────────────────────────────────────────
+          final pitCtrl = Get.isRegistered<PitController>() ? Get.find<PitController>() : null;
+          if (pitCtrl != null) {
+            final res = await pitCtrl.saveTransferMud();
+            if (res['success'] != true) {
+              errorMessages.add('Transfer Mud: ${res['message'] ?? 'Failed'}');
+            }
+          }
         } catch (e) {
           errorMessages.add('Operations save error: $e');
         }
