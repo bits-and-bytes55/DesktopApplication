@@ -270,11 +270,10 @@ export const getPitById = async (req, res) => {
 
 // ============= UPDATE OPERATIONS =============
 
-// Update single pit
 export const updatePit = async (req, res) => {
   try {
     const { id } = req.params;
-   const { pitName, capacity, initialActive, volume, density, fluidType } = req.body;
+    const { pitName, capacity, initialActive, volume, density, fluidType } = req.body;
 
     const pit = await Pit.findById(id);
 
@@ -285,7 +284,6 @@ export const updatePit = async (req, res) => {
       });
     }
 
-    // Check if pit is locked
     if (pit.isLocked) {
       return res.status(403).json({
         success: false,
@@ -293,10 +291,12 @@ export const updatePit = async (req, res) => {
       });
     }
 
-    // Update fields
-    if (pitName) pit.pitName = pitName;
-    if (capacity !== undefined) pit.capacity = capacity;
+    if (pitName !== undefined) pit.pitName = pitName.trim();
+    if (capacity !== undefined) pit.capacity = Number(capacity) || 0;
     if (initialActive !== undefined) pit.initialActive = initialActive;
+    if (volume !== undefined) pit.volume = Number(volume) || 0;
+    if (density !== undefined) pit.density = Number(density) || 0;
+    if (fluidType !== undefined) pit.fluidType = fluidType;
 
     await pit.save();
 
