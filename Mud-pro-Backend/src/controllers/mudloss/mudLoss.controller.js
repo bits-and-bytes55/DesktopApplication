@@ -1,5 +1,5 @@
 import Pit from "../../modules/pit/pit.model.js";
-import MudLoss from "../../modules/mudloss/MudLoss.js";
+import MudLossStorage from "../../modules/mudlossstorage/MudLossStorage.js";
 
 const toNumber = (value) => {
   if (value === null || value === undefined || value === "") return 0;
@@ -10,134 +10,254 @@ const toNumber = (value) => {
 const round2 = (num) => Number(num.toFixed(2));
 const getWellId = (req) => String(req.params.wellId || "").trim();
 
-export const createMudLoss = async (req, res) => {
+const prepareMudLossStorageData = (wellId, payload = {}) => {
+  const { storage, dump, evaporation, pitCleaning } = payload;
+
+  if (!wellId || !storage) {
+    throw new Error("wellId and storage are required");
+  }
+
+  const safeStorage = String(storage).trim();
+
+  const dumpVol = round2(toNumber(dump));
+  const evaporationVol = round2(toNumber(evaporation));
+  const pitCleaningVol = round2(toNumber(pitCleaning));
+
+  const totalLoss = round2(dumpVol + evaporationVol + pitCleaningVol);
+
+  if (totalLoss <= 0) {
+    throw new Error("At least one storage mud loss value must be greater than 0");
+  }
+
+  return {
+    wellId,
+    storage: safeStorage,
+    dump: dumpVol,
+    evaporation: evaporationVol,
+    pitCleaning: pitCleaningVol,
+    totalLoss,
+  };
+};
+
+const deductFromStoragePit = async ({ wellId, storage, totalLoss }) => {
+  const sourcePit = await Pit.findOne({
+    wellId,
+    pitName: String(storage).trim(),
+    initialActive: false,
+  });
+
+  if (!sourcePit) {
+    throw new Error(`Storage pit '${storage}' not found`);
+  }
+
+  const currentVol = round2(toNumber(sourcePit.volume));
+
+  if (totalLoss > currentVol) {
+    throw new Error(
+      `Mud loss (${totalLoss}) exceeds storage pit volume (${currentVol})`
+    );
+  }
+
+  sourcePit.volume = round2(currentVol - totalLoss);
+  await sourcePit.save();
+};
+
+const revertToStoragePit = async ({ wellId, storage, totalLoss }) => {
+  if (totalLoss <= 0) return;
+
+  const sourcePit = await Pit.findOne({
+    wellId,
+    pitName: String(storage).trim(),
+    initialActive: false,
+  });
+
+  if (!sourcePit) {
+    throw new Error(`Storage pit '${storage}' not found`);
+  }
+
+  sourcePit.volume = round2(toNumber(sourcePit.volume) + totalLoss);
+  await sourcePit.save();
+};
+
+export const createMudLossStorage = async (req, res) => {
   try {
     const wellId = getWellId(req);
-    const {
-      cuttingsRetention,
-      seepage,
-      dump,
-      shakers,
-      centrifuge,
-      evaporation,
-      pitCleaning,
-      formation,
-      abandonInHole,
-      leftBehindCasing,
-      tripping,
-    } = req.body;
+    const payloads = Array.isArray(req.body) ? req.body : [req.body];
 
-    if (!wellId) {
+    if (!payloads.length) {
       return res.status(400).json({
         success: false,
-        message: "wellId is required",
+        message: "Request body is empty",
       });
     }
 
-    const lossData = {
-      cuttingsRetention: round2(toNumber(cuttingsRetention)),
-      seepage: round2(toNumber(seepage)),
-      dump: round2(toNumber(dump)),
-      shakers: round2(toNumber(shakers)),
-      centrifuge: round2(toNumber(centrifuge)),
-      evaporation: round2(toNumber(evaporation)),
-      pitCleaning: round2(toNumber(pitCleaning)),
-      formation: round2(toNumber(formation)),
-      abandonInHole: round2(toNumber(abandonInHole)),
-      leftBehindCasing: round2(toNumber(leftBehindCasing)),
-      tripping: round2(toNumber(tripping)),
-    };
+    const createdItems = [];
 
-    const totalLoss = round2(
-      Object.values(lossData).reduce((sum, val) => sum + val, 0)
-    );
+    for (const payload of payloads) {
+      const prepared = prepareMudLossStorageData(wellId, payload);
 
-    if (totalLoss <= 0) {
-      return res.status(400).json({
-        success: false,
-        message: "At least one mud loss value must be greater than 0",
+      await deductFromStoragePit({
+        wellId: prepared.wellId,
+        storage: prepared.storage,
+        totalLoss: prepared.totalLoss,
       });
+
+      const item = await MudLossStorage.create(prepared);
+      createdItems.push(item);
     }
-
-    const activePits = await Pit.find({
-      wellId,
-      initialActive: true,
-    }).sort({ createdAt: 1 });
-
-    if (!activePits.length) {
-      return res.status(404).json({
-        success: false,
-        message: "No active pits found for this wellId",
-      });
-    }
-
-    const totalActiveVol = round2(
-      activePits.reduce((sum, pit) => sum + toNumber(pit.volume), 0)
-    );
-
-    if (totalLoss > totalActiveVol) {
-      return res.status(400).json({
-        success: false,
-        message: `Mud loss (${totalLoss}) exceeds active system volume (${totalActiveVol})`,
-      });
-    }
-
-    let remaining = totalLoss;
-
-    for (let i = 0; i < activePits.length; i++) {
-      const pit = activePits[i];
-      if (remaining <= 0) break;
-
-      const pitsLeft = activePits.length - i;
-      let deduct = round2(remaining / pitsLeft);
-
-      if (deduct > toNumber(pit.volume)) {
-        deduct = round2(toNumber(pit.volume));
-      }
-
-      pit.volume = round2(toNumber(pit.volume) - deduct);
-      remaining = round2(remaining - deduct);
-
-      await pit.save();
-    }
-
-    if (remaining > 0) {
-      for (const pit of activePits) {
-        if (remaining <= 0) break;
-
-        const available = toNumber(pit.volume);
-        if (available <= 0) continue;
-
-        const deduct = Math.min(available, remaining);
-        pit.volume = round2(available - deduct);
-        remaining = round2(remaining - deduct);
-
-        await pit.save();
-      }
-    }
-
-    if (remaining > 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Unable to deduct full mud loss from active pits",
-      });
-    }
-
-    const item = await MudLoss.create({
-      wellId,
-      ...lossData,
-      totalLoss,
-    });
 
     return res.status(201).json({
       success: true,
-      message: "Mud Loss saved successfully",
+      message:
+        createdItems.length === 1
+          ? "Mud Loss - Storage saved successfully"
+          : "Multiple Mud Loss - Storage records saved successfully",
+      count: createdItems.length,
+      data: createdItems,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to save Mud Loss - Storage",
+      error: error.message,
+    });
+  }
+};
+
+export const getMudLossStorageList = async (req, res) => {
+  try {
+    const wellId = getWellId(req);
+
+    const items = await MudLossStorage.find({ wellId }).sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      success: true,
+      count: items.length,
+      data: items,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch Mud Loss - Storage records",
+      error: error.message,
+    });
+  }
+};
+
+export const getMudLossStorageById = async (req, res) => {
+  try {
+    const wellId = getWellId(req);
+    const { id } = req.params;
+
+    const item = await MudLossStorage.findOne({ _id: id, wellId });
+
+    if (!item) {
+      return res.status(404).json({
+        success: false,
+        message: "Mud Loss - Storage record not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
       data: item,
     });
   } catch (error) {
     return res.status(500).json({
       success: false,
-      message: "Failed to save Mud Loss",
+      message: "Failed to fetch Mud Loss - Storage record",
+      error: error.message,
+    });
+  }
+};
+
+export const updateMudLossStorage = async (req, res) => {
+  try {
+    const wellId = getWellId(req);
+    const { id } = req.params;
+
+    const existing = await MudLossStorage.findOne({ _id: id, wellId });
+
+    if (!existing) {
+      return res.status(404).json({
+        success: false,
+        message: "Mud Loss - Storage record not found",
+      });
+    }
+
+    await revertToStoragePit({
+      wellId,
+      storage: existing.storage,
+      totalLoss: toNumber(existing.totalLoss),
+    });
+
+    const mergedPayload = {
+      storage: req.body.storage ?? existing.storage,
+      dump: req.body.dump ?? existing.dump,
+      evaporation: req.body.evaporation ?? existing.evaporation,
+      pitCleaning: req.body.pitCleaning ?? existing.pitCleaning,
+    };
+
+    const prepared = prepareMudLossStorageData(wellId, mergedPayload);
+
+    await deductFromStoragePit({
+      wellId: prepared.wellId,
+      storage: prepared.storage,
+      totalLoss: prepared.totalLoss,
+    });
+
+    existing.storage = prepared.storage;
+    existing.dump = prepared.dump;
+    existing.evaporation = prepared.evaporation;
+    existing.pitCleaning = prepared.pitCleaning;
+    existing.totalLoss = prepared.totalLoss;
+
+    await existing.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Mud Loss - Storage updated successfully",
+      data: existing,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update Mud Loss - Storage",
+      error: error.message,
+    });
+  }
+};
+
+export const deleteMudLossStorage = async (req, res) => {
+  try {
+    const wellId = getWellId(req);
+    const { id } = req.params;
+
+    const existing = await MudLossStorage.findOne({ _id: id, wellId });
+
+    if (!existing) {
+      return res.status(404).json({
+        success: false,
+        message: "Mud Loss - Storage record not found",
+      });
+    }
+
+    await revertToStoragePit({
+      wellId,
+      storage: existing.storage,
+      totalLoss: toNumber(existing.totalLoss),
+    });
+
+    await MudLossStorage.deleteOne({ _id: id, wellId });
+
+    return res.status(200).json({
+      success: true,
+      message: "Mud Loss - Storage deleted successfully",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to delete Mud Loss - Storage",
       error: error.message,
     });
   }

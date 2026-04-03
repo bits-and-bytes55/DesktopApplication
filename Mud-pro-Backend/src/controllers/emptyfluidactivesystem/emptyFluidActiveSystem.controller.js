@@ -2,7 +2,7 @@ import Pit from "../../modules/pit/pit.model.js";
 import EmptyFluidActiveSystem from "../../modules/emptyfluidactivesystem/EmptyFluidActiveSystem.js";
 
 const toNumber = (value) => {
-  if (value === null || value === undefined || value === "") return 0;
+  if (!value) return 0;
   const n = Number(String(value).replace(/[^0-9.-]/g, ""));
   return Number.isFinite(n) ? n : 0;
 };
@@ -10,238 +10,243 @@ const toNumber = (value) => {
 const round2 = (num) => Number(num.toFixed(2));
 const getWellId = (req) => String(req.params.wellId || "").trim();
 
+const getPits = async (wellId) => {
+  const pits = await Pit.find({ wellId }).sort({ createdAt: 1 });
+  if (!pits.length) throw new Error("No pits found for this wellId");
+  return pits;
+};
+
+const getActivePits = (pits) => {
+  const active = pits.filter((p) => p.initialActive);
+  if (!active.length) throw new Error("No active pits found");
+  return active;
+};
+
+const getStoragePits = (pits) => pits.filter((p) => !p.initialActive);
+
+// ---------- COMMON LOGIC ----------
+
+const deductFromActive = async (activePits, total) => {
+  let remaining = total;
+
+  for (let i = 0; i < activePits.length; i++) {
+    if (remaining <= 0) break;
+
+    const pit = activePits[i];
+    const pitsLeft = activePits.length - i;
+
+    let deduct = round2(remaining / pitsLeft);
+    if (deduct > toNumber(pit.volume)) {
+      deduct = round2(toNumber(pit.volume));
+    }
+
+    pit.volume = round2(toNumber(pit.volume) - deduct);
+    remaining = round2(remaining - deduct);
+
+    await pit.save();
+  }
+
+  if (remaining > 0) {
+    throw new Error("Unable to deduct full volume from active pits");
+  }
+};
+
+const revertToActive = async (activePits, total) => {
+  let remaining = total;
+
+  for (let i = 0; i < activePits.length; i++) {
+    const pit = activePits[i];
+    const pitsLeft = activePits.length - i;
+
+    const add = round2(remaining / pitsLeft);
+    pit.volume = round2(toNumber(pit.volume) + add);
+
+    remaining = round2(remaining - add);
+    await pit.save();
+  }
+};
+
+// ---------- CREATE ----------
+
 export const createEmptyFluidActiveSystem = async (req, res) => {
   try {
     const wellId = getWellId(req);
-    const { actionType, transfers = [], volume } = req.body;
+    const payloads = Array.isArray(req.body) ? req.body : [req.body];
 
-    if (!wellId || !actionType) {
-      return res.status(400).json({
-        success: false,
-        message: "wellId and actionType are required",
-      });
-    }
+    const created = [];
 
-    const allPits = await Pit.find({ wellId }).sort({ createdAt: 1 });
+    for (const payload of payloads) {
+      const { actionType, transfers = [], volume } = payload;
 
-    if (!allPits.length) {
-      return res.status(404).json({
-        success: false,
-        message: "No pits found for this wellId",
-      });
-    }
+      const pits = await getPits(wellId);
+      const activePits = getActivePits(pits);
+      const storagePits = getStoragePits(pits);
 
-    const activePits = allPits.filter((pit) => pit.initialActive === true);
-    const storagePits = allPits.filter((pit) => pit.initialActive === false);
-
-    if (!activePits.length) {
-      return res.status(400).json({
-        success: false,
-        message: "No active pits found",
-      });
-    }
-
-    const totalActiveVol = round2(
-      activePits.reduce((sum, pit) => sum + toNumber(pit.volume), 0)
-    );
-
-    // -----------------------------------
-    // CASE 1: DUMP
-    // body example:
-    // { actionType: "Dump", volume: 20 }
-    // -----------------------------------
-    if (actionType === "Dump") {
-      const dumpVol = round2(toNumber(volume));
-
-      if (dumpVol <= 0) {
-        return res.status(400).json({
-          success: false,
-          message: "Volume must be greater than 0 for Dump",
-        });
-      }
-
-      if (dumpVol > totalActiveVol) {
-        return res.status(400).json({
-          success: false,
-          message: `Dump volume (${dumpVol}) exceeds Active System volume (${totalActiveVol})`,
-        });
-      }
-
-      let remaining = dumpVol;
-
-      for (let i = 0; i < activePits.length; i++) {
-        const pit = activePits[i];
-        if (remaining <= 0) break;
-
-        const pitsLeft = activePits.length - i;
-        let deduct = round2(remaining / pitsLeft);
-
-        if (deduct > toNumber(pit.volume)) {
-          deduct = round2(toNumber(pit.volume));
-        }
-
-        pit.volume = round2(toNumber(pit.volume) - deduct);
-        remaining = round2(remaining - deduct);
-
-        await pit.save();
-      }
-
-      if (remaining > 0) {
-        for (const pit of activePits) {
-          if (remaining <= 0) break;
-
-          const available = toNumber(pit.volume);
-          if (available <= 0) continue;
-
-          const deduct = Math.min(available, remaining);
-          pit.volume = round2(available - deduct);
-          remaining = round2(remaining - deduct);
-
-          await pit.save();
-        }
-      }
-
-      if (remaining > 0) {
-        return res.status(400).json({
-          success: false,
-          message: "Unable to deduct full dump volume from active pits",
-        });
-      }
-
-      const item = await EmptyFluidActiveSystem.create({
-        wellId,
-        actionType,
-        pitName: "",
-        volume: dumpVol,
-        totalVolume: dumpVol,
-      });
-
-      return res.status(201).json({
-        success: true,
-        message: "Empty Fluid dumped from Active System successfully",
-        data: item,
-      });
-    }
-
-    // -----------------------------------
-    // CASE 2: TRANSFER TO STORAGE
-    // body example:
-    // {
-    //   actionType: "Transfer to Storage",
-    //   transfers: [{ pitName: "c", volume: 20 }]
-    // }
-    // -----------------------------------
-    if (actionType === "Transfer to Storage") {
-      const cleanTransfers = Array.isArray(transfers)
-        ? transfers
-            .map((item) => ({
-              pitName: String(item.pitName || "").trim(),
-              volume: round2(toNumber(item.volume)),
-            }))
-            .filter((item) => item.pitName && item.volume > 0)
-        : [];
-
-      if (!cleanTransfers.length) {
-        return res.status(400).json({
-          success: false,
-          message: "Valid transfers are required for Transfer to Storage",
-        });
-      }
-
-      const totalTransferVol = round2(
-        cleanTransfers.reduce((sum, item) => sum + item.volume, 0)
+      const totalActiveVol = round2(
+        activePits.reduce((s, p) => s + toNumber(p.volume), 0)
       );
 
-      if (totalTransferVol > totalActiveVol) {
-        return res.status(400).json({
-          success: false,
-          message: `Transfer volume (${totalTransferVol}) exceeds Active System volume (${totalActiveVol})`,
-        });
-      }
+      // ---------- DUMP ----------
+      if (actionType === "Dump") {
+        const dumpVol = round2(toNumber(volume));
 
-      // destination storage pits me add
-      for (const item of cleanTransfers) {
-        const targetPit = storagePits.find((pit) => pit.pitName === item.pitName);
+        if (dumpVol <= 0) throw new Error("Invalid dump volume");
+        if (dumpVol > totalActiveVol)
+          throw new Error("Dump exceeds active volume");
 
-        if (!targetPit) {
-          return res.status(404).json({
-            success: false,
-            message: `Storage pit '${item.pitName}' not found`,
-          });
-        }
+        await deductFromActive(activePits, dumpVol);
 
-        targetPit.volume = round2(toNumber(targetPit.volume) + item.volume);
-        await targetPit.save();
-      }
-
-      // active pits se minus
-      let remaining = totalTransferVol;
-
-      for (let i = 0; i < activePits.length; i++) {
-        const pit = activePits[i];
-        if (remaining <= 0) break;
-
-        const pitsLeft = activePits.length - i;
-        let deduct = round2(remaining / pitsLeft);
-
-        if (deduct > toNumber(pit.volume)) {
-          deduct = round2(toNumber(pit.volume));
-        }
-
-        pit.volume = round2(toNumber(pit.volume) - deduct);
-        remaining = round2(remaining - deduct);
-
-        await pit.save();
-      }
-
-      if (remaining > 0) {
-        for (const pit of activePits) {
-          if (remaining <= 0) break;
-
-          const available = toNumber(pit.volume);
-          if (available <= 0) continue;
-
-          const deduct = Math.min(available, remaining);
-          pit.volume = round2(available - deduct);
-          remaining = round2(remaining - deduct);
-
-          await pit.save();
-        }
-      }
-
-      if (remaining > 0) {
-        return res.status(400).json({
-          success: false,
-          message: "Unable to deduct full transfer volume from active pits",
-        });
-      }
-
-      const items = await EmptyFluidActiveSystem.insertMany(
-        cleanTransfers.map((item) => ({
+        const item = await EmptyFluidActiveSystem.create({
           wellId,
           actionType,
-          pitName: item.pitName,
-          volume: item.volume,
-          totalVolume: totalTransferVol,
-        }))
-      );
+          pitName: "",
+          volume: dumpVol,
+          totalVolume: dumpVol,
+        });
 
-      return res.status(201).json({
-        success: true,
-        message: "Empty Fluid transferred from Active System to Storage successfully",
-        data: items,
-      });
+        created.push(item);
+      }
+
+      // ---------- TRANSFER ----------
+      if (actionType === "Transfer to Storage") {
+        const clean = transfers.map((t) => ({
+          pitName: String(t.pitName).trim(),
+          volume: round2(toNumber(t.volume)),
+        }));
+
+        const total = round2(clean.reduce((s, i) => s + i.volume, 0));
+
+        if (total > totalActiveVol)
+          throw new Error("Transfer exceeds active volume");
+
+        // add to storage
+        for (const t of clean) {
+          const pit = storagePits.find((p) => p.pitName === t.pitName);
+          if (!pit) throw new Error(`Storage pit ${t.pitName} not found`);
+
+          pit.volume = round2(toNumber(pit.volume) + t.volume);
+          await pit.save();
+        }
+
+        await deductFromActive(activePits, total);
+
+        const items = await EmptyFluidActiveSystem.insertMany(
+          clean.map((t) => ({
+            wellId,
+            actionType,
+            pitName: t.pitName,
+            volume: t.volume,
+            totalVolume: total,
+          }))
+        );
+
+        created.push(...items);
+      }
     }
 
-    return res.status(400).json({
-      success: false,
-      message: "Invalid actionType. Use 'Dump' or 'Transfer to Storage'",
+    return res.status(201).json({
+      success: true,
+      count: created.length,
+      data: created,
     });
   } catch (error) {
     return res.status(500).json({
       success: false,
-      message: "Failed to save Empty Fluid in Active System",
-      error: error.message,
+      message: error.message,
     });
+  }
+};
+
+// ---------- GET ----------
+
+export const getEmptyFluidList = async (req, res) => {
+  const wellId = getWellId(req);
+
+  const data = await EmptyFluidActiveSystem.find({ wellId }).sort({
+    createdAt: -1,
+  });
+
+  res.json({ success: true, count: data.length, data });
+};
+
+export const getEmptyFluidById = async (req, res) => {
+  const wellId = getWellId(req);
+  const { id } = req.params;
+
+  const item = await EmptyFluidActiveSystem.findOne({ _id: id, wellId });
+
+  if (!item) {
+    return res.status(404).json({ success: false, message: "Not found" });
+  }
+
+  res.json({ success: true, data: item });
+};
+
+// ---------- UPDATE ----------
+
+export const updateEmptyFluid = async (req, res) => {
+  try {
+    const wellId = getWellId(req);
+    const { id } = req.params;
+
+    const existing = await EmptyFluidActiveSystem.findOne({ _id: id, wellId });
+
+    if (!existing) throw new Error("Record not found");
+
+    const pits = await getPits(wellId);
+    const activePits = getActivePits(pits);
+    const storagePits = getStoragePits(pits);
+
+    // rollback old
+    await revertToActive(activePits, toNumber(existing.totalVolume));
+
+    if (existing.actionType === "Transfer to Storage") {
+      const pit = storagePits.find((p) => p.pitName === existing.pitName);
+      if (pit) {
+        pit.volume = round2(toNumber(pit.volume) - existing.volume);
+        await pit.save();
+      }
+    }
+
+    // apply new
+    req.body.actionType = req.body.actionType || existing.actionType;
+
+    return createEmptyFluidActiveSystem(req, res);
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// ---------- DELETE ----------
+
+export const deleteEmptyFluid = async (req, res) => {
+  try {
+    const wellId = getWellId(req);
+    const { id } = req.params;
+
+    const existing = await EmptyFluidActiveSystem.findOne({ _id: id, wellId });
+
+    if (!existing) throw new Error("Record not found");
+
+    const pits = await getPits(wellId);
+    const activePits = getActivePits(pits);
+    const storagePits = getStoragePits(pits);
+
+    // rollback
+    await revertToActive(activePits, toNumber(existing.totalVolume));
+
+    if (existing.actionType === "Transfer to Storage") {
+      const pit = storagePits.find((p) => p.pitName === existing.pitName);
+      if (pit) {
+        pit.volume = round2(toNumber(pit.volume) - existing.volume);
+        await pit.save();
+      }
+    }
+
+    await EmptyFluidActiveSystem.deleteOne({ _id: id });
+
+    res.json({ success: true, message: "Deleted successfully" });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
   }
 };
