@@ -22,9 +22,11 @@ import 'package:mudpro_desktop_app/modules/dashboard/controller/well_general_con
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/controller/UG_ST_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/consume_product_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/operation_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/recievemud_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/cased_hole_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/drill_string_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart';
+import 'package:mudpro_desktop_app/modules/UG/controller/UG_controller.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 
 // Static well ID — change as needed
@@ -350,35 +352,76 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
             errorMessages.add(res['message'] ?? 'Drill String save failed');
           }
         }
-      } else if (activeTab == 3) { // Operations Tab -> Consume Product
+      } else if (activeTab == 1) { // Inventory Tab
+        final ugCtrl = Get.isRegistered<UgController>() ? Get.find<UgController>() : null;
+        if (ugCtrl != null) {
+          final res = await ugCtrl.saveInventory();
+          if (res['success'] == true) {
+            successMessage = res['message'];
+          } else {
+            errorMessages.add(res['message'] ?? 'Inventory save failed');
+          }
+        }
+      } else if (activeTab == 3) { // Operations Tab
         try {
-          final snapResult = await _snapshotController.generateInventorySnapshot();
-          if (snapResult['success'] != true) {
-            errorMessages.add('Consume Product snapshot: ${snapResult['message'] ?? 'Failed'}');
-          }
-
           final opCtrl = Get.isRegistered<OperationController>() ? Get.find<OperationController>() : null;
-          if (opCtrl != null && opCtrl.totalVolume.value > 0) {
-             final authRepo = AuthRepository();
-             final tVol = opCtrl.totalVolume.value;
-             
-             final res = await authRepo.saveConsumeProductVolumeName({
-                'wellId': kStaticWellId,
-                'product': 'Water',
-                'volumeBbl': tVol,
-             });
-             if (res['success'] == true) {
-                successMessage = "Operations volume data saved";
-             } else {
-                errorMessages.add('Operations API: ${res['message'] ?? 'Failed'}');
-             }
-          }
-          // ── Transfer Mud ───────────────────────────────────────────────
-          final pitCtrl = Get.isRegistered<PitController>() ? Get.find<PitController>() : null;
-          if (pitCtrl != null) {
-            final res = await pitCtrl.saveTransferMud();
-            if (res['success'] != true) {
-              errorMessages.add('Transfer Mud: ${res['message'] ?? 'Failed'}');
+          if (opCtrl != null) {
+            final selectedOpIndex = opCtrl.selectedRowIndex.value;
+            final selectedOp = opCtrl.dropdownValues[selectedOpIndex];
+            final authRepo = AuthRepository();
+
+            if (selectedOp == OperationType.consumeProduct) {
+              // ── Inventory Snapshot + Product Save ────────────────────────
+              final snapResult = await _snapshotController.generateInventorySnapshot();
+              if (snapResult['success'] != true) {
+                errorMessages.add('Consume Product snapshot: ${snapResult['message'] ?? 'Failed'}');
+              }
+
+              if (opCtrl.totalVolume.value > 0) {
+                 final tVol = opCtrl.totalVolume.value;
+                 final res = await authRepo.saveConsumeProductVolumeName({
+                    'wellId': kStaticWellId,
+                    'product': 'Water',
+                    'volumeBbl': tVol,
+                 });
+                 if (res['success'] == true) {
+                    successMessage = "Operations volume data saved";
+                 } else {
+                    errorMessages.add('Operations API: ${res['message'] ?? 'Failed'}');
+                 }
+              }
+            } else if (selectedOp == OperationType.addWater) {
+              // ── Add Water ────────────────────────────────────────────────
+              final waterRes = await opCtrl.saveAddWater();
+              if (waterRes['success'] == true) {
+                successMessage = waterRes['message'];
+              } else {
+                if (waterRes['message'] != 'No new transfers to save' && !waterRes['message'].contains('No new')) {
+                  errorMessages.add('Add Water: ${waterRes['message']}');
+                }
+              }
+            } else if (selectedOp == OperationType.transferMud) {
+              // ── Transfer Mud ─────────────────────────────────────────────
+              final pitCtrl = Get.isRegistered<PitController>() ? Get.find<PitController>() : null;
+              if (pitCtrl != null) {
+                final res = await pitCtrl.saveTransferMud();
+                if (res['success'] == true) {
+                  successMessage = res['message'];
+                } else {
+                  errorMessages.add('Transfer Mud: ${res['message'] ?? 'Failed'}');
+                }
+              }
+            } else if (selectedOp == OperationType.receiveMud) {
+              // ── Receive Mud ──────────────────────────────────────────────
+              final recieveMudCtrl = Get.isRegistered<ReceiveMudController>() ? Get.find<ReceiveMudController>() : null;
+              if (recieveMudCtrl != null) {
+                final res = await recieveMudCtrl.saveReceiveMud();
+                if (res['success'] == true) {
+                  successMessage = res['message'];
+                } else {
+                  errorMessages.add('Receive Mud: ${res['message'] ?? 'Failed'}');
+                }
+              }
             }
           }
         } catch (e) {

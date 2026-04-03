@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 
 enum OperationType {
   consumeServices,
@@ -23,6 +24,59 @@ class OperationController extends GetxController {
   RxString addWaterVolume = "".obs; // Track Add Water locally
   RxDouble totalVolume = 0.0.obs; // Track overall total volume (Products + Water)
 
+  // ── Add Water State ────────────────────────────────────────────────────────
+  final RxString addWaterTo = "Active System".obs;
+  final RxString addWaterMainVol = "".obs;
+  final RxList<String> addWaterExtraRows = <String>["", ""].obs;
+
+  Future<Map<String, dynamic>> saveAddWater() async {
+    final authRepo = AuthRepository();
+    // Assuming kStaticWellId is available from common context or hardcoded as before
+    const String wellId = '67f1a2b3c4d5e6f7890a1111'; 
+
+    int successCount = 0;
+    List<String> errors = [];
+
+    // 1. Process Main Row
+    if (addWaterMainVol.value.isNotEmpty && double.tryParse(addWaterMainVol.value) != null) {
+      final res = await authRepo.createAddWater(wellId, {
+        'to': addWaterTo.value,
+        'volume': double.parse(addWaterMainVol.value),
+      });
+      if (res['success'] == true) successCount++;
+      else errors.add('Main: ${res['message']}');
+    }
+
+    // 2. Process Extra Rows (Note: UI has custom 'To' field in dynamic rows, 
+    // but backend only supports 'to' and 'volume'. We'll use the main 'to' for now 
+    // or ignore empty labels as requested by 'dont change ui'.)
+    for (int i = 0; i < addWaterExtraRows.length; i++) {
+      final vol = addWaterExtraRows[i];
+      if (vol.isNotEmpty && double.tryParse(vol) != null) {
+        final res = await authRepo.createAddWater(wellId, {
+          'to': addWaterTo.value,
+          'volume': double.parse(vol),
+        });
+        if (res['success'] == true) successCount++;
+        else errors.add('Row ${i + 1}: ${res['message']}');
+      }
+    }
+
+    if (successCount > 0) {
+      // Clear values after successful save
+      addWaterMainVol.value = "";
+      for (int i = 0; i < addWaterExtraRows.length; i++) {
+        addWaterExtraRows[i] = "";
+      }
+    }
+
+    return {
+      'success': errors.isEmpty,
+      'message': errors.isEmpty 
+          ? 'Add Water saved successfully' 
+          : 'Saved $successCount, Errors: ${errors.join(", ")}'
+    };
+  }
 
   final List<OperationType> dropdownItems = OperationType.values;
 

@@ -61,11 +61,8 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
     _premixedControllers['leasingFee'] = TextEditingController();
     _premixedControllers['mudType'] = TextEditingController();
 
-    // OBM controllers
-    _obmControllers['product'] = TextEditingController();
-    _obmControllers['code'] = TextEditingController();
-    _obmControllers['sg'] = TextEditingController();
-    _obmControllers['conc'] = TextEditingController();
+    // Spare controllers for other uses if needed
+    // OBM controllers moved to UgController
   }
 
   void _disposeControllers() {
@@ -90,12 +87,16 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
       c.premixed.value = premixedList;
 
       // Load OBM
-      final obmList = await _repository.getObm(wellId);
-      c.obm.value = obmList as List<ObmModel>;
+      final res = await _repository.getObm(wellId);
+      if (res['success'] == true && res['data'] is List) {
+        c.obm.value = res['data'] as List<ObmModel>;
+      } else {
+        c.obm.value = [];
+      }
 
       print('✅ Data loaded successfully');
       print('Premixed count: ${premixedList.length}');
-      print('OBM count: ${obmList.length}');
+      print('OBM count: ${c.obm.length}');
     } catch (e) {
       print('❌ Error loading data: $e');
       if (mounted) {
@@ -266,7 +267,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                 ),
                 const Spacer(),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(4),
@@ -407,7 +408,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                                 store.selectedProducts.refresh();
                               }),
                               Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 2),
+                                padding: const EdgeInsets.symmetric(vertical: 1),
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                                   children: [
@@ -456,7 +457,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
       child: Column(
         children: [
           Container(
-            height: 30,
+            height: 24,
             decoration: BoxDecoration(
               gradient: AppTheme.headerGradient,
               borderRadius: const BorderRadius.only(
@@ -480,7 +481,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                   ),
                 ),
                 Obx(() => Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(4),
@@ -554,19 +555,19 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                           ),
                           children: [
                             _tableCell((index + 1).toString()),
-                            _editableTableCell(e.description, onChanged: (v) {
+                            _editableTableCell(e.description, key: ValueKey(e.id ?? e.description), onChanged: (v) {
                               e.description = v;
                               c.premixed.refresh();
                             }),
-                            _editableTableCell(e.mw, onChanged: (v) {
+                            _editableTableCell(e.mw, key: ValueKey(e.id ?? e.mw), onChanged: (v) {
                               e.mw = v;
                               c.premixed.refresh();
                             }),
-                            _editableTableCell(e.leasingFee, onChanged: (v) {
+                            _editableTableCell(e.leasingFee, key: ValueKey(e.id ?? e.leasingFee), onChanged: (v) {
                               e.leasingFee = v;
                               c.premixed.refresh();
                             }),
-                            _editableTableCell(e.mudType, onChanged: (v) {
+                            _editableTableCell(e.mudType, key: ValueKey(e.id ?? e.mudType), onChanged: (v) {
                               e.mudType = v;
                               c.premixed.refresh();
                             }),
@@ -611,16 +612,16 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                             child: Icon(Icons.add, size: 14, color: Colors.green),
                           ),
                           Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                             child: TextFormField(
-                              controller: _premixedControllers['description'],
+                              controller: c.premixedDescController,
                               readOnly: c.isLocked.value,
                               style: TextStyle(fontSize: 10, color: Colors.black87),
                               decoration: InputDecoration(
                                 hintText: 'Enter description...',
                                 hintStyle: TextStyle(fontSize: 9, color: Colors.grey.shade400),
                                 isDense: true,
-                                contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                                contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                                 border: InputBorder.none,
                                 enabledBorder: InputBorder.none,
                                 focusedBorder: InputBorder.none,
@@ -628,16 +629,16 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                             ),
                           ),
                           Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                             child: TextFormField(
-                              controller: _premixedControllers['mw'],
+                              controller: c.premixedMwController,
                               readOnly: c.isLocked.value,
                               style: TextStyle(fontSize: 10, color: Colors.black87),
                               decoration: InputDecoration(
                                 hintText: 'MW...',
                                 hintStyle: TextStyle(fontSize: 9, color: Colors.grey.shade400),
                                 isDense: true,
-                                contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                                contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                                 border: InputBorder.none,
                                 enabledBorder: InputBorder.none,
                                 focusedBorder: InputBorder.none,
@@ -645,16 +646,16 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                             ),
                           ),
                           Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                             child: TextFormField(
-                              controller: _premixedControllers['leasingFee'],
+                              controller: c.premixedLeasingFeeController,
                               readOnly: c.isLocked.value,
                               style: TextStyle(fontSize: 10, color: Colors.black87),
                               decoration: InputDecoration(
                                 hintText: 'Fee...',
                                 hintStyle: TextStyle(fontSize: 9, color: Colors.grey.shade400),
                                 isDense: true,
-                                contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                                contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                                 border: InputBorder.none,
                                 enabledBorder: InputBorder.none,
                                 focusedBorder: InputBorder.none,
@@ -662,23 +663,25 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                             ),
                           ),
                           Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                             child: TextFormField(
-                              controller: _premixedControllers['mudType'],
+                              controller: c.premixedMudTypeController,
                               readOnly: c.isLocked.value,
                               style: TextStyle(fontSize: 10, color: Colors.black87),
                               decoration: InputDecoration(
                                 hintText: 'Type...',
                                 hintStyle: TextStyle(fontSize: 9, color: Colors.grey.shade400),
                                 isDense: true,
-                                contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                                contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                                 border: InputBorder.none,
                                 enabledBorder: InputBorder.none,
                                 focusedBorder: InputBorder.none,
                               ),
                             ),
                           ),
-                          Container(),
+                          Obx(() => _checkboxCell(() => c.premixedTaxNew.value, (v) {
+                            c.premixedTaxNew.value = v;
+                          })),
                           Padding(
                             padding: const EdgeInsets.all(2.0),
                             child: IconButton(
@@ -713,7 +716,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
       child: Column(
         children: [
           Container(
-            height: 30,
+            height: 24,
             decoration: BoxDecoration(
               gradient: AppTheme.headerGradient,
               borderRadius: const BorderRadius.only(
@@ -737,7 +740,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                   ),
                 ),
                 Obx(() => Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(4),
@@ -775,7 +778,8 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                       2: FixedColumnWidth(100),
                       3: FixedColumnWidth(80),
                       4: FixedColumnWidth(80),
-                      5: FixedColumnWidth(90),
+                      5: FixedColumnWidth(80),
+                      6: FixedColumnWidth(90),
                     },
                     children: [
                       // Header Row
@@ -796,6 +800,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                           _tableHeaderCell('Code'),
                           _tableHeaderCell('SG'),
                           _tableHeaderCell('Conc'),
+                          _tableHeaderCell('Unit'),
                           _tableHeaderCell('Actions'),
                         ],
                       ),
@@ -809,20 +814,24 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                           ),
                           children: [
                             _tableCell((index + 1).toString()),
-                            _editableTableCell(e.product, onChanged: (v) {
+                            _editableTableCell(e.product, key: ValueKey(e.id ?? e.product), onChanged: (v) {
                               e.product = v;
                               c.obm.refresh();
                             }),
-                            _editableTableCell(e.code, onChanged: (v) {
+                            _editableTableCell(e.code, key: ValueKey(e.id ?? e.code), onChanged: (v) {
                               e.code = v;
                               c.obm.refresh();
                             }),
-                            _editableTableCell(e.sg, onChanged: (v) {
+                            _editableTableCell(e.sg, key: ValueKey(e.id ?? e.sg), onChanged: (v) {
                               e.sg = v;
                               c.obm.refresh();
                             }),
-                            _editableTableCell(e.conc, onChanged: (v) {
+                            _editableTableCell(e.conc, key: ValueKey(e.id ?? e.conc), onChanged: (v) {
                               e.conc = v;
+                              c.obm.refresh();
+                            }),
+                            _editableTableCell(e.unit, key: ValueKey(e.id ?? e.unit), onChanged: (v) {
+                              e.unit = v;
                               c.obm.refresh();
                             }),
                             Padding(
@@ -862,16 +871,16 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                             child: Icon(Icons.add, size: 14, color: Colors.green),
                           ),
                           Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                             child: TextFormField(
-                              controller: _obmControllers['product'],
+                              controller: c.obmProductController,
                               readOnly: c.isLocked.value,
                               style: TextStyle(fontSize: 10, color: Colors.black87),
                               decoration: InputDecoration(
                                 hintText: 'Enter product...',
                                 hintStyle: TextStyle(fontSize: 9, color: Colors.grey.shade400),
                                 isDense: true,
-                                contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                                contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                                 border: InputBorder.none,
                                 enabledBorder: InputBorder.none,
                                 focusedBorder: InputBorder.none,
@@ -879,56 +888,73 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                             ),
                           ),
                           Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                             child: TextFormField(
-                              controller: _obmControllers['code'],
+                              controller: c.obmCodeController,
                               readOnly: c.isLocked.value,
                               style: TextStyle(fontSize: 10, color: Colors.black87),
                               decoration: InputDecoration(
                                 hintText: 'Code...',
                                 hintStyle: TextStyle(fontSize: 9, color: Colors.grey.shade400),
                                 isDense: true,
-                                contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                                contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                                 border: InputBorder.none,
                                 enabledBorder: InputBorder.none,
                                 focusedBorder: InputBorder.none,
-                              ),
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                            child: TextFormField(
-                              controller: _obmControllers['sg'],
-                              readOnly: c.isLocked.value,
-                              style: TextStyle(fontSize: 10, color: Colors.black87),
-                              decoration: InputDecoration(
-                                hintText: 'SG...',
-                                hintStyle: TextStyle(fontSize: 9, color: Colors.grey.shade400),
-                                isDense: true,
-                                contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-                                border: InputBorder.none,
-                                enabledBorder: InputBorder.none,
-                                focusedBorder: InputBorder.none,
-                              ),
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                            child: TextFormField(
-                              controller: _obmControllers['conc'],
-                              readOnly: c.isLocked.value,
-                              style: TextStyle(fontSize: 10, color: Colors.black87),
-                              decoration: InputDecoration(
-                                hintText: 'Conc...',
-                                hintStyle: TextStyle(fontSize: 9, color: Colors.grey.shade400),
-                                isDense: true,
-                                contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-                                border: InputBorder.none,
-                                enabledBorder: InputBorder.none,
-                                focusedBorder: InputBorder.none,
-                              ),
-                            ),
-                          ),
+                                                  ),
+                                                ),
+                                              ),
+                                              Padding(
+                                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                                child: TextFormField(
+                                                  controller: c.obmSgController,
+                                                  readOnly: c.isLocked.value,
+                                                  style: TextStyle(fontSize: 10, color: Colors.black87),
+                                                  decoration: InputDecoration(
+                                                    hintText: 'SG...',
+                                                    hintStyle: TextStyle(fontSize: 9, color: Colors.grey.shade400),
+                                                    isDense: true,
+                                                    contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                                    border: InputBorder.none,
+                                                    enabledBorder: InputBorder.none,
+                                                    focusedBorder: InputBorder.none,
+                                                  ),
+                                                ),
+                                              ),
+                                              Padding(
+                                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                                child: TextFormField(
+                                                  controller: c.obmConcController,
+                                                  readOnly: c.isLocked.value,
+                                                  style: TextStyle(fontSize: 10, color: Colors.black87),
+                                                  decoration: InputDecoration(
+                                                    hintText: 'Conc...',
+                                                    hintStyle: TextStyle(fontSize: 9, color: Colors.grey.shade400),
+                                                    isDense: true,
+                                                    contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                                    border: InputBorder.none,
+                                                    enabledBorder: InputBorder.none,
+                                                    focusedBorder: InputBorder.none,
+                                                  ),
+                                                ),
+                                              ),
+                                              Padding(
+                                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                                child: TextFormField(
+                                                  controller: c.obmUnitController,
+                                                  readOnly: c.isLocked.value,
+                                                  style: TextStyle(fontSize: 10, color: Colors.black87),
+                                                  decoration: InputDecoration(
+                                                    hintText: 'Unit...',
+                                                    hintStyle: TextStyle(fontSize: 9, color: Colors.grey.shade400),
+                                                    isDense: true,
+                                                    contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                                    border: InputBorder.none,
+                                                    enabledBorder: InputBorder.none,
+                                                    focusedBorder: InputBorder.none,
+                                                  ),
+                                                ),
+                                              ),
                           Padding(
                             padding: const EdgeInsets.all(2.0),
                             child: IconButton(
@@ -955,31 +981,13 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
   // ================= PREMIXED CRUD OPERATIONS =================
 
   Future<void> _addPremixedFromEmptyRow() async {
-    // Validate that at least one field is filled
-    if (_premixedControllers['description']!.text.isEmpty &&
-        _premixedControllers['mw']!.text.isEmpty &&
-        _premixedControllers['leasingFee']!.text.isEmpty &&
-        _premixedControllers['mudType']!.text.isEmpty) {
-      _showToast('Please fill at least one field', isError: true);
-      return;
-    }
-
-    final newPremixed = PremixModel(
-      description: _premixedControllers['description']!.text,
-      mw: _premixedControllers['mw']!.text,
-      leasingFee: _premixedControllers['leasingFee']!.text,
-      mudType: _premixedControllers['mudType']!.text,
-      tax: false,
-    );
-
-    try {
-      final created = await _repository.createPremixed(wellId, newPremixed);
-      c.premixed.add(created);
-      c.premixed.refresh(); // Force UI update
-      _clearPremixedControllers();
-      _showToast('Premixed added successfully');
-    } catch (e) {
-      _showToast('Failed to add premixed', isError: true);
+    final res = await c.saveInventory();
+    if (res['success'] == true) {
+      if (res['message'] != 'No changes to save') {
+        _showToast(res['message']);
+      }
+    } else {
+      _showToast(res['message'], isError: true);
     }
   }
 
@@ -1014,30 +1022,13 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
   // ================= OBM CRUD OPERATIONS =================
 
   Future<void> _addObmFromEmptyRow() async {
-    // Validate that at least one field is filled
-    if (_obmControllers['product']!.text.isEmpty &&
-        _obmControllers['code']!.text.isEmpty &&
-        _obmControllers['sg']!.text.isEmpty &&
-        _obmControllers['conc']!.text.isEmpty) {
-      _showToast('Please fill at least one field', isError: true);
-      return;
-    }
-
-    final newObm = ObmModel(
-      product: _obmControllers['product']!.text,
-      code: _obmControllers['code']!.text,
-      sg: _obmControllers['sg']!.text,
-      conc: _obmControllers['conc']!.text,
-    );
-
-    try {
-      final created = await _repository.createObm(wellId, newObm);
-      c.obm.add(created);
-      c.obm.refresh(); // Force UI update
-      _clearObmControllers();
-      _showToast('OBM added successfully');
-    } catch (e) {
-      _showToast('Failed to add OBM', isError: true);
+    final res = await c.saveInventory();
+    if (res['success'] == true) {
+      if (res['message'] != 'No changes to save') {
+        _showToast(res['message']);
+      }
+    } else {
+      _showToast(res['message'], isError: true);
     }
   }
 
@@ -1103,7 +1094,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
       );
 
   Widget _tableHeaderCell(String text) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
         child: Text(
           text,
           textAlign: TextAlign.left,
@@ -1116,7 +1107,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
       );
 
   Widget _tableCell(String value) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
         child: Text(
           value,
           style: TextStyle(
@@ -1126,8 +1117,8 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
         ),
       );
 
-  Widget _editableTableCell(String value, {Function(String)? onChanged}) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+  Widget _editableTableCell(String value, {Function(String)? onChanged, Key? key}) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
         child: c.isLocked.value
             ? Text(
                 value,
@@ -1136,7 +1127,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                   color: AppTheme.textPrimary,
                 ),
               )
-            : TextFormField(
+            : TextFormField(key: key ?? ValueKey(value),
                 initialValue: value,
                 onChanged: onChanged,
                 style: TextStyle(
@@ -1145,7 +1136,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                 ),
                 decoration: const InputDecoration(
                   isDense: true,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                   border: InputBorder.none,
                 ),
               ),
@@ -1179,3 +1170,9 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
     );
   }
 }
+
+
+
+
+
+
