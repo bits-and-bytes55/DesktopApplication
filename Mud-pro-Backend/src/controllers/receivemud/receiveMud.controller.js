@@ -130,9 +130,12 @@ const prepareReceiveMudData = async (wellId, payload) => {
   const loss = round2(toNumber(lossVolume));
   const netVolume = round2(grossVolume - loss);
 
-  if (grossVolume <= 0) {
-    throw new Error("Volume must be greater than 0");
-  }
+    if (grossVolume < 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Volume cannot be negative",
+      });
+    }
 
   if (loss < 0 || loss > grossVolume) {
     throw new Error("Loss Volume must be between 0 and volume");

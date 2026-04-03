@@ -15,11 +15,10 @@ class TransferRowData {
     volumeController.text = volume;
   }
 
-  Map<String, dynamic> toJson(String wellId, bool notTreated) {
+  Map<String, dynamic> toTransferMap(bool notTreated) {
     return {
-      'wellId': wellId,
       'pitName': pitName,
-      'volumeBbl': double.tryParse(volume) ?? 0.0,
+      'volume': double.tryParse(volume) ?? 0.0,
       'notTreatedMud': notTreated,
     };
   }
@@ -633,32 +632,37 @@ class PitController extends GetxController {
       return {'success': true, 'message': 'No new transfers to save'};
     }
 
-    for (var row in unsavedRows) {
-      try {
-        final payload = row.toJson(currentWellId!, notTreatedMud.value);
-        final result = await authRepo.createTransferMud(currentWellId!, payload);
-        
-        if (result['success'] == true) {
-          successCount++;
-          final newId = result['data']?['_id'] ?? result['data']?['data']?['_id'];
-          row.savedId = newId?.toString();
-        } else {
-          failCount++;
+    try {
+      final payload = {
+        'wellId': currentWellId!,
+        'from': selectedFromPit.value,
+        'transfers': unsavedRows.map((r) => r.toTransferMap(notTreatedMud.value)).toList(),
+      };
+      
+      final result = await authRepo.createTransferMud(currentWellId!, payload);
+      
+      if (result['success'] == true) {
+        // Mark all as saved - bulk success
+        // Note: Backend ideally returns the new transfers with IDs
+        // If not, we just mark them locally saved so we don't save twice.
+        for (var row in unsavedRows) {
+          row.savedId = "SAVED_${DateTime.now().millisecondsSinceEpoch}";
         }
-      } catch (e) {
-        failCount++;
-        debugPrint('Error saving transfer mud row: $e');
+        transferRows.refresh();
+        return {
+          'success': true, 
+          'message': 'Saved ${unsavedRows.length} transfers successfully'
+        };
+      } else {
+        return {
+          'success': false, 
+          'message': result['message'] ?? 'Failed to save transfers'
+        };
       }
+    } catch (e) {
+      debugPrint('Error saving transfer mud batch: $e');
+      return {'success': false, 'message': 'Error: $e'};
     }
-
-    if (successCount > 0) {
-      transferRows.refresh();
-    }
-
-    return {
-      'success': failCount == 0,
-      'message': 'Saved $successCount transfers successfully${failCount > 0 ? ', $failCount failed' : ''}'
-    };
   }
 
   Future<void> deleteTransferRow(int index) async {
