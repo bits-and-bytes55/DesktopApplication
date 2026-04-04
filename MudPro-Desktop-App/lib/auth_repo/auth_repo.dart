@@ -261,7 +261,63 @@ class AuthRepository {
     }
   }
 
-  // ── Delete Transfer Mud ─────────────────────────────────────────────────────
+  // ── Get Receive Mud ────────────────────────────────────────────────────────
+  Future<Map<String, dynamic>> getReceiveMudList(String wellId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('${baseUrl}receive-mud/$wellId'),
+        headers: _headers,
+      );
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200,
+        'data': data,
+        'message': data['message'] ?? '',
+      };
+    } catch (e) {
+      print('Error in getReceiveMudList: $e');
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  // ── Update Receive Mud ─────────────────────────────────────────────────────
+  Future<Map<String, dynamic>> updateReceiveMud(String wellId, String id, Map<String, dynamic> body) async {
+    try {
+      final response = await http.put(
+        Uri.parse('${baseUrl}receive-mud/$wellId/$id'),
+        headers: _headers,
+        body: jsonEncode(body),
+      );
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200,
+        'data': data,
+        'message': data['message'] ?? 'Receive Mud updated successfully',
+      };
+    } catch (e) {
+      print('Error in updateReceiveMud: $e');
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  // ── Delete Receive Mud ─────────────────────────────────────────────────────
+  Future<Map<String, dynamic>> deleteReceiveMud(String wellId, String id) async {
+    try {
+      final response = await http.delete(
+        Uri.parse('${baseUrl}receive-mud/$wellId/$id'),
+        headers: _headers,
+      );
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200,
+        'message': data['message'] ?? 'Receive Mud deleted successfully',
+      };
+    } catch (e) {
+      print('Error in deleteReceiveMud: $e');
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
   Future<Map<String, dynamic>> deleteTransferMud(String id) async {
     try {
       print('Hitting DELETE ${baseUrl}transfer-mud/$id');
