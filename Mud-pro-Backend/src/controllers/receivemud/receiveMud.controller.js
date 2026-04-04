@@ -19,17 +19,16 @@ const findPremixedMud = async (wellId, premixedMud) => {
 };
 
 const applyVolumeToPit = async ({ wellId, to, netVolume, mw, mudType }) => {
-  const allPits = await Pit.find({ wellId }).sort({ createdAt: 1 });
+  const safeTo = String(to).trim();
 
-  if (!allPits.length) {
-    throw new Error("No pits found for this wellId");
-  }
-
-  if (String(to).trim() === "Active System") {
-    const activePits = allPits.filter((pit) => pit.initialActive === true);
+  if (safeTo === "Active System") {
+    const activePits = await Pit.find({
+      wellId,
+      initialActive: true,
+    }).sort({ createdAt: 1 });
 
     if (!activePits.length) {
-      throw new Error("No active pits found");
+      throw { status: 400, message: "No active pits found for this well" };
     }
 
     let remaining = round2(netVolume);
@@ -49,11 +48,14 @@ const applyVolumeToPit = async ({ wellId, to, netVolume, mw, mudType }) => {
   } else {
     const targetPit = await Pit.findOne({
       wellId,
-      pitName: String(to).trim(),
+      pitName: safeTo,
     });
 
     if (!targetPit) {
-      throw new Error(`Target pit '${to}' not found`);
+      throw {
+        status: 404,
+        message: `Target pit '${to}' not found for this well`,
+      };
     }
 
     targetPit.volume = round2(toNumber(targetPit.volume) + netVolume);
@@ -65,17 +67,16 @@ const applyVolumeToPit = async ({ wellId, to, netVolume, mw, mudType }) => {
 };
 
 const revertVolumeFromPit = async ({ wellId, to, netVolume }) => {
-  const allPits = await Pit.find({ wellId }).sort({ createdAt: 1 });
+  const safeTo = String(to).trim();
 
-  if (!allPits.length) {
-    throw new Error("No pits found for this wellId");
-  }
-
-  if (String(to).trim() === "Active System") {
-    const activePits = allPits.filter((pit) => pit.initialActive === true);
+  if (safeTo === "Active System") {
+    const activePits = await Pit.find({
+      wellId,
+      initialActive: true,
+    }).sort({ createdAt: 1 });
 
     if (!activePits.length) {
-      throw new Error("No active pits found");
+      throw { status: 400, message: "No active pits found for this well" };
     }
 
     let remaining = round2(netVolume);
@@ -94,11 +95,14 @@ const revertVolumeFromPit = async ({ wellId, to, netVolume }) => {
   } else {
     const targetPit = await Pit.findOne({
       wellId,
-      pitName: String(to).trim(),
+      pitName: safeTo,
     });
 
     if (!targetPit) {
-      throw new Error(`Target pit '${to}' not found`);
+      throw {
+        status: 404,
+        message: `Target pit '${to}' not found for this well`,
+      };
     }
 
     const currentVolume = toNumber(targetPit.volume);
@@ -214,9 +218,9 @@ export const createReceiveMud = async (req, res) => {
       data: createdItems,
     });
   } catch (error) {
-    return res.status(500).json({
+    return res.status(error.status || 500).json({
       success: false,
-      message: "Failed to save Receive Mud",
+      message: error.message || "Failed to save Receive Mud",
       error: error.message,
     });
   }
@@ -332,9 +336,9 @@ export const updateReceiveMud = async (req, res) => {
       data: existing,
     });
   } catch (error) {
-    return res.status(500).json({
+    return res.status(error.status || 500).json({
       success: false,
-      message: "Failed to update Receive Mud",
+      message: error.message || "Failed to update Receive Mud",
       error: error.message,
     });
   }
@@ -367,9 +371,9 @@ export const deleteReceiveMud = async (req, res) => {
       message: "Receive Mud deleted successfully",
     });
   } catch (error) {
-    return res.status(500).json({
+    return res.status(error.status || 500).json({
       success: false,
-      message: "Failed to delete Receive Mud",
+      message: error.message || "Failed to delete Receive Mud",
       error: error.message,
     });
   }
