@@ -79,7 +79,7 @@ const revertToStoragePit = async ({ wellId, storage, totalLoss }) => {
   await sourcePit.save();
 };
 
-export const createMudLossStorage = async (req, res) => {
+export const createMudLoss = async (req, res) => {
   try {
     const wellId = getWellId(req);
     const payloads = Array.isArray(req.body) ? req.body : [req.body];
@@ -124,7 +124,7 @@ export const createMudLossStorage = async (req, res) => {
   }
 };
 
-export const getMudLossStorageList = async (req, res) => {
+export const getMudLossList = async (req, res) => {
   try {
     const wellId = getWellId(req);
 
@@ -144,7 +144,7 @@ export const getMudLossStorageList = async (req, res) => {
   }
 };
 
-export const getMudLossStorageById = async (req, res) => {
+export const getMudLossById = async (req, res) => {
   try {
     const wellId = getWellId(req);
     const { id } = req.params;
@@ -171,7 +171,7 @@ export const getMudLossStorageById = async (req, res) => {
   }
 };
 
-export const updateMudLossStorage = async (req, res) => {
+export const updateMudLoss = async (req, res) => {
   try {
     const wellId = getWellId(req);
     const { id } = req.params;
@@ -228,7 +228,7 @@ export const updateMudLossStorage = async (req, res) => {
   }
 };
 
-export const deleteMudLossStorage = async (req, res) => {
+export const deleteMudLoss = async (req, res) => {
   try {
     const wellId = getWellId(req);
     const { id } = req.params;
