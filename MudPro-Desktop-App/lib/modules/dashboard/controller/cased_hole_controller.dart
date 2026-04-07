@@ -6,6 +6,9 @@ import 'package:mudpro_desktop_app/api_endpoint/api_endpoint.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/model/UG_ST_model.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart' show kControllerWellId;
+import 'package:mudpro_desktop_app/modules/dashboard/controller/options_controller.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
+import 'package:mudpro_desktop_app/modules/options/unit_sync_helpers.dart';
 
 class CasedHoleEntry {
   final String? id;
@@ -63,6 +66,10 @@ class CasedHoleUIController extends GetxController {
   var entries = <CasedHoleEntry>[].obs;
   var isLoading = false.obs;
   var isSaving = false.obs;
+  OptionsController? _optionsController;
+  Worker? _unitSystemWorker;
+  Worker? _customUnitsWorker;
+  Map<String, String> _knownUnits = const {};
 
   Map<String, String> get _headers => {
         'Content-Type': 'application/json',
@@ -73,6 +80,15 @@ class CasedHoleUIController extends GetxController {
   void onInit() {
     super.onInit();
     _initEmptyRows();
+    if (Get.isRegistered<OptionsController>()) {
+      _optionsController = Get.find<OptionsController>();
+      _knownUnits = _snapshotUnits();
+      _unitSystemWorker = ever(_optionsController!.unitSystem, (_) => _syncDisplayedUnits());
+      _customUnitsWorker = ever<Map<String, String>>(
+        _optionsController!.customUnits,
+        (_) => _syncDisplayedUnits(),
+      );
+    }
   }
 
   void _initEmptyRows() {
@@ -267,7 +283,46 @@ class CasedHoleUIController extends GetxController {
 
   @override
   void onClose() {
+    _unitSystemWorker?.dispose();
+    _customUnitsWorker?.dispose();
     for (final e in entries) e.dispose();
     super.onClose();
+  }
+
+  Map<String, String> _snapshotUnits() {
+    return AppUnits.snapshotUnits(const ['1', '2', '31']);
+  }
+
+  void _syncDisplayedUnits() {
+    final nextUnits = _snapshotUnits();
+    if (_knownUnits.isEmpty) {
+      _knownUnits = nextUnits;
+      return;
+    }
+
+    for (final entry in entries) {
+      for (final controller in [entry.od, entry.idCtrl]) {
+        UnitSyncHelpers.convertTextController(
+          controller,
+          fromUnit: _knownUnits['2'] ?? '(in)',
+          toUnit: nextUnits['2'] ?? '(in)',
+        );
+      }
+      UnitSyncHelpers.convertTextController(
+        entry.wt,
+        fromUnit: _knownUnits['31'] ?? '(lb/ft)',
+        toUnit: nextUnits['31'] ?? '(lb/ft)',
+      );
+      for (final controller in [entry.top, entry.shoe, entry.length]) {
+        UnitSyncHelpers.convertTextController(
+          controller,
+          fromUnit: _knownUnits['1'] ?? '(ft)',
+          toUnit: nextUnits['1'] ?? '(ft)',
+        );
+      }
+    }
+
+    entries.refresh();
+    _knownUnits = nextUnits;
   }
 }

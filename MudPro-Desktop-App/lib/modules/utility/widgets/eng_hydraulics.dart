@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/options_controller.dart';
 import 'package:mudpro_desktop_app/modules/utility/subtabs/eng_bit_hydra_view.dart';
 import 'package:mudpro_desktop_app/modules/utility/subtabs/eng_hydraulics_annularvelocity.dart';
 import '../controller/engineering_tools_controller.dart';
@@ -9,6 +10,7 @@ class HydraulicsPage extends StatelessWidget {
   HydraulicsPage({super.key});
 
   final c = Get.find<EngineeringToolsController>();
+  final options = Get.find<OptionsController>();
 
   final subTabs = const [
     "Annular Velocity",
@@ -59,6 +61,24 @@ class HydraulicsPage extends StatelessWidget {
                       ),
                     ),
                   )),
+              const SizedBox(width: 8),
+              Obx(
+                () => Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: Text(
+                    options.activeUnitSystemLabel,
+                    style: AppTheme.caption.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                ),
+              ),
             ],
           ),
         ),

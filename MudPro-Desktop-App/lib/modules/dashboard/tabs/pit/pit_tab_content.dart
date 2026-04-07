@@ -4,6 +4,8 @@ import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart'
 import 'package:mudpro_desktop_app/modules/dashboard/tabs/pit/pit_concentration.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/tabs/pit/pit_snapshot.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/options_controller.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
@@ -14,6 +16,15 @@ const String kPitWellId = '67f1a2b3c4d5e6f7890a1111';
 const double kRowHeight = 22.0;
 const double kHeaderHeight = 26.0;
 const int kEmptyFillRows = 8; // filler rows to fill height if needed
+
+String _pitUnitPlain(String paramNumber, String fallback) {
+  return AppUnits.stripBrackets(
+    AppUnits.displayUnit(
+      paramNumber,
+      fallback: fallback.startsWith('(') ? fallback : '($fallback)',
+    ),
+  );
+}
 
 class PitPage extends StatefulWidget {
   PitPage({super.key});
@@ -62,22 +73,31 @@ class _PitPageState extends State<PitPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: Colors.white,
-      child: Obx(() {
-        if (controller.isLoading.value) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        return LayoutBuilder(
-          builder: (context, constraints) {
-            if (constraints.maxWidth < 900) {
-              return _buildMobileLayout(context);
-            } else {
-              return _buildDesktopLayout(context);
-            }
-          },
+    final optionsController = Get.find<OptionsController>();
+    return Obx(
+      () {
+        final unitKey = optionsController.activeUnitSystemLabel;
+        return KeyedSubtree(
+          key: ValueKey(unitKey),
+          child: Container(
+            color: Colors.white,
+            child: Obx(() {
+              if (controller.isLoading.value) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              return LayoutBuilder(
+                builder: (context, constraints) {
+                  if (constraints.maxWidth < 900) {
+                    return _buildMobileLayout(context);
+                  } else {
+                    return _buildDesktopLayout(context);
+                  }
+                },
+              );
+            }),
+          ),
         );
-      }),
+      },
     );
   }
 
@@ -243,8 +263,8 @@ class _PitPageState extends State<PitPage> {
           decoration: BoxDecoration(color: Colors.grey.shade100),
           children: [
             _headerCell("Pit"),
-            _headerCell("Measured Vol\n(bbl)"),
-            _headerCell("MW\n(ppg)"),
+            _headerCell("Measured Vol\n(${_pitUnitPlain('6', 'bbl')})"),
+            _headerCell("MW\n(${_pitUnitPlain('33', 'ppg')})"),
             _headerCell("Mud"),
           ],
         ),
@@ -370,9 +390,9 @@ class _PitPageState extends State<PitPage> {
           decoration: BoxDecoration(color: Colors.grey.shade100),
           children: [
             _headerCell("Pit"),
-            _headerCell("Calculated Vol\n(bbl)"),
-            _headerCell("Measured Vol\n(bbl)"),
-            _headerCell("MW\n(ppg)"),
+            _headerCell("Calculated Vol\n(${_pitUnitPlain('6', 'bbl')})"),
+            _headerCell("Measured Vol\n(${_pitUnitPlain('6', 'bbl')})"),
+            _headerCell("MW\n(${_pitUnitPlain('33', 'ppg')})"),
             _headerCell("Fluid Type"),
           ],
         ),
@@ -508,7 +528,7 @@ class _PitPageState extends State<PitPage> {
           decoration: BoxDecoration(color: Colors.grey.shade100),
           children: [
             _headerCell("Volume Name"),
-            _headerCell("Volume\n(bbl)"),
+            _headerCell("Volume\n(${_pitUnitPlain('6', 'bbl')})"),
           ],
         ),
       ],
@@ -657,8 +677,8 @@ class _PitPageState extends State<PitPage> {
   Widget _buildHaulOffTableBody() {
     final rows = [
       ["No. of Loads", "0", ""],
-      ["Vol.", "0.00", "(bbl)"],
-      ["Weight", "0", "(lbm)"],
+      ["Vol.", "0.00", AppUnits.displayUnit('6', fallback: '(bbl)')],
+      ["Weight", "0", AppUnits.displayUnit('29', fallback: '(lbm)')],
       ["Oil", "0", "(%)"],
       ["Water", "0", "(%)"],
       ["Solids", "0", "(%)"],

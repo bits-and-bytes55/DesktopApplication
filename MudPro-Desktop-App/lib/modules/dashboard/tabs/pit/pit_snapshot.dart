@@ -1,8 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_pit_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/options_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/pit_snapshot_Controller.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
+
+String _snapshotUnitPlain(String paramNumber, String fallback) {
+  return AppUnits.stripBrackets(
+    AppUnits.displayUnit(
+      paramNumber,
+      fallback: fallback.startsWith('(') ? fallback : '($fallback)',
+    ),
+  );
+}
 
 class PitSnapshotPage extends StatelessWidget {
   const PitSnapshotPage({Key? key}) : super(key: key);
@@ -10,48 +21,54 @@ class PitSnapshotPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(PitSnapshotController());
-    
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: AppTheme.primaryColor,
-        title: const Text('Pit Snapshot', style: TextStyle(color: Colors.white, fontSize: 16)),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Get.back(),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.close, color: Colors.white),
-            onPressed: () => Get.back(),
-          ),
-        ],
-      ),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          return Container(
-            color: const Color(0xFFF5F5F5),
-            child: SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Title and Legend
-                    _buildHeader(controller),
-                    const SizedBox(height: 16),
-                    
-                    // Main Content
-                    constraints.maxWidth > 1000 
-                        ? _buildWideLayout(controller) 
-                        : _buildNarrowLayout(controller),
-                  ],
-                ),
+    final optionsController = Get.find<OptionsController>();
+
+    return Obx(
+      () {
+        final unitKey = optionsController.activeUnitSystemLabel;
+        return KeyedSubtree(
+          key: ValueKey(unitKey),
+          child: Scaffold(
+            backgroundColor: Colors.white,
+            appBar: AppBar(
+              backgroundColor: AppTheme.primaryColor,
+              title: const Text('Pit Snapshot', style: TextStyle(color: Colors.white, fontSize: 16)),
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                onPressed: () => Get.back(),
               ),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white),
+                  onPressed: () => Get.back(),
+                ),
+              ],
             ),
-          );
-        },
-      ),
+            body: LayoutBuilder(
+              builder: (context, constraints) {
+                return Container(
+                  color: const Color(0xFFF5F5F5),
+                  child: SingleChildScrollView(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildHeader(controller),
+                          const SizedBox(height: 16),
+                          constraints.maxWidth > 1000
+                              ? _buildWideLayout(controller)
+                              : _buildNarrowLayout(controller),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -168,7 +185,10 @@ class PitSnapshotPage extends StatelessWidget {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('MD/TVD (m)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white)),
+                    Text(
+                      'MD/TVD (${_snapshotUnitPlain('1', 'm')})',
+                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
+                    ),
                     const SizedBox(height: 2),
                     const Text('0.00 ≈ 0.00', style: TextStyle(fontSize: 10, color: Colors.white70)),
                   ],
@@ -176,7 +196,10 @@ class PitSnapshotPage extends StatelessWidget {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    const Text('Shoe (m)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white)),
+                    Text(
+                      'Shoe (${_snapshotUnitPlain('1', 'm')})',
+                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
+                    ),
                     const SizedBox(height: 2),
                     const Text('0.00', style: TextStyle(fontSize: 10, color: Colors.white70)),
                   ],
@@ -380,7 +403,7 @@ class PitSnapshotPage extends StatelessWidget {
                 decoration: BoxDecoration(color: AppTheme.primaryColor.withOpacity(0.1)),
                 children: [
                   _buildTableHeaderCell('Vol. Name', TextAlign.left),
-                  _buildTableHeaderCell('Vol. (bbl)', TextAlign.right),
+                  _buildTableHeaderCell('Vol. (${_snapshotUnitPlain('6', 'bbl')})', TextAlign.right),
                 ],
               ),
               ...controller.volumeSummaryData.asMap().entries.map((entry) {
@@ -656,7 +679,7 @@ class PitSnapshotPage extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Hole Volume (bbl)',
+                    'Hole Volume (${_snapshotUnitPlain('6', 'bbl')})',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -742,7 +765,7 @@ class PitSnapshotPage extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'CKB Volume (bbl)',
+                    'CKB Volume (${_snapshotUnitPlain('6', 'bbl')})',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:mudpro_desktop_app/modules/UG/model/pump_model.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/options_controller.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
+import 'package:mudpro_desktop_app/modules/options/widgets/unit_context_banner.dart';
 import '../controller/pump_controller.dart';
 import '../controller/UG_controller.dart';
+import '../model/pump_model.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class PumpView extends StatefulWidget {
@@ -20,7 +23,9 @@ class _PumpViewState extends State<PumpView> {
   void initState() {
     super.initState();
     ugController = Get.find<UgController>();
-    pumpController = Get.put(PumpController());
+    pumpController = Get.isRegistered<PumpController>()
+        ? Get.find<PumpController>()
+        : Get.put(PumpController());
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadPumpsIfNeeded();
@@ -92,26 +97,46 @@ class _PumpViewState extends State<PumpView> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(12),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 6,
-                offset: const Offset(0, 2))
-          ],
-          border: Border.all(color: Colors.grey.shade200, width: 1),
-        ),
-        child: Column(
-          children: [
-            _headerRow(),
-            Expanded(child: _tableBody()),
-            _buildFooter(),
-          ],
+    final optionsController = Get.find<OptionsController>();
+
+    return Obx(
+      () => KeyedSubtree(
+        key: ValueKey(optionsController.activeUnitSystemLabel),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2))
+              ],
+              border: Border.all(color: Colors.grey.shade200, width: 1),
+            ),
+            child: Column(
+              children: [
+                _headerRow(),
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(12, 10, 12, 0),
+                  child: UnitContextBanner(
+                    title: 'Pump',
+                    entries: [
+                      UnitContextEntry(label: 'Diameter', paramNumber: '2'),
+                      UnitContextEntry(label: 'Displacement', paramNumber: '11'),
+                      UnitContextEntry(label: 'Pressure', paramNumber: '22'),
+                      UnitContextEntry(label: 'Power', paramNumber: '26'),
+                      UnitContextEntry(label: 'Length', paramNumber: '1'),
+                    ],
+                  ),
+                ),
+                Expanded(child: _tableBody()),
+                _buildFooter(),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -177,13 +202,13 @@ class _PumpViewState extends State<PumpView> {
               const _HCell('#', flex: 1),
               const _HCell('Type', flex: 2),
               const _HCell('Model', flex: 3),
-              const _HCell('Liner ID\n(in)', flex: 2),
-              const _HCell('Rod OD\n(in)', flex: 2),
-              const _HCell('Stk. Length\n(in)', flex: 2),
+              _HCell('Liner ID\n${AppUnits.displayUnit('2')}', flex: 2),
+              _HCell('Rod OD\n${AppUnits.displayUnit('2')}', flex: 2),
+              _HCell('Stk. Length\n${AppUnits.displayUnit('2')}', flex: 2),
               const _HCell('Efficiency\n(%)', flex: 2),
-              const _HCell('Disp.\n(bbl/stk)', flex: 2),
-              const _HCell('Max. Pump P.\n(psi)', flex: 2),
-              const _HCell('Max. HP\n(HP)', flex: 2),
+              _HCell('Disp.\n${AppUnits.displayUnit('11')}', flex: 2),
+              _HCell('Max. Pump P.\n${AppUnits.displayUnit('22')}', flex: 2),
+              _HCell('Max. HP\n${AppUnits.displayUnit('26')}', flex: 2),
               Expanded(
                 flex: 4,
                 child: Container(
@@ -218,9 +243,9 @@ class _PumpViewState extends State<PumpView> {
                                         right: BorderSide(
                                             color: Colors.grey.shade300,
                                             width: 1))),
-                                child: const Text('Length\n(m)',
+                                child: Text('Length\n${AppUnits.displayUnit('1')}',
                                     textAlign: TextAlign.center,
-                                    style: TextStyle(
+                                    style: const TextStyle(
                                         fontSize: 11,
                                         fontWeight: FontWeight.w600,
                                         color: AppTheme.textPrimary)),
@@ -230,9 +255,9 @@ class _PumpViewState extends State<PumpView> {
                               flex: 1,
                               child: Container(
                                 alignment: Alignment.center,
-                                child: const Text('ID\n(in)',
+                                child: Text('ID\n${AppUnits.displayUnit('2')}',
                                     textAlign: TextAlign.center,
-                                    style: TextStyle(
+                                    style: const TextStyle(
                                         fontSize: 11,
                                         fontWeight: FontWeight.w600,
                                         color: AppTheme.textPrimary)),

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/options_controller.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
+import 'package:mudpro_desktop_app/modules/options/widgets/unit_context_banner.dart';
 import 'package:mudpro_desktop_app/modules/utility/controller/bit_hydra_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
@@ -8,35 +11,66 @@ class BitHydraulicsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = Get.put(BitHydraulicsController());
+    final controller = Get.isRegistered<BitHydraulicsController>()
+        ? Get.find<BitHydraulicsController>()
+        : Get.put(BitHydraulicsController());
+    final optionsController = Get.find<OptionsController>();
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isSmallScreen = constraints.maxWidth < 1024;
-        final isVerySmallScreen = constraints.maxWidth < 768;
+    return Obx(
+      () {
+        final unitKey = optionsController.activeUnitSystemLabel;
+        return KeyedSubtree(
+          key: ValueKey(unitKey),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isSmallScreen = constraints.maxWidth < 1024;
+              final isVerySmallScreen = constraints.maxWidth < 768;
 
-        return Padding(
-          padding: const EdgeInsets.all(16),
-          child: isSmallScreen ? _buildMobileLayout(c, isVerySmallScreen) : _buildDesktopLayout(c),
+              return Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const UnitContextBanner(
+                      title: 'Bit hydraulics',
+                      entries: [
+                        UnitContextEntry(label: 'MW', paramNumber: '33'),
+                        UnitContextEntry(label: 'Pump output', paramNumber: '17'),
+                        UnitContextEntry(label: 'Pressure', paramNumber: '22'),
+                        UnitContextEntry(label: 'Bit size', paramNumber: '2'),
+                        UnitContextEntry(label: 'Nozzle', paramNumber: '3'),
+                        UnitContextEntry(label: 'Force', paramNumber: '20'),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Expanded(
+                      child: isSmallScreen
+                          ? _buildMobileLayout(controller, isVerySmallScreen)
+                          : _buildDesktopLayout(controller),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
         );
       },
     );
   }
 
-  Widget _buildDesktopLayout(BitHydraulicsController c) {
+  Widget _buildDesktopLayout(BitHydraulicsController controller) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ================= LEFT INPUT PANEL =================
         Container(
-          width: 400,
+          width: 420,
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(8),
             border: Border.all(color: Colors.grey.shade200),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 4,
                 offset: const Offset(0, 2),
               ),
@@ -48,9 +82,8 @@ class BitHydraulicsPage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Title
                   Text(
-                    "Input Parameters",
+                    'Input Parameters',
                     style: AppTheme.bodySmall.copyWith(
                       fontWeight: FontWeight.w600,
                       color: AppTheme.primaryColor,
@@ -58,37 +91,45 @@ class BitHydraulicsPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    "Required fields: MW, Pump output, Standpipe pressure, Bit size",
+                    'All inputs are interpreted in the active unit system shown above.',
                     style: AppTheme.caption.copyWith(
                       color: AppTheme.textSecondary,
                       fontSize: 10,
                     ),
                   ),
                   const SizedBox(height: 16),
+                  _requiredRow(
+                    AppUnits.label('MW', '33'),
+                    controller.mw,
+                    'Enter',
+                  ),
+                  _row(
+                    AppUnits.label('Pump output', '17'),
+                    controller.pumpOutput,
+                    'Enter',
+                  ),
+                  _row(
+                    AppUnits.label('Standpipe pressure', '22'),
+                    controller.standpipePressure,
+                    'Enter',
+                  ),
+                  _row(
+                    AppUnits.label('Bit size', '2'),
+                    controller.bitSize,
+                    'Enter',
+                  ),
+                  const SizedBox(height: 8),
                   const Divider(height: 1),
                   const SizedBox(height: 8),
-
-                  // Input Fields
-                  _requiredRow("MW (ppg)", c.mw, "10.5"),
-                  _row("Pump output (gpm)", c.pumpOutput, "500"),
-                  _row("Standpipe pressure (psi)", c.standpipePressure, "3000"),
-                  _row("Bit size (in)", c.bitSize, "8.5"),
-                  const SizedBox(height: 8),
-                  const Divider(height: 1),
-                  const SizedBox(height: 8),
-
-                  // Jet Nozzles Section Title
                   Text(
-                    "Jet Nozzles (1/32 in)",
+                    AppUnits.label('Jet Nozzles', '3'),
                     style: AppTheme.caption.copyWith(
                       fontWeight: FontWeight.w600,
                       color: AppTheme.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 8),
-
-                  // Jet Nozzles Grid
-                  Container(
+                  SizedBox(
                     height: 200,
                     child: GridView.builder(
                       shrinkWrap: true,
@@ -100,24 +141,27 @@ class BitHydraulicsPage extends StatelessWidget {
                         childAspectRatio: 4,
                       ),
                       itemCount: 10,
-                      itemBuilder: (context, i) {
-                        return _jetNozzleRow("Jet ${i + 1}", c.jetNozzles[i], i == 0 ? "14" : "");
+                      itemBuilder: (context, index) {
+                        return _jetNozzleRow(
+                          'Jet ${index + 1}',
+                          controller.jetNozzles[index],
+                        );
                       },
                     ),
                   ),
-
                   const SizedBox(height: 20),
-
-                  // Calculate Button
                   ElevatedButton(
-                    onPressed: () => _validateAndCalculate(c),
+                    onPressed: () => _validateAndCalculate(controller),
                     style: AppTheme.primaryButtonStyle,
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.calculate, size: 14),
+                        const Icon(Icons.calculate, size: 14),
                         const SizedBox(width: 6),
-                        Text("Calculate", style: AppTheme.caption.copyWith(color: Colors.white)),
+                        Text(
+                          'Calculate',
+                          style: AppTheme.caption.copyWith(color: Colors.white),
+                        ),
                       ],
                     ),
                   ),
@@ -126,10 +170,7 @@ class BitHydraulicsPage extends StatelessWidget {
             ),
           ),
         ),
-
         const SizedBox(width: 20),
-
-        // ================= RIGHT RESULTS PANEL =================
         Expanded(
           child: Container(
             decoration: BoxDecoration(
@@ -138,7 +179,7 @@ class BitHydraulicsPage extends StatelessWidget {
               border: Border.all(color: Colors.grey.shade200),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withValues(alpha: 0.05),
                   blurRadius: 4,
                   offset: const Offset(0, 2),
                 ),
@@ -151,9 +192,8 @@ class BitHydraulicsPage extends StatelessWidget {
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Title
                       Text(
-                        "Calculation Results",
+                        'Calculation Results',
                         style: AppTheme.bodySmall.copyWith(
                           fontWeight: FontWeight.w600,
                           color: AppTheme.primaryColor,
@@ -161,39 +201,17 @@ class BitHydraulicsPage extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        "Results based on input parameters",
+                        'Results are converted to the selected report units before display.',
                         style: AppTheme.caption.copyWith(
                           color: AppTheme.textSecondary,
                           fontSize: 10,
                         ),
                       ),
                       const SizedBox(height: 16),
-
-                      // Check if we have results
-                      if (_hasResults(c))
-                        _buildResultsGrid(c)
+                      if (_hasResults(controller))
+                        _buildResultsGrid(controller)
                       else
-                        Container(
-                          height: 400,
-                          alignment: Alignment.center,
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.calculate_outlined,
-                                size: 48,
-                                color: Colors.grey.shade300,
-                              ),
-                              const SizedBox(height: 12),
-                              Text(
-                                "Enter values and click Calculate",
-                                style: AppTheme.bodySmall.copyWith(
-                                  color: AppTheme.textSecondary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                        _emptyState(380),
                     ],
                   );
                 }),
@@ -205,11 +223,13 @@ class BitHydraulicsPage extends StatelessWidget {
     );
   }
 
-  Widget _buildMobileLayout(BitHydraulicsController c, bool isVerySmallScreen) {
+  Widget _buildMobileLayout(
+    BitHydraulicsController controller,
+    bool isVerySmallScreen,
+  ) {
     return SingleChildScrollView(
       child: Column(
         children: [
-          // Input Panel
           Container(
             width: double.infinity,
             decoration: BoxDecoration(
@@ -218,7 +238,7 @@ class BitHydraulicsPage extends StatelessWidget {
               border: Border.all(color: Colors.grey.shade200),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withValues(alpha: 0.05),
                   blurRadius: 4,
                   offset: const Offset(0, 2),
                 ),
@@ -230,7 +250,7 @@ class BitHydraulicsPage extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    "Input Parameters",
+                    'Input Parameters',
                     style: AppTheme.bodySmall.copyWith(
                       fontWeight: FontWeight.w600,
                       color: AppTheme.primaryColor,
@@ -238,35 +258,36 @@ class BitHydraulicsPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    "Required fields: MW, Pump output, Standpipe pressure, Bit size",
+                    'Use the current Unit settings for all inputs on this screen.',
                     style: AppTheme.caption.copyWith(
                       color: AppTheme.textSecondary,
                       fontSize: 10,
                     ),
                   ),
                   const SizedBox(height: 16),
-
-                  // Required Fields
-                  _requiredRow("MW (ppg)", c.mw, "10.5"),
-                  _row("Pump output (gpm)", c.pumpOutput, "500"),
-                  _row("Standpipe pressure (psi)", c.standpipePressure, "3000"),
-                  _row("Bit size (in)", c.bitSize, "8.5"),
-                  
+                  _requiredRow(AppUnits.label('MW', '33'), controller.mw, 'Enter'),
+                  _row(
+                    AppUnits.label('Pump output', '17'),
+                    controller.pumpOutput,
+                    'Enter',
+                  ),
+                  _row(
+                    AppUnits.label('Standpipe pressure', '22'),
+                    controller.standpipePressure,
+                    'Enter',
+                  ),
+                  _row(AppUnits.label('Bit size', '2'), controller.bitSize, 'Enter'),
                   const SizedBox(height: 16),
                   const Divider(height: 1),
                   const SizedBox(height: 8),
-
-                  // Jet Nozzles
                   Text(
-                    "Jet Nozzles (1/32 in)",
+                    AppUnits.label('Jet Nozzles', '3'),
                     style: AppTheme.caption.copyWith(
                       fontWeight: FontWeight.w600,
                       color: AppTheme.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 8),
-
-                  // Jet Nozzles Grid - Adjust columns based on screen size
                   GridView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
@@ -277,25 +298,30 @@ class BitHydraulicsPage extends StatelessWidget {
                       childAspectRatio: 3,
                     ),
                     itemCount: 10,
-                    itemBuilder: (context, i) {
-                      return _jetNozzleRow("Jet ${i + 1}", c.jetNozzles[i], i == 0 ? "14" : "");
+                    itemBuilder: (context, index) {
+                      return _jetNozzleRow(
+                        'Jet ${index + 1}',
+                        controller.jetNozzles[index],
+                      );
                     },
                   ),
-
                   const SizedBox(height: 20),
-
-                  // Calculate Button
                   ElevatedButton(
-                    onPressed: () => _validateAndCalculate(c),
+                    onPressed: () => _validateAndCalculate(controller),
                     style: AppTheme.primaryButtonStyle.copyWith(
-                      minimumSize: MaterialStateProperty.all(const Size(double.infinity, 40)),
+                      minimumSize: WidgetStateProperty.all(
+                        const Size(double.infinity, 40),
+                      ),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.calculate, size: 14),
+                        const Icon(Icons.calculate, size: 14),
                         const SizedBox(width: 6),
-                        Text("Calculate", style: AppTheme.caption.copyWith(color: Colors.white)),
+                        Text(
+                          'Calculate',
+                          style: AppTheme.caption.copyWith(color: Colors.white),
+                        ),
                       ],
                     ),
                   ),
@@ -303,10 +329,7 @@ class BitHydraulicsPage extends StatelessWidget {
               ),
             ),
           ),
-
           const SizedBox(height: 20),
-
-          // Results Panel
           Container(
             width: double.infinity,
             decoration: BoxDecoration(
@@ -315,7 +338,7 @@ class BitHydraulicsPage extends StatelessWidget {
               border: Border.all(color: Colors.grey.shade200),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withValues(alpha: 0.05),
                   blurRadius: 4,
                   offset: const Offset(0, 2),
                 ),
@@ -328,7 +351,7 @@ class BitHydraulicsPage extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      "Calculation Results",
+                      'Calculation Results',
                       style: AppTheme.bodySmall.copyWith(
                         fontWeight: FontWeight.w600,
                         color: AppTheme.primaryColor,
@@ -336,38 +359,17 @@ class BitHydraulicsPage extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      "Results based on input parameters",
+                      'Calculated values are shown in the currently selected units.',
                       style: AppTheme.caption.copyWith(
                         color: AppTheme.textSecondary,
                         fontSize: 10,
                       ),
                     ),
                     const SizedBox(height: 16),
-
-                    if (_hasResults(c))
-                      _buildResultsGrid(c)
+                    if (_hasResults(controller))
+                      _buildResultsGrid(controller)
                     else
-                      Container(
-                        height: 200,
-                        alignment: Alignment.center,
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.calculate_outlined,
-                              size: 36,
-                              color: Colors.grey.shade300,
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              "Enter values and click Calculate",
-                              style: AppTheme.caption.copyWith(
-                                color: AppTheme.textSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                      _emptyState(220),
                   ],
                 );
               }),
@@ -378,7 +380,29 @@ class BitHydraulicsPage extends StatelessWidget {
     );
   }
 
-  Widget _requiredRow(String label, RxString controller, String example) {
+  Widget _requiredRow(String label, RxString controller, String placeholder) {
+    return _inputRow(
+      label: label,
+      controller: controller,
+      placeholder: placeholder,
+      required: true,
+    );
+  }
+
+  Widget _row(String label, RxString controller, String placeholder) {
+    return _inputRow(
+      label: label,
+      controller: controller,
+      placeholder: placeholder,
+    );
+  }
+
+  Widget _inputRow({
+    required String label,
+    required RxString controller,
+    required String placeholder,
+    bool required = false,
+  }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
@@ -387,167 +411,64 @@ class BitHydraulicsPage extends StatelessWidget {
         border: Border.all(color: Colors.grey.shade200),
       ),
       padding: const EdgeInsets.all(8),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
+          Row(
+            children: [
+              Expanded(
+                child: Text(
                   label,
                   style: AppTheme.caption.copyWith(
                     fontWeight: FontWeight.w600,
                     color: AppTheme.textPrimary,
                   ),
                 ),
-                const SizedBox(height: 2),
+              ),
+              if (required)
                 Text(
-                  "Required",
+                  'Required',
                   style: AppTheme.caption.copyWith(
                     color: Colors.red.shade600,
                     fontSize: 9,
                   ),
                 ),
-              ],
-            ),
+            ],
           ),
-          const SizedBox(width: 8),
+          const SizedBox(height: 8),
           Container(
-            width: 100,
-            height: 32,
+            height: 34,
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(4),
               border: Border.all(color: Colors.grey.shade300),
             ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: TextEditingController(text: controller.value),
-                    onChanged: (v) => controller.value = v,
-                    keyboardType: TextInputType.number,
-                    style: AppTheme.caption.copyWith(
-                      color: AppTheme.textPrimary,
-                      fontSize: 11,
-                    ),
-                    decoration: InputDecoration(
-                      isDense: true,
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-                      hintText: "Enter",
-                      hintStyle: AppTheme.caption.copyWith(
-                        color: Colors.grey.shade400,
-                        fontSize: 11,
-                      ),
-                    ),
-                  ),
-                ),
-                Container(
-                  width: 40,
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    border: Border(
-                      left: BorderSide(color: Colors.grey.shade300),
-                    ),
-                  ),
-                  child: Text(
-                    "e.g. $example",
-                    style: AppTheme.caption.copyWith(
-                      color: Colors.grey.shade600,
-                      fontSize: 9,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _row(String label, RxString controller, String example) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      padding: const EdgeInsets.all(8),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              label,
+            child: TextField(
+              controller: TextEditingController(text: controller.value),
+              onChanged: (value) => controller.value = value,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
               style: AppTheme.caption.copyWith(
-                fontWeight: FontWeight.w600,
                 color: AppTheme.textPrimary,
+                fontSize: 11,
+              ),
+              decoration: InputDecoration(
+                isDense: true,
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                hintText: placeholder,
+                hintStyle: AppTheme.caption.copyWith(
+                  color: Colors.grey.shade400,
+                  fontSize: 11,
+                ),
               ),
             ),
           ),
-          const SizedBox(width: 8),
-          Container(
-            width: 100,
-            height: 32,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: Colors.grey.shade300),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: TextEditingController(text: controller.value),
-                    onChanged: (v) => controller.value = v,
-                    keyboardType: TextInputType.number,
-                    style: AppTheme.caption.copyWith(
-                      color: AppTheme.textPrimary,
-                      fontSize: 11,
-                    ),
-                    decoration: InputDecoration(
-                      isDense: true,
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-                      hintText: "Enter",
-                      hintStyle: AppTheme.caption.copyWith(
-                        color: Colors.grey.shade400,
-                        fontSize: 11,
-                      ),
-                    ),
-                  ),
-                ),
-                Container(
-                  width: 40,
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    border: Border(
-                      left: BorderSide(color: Colors.grey.shade300),
-                    ),
-                  ),
-                  child: Text(
-                    "e.g. $example",
-                    style: AppTheme.caption.copyWith(
-                      color: Colors.grey.shade600,
-                      fontSize: 9,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );
   }
 
-  Widget _jetNozzleRow(String label, RxString controller, String example) {
+  Widget _jetNozzleRow(String label, RxString controller) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.grey.shade50,
@@ -568,8 +489,8 @@ class BitHydraulicsPage extends StatelessWidget {
           Expanded(
             child: TextField(
               controller: TextEditingController(text: controller.value),
-              onChanged: (v) => controller.value = v,
-              keyboardType: TextInputType.number,
+              onChanged: (value) => controller.value = value,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
               style: AppTheme.caption.copyWith(
                 color: AppTheme.textPrimary,
                 fontSize: 11,
@@ -578,7 +499,7 @@ class BitHydraulicsPage extends StatelessWidget {
                 isDense: true,
                 border: InputBorder.none,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-                hintText: example.isNotEmpty ? "e.g. $example" : "Enter",
+                hintText: 'Enter',
                 hintStyle: AppTheme.caption.copyWith(
                   color: Colors.grey.shade400,
                   fontSize: 9,
@@ -591,7 +512,38 @@ class BitHydraulicsPage extends StatelessWidget {
     );
   }
 
-  Widget _buildResultsGrid(BitHydraulicsController c) {
+  Widget _buildResultsGrid(BitHydraulicsController controller) {
+    final resultCards = [
+      {
+        'label': AppUnits.label('Nozzle area', '5'),
+        'value': controller.nozzleArea.value,
+      },
+      {
+        'label': AppUnits.label('Nozzle velocity', '14'),
+        'value': controller.nozzleVelocity.value,
+      },
+      {
+        'label': AppUnits.label('Bit P. drop', '22'),
+        'value': controller.bitPressureDrop.value,
+      },
+      {
+        'label': AppUnits.label('Hydraulic horsepower', '26'),
+        'value': controller.hydraulicHP.value,
+      },
+      {
+        'label': 'Bit HHP / unit area (${controller.hhpPerAreaUnit})',
+        'value': controller.hhpPerArea.value,
+      },
+      {
+        'label': 'P. drop (%)',
+        'value': controller.pressureDropPercent.value,
+      },
+      {
+        'label': AppUnits.label('Jet impact force', '20'),
+        'value': controller.jetImpactForce.value,
+      },
+    ];
+
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -601,20 +553,10 @@ class BitHydraulicsPage extends StatelessWidget {
         mainAxisSpacing: 12,
         childAspectRatio: 3,
       ),
-      itemCount: 7,
+      itemCount: resultCards.length,
       itemBuilder: (context, index) {
-        List<Map<String, dynamic>> results = [
-          {"label": "Nozzle area (in²)", "value": c.nozzleArea.value},
-          {"label": "Nozzle velocity (ft/s)", "value": c.nozzleVelocity.value},
-          {"label": "Bit P. drop (psi)", "value": c.bitPressureDrop.value},
-          {"label": "Hydraulic horsepower (HP)", "value": c.hydraulicHP.value},
-          {"label": "Bit HHP / unit bit area", "value": c.hhpPerArea.value},
-          {"label": "P. drop (%)", "value": c.pressureDropPercent.value},
-          {"label": "Jet impact force (lb)", "value": c.jetImpactForce.value},
-        ];
-
-        final result = results[index];
-        final value = result["value"];
+        final result = resultCards[index];
+        final value = result['value'] as double?;
 
         return Container(
           padding: const EdgeInsets.all(12),
@@ -628,7 +570,7 @@ class BitHydraulicsPage extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
-                result["label"],
+                result['label']! as String,
                 style: AppTheme.caption.copyWith(
                   color: AppTheme.textSecondary,
                   fontSize: 10,
@@ -636,7 +578,7 @@ class BitHydraulicsPage extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                value == null ? "0.00" : value.toStringAsFixed(2),
+                value == null ? '0.00' : AppUnits.formatNumber(value, precision: 2),
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
@@ -650,98 +592,112 @@ class BitHydraulicsPage extends StatelessWidget {
     );
   }
 
-  bool _hasResults(BitHydraulicsController c) {
-    return c.nozzleArea.value != null ||
-        c.nozzleVelocity.value != null ||
-        c.bitPressureDrop.value != null ||
-        c.hydraulicHP.value != null ||
-        c.hhpPerArea.value != null ||
-        c.pressureDropPercent.value != null ||
-        c.jetImpactForce.value != null;
+  Widget _emptyState(double height) {
+    return SizedBox(
+      height: height,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.calculate_outlined,
+              size: 48,
+              color: Colors.grey.shade300,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Enter values and click Calculate',
+              style: AppTheme.bodySmall.copyWith(
+                color: AppTheme.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
-  // Validation method
-  void _validateAndCalculate(BitHydraulicsController c) {
-    List<String> requiredFields = [];
-    List<String> fieldNames = [];
+  bool _hasResults(BitHydraulicsController controller) {
+    return controller.nozzleArea.value != null ||
+        controller.nozzleVelocity.value != null ||
+        controller.bitPressureDrop.value != null ||
+        controller.hydraulicHP.value != null ||
+        controller.hhpPerArea.value != null ||
+        controller.pressureDropPercent.value != null ||
+        controller.jetImpactForce.value != null;
+  }
 
-    // Check required fields
-    if (c.mw.value.isEmpty) {
-      requiredFields.add(c.mw.value);
-      fieldNames.add("MW (ppg)");
+  void _validateAndCalculate(BitHydraulicsController controller) {
+    final missingFields = <String>[];
+    final zeroFields = <String>[];
+
+    if (controller.mw.value.isEmpty) {
+      missingFields.add(AppUnits.label('MW', '33'));
     }
-    if (c.pumpOutput.value.isEmpty) {
-      requiredFields.add(c.pumpOutput.value);
-      fieldNames.add("Pump output (gpm)");
+    if (controller.pumpOutput.value.isEmpty) {
+      missingFields.add(AppUnits.label('Pump output', '17'));
     }
-    if (c.standpipePressure.value.isEmpty) {
-      requiredFields.add(c.standpipePressure.value);
-      fieldNames.add("Standpipe pressure (psi)");
+    if (controller.standpipePressure.value.isEmpty) {
+      missingFields.add(AppUnits.label('Standpipe pressure', '22'));
     }
-    if (c.bitSize.value.isEmpty) {
-      requiredFields.add(c.bitSize.value);
-      fieldNames.add("Bit size (in)");
+    if (controller.bitSize.value.isEmpty) {
+      missingFields.add(AppUnits.label('Bit size', '2'));
     }
 
-    // Check if fields are greater than 0
-    List<String> zeroFields = [];
     try {
-      if (c.mw.value.isNotEmpty && double.parse(c.mw.value) <= 0) {
-        zeroFields.add("MW (ppg)");
+      if (controller.mw.value.isNotEmpty && double.parse(controller.mw.value) <= 0) {
+        zeroFields.add(AppUnits.label('MW', '33'));
       }
-      if (c.pumpOutput.value.isNotEmpty && double.parse(c.pumpOutput.value) <= 0) {
-        zeroFields.add("Pump output (gpm)");
+      if (controller.pumpOutput.value.isNotEmpty &&
+          double.parse(controller.pumpOutput.value) <= 0) {
+        zeroFields.add(AppUnits.label('Pump output', '17'));
       }
-      if (c.standpipePressure.value.isNotEmpty && double.parse(c.standpipePressure.value) <= 0) {
-        zeroFields.add("Standpipe pressure (psi)");
+      if (controller.standpipePressure.value.isNotEmpty &&
+          double.parse(controller.standpipePressure.value) <= 0) {
+        zeroFields.add(AppUnits.label('Standpipe pressure', '22'));
       }
-      if (c.bitSize.value.isNotEmpty && double.parse(c.bitSize.value) <= 0) {
-        zeroFields.add("Bit size (in)");
+      if (controller.bitSize.value.isNotEmpty &&
+          double.parse(controller.bitSize.value) <= 0) {
+        zeroFields.add(AppUnits.label('Bit size', '2'));
       }
-    } catch (e) {
-      // If parsing fails, show validation error
-      _showValidationAlert("Invalid Input", "Please enter valid numeric values in all fields.");
+    } catch (_) {
+      _showValidationAlert(
+        'Invalid Input',
+        'Please enter valid numeric values in all fields.',
+      );
       return;
     }
 
-    if (requiredFields.isNotEmpty) {
-      // Show missing fields alert
-      final fieldList = fieldNames.join(", ");
+    if (missingFields.isNotEmpty) {
       _showValidationAlert(
-        "Required Fields Missing",
-        "Please fill the following required fields:\n\n$fieldList",
+        'Required Fields Missing',
+        'Please fill the following required fields:\n\n${missingFields.join(', ')}',
       );
       return;
     }
 
     if (zeroFields.isNotEmpty) {
-      // Show zero value alert
-      final zeroFieldList = zeroFields.join(", ");
       _showValidationAlert(
-        "Invalid Values",
-        "The following fields must be greater than 0:\n\n$zeroFieldList",
+        'Invalid Values',
+        'The following fields must be greater than 0:\n\n${zeroFields.join(', ')}',
       );
       return;
     }
 
-    // If all validations pass, proceed with calculation
-    c.calculateBitHydraulics();
+    controller.calculateBitHydraulics();
   }
 
   void _showValidationAlert(String title, String message) {
     Get.dialog(
       AlertDialog(
         backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         contentPadding: const EdgeInsets.all(16),
-        content: Container(
+        content: SizedBox(
           width: 300,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Warning icon
               Container(
                 width: 40,
                 height: 40,
@@ -756,8 +712,6 @@ class BitHydraulicsPage extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
-              
-              // Title
               Text(
                 title,
                 style: AppTheme.bodySmall.copyWith(
@@ -767,10 +721,7 @@ class BitHydraulicsPage extends StatelessWidget {
                 ),
                 textAlign: TextAlign.center,
               ),
-              
               const SizedBox(height: 12),
-              
-              // Message
               Text(
                 message,
                 style: AppTheme.caption.copyWith(
@@ -779,16 +730,11 @@ class BitHydraulicsPage extends StatelessWidget {
                 ),
                 textAlign: TextAlign.center,
               ),
-              
               const SizedBox(height: 20),
-              
-              // OK button
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () {
-                    Get.back();
-                  },
+                  onPressed: Get.back,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.orange.shade600,
                     shape: RoundedRectangleBorder(
@@ -797,7 +743,7 @@ class BitHydraulicsPage extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(vertical: 8),
                   ),
                   child: Text(
-                    "OK",
+                    'OK',
                     style: AppTheme.caption.copyWith(
                       color: Colors.white,
                       fontWeight: FontWeight.w600,

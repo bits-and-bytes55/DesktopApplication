@@ -210,7 +210,7 @@ class _UnitSystemCustomizationPopupState
             color: Colors.white,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.2),
+                color: Colors.black.withValues(alpha: 0.2),
                 blurRadius: 24, offset: const Offset(0, 8),
               ),
             ],
@@ -325,7 +325,7 @@ class _UnitSystemCustomizationPopupState
         gradient: AppTheme.headerGradient,
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 8,
               offset: const Offset(0, 2))
         ],
@@ -334,7 +334,7 @@ class _UnitSystemCustomizationPopupState
         Container(
           width: 36, height: 36,
           decoration: BoxDecoration(
-              shape: BoxShape.circle, color: Colors.white.withOpacity(0.2)),
+              shape: BoxShape.circle, color: Colors.white.withValues(alpha: 0.2)),
           child: const Icon(Icons.tune, color: Colors.white, size: 20),
         ),
         const SizedBox(width: 12),
@@ -351,7 +351,7 @@ class _UnitSystemCustomizationPopupState
             width: 32, height: 32,
             decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.white.withOpacity(0.2)),
+                color: Colors.white.withValues(alpha: 0.2)),
             child: const Icon(Icons.close, color: Colors.white, size: 18),
           ),
         ),
@@ -389,7 +389,7 @@ class _UnitSystemCustomizationPopupState
             color: isSelected ? AppTheme.primaryColor : Colors.grey.shade300,
             width: isSelected ? 2 : 1,
           ),
-          color: isSelected ? AppTheme.primaryColor.withOpacity(0.1) : Colors.white,
+          color: isSelected ? AppTheme.primaryColor.withValues(alpha: 0.1) : Colors.white,
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           Container(
@@ -420,8 +420,8 @@ class _UnitSystemCustomizationPopupState
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(colors: [
-          AppTheme.primaryColor.withOpacity(0.1),
-          AppTheme.secondaryColor.withOpacity(0.1),
+          AppTheme.primaryColor.withValues(alpha: 0.1),
+          AppTheme.secondaryColor.withValues(alpha: 0.1),
         ]),
         border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
       ),
@@ -477,7 +477,7 @@ class _UnitSystemCustomizationPopupState
                 shape: BoxShape.circle,
                 color: isSelected
                     ? Colors.white
-                    : AppTheme.secondaryColor.withOpacity(0.2),
+                    : AppTheme.secondaryColor.withValues(alpha: 0.2),
               ),
               child: Center(
                 child: Text('${index + 1}',
@@ -573,7 +573,7 @@ class _UnitSystemCustomizationPopupState
       height: 48,
       padding: const EdgeInsets.symmetric(horizontal: 20),
       decoration: BoxDecoration(
-        color: AppTheme.primaryColor.withOpacity(0.05),
+        color: AppTheme.primaryColor.withValues(alpha: 0.05),
         border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
       ),
       child: const Row(children: [
@@ -605,7 +605,8 @@ class _UnitSystemCustomizationPopupState
   }
 
   Widget _parameterTable() {
-    final paramCount = OptionsController.parameters.length;
+    final visibleParameters = mainController.visibleParameters;
+    final paramCount = visibleParameters.length;
     return Container(
       color: Colors.white,
       child: Scrollbar(
@@ -615,11 +616,12 @@ class _UnitSystemCustomizationPopupState
           controller: _rightScroll,
           itemCount: paramCount,
           itemBuilder: (_, index) {
-            final param = OptionsController.parameters[index];
+            final param = visibleParameters[index];
             final number = param['number']!;
 
             return Obx(() {
-              final currentUnit = mainController.customUnits[number] ?? '';
+              final currentUnit = mainController.customUnits[number] ??
+                  mainController.getUnitForParameter(number);
               final unitOptions = mainController.getUnitsForParam(number);
 
               final safeValue = unitOptions.contains(currentUnit)
@@ -641,7 +643,7 @@ class _UnitSystemCustomizationPopupState
                     child: Container(
                       width: 28, height: 28,
                       decoration: BoxDecoration(
-                        color: AppTheme.secondaryColor.withOpacity(0.2),
+                        color: AppTheme.secondaryColor.withValues(alpha: 0.2),
                         shape: BoxShape.circle,
                       ),
                       child: Center(
@@ -685,7 +687,7 @@ class _UnitSystemCustomizationPopupState
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(6),
                               border: Border.all(
-                                color: AppTheme.primaryColor.withOpacity(0.3),
+                                color: AppTheme.primaryColor.withValues(alpha: 0.3),
                                 width: 1.5,
                               ),
                             ),
@@ -738,8 +740,8 @@ class _UnitSystemCustomizationPopupState
         color: AppTheme.cardColor,
         border: Border(top: BorderSide(color: Colors.grey.shade300)),
         boxShadow: [
-          BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 4,
               offset: const Offset(0, -2)),
         ],
@@ -751,7 +753,7 @@ class _UnitSystemCustomizationPopupState
             Icon(Icons.info_outline, size: 16, color: AppTheme.infoColor),
             const SizedBox(width: 8),
             Text(
-              '${OptionsController.parameters.length} parameters configured',
+              '${mainController.visibleParameters.length} parameters configured',
               style: AppTheme.bodySmall
                   .copyWith(color: AppTheme.textSecondary, fontSize: 12),
             ),
@@ -762,8 +764,8 @@ class _UnitSystemCustomizationPopupState
               child: ElevatedButton(
                 onPressed: () => Navigator.pop(context),
                 style: AppTheme.secondaryButtonStyle.copyWith(
-                  backgroundColor: MaterialStateProperty.all(Colors.white),
-                  foregroundColor: MaterialStateProperty.all(AppTheme.textPrimary),
+                  backgroundColor: WidgetStateProperty.all(Colors.white),
+                  foregroundColor: WidgetStateProperty.all(AppTheme.textPrimary),
                 ),
                 child: const Text('Cancel'),
               ),

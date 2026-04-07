@@ -1,30 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:get/get_state_manager/src/simple/get_controllers.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/formation_row_model.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/inventory_model.dart';
-import 'package:mudpro_desktop_app/modules/UG/model/pit_model.dart';
-import 'package:mudpro_desktop_app/modules/UG/model/producst_model.dart' hide ProductModel;
-import 'package:mudpro_desktop_app/modules/UG/model/pump_model.dart';
-import 'package:mudpro_desktop_app/modules/UG/model/sce_model.dart';
+import 'package:mudpro_desktop_app/modules/UG/model/producst_model.dart'
+    hide ProductModel;
 import 'package:mudpro_desktop_app/modules/company_setup/controller/service_controller.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/model/products_model.dart';
 
 class UgController extends GetxController {
   final AuthRepository repository = AuthRepository();
-  
+
   // Replace with actual well ID logic later
   String get wellId => '507f1f77bcf86cd799439011';
 
   // Right panel main tab
   final activeRightTab = 'pad'.obs;
-   final location = 'Land'.obs;
+  final location = 'Land'.obs;
 
   // Lock / Unlock
   final isLocked = true.obs;
 
-   final inventoryTab = 'Products'.obs;
+  final inventoryTab = 'Products'.obs;
 
   // Products
   RxList<ProductModel> products = <ProductModel>[].obs;
@@ -38,17 +35,15 @@ class UgController extends GetxController {
   final taxRate = ''.obs;
 
   // REPORT TAB STATE
-final considerROP = true.obs;
-final considerRPM = true.obs;
-final considerEccentricity = false.obs;
+  final considerROP = true.obs;
+  final considerRPM = true.obs;
+  final considerEccentricity = false.obs;
 
-final multiRheology = false.obs;
+  final multiRheology = false.obs;
 
-final safetyMargin = '80.0'.obs;
+  final safetyMargin = '80.0'.obs;
 
-
-
- // ================= FORMATION =================
+  // ================= FORMATION =================
   final poreFromTop = true.obs;
 
   /// Dropdown value (Density / Gradient / Pressure)
@@ -77,13 +72,13 @@ final safetyMargin = '80.0'.obs;
 
       // Load OBM
       final obmList = await repository.getObm(wellId);
-      obm.value = obmList as List<ObmModel>;
+      obm.value = obmList;
 
-      print('✅ Inventory data loaded successfully');
-      print('Premixed count: ${premixedList.length}');
-      print('OBM count: ${obmList.length}');
+      debugPrint('âœ… Inventory data loaded successfully');
+      debugPrint('Premixed count: ${premixedList.length}');
+      debugPrint('OBM count: ${obmList.length}');
     } catch (e) {
-      print('❌ Error loading inventory data: $e');
+      debugPrint('âŒ Error loading inventory data: $e');
 
       // Initialize with empty lists if loading fails
       if (premixed.isEmpty) {
@@ -95,78 +90,68 @@ final safetyMargin = '80.0'.obs;
     }
   }
 
+  var premixed = <PremixModel>[].obs;
+  var obm = <ObmModel>[].obs;
 
+  final packages = <PackageModel>[
+    PackageModel('1', '', '', '', '', '', false),
+  ].obs;
 
+  final engineering = <EngineeringModel>[
+    EngineeringModel('1', 'Mud Supervisor-1', '1', '1', '173.33', false),
+    EngineeringModel('2', 'Mud Supervisor-2', '1', '1', '167.74', false),
+    EngineeringModel('3', 'Mud Supervisor-3', '1', '1', '185.72', false),
+    EngineeringModel('4', 'Mud Supervisor-4', '1', '1', '179.31', false),
+  ].obs;
 
+  final services = <ServiceModel>[ServiceModel('1', '', '', '', '', false)].obs;
 
-var premixed = <PremixModel>[].obs;
-var obm = <ObmModel>[].obs;
+  // final pumps = <PumpModel>[
+  //   PumpModel(
+  //     type: 'Triplex'.obs,
+  //     model: 'BOMCO-F16'.obs,
+  //     linerId: '6.500'.obs,
+  //     rodOd: ''.obs,
+  //     strokeLength: '12.000'.obs,
+  //     efficiency: '95.0'.obs,
+  //     displacement: '0.1170'.obs,
+  //     maxPumpP: ''.obs,
+  //     maxHp: ''.obs,
+  //     surfaceLen: ''.obs,
+  //     surfaceId: ''.obs,
+  //   ),
+  //   PumpModel(
+  //     type: 'Triplex'.obs,
+  //     model: 'BOMCO-F16'.obs,
+  //     linerId: '6.000'.obs,
+  //     rodOd: ''.obs,
+  //     strokeLength: '12.000'.obs,
+  //     efficiency: '97.0'.obs,
+  //     displacement: '0.1018'.obs,
+  //     maxPumpP: ''.obs,
+  //     maxHp: ''.obs,
+  //     surfaceLen: ''.obs,
+  //     surfaceId: ''.obs,
+  //   ),
+  // ];
 
-final packages = <PackageModel>[
-  PackageModel('1', '', '', '', '', '', false),
-].obs;
+  // ================= SCE =================
+  // final shakers = <ShakerModel>[
+  //   ShakerModel(id: 1, shaker: '1', model: 'DERRICK # 1', screens: '4', plot: true),
+  //   ShakerModel(id: 2, shaker: '2', model: 'DERRICK # 2', screens: '4', plot: true),
+  //   ShakerModel(id: 10, shaker: 'Mud Cleaner', model: 'DERRICK # 3', screens: '4', plot: true),
+  // ].obs;
 
-final engineering = <EngineeringModel>[
-  EngineeringModel('1', 'Mud Supervisor-1', '1', '1', '173.33', false),
-  EngineeringModel('2', 'Mud Supervisor-2', '1', '1', '167.74', false),
-  EngineeringModel('3', 'Mud Supervisor-3', '1', '1', '185.72', false),
-  EngineeringModel('4', 'Mud Supervisor-4', '1', '1', '179.31', false),
-].obs;
-
-final services = <ServiceModel>[
-  ServiceModel('1', '', '', '', '', false),
-].obs;
-
-
-// final pumps = <PumpModel>[
-//   PumpModel(
-//     type: 'Triplex'.obs,
-//     model: 'BOMCO-F16'.obs,
-//     linerId: '6.500'.obs,
-//     rodOd: ''.obs,
-//     strokeLength: '12.000'.obs,
-//     efficiency: '95.0'.obs,
-//     displacement: '0.1170'.obs,
-//     maxPumpP: ''.obs,
-//     maxHp: ''.obs,
-//     surfaceLen: ''.obs,
-//     surfaceId: ''.obs,
-//   ),
-//   PumpModel(
-//     type: 'Triplex'.obs,
-//     model: 'BOMCO-F16'.obs,
-//     linerId: '6.000'.obs,
-//     rodOd: ''.obs,
-//     strokeLength: '12.000'.obs,
-//     efficiency: '97.0'.obs,
-//     displacement: '0.1018'.obs,
-//     maxPumpP: ''.obs,
-//     maxHp: ''.obs,
-//     surfaceLen: ''.obs,
-//     surfaceId: ''.obs,
-//   ),
-// ];
-
-
-// ================= SCE =================
-// final shakers = <ShakerModel>[
-//   ShakerModel(id: 1, shaker: '1', model: 'DERRICK # 1', screens: '4', plot: true),
-//   ShakerModel(id: 2, shaker: '2', model: 'DERRICK # 2', screens: '4', plot: true),
-//   ShakerModel(id: 10, shaker: 'Mud Cleaner', model: 'DERRICK # 3', screens: '4', plot: true),
-// ].obs;
-
-// final otherSce = <OtherSceModel>[
-//   OtherSceModel(type: 'Degasser', model1: 'CHENGDU', plot: true),
-//   OtherSceModel(type: 'Desander', model1: 'DERRICK', plot: true),
-//   OtherSceModel(type: 'Desilter', model1: 'DERRICK', plot: true),
-//   OtherSceModel(type: 'Centrifuge', model1: 'KEMTRON', plot: true),
-//   OtherSceModel(type: 'Barite Rec.', plot: false),
-// ];
-
-
+  // final otherSce = <OtherSceModel>[
+  //   OtherSceModel(type: 'Degasser', model1: 'CHENGDU', plot: true),
+  //   OtherSceModel(type: 'Desander', model1: 'DERRICK', plot: true),
+  //   OtherSceModel(type: 'Desilter', model1: 'DERRICK', plot: true),
+  //   OtherSceModel(type: 'Centrifuge', model1: 'KEMTRON', plot: true),
+  //   OtherSceModel(type: 'Barite Rec.', plot: false),
+  // ];
 
   // ---------------- PIT DATA ----------------
-  
+
   // final pits = <PitModel>[
   //   PitModel(id: 1, pit: 'TRIP TANK', capacity: '120.00', active: true),
   //   PitModel(id: 2, pit: 'SANDTRAP # 1A', capacity: '150.00', active: true),
@@ -186,22 +171,26 @@ final services = <ServiceModel>[
   //   PitModel(id: 16, pit: 'RES # 6B', capacity: '315.00', active: false),
   // ].obs;
 
-  // 添加总容量响应式变量
+  // æ·»åŠ æ€»å®¹é‡å“åº”å¼å˜é‡
   final totalCapacity = 0.0.obs;
 
   @override
   void onInit() {
     super.onInit();
-    
+
     // Initialize with empty lists
     premixed.value = [];
     obm.value = [];
-    
+
     fetchProducts();
   }
 
   // Fetch products from API
-  Future<void> fetchProducts({int page = 1, String? search, String? group}) async {
+  Future<void> fetchProducts({
+    int page = 1,
+    String? search,
+    String? group,
+  }) async {
     try {
       final result = await repository.getProducts(
         page: page,
@@ -238,15 +227,19 @@ final services = <ServiceModel>[
     try {
       final serviceController = ServiceController();
       final fetchedPackages = await serviceController.getPackages();
-      packages.value = fetchedPackages.map((item) => PackageModel(
-        item.id ?? '',
-        item.name,
-        item.code,
-        item.unit,
-        item.price.toString(),
-        '', // initial
-        false, // tax
-      )).toList();
+      packages.value = fetchedPackages
+          .map(
+            (item) => PackageModel(
+              item.id ?? '',
+              item.name,
+              item.code,
+              item.unit,
+              item.price.toString(),
+              '', // initial
+              false, // tax
+            ),
+          )
+          .toList();
     } catch (e) {
       Get.snackbar(
         'Error',
@@ -263,14 +256,18 @@ final services = <ServiceModel>[
     try {
       final serviceController = ServiceController();
       final fetchedEngineering = await serviceController.getEngineering();
-      engineering.value = fetchedEngineering.map((item) => EngineeringModel(
-        item.id ?? '',
-        item.name,
-        item.code,
-        item.unit,
-        item.price.toString(),
-        false, // tax
-      )).toList();
+      engineering.value = fetchedEngineering
+          .map(
+            (item) => EngineeringModel(
+              item.id ?? '',
+              item.name,
+              item.code,
+              item.unit,
+              item.price.toString(),
+              false, // tax
+            ),
+          )
+          .toList();
     } catch (e) {
       Get.snackbar(
         'Error',
@@ -287,14 +284,18 @@ final services = <ServiceModel>[
     try {
       final serviceController = ServiceController();
       final fetchedServices = await serviceController.getServices();
-      services.value = fetchedServices.map((item) => ServiceModel(
-        item.id ?? '',
-        item.name,
-        item.code,
-        item.unit,
-        item.price.toString(),
-        false, // tax
-      )).toList();
+      services.value = fetchedServices
+          .map(
+            (item) => ServiceModel(
+              item.id ?? '',
+              item.name,
+              item.code,
+              item.unit,
+              item.price.toString(),
+              false, // tax
+            ),
+          )
+          .toList();
     } catch (e) {
       Get.snackbar(
         'Error',
@@ -308,19 +309,15 @@ final services = <ServiceModel>[
 
   // Fetch all services data
   Future<void> fetchServicesData() async {
-    await Future.wait([
-      fetchPackages(),
-      fetchEngineering(),
-      fetchServices(),
-    ]);
+    await Future.wait([fetchPackages(), fetchEngineering(), fetchServices()]);
   }
 
-  // ================= 计算总容量方法 =================
+  // ================= è®¡ç®—æ€»å®¹é‡æ–¹æ³• =================
   // void updateTotalCapacity() {
   //   double sum = 0.0;
-    
+
   //   for (var pit in pits) {
-  //     // 解析容量字符串为数字
+  //     // è§£æžå®¹é‡å­—ç¬¦ä¸²ä¸ºæ•°å­—
   //     final capacityStr = pit.capacity;
   //     if (capacityStr != null && capacityStr.isNotEmpty) {
   //       try {
@@ -329,37 +326,37 @@ final services = <ServiceModel>[
   //           sum += capacityValue;
   //         }
   //       } catch (e) {
-  //         print('解析容量时出错: ${pit.pit} - $capacityStr');
+  //         debugPrint('è§£æžå®¹é‡æ—¶å‡ºé”™: ${pit.pit} - $capacityStr');
   //       }
   //     }
   //   }
-    
+
   //   totalCapacity.value = sum;
   // }
 
-  // // ================= 更新单个坑的容量 =================
+  // // ================= æ›´æ–°å•ä¸ªå‘çš„å®¹é‡ =================
   // void updatePitCapacity(int pitId, String newCapacity) {
   //   final pit = pits.firstWhereOrNull((p) => p.id == pitId);
   //   if (pit != null) {
   //     pit.capacity = newCapacity;
-  //     updateTotalCapacity(); // 更新总容量
+  //     updateTotalCapacity(); // æ›´æ–°æ€»å®¹é‡
   //   }
   // }
 
-  // // ================= 切换坑的激活状态 =================
+  // // ================= åˆ‡æ¢å‘çš„æ¿€æ´»çŠ¶æ€ =================
   // void togglePitActive(int pitId) {
   //   final pit = pits.firstWhereOrNull((p) => p.id == pitId);
   //   if (pit != null) {
   //     pit.active.value = !pit.active.value;
-  //     // 如果需要，可以根据激活状态更新总容量
+  //     // å¦‚æžœéœ€è¦ï¼Œå¯ä»¥æ ¹æ®æ¿€æ´»çŠ¶æ€æ›´æ–°æ€»å®¹é‡
   //     updateTotalCapacity();
   //   }
   // }
 
-  // // ================= 获取激活坑的总容量 =================
+  // // ================= èŽ·å–æ¿€æ´»å‘çš„æ€»å®¹é‡ =================
   // double getActivePitsTotalCapacity() {
   //   double sum = 0.0;
-    
+
   //   for (var pit in pits) {
   //     if (pit.active.value) {
   //       final capacityStr = pit.capacity;
@@ -370,21 +367,21 @@ final services = <ServiceModel>[
   //             sum += capacityValue;
   //           }
   //         } catch (e) {
-  //           print('解析容量时出错: ${pit.pit} - $capacityStr');
+  //           debugPrint('è§£æžå®¹é‡æ—¶å‡ºé”™: ${pit.pit} - $capacityStr');
   //         }
   //       }
   //     }
   //   }
-    
+
   //   return sum;
   // }
 
-  // // ================= 获取激活坑的数量 =================
+  // // ================= èŽ·å–æ¿€æ´»å‘çš„æ•°é‡ =================
   // int getActivePitsCount() {
   //   return pits.where((pit) => pit.active.value).length;
   // }
 
-  // // ================= 添加新坑 =================
+  // // ================= æ·»åŠ æ–°å‘ =================
   // void addNewPit(String pitName, String capacity, bool isActive) {
   //   final newId = pits.isNotEmpty ? pits.last.id! + 1 : 1;
   //   pits.add(PitModel(
@@ -396,12 +393,11 @@ final services = <ServiceModel>[
   //   updateTotalCapacity();
   // }
 
-  // // ================= 删除坑 =================
+  // // ================= åˆ é™¤å‘ =================
   // void removePit(int pitId) {
   //   pits.removeWhere((pit) => pit.id == pitId);
   //   updateTotalCapacity();
   // }
-
 
   void switchRightTab(String tab) {
     activeRightTab.value = tab;

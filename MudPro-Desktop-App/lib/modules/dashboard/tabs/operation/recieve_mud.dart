@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/recievemud_controller.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class ReceiveMudView extends StatelessWidget {
@@ -172,7 +173,7 @@ class ReceiveMudView extends StatelessWidget {
           
           // Dynamic rows from selected premixed mud
           if (controller.selectedPremixed.value != null) ...[
-            _buildTableRow('MW', controller.selectedPremixed.value!.mw, '(ppg)'),
+            _buildTableRow('MW', controller.selectedPremixed.value!.mw, AppUnits.displayUnit('33', fallback: '(ppg)')),
             _buildTableRow('Mud Type', controller.selectedPremixed.value!.mudType, ''),
             _buildTableRow('Leasing Fee', controller.selectedPremixed.value!.leasingFee, '(kwd/bbl)'),
           ],
@@ -184,7 +185,7 @@ class ReceiveMudView extends StatelessWidget {
           _buildEditableRow('To', controller.toController, ''),
           
           // Vol. (Manual Input)
-          _buildEditableRow('Vol.', controller.volController, '(bbl)'),
+          _buildEditableRow('Vol.', controller.volController, AppUnits.displayUnit('6', fallback: '(bbl)')),
           
           // Leased Checkbox
           _buildLeasedRow(),
@@ -490,7 +491,7 @@ class ReceiveMudView extends StatelessWidget {
                 fillColor: !controller.hasLossVolume.value || dashboardController.isLocked.value
                     ? Colors.grey.shade100 
                     : Colors.white,
-                suffixText: '(bbl)',
+                suffixText: AppUnits.displayUnit('6', fallback: '(bbl)'),
                 suffixStyle: TextStyle(
                   fontSize: 10,
                   color: AppTheme.textSecondary,

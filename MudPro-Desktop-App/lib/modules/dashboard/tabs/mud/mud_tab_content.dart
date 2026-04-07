@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/mud_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/options_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/tabs/mud/apply_rheology_page.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/tabs/mud/solid_analysis_page.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
@@ -69,16 +70,25 @@ class _MudViewState extends State<MudView> {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(builder: (context, constraints) {
-      final isSmallScreen = constraints.maxWidth < 1024;
-      return Column(children: [
-        _topControls(),
-        Divider(height: 1, color: Colors.grey.shade300),
-        Expanded(
-          child: isSmallScreen ? _buildMobileLayout() : _buildDesktopLayout(),
-        ),
-      ]);
-    });
+    final optionsController = Get.find<OptionsController>();
+    return Obx(
+      () {
+        final unitKey = optionsController.activeUnitSystemLabel;
+        return KeyedSubtree(
+          key: ValueKey(unitKey),
+          child: LayoutBuilder(builder: (context, constraints) {
+            final isSmallScreen = constraints.maxWidth < 1024;
+            return Column(children: [
+              _topControls(),
+              Divider(height: 1, color: Colors.grey.shade300),
+              Expanded(
+                child: isSmallScreen ? _buildMobileLayout() : _buildDesktopLayout(),
+              ),
+            ]);
+          }),
+        );
+      },
+    );
   }
 
   Widget _buildDesktopLayout() {

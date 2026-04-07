@@ -14,7 +14,9 @@ import 'package:mudpro_desktop_app/theme/app_theme.dart';
 class DailyreportOptionsPage extends StatelessWidget {
   DailyreportOptionsPage({super.key});
 
-  final OptionsController controller = Get.put(OptionsController());
+  final OptionsController controller = Get.isRegistered<OptionsController>()
+      ? Get.find<OptionsController>()
+      : Get.put(OptionsController());
 
   @override
   Widget build(BuildContext context) {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:mudpro_desktop_app/modules/report/controller/report_manager_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/options_controller.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class ReportManagerPage extends StatefulWidget {
@@ -11,7 +12,7 @@ class ReportManagerPage extends StatefulWidget {
 }
 
 class _ReportManagerPageState extends State<ReportManagerPage> {
-  final ReportManagerController rmC = Get.put(ReportManagerController());
+  final OptionsController optionsController = Get.find<OptionsController>();
 
   // ---------------- CURRENT WELL ----------------
   String selectedWell = 'UG-0293 ST';
@@ -19,14 +20,14 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
 
   // ---------------- SEARCH CRITERIA ----------------
   final criteria = [
-    'Date',
-    'Report No.',
-    'Depth (m)',
-    'MW (ppg)',
-    'Recommended Tour Treatm.',
-    'Remarks',
-    'Recap Remarks',
-    'Internal Notes',
+    'date',
+    'report_number',
+    'depth',
+    'mud_weight',
+    'recommended_tour_treatment',
+    'remarks',
+    'recap_remarks',
+    'internal_notes',
   ];
 
   final Map<String, bool> checked = {};
@@ -35,7 +36,6 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
 
   // ---------------- RESULT TABLE ----------------
   int? selectedRowIndex;
-  bool hasSearched = false; // Track if search has been performed
 
   // Dummy data matching the image
   final List<Map<String, dynamic>> allReports = [
@@ -185,7 +185,6 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
     }
     // Initialize with dummy data
     filteredReports = allReports.map((e) => Map<String, dynamic>.from(e)).toList();
-    hasSearched = true;
   }
 
   @override
@@ -200,56 +199,96 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
     super.dispose();
   }
 
+  String _criteriaLabel(String key) {
+    switch (key) {
+      case 'date':
+        return 'Date';
+      case 'report_number':
+        return 'Report No.';
+      case 'depth':
+        return 'Depth ${AppUnits.displayUnit('1')}';
+      case 'mud_weight':
+        return 'MW ${AppUnits.displayUnit('33')}';
+      case 'recommended_tour_treatment':
+        return 'Recommended Tour Treatm.';
+      case 'remarks':
+        return 'Remarks';
+      case 'recap_remarks':
+        return 'Recap Remarks';
+      case 'internal_notes':
+        return 'Internal Notes';
+      default:
+        return key;
+    }
+  }
+
+  double _displayMdValue(double rawValue) {
+    return AppUnits.parameterFromBase(
+          rawValue,
+          paramNumber: '1',
+          baseUnit: '(m)',
+        ) ??
+        rawValue;
+  }
+
+  double _displayMudWeightValue(double rawValue) {
+    return AppUnits.parameterFromBase(
+          rawValue,
+          paramNumber: '33',
+          baseUnit: '(ppg)',
+        ) ??
+        rawValue;
+  }
+
   // ================= UI =================
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (_, constraints) {
-        final isSmallScreen = constraints.maxWidth < 1200;
-        
-        return Container(
-          padding: const EdgeInsets.all(16),
-          color: AppTheme.backgroundColor,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ================= HEADER SECTION =================
-              _buildHeader(),
-              const SizedBox(height: 16),
-
-              Expanded(
-                child: Row(
+    return Obx(
+      () {
+        final unitKey = optionsController.activeUnitSystemLabel;
+        return KeyedSubtree(
+          key: ValueKey(unitKey),
+          child: LayoutBuilder(
+            builder: (_, constraints) {
+              final isSmallScreen = constraints.maxWidth < 1200;
+              return Container(
+                padding: const EdgeInsets.all(16),
+                color: AppTheme.backgroundColor,
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // ================= LEFT PANEL - SEARCH CRITERIA =================
-                    Container(
-                      width: isSmallScreen ? constraints.maxWidth * 0.4 : 420,
-                      constraints: BoxConstraints(minWidth: 380),
-                      decoration: AppTheme.cardDecoration.copyWith(
-                        border: Border.all(color: Colors.grey.shade200),
-                      ),
-                      child: _buildSearchCriteria(),
-                    ),
-                    const SizedBox(width: 16),
-
-                    // ================= RIGHT PANEL - RESULTS TABLE =================
+                    _buildHeader(),
+                    const SizedBox(height: 16),
                     Expanded(
-                      child: Container(
-                        decoration: AppTheme.cardDecoration.copyWith(
-                          border: Border.all(color: Colors.grey.shade200),
-                        ),
-                        child: _buildResultTable(),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: isSmallScreen ? constraints.maxWidth * 0.4 : 420,
+                            constraints: const BoxConstraints(minWidth: 380),
+                            decoration: AppTheme.cardDecoration.copyWith(
+                              border: Border.all(color: Colors.grey.shade200),
+                            ),
+                            child: _buildSearchCriteria(),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Container(
+                              decoration: AppTheme.cardDecoration.copyWith(
+                                border: Border.all(color: Colors.grey.shade200),
+                              ),
+                              child: _buildResultTable(),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
+                    const SizedBox(height: 16),
+                    _buildActionButtons(),
                   ],
                 ),
-              ),
-
-              const SizedBox(height: 16),
-
-              // ================= ACTION BUTTONS =================
-              _buildActionButtons(),
-            ],
+              );
+            },
           ),
         );
       },
@@ -465,7 +504,7 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
     );
   }
 
-  Widget _criteriaRow(String name) {
+  Widget _criteriaRow(String key) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
       margin: const EdgeInsets.only(bottom: 4),
@@ -479,8 +518,8 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
           SizedBox(
             width: 40,
             child: Checkbox(
-              value: checked[name],
-              onChanged: (v) => setState(() => checked[name] = v!),
+              value: checked[key],
+              onChanged: (v) => setState(() => checked[key] = v!),
               fillColor: MaterialStateProperty.resolveWith<Color>(
                 (Set<MaterialState> states) {
                   if (states.contains(MaterialState.selected)) {
@@ -497,7 +536,7 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
           Expanded(
             flex: 3,
             child: Text(
-              name,
+              _criteriaLabel(key),
               style: AppTheme.caption.copyWith(color: AppTheme.textPrimary),
             ),
           ),
@@ -512,7 +551,7 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
                 border: Border.all(color: Colors.grey.shade300),
               ),
               child: TextField(
-                controller: minCtrl[name],
+                controller: minCtrl[key],
                 style: AppTheme.caption,
                 decoration: InputDecoration(
                   isDense: true,
@@ -535,7 +574,7 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
                 border: Border.all(color: Colors.grey.shade300),
               ),
               child: TextField(
-                controller: maxCtrl[name],
+                controller: maxCtrl[key],
                 style: AppTheme.caption,
                 decoration: InputDecoration(
                   isDense: true,
@@ -639,11 +678,11 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
                     _dataColumn('#'),
                     _dataColumn('Date'),
                     _dataColumn('Report No'),
-                    _dataColumn('MD (m)'),
+                    _dataColumn('MD ${AppUnits.displayUnit('1')}'),
                     _dataColumn('Activity'),
                     _dataColumn('Interval'),
                     _dataColumn('Mud Type'),
-                    _dataColumn('MW (ppg)'),
+                    _dataColumn('MW ${AppUnits.displayUnit('33')}'),
                     _dataColumn('Daily Cost'),
                     _dataColumn('Cum. Cost'),
                   ],
@@ -698,11 +737,19 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
                           isNumeric: true,
                         ),
                         _editableDataCell(
-                          r['md'].toStringAsFixed(2),
+                          _displayMdValue((r['md'] as num).toDouble()).toStringAsFixed(2),
                           onChanged: (value) {
                             if (value.isNotEmpty) {
+                              final parsed = double.tryParse(value);
+                              final baseValue = parsed == null
+                                  ? null
+                                  : AppUnits.parameterToBase(
+                                      parsed,
+                                      paramNumber: '1',
+                                      baseUnit: '(m)',
+                                    );
                               setState(() {
-                                filteredReports[i]['md'] = double.tryParse(value) ?? r['md'];
+                                filteredReports[i]['md'] = baseValue ?? r['md'];
                               });
                             }
                           },
@@ -739,11 +786,19 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
                           },
                         ),
                         _editableDataCell(
-                          r['mw'].toStringAsFixed(2),
+                          _displayMudWeightValue((r['mw'] as num).toDouble()).toStringAsFixed(2),
                           onChanged: (value) {
                             if (value.isNotEmpty) {
+                              final parsed = double.tryParse(value);
+                              final baseValue = parsed == null
+                                  ? null
+                                  : AppUnits.parameterToBase(
+                                      parsed,
+                                      paramNumber: '33',
+                                      baseUnit: '(ppg)',
+                                    );
                               setState(() {
-                                filteredReports[i]['mw'] = double.tryParse(value) ?? r['mw'];
+                                filteredReports[i]['mw'] = baseValue ?? r['mw'];
                               });
                             }
                           },
@@ -869,15 +924,11 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
         minCtrl[k]!.clear();
         maxCtrl[k]!.clear();
       }
-      // Keep showing dummy data even after clear
-      hasSearched = true;
     });
   }
 
   void _search() {
     setState(() {
-      // Always show dummy data when search is clicked
-      hasSearched = true;
       selectedRowIndex = null;
     });
   }

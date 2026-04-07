@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/daily_report/tabs/daily_cost/tabs/dailycost_table_usage.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/operation_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/options_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/add_water_view.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/consume_product.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/consume_service.dart';
@@ -27,31 +28,35 @@ class OperationPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            /// LEFT SIDEBAR - OPERATION MENU
-            _buildLeftPanel(),
-            
-            /// VERTICAL DIVIDER
-            Container(
-              width: 1,
-              height: double.infinity,
-              color: Colors.grey.shade300,
-              margin: const EdgeInsets.symmetric(horizontal: 16),
+    final optionsController = Get.find<OptionsController>();
+    return Obx(
+      () {
+        final unitKey = optionsController.activeUnitSystemLabel;
+        return KeyedSubtree(
+          key: ValueKey(unitKey),
+          child: Scaffold(
+            backgroundColor: AppTheme.backgroundColor,
+            body: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildLeftPanel(),
+                  Container(
+                    width: 1,
+                    height: double.infinity,
+                    color: Colors.grey.shade300,
+                    margin: const EdgeInsets.symmetric(horizontal: 16),
+                  ),
+                  Expanded(
+                    child: _buildRightPanel(),
+                  ),
+                ],
+              ),
             ),
-            
-            /// RIGHT PANEL - FULL PAGE CONTENT
-            Expanded(
-              child: _buildRightPanel(),
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import '../../controller/operation_controller.dart';
 import '../../controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
@@ -167,7 +168,7 @@ class MudLossActiveSystemView extends StatelessWidget {
                                         ),
                                       ),
                                       Text(
-                                        "Vol. (bbl)",
+                                        "Vol. ${AppUnits.displayUnit('6', fallback: '(bbl)')}",
                                         style: AppTheme.bodySmall.copyWith(
                                           fontSize: 11,
                                           fontWeight: FontWeight.w600,

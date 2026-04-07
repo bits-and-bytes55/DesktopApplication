@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 import '../../controller/dashboard_controller.dart';
 
@@ -213,7 +214,7 @@ class _SwitchPitViewState extends State<SwitchPitView> {
                   _buildHeaderCell("#"),
                   _buildHeaderCell("Pit"),
                   _buildHeaderCell("Checked"),
-                  _buildHeaderCell("Measured Vol. (bbl)"),
+                  _buildHeaderCell("Measured Vol. ${AppUnits.displayUnit('6', fallback: '(bbl)')}"),
                 ],
               ),
             ],

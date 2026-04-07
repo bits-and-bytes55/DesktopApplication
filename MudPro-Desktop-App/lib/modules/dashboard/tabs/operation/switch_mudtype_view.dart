@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/switch_mudtype_controller.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class SwitchMudTypeView extends StatelessWidget {
@@ -371,7 +372,7 @@ class SwitchMudTypeView extends StatelessWidget {
                 SizedBox(
                   width: 120,
                   child: Text(
-                    "Volume (bbl)",
+                    "Volume ${AppUnits.displayUnit('6', fallback: '(bbl)')}",
                     style: AppTheme.bodySmall.copyWith(
                       fontWeight: FontWeight.w700,
                       color: AppTheme.textPrimary,

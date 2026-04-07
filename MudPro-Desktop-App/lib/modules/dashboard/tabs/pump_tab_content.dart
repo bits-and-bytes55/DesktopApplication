@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/pump_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/sce_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/options_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
+import 'package:mudpro_desktop_app/modules/options/widgets/unit_context_banner.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 // ─── Local row model for Pump page ────────────────────────────────────────────
@@ -32,10 +35,24 @@ class _PumpRow {
   }
 
   void recalculateRate() {
-    final disp = double.tryParse(displacement.value) ?? 0;
-    final s    = double.tryParse(spm.value)          ?? 0;
-    if (disp <= 0 || s <= 0) { rate.value = ''; return; }
-    rate.value = (disp * s * 42).toStringAsFixed(1);
+    final displayDisplacement = double.tryParse(displacement.value) ?? 0;
+    final s = double.tryParse(spm.value) ?? 0;
+    final displacementBase = AppUnits.parameterToBase(
+      displayDisplacement,
+      paramNumber: '11',
+      baseUnit: '(bbl/stk)',
+    );
+    if ((displacementBase ?? displayDisplacement) <= 0 || s <= 0) {
+      rate.value = '';
+      return;
+    }
+    final rateBase = (displacementBase ?? displayDisplacement) * s * 42;
+    final displayRate = AppUnits.parameterFromBase(
+      rateBase,
+      paramNumber: '17',
+      baseUnit: '(gpm)',
+    );
+    rate.value = AppUnits.formatNumber(displayRate ?? rateBase, precision: 1);
   }
 }
 
@@ -159,12 +176,28 @@ class _PumpPageState extends State<PumpPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    final optionsController = Get.find<OptionsController>();
+    return Obx(
+      () => KeyedSubtree(
+        key: ValueKey(optionsController.activeUnitSystemLabel),
+        child: Scaffold(
       backgroundColor: const Color(0xffF4F6FA),
       body: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
           children: [
+            const UnitContextBanner(
+              title: 'Pump and SCE',
+              entries: [
+                UnitContextEntry(label: 'Length', paramNumber: '1'),
+                UnitContextEntry(label: 'Diameter', paramNumber: '2'),
+                UnitContextEntry(label: 'Displacement', paramNumber: '11'),
+                UnitContextEntry(label: 'Flow', paramNumber: '17'),
+                UnitContextEntry(label: 'Pressure', paramNumber: '22'),
+                UnitContextEntry(label: 'Mud weight', paramNumber: '33'),
+              ],
+            ),
+            const SizedBox(height: 12),
             Flexible(
               flex: 3,
               child: Row(
@@ -217,6 +250,8 @@ class _PumpPageState extends State<PumpPage> {
           ],
         ),
       ),
+        ),
+      ),
     );
   }
 
@@ -240,13 +275,13 @@ class _PumpPageState extends State<PumpPage> {
               child: Row(children: [
                 _headerCell("Model",           100), _verticalDivider(),
                 _headerCell("Type",             85), _verticalDivider(),
-                _headerCell("Liner ID\n(in)",   68), _verticalDivider(),
-                _headerCell("Rod OD\n(in)",     68), _verticalDivider(),
-                _headerCell("Stk. Length\n(in)",80), _verticalDivider(),
+                _headerCell("Liner ID\n${AppUnits.displayUnit('2')}",   68), _verticalDivider(),
+                _headerCell("Rod OD\n${AppUnits.displayUnit('2')}",     68), _verticalDivider(),
+                _headerCell("Stk. Length\n${AppUnits.displayUnit('2')}",80), _verticalDivider(),
                 _headerCell("Efficiency\n(%)",  75), _verticalDivider(),
-                _headerCell("Displ.\n(bbl/stk)",80), _verticalDivider(),
+                _headerCell("Displ.\n${AppUnits.displayUnit('11')}",80), _verticalDivider(),
                 _headerCell("Stroke\n(stk/min)",80), _verticalDivider(),
-                _headerCell("Rate\n(gpm)",      68),
+                _headerCell("Rate\n${AppUnits.displayUnit('17')}",      68),
               ]),
             ),
           ),
@@ -662,8 +697,8 @@ class _PumpPageState extends State<PumpPage> {
               child: Row(children: [
                 _headerCell("SCE",          90), _verticalDivider(),
                 _headerCell("Model",       110), _verticalDivider(),
-                _headerCell("U/F\n(ppg)",   70), _verticalDivider(),
-                _headerCell("O/F\n(ppg)",   70), _verticalDivider(),
+                _headerCell("U/F\n${AppUnits.displayUnit('33')}",   70), _verticalDivider(),
+                _headerCell("O/F\n${AppUnits.displayUnit('33')}",   70), _verticalDivider(),
                 _headerCell("Time\n(hr)",   70), _verticalDivider(),
                 _headerCell("OOC Wt.\n(%)", 75),
               ]),
@@ -776,12 +811,12 @@ class _PumpPageState extends State<PumpPage> {
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(10),
               child: Column(children: [
-                _summaryItem("Pump Rate",        "gpm"), const SizedBox(height: 8),
-                _summaryItem("Pump Pressure",    "psi"), const SizedBox(height: 8),
-                _summaryItem("Boost Pump Rate",  "gpm"), const SizedBox(height: 8),
-                _summaryItem("Return Rate",      "gpm"), const SizedBox(height: 8),
-                _summaryItem("DH Tools P. Loss", "psi"), const SizedBox(height: 8),
-                _summaryItem("Motor P. Loss",    "psi"),
+                _summaryItem("Pump Rate",        AppUnits.stripBrackets(AppUnits.displayUnit('17'))), const SizedBox(height: 8),
+                _summaryItem("Pump Pressure",    AppUnits.stripBrackets(AppUnits.displayUnit('22'))), const SizedBox(height: 8),
+                _summaryItem("Boost Pump Rate",  AppUnits.stripBrackets(AppUnits.displayUnit('17'))), const SizedBox(height: 8),
+                _summaryItem("Return Rate",      AppUnits.stripBrackets(AppUnits.displayUnit('17'))), const SizedBox(height: 8),
+                _summaryItem("DH Tools P. Loss", AppUnits.stripBrackets(AppUnits.displayUnit('22'))), const SizedBox(height: 8),
+                _summaryItem("Motor P. Loss",    AppUnits.stripBrackets(AppUnits.displayUnit('22'))),
               ]),
             ),
           ),

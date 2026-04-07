@@ -26,7 +26,7 @@ class SceController extends GetxController {
 
   final isLoading = false.obs;
 
-  // ✅ FIX: maxScreenCols — driven by "No. of Screen" field from SCE data
+  // âœ… FIX: maxScreenCols â€” driven by "No. of Screen" field from SCE data
   // Default 8 (all enabled). Updated when SCE data is loaded.
   final _maxScreenCols = 8.obs;
   int get maxScreenCols => _maxScreenCols.value;
@@ -34,8 +34,18 @@ class SceController extends GetxController {
   String? currentWellId = "507f1f77bcf86cd799439011";
 
   static const List<String> shakerLabels = [
-    '1', '2', '3', '4', '5', '6', '7', '8', '9', '10',
-    'Mud Cleaner', 'Dryer',
+    '1',
+    '2',
+    '3',
+    '4',
+    '5',
+    '6',
+    '7',
+    '8',
+    '9',
+    '10',
+    'Mud Cleaner',
+    'Dryer',
   ];
   static const List<String> otherSceLabels = [
     'Degasser',
@@ -44,9 +54,6 @@ class SceController extends GetxController {
     'Centrifuge',
     'Barite Rec.',
   ];
-
-  static const int MIN_SHAKER_ROWS = 12; // Matches label count
-  static const int MIN_OTHER_SCE_ROWS = 5; // Matches label count
 
   @override
   void onInit() {
@@ -99,7 +106,7 @@ class SceController extends GetxController {
         loadAvailableTypes(wellId),
       ]);
     } catch (e) {
-      print('❌ Error loading SCE data: $e');
+      debugPrint('âŒ Error loading SCE data: $e');
     } finally {
       isLoading.value = false;
     }
@@ -110,10 +117,10 @@ class SceController extends GetxController {
       final result = await repository.getShakers(wellId);
       if (result['success']) {
         final List<dynamic> shakerData = result['data'] ?? [];
-        
+
         // Reset to empty with labels first
         initializeEmptyShakers();
-        
+
         // Populate existing ones by matching shaker label
         for (var data in shakerData) {
           final label = data['shaker']?.toString() ?? '';
@@ -126,13 +133,13 @@ class SceController extends GetxController {
           }
         }
 
-        // ✅ Update maxScreenCols from loaded data
+        // âœ… Update maxScreenCols from loaded data
         _updateMaxScreenCols(shakerData);
       } else {
         initializeEmptyShakers();
       }
     } catch (e) {
-      print('❌ Error loading shakers: $e');
+      debugPrint('âŒ Error loading shakers: $e');
       initializeEmptyShakers();
     }
   }
@@ -146,7 +153,9 @@ class SceController extends GetxController {
     }
     // Clamp between 0 and 8
     _maxScreenCols.value = maxCols.clamp(0, 8);
-    if (_maxScreenCols.value == 0) _maxScreenCols.value = 8; // default all enabled
+    if (_maxScreenCols.value == 0) {
+      _maxScreenCols.value = 8; // default all enabled
+    }
   }
 
   Future<void> loadOtherSce(String wellId) async {
@@ -154,10 +163,10 @@ class SceController extends GetxController {
       final result = await repository.getOtherSce(wellId);
       if (result['success']) {
         final List<dynamic> sceData = result['data'] ?? [];
-        
+
         // Reset to empty with labels
         initializeEmptyOtherSce();
-        
+
         for (var data in sceData) {
           final label = data['type']?.toString() ?? '';
           final idx = otherSce.indexWhere((s) => s.type.value == label);
@@ -172,7 +181,7 @@ class SceController extends GetxController {
         initializeEmptyOtherSce();
       }
     } catch (e) {
-      print('❌ Error loading other SCE: $e');
+      debugPrint('âŒ Error loading other SCE: $e');
       initializeEmptyOtherSce();
     }
   }
@@ -188,10 +197,9 @@ class SceController extends GetxController {
 
       Map<String, dynamic> result;
       if (shaker.id != null) {
-        result = (await repository.updateShaker(shaker.id!, shaker.toJson())) as Map<String, dynamic>;
+        result = await repository.updateShaker(shaker.id!, shaker.toJson());
       } else {
-        result =
-            (await repository.createShaker(currentWellId!, shaker.toJson())) as Map<String, dynamic>;
+        result = await repository.createShaker(currentWellId!, shaker.toJson());
       }
 
       if (result['success']) {
@@ -201,7 +209,7 @@ class SceController extends GetxController {
         checkAndAddShakerRow();
       }
     } catch (e) {
-      print('❌ Error saving shaker: $e');
+      debugPrint('âŒ Error saving shaker: $e');
     } finally {
       isLoading.value = false;
     }
@@ -218,17 +226,17 @@ class SceController extends GetxController {
       final confirmed = await Get.dialog<bool>(
         AlertDialog(
           title: const Text('Delete Shaker'),
-          content:
-              const Text('Are you sure you want to delete this shaker?'),
+          content: const Text('Are you sure you want to delete this shaker?'),
           actions: [
             TextButton(
-                onPressed: () => Get.back(result: false),
-                child: const Text('Cancel')),
+              onPressed: () => Get.back(result: false),
+              child: const Text('Cancel'),
+            ),
             TextButton(
-                onPressed: () => Get.back(result: true),
-                style:
-                    TextButton.styleFrom(foregroundColor: Colors.red),
-                child: const Text('Delete')),
+              onPressed: () => Get.back(result: true),
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text('Delete'),
+            ),
           ],
         ),
       );
@@ -240,14 +248,13 @@ class SceController extends GetxController {
         shakers[index] = ShakerModel(shaker: shaker.shaker.value);
       }
     } catch (e) {
-      print('❌ Error deleting shaker: $e');
+      debugPrint('âŒ Error deleting shaker: $e');
     } finally {
       isLoading.value = false;
     }
   }
 
-  void enableShakerEditMode(int index) =>
-      shakers[index].isEditing.value = true;
+  void enableShakerEditMode(int index) => shakers[index].isEditing.value = true;
 
   void cancelShakerEdit(int index) {
     shakers[index].isEditing.value = false;
@@ -273,10 +280,9 @@ class SceController extends GetxController {
 
       Map<String, dynamic> result;
       if (sce.id != null) {
-        result = (await repository.updateOtherSce(sce.id!, sce.toJson())) as Map<String, dynamic>;
+        result = await repository.updateOtherSce(sce.id!, sce.toJson());
       } else {
-        result =
-            (await repository.createOtherSce(currentWellId!, sce.toJson())) as Map<String, dynamic>;
+        result = await repository.createOtherSce(currentWellId!, sce.toJson());
       }
 
       if (result['success']) {
@@ -286,7 +292,7 @@ class SceController extends GetxController {
         checkAndAddOtherSceRow();
       }
     } catch (e) {
-      print('❌ Error saving other SCE: $e');
+      debugPrint('âŒ Error saving other SCE: $e');
     } finally {
       isLoading.value = false;
     }
@@ -304,16 +310,18 @@ class SceController extends GetxController {
         AlertDialog(
           title: const Text('Delete SCE'),
           content: const Text(
-              'Are you sure you want to delete this SCE equipment?'),
+            'Are you sure you want to delete this SCE equipment?',
+          ),
           actions: [
             TextButton(
-                onPressed: () => Get.back(result: false),
-                child: const Text('Cancel')),
+              onPressed: () => Get.back(result: false),
+              child: const Text('Cancel'),
+            ),
             TextButton(
-                onPressed: () => Get.back(result: true),
-                style:
-                    TextButton.styleFrom(foregroundColor: Colors.red),
-                child: const Text('Delete')),
+              onPressed: () => Get.back(result: true),
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text('Delete'),
+            ),
           ],
         ),
       );
@@ -325,7 +333,7 @@ class SceController extends GetxController {
         otherSce[index] = OtherSceModel();
       }
     } catch (e) {
-      print('❌ Error deleting other SCE: $e');
+      debugPrint('âŒ Error deleting other SCE: $e');
     } finally {
       isLoading.value = false;
     }
@@ -395,39 +403,42 @@ class SceController extends GetxController {
           if (sce['type'] != null && sce['type'].toString().isNotEmpty) {
             sceTypes.add(sce['type'].toString());
           }
-          if (sce['model1'] != null &&
-              sce['model1'].toString().isNotEmpty) {
+          if (sce['model1'] != null && sce['model1'].toString().isNotEmpty) {
             sceModels.add(sce['model1'].toString());
           }
         }
 
         if (sceTypes.isEmpty) {
-          sceTypes.addAll(
-              ['Degasser', 'Desander', 'Desilter', 'Centrifuge']);
+          sceTypes.addAll(['Degasser', 'Desander', 'Desilter', 'Centrifuge']);
         }
 
         availableOtherSceTypes.assignAll(sceTypes.toList()..sort());
         availableOtherSceModels.assignAll(sceModels.toList()..sort());
       }
 
-      print(
-          '✅ Loaded available types: ${availableShakerTypes.length} shakers, ${availableOtherSceTypes.length} SCE types');
-      print(
-          '✅ Loaded available models: ${availableShakerModels.length} shaker models, ${availableOtherSceModels.length} SCE models');
+      debugPrint(
+        'âœ… Loaded available types: ${availableShakerTypes.length} shakers, ${availableOtherSceTypes.length} SCE types',
+      );
+      debugPrint(
+        'âœ… Loaded available models: ${availableShakerModels.length} shaker models, ${availableOtherSceModels.length} SCE models',
+      );
     } catch (e) {
-      print('❌ Error loading available types: $e');
+      debugPrint('âŒ Error loading available types: $e');
       availableShakerTypes.assignAll(['Shaker', 'Cleaner', 'Degasser']);
-      availableOtherSceTypes
-          .assignAll(['Degasser', 'Desander', 'Desilter', 'Centrifuge']);
+      availableOtherSceTypes.assignAll([
+        'Degasser',
+        'Desander',
+        'Desilter',
+        'Centrifuge',
+      ]);
     }
   }
 
-  // ── Lookup by TYPE ──────────────────────────────────────────────────────
+  // â”€â”€ Lookup by TYPE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   Future<Map<String, dynamic>?> getShakerDataByType(String type) async {
     try {
-      final result =
-          await repository.getShakers(currentWellId ?? '');
+      final result = await repository.getShakers(currentWellId ?? '');
       if (result['success']) {
         final List<dynamic> shakerData = result['data'] ?? [];
         return shakerData.firstWhere(
@@ -437,15 +448,14 @@ class SceController extends GetxController {
       }
       return null;
     } catch (e) {
-      print('Error fetching shaker data by type: $e');
+      debugPrint('Error fetching shaker data by type: $e');
       return null;
     }
   }
 
   Future<Map<String, dynamic>?> getOtherSceDataByType(String type) async {
     try {
-      final result =
-          await repository.getOtherSce(currentWellId ?? '');
+      final result = await repository.getOtherSce(currentWellId ?? '');
       if (result['success']) {
         final List<dynamic> sceData = result['data'] ?? [];
         return sceData.firstWhere(
@@ -455,17 +465,16 @@ class SceController extends GetxController {
       }
       return null;
     } catch (e) {
-      print('Error fetching other SCE data by type: $e');
+      debugPrint('Error fetching other SCE data by type: $e');
       return null;
     }
   }
 
-  // ── Lookup by MODEL ──────────────────────────────────────────────────────
+  // â”€â”€ Lookup by MODEL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   Future<Map<String, dynamic>?> getShakerDataByModel(String model) async {
     try {
-      final result =
-          await repository.getShakers(currentWellId ?? '');
+      final result = await repository.getShakers(currentWellId ?? '');
       if (result['success']) {
         final List<dynamic> shakerData = result['data'] ?? [];
         return shakerData.firstWhere(
@@ -475,16 +484,14 @@ class SceController extends GetxController {
       }
       return null;
     } catch (e) {
-      print('Error fetching shaker data by model: $e');
+      debugPrint('Error fetching shaker data by model: $e');
       return null;
     }
   }
 
-  Future<Map<String, dynamic>?> getOtherSceDataByModel(
-      String model) async {
+  Future<Map<String, dynamic>?> getOtherSceDataByModel(String model) async {
     try {
-      final result =
-          await repository.getOtherSce(currentWellId ?? '');
+      final result = await repository.getOtherSce(currentWellId ?? '');
       if (result['success']) {
         final List<dynamic> sceData = result['data'] ?? [];
         return sceData.firstWhere(
@@ -494,12 +501,12 @@ class SceController extends GetxController {
       }
       return null;
     } catch (e) {
-      print('Error fetching other SCE data by model: $e');
+      debugPrint('Error fetching other SCE data by model: $e');
       return null;
     }
   }
 
-  // ── Legacy helpers ───────────────────────────────────────────────────────
+  // â”€â”€ Legacy helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   Future<List<String>> getAvailableShakerTypes() async {
     return availableShakerTypes.toList();
@@ -509,10 +516,10 @@ class SceController extends GetxController {
     return availableOtherSceTypes.toList();
   }
 
-  // ✅ Get screens count by model from loaded shaker data
+  // âœ… Get screens count by model from loaded shaker data
   int getScreensByModel(String model) {
     if (model.isEmpty) return 8; // Default to all 8 if no model
-    
+
     for (var shaker in shakers) {
       if (shaker.model.value == model && shaker.screens.value.isNotEmpty) {
         final screens = int.tryParse(shaker.screens.value) ?? 8;

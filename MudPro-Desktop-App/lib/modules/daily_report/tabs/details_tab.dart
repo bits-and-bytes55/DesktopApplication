@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/options_controller.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class DetailsTabView extends StatelessWidget {
@@ -7,15 +9,17 @@ class DetailsTabView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      color: AppTheme.backgroundColor,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final isLargeScreen = constraints.maxWidth > 1200;
-          final isMediumScreen = constraints.maxWidth > 800;
-          
-          return SingleChildScrollView(
+    final optionsController = Get.find<OptionsController>();
+
+    return Obx(
+      () => KeyedSubtree(
+        key: ValueKey(optionsController.activeUnitSystemLabel),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          color: AppTheme.backgroundColor,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -104,15 +108,14 @@ class DetailsTabView extends StatelessWidget {
                     ],
                   ),
                 ),
-                
-               
-                
                 // Main Content - Always use large layout for solids, bit, and volume tables
                 _buildLargeLayout(),
               ],
             ),
           );
         },
+      ),
+        ),
       ),
     );
   }
@@ -534,10 +537,10 @@ class GeometryTable extends StatelessWidget {
               _buildStaticCell(text: "#", isHeader: true, backgroundColor: Colors.transparent),
               _buildStaticCell(text: "Description", isHeader: true, center: false, backgroundColor: Colors.transparent),
    
-              _buildStaticCell(text: "Start (ft)", isHeader: true, backgroundColor: Colors.transparent),
-              _buildStaticCell(text: "End (ft)", isHeader: true, backgroundColor: Colors.transparent),
-              _buildStaticCell(text: "Vol (bbl)", isHeader: true, backgroundColor: Colors.transparent),
-              _buildStaticCell(text: "Vol (bbl/ft)", isHeader: true, backgroundColor: Colors.transparent),
+              _buildStaticCell(text: "Start ${AppUnits.displayUnit('1')}", isHeader: true, backgroundColor: Colors.transparent),
+              _buildStaticCell(text: "End ${AppUnits.displayUnit('1')}", isHeader: true, backgroundColor: Colors.transparent),
+              _buildStaticCell(text: "Vol ${AppUnits.displayUnit('6')}", isHeader: true, backgroundColor: Colors.transparent),
+              _buildStaticCell(text: "Vol ${AppUnits.displayUnit('7')}", isHeader: true, backgroundColor: Colors.transparent),
             ],
           ),
           
@@ -803,7 +806,7 @@ class AnnularHydraulicsTable extends StatelessWidget {
                             ),
                             children: [
                               _buildStaticCell(text: "#", isHeader: true, backgroundColor: Colors.transparent),
-                              _buildStaticCell(text: "Section (in)", isHeader: true, backgroundColor: Colors.transparent),
+                              _buildStaticCell(text: "Section ${AppUnits.displayUnit('2')}", isHeader: true, backgroundColor: Colors.transparent),
                               _buildStaticCell(text: "Length", isHeader: true, backgroundColor: Colors.transparent),
                               _buildStaticCell(text: "Btm MD", isHeader: true, backgroundColor: Colors.transparent),
                               _buildStaticCell(text: "Vel Ann", isHeader: true, backgroundColor: Colors.transparent),
@@ -815,8 +818,8 @@ class AnnularHydraulicsTable extends StatelessWidget {
                               _buildStaticCell(text: "Flow", isHeader: true, backgroundColor: Colors.transparent),
                               _buildStaticCell(text: "ECD", isHeader: true, backgroundColor: Colors.transparent),
                               _buildStaticCell(text: "CCi", isHeader: true, backgroundColor: Colors.transparent),
-                              _buildStaticCell(text: "P.Drop(psi)", isHeader: true, backgroundColor: Colors.transparent),
-                                _buildStaticCell(text: "Slip Vel.(ft/min)", isHeader: true, backgroundColor: Colors.transparent),
+                              _buildStaticCell(text: "P.Drop ${AppUnits.displayUnit('22')}", isHeader: true, backgroundColor: Colors.transparent),
+                                _buildStaticCell(text: "Slip Vel. ${AppUnits.displayUnit('13')}", isHeader: true, backgroundColor: Colors.transparent),
                               _buildStaticCell(text: "CTR(%)", isHeader: true, backgroundColor: Colors.transparent),
                             ],
                           ),
@@ -1059,7 +1062,7 @@ class VolumeTable extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _detailsCard(
-      "Volume (bbl)",
+      "Volume ${AppUnits.displayUnit('6')}",
       Table(
         defaultVerticalAlignment: TableCellVerticalAlignment.middle,
         border: TableBorder.all(color: Colors.grey.shade200, width: 1),

@@ -7,6 +7,9 @@ import 'package:mudpro_desktop_app/modules/company_setup/controller/others_contr
 import 'package:mudpro_desktop_app/modules/company_setup/controller/mud_properties_controller.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/model/mud_properties_model.dart';
 import 'package:mudpro_desktop_app/api_endpoint/api_endpoint.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/options_controller.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
+import 'package:mudpro_desktop_app/modules/options/unit_sync_helpers.dart';
 
 const String _kBaseUrl = ApiEndpoint.baseUrl;
 const Duration _kSaveDebounce = Duration(milliseconds: 800);
@@ -45,6 +48,10 @@ class MudController extends GetxController {
 
   final _solidAnalysisIds = <int, String?>{0: null, 1: null, 2: null};
   final _debounceTimers   = <int, Timer?>{};
+  OptionsController? _optionsController;
+  Worker? _unitSystemWorker;
+  Worker? _customUnitsWorker;
+  Map<String, String> _knownUnits = const {};
 
   final solidSaveStatus = <String, RxString>{
     '0': 'idle'.obs,
@@ -61,6 +68,116 @@ class MudController extends GetxController {
       if (test(key.toLowerCase().replaceAll('*', '').trim())) return key;
     }
     return null;
+  }
+
+  Map<String, String> _snapshotUnits() {
+    return AppUnits.snapshotUnits(const ['25', '27', '33', '34', '39', '40', '44', '49']);
+  }
+
+  String? _parameterForProperty(String name, String unit) {
+    final normalizedName = name.toLowerCase().replaceAll('*', '').trim();
+    final normalizedUnit = unit.toLowerCase().trim();
+
+    if (normalizedName == 'mw' || normalizedName.contains('mud weight')) {
+      return '33';
+    }
+    if (normalizedName.contains('funnel')) {
+      return '49';
+    }
+    if (normalizedName == 'pv' ||
+        normalizedName.contains('plastic viscosity') ||
+        normalizedName.contains('viscosity')) {
+      return '27';
+    }
+    if (normalizedName == 'yp' ||
+        normalizedName.contains('yield point') ||
+        normalizedName.contains('gel') ||
+        normalizedName.contains('lsryp')) {
+      return '25';
+    }
+    if (normalizedName.contains('temp')) {
+      return '34';
+    }
+    if (normalizedName.contains('barite') ||
+        normalizedName.contains('bentonite') ||
+        normalizedName.contains('lgs') ||
+        normalizedName.contains('hgs') ||
+        normalizedName.contains('drill solids') ||
+        normalizedUnit.contains('lb/bbl') ||
+        normalizedUnit.contains('kg/m3')) {
+      return '39';
+    }
+    if (normalizedName.contains('detergent') ||
+        normalizedUnit.contains('gal/bbl') ||
+        normalizedUnit.contains('l/m3')) {
+      return '40';
+    }
+    if (normalizedName.contains('chloride') ||
+        normalizedName.contains('cacl2') ||
+        normalizedName.contains('calcium') ||
+        normalizedUnit.contains('mg/l') ||
+        normalizedUnit.contains('ppm')) {
+      return '44';
+    }
+    return null;
+  }
+
+  void _syncDisplayedUnits() {
+    final nextUnits = _snapshotUnits();
+    if (_knownUnits.isEmpty) {
+      _knownUnits = nextUnits;
+      return;
+    }
+
+    for (final entry in propertyTable.entries) {
+      final propertyName = entry.key;
+      final propertyUnit = propertyUnits[propertyName] ?? '';
+      final paramNumber = _parameterForProperty(propertyName, propertyUnit);
+      if (paramNumber == null) {
+        continue;
+      }
+
+      final previousUnit = _knownUnits[paramNumber];
+      final nextUnit = nextUnits[paramNumber];
+      if (previousUnit == null || nextUnit == null) {
+        continue;
+      }
+
+      for (final value in entry.value) {
+        UnitSyncHelpers.convertRxString(
+          value,
+          fromUnit: previousUnit,
+          toUnit: nextUnit,
+        );
+      }
+      propertyUnits[propertyName] = AppUnits.stripBrackets(nextUnit);
+    }
+
+    for (final key in [
+      'LGS (lb/bbl)',
+      'HGS (lb/bbl)',
+      'Bentonite (lb/bbl)',
+      'Drill Solids (lb/bbl)',
+    ]) {
+      final values = solidAnalysisResult[key];
+      if (values == null) {
+        continue;
+      }
+      solidAnalysisResult[key] = values
+          .map(
+            (value) => UnitSyncHelpers.convertRawText(
+              value,
+              fromUnit: _knownUnits['39'] ?? '(lb/bbl)',
+              toUnit: nextUnits['39'] ?? '(lb/bbl)',
+            ),
+          )
+          .toList(growable: false);
+    }
+
+    propertyTable.refresh();
+    propertyUnits.refresh();
+    solidAnalysisResult.refresh();
+    _knownUnits = nextUnits;
   }
 
   // Matches: "MW (ppg)", "*MW (ppg)", "Mud Weight", "Mud Weight (ppg)"
@@ -204,6 +321,15 @@ class MudController extends GetxController {
 
   @override
   void onInit() {
+    if (Get.isRegistered<OptionsController>()) {
+      _optionsController = Get.find<OptionsController>();
+      _knownUnits = _snapshotUnits();
+      _unitSystemWorker = ever(_optionsController!.unitSystem, (_) => _syncDisplayedUnits());
+      _customUnitsWorker = ever<Map<String, String>>(
+        _optionsController!.customUnits,
+        (_) => _syncDisplayedUnits(),
+      );
+    }
     _initRheologyTable();
     loadFluidTypeData();
     super.onInit();
@@ -935,6 +1061,8 @@ class MudController extends GetxController {
 
   @override
   void onClose() {
+    _unitSystemWorker?.dispose();
+    _customUnitsWorker?.dispose();
     for (final t in _debounceTimers.values) { t?.cancel(); }
     fluidnameController.dispose();
     oilSgController.dispose();

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import '../../controller/operation_controller.dart';
 import '../../controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
@@ -118,11 +119,11 @@ class _MudLossStorageViewState extends State<MudLossStorageView> {
                         // Storage Header
                         Flexible(flex: 158, child: _buildHeaderCell("Storage", 158)),
                         // Dump (bbl) Header
-                        Flexible(flex: 126, child: _buildHeaderCell("Dump\n(bbl)", 126)),
+                        Flexible(flex: 126, child: _buildHeaderCell("Dump\n${AppUnits.displayUnit('6', fallback: '(bbl)')}", 126)),
                         // Evaporation (bbl) Header
-                        Flexible(flex: 126, child: _buildHeaderCell("Evaporation\n(bbl)", 126)),
+                        Flexible(flex: 126, child: _buildHeaderCell("Evaporation\n${AppUnits.displayUnit('6', fallback: '(bbl)')}", 126)),
                         // Pit Cleaning (bbl) Header
-                        Flexible(flex: 126, child: _buildHeaderCell("Pit Cleaning\n(bbl)", 126, isLast: true)),
+                        Flexible(flex: 126, child: _buildHeaderCell("Pit Cleaning\n${AppUnits.displayUnit('6', fallback: '(bbl)')}", 126, isLast: true)),
                       ],
                     ),
                   ),

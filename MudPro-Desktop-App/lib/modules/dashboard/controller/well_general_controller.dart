@@ -4,6 +4,9 @@ import 'package:http/http.dart' as http;
 import 'package:mudpro_desktop_app/api_endpoint/api_endpoint.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart' show kControllerWellId;
+import 'package:mudpro_desktop_app/modules/dashboard/controller/options_controller.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
+import 'package:mudpro_desktop_app/modules/options/unit_sync_helpers.dart';
 
 class WellGeneralController extends GetxController {
   final String baseUrl = ApiEndpoint.baseUrl;
@@ -43,6 +46,25 @@ class WellGeneralController extends GetxController {
   var nptTime = ''.obs;
   var nptCost = ''.obs;
   var depthDrilled = ''.obs;
+
+  OptionsController? _optionsController;
+  Worker? _unitSystemWorker;
+  Worker? _customUnitsWorker;
+  Map<String, String> _knownUnits = const {};
+
+  @override
+  void onInit() {
+    super.onInit();
+    if (Get.isRegistered<OptionsController>()) {
+      _optionsController = Get.find<OptionsController>();
+      _knownUnits = _snapshotUnits();
+      _unitSystemWorker = ever(_optionsController!.unitSystem, (_) => _syncDisplayedUnits());
+      _customUnitsWorker = ever<Map<String, String>>(
+        _optionsController!.customUnits,
+        (_) => _syncDisplayedUnits(),
+      );
+    }
+  }
 
   Map<String, String> get _headers => {
         'Content-Type': 'application/json',
@@ -172,5 +194,69 @@ print('WellGeneral fetch response: ${response.statusCode} ${response.body}');
     } finally {
       isSaving.value = false;
     }
+  }
+
+  Map<String, String> _snapshotUnits() {
+    return AppUnits.snapshotUnits(const ['1', '15', '20', '21', '33', '34']);
+  }
+
+  void _syncDisplayedUnits() {
+    final nextUnits = _snapshotUnits();
+    if (_knownUnits.isEmpty) {
+      _knownUnits = nextUnits;
+      return;
+    }
+
+    for (final value in [md, tvd, additionalFootage, depthDrilled]) {
+      UnitSyncHelpers.convertRxString(
+        value,
+        fromUnit: _knownUnits['1'] ?? '(ft)',
+        toUnit: nextUnits['1'] ?? '(ft)',
+      );
+    }
+
+    for (final value in [wob, rotWt, soWt, puWt]) {
+      UnitSyncHelpers.convertRxString(
+        value,
+        fromUnit: _knownUnits['20'] ?? '(lbf)',
+        toUnit: nextUnits['20'] ?? '(lbf)',
+      );
+    }
+
+    for (final value in [offBottomTq, onBottomTq]) {
+      UnitSyncHelpers.convertRxString(
+        value,
+        fromUnit: _knownUnits['21'] ?? '(ft-lb)',
+        toUnit: nextUnits['21'] ?? '(ft-lb)',
+      );
+    }
+
+    for (final value in [suctionT, bottomT]) {
+      UnitSyncHelpers.convertRxString(
+        value,
+        fromUnit: _knownUnits['34'] ?? '(°F)',
+        toUnit: nextUnits['34'] ?? '(°F)',
+      );
+    }
+
+    UnitSyncHelpers.convertRxString(
+      rop,
+      fromUnit: _knownUnits['15'] ?? '(ft/hr)',
+      toUnit: nextUnits['15'] ?? '(ft/hr)',
+    );
+    UnitSyncHelpers.convertRxString(
+      fit,
+      fromUnit: _knownUnits['33'] ?? '(ppg)',
+      toUnit: nextUnits['33'] ?? '(ppg)',
+    );
+
+    _knownUnits = nextUnits;
+  }
+
+  @override
+  void onClose() {
+    _unitSystemWorker?.dispose();
+    _customUnitsWorker?.dispose();
+    super.onClose();
   }
 }

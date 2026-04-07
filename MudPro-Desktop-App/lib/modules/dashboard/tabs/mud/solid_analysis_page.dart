@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/mud_controller.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class SolidAnalysisDialog extends StatefulWidget {
@@ -26,20 +27,36 @@ class _SolidAnalysisDialogState extends State<SolidAnalysisDialog> {
 
   // ─── Row definitions ───────────────────────────────────────────────────────
 
-  static const _rows = [
-    _RowCfg('LGS (%)',              highlight: true,  lgsCheck: true),
-    _RowCfg('LGS (lb/bbl)',         highlight: false),
-    _RowCfg('HGS (%)',              highlight: false),
-    _RowCfg('Diss Solids (%)',      highlight: false),
-    _RowCfg('Corr. Solids (%)',     highlight: false),
-    _RowCfg('Brine SG',            highlight: false),
-    _RowCfg('HGS (lb/bbl)',        highlight: false),
-    _RowCfg('Bentonite (%)',        highlight: false),
-    _RowCfg('Bentonite (lb/bbl)',   highlight: false),
-    _RowCfg('Drill Solids (%)',     highlight: true),
-    _RowCfg('Drill Solids (lb/bbl)', highlight: false),
-    _RowCfg('DS/Bent Ratio',        highlight: true,  dsCheck: true),
-    _RowCfg('Avg. SG of Solids',   highlight: false),
+  List<_RowCfg> get _rows => [
+    _RowCfg('LGS (%)', displayLabel: 'LGS (%)', highlight: true, lgsCheck: true),
+    _RowCfg(
+      'LGS (lb/bbl)',
+      displayLabel: 'LGS ${AppUnits.displayUnit('39', fallback: '(lb/bbl)')}',
+      highlight: false,
+    ),
+    _RowCfg('HGS (%)', displayLabel: 'HGS (%)', highlight: false),
+    _RowCfg('Diss Solids (%)', displayLabel: 'Diss Solids (%)', highlight: false),
+    _RowCfg('Corr. Solids (%)', displayLabel: 'Corr. Solids (%)', highlight: false),
+    _RowCfg('Brine SG', displayLabel: 'Brine SG', highlight: false),
+    _RowCfg(
+      'HGS (lb/bbl)',
+      displayLabel: 'HGS ${AppUnits.displayUnit('39', fallback: '(lb/bbl)')}',
+      highlight: false,
+    ),
+    _RowCfg('Bentonite (%)', displayLabel: 'Bentonite (%)', highlight: false),
+    _RowCfg(
+      'Bentonite (lb/bbl)',
+      displayLabel: 'Bentonite ${AppUnits.displayUnit('39', fallback: '(lb/bbl)')}',
+      highlight: false,
+    ),
+    _RowCfg('Drill Solids (%)', displayLabel: 'Drill Solids (%)', highlight: true),
+    _RowCfg(
+      'Drill Solids (lb/bbl)',
+      displayLabel: 'Drill Solids ${AppUnits.displayUnit('39', fallback: '(lb/bbl)')}',
+      highlight: false,
+    ),
+    _RowCfg('DS/Bent Ratio', displayLabel: 'DS/Bent Ratio', highlight: true, dsCheck: true),
+    _RowCfg('Avg. SG of Solids', displayLabel: 'Avg. SG of Solids', highlight: false),
   ];
 
   @override
@@ -253,7 +270,7 @@ class _SolidAnalysisDialogState extends State<SolidAnalysisDialog> {
                           ),
                         ),
                       Expanded(
-                        child: Text(row.name,
+                        child: Text(row.displayLabel,
                             style: TextStyle(
                               fontSize: 10,
                               fontWeight: row.highlight ? FontWeight.w600 : FontWeight.normal,
@@ -395,8 +412,15 @@ class _SolidAnalysisDialogState extends State<SolidAnalysisDialog> {
 
 class _RowCfg {
   final String name;
+  final String displayLabel;
   final bool highlight;
   final bool lgsCheck;
   final bool dsCheck;
-  const _RowCfg(this.name, {required this.highlight, this.lgsCheck = false, this.dsCheck = false});
+  const _RowCfg(
+    this.name, {
+    required this.displayLabel,
+    required this.highlight,
+    this.lgsCheck = false,
+    this.dsCheck = false,
+  });
 }

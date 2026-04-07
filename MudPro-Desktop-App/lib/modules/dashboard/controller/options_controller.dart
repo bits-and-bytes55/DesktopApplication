@@ -11,9 +11,9 @@ import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 
 import 'package:mudpro_desktop_app/modules/options/model/unit_system_model.dart';
-import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/options/services/unit_system_api_service.dart';
 import 'package:mudpro_desktop_app/modules/options/unit_conversion_service.dart';
+import 'package:mudpro_desktop_app/modules/options/unit_label_formatter.dart';
 
 const Duration _kDebounce = Duration(milliseconds: 600);
 
@@ -160,11 +160,17 @@ class OptionsController extends GetxController {
     isLoadingSystems.value = false;
 
     if (response.success) {
-      unitSystems.value     = response.data;
-      unitSystemNames.value = response.data.map((s) => s.name).toList().cast<String>();
+      final normalizedSystems = response.data.map(_normalizeSystem).toList();
+      unitSystems.value = normalizedSystems;
+      unitSystemNames.value =
+          normalizedSystems.map((s) => s.name).toList().cast<String>();
 
-      if (selectedCustomSystemId.isEmpty && response.data.isNotEmpty) {
-        _selectSystem(response.data.first);
+      if (normalizedSystems.isNotEmpty) {
+        final preferredSystem = normalizedSystems.firstWhereOrNull(
+              (system) => system.id == selectedCustomSystemId.value,
+            ) ??
+            normalizedSystems.first;
+        _selectSystem(preferredSystem);
       }
     } else {
       errorMessage.value = response.message ?? 'Failed to load unit systems';
@@ -192,9 +198,49 @@ class OptionsController extends GetxController {
   void _loadUnitsFromSystem(UnitSystemModel system) {
     final map = <String, String>{};
     for (final p in system.parameters) {
-      map[p.number] = p.unit;
+      map[p.number] = _normalizeUnit(p.number, p.unit);
     }
     customUnits.value = map;
+  }
+
+  UnitSystemModel _normalizeSystem(UnitSystemModel system) {
+    for (final parameter in system.parameters) {
+      parameter.unit = _normalizeUnit(parameter.number, parameter.unit);
+    }
+    return system;
+  }
+
+  String _normalizeUnit(String paramNumber, String rawUnit) {
+    return UnitLabelFormatter.normalize(
+      rawUnit,
+      preferredOptions: UnitConversionService.parameterUnits[paramNumber] ?? const [],
+    );
+  }
+
+  UnitSystemModel? get _activeSystemForView {
+    switch (unitSystem.value) {
+      case UnitSystem.customized:
+        return selectedSystem;
+      case UnitSystem.us:
+        return _findSystemByAny(['us', 'us oil field', 'usoilfield']);
+      case UnitSystem.si:
+        return _findSystemByAny(['si', 'metric', 'si metric']);
+    }
+  }
+
+  List<Map<String, String>> get visibleParameters {
+    final system = _activeSystemForView;
+    if (system != null && system.parameters.isNotEmpty) {
+      return system.parameters
+          .map(
+            (parameter) => {
+              'number': parameter.number,
+              'name': parameter.name,
+            },
+          )
+          .toList(growable: false);
+    }
+    return parameters;
   }
 
   // ════════════════════════════════════════════════════════════════════════════
@@ -203,29 +249,39 @@ class OptionsController extends GetxController {
   // ════════════════════════════════════════════════════════════════════════════
 
   String getUnit(int index) {
-    final number = parameters[index]['number']!;
+    final rows = visibleParameters;
+    if (index < 0 || index >= rows.length) {
+      return '-';
+    }
+    final number = rows[index]['number']!;
+    return getUnitForParameter(number);
+  }
 
+  String getUnitForParameter(String number) {
     switch (unitSystem.value) {
       case UnitSystem.customized:
-        return customUnits[number] ?? '-';
+        final customUnit = customUnits[number];
+        if (customUnit != null && customUnit.isNotEmpty) {
+          return customUnit;
+        }
+        final selectedUnit = _activeSystemForView?.unitFor(number) ?? '';
+        return selectedUnit.isEmpty ? '-' : _normalizeUnit(number, selectedUnit);
 
       case UnitSystem.us:
-        // Try DB system named "US" (case-insensitive, multiple aliases)
         final sys = _findSystemByAny(['us', 'us oil field', 'usoilfield']);
         if (sys != null) {
-          final u = sys.unitFor(number);
+          final u = _normalizeUnit(number, sys.unitFor(number));
           if (u.isNotEmpty) return u;
         }
-        // Always fall back to built-in so table is never empty
-        return _usDefaults[number] ?? '-';
+        return _normalizeUnit(number, _usDefaults[number] ?? '-');
 
       case UnitSystem.si:
         final sys = _findSystemByAny(['si', 'metric', 'si metric']);
         if (sys != null) {
-          final u = sys.unitFor(number);
+          final u = _normalizeUnit(number, sys.unitFor(number));
           if (u.isNotEmpty) return u;
         }
-        return _siDefaults[number] ?? '-';
+        return _normalizeUnit(number, _siDefaults[number] ?? '-');
     }
   }
 
@@ -240,8 +296,38 @@ class OptionsController extends GetxController {
   // PER-PARAMETER UNIT OPTIONS (for popup dropdowns)
   // ════════════════════════════════════════════════════════════════════════════
 
-  List<String> getUnitsForParam(String paramNumber) =>
-      UnitConversionService.parameterUnits[paramNumber] ?? [];
+  List<String> getUnitsForParam(String paramNumber) {
+    final merged = <String>[];
+    final seen = <String>{};
+
+    void addUnits(Iterable<String> units) {
+      for (final unit in units) {
+        final normalized = _normalizeUnit(paramNumber, unit);
+        if (normalized.isEmpty) {
+          continue;
+        }
+
+        final key = UnitLabelFormatter.canonicalize(normalized);
+        if (seen.add(key)) {
+          merged.add(normalized);
+        }
+      }
+    }
+
+    addUnits(UnitConversionService.parameterUnits[paramNumber] ?? const []);
+    addUnits(
+      unitSystems
+          .map((system) => system.unitFor(paramNumber))
+          .where((unit) => unit.isNotEmpty),
+    );
+
+    final currentUnit = customUnits[paramNumber];
+    if (currentUnit != null && currentUnit.isNotEmpty) {
+      addUnits([currentUnit]);
+    }
+
+    return merged;
+  }
 
   // ════════════════════════════════════════════════════════════════════════════
   // CONVERT VALUE when unit changes
@@ -307,21 +393,38 @@ class OptionsController extends GetxController {
   }) async {
     final r = await _api.create(name: name, baseTemplate: baseTemplate);
     if (r.success && r.data != null) {
-      unitSystems.add(r.data!);
-      unitSystemNames.add(r.data!.name);
+      final created = _normalizeSystem(r.data!);
+      unitSystems.add(created);
+      unitSystemNames.add(created.name);
       unitSystemNames.refresh();
-      return r.data;
+      return created;
     }
     return null;
   }
 
   Future<bool> saveAllChanges(String systemId) async {
     isSavingSystem.value = true;
-    final params = parameters.map((p) => {
-      'number': p['number']!,
-      'name':   p['name']!,
-      'unit':   customUnits[p['number']!] ?? '',
-    }).toList();
+    final sourceParameters = selectedSystem?.parameters ??
+        visibleParameters
+            .map(
+              (row) => ParameterUnit(
+                number: row['number']!,
+                name: row['name']!,
+                unit: getUnitForParameter(row['number']!),
+              ),
+            )
+            .toList(growable: false);
+
+    final params = sourceParameters
+        .map(
+          (parameter) => {
+            'number': parameter.number,
+            'name': parameter.name,
+            'unit': customUnits[parameter.number] ??
+                _normalizeUnit(parameter.number, parameter.unit),
+          },
+        )
+        .toList(growable: false);
     final r = await _api.updateAll(id: systemId, parameters: params);
     isSavingSystem.value = false;
     return r.success;
@@ -351,8 +454,14 @@ class OptionsController extends GetxController {
     isLoadingSystems.value = false;
 
     if (r.success) {
-      unitSystems.value = r.data;
-      unitSystemNames.value = r.data.map((s) => s.name).toList().cast<String>();
+      if (r.data.isEmpty) {
+        await fetchAllUnitSystems();
+        return;
+      }
+      final normalizedSystems = r.data.map(_normalizeSystem).toList();
+      unitSystems.value = normalizedSystems;
+      unitSystemNames.value =
+          normalizedSystems.map((s) => s.name).toList().cast<String>();
       if (unitSystems.isNotEmpty) {
         _selectSystem(unitSystems.first);
       }
@@ -367,4 +476,28 @@ class OptionsController extends GetxController {
 
   int get selectedSystemIndex =>
       unitSystems.indexWhere((s) => s.id == selectedCustomSystemId.value);
+
+  String get activeUnitSystemLabel {
+    switch (unitSystem.value) {
+      case UnitSystem.us:
+        return 'US Oil Field';
+      case UnitSystem.si:
+        return 'SI';
+      case UnitSystem.customized:
+        return selectedCustomSystem.value.isEmpty
+            ? 'Customized'
+            : selectedCustomSystem.value;
+    }
+  }
+
+  Map<String, String> snapshotUnits(Iterable<String> paramNumbers) {
+    return {
+      for (final paramNumber in paramNumbers)
+        paramNumber: getUnitForParameter(paramNumber),
+    };
+  }
+
+  void setSelectedTab(int index) {
+    selectedTab.value = index;
+  }
 }

@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/pit_model.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class TransferMudView extends StatefulWidget {
@@ -251,7 +252,7 @@ class _TransferMudViewState extends State<TransferMudView> {
                         children: [
                           _buildHeaderCell("No", 50),
                           _buildHeaderCell("Pit", 260),
-                          _buildHeaderCell("Vol. (bbl)", 140),
+                          _buildHeaderCell("Vol. ${AppUnits.displayUnit('6', fallback: '(bbl)')}", 140),
                           _buildHeaderCell("", 50),
                         ],
                       ),
@@ -469,4 +470,4 @@ class _TransferMudViewState extends State<TransferMudView> {
   void dispose() {
     super.dispose();
   }
-}
+}

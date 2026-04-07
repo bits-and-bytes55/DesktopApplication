@@ -99,6 +99,50 @@ const COST_SUMMARY_VALUE_CELLS = [
   "AE101",
 ];
 
+const normalizeUnit = (unit = "") =>
+  unit.toString().replace(/[()\s]/g, "").toLowerCase();
+
+const convertWithFactors = (value, fromUnit, toUnit, factors) => {
+  if (!Number.isFinite(value) || !toUnit || normalizeUnit(fromUnit) === normalizeUnit(toUnit)) {
+    return value;
+  }
+
+  const fromFactor = factors[normalizeUnit(fromUnit)];
+  const toFactor = factors[normalizeUnit(toUnit)];
+
+  if (!fromFactor || !toFactor) {
+    return value;
+  }
+
+  return (value * fromFactor) / toFactor;
+};
+
+const LENGTH_FACTORS = {
+  m: 1,
+  ft: 0.3048,
+  in: 0.0254,
+  mm: 0.001,
+  cm: 0.01,
+  dm: 0.1,
+};
+
+const VOLUME_FACTORS = {
+  bbl: 0.158987,
+  m3: 1,
+  l: 0.001,
+  gal: 0.00378541,
+  ft3: 0.0283168,
+  in3: 0.0000163871,
+};
+
+const MUD_WEIGHT_FACTORS = {
+  ppg: 119.826,
+  "kg/m3": 1,
+  "g/cm3": 1000,
+  "lb/ft3": 16.0185,
+  sg: 1000,
+};
+
 const setCellValue = (worksheet, address, value = "") => {
   worksheet.getCell(address).value = value ?? "";
 };
@@ -135,6 +179,15 @@ const toNumber = (value, fallback = 0) => {
   return Number.isFinite(parsedValue) ? parsedValue : fallback;
 };
 
+const convertNumericValue = (rawValue, converter, precision = 2) => {
+  const numericValue = Number(rawValue);
+  if (!Number.isFinite(numericValue)) {
+    return rawValue ?? "";
+  }
+
+  return Number(converter(numericValue).toFixed(precision));
+};
+
 const getReportDate = () => new Date().toLocaleDateString("en-GB");
 
 const getPitVolume = (pit) => pit.volume || pit.capacity || "";
@@ -142,6 +195,19 @@ const getPitVolume = (pit) => pit.volume || pit.capacity || "";
 export const exportInventoryReport = async (req, res) => {
   try {
     const { wellId } = req.params;
+    const {
+      unitSystem = "",
+      lengthUnit = "(m)",
+      volumeUnit = "(bbl)",
+      mudWeightUnit = "(ppg)",
+    } = req.query;
+
+    const convertLength = (value) =>
+      convertWithFactors(value, "(m)", lengthUnit, LENGTH_FACTORS);
+    const convertVolume = (value) =>
+      convertWithFactors(value, "(bbl)", volumeUnit, VOLUME_FACTORS);
+    const convertMudWeight = (value) =>
+      convertWithFactors(value, "(ppg)", mudWeightUnit, MUD_WEIGHT_FACTORS);
 
 const [inventoryData, pits, activities, well, wellGeneral] = await Promise.all([
   InventorySnapshot.find().sort({ category: 1 }),
@@ -155,10 +221,6 @@ let pad = null;
 if (well?.padId) {
   pad = await Pad.findById(well.padId);
 }
-console.log("PARAM wellId:", wellId);
-console.log("WELL:", well);
-console.log("WELL GENERAL:", wellGeneral);
-console.log("PAD:", pad);
 
     const products = inventoryData.filter(
       (item) => item.category === "Product"
@@ -201,6 +263,7 @@ console.log("PAD:", pad);
 
     setCellValue(worksheet, "I2", "Daily Inventory Report");
     setCellValue(worksheet, "V2", REPORT_NUMBER);
+    setCellValue(worksheet, "AE2", unitSystem ? `Units: ${unitSystem}` : "");
 
     setCellValue(worksheet, "L7", well?._id?.toString() || "");
     setCellValue(worksheet, "U7", wellGeneral?.date || getReportDate());
@@ -214,7 +277,11 @@ setCellValue(worksheet, "AC8", pad?.stateProvince || "-");
 setCellValue(worksheet, "D9", pad?.operator || "-");
 setCellValue(worksheet, "L9", pad?.contractor || "-");
 setCellValue(worksheet, "U9", wellGeneral?.formation || "-");
-setCellValue(worksheet, "AC9", wellGeneral?.md || "-");
+setCellValue(
+  worksheet,
+  "AC9",
+  convertNumericValue(wellGeneral?.md, convertLength, 2)
+);
 
 setCellValue(worksheet, "D10", wellGeneral?.operatorRep || pad?.operatorRep || "-");
 setCellValue(worksheet, "L10", wellGeneral?.contractorRep || pad?.contractorRep || "-");
@@ -225,12 +292,20 @@ setCellValue(
     ? `${wellGeneral?.inc || 0} / ${wellGeneral?.azi || 0}`
     : "-"
 );
-setCellValue(worksheet, "AC10", wellGeneral?.tvd || "-");
+setCellValue(
+  worksheet,
+  "AC10",
+  convertNumericValue(wellGeneral?.tvd, convertLength, 2)
+);
 
 setCellValue(worksheet, "D11", well?.spudDate || "-");
 setCellValue(worksheet, "L11", "-");
 setCellValue(worksheet, "U11", wellGeneral?.activity || "-");
-setCellValue(worksheet, "AC11", wellGeneral?.depthDrilled || "-");
+setCellValue(
+  worksheet,
+  "AC11",
+  convertNumericValue(wellGeneral?.depthDrilled, convertLength, 2)
+);
 
     writeRows(
       worksheet,
@@ -277,8 +352,8 @@ setCellValue(worksheet, "AC11", wellGeneral?.depthDrilled || "-");
       activePits,
       (pit) => ({
         M: pit.pitName || "",
-        S: getPitVolume(pit),
-        U: pit.density || "",
+        S: convertNumericValue(getPitVolume(pit), convertVolume, 2),
+        U: convertNumericValue(pit.density, convertMudWeight, 2),
         W: pit.fluidType || "",
       })
     );
@@ -314,7 +389,7 @@ setCellValue(worksheet, "AC11", wellGeneral?.depthDrilled || "-");
       reservePits,
       (pit) => ({
         M: pit.pitName || "",
-        S: pit.capacity ?? "",
+        S: convertNumericValue(pit.capacity, convertVolume, 2),
         U: "",
         W: "",
       })

@@ -1,22 +1,7 @@
 import 'package:get/get.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 
 class PumpModel {
-  String? id;
-  RxInt rowNumber;
-  RxString type;
-  RxString model;
-  RxString linerId;
-  RxString rodOd;
-  RxString strokeLength;
-  RxString efficiency;
-  RxString spm;
-  RxString displacement;   // auto-calculated locally + confirmed by backend
-  RxString rate;           // calculated by backend (shown on other pump page)
-  RxString maxPumpP;
-  RxString maxHp;
-  RxString surfaceLen;
-  RxString surfaceId;
-
   PumpModel({
     this.id,
     int? rowNumber,
@@ -48,104 +33,189 @@ class PumpModel {
         surfaceLen = (surfaceLen ?? '').obs,
         surfaceId = (surfaceId ?? '').obs;
 
+  String? id;
+  RxInt rowNumber;
+  RxString type;
+  RxString model;
+  RxString linerId;
+  RxString rodOd;
+  RxString strokeLength;
+  RxString efficiency;
+  RxString spm;
+  RxString displacement;
+  RxString rate;
+  RxString maxPumpP;
+  RxString maxHp;
+  RxString surfaceLen;
+  RxString surfaceId;
 
+  void recalculateDisplacement() {
+    final linerIdBase = AppUnits.parameterToBase(
+      double.tryParse(linerId.value) ?? 0,
+      paramNumber: '2',
+      baseUnit: '(in)',
+    );
+    final strokeLengthBase = AppUnits.parameterToBase(
+      double.tryParse(strokeLength.value) ?? 0,
+      paramNumber: '2',
+      baseUnit: '(in)',
+    );
+    final rodOdBase = AppUnits.parameterToBase(
+      double.tryParse(rodOd.value) ?? 0,
+      paramNumber: '2',
+      baseUnit: '(in)',
+    );
+    final efficiencyFraction = (double.tryParse(efficiency.value) ?? 0) / 100;
 
-// AFTER (correct — matches backend & original software)
-// void recalculateDisplacement() {
-//   final D = double.tryParse(linerId.value) ?? 0;
-//   final L = double.tryParse(strokeLength.value) ?? 0;
-//   final eff = (double.tryParse(efficiency.value) ?? 0) / 100;
+    if ((linerIdBase ?? 0) == 0 ||
+        (strokeLengthBase ?? 0) == 0 ||
+        efficiencyFraction == 0) {
+      displacement.value = '';
+      return;
+    }
 
-//   double constant = 0;
-//   switch (type.value) {
-//     case 'Duplex':     constant = 0.000324; break; // double-acting
-//     case 'Triplex':    constant = 0.000243; break;
-//     case 'Quadplex':   constant = 0.000324; break;
-//     case 'Quintuplex': constant = 0.000405; break;
-//     default:           constant = 0;
-//   }
+    final linerIdInches = linerIdBase!;
+    final strokeLengthInches = strokeLengthBase!;
+    final rodOdInches = rodOdBase ?? 0;
+    double displacementBase = 0;
 
-//   if (D == 0 || L == 0 || eff == 0 || constant == 0) {
-//     displacement.value = '';
-//     return;
-//   }
-
-//   final result = constant * D * D * L * eff;
-//   displacement.value = result.toStringAsFixed(4);
-// }
-
-// AFTER — Duplex uses rod formula when rodOd is provided
-void recalculateDisplacement() {
-  final D = double.tryParse(linerId.value) ?? 0;
-  final L = double.tryParse(strokeLength.value) ?? 0;
-  final eff = (double.tryParse(efficiency.value) ?? 0) / 100;
-  final d = double.tryParse(rodOd.value) ?? 0; // only used for Duplex
-
-  if (D == 0 || L == 0 || eff == 0) { displacement.value = ''; return; }
-
-  double result = 0;
-
-  if (type.value == 'Duplex') {
-    if (d > 0) {
-      // With rod: 0.000162 × (2D² - d²) × L × Efficiency
-      result = 0.000162 * (2 * D * D - d * d) * L * eff;
+    if (type.value == 'Duplex') {
+      if (rodOdInches > 0) {
+        displacementBase =
+            0.000162 *
+            (2 * linerIdInches * linerIdInches - rodOdInches * rodOdInches) *
+            strokeLengthInches *
+            efficiencyFraction;
+      } else {
+        displacementBase =
+            0.000324 *
+            linerIdInches *
+            linerIdInches *
+            strokeLengthInches *
+            efficiencyFraction;
+      }
     } else {
-      // Without rod (approximation)
-      result = 0.000324 * D * D * L * eff;
+      double constant = 0;
+      switch (type.value) {
+        case 'Triplex':
+          constant = 0.000243;
+          break;
+        case 'Quadplex':
+          constant = 0.000324;
+          break;
+        case 'Quintuplex':
+          constant = 0.000405;
+          break;
+      }
+
+      if (constant == 0) {
+        displacement.value = '';
+        return;
+      }
+
+      displacementBase =
+          constant *
+          linerIdInches *
+          linerIdInches *
+          strokeLengthInches *
+          efficiencyFraction;
     }
-  } else {
-    double constant = 0;
-    switch (type.value) {
-      case 'Triplex':    constant = 0.000243; break;
-      case 'Quadplex':   constant = 0.000324; break;
-      case 'Quintuplex': constant = 0.000405; break;
-      default:           constant = 0;
-    }
-    if (constant == 0) { displacement.value = ''; return; }
-    result = constant * D * D * L * eff;
+
+    final displayDisplacement = AppUnits.parameterFromBase(
+      displacementBase,
+      paramNumber: '11',
+      baseUnit: '(bbl/stk)',
+    );
+
+    displacement.value = AppUnits.formatNumber(
+      displayDisplacement ?? displacementBase,
+      precision: 4,
+    );
   }
 
-  displacement.value = result.toStringAsFixed(4);
-}
-
-
-  // From JSON - for GET responses
   factory PumpModel.fromJson(Map<String, dynamic> json) {
     return PumpModel(
       id: json['_id'] ?? json['id'],
       rowNumber: json['rowNumber'] ?? 0,
       type: json['type']?.toString() ?? '',
       model: json['model']?.toString() ?? '',
-      linerId: json['linerId']?.toString() ?? '',
-      rodOd: json['rodOd']?.toString() ?? '',
-      strokeLength: json['strokeLength']?.toString() ?? '',
-      efficiency: json['efficiency']?.toString() ?? '',
-      spm: json['spm']?.toString() ?? '',
-      displacement: json['displacement']?.toString() ?? '',
-      rate: json['rate']?.toString() ?? '',
-      maxPumpP: json['maxPumpP']?.toString() ?? '',
-      maxHp: json['maxHp']?.toString() ?? '',
-      surfaceLen: json['surfaceLen']?.toString() ?? '',
-      surfaceId: json['surfaceId']?.toString() ?? '',
+      linerId: _fromBaseNumber(
+        json['linerId'],
+        paramNumber: '2',
+        baseUnit: '(in)',
+        precision: 4,
+      ),
+      rodOd: _fromBaseNumber(
+        json['rodOd'],
+        paramNumber: '2',
+        baseUnit: '(in)',
+        precision: 4,
+      ),
+      strokeLength: _fromBaseNumber(
+        json['strokeLength'],
+        paramNumber: '2',
+        baseUnit: '(in)',
+        precision: 4,
+      ),
+      efficiency: _stringValue(json['efficiency']),
+      spm: _stringValue(json['spm']),
+      displacement: _fromBaseNumber(
+        json['displacement'],
+        paramNumber: '11',
+        baseUnit: '(bbl/stk)',
+        precision: 4,
+      ),
+      rate: _fromBaseNumber(
+        json['rate'],
+        paramNumber: '17',
+        baseUnit: '(gpm)',
+        precision: 4,
+      ),
+      maxPumpP: _fromBaseNumber(
+        json['maxPumpP'],
+        paramNumber: '22',
+        baseUnit: '(psi)',
+        precision: 2,
+      ),
+      maxHp: _fromBaseNumber(
+        json['maxHp'],
+        paramNumber: '26',
+        baseUnit: '(HP)',
+        precision: 2,
+      ),
+      surfaceLen: _fromBaseNumber(
+        json['surfaceLen'],
+        paramNumber: '1',
+        baseUnit: '(m)',
+        precision: 4,
+      ),
+      surfaceId: _fromBaseNumber(
+        json['surfaceId'],
+        paramNumber: '2',
+        baseUnit: '(in)',
+        precision: 4,
+      ),
     );
   }
 
-  // To JSON - for POST/PUT requests
   Map<String, dynamic> toJson() {
-    final Map<String, dynamic> data = {
+    final data = <String, dynamic>{
       'rowNumber': rowNumber.value,
       'type': type.value,
       'model': model.value,
-      'linerId': double.tryParse(linerId.value) ?? 0,
-      'rodOd': double.tryParse(rodOd.value) ?? 0,
-      'strokeLength': double.tryParse(strokeLength.value) ?? 0,
+      'linerId': _toBaseNumber(linerId.value, paramNumber: '2', baseUnit: '(in)'),
+      'rodOd': _toBaseNumber(rodOd.value, paramNumber: '2', baseUnit: '(in)'),
+      'strokeLength': _toBaseNumber(
+        strokeLength.value,
+        paramNumber: '2',
+        baseUnit: '(in)',
+      ),
       'efficiency': double.tryParse(efficiency.value) ?? 0,
       'spm': double.tryParse(spm.value) ?? 0,
-      'maxPumpP': double.tryParse(maxPumpP.value) ?? 0,
-      'maxHp': double.tryParse(maxHp.value) ?? 0,
-      'surfaceLen': double.tryParse(surfaceLen.value) ?? 0,
-      'surfaceId': double.tryParse(surfaceId.value) ?? 0,
-      // displacement and rate are calculated by backend
+      'maxPumpP': _toBaseNumber(maxPumpP.value, paramNumber: '22', baseUnit: '(psi)'),
+      'maxHp': _toBaseNumber(maxHp.value, paramNumber: '26', baseUnit: '(HP)'),
+      'surfaceLen': _toBaseNumber(surfaceLen.value, paramNumber: '1', baseUnit: '(m)'),
+      'surfaceId': _toBaseNumber(surfaceId.value, paramNumber: '2', baseUnit: '(in)'),
     };
 
     if (id != null) {
@@ -155,7 +225,6 @@ void recalculateDisplacement() {
     return data;
   }
 
-  // Check if pump has any data (for save button visibility)
   bool get hasData {
     return type.value.isNotEmpty ||
         model.value.isNotEmpty ||
@@ -170,7 +239,6 @@ void recalculateDisplacement() {
         surfaceId.value.isNotEmpty;
   }
 
-  // Clone pump
   PumpModel clone() {
     return PumpModel(
       id: id,
@@ -193,5 +261,51 @@ void recalculateDisplacement() {
 
   bool operator [](String other) {
     return false;
+  }
+
+  static String _stringValue(dynamic value) {
+    if (value == null) {
+      return '';
+    }
+
+    final text = value.toString();
+    if (text == '0' || text == '0.0') {
+      return text;
+    }
+    return text;
+  }
+
+  static String _fromBaseNumber(
+    dynamic rawValue, {
+    required String paramNumber,
+    required String baseUnit,
+    int precision = 4,
+  }) {
+    final numericValue = double.tryParse(rawValue?.toString() ?? '');
+    if (numericValue == null) {
+      return rawValue?.toString() ?? '';
+    }
+
+    final displayValue = AppUnits.parameterFromBase(
+      numericValue,
+      paramNumber: paramNumber,
+      baseUnit: baseUnit,
+    );
+
+    return AppUnits.formatNumber(displayValue ?? numericValue, precision: precision);
+  }
+
+  static double _toBaseNumber(
+    String rawValue, {
+    required String paramNumber,
+    required String baseUnit,
+  }) {
+    final numericValue = double.tryParse(rawValue) ?? 0;
+    final converted = AppUnits.parameterToBase(
+      numericValue,
+      paramNumber: paramNumber,
+      baseUnit: baseUnit,
+    );
+    return converted ?? numericValue;
   }
 }

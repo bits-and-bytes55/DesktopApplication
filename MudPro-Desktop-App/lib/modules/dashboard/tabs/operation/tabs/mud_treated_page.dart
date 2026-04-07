@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 // Controller
@@ -74,7 +75,7 @@ class MudTreatedPage extends GetView<MudTreatedController> {
                         decoration: BoxDecoration(color: AppTheme.primaryColor),
                         children: [
                           _buildHeaderCell('Addition'),
-                          _buildHeaderCell('Active System\n(bbl)'),
+                          _buildHeaderCell('Active System\n${AppUnits.displayUnit('6', fallback: '(bbl)')}'),
                         ],
                       ),
                       // Data Rows
@@ -321,8 +322,8 @@ class MudTreatedPage extends GetView<MudTreatedController> {
             }),
           ),
           const SizedBox(width: 6),
-          const Text(
-            '(bbl)',
+          Text(
+            AppUnits.displayUnit('6', fallback: '(bbl)'),
             style: TextStyle(
               fontSize: 9,
               color: Colors.black54,

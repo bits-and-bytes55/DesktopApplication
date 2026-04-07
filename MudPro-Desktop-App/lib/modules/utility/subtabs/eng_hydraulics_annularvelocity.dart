@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../controller/engineering_tools_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/options_controller.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
+import 'package:mudpro_desktop_app/modules/options/widgets/unit_context_banner.dart';
+import 'package:mudpro_desktop_app/modules/utility/controller/engineering_tools_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class HydraulicsAnnularVelocity extends StatelessWidget {
@@ -8,24 +11,31 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = Get.find<EngineeringToolsController>();
+    final controller = Get.find<EngineeringToolsController>();
+    final optionsController = Get.find<OptionsController>();
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isSmallScreen = constraints.maxWidth < 800;
-        
-        return Container(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Title and Description
+    return Obx(
+      () {
+        final unitKey = optionsController.activeUnitSystemLabel;
+        return KeyedSubtree(
+          key: ValueKey(unitKey),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+          final isSmallScreen = constraints.maxWidth < 800;
+
+          return Container(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
-                  color: AppTheme.infoColor.withOpacity(0.1),
+                  color: AppTheme.infoColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: AppTheme.infoColor.withOpacity(0.2)),
+                  border: Border.all(
+                    color: AppTheme.infoColor.withValues(alpha: 0.2),
+                  ),
                 ),
                 child: Row(
                   children: [
@@ -33,28 +43,30 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        "Calculate annular velocity based on pump output, hole size, and pipe OD",
-                        style: AppTheme.caption.copyWith(
-                          color: AppTheme.infoColor,
-                        ),
+                        'Annular velocity is calculated in the active Unit settings and converted before the result is shown.',
+                        style: AppTheme.caption.copyWith(color: AppTheme.infoColor),
                       ),
                     ),
                   ],
                 ),
               ),
-
+              const SizedBox(height: 12),
+              const UnitContextBanner(
+                title: 'Annular velocity',
+                entries: [
+                  UnitContextEntry(label: 'Pump output', paramNumber: '18'),
+                  UnitContextEntry(label: 'Hole size', paramNumber: '2'),
+                  UnitContextEntry(label: 'Pipe OD', paramNumber: '2'),
+                  UnitContextEntry(label: 'Result', paramNumber: '13'),
+                ],
+              ),
               const SizedBox(height: 16),
-
-              // Calculator Section - Made scrollable
               Expanded(
                 child: isSmallScreen
-                    ? _buildMobileLayout(c)
-                    : _buildDesktopLayout(c),
+                    ? _buildMobileLayout(controller)
+                    : _buildDesktopLayout(controller),
               ),
-
               const SizedBox(height: 16),
-
-              // Formula Section
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
@@ -66,7 +78,7 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      "Formula Used:",
+                      'Formula Used',
                       style: AppTheme.caption.copyWith(
                         fontWeight: FontWeight.w600,
                         color: AppTheme.textPrimary,
@@ -74,7 +86,7 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      "AV = (24.51 × Pump Output) ÷ (Hole Size² - Pipe OD²)",
+                      'AV = (24.51 x Pump Output) / (Hole Size^2 - Pipe OD^2)',
                       style: AppTheme.caption.copyWith(
                         color: AppTheme.textSecondary,
                         fontStyle: FontStyle.italic,
@@ -82,30 +94,41 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      "Where: AV = Annular Velocity (ft/min), Pump Output (bpm), Hole Size & Pipe OD (inches)",
+                      'Base formula units: Pump Output (bpm), Hole Size and Pipe OD (in), AV (ft/min).',
                       style: AppTheme.caption.copyWith(
                         color: AppTheme.textSecondary,
                         fontSize: 9,
                       ),
                     ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Displayed values follow the active units above.',
+                      style: AppTheme.caption.copyWith(
+                        color: AppTheme.primaryColor,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ],
                 ),
               ),
-            ],
+              ],
+            ),
+          );
+            },
           ),
         );
       },
     );
   }
 
-  Widget _buildDesktopLayout(EngineeringToolsController c) {
+  Widget _buildDesktopLayout(EngineeringToolsController controller) {
     return SingleChildScrollView(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Input Panel - Wider with row layout
           Container(
-            width: 450, // Increased width
+            width: 450,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Colors.white,
@@ -113,7 +136,7 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
               border: Border.all(color: Colors.grey.shade200),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withValues(alpha: 0.05),
                   blurRadius: 4,
                   offset: const Offset(0, 2),
                 ),
@@ -123,55 +146,65 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "Input Parameters",
+                  'Input Parameters',
                   style: AppTheme.bodySmall.copyWith(
                     fontWeight: FontWeight.w600,
                     color: AppTheme.primaryColor,
                   ),
                 ),
                 const SizedBox(height: 16),
-                
-                // Input fields with labels and text fields in rows
-                _inputFieldWithRow("Pump Output", "bpm", c.pumpOutput, "567"),
+                _inputFieldWithRow(
+                  'Pump Output',
+                  AppUnits.stripBrackets(AppUnits.displayUnit('18')),
+                  controller.pumpOutput,
+                  'Enter value',
+                ),
                 const SizedBox(height: 16),
-                _inputFieldWithRow("Hole Size", "inches", c.holeSize, "456"),
+                _inputFieldWithRow(
+                  'Hole Size',
+                  AppUnits.stripBrackets(AppUnits.displayUnit('2')),
+                  controller.holeSize,
+                  'Enter value',
+                ),
                 const SizedBox(height: 16),
-                _inputFieldWithRow("Pipe OD", "inches", c.pipeOD, "45"),
-                
+                _inputFieldWithRow(
+                  'Pipe OD',
+                  AppUnits.stripBrackets(AppUnits.displayUnit('2')),
+                  controller.pipeOD,
+                  'Enter value',
+                ),
                 const SizedBox(height: 24),
                 Row(
                   children: [
                     Expanded(
                       child: ElevatedButton(
-                        onPressed: () {
-                          _validateAndCalculate(c);
-                        },
+                        onPressed: () => _validateAndCalculate(controller),
                         style: AppTheme.primaryButtonStyle,
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.calculate, size: 14),
+                            const Icon(Icons.calculate, size: 14),
                             const SizedBox(width: 6),
-                            Text("Calculate", style: AppTheme.caption.copyWith(color: Colors.white)),
+                            Text(
+                              'Calculate',
+                              style: AppTheme.caption.copyWith(color: Colors.white),
+                            ),
                           ],
                         ),
                       ),
                     ),
                     const SizedBox(width: 12),
                     ElevatedButton(
-                      onPressed: c.resetAnnularVelocity,
+                      onPressed: controller.resetAnnularVelocity,
                       style: AppTheme.secondaryButtonStyle,
-                      child: Text("Reset", style: AppTheme.caption),
+                      child: Text('Reset', style: AppTheme.caption),
                     ),
                   ],
                 ),
               ],
             ),
           ),
-
           const SizedBox(width: 20),
-
-          // Result Panel - Flexible width
           Expanded(
             child: Container(
               padding: const EdgeInsets.all(16),
@@ -181,65 +214,47 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                 border: Border.all(color: Colors.grey.shade200),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: Colors.black.withValues(alpha: 0.05),
                     blurRadius: 4,
                     offset: const Offset(0, 2),
                   ),
                 ],
               ),
               child: Obx(() {
-                final result = c.annularVelocity.value;
+                final result = controller.annularVelocity.value;
                 final hasResult = result != null;
-                
+                final resultUnit = AppUnits.stripBrackets(AppUnits.displayUnit('13'));
+
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      "Calculation Result",
+                      'Calculation Result',
                       style: AppTheme.bodySmall.copyWith(
                         fontWeight: FontWeight.w600,
                         color: AppTheme.primaryColor,
                       ),
                     ),
                     const SizedBox(height: 16),
-                    
                     if (!hasResult)
-                      Container(
-                        height: 300,
-                        alignment: Alignment.center,
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.calculate_outlined,
-                              size: 48,
-                              color: Colors.grey.shade300,
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              "Enter values and click Calculate",
-                              style: AppTheme.bodySmall.copyWith(
-                                color: AppTheme.textSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
+                      _emptyState(300)
                     else
                       Column(
                         children: [
                           Container(
                             padding: const EdgeInsets.all(20),
                             decoration: BoxDecoration(
-                              color: AppTheme.successColor.withOpacity(0.1),
+                              color: AppTheme.successColor.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: AppTheme.successColor.withOpacity(0.2)),
+                              border: Border.all(
+                                color: AppTheme.successColor.withValues(alpha: 0.2),
+                              ),
                             ),
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Text(
-                                  "Annular Velocity",
+                                  'Annular Velocity',
                                   style: AppTheme.caption.copyWith(
                                     fontWeight: FontWeight.w600,
                                     color: AppTheme.textSecondary,
@@ -247,7 +262,7 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
-                                  "${result.toStringAsFixed(2)} ft/min",
+                                  '${AppUnits.formatNumber(result, precision: 2)} $resultUnit',
                                   style: TextStyle(
                                     fontSize: 24,
                                     fontWeight: FontWeight.w700,
@@ -268,7 +283,7 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                                       const SizedBox(width: 6),
                                       Expanded(
                                         child: Text(
-                                          "Based on your inputs",
+                                          'Calculated using the current Unit settings.',
                                           style: AppTheme.caption.copyWith(
                                             color: AppTheme.textSecondary,
                                           ),
@@ -292,18 +307,27 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  "Input Summary",
+                                  'Input Summary',
                                   style: AppTheme.caption.copyWith(
                                     fontWeight: FontWeight.w600,
                                     color: AppTheme.textPrimary,
                                   ),
                                 ),
                                 const SizedBox(height: 12),
-                                _inputSummaryRow("Pump Output", "${c.pumpOutput.value} bpm"),
+                                _inputSummaryRow(
+                                  'Pump Output',
+                                  '${controller.pumpOutput.value} ${AppUnits.stripBrackets(AppUnits.displayUnit('18'))}',
+                                ),
                                 const SizedBox(height: 8),
-                                _inputSummaryRow("Hole Size", "${c.holeSize.value} inches"),
+                                _inputSummaryRow(
+                                  'Hole Size',
+                                  '${controller.holeSize.value} ${AppUnits.stripBrackets(AppUnits.displayUnit('2'))}',
+                                ),
                                 const SizedBox(height: 8),
-                                _inputSummaryRow("Pipe OD", "${c.pipeOD.value} inches"),
+                                _inputSummaryRow(
+                                  'Pipe OD',
+                                  '${controller.pipeOD.value} ${AppUnits.stripBrackets(AppUnits.displayUnit('2'))}',
+                                ),
                               ],
                             ),
                           ),
@@ -319,11 +343,10 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
     );
   }
 
-  Widget _buildMobileLayout(EngineeringToolsController c) {
+  Widget _buildMobileLayout(EngineeringToolsController controller) {
     return SingleChildScrollView(
       child: Column(
         children: [
-          // Input Panel
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(16),
@@ -333,7 +356,7 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
               border: Border.all(color: Colors.grey.shade200),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withValues(alpha: 0.05),
                   blurRadius: 4,
                   offset: const Offset(0, 2),
                 ),
@@ -343,52 +366,65 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "Input Parameters",
+                  'Input Parameters',
                   style: AppTheme.bodySmall.copyWith(
                     fontWeight: FontWeight.w600,
                     color: AppTheme.primaryColor,
                   ),
                 ),
                 const SizedBox(height: 16),
-                _inputFieldWithRow("Pump Output", "bpm", c.pumpOutput, "567"),
+                _inputFieldWithRow(
+                  'Pump Output',
+                  AppUnits.stripBrackets(AppUnits.displayUnit('18')),
+                  controller.pumpOutput,
+                  'Enter value',
+                ),
                 const SizedBox(height: 16),
-                _inputFieldWithRow("Hole Size", "inches", c.holeSize, "456"),
+                _inputFieldWithRow(
+                  'Hole Size',
+                  AppUnits.stripBrackets(AppUnits.displayUnit('2')),
+                  controller.holeSize,
+                  'Enter value',
+                ),
                 const SizedBox(height: 16),
-                _inputFieldWithRow("Pipe OD", "inches", c.pipeOD, "45"),
+                _inputFieldWithRow(
+                  'Pipe OD',
+                  AppUnits.stripBrackets(AppUnits.displayUnit('2')),
+                  controller.pipeOD,
+                  'Enter value',
+                ),
                 const SizedBox(height: 24),
                 Row(
                   children: [
                     Expanded(
                       child: ElevatedButton(
-                        onPressed: () {
-                          _validateAndCalculate(c);
-                        },
+                        onPressed: () => _validateAndCalculate(controller),
                         style: AppTheme.primaryButtonStyle,
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.calculate, size: 14),
+                            const Icon(Icons.calculate, size: 14),
                             const SizedBox(width: 6),
-                            Text("Calculate", style: AppTheme.caption.copyWith(color: Colors.white)),
+                            Text(
+                              'Calculate',
+                              style: AppTheme.caption.copyWith(color: Colors.white),
+                            ),
                           ],
                         ),
                       ),
                     ),
                     const SizedBox(width: 12),
                     ElevatedButton(
-                      onPressed: c.resetAnnularVelocity,
+                      onPressed: controller.resetAnnularVelocity,
                       style: AppTheme.secondaryButtonStyle,
-                      child: Text("Reset", style: AppTheme.caption),
+                      child: Text('Reset', style: AppTheme.caption),
                     ),
                   ],
                 ),
               ],
             ),
           ),
-
           const SizedBox(height: 20),
-
-          // Result Panel
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(16),
@@ -398,64 +434,46 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
               border: Border.all(color: Colors.grey.shade200),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withValues(alpha: 0.05),
                   blurRadius: 4,
                   offset: const Offset(0, 2),
                 ),
               ],
             ),
             child: Obx(() {
-              final result = c.annularVelocity.value;
+              final result = controller.annularVelocity.value;
               final hasResult = result != null;
-              
+              final resultUnit = AppUnits.stripBrackets(AppUnits.displayUnit('13'));
+
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    "Calculation Result",
+                    'Calculation Result',
                     style: AppTheme.bodySmall.copyWith(
                       fontWeight: FontWeight.w600,
                       color: AppTheme.primaryColor,
                     ),
                   ),
                   const SizedBox(height: 16),
-                  
                   if (!hasResult)
-                    Container(
-                      height: 250,
-                      alignment: Alignment.center,
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.calculate_outlined,
-                            size: 48,
-                            color: Colors.grey.shade300,
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            "Enter values and click Calculate",
-                            style: AppTheme.bodySmall.copyWith(
-                              color: AppTheme.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
+                    _emptyState(220)
                   else
                     Column(
                       children: [
                         Container(
                           padding: const EdgeInsets.all(20),
                           decoration: BoxDecoration(
-                            color: AppTheme.successColor.withOpacity(0.1),
+                            color: AppTheme.successColor.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: AppTheme.successColor.withOpacity(0.2)),
+                            border: Border.all(
+                              color: AppTheme.successColor.withValues(alpha: 0.2),
+                            ),
                           ),
                           child: Column(
                             children: [
                               Text(
-                                "Annular Velocity",
+                                'Annular Velocity',
                                 style: AppTheme.caption.copyWith(
                                   fontWeight: FontWeight.w600,
                                   color: AppTheme.textSecondary,
@@ -463,7 +481,7 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                "${result.toStringAsFixed(2)} ft/min",
+                                '${AppUnits.formatNumber(result, precision: 2)} $resultUnit',
                                 style: TextStyle(
                                   fontSize: 24,
                                   fontWeight: FontWeight.w700,
@@ -485,18 +503,27 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                "Input Summary",
+                                'Input Summary',
                                 style: AppTheme.caption.copyWith(
                                   fontWeight: FontWeight.w600,
                                   color: AppTheme.textPrimary,
                                 ),
                               ),
                               const SizedBox(height: 12),
-                              _inputSummaryRow("Pump Output", "${c.pumpOutput.value} bpm"),
+                              _inputSummaryRow(
+                                'Pump Output',
+                                '${controller.pumpOutput.value} ${AppUnits.stripBrackets(AppUnits.displayUnit('18'))}',
+                              ),
                               const SizedBox(height: 8),
-                              _inputSummaryRow("Hole Size", "${c.holeSize.value} inches"),
+                              _inputSummaryRow(
+                                'Hole Size',
+                                '${controller.holeSize.value} ${AppUnits.stripBrackets(AppUnits.displayUnit('2'))}',
+                              ),
                               const SizedBox(height: 8),
-                              _inputSummaryRow("Pipe OD", "${c.pipeOD.value} inches"),
+                              _inputSummaryRow(
+                                'Pipe OD',
+                                '${controller.pipeOD.value} ${AppUnits.stripBrackets(AppUnits.displayUnit('2'))}',
+                              ),
                             ],
                           ),
                         ),
@@ -511,7 +538,36 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
     );
   }
 
-  Widget _inputFieldWithRow(String label, String unit, RxString value, String example) {
+  Widget _emptyState(double height) {
+    return Container(
+      height: height,
+      alignment: Alignment.center,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.calculate_outlined,
+            size: 48,
+            color: Colors.grey.shade300,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Enter values and click Calculate',
+            style: AppTheme.bodySmall.copyWith(
+              color: AppTheme.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _inputFieldWithRow(
+    String label,
+    String unit,
+    RxString value,
+    String placeholder,
+  ) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.grey.shade50,
@@ -522,7 +578,6 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Label and Unit in same row
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -543,8 +598,6 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
-          
-          // Input field with example
           Container(
             height: 40,
             decoration: BoxDecoration(
@@ -552,47 +605,23 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
               borderRadius: BorderRadius.circular(6),
               border: Border.all(color: Colors.grey.shade300),
             ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: TextEditingController(text: value.value),
-                    onChanged: (v) => value.value = v,
-                    keyboardType: TextInputType.number,
-                    style: AppTheme.caption.copyWith(
-                      color: AppTheme.textPrimary,
-                      fontSize: 12,
-                    ),
-                    decoration: InputDecoration(
-                      isDense: true,
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-                      hintText: "Enter value",
-                      hintStyle: AppTheme.caption.copyWith(
-                        color: Colors.grey.shade400,
-                      ),
-                    ),
-                  ),
+            child: TextField(
+              controller: TextEditingController(text: value.value),
+              onChanged: (newValue) => value.value = newValue,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              style: AppTheme.caption.copyWith(
+                color: AppTheme.textPrimary,
+                fontSize: 12,
+              ),
+              decoration: InputDecoration(
+                isDense: true,
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                hintText: placeholder,
+                hintStyle: AppTheme.caption.copyWith(
+                  color: Colors.grey.shade400,
                 ),
-                Container(
-                  width: 80,
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    border: Border(
-                      left: BorderSide(color: Colors.grey.shade300),
-                    ),
-                  ),
-                  child: Text(
-                    "e.g. $example",
-                    style: AppTheme.caption.copyWith(
-                      color: Colors.grey.shade600,
-                      fontSize: 10,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         ],
@@ -604,18 +633,14 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 6),
       decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: Colors.grey.shade200),
-        ),
+        border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
             label,
-            style: AppTheme.caption.copyWith(
-              color: AppTheme.textSecondary,
-            ),
+            style: AppTheme.caption.copyWith(color: AppTheme.textSecondary),
           ),
           Text(
             value,
@@ -629,34 +654,28 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
     );
   }
 
-  // Validation method
-  void _validateAndCalculate(EngineeringToolsController c) {
-    // Check if any field is empty
-    if (c.pumpOutput.value.isEmpty || c.holeSize.value.isEmpty || c.pipeOD.value.isEmpty) {
-      // Show small popup alert
-      _showRequiredFieldsAlert(c);
+  void _validateAndCalculate(EngineeringToolsController controller) {
+    if (controller.pumpOutput.value.isEmpty ||
+        controller.holeSize.value.isEmpty ||
+        controller.pipeOD.value.isEmpty) {
+      _showRequiredFieldsAlert();
       return;
     }
-    
-    // If all fields are filled, proceed with calculation
-    c.calculateAnnularVelocity();
+
+    controller.calculateAnnularVelocity();
   }
 
-  // Show alert for required fields
-  void _showRequiredFieldsAlert(EngineeringToolsController c) {
+  void _showRequiredFieldsAlert() {
     Get.dialog(
       AlertDialog(
         backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         contentPadding: const EdgeInsets.all(16),
-        content: Container(
-          width: 280, // Small width
+        content: SizedBox(
+          width: 280,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Warning icon
               Container(
                 width: 40,
                 height: 40,
@@ -671,10 +690,8 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
-              
-              // Title
               Text(
-                "Required Fields",
+                'Required Fields',
                 style: AppTheme.bodySmall.copyWith(
                   fontWeight: FontWeight.w600,
                   color: AppTheme.textPrimary,
@@ -682,28 +699,20 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                 ),
                 textAlign: TextAlign.center,
               ),
-              
               const SizedBox(height: 8),
-              
-              // Message
               Text(
-                "Please fill all the input fields to calculate annular velocity.",
+                'Please fill all the input fields to calculate annular velocity.',
                 style: AppTheme.caption.copyWith(
                   color: AppTheme.textSecondary,
                   fontSize: 11,
                 ),
                 textAlign: TextAlign.center,
               ),
-              
               const SizedBox(height: 20),
-              
-              // OK button
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () {
-                    Get.back();
-                  },
+                  onPressed: Get.back,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.orange.shade600,
                     shape: RoundedRectangleBorder(
@@ -712,7 +721,7 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(vertical: 8),
                   ),
                   child: Text(
-                    "OK",
+                    'OK',
                     style: AppTheme.caption.copyWith(
                       color: Colors.white,
                       fontWeight: FontWeight.w600,

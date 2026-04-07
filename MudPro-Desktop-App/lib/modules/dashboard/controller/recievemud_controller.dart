@@ -4,6 +4,9 @@ import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/inventory_model.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/pit_model.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/options_controller.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
+import 'package:mudpro_desktop_app/modules/options/unit_sync_helpers.dart';
 
 class ReceiveMudController extends GetxController {
   final AuthRepository _repository = AuthRepository();
@@ -36,15 +39,30 @@ class ReceiveMudController extends GetxController {
 
   // Well ID - replace with actual well ID from your system
   String get wellId => '507f1f77bcf86cd799439011';
+  OptionsController? _optionsController;
+  Worker? _unitSystemWorker;
+  Worker? _customUnitsWorker;
+  Map<String, String> _knownUnits = const {};
   
   @override
   void onInit() {
     super.onInit();
+    if (Get.isRegistered<OptionsController>()) {
+      _optionsController = Get.find<OptionsController>();
+      _knownUnits = _snapshotUnits();
+      _unitSystemWorker = ever(_optionsController!.unitSystem, (_) => _syncDisplayedUnits());
+      _customUnitsWorker = ever<Map<String, String>>(
+        _optionsController!.customUnits,
+        (_) => _syncDisplayedUnits(),
+      );
+    }
     _loadInitialData();
   }
   
   @override
   void onClose() {
+    _unitSystemWorker?.dispose();
+    _customUnitsWorker?.dispose();
     bolNoController.dispose();
     toController.dispose();
     volController.dispose();
@@ -272,5 +290,49 @@ class ReceiveMudController extends GetxController {
     Future.delayed(const Duration(seconds: 3), () {
       overlayEntry.remove();
     });
+  }
+
+  Map<String, String> _snapshotUnits() {
+    return AppUnits.snapshotUnits(const ['6', '33']);
+  }
+
+  void _syncDisplayedUnits() {
+    final nextUnits = _snapshotUnits();
+    if (_knownUnits.isEmpty) {
+      _knownUnits = nextUnits;
+      return;
+    }
+
+    for (final controller in [volController, lossVolumeController]) {
+      UnitSyncHelpers.convertTextController(
+        controller,
+        fromUnit: _knownUnits['6'] ?? '(bbl)',
+        toUnit: nextUnits['6'] ?? '(bbl)',
+      );
+    }
+
+    for (var index = 0; index < premixedList.length; index++) {
+      final item = premixedList[index];
+      premixedList[index] = item.copyWith(
+        mw: UnitSyncHelpers.convertRawText(
+          item.mw,
+          fromUnit: _knownUnits['33'] ?? '(ppg)',
+          toUnit: nextUnits['33'] ?? '(ppg)',
+        ),
+      );
+    }
+
+    final currentSelected = selectedPremixed.value;
+    if (currentSelected != null) {
+      selectedPremixed.value = currentSelected.copyWith(
+        mw: UnitSyncHelpers.convertRawText(
+          currentSelected.mw,
+          fromUnit: _knownUnits['33'] ?? '(ppg)',
+          toUnit: nextUnits['33'] ?? '(ppg)',
+        ),
+      );
+    }
+
+    _knownUnits = nextUnits;
   }
 }

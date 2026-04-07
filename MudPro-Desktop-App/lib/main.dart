@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/inventory_store/inventory_store.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/options_controller.dart';
 import 'modules/dashboard/view/dashboard_view.dart';
 
 class MyHttpOverrides extends HttpOverrides {
@@ -16,14 +17,16 @@ class MyHttpOverrides extends HttpOverrides {
 void main() {
   HttpOverrides.global = MyHttpOverrides();
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const MyApp());
-  
+  Get.put(OptionsController(), permanent: true);
   Get.put(InventoryProductsStore(), permanent: true);
   Get.put(InventoryServicesStore(), permanent: true);
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  const MyApp({super.key, this.home});
+
+  final Widget? home;
 
   @override
   Widget build(BuildContext context) {
@@ -34,7 +37,7 @@ class MyApp extends StatelessWidget {
         fontFamily: 'Segoe UI',
         useMaterial3: false,
       ),
-      home: DashboardView(), 
+      home: home ?? DashboardView(),
     );
   }
 }

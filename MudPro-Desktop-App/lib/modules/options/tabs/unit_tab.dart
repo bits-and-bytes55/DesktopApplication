@@ -16,9 +16,6 @@ class UnitRightPanel extends StatefulWidget {
 class _UnitRightPanelState extends State<UnitRightPanel> {
   final ScrollController _scrollController = ScrollController();
 
-  // Store which dropdown is open
-  final List<GlobalKey> _dropdownKeys = List.generate(49, (index) => GlobalKey());
-
   @override
   void dispose() {
     _scrollController.dispose();
@@ -32,9 +29,9 @@ class _UnitRightPanelState extends State<UnitRightPanel> {
     return Container(
       color: Colors.white,
       child: Obx(() {
-        const selectedTab = 0; // Fixed for this tab
         final unitSystem = controller.unitSystem.value;
         final customSystem = controller.selectedCustomSystem.value;
+        final visibleParameters = controller.visibleParameters;
 
         return Padding(
           padding: const EdgeInsets.all(16),
@@ -80,68 +77,122 @@ class _UnitRightPanelState extends State<UnitRightPanel> {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.start,
-                              children: [
-                                // Dropdown only
-                                SizedBox(
-                                  width: 220,
-                                  child: DropdownButtonFormField<String>(
-                                    value: controller.unitSystemNames.contains(customSystem) ? customSystem : (controller.unitSystemNames.isNotEmpty ? controller.unitSystemNames.first : null),
-                                    isExpanded: true,
-                                    decoration: InputDecoration(
-                                      labelText: 'Select Template',
-                                      isDense: true,
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(6),
+                            if (controller.isLoadingSystems.value &&
+                                controller.unitSystemNames.isEmpty)
+                              Row(
+                                children: [
+                                  SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: AppTheme.primaryColor,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Text(
+                                    'Loading unit templates...',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: AppTheme.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              )
+                            else if (controller.unitSystemNames.isEmpty)
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      controller.errorMessage.value.isEmpty
+                                          ? 'No unit templates found yet.'
+                                          : controller.errorMessage.value,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: AppTheme.textSecondary,
                                       ),
-                                      filled: true,
-                                      fillColor: Colors.white,
-                                      contentPadding: const EdgeInsets.symmetric(
-                                        horizontal: 12,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  OutlinedButton.icon(
+                                    onPressed: controller.fetchAllUnitSystems,
+                                    icon: const Icon(Icons.refresh, size: 16),
+                                    label: const Text('Retry'),
+                                  ),
+                                ],
+                              )
+                            else
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.start,
+                                children: [
+                                  SizedBox(
+                                    width: 220,
+                                    child: DropdownButtonFormField<String>(
+                                      initialValue: controller.unitSystemNames.contains(customSystem)
+                                          ? customSystem
+                                          : controller.unitSystemNames.first,
+                                      isExpanded: true,
+                                      decoration: InputDecoration(
+                                        labelText: 'Select Template',
+                                        isDense: true,
+                                        border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        filled: true,
+                                        fillColor: Colors.white,
+                                        contentPadding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 10,
+                                        ),
+                                      ),
+                                      onChanged: (value) {
+                                        if (value == null) {
+                                          return;
+                                        }
+                                        controller.selectUnitSystemByName(value);
+                                      },
+                                      items: controller.unitSystemNames
+                                          .map(
+                                            (name) => DropdownMenuItem(
+                                              value: name,
+                                              child: Text(
+                                                name,
+                                                style: const TextStyle(fontSize: 13),
+                                              ),
+                                            ),
+                                          )
+                                          .toList(),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  ElevatedButton.icon(
+                                    onPressed: () {
+                                      showDialog(
+                                        context: context,
+                                        barrierDismissible: false,
+                                        builder: (_) => const UnitSystemCustomizationPopup(),
+                                      );
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppTheme.primaryColor,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
                                         vertical: 10,
                                       ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      elevation: 1,
                                     ),
-                                    onChanged: unitSystem == UnitSystem.customized
-                                        ? (v) => controller.selectUnitSystemByName(v!)
-                                        : null,
-                                    items: controller.unitSystemNames.map((name) => DropdownMenuItem(
-                                      value: name,
-                                      child: Text(name, style: const TextStyle(fontSize: 13)),
-                                    )).toList(),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                
-                                // Button for customization popup
-                                ElevatedButton.icon(
-                                  onPressed: (){
-                                    showDialog(
-                                      context: context,
-                                      barrierDismissible: false,
-                                      builder: (_) => const UnitSystemCustomizationPopup(),
-                                    );
-                                  },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppTheme.primaryColor,
-                                    foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 16,
-                                      vertical: 10,
+                                    icon: const Icon(Icons.edit_outlined, size: 16),
+                                    label: const Text(
+                                      'Customize',
+                                      style: TextStyle(fontSize: 13),
                                     ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    elevation: 1,
                                   ),
-                                  icon: const Icon(Icons.edit_outlined, size: 16),
-                                  label: const Text(
-                                    'Customize',
-                                    style: TextStyle(fontSize: 13),
-                                  ),
-                                ),
-                              ],
-                            ),
+                                ],
+                              ),
                             const SizedBox(height: 6),
                             Text(
                               'Click customize to modify unit system',
@@ -158,6 +209,38 @@ class _UnitRightPanelState extends State<UnitRightPanel> {
               ),
               
               const SizedBox(height: 16),
+
+              if (controller.errorMessage.value.isNotEmpty &&
+                  !controller.isLoadingSystems.value)
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.orange.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        size: 18,
+                        color: Colors.orange.shade700,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          controller.errorMessage.value,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.orange.shade900,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               
               // Parameters Table - Smaller and takes half width
               Expanded(
@@ -228,9 +311,9 @@ class _UnitRightPanelState extends State<UnitRightPanel> {
                             child: ListView.builder(
                               controller: _scrollController,
                               padding: EdgeInsets.zero,
-                              itemCount: OptionsController.parameters.length,
+                              itemCount: visibleParameters.length,
                               itemBuilder: (context, index) {
-                                final parameter = OptionsController.parameters[index];
+                                final parameter = visibleParameters[index];
                                 final isEven = index % 2 == 0;
                                 
                                 return Container(
@@ -279,18 +362,23 @@ class _UnitRightPanelState extends State<UnitRightPanel> {
                                         width: 140,
                                         child: unitSystem == UnitSystem.customized
                                             // Custom Dropdown Menu - Opens below row
-                                            ? _buildCustomDropdown(index, controller)
+                                            ? _buildCustomDropdown(
+                                                parameter['number']!,
+                                                controller,
+                                              )
                                             // Normal unit display for US and SI
                                             : Container(
                                                 height: 32,
                                                 alignment: Alignment.centerLeft,
                                                 padding: const EdgeInsets.symmetric(horizontal: 10),
                                                 decoration: BoxDecoration(
-                                                  color: AppTheme.primaryColor.withOpacity(0.1),
+                                                  color: AppTheme.primaryColor.withValues(alpha: 0.1),
                                                   borderRadius: BorderRadius.circular(4),
                                                 ),
                                                 child: Text(
-                                                  controller.getUnit(index),
+                                                  controller.getUnitForParameter(
+                                                    parameter['number']!,
+                                                  ),
                                                   style: TextStyle(
                                                     fontSize: 12,
                                                     color: AppTheme.primaryColor,
@@ -319,9 +407,28 @@ class _UnitRightPanelState extends State<UnitRightPanel> {
   }
 
   // Custom dropdown that opens below the row
-  Widget _buildCustomDropdown(int index, OptionsController controller) {
-    final number = OptionsController.parameters[index]['number']!;
+  Widget _buildCustomDropdown(String number, OptionsController controller) {
     final unitOptions = controller.getUnitsForParam(number);
+    final currentValue =
+        controller.customUnits[number] ?? controller.getUnitForParameter(number);
+
+    if (unitOptions.isEmpty) {
+      return Container(
+        height: 32,
+        alignment: Alignment.centerLeft,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: Colors.grey.shade300),
+        ),
+        child: Text(
+          currentValue.isEmpty ? '-' : currentValue,
+          style: TextStyle(fontSize: 12, color: AppTheme.textPrimary),
+          overflow: TextOverflow.ellipsis,
+        ),
+      );
+    }
 
     return Container(
       height: 32,
@@ -331,7 +438,7 @@ class _UnitRightPanelState extends State<UnitRightPanel> {
         border: Border.all(color: Colors.grey.shade300),
       ),
       child: PopupMenuButton<String>(
-        key: _dropdownKeys[index],
+        key: ValueKey('unit_dropdown_$number'),
         position: PopupMenuPosition.under,
         constraints: const BoxConstraints(maxHeight: 250, minWidth: 140),
         shape: RoundedRectangleBorder(
@@ -355,7 +462,8 @@ class _UnitRightPanelState extends State<UnitRightPanel> {
           }).toList();
         },
         child: Obx(() {
-          final currentValue = controller.customUnits[number] ?? '';
+          final displayValue = controller.customUnits[number] ??
+              controller.getUnitForParameter(number);
           return Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Row(
@@ -363,7 +471,7 @@ class _UnitRightPanelState extends State<UnitRightPanel> {
               children: [
                 Expanded(
                   child: Text(
-                    currentValue.isEmpty ? '-' : currentValue,
+                    displayValue.isEmpty ? '-' : displayValue,
                     style: TextStyle(fontSize: 12, color: AppTheme.textPrimary),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -390,7 +498,7 @@ class _UnitRightPanelState extends State<UnitRightPanel> {
             width: controller.unitSystem.value == value ? 1.5 : 1,
           ),
           color: controller.unitSystem.value == value 
-              ? AppTheme.primaryColor.withOpacity(0.05)
+              ? AppTheme.primaryColor.withValues(alpha: 0.05)
               : Colors.white,
         ),
         child: InkWell(

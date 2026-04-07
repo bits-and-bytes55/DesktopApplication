@@ -5,6 +5,7 @@ import 'package:mudpro_desktop_app/modules/company_setup/model/products_model.da
 import 'package:mudpro_desktop_app/modules/daily_report/controller/inventory_snapshot_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/consume_product_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/inventory_store/inventory_store.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import '../../controller/operation_controller.dart';
 import '../../controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
@@ -612,9 +613,9 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
   }
 
   Widget _buildProductTable() {
-    const headers = [
+    final headers = [
       "Product", "Code", "SG", "Unit", "Price (\$)",
-      "Initial", "Adjust", "Used", "Final", "Cost (\$)", "Vol (bbl)", "",
+      "Initial", "Adjust", "Used", "Final", "Cost (\$)", "Vol ${AppUnits.displayUnit('6', fallback: '(bbl)')}", "",
     ];
 
     return Container(
@@ -679,9 +680,9 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     );
   }
 
-  bool _isRightCol(String h) => const {
-    'Price (\$)', 'Cost (\$)', 'Initial', 'Adjust', 'Used', 'Final', 'Vol (bbl)'
-  }.contains(h);
+  bool _isRightCol(String h) =>
+      const {'Price (\$)', 'Cost (\$)', 'Initial', 'Adjust', 'Used', 'Final'}.contains(h) ||
+      h.startsWith('Vol ');
 
   double _colWidth(String h) {
     switch (h) {
@@ -1008,7 +1009,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
           ),
           child: Row(children: [
             _distHeaderCell('Pit', 180),
-            _distHeaderCell('Vol (bbl)', 110, right: true),
+            _distHeaderCell('Vol ${AppUnits.displayUnit('6', fallback: '(bbl)')}', 110, right: true),
           ]),
         ),
 
@@ -1274,7 +1275,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                   borderRadius: const BorderRadius.only(
                       topRight: Radius.circular(3), bottomRight: Radius.circular(3)),
                 ),
-                child: Center(child: Text("bbl", style: AppTheme.bodySmall.copyWith(
+                child: Center(child: Text(AppUnits.stripBrackets(AppUnits.displayUnit('6', fallback: '(bbl)')), style: AppTheme.bodySmall.copyWith(
                     fontSize: 10, color: AppTheme.primaryColor,
                     fontWeight: FontWeight.w600))),
               ),
@@ -1329,7 +1330,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
             borderRadius: const BorderRadius.only(
                 topRight: Radius.circular(3), bottomRight: Radius.circular(3)),
           ),
-          child: Center(child: Text("bbl", style: AppTheme.bodySmall.copyWith(
+          child: Center(child: Text(AppUnits.stripBrackets(AppUnits.displayUnit('6', fallback: '(bbl)')), style: AppTheme.bodySmall.copyWith(
               fontSize: 10, color: AppTheme.primaryColor, fontWeight: FontWeight.w600))),
         ),
       ]),

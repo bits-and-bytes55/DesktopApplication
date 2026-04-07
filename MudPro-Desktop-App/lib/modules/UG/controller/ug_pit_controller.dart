@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/pit_model.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/options_controller.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
+import 'package:mudpro_desktop_app/modules/options/unit_sync_helpers.dart';
 
 // ── Transfer Mud Row Data ────
 class TransferRowData {
@@ -55,10 +58,23 @@ class PitController extends GetxController {
   final Set<String> modifiedPitIds = {};
   
   Timer? _debounceTimer;
+  OptionsController? _optionsController;
+  Worker? _unitSystemWorker;
+  Worker? _customUnitsWorker;
+  Map<String, String> _knownUnits = const {};
 
   @override
   void onInit() {
     super.onInit();
+    if (Get.isRegistered<OptionsController>()) {
+      _optionsController = Get.find<OptionsController>();
+      _knownUnits = _snapshotUnits();
+      _unitSystemWorker = ever(_optionsController!.unitSystem, (_) => _syncDisplayedUnits());
+      _customUnitsWorker = ever<Map<String, String>>(
+        _optionsController!.customUnits,
+        (_) => _syncDisplayedUnits(),
+      );
+    }
     // Use static well ID; override if passed via arguments
     currentWellId =
         Get.arguments?['wellId'] ?? kControllerWellId;
@@ -699,9 +715,178 @@ class PitController extends GetxController {
 
   @override
   void onClose() {
+    _unitSystemWorker?.dispose();
+    _customUnitsWorker?.dispose();
+    _debounceTimer?.cancel();
     for (var row in transferRows) {
       row.volumeController.dispose();
     }
+    for (final ctrls in activePitControllers.values) {
+      for (final controller in ctrls.values) {
+        controller.dispose();
+      }
+    }
     super.onClose();
   }
-}
+
+  Map<String, String> _snapshotUnits() {
+    return AppUnits.snapshotUnits(const ['6', '33']);
+  }
+
+  void _syncDisplayedUnits() {
+    final nextUnits = _snapshotUnits();
+    if (_knownUnits.isEmpty) {
+      _knownUnits = nextUnits;
+      return;
+    }
+
+    void convertPitLists(Iterable<PitModel> list) {
+      for (final pit in list) {
+        UnitSyncHelpers.convertRxDouble(
+          pit.capacity,
+          fromUnit: _knownUnits['6'] ?? '(bbl)',
+          toUnit: nextUnits['6'] ?? '(bbl)',
+        );
+        if (pit.volume != null) {
+          UnitSyncHelpers.convertRxDouble(
+            pit.volume!,
+            fromUnit: _knownUnits['6'] ?? '(bbl)',
+            toUnit: nextUnits['6'] ?? '(bbl)',
+          );
+        }
+        if (pit.density != null) {
+          UnitSyncHelpers.convertRxDouble(
+            pit.density!,
+            fromUnit: _knownUnits['33'] ?? '(ppg)',
+            toUnit: nextUnits['33'] ?? '(ppg)',
+          );
+        }
+      }
+    }
+
+    convertPitLists(pits);
+    convertPitLists(selectedPits);
+    convertPitLists(unselectedPits);
+
+    for (final ctrls in activePitControllers.values) {
+      final volumeCtrl = ctrls['volume'];
+      final densityCtrl = ctrls['density'];
+      if (volumeCtrl != null) {
+        UnitSyncHelpers.convertTextController(
+          volumeCtrl,
+          fromUnit: _knownUnits['6'] ?? '(bbl)',
+          toUnit: nextUnits['6'] ?? '(bbl)',
+        );
+      }
+      if (densityCtrl != null) {
+        UnitSyncHelpers.convertTextController(
+          densityCtrl,
+          fromUnit: _knownUnits['33'] ?? '(ppg)',
+          toUnit: nextUnits['33'] ?? '(ppg)',
+        );
+      }
+    }
+
+    for (final row in transferRows) {
+      row.volume = UnitSyncHelpers.convertRawText(
+        row.volume,
+        fromUnit: _knownUnits['6'] ?? '(bbl)',
+        toUnit: nextUnits['6'] ?? '(bbl)',
+      );
+      UnitSyncHelpers.convertTextController(
+        row.volumeController,
+        fromUnit: _knownUnits['6'] ?? '(bbl)',
+        toUnit: nextUnits['6'] ?? '(bbl)',
+      );
+    }
+
+    totalCapacity.value =
+        AppUnits.convertValue(
+          totalCapacity.value,
+          fromUnit: _knownUnits['6'] ?? '(bbl)',
+          toUnit: nextUnits['6'] ?? '(bbl)',
+        ) ??
+        totalCapacity.value;
+
+    _convertVolumeNameData(
+      _knownUnits['6'] ?? '(bbl)',
+      nextUnits['6'] ?? '(bbl)',
+      _knownUnits['33'] ?? '(ppg)',
+      nextUnits['33'] ?? '(ppg)',
+    );
+
+    pits.refresh();
+    selectedPits.refresh();
+    unselectedPits.refresh();
+    transferRows.refresh();
+    volumeNameData.refresh();
+    _knownUnits = nextUnits;
+  }
+
+  void _convertVolumeNameData(
+    String previousVolumeUnit,
+    String nextVolumeUnit,
+    String previousMudWeightUnit,
+    String nextMudWeightUnit,
+  ) {
+    if (volumeNameData.isEmpty) {
+      return;
+    }
+
+    void convertRowList(dynamic rows) {
+      if (rows is! List) {
+        return;
+      }
+      for (final row in rows) {
+        if (row is! Map) {
+          continue;
+        }
+        for (final key in ['volume', 'measuredVol', 'calculatedVol']) {
+          final raw = row[key]?.toString();
+          if (raw != null) {
+            row[key] = UnitSyncHelpers.convertRawText(
+              raw,
+              fromUnit: previousVolumeUnit,
+              toUnit: nextVolumeUnit,
+            );
+          }
+        }
+        final rawMw = row['mw']?.toString();
+        if (rawMw != null) {
+          row['mw'] = UnitSyncHelpers.convertRawText(
+            rawMw,
+            fromUnit: previousMudWeightUnit,
+            toUnit: nextMudWeightUnit,
+          );
+        }
+      }
+    }
+
+    convertRowList(volumeNameData['activePitsTable']);
+    convertRowList(volumeNameData['storageTable']);
+
+    final volumeName = volumeNameData['volumeName'];
+    if (volumeName is Map<String, dynamic>) {
+      for (final key in [
+        'heldVolDifference',
+        'hole',
+        'activePits',
+        'activeSystem',
+        'endVol',
+        'endVolMinusActiveSystem',
+        'totalStorage',
+        'totalOnLocation',
+      ]) {
+        final raw = volumeName[key]?.toString();
+        if (raw == null) {
+          continue;
+        }
+        volumeName[key] = UnitSyncHelpers.convertRawText(
+          raw,
+          fromUnit: previousVolumeUnit,
+          toUnit: nextVolumeUnit,
+        );
+      }
+    }
+  }
+}

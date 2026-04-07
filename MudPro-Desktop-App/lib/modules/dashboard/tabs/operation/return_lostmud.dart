@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/return_lostmud_controller.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class ReturnLostMudView extends StatelessWidget {
@@ -237,10 +238,10 @@ class ReturnLostMudView extends StatelessWidget {
             _buildEditableRow('To', controller.toController, ''),
             
             // Vol. Returned (Manual Input)
-            _buildEditableRow('Vol. Returned', controller.volReturnedController, '(bbl)'),
+            _buildEditableRow('Vol. Returned', controller.volReturnedController, AppUnits.displayUnit('6', fallback: '(bbl)')),
             
             // MW (Auto-filled from selected premixed)
-            _buildDisplayRow('MW', controller.mw.value, '(ppg)'),
+            _buildDisplayRow('MW', controller.mw.value, AppUnits.displayUnit('33', fallback: '(ppg)')),
             
             // Mud Type (Auto-filled from selected premixed)
             _buildDisplayRow('Mud Type', controller.mudType.value, ''),
@@ -249,7 +250,7 @@ class ReturnLostMudView extends StatelessWidget {
             _buildEditableRow('BOL', controller.bolController, ''),
             
             // Vol. Lost (Manual Input)
-            _buildEditableRow('Vol. Lost', controller.volLostController, '(bbl)'),
+            _buildEditableRow('Vol. Lost', controller.volLostController, AppUnits.displayUnit('6', fallback: '(bbl)')),
             
             // Cost of Lost (Pre-tax) (Manual Input)
             _buildEditableRow('Cost of Lost (Pre-tax)', controller.costOfLostController, '(\$)'),
