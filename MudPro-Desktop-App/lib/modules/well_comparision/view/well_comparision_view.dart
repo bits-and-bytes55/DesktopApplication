@@ -140,13 +140,24 @@ class WellComparisonPage extends StatelessWidget {
         
         // Pads List
         Expanded(
-          child: Obx(() => controller.pads.isEmpty
-              ? _emptyState()
-              : ListView.builder(
-                  padding: const EdgeInsets.all(8),
-                  itemCount: controller.pads.length,
-                  itemBuilder: (context, index) => _buildPadTile(controller.pads[index]),
-                )),
+          child: Obx(() {
+            if (controller.isLoading.value) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (controller.errorMessage.value.isNotEmpty) {
+              return _emptyState(
+                title: 'Failed to load backend pads',
+                subtitle: controller.errorMessage.value,
+              );
+            }
+            return controller.pads.isEmpty
+                ? _emptyState()
+                : ListView.builder(
+                    padding: const EdgeInsets.all(8),
+                    itemCount: controller.pads.length,
+                    itemBuilder: (context, index) => _buildPadTile(controller.pads[index]),
+                  );
+          }),
         ),
       ],
     );
@@ -166,10 +177,10 @@ class WellComparisonPage extends StatelessWidget {
         ],
       ),
       child: ElevatedButton.icon(
-        onPressed: controller.addDummyPad,
-        icon: Icon(Icons.add, size: 14, color: Colors.white),
+        onPressed: controller.refreshPads,
+        icon: Icon(Icons.refresh, size: 14, color: Colors.white),
         label: Text(
-          "Add Report",
+          "Refresh",
           style: AppTheme.caption.copyWith(
             color: Colors.white,
             fontWeight: FontWeight.w600,
@@ -184,7 +195,10 @@ class WellComparisonPage extends StatelessWidget {
     );
   }
 
-  Widget _emptyState() {
+  Widget _emptyState({
+    String title = 'No backend pads available',
+    String subtitle = "Click 'Refresh' to reload pads and wells from backend",
+  }) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -196,14 +210,14 @@ class WellComparisonPage extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            "No pads available",
+            title,
             style: AppTheme.bodySmall.copyWith(
               color: AppTheme.textSecondary,
             ),
           ),
           const SizedBox(height: 6),
           Text(
-            "Click 'Add Report' to add a new pad",
+            subtitle,
             style: AppTheme.caption.copyWith(
               color: Colors.grey.shade400,
             ),
@@ -455,7 +469,9 @@ class WellComparisonPage extends StatelessWidget {
                 DataCell(Text(
                   report.status,
                   style: _tableCellStyle().copyWith(
-                    color: report.status == "✔" ? AppTheme.successColor : AppTheme.warningColor,
+                    color: report.status.isEmpty
+                        ? AppTheme.textSecondary
+                        : AppTheme.successColor,
                     fontWeight: FontWeight.w600,
                   ),
                 )),

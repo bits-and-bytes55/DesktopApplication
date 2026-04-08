@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/pit_model.dart';
+import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
 class EmptyActiveSystemController extends GetxController {
   // Radio selection
@@ -18,7 +19,7 @@ class EmptyActiveSystemController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    currentWellId = Get.arguments?['wellId'] ?? 'UG-0293 ST';
+    currentWellId = Get.arguments?['wellId'] ?? currentBackendWellId;
     fetchUnselectedPits();
   }
 

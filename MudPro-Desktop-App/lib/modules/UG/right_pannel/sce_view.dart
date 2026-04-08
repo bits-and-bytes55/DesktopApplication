@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import '../controller/UG_controller.dart';
 import '../controller/sce_controller.dart';
 import '../model/sce_model.dart';
+import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class SceView extends StatefulWidget {
@@ -15,8 +16,8 @@ class SceView extends StatefulWidget {
 class _SceViewState extends State<SceView> {
   late final UgController ugController;
   late final SceController sceController;
-
-  static const String WELL_ID = '507f1f77bcf86cd799439011';
+  late final PadWellController padWellC;
+  Worker? _wellWorker;
 
   static const rowH = 32.0;
   static const headerH = 36.0;
@@ -43,10 +44,21 @@ class _SceViewState extends State<SceView> {
     sceController = Get.isRegistered<SceController>()
         ? Get.find<SceController>()
         : Get.put(SceController());
+    padWellC = padWellContext;
+    _wellWorker = ever<String>(padWellC.selectedWellId, (wellId) {
+      if (wellId.isNotEmpty) sceController.loadSceData(wellId);
+    });
     // ✅ Load data only once when the page is first shown — NOT on every rebuild
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      sceController.loadSceData(WELL_ID);
+      final wellId = padWellC.selectedWellId.value;
+      if (wellId.isNotEmpty) sceController.loadSceData(wellId);
     });
+  }
+
+  @override
+  void dispose() {
+    _wellWorker?.dispose();
+    super.dispose();
   }
 
   @override
@@ -592,7 +604,10 @@ class _SceViewState extends State<SceView> {
         return;
       }
 
-      await sceController.loadSceData(WELL_ID);
+      final wellId = padWellC.selectedWellId.value;
+      if (wellId.isNotEmpty) {
+        await sceController.loadSceData(wellId);
+      }
       if (context.mounted) _showAlert(context, 'All shakers saved successfully', isSuccess: true);
     } catch (e) {
       if (context.mounted) _showAlert(context, 'Failed to save shakers', isSuccess: false);
@@ -647,7 +662,10 @@ class _SceViewState extends State<SceView> {
         return;
       }
 
-      await sceController.loadSceData(WELL_ID);
+      final wellId = padWellC.selectedWellId.value;
+      if (wellId.isNotEmpty) {
+        await sceController.loadSceData(wellId);
+      }
       if (context.mounted) _showAlert(context, 'All equipment saved successfully', isSuccess: true);
     } catch (e) {
       if (context.mounted) _showAlert(context, 'Failed to save equipment', isSuccess: false);

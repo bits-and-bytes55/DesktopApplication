@@ -70,7 +70,20 @@ class PumpController {
   // GET ALL PUMPS
   async getPumps(req, res) {
     try {
-      const pumps = await Pump.find()
+      const filter = {};
+      const { wellId } = req.query;
+
+      if (wellId) {
+        if (!mongoose.Types.ObjectId.isValid(wellId)) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid well ID"
+          });
+        }
+        filter.wellId = wellId;
+      }
+
+      const pumps = await Pump.find(filter)
         .sort({ rowNumber: 1 })
         .lean();
 

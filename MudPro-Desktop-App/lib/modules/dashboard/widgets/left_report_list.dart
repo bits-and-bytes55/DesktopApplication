@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
+import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
+import 'package:mudpro_desktop_app/modules/well_context/pad_well_models.dart';
 
 class LeftReportTree extends StatelessWidget {
   LeftReportTree({super.key});
 
   final c = Get.find<DashboardController>();
+  final padWellC = padWellContext;
 
   @override
   Widget build(BuildContext context) {
@@ -63,16 +66,21 @@ class LeftReportTree extends StatelessWidget {
           // ───── UG HEADER ─────
           _clickableHeader(
             icon: Icons.account_tree,
-            text: 'UG',
-            id: 'UG',
+            text: 'Pads & Wells',
+            id: 'pads',
           ),
 
-          _clickableHeader(
-            icon: Icons.location_on,
-            text: 'UG-0293 ST',
-            id: 'UG-0293-ST',
-            indent: 24,
-          ),
+          Obx(() {
+            final wellId = padWellC.selectedWellId.value;
+            final wellName = padWellC.selectedWellName;
+            if (wellId.isEmpty || wellName.isEmpty) return const SizedBox.shrink();
+            return _clickableHeader(
+              icon: Icons.location_on,
+              text: wellName,
+              id: 'well:$wellId',
+              indent: 24,
+            );
+          }),
 
           // Divider with gradient
           Container(
@@ -93,13 +101,7 @@ class LeftReportTree extends StatelessWidget {
           Expanded(
             child: Container(
               margin: EdgeInsets.only(top: 4),
-              child: Obx(() => ListView.builder(
-                    padding: EdgeInsets.only(bottom: 16),
-                    itemCount: c.reportsTree.length,
-                    itemBuilder: (context, index) {
-                      return _buildDateNode(c.reportsTree[index]);
-                    },
-                  )),
+              child: Obx(_buildBackendPadWellList),
             ),
           ),
 
@@ -124,7 +126,7 @@ class LeftReportTree extends StatelessWidget {
                   ),
                   TextSpan(text: ' '),
                   TextSpan(
-                    text: "New report is only for active well.",
+                    text: "Pad/well list is loaded from backend only.",
                     style: TextStyle(
                       fontSize: 10,
                       color: AppTheme.textSecondary,
@@ -134,6 +136,183 @@ class LeftReportTree extends StatelessWidget {
                 ],
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBackendPadWellList() {
+    if (padWellC.isLoading.value) {
+      return Center(
+        child: SizedBox(
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: AppTheme.primaryColor,
+          ),
+        ),
+      );
+    }
+
+    if (padWellC.errorMessage.value.isNotEmpty) {
+      return _backendMessage(
+        Icons.cloud_off,
+        'Backend data load failed',
+        padWellC.errorMessage.value,
+      );
+    }
+
+    if (padWellC.pads.isEmpty) {
+      return _backendMessage(
+        Icons.folder_off,
+        'No backend pads',
+        'Create pads/wells in backend first, then refresh.',
+      );
+    }
+
+    return ListView.builder(
+      padding: EdgeInsets.only(bottom: 16),
+      itemCount: padWellC.pads.length,
+      itemBuilder: (context, index) => _buildBackendPadTile(padWellC.pads[index]),
+    );
+  }
+
+  Widget _buildBackendPadTile(AppPad pad) {
+    final wells = padWellC.wellsForPad(pad.id);
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.black.withOpacity(0.06)),
+      ),
+      child: ExpansionTile(
+        initiallyExpanded:
+            wells.any((well) => well.id == padWellC.selectedWellId.value),
+        tilePadding: EdgeInsets.symmetric(horizontal: 10),
+        childrenPadding: EdgeInsets.fromLTRB(8, 0, 8, 8),
+        leading: Icon(Icons.folder, size: 15, color: AppTheme.primaryColor),
+        title: Text(
+          pad.displayName,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: AppTheme.textPrimary,
+          ),
+        ),
+        subtitle: Text(
+          '${wells.length} ${wells.length == 1 ? 'well' : 'wells'}',
+          style: TextStyle(fontSize: 10, color: AppTheme.textSecondary),
+        ),
+        onExpansionChanged: (expanded) {
+          if (expanded) {
+            padWellC.selectPad(pad.id);
+            c.navigate('pad:${pad.id}');
+          }
+        },
+        children: wells.isEmpty
+            ? [
+                Padding(
+                  padding: EdgeInsets.all(8),
+                  child: Text(
+                    'No wells linked to this pad',
+                    style: TextStyle(fontSize: 10, color: AppTheme.textSecondary),
+                  ),
+                )
+              ]
+            : wells.map(_buildBackendWellRow).toList(),
+      ),
+    );
+  }
+
+  Widget _buildBackendWellRow(AppWell well) {
+    final id = 'well:${well.id}';
+    return Obx(() {
+      final selected = padWellC.selectedWellId.value == well.id ||
+          c.selectedNodeId.value == id;
+      return MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          onTap: () {
+            padWellC.selectWell(well.id);
+            c.navigate(id);
+          },
+          child: AnimatedContainer(
+            duration: Duration(milliseconds: 180),
+            margin: EdgeInsets.only(top: 4),
+            padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: selected
+                  ? AppTheme.primaryColor.withOpacity(0.12)
+                  : Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(
+                color: selected
+                    ? AppTheme.primaryColor.withOpacity(0.35)
+                    : Colors.transparent,
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.location_on,
+                  size: 13,
+                  color: selected ? AppTheme.primaryColor : AppTheme.textSecondary,
+                ),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    well.displayName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                      color: selected ? AppTheme.primaryColor : AppTheme.textPrimary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    });
+  }
+
+  Widget _backendMessage(IconData icon, String title, String subtitle) {
+    return Padding(
+      padding: EdgeInsets.all(16),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 34, color: Colors.grey.shade400),
+          SizedBox(height: 10),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: AppTheme.textPrimary,
+            ),
+          ),
+          SizedBox(height: 6),
+          Text(
+            subtitle,
+            textAlign: TextAlign.center,
+            maxLines: 8,
+            softWrap: true,
+            style: TextStyle(fontSize: 10, color: AppTheme.textSecondary),
+          ),
+          SizedBox(height: 12),
+          TextButton.icon(
+            onPressed: padWellC.reloadData,
+            icon: Icon(Icons.refresh, size: 14),
+            label: Text('Refresh'),
           ),
         ],
       ),

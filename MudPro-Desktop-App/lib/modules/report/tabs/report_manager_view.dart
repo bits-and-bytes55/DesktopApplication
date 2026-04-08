@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/report/controller/report_manager_controller.dart';
+import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class ReportManagerPage extends StatefulWidget {
@@ -12,10 +13,9 @@ class ReportManagerPage extends StatefulWidget {
 
 class _ReportManagerPageState extends State<ReportManagerPage> {
   final ReportManagerController rmC = Get.put(ReportManagerController());
+  final PadWellController padWellC = padWellContext;
 
   // ---------------- CURRENT WELL ----------------
-  String selectedWell = 'UG-0293 ST';
-  final wells = ['UG-0293 ST', 'UG-0451 ST', 'UG-0678 ST'];
 
   // ---------------- SEARCH CRITERIA ----------------
   final criteria = [
@@ -37,141 +37,7 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
   int? selectedRowIndex;
   bool hasSearched = false; // Track if search has been performed
 
-  // Dummy data matching the image
-  final List<Map<String, dynamic>> allReports = [
-    {
-      'date': '11/26/2025',
-      'report': 1,
-      'md': 2386.59,
-      'activity': 'Tipping',
-      'interval': 'Suspension',
-      'mud': 'Water-based',
-      'mw': 8.40,
-      'daily': 0.00,
-      'cum': 0.00,
-    },
-    {
-      'date': '11/27/2025',
-      'report': 2,
-      'md': 2386.59,
-      'activity': 'Tipping',
-      'interval': 'Suspension',
-      'mud': 'Water-based',
-      'mw': 8.40,
-      'daily': 0.00,
-      'cum': 0.00,
-    },
-    {
-      'date': '11/28/2025',
-      'report': 3,
-      'md': 2386.59,
-      'activity': 'Others',
-      'interval': 'Suspension',
-      'mud': 'Water-based',
-      'mw': 8.40,
-      'daily': 0.00,
-      'cum': 0.00,
-    },
-    {
-      'date': '11/29/2025',
-      'report': 4,
-      'md': 2390.55,
-      'activity': 'Others',
-      'interval': '8.5*hole',
-      'mud': 'Oil-based',
-      'mw': 10.70,
-      'daily': 0.00,
-      'cum': 0.00,
-    },
-    {
-      'date': '11/30/2025',
-      'report': 5,
-      'md': 2393.60,
-      'activity': 'Tipping',
-      'interval': '8.5*hole',
-      'mud': 'Oil-based',
-      'mw': 10.70,
-      'daily': 0.00,
-      'cum': 0.00,
-    },
-    {
-      'date': '12/1/2025',
-      'report': 6,
-      'md': 2407.92,
-      'activity': 'Drilling For...',
-      'interval': '8.5*hole',
-      'mud': 'Oil-based',
-      'mw': 10.80,
-      'daily': 0.00,
-      'cum': 0.00,
-    },
-    {
-      'date': '12/2/2025',
-      'report': 7,
-      'md': 2417.07,
-      'activity': 'Tipping',
-      'interval': '8.5*hole',
-      'mud': 'Oil-based',
-      'mw': 10.80,
-      'daily': 0.00,
-      'cum': 0.00,
-    },
-    {
-      'date': '12/3/2025',
-      'report': 8,
-      'md': 2691.39,
-      'activity': 'Drilling For...',
-      'interval': '8.5*hole',
-      'mud': 'Oil-based',
-      'mw': 10.90,
-      'daily': 0.00,
-      'cum': 0.00,
-    },
-    {
-      'date': '12/4/2025',
-      'report': 9,
-      'md': 2759.97,
-      'activity': 'Tipping',
-      'interval': '8.5*hole',
-      'mud': 'Oil-based',
-      'mw': 11.00,
-      'daily': 0.00,
-      'cum': 0.00,
-    },
-    {
-      'date': '12/5/2025',
-      'report': 10,
-      'md': 2759.97,
-      'activity': 'Circulation',
-      'interval': '8.5*hole',
-      'mud': 'Oil-based',
-      'mw': 11.00,
-      'daily': 0.00,
-      'cum': 0.00,
-    },
-    {
-      'date': '12/6/2025',
-      'report': 11,
-      'md': 2759.97,
-      'activity': 'Others',
-      'interval': '8.5*hole',
-      'mud': 'Oil-based',
-      'mw': 11.00,
-      'daily': 0.00,
-      'cum': 0.00,
-    },
-    {
-      'date': '12/7/2025',
-      'report': 12,
-      'md': 2759.97,
-      'activity': 'Drilling Ce...',
-      'interval': '8.5*hole',
-      'mud': 'Oil-based',
-      'mw': 11.00,
-      'daily': 0.00,
-      'cum': 0.00,
-    },
-  ];
+  final List<Map<String, dynamic>> allReports = const [];
 
   List<Map<String, dynamic>> filteredReports = [];
 
@@ -183,9 +49,8 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
       minCtrl[c] = TextEditingController();
       maxCtrl[c] = TextEditingController();
     }
-    // Initialize with dummy data
-    filteredReports = allReports.map((e) => Map<String, dynamic>.from(e)).toList();
-    hasSearched = true;
+    filteredReports = const [];
+    hasSearched = false;
   }
 
   @override
@@ -263,12 +128,18 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
       decoration: AppTheme.elevatedCardDecoration.copyWith(
         color: Colors.white,
       ),
-      child: Row(
+      child: Obx(() {
+        final selectedWellId = padWellC.selectedWellId.value;
+        final selectedWellName = padWellC.selectedWellName.isEmpty
+            ? 'No well selected'
+            : padWellC.selectedWellName;
+
+        return Row(
         children: [
           Icon(Icons.folder_open, size: 20, color: AppTheme.primaryColor),
           const SizedBox(width: 8),
           Text(
-            'Report Manager - $selectedWell',
+            'Report Manager - $selectedWellName',
             style: AppTheme.bodyLarge.copyWith(
               fontWeight: FontWeight.w600,
               color: AppTheme.primaryColor,
@@ -293,23 +164,31 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
               border: Border.all(color: Colors.grey.shade300),
             ),
             child: DropdownButton<String>(
-              value: selectedWell,
+              value: padWellC.wells.any((well) => well.id == selectedWellId)
+                  ? selectedWellId
+                  : null,
               underline: const SizedBox(),
               icon: Icon(Icons.arrow_drop_down, color: AppTheme.primaryColor),
               style: AppTheme.bodySmall.copyWith(color: AppTheme.textPrimary),
-              items: wells
-                  .map((e) => DropdownMenuItem(
-                        value: e,
-                        child: Text(e, style: AppTheme.bodySmall),
+              hint: Text('Select well', style: AppTheme.bodySmall),
+              items: padWellC.wells
+                  .map((well) => DropdownMenuItem(
+                        value: well.id,
+                        child: Text(well.displayName, style: AppTheme.bodySmall),
                       ))
                   .toList(),
-              onChanged: (v) => setState(() => selectedWell = v!),
+              onChanged: (v) {
+                if (v == null) return;
+                padWellC.selectWell(v);
+                setState(() => selectedRowIndex = null);
+              },
             ),
           ),
 
           const Spacer(),
         ],
-      )
+      );
+      })
     );
   }
 
@@ -869,14 +748,14 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
         minCtrl[k]!.clear();
         maxCtrl[k]!.clear();
       }
-      // Keep showing dummy data even after clear
-      hasSearched = true;
+      filteredReports.clear();
+      hasSearched = false;
     });
   }
 
   void _search() {
     setState(() {
-      // Always show dummy data when search is clicked
+      filteredReports = allReports.map((e) => Map<String, dynamic>.from(e)).toList();
       hasSearched = true;
       selectedRowIndex = null;
     });

@@ -1,12 +1,23 @@
 import 'package:get/get.dart';
+import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_comparision/model/well_comparision_model.dart';
 
 class WellComparisonController extends GetxController {
+  final PadWellController padWellC = padWellContext;
+
   // Left side pads + reports
   var pads = <PadModel>[].obs;
+  final isLoading = false.obs;
+  final errorMessage = ''.obs;
 
   // Right side comparison list
   var comparedReports = <ReportModel>[].obs;
+
+  @override
+  void onInit() {
+    super.onInit();
+    refreshPads();
+  }
 
   // Toggle checkbox
   void toggleReport(ReportModel report, bool selected) {
@@ -27,25 +38,40 @@ class WellComparisonController extends GetxController {
     comparedReports.remove(report);
   }
 
-  // Dummy add pad (later file picker) - Now adds only one report per pad
-  void addDummyPad() {
-    final padNumber = pads.length + 1;
-    
-    pads.add(
-      PadModel(
-        padName: "UN-${300 + padNumber}",
-        reports: [
-          ReportModel(
-            wellName: "TEST WELL ${padNumber}",
-            operator: "Big Find",
-            fieldBlock: "Big Find",
-            api: "${1703127115 + padNumber}",
-            rig: "528",
-            spudDate: "1/4/2022",
-            status: "✔",
-          ),
-        ].obs,
-      ),
-    );
+  Future<void> refreshPads() async {
+    isLoading.value = true;
+    errorMessage.value = '';
+    try {
+      await padWellC.reloadData();
+      pads.assignAll(
+        padWellC.pads.map((pad) {
+          final wells = padWellC.wellsForPad(pad.id);
+          return PadModel(
+            padName: pad.displayName,
+            reports: wells
+                .map(
+                  (well) => ReportModel(
+                    wellName: well.displayName,
+                    operator: pad.operator,
+                    fieldBlock: pad.fieldBlock,
+                    api: well.apiWellNo,
+                    rig: pad.rig,
+                    spudDate: well.spudDate,
+                    status: '',
+                  ),
+                )
+                .toList()
+                .obs,
+          );
+        }).toList(),
+      );
+      comparedReports.clear();
+    } catch (e) {
+      pads.clear();
+      comparedReports.clear();
+      errorMessage.value = e.toString();
+    } finally {
+      isLoading.value = false;
+    }
   }
 }

@@ -1,5 +1,6 @@
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
+import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
 enum OperationType {
   consumeServices,
@@ -31,8 +32,10 @@ class OperationController extends GetxController {
 
   Future<Map<String, dynamic>> saveAddWater() async {
     final authRepo = AuthRepository();
-    // Assuming kStaticWellId is available from common context or hardcoded as before
-    const String wellId = '67f1a2b3c4d5e6f7890a1111'; 
+    final wellId = currentBackendWellId;
+    if (wellId.isEmpty) {
+      return {'success': false, 'message': 'No backend well selected'};
+    }
 
     int successCount = 0;
     List<String> errors = [];

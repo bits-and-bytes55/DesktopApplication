@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_pit_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/pit_snapshot_Controller.dart';
+import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class PitSnapshotPage extends StatelessWidget {
@@ -73,10 +74,10 @@ class PitSnapshotPage extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text(
-            '*UG-0293 ST, Daily Report 1',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1E4A5F)),
-          ),
+          Obx(() => Text(
+                '*${padWellContext.selectedWellName.isEmpty ? 'No well selected' : padWellContext.selectedWellName}',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1E4A5F)),
+              )),
           Row(
             children: [
               Container(

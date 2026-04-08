@@ -5,6 +5,7 @@ import 'package:mudpro_desktop_app/modules/company_setup/model/service_model.dar
 import 'package:mudpro_desktop_app/modules/daily_report/controller/inventory_snapshot_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/consume_service_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/controller/ug_inventory_product_controller.dart';
+import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 import '../../controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
@@ -75,7 +76,8 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
   // ─────────────────────────────────────────────
   Future<void> _loadDropdownData() async {
     try {
-      const wellId = '507f1f77bcf86cd799439011';
+      final wellId = currentBackendWellId;
+      if (wellId.isEmpty) return;
       final pkgs = await InventoryProductsService.fetchPackages(wellId);
       final srvs = await InventoryProductsService.fetchServices(wellId);
       final engs = await InventoryProductsService.fetchEngineering(wellId);

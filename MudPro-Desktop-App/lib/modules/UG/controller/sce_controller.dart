@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
+import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 import '../model/sce_model.dart';
 import './UG_controller.dart';
 
@@ -31,7 +32,7 @@ class SceController extends GetxController {
   final _maxScreenCols = 8.obs;
   int get maxScreenCols => _maxScreenCols.value;
 
-  String? currentWellId = "507f1f77bcf86cd799439011";
+  String? currentWellId = currentBackendWellId.isEmpty ? null : currentBackendWellId;
 
   static const List<String> shakerLabels = [
     '1', '2', '3', '4', '5', '6', '7', '8', '9', '10',
@@ -54,7 +55,7 @@ class SceController extends GetxController {
     initializeEmptyShakers();
     initializeEmptyOtherSce();
     initializeOperationLists();
-    if (currentWellId != null) {
+    if (currentWellId != null && currentWellId!.isNotEmpty) {
       loadAvailableTypes(currentWellId!);
     }
   }

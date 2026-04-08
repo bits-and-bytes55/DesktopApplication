@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:mudpro_desktop_app/api_endpoint/api_endpoint.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart' show kControllerWellId;
+import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
 class WellGeneralController extends GetxController {
   final String baseUrl = ApiEndpoint.baseUrl;
@@ -43,6 +44,21 @@ class WellGeneralController extends GetxController {
   var nptTime = ''.obs;
   var nptCost = ''.obs;
   var depthDrilled = ''.obs;
+  Worker? _wellWorker;
+
+  @override
+  void onInit() {
+    super.onInit();
+    _wellWorker = ever<String>(padWellContext.selectedWellId, (_) {
+      fetchLatest();
+    });
+  }
+
+  @override
+  void onClose() {
+    _wellWorker?.dispose();
+    super.onClose();
+  }
 
   Map<String, String> get _headers => {
         'Content-Type': 'application/json',
@@ -118,6 +134,7 @@ class WellGeneralController extends GetxController {
 
   // ─── FETCH latest record ───────────────────────
   Future<void> fetchLatest() async {
+    if (kControllerWellId.isEmpty) return;
     isLoading.value = true;
     try {
       final response = await http.get(
@@ -144,6 +161,9 @@ print('WellGeneral fetch response: ${response.statusCode} ${response.body}');
 
   // ─── SAVE (create or update) ───────────────────
   Future<Map<String, dynamic>> save() async {
+    if (kControllerWellId.isEmpty) {
+      return {'success': false, 'message': 'No backend well selected'};
+    }
     isSaving.value = true;
     try {
       final authRepo = AuthRepository();

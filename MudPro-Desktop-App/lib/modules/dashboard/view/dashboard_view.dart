@@ -170,9 +170,10 @@ Obx(() {
             ),
           ),
           child: Obx(() {
-            if (c.selectedNodeId.value == 'UG') {
+            final selectedNode = c.selectedNodeId.value;
+            if (selectedNode == 'pads' || selectedNode.startsWith('pad:')) {
               return _buildAnimatedTransition(UGRightPanel());
-            } else if (c.selectedNodeId.value == 'UG-0293-ST') {
+            } else if (selectedNode.startsWith('well:')) {
               return _buildAnimatedTransition(RightPanel());
             } else {
               return _buildAnimatedTransition(

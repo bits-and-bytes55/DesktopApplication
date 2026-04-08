@@ -10,6 +10,7 @@ import 'package:mudpro_desktop_app/modules/dashboard/controller/well_general_con
 import 'package:mudpro_desktop_app/modules/dashboard/widgets/tabular_database.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/controller/UG_ST_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/model/UG_ST_model.dart';
+import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/cased_hole_controller.dart';
 
@@ -124,6 +125,7 @@ class _GeneralSectionState extends State<GeneralSection> {
   final wellGenCtrl  = Get.isRegistered<WellGeneralController>()
       ? Get.find<WellGeneralController>()
       : Get.put(WellGeneralController());
+  Worker? _wellWorker;
 
   List<String> activityOptions = [
     'Rig-up/Service','Drilling','Circulating','Tripping','Survey',
@@ -187,6 +189,7 @@ class _GeneralSectionState extends State<GeneralSection> {
     _fetchActivities();
     _fetchEngineers();
     _loadFromApi();
+    _wellWorker = ever<String>(padWellContext.selectedWellId, (_) => _loadFromApi());
   }
 
   Future<void> _fetchActivities() async {
@@ -293,7 +296,11 @@ class _GeneralSectionState extends State<GeneralSection> {
   }
 
   @override
-  void dispose() { fc.values.forEach((c) => c.dispose()); super.dispose(); }
+  void dispose() {
+    _wellWorker?.dispose();
+    fc.values.forEach((c) => c.dispose());
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -617,8 +624,10 @@ class _MiddlePortionState extends State<MiddlePortion> {
       const double cementRowH = 28.0;
       const double gap        = 2.0;
       const double bottomPad  = 4.0;
-      final double totalH     = bc.maxHeight - bottomPad;
-      final double flexH      = totalH - cementRowH - gap * 3;
+      final double availableHeight = bc.maxHeight.isFinite ? bc.maxHeight : 520.0;
+      final double totalH = availableHeight > bottomPad ? availableHeight - bottomPad : 0.0;
+      final double reserved = cementRowH + gap * 3;
+      final double flexH = totalH > reserved ? totalH - reserved : 0.0;
 
       return Padding(
         padding: const EdgeInsets.only(bottom: bottomPad),
@@ -1084,8 +1093,10 @@ class RightPortion extends StatelessWidget {
       const double cementRowH = 28.0;
       const double gap        = 2.0;
       const double bottomPad  = 4.0;
-      final double totalH     = bc.maxHeight - bottomPad;
-      final double flexH      = totalH - cementRowH - gap * 3;
+      final double availableHeight = bc.maxHeight.isFinite ? bc.maxHeight : 520.0;
+      final double totalH = availableHeight > bottomPad ? availableHeight - bottomPad : 0.0;
+      final double reserved = cementRowH + gap * 3;
+      final double flexH = totalH > reserved ? totalH - reserved : 0.0;
 
       return Padding(
         padding: const EdgeInsets.only(bottom: bottomPad),

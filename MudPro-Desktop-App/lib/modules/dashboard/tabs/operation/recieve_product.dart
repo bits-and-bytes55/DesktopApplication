@@ -6,6 +6,7 @@ import 'package:mudpro_desktop_app/modules/company_setup/model/products_model.da
 import 'package:mudpro_desktop_app/modules/company_setup/model/service_model.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/controller/ug_inventory_product_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/inventory_store/inventory_store.dart';
+import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 // ─── Row Models ───────────────────────────────────────────────
@@ -116,7 +117,8 @@ class _ReceiveProductViewState extends State<ReceiveProductView> {
 
   Future<void> _loadPackages() async {
     try {
-      const wellId = '507f1f77bcf86cd799439011';
+      final wellId = currentBackendWellId;
+      if (wellId.isEmpty) return;
       final inventoryPackages = await InventoryProductsService.fetchPackages(wellId);
       packages.value = inventoryPackages;
     } catch (e) {

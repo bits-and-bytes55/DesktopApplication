@@ -93,21 +93,19 @@ app.use(express.json());
 const uploadsDir = path.join(__dirname, "uploads", "company-logos");
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
-
-  // Global error handling middleware
-app.use((err, req, res, next) => {
-  console.error('Global error handler:', err);
-  res.status(500).json({
-    success: false,
-    message: 'Internal server error',
-    error: process.env.NODE_ENV === 'development' ? err.message : undefined
-  });
-});
-
 }
 
 // 🔹 Serve static files
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
+app.get("/api/health", (req, res) => {
+  res.status(200).json({
+    success: true,
+    status: "ok",
+    service: "mudpro_backend",
+    timestamp: new Date().toISOString(),
+  });
+});
 
 app.use("/api/engineers", engineerRoutes);
 app.use("/api/company", companyRoutes);

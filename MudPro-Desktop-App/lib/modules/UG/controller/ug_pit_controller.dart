@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/pit_model.dart';
+import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
 // ── Transfer Mud Row Data ────
 class TransferRowData {
@@ -24,8 +25,7 @@ class TransferRowData {
   }
 }
 
-// Static well ID
-const String kControllerWellId = '67f1a2b3c4d5e6f7890a1111';
+String get kControllerWellId => currentBackendWellId;
 
 class PitController extends GetxController {
   final isLoading = false.obs;
@@ -54,13 +54,22 @@ class PitController extends GetxController {
   final Set<String> modifiedPitIds = {};
   
   Timer? _debounceTimer;
+  Worker? _wellWorker;
+
+  bool get _hasWellId => currentWellId != null && currentWellId!.isNotEmpty;
 
   @override
   void onInit() {
     super.onInit();
-    // Use static well ID; override if passed via arguments
     currentWellId =
         Get.arguments?['wellId'] ?? kControllerWellId;
+    _wellWorker = ever<String>(padWellContext.selectedWellId, (wellId) {
+      if (wellId.isEmpty || wellId == currentWellId) return;
+      currentWellId = wellId;
+      fetchAllPits();
+      fetchVolumeNameData();
+      fetchTransferMud();
+    });
     fetchAllPits();
     fetchVolumeNameData();
     // Initialize Transfer Mud
@@ -79,7 +88,7 @@ class PitController extends GetxController {
   // ================= FETCH OPERATIONS =================
 
   Future<void> fetchAllPits() async {
-    if (currentWellId == null) {
+    if (!_hasWellId) {
       _showAlert('Well ID is required', isError: true);
       return;
     }
@@ -123,7 +132,7 @@ class PitController extends GetxController {
   }
 
   Future<void> fetchSelectedPits() async {
-    if (currentWellId == null) return;
+    if (!_hasWellId) return;
 
     try {
       final authRepo = AuthRepository();
@@ -147,7 +156,7 @@ class PitController extends GetxController {
   }
 
   Future<void> fetchUnselectedPits() async {
-    if (currentWellId == null) return;
+    if (!_hasWellId) return;
 
     try {
       final authRepo = AuthRepository();
@@ -175,7 +184,7 @@ class PitController extends GetxController {
   // ================= BULK SAVE NEW PITS =================
 
   Future<void> bulkSavePits() async {
-    if (currentWellId == null) {
+    if (!_hasWellId) {
       _showAlert('Well ID is required', isError: true);
       return;
     }
@@ -268,8 +277,8 @@ class PitController extends GetxController {
       final result = await authRepo.updatePit(
         id: pitId,
         pitName: pitModel?.pitName,
-        capacity: pitModel?.capacity?.value,
-        initialActive: pitModel?.initialActive?.value,
+        capacity: pitModel?.capacity.value,
+        initialActive: pitModel?.initialActive.value,
         volume: volume,
         density: density,
         fluidType: fluidType,
@@ -311,8 +320,8 @@ class PitController extends GetxController {
         volume: volume,
         density: density,
         fluidType: fluidType,
-        capacity: pitModel?.capacity?.value ?? 0,
-        initialActive: pitModel?.initialActive?.value ?? true,
+        capacity: pitModel?.capacity.value ?? 0,
+        initialActive: pitModel?.initialActive.value ?? true,
       );
       if (result['success'] == true) {
         // Update local model
@@ -336,7 +345,7 @@ class PitController extends GetxController {
 
   // ================= NEW VOLUME NAME & SAVE DATA =================
   Future<void> fetchVolumeNameData() async {
-    if (currentWellId == null) return;
+    if (!_hasWellId) return;
     isLoadingVolume.value = true;
     try {
       final authRepo = AuthRepository();
@@ -414,8 +423,8 @@ class PitController extends GetxController {
           volume: double.tryParse(ctrls['volume']!.text) ?? 0,
           density: double.tryParse(ctrls['density']!.text) ?? 0,
           fluidType: ctrls['fluidType']!.text,
-          capacity: pitModel?.capacity?.value ?? 0,
-          initialActive: pitModel?.initialActive?.value ?? true,
+          capacity: pitModel?.capacity.value ?? 0,
+          initialActive: pitModel?.initialActive.value ?? true,
         );
 
         if (result['success'] == true) {
@@ -588,7 +597,7 @@ class PitController extends GetxController {
   // ================= TRANSFER MUD OPERATIONS =================
 
   Future<void> fetchTransferMud() async {
-    if (currentWellId == null) return;
+    if (!_hasWellId) return;
     isLoadingTransfer.value = true;
     try {
       final authRepo = AuthRepository();
@@ -596,15 +605,29 @@ class PitController extends GetxController {
       if (result['success'] == true) {
         final List data = result['data'] is List ? result['data'] : (result['data']['data'] ?? []);
         
-        for (var r in transferRows) r.volumeController.dispose();
+        for (var r in transferRows) {
+          r.volumeController.dispose();
+        }
         transferRows.clear();
 
         for (var item in data) {
-          transferRows.add(TransferRowData(
-            pitName: item['pitName']?.toString() ?? '',
-            volume: item['volumeBbl']?.toString() ?? '',
-            savedId: item['_id']?.toString(),
-          ));
+          final transfers = (item['transfers'] as List? ?? []);
+          if (transfers.isEmpty) {
+            transferRows.add(TransferRowData(
+              pitName: '',
+              volume: '',
+              savedId: item['_id']?.toString(),
+            ));
+            continue;
+          }
+
+          for (final transfer in transfers) {
+            transferRows.add(TransferRowData(
+              pitName: transfer['pitName']?.toString() ?? '',
+              volume: transfer['volume']?.toString() ?? '',
+              savedId: item['_id']?.toString(),
+            ));
+          }
         }
 
         while (transferRows.length < 5) {
@@ -620,12 +643,9 @@ class PitController extends GetxController {
   }
 
   Future<Map<String, dynamic>> saveTransferMud() async {
-    if (currentWellId == null) return {'success': false, 'message': 'Well ID missing'};
+    if (!_hasWellId) return {'success': false, 'message': 'Well ID missing'};
 
     final authRepo = AuthRepository();
-    int successCount = 0;
-    int failCount = 0;
-
     final unsavedRows = transferRows.where((r) => r.pitName.isNotEmpty && r.savedId == null).toList();
 
     if (unsavedRows.isEmpty) {
@@ -633,32 +653,36 @@ class PitController extends GetxController {
     }
 
     try {
-      final payload = {
-        'wellId': currentWellId!,
-        'from': selectedFromPit.value,
-        'transfers': unsavedRows.map((r) => r.toTransferMap(notTreatedMud.value)).toList(),
-      };
-      
-      final result = await authRepo.createTransferMud(currentWellId!, payload);
-      
-      if (result['success'] == true) {
-        // Mark all as saved - bulk success
-        // Note: Backend ideally returns the new transfers with IDs
-        // If not, we just mark them locally saved so we don't save twice.
-        for (var row in unsavedRows) {
-          row.savedId = "SAVED_${DateTime.now().millisecondsSinceEpoch}";
+      int successCount = 0;
+      final List<String> errors = [];
+
+      for (final row in unsavedRows) {
+        final payload = {
+          'wellId': currentWellId!,
+          'from': selectedFromPit.value,
+          'transfers': [row.toTransferMap(notTreatedMud.value)],
+        };
+
+        final result = await authRepo.createTransferMud(currentWellId!, payload);
+
+        if (result['success'] == true) {
+          final saved = result['data'];
+          row.savedId = saved is Map ? saved['_id']?.toString() : null;
+          successCount++;
+        } else {
+          errors.add(result['message']?.toString() ?? 'Unknown transfer error');
         }
-        transferRows.refresh();
-        return {
-          'success': true, 
-          'message': 'Saved ${unsavedRows.length} transfers successfully'
-        };
-      } else {
-        return {
-          'success': false, 
-          'message': result['message'] ?? 'Failed to save transfers'
-        };
       }
+
+      transferRows.refresh();
+
+      return {
+        'success': errors.isEmpty,
+        'message': errors.isEmpty
+            ? 'Saved $successCount transfers successfully'
+            : 'Saved $successCount transfers, ${errors.length} failed',
+        if (errors.isNotEmpty) 'errors': errors,
+      };
     } catch (e) {
       debugPrint('Error saving transfer mud batch: $e');
       return {'success': false, 'message': 'Error: $e'};
@@ -670,9 +694,14 @@ class PitController extends GetxController {
 
     final row = transferRows[index];
     if (row.savedId != null) {
+      if (!_hasWellId) {
+        _showAlert('Well ID missing', isError: true);
+        return;
+      }
       try {
         final authRepo = AuthRepository();
-        final res = await authRepo.deleteTransferMud(row.savedId!);
+        final res =
+            await authRepo.deleteTransferMud(currentWellId!, row.savedId!);
         if (res['success'] != true) {
           _showAlert('Failed to delete transfer: ${res['message']}', isError: true);
           return;
@@ -703,9 +732,10 @@ class PitController extends GetxController {
 
   @override
   void onClose() {
+    _wellWorker?.dispose();
     for (var row in transferRows) {
       row.volumeController.dispose();
     }
     super.onClose();
   }
-}
+}

@@ -6,6 +6,7 @@ import 'package:get/get_state_manager/src/simple/get_controllers.dart';
 import 'package:mudpro_desktop_app/api_endpoint/api_endpoint.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/model/UG_ST_model.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/UG_controller.dart';
+import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class UgStController extends GetxController {
@@ -13,12 +14,19 @@ class UgStController extends GetxController {
   var selectedWellId = Rx<String?>(null);
   var isLocked = true.obs;
   var isLoading = false.obs;
+  Worker? _selectedWellWorker;
 
   final casingVerticalScroll = ScrollController();
   final casingHorizontalScroll = ScrollController();
 
   @override
   void onInit() {
+    final context = padWellContext;
+    selectedWellId.value =
+        context.selectedWellId.value.isEmpty ? null : context.selectedWellId.value;
+    _selectedWellWorker = ever<String>(context.selectedWellId, (wellId) {
+      selectedWellId.value = wellId.isEmpty ? null : wellId;
+    });
     fetchCasings();
     super.onInit();
   }
@@ -27,6 +35,7 @@ class UgStController extends GetxController {
   void onClose() {
     casingVerticalScroll.dispose();
     casingHorizontalScroll.dispose();
+    _selectedWellWorker?.dispose();
     super.onClose();
   }
 
@@ -113,13 +122,7 @@ class UgStController extends GetxController {
 
 
   // Interval list
-  final intervals = <String>[
-    'UG-0293 ST',
-    'New Interval (2)',
-    'New Interval (1)',
-    'Suspension',
-    '8.5" Hole',
-  ].obs;
+  final intervals = <String>[].obs;
 
 
   final sectionData = [

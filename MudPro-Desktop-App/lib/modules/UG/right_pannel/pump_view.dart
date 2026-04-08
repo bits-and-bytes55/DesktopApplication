@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/pump_model.dart';
 import '../controller/pump_controller.dart';
 import '../controller/UG_controller.dart';
+import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class PumpView extends StatefulWidget {
@@ -15,12 +16,18 @@ class PumpView extends StatefulWidget {
 class _PumpViewState extends State<PumpView> {
   late final UgController ugController;
   late final PumpController pumpController;
+  late final PadWellController padWellC;
+  Worker? _wellWorker;
 
   @override
   void initState() {
     super.initState();
     ugController = Get.find<UgController>();
     pumpController = Get.put(PumpController());
+    padWellC = padWellContext;
+    _wellWorker = ever<String>(padWellC.selectedWellId, (wellId) {
+      if (wellId.isNotEmpty) pumpController.setWellId(wellId);
+    });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadPumpsIfNeeded();
@@ -28,7 +35,7 @@ class _PumpViewState extends State<PumpView> {
   }
 
   void _loadPumpsIfNeeded() {
-    const String wellId = '507f1f77bcf86cd799439011';
+    final wellId = padWellC.selectedWellId.value;
     if (wellId.isNotEmpty) {
       pumpController.setWellId(wellId);
     } else {
@@ -37,6 +44,12 @@ class _PumpViewState extends State<PumpView> {
           backgroundColor: Colors.red,
           colorText: Colors.white);
     }
+  }
+
+  @override
+  void dispose() {
+    _wellWorker?.dispose();
+    super.dispose();
   }
 
   void _showAlert(String message, {bool isSuccess = true}) {

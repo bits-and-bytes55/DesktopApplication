@@ -6,6 +6,7 @@ import 'package:mudpro_desktop_app/api_endpoint/api_endpoint.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/model/UG_ST_model.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart' show kControllerWellId;
+import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
 class CasedHoleEntry {
   final String? id;
@@ -63,6 +64,7 @@ class CasedHoleUIController extends GetxController {
   var entries = <CasedHoleEntry>[].obs;
   var isLoading = false.obs;
   var isSaving = false.obs;
+  Worker? _wellWorker;
 
   Map<String, String> get _headers => {
         'Content-Type': 'application/json',
@@ -73,6 +75,9 @@ class CasedHoleUIController extends GetxController {
   void onInit() {
     super.onInit();
     _initEmptyRows();
+    _wellWorker = ever<String>(padWellContext.selectedWellId, (_) {
+      fetchTableCasings();
+    });
   }
 
   void _initEmptyRows() {
@@ -156,6 +161,7 @@ class CasedHoleUIController extends GetxController {
   }
 
   Future<void> fetchTableCasings() async {
+     if (kControllerWellId.isEmpty) return;
      isLoading.value = true;
      try {
        final response = await http.get(Uri.parse('${baseUrl}casing'), headers: _headers);
@@ -202,6 +208,9 @@ class CasedHoleUIController extends GetxController {
   }
 
   Future<Map<String, dynamic>> saveAll() async {
+    if (kControllerWellId.isEmpty) {
+      return {'success': false, 'message': 'No backend well selected'};
+    }
     isSaving.value = true;
     final List<String> errors = [];
     int successCount = 0;
@@ -267,6 +276,7 @@ class CasedHoleUIController extends GetxController {
 
   @override
   void onClose() {
+    _wellWorker?.dispose();
     for (final e in entries) e.dispose();
     super.onClose();
   }

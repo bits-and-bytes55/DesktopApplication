@@ -10,12 +10,12 @@ import 'package:mudpro_desktop_app/modules/UG/model/pump_model.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/sce_model.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/controller/service_controller.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/model/products_model.dart';
+import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
 class UgController extends GetxController {
   final AuthRepository repository = AuthRepository();
   
-  // Replace with actual well ID logic later
-  String get wellId => '507f1f77bcf86cd799439011';
+  String get wellId => currentBackendWellId;
 
   // Right panel main tab
   final activeRightTab = 'pad'.obs;
@@ -444,6 +444,11 @@ final services = <ServiceModel>[
 
   // ================= SAVE INVENTORY =================
   Future<Map<String, dynamic>> saveInventory() async {
+    final activeWellId = wellId;
+    if (activeWellId.isEmpty) {
+      return {'success': false, 'message': 'No backend well selected'};
+    }
+
     final List<String> successMessages = [];
     final List<String> errorMessages = [];
 
@@ -462,7 +467,7 @@ final services = <ServiceModel>[
       );
 
       try {
-        await repository.createPremixed(wellId, newPremixed);
+        await repository.createPremixed(activeWellId, newPremixed);
         
         premixedDescController.clear();
         premixedMwController.clear();
@@ -492,7 +497,7 @@ final services = <ServiceModel>[
       );
 
       try {
-        await repository.createObm(wellId, newObm);
+        await repository.createObm(activeWellId, newObm);
 
         obmProductController.clear();
         obmCodeController.clear();
@@ -515,7 +520,7 @@ final services = <ServiceModel>[
 
     if (successMessages.isNotEmpty) {
       // FORCE A FRESH LOAD FROM API
-      await loadInventoryData(wellId);
+      await loadInventoryData(activeWellId);
       
       return {
         'success': true, 

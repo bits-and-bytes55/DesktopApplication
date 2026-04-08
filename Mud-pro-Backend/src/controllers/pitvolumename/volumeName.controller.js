@@ -224,6 +224,96 @@ export const createConsumeProduct = async (req, res) => {
   }
 };
 
+// ------------------ SAVE / UPDATE PIT VOLUME DATA ------------------
+export const createPit = async (req, res) => {
+  try {
+    const wellId = getWellId(req);
+    const {
+      id,
+      pitName,
+      volume,
+      density,
+      fluidType,
+      capacity,
+      initialActive,
+    } = req.body;
+
+    if (!wellId) {
+      return res.status(400).json({
+        success: false,
+        message: "wellId is required",
+      });
+    }
+
+    const safePitName = String(pitName || "").trim();
+    if (!safePitName) {
+      return res.status(400).json({
+        success: false,
+        message: "pitName is required",
+      });
+    }
+
+    let pit = null;
+
+    if (id) {
+      pit = await Pit.findOne({ _id: id, wellId });
+    }
+
+    if (!pit) {
+      pit = await Pit.findOne({ wellId, pitName: safePitName });
+    }
+
+    const isUpdate = Boolean(pit);
+
+    if (!pit) {
+      pit = new Pit({
+        wellId,
+        pitName: safePitName,
+        capacity: toNumber(capacity),
+        initialActive: initialActive === true,
+      });
+    }
+
+    pit.pitName = safePitName;
+
+    if (capacity !== undefined) {
+      pit.capacity = toNumber(capacity);
+    }
+
+    if (initialActive !== undefined) {
+      pit.initialActive = initialActive === true;
+    }
+
+    if (volume !== undefined) {
+      pit.volume = toNumber(volume);
+    }
+
+    if (density !== undefined) {
+      pit.density = toNumber(density);
+    }
+
+    if (fluidType !== undefined) {
+      pit.fluidType = String(fluidType || "").trim();
+    }
+
+    await pit.save();
+
+    return res.status(isUpdate ? 200 : 201).json({
+      success: true,
+      message: isUpdate
+        ? "Pit volume data updated successfully"
+        : "Pit volume data created successfully",
+      data: pit,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to save pit volume data",
+      error: error.message,
+    });
+  }
+};
+
 
 // ------------------ GET VOLUME NAME ------------------
 export const getVolumeNameCalculation = async (req, res) => {

@@ -19,7 +19,7 @@ class UnitSystemApiService {
   Future<UnitSystemListResponse> fetchAll() async {
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl/api/unitsystems'),
+        Uri.parse('$baseUrl${ApiEndpoint.unitSystems}'),
         headers: _headers,
       );
 
@@ -54,7 +54,7 @@ class UnitSystemApiService {
   }) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/api/unitsystems'),
+        Uri.parse('$baseUrl${ApiEndpoint.unitSystems}'),
         headers: _headers,
         body: jsonEncode({
           'name': name,
@@ -88,7 +88,7 @@ class UnitSystemApiService {
   }) async {
     try {
       final response = await http.put(
-        Uri.parse('$baseUrl/api/unitsystems/$id'),
+        Uri.parse('$baseUrl${ApiEndpoint.unitSystems}/$id'),
         headers: _headers,
         body: jsonEncode({'parameters': parameters}),
       );
@@ -120,7 +120,7 @@ class UnitSystemApiService {
   }) async {
     try {
       final response = await http.patch(
-        Uri.parse('$baseUrl/api/unitsystems/$systemId/parameter/$paramNumber'),
+        Uri.parse('$baseUrl${ApiEndpoint.unitSystems}/$systemId/parameter/$paramNumber'),
         headers: _headers,
         body: jsonEncode({'unit': unit}),
       );
@@ -135,7 +135,7 @@ class UnitSystemApiService {
   Future<bool> delete(String id) async {
     try {
       final response = await http.delete(
-        Uri.parse('$baseUrl/api/unitsystems/$id'),
+        Uri.parse('$baseUrl${ApiEndpoint.unitSystems}/$id'),
         headers: _headers,
       );
       return response.statusCode == 200;
@@ -149,7 +149,7 @@ class UnitSystemApiService {
   Future<UnitSystemListResponse> seedDefaultSystems() async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/api/unitsystems/seed-defaults'),
+        Uri.parse('$baseUrl${ApiEndpoint.seedUnitSystems}'),
         headers: _headers,
       );
 

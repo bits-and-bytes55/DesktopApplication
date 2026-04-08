@@ -9,7 +9,7 @@ class HealthService {
     try {
       final response = await http
           .get(
-            Uri.parse("${ApiEndpoint.baseUrl}/api/health"),
+            Uri.parse("${ApiEndpoint.baseUrl}health"),
           )
           .timeout(const Duration(seconds: 5));
 

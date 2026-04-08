@@ -1,5 +1,17 @@
+import mongoose from "mongoose";
 import Pad from "../../modules/pad/pad.model.js";
 import Well from "../../modules/well/well.model.js";
+
+const toNumber = (value) => {
+  if (value === null || value === undefined || value === "") return 0;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const toText = (value) => String(value ?? "").trim();
+
+const escapeRegex = (value) =>
+  String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 export const createWell = async (req, res) => {
   try {
@@ -33,15 +45,15 @@ export const createWell = async (req, res) => {
 
     const well = await Well.create({
       padId,
-      wellNameNo: wellNameNo.trim(),
-      apiWellNo: apiWellNo || "",
-      spudDate: spudDate || "",
-      sectionTownshipRange: sectionTownshipRange || "",
-      longitude: longitude || "",
-      latitude: latitude || "",
-      kop: Number(kop) || 0,
-      lp: Number(lp) || 0,
-      bulkTankSetupFee: Number(bulkTankSetupFee) || 0,
+      wellNameNo: toText(wellNameNo),
+      apiWellNo: toText(apiWellNo),
+      spudDate: toText(spudDate),
+      sectionTownshipRange: toText(sectionTownshipRange),
+      longitude: toText(longitude),
+      latitude: toText(latitude),
+      kop: toNumber(kop),
+      lp: toNumber(lp),
+      bulkTankSetupFee: toNumber(bulkTankSetupFee),
     });
 
     return res.status(201).json({
@@ -53,6 +65,52 @@ export const createWell = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to create well",
+      error: error.message,
+    });
+  }
+};
+
+export const getAllWells = async (req, res) => {
+  try {
+    const { padId = "", search = "", includePad = "false" } = req.query;
+    const filter = {};
+
+    if (padId) {
+      if (!mongoose.Types.ObjectId.isValid(padId)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid padId",
+        });
+      }
+      filter.padId = padId;
+    }
+
+    const trimmedSearch = String(search).trim();
+    if (trimmedSearch) {
+      const regex = { $regex: escapeRegex(trimmedSearch), $options: "i" };
+      filter.$or = [
+        { wellNameNo: regex },
+        { apiWellNo: regex },
+        { sectionTownshipRange: regex },
+      ];
+    }
+
+    let query = Well.find(filter).sort({ createdAt: -1 });
+    if (includePad === "true") {
+      query = query.populate("padId");
+    }
+
+    const wells = await query;
+
+    return res.status(200).json({
+      success: true,
+      count: wells.length,
+      data: wells,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch wells",
       error: error.message,
     });
   }
@@ -117,21 +175,42 @@ export const updateWell = async (req, res) => {
       kop,
       lp,
       bulkTankSetupFee,
+      padId,
     } = req.body;
+
+    if (padId !== undefined) {
+      if (!mongoose.Types.ObjectId.isValid(padId)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid padId",
+        });
+      }
+
+      const padExists = await Pad.findById(padId);
+      if (!padExists) {
+        return res.status(404).json({
+          success: false,
+          message: "Pad not found",
+        });
+      }
+    }
 
     const updatedWell = await Well.findByIdAndUpdate(
       id,
       {
-        ...(wellNameNo !== undefined && { wellNameNo: wellNameNo.trim() }),
-        ...(apiWellNo !== undefined && { apiWellNo }),
-        ...(spudDate !== undefined && { spudDate }),
-        ...(sectionTownshipRange !== undefined && { sectionTownshipRange }),
-        ...(longitude !== undefined && { longitude }),
-        ...(latitude !== undefined && { latitude }),
-        ...(kop !== undefined && { kop: Number(kop) || 0 }),
-        ...(lp !== undefined && { lp: Number(lp) || 0 }),
+        ...(padId !== undefined && { padId }),
+        ...(wellNameNo !== undefined && { wellNameNo: toText(wellNameNo) }),
+        ...(apiWellNo !== undefined && { apiWellNo: toText(apiWellNo) }),
+        ...(spudDate !== undefined && { spudDate: toText(spudDate) }),
+        ...(sectionTownshipRange !== undefined && {
+          sectionTownshipRange: toText(sectionTownshipRange),
+        }),
+        ...(longitude !== undefined && { longitude: toText(longitude) }),
+        ...(latitude !== undefined && { latitude: toText(latitude) }),
+        ...(kop !== undefined && { kop: toNumber(kop) }),
+        ...(lp !== undefined && { lp: toNumber(lp) }),
         ...(bulkTankSetupFee !== undefined && {
-          bulkTankSetupFee: Number(bulkTankSetupFee) || 0,
+          bulkTankSetupFee: toNumber(bulkTankSetupFee),
         }),
       },
       { new: true }

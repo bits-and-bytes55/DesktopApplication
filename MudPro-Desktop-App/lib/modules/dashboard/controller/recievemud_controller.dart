@@ -5,6 +5,7 @@ import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/inventory_model.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/pit_model.dart';
+import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
 class ReceiveMudController extends GetxController {
   final AuthRepository _repository = AuthRepository();
@@ -49,7 +50,7 @@ class ReceiveMudController extends GetxController {
   bool _isProgrammaticUpdate = false;
 
   // Well ID 
-  String get wellId => '507f1f77bcf86cd799439011';
+  String get wellId => currentBackendWellId;
   
   @override
   void onInit() {
@@ -97,6 +98,8 @@ class ReceiveMudController extends GetxController {
   }
 
   Future<void> _autoSaveReceiveMud() async {
+    if (wellId.isEmpty) return;
+
     // If the core fields are removed, consider it a DELETE action
     if (selectedPremixed.value == null && 
         selectedToDestination.value.isEmpty && 
@@ -177,6 +180,7 @@ class ReceiveMudController extends GetxController {
   // ================= GET RECEIVE MUD LIST =================
   
   Future<void> _loadReceiveMudData() async {
+    if (wellId.isEmpty) return;
     try {
       final res = await _repository.getReceiveMudList(wellId);
       if (res['success'] == true && res['data'] != null) {
@@ -220,6 +224,7 @@ class ReceiveMudController extends GetxController {
   // ================= LOAD PREMIXED MUD =================
   
   Future<void> _loadPremixedMud() async {
+    if (wellId.isEmpty) return;
     try {
       final result = await _repository.getPremixed(wellId);
       premixedList.value = result;
@@ -353,4 +358,4 @@ class ReceiveMudController extends GetxController {
       ),
     );
   }
-}
+}

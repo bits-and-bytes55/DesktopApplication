@@ -3,7 +3,7 @@ import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/inventory_model.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/pit_model.dart';
-import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
+import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
 class ReturnLostMudController extends GetxController {
   final AuthRepository _repository = AuthRepository();
@@ -41,8 +41,7 @@ class ReturnLostMudController extends GetxController {
   final mw = ''.obs;
   final mudType = ''.obs;
   
-  // Get wellId from DashboardController
-  String? get wellId => "507f1f77bcf86cd799439011"; // Fallback
+  String? get wellId => currentBackendWellId.isEmpty ? null : currentBackendWellId;
    
   
   @override
@@ -204,7 +203,7 @@ class ReturnLostMudController extends GetxController {
   
   Future<void> saveReturnLostMud() async {
     // Validation
-    if (isPremixedMud.value && selectedPremixed.value == null) {
+    if (selectedPremixed.value == null) {
       _showToast('Please select Premixed Mud', isError: true);
       return;
     }
@@ -235,27 +234,25 @@ class ReturnLostMudController extends GetxController {
     try {
       // Prepare data
       final data = {
-        'isPremixedMud': isPremixedMud.value,
-        'premixedMudId': isPremixedMud.value ? selectedPremixed.value?.id : null,
-        'fromPitId': selectedPit.value!.id,
+        'premixedMud': selectedPremixed.value?.description ?? '',
+        'from': selectedPit.value!.pitName,
         'to': toController.text,
-        'volumeReturned': double.tryParse(volReturnedController.text) ?? 0.0,
-        'mw': mw.value,
+        'volReturned': double.tryParse(volReturnedController.text) ?? 0.0,
+        'mw': double.tryParse(mw.value) ?? 0.0,
         'mudType': mudType.value,
-        'bol': bolController.text,
-        'volumeLost': double.tryParse(volLostController.text) ?? 0.0,
-        'costOfLost': double.tryParse(costOfLostController.text) ?? 0.0,
-        'isLeased': isLeased.value,
-        'wellId': currentWellId,
+        'bol': double.tryParse(bolController.text) ?? 0.0,
+        'volLost': double.tryParse(volLostController.text) ?? 0.0,
+        'costOfLostPreTax': double.tryParse(costOfLostController.text) ?? 0.0,
+        'leased': isLeased.value,
       };
       
       print('📤 Saving return/lost mud data: $data');
       
-      // TODO: Implement API call to save return/lost mud
-      // final result = await _repository.saveReturnLostMud(data);
-      
-      // Simulate API call
-      await Future.delayed(Duration(seconds: 1));
+      final result = await _repository.createReturnLostMud(currentWellId, data);
+      if (result['success'] != true) {
+        _showToast(result['message'] ?? 'Failed to save data', isError: true);
+        return;
+      }
       
       _showToast('Data saved successfully', isError: false);
       _clearForm();

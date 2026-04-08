@@ -1,8 +1,8 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
-import '../model/pump_model.dart';
+import 'package:mudpro_desktop_app/modules/UG/model/pump_model.dart';
+import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
 class PumpController extends GetxController {
   final AuthRepository repository = AuthRepository();
@@ -14,7 +14,7 @@ class PumpController extends GetxController {
   // Track which rows are currently being auto-updated
   final updatingRows = <int>{}.obs;
 
-  String currentWellId = '507f1f77bcf86cd799439011';
+  String currentWellId = currentBackendWellId;
 
   // Debounce timers per row index — 800ms after last keystroke
   final Map<int, Timer> _debounceTimers = {};
@@ -23,7 +23,11 @@ class PumpController extends GetxController {
   void onInit() {
     super.onInit();
     // ✅ FIXED: Load pumps on init so availablePumpModels gets populated
-    loadPumps(currentWellId);
+    if (currentWellId.isNotEmpty) {
+      loadPumps(currentWellId);
+    } else {
+      _initializeEmptyRows();
+    }
   }
 
   @override
@@ -162,6 +166,9 @@ class PumpController extends GetxController {
   Future<void> savePump(int index) async {
     final pump = pumps[index];
     if (!pump.hasData) return;
+    if (currentWellId.isEmpty) {
+      throw Exception('No backend well selected');
+    }
 
     try {
       isLoading.value = true;

@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/controller/UG_ST_controller.dart';
+import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class WellView extends StatelessWidget {
   WellView({super.key});
   final c = Get.find<UgStController>();
+  final padWellC = padWellContext;
   final _tableScrollCtrl = ScrollController();
   final _memoScrollCtrl  = ScrollController();
 
@@ -132,13 +134,15 @@ class WellView extends StatelessWidget {
                             color: Colors.white.withOpacity(0.2),
                             borderRadius: BorderRadius.circular(4),
                           ),
-                          child: Text(
-                            "UG-0293 ST",
-                            style: AppTheme.caption.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
+                          child: Obx(() => Text(
+                                padWellC.selectedWellName.isEmpty
+                                    ? 'No well selected'
+                                    : padWellC.selectedWellName,
+                                style: AppTheme.caption.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              )),
                         ),
                       ],
                     ),
@@ -154,24 +158,38 @@ class WellView extends StatelessWidget {
                       thumbVisibility: true,
                       child: SingleChildScrollView(
                         controller: _tableScrollCtrl,
-                        child: Column(
-                          children: [
-                            _row("Well Name/No.", "UG-0293 ST"),
-                            _row("API Well No.", ""),
-                            _row("Spud Date", "11/26/2025"),
-                            _row("Section/Township/Range", "UMM Gudair (UG)"),
-                            _row("Longitude", "3197265.560"),
-                            _row("Latitude", "768061.45"),
-                            _row("KOP", "2377.44 (m)"),
-                            _row("LP", ""),
-                            _row("Bulk Tank Setup Fee", "(\$)"),
-                            // Add more rows if needed without causing overflow
-                            _row("Additional Field 1", ""),
-                            _row("Additional Field 2", ""),
-                            _row("Additional Field 3", ""),
-                            _row("Additional Field 4", ""),
-                          ],
-                        ),
+                        child: Obx(() {
+                          final well = padWellC.selectedWell;
+                          final pad = padWellC.padForWell(well);
+                          if (well == null) {
+                            return Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Text(
+                                'No backend well selected.',
+                                style: AppTheme.bodySmall.copyWith(
+                                  color: AppTheme.textSecondary,
+                                ),
+                              ),
+                            );
+                          }
+
+                          return Column(
+                            children: [
+                              _row("Well Name/No.", well.wellNameNo),
+                              _row("API Well No.", well.apiWellNo),
+                              _row("Spud Date", well.spudDate),
+                              _row("Section/Township/Range", well.sectionTownshipRange),
+                              _row("Longitude", well.longitude),
+                              _row("Latitude", well.latitude),
+                              _row("KOP", well.kop),
+                              _row("LP", well.lp),
+                              _row("Bulk Tank Setup Fee", well.bulkTankSetupFee),
+                              _row("Pad", pad?.displayName ?? padWellC.selectedPadName),
+                              _row("Operator", pad?.operator ?? well.pad?.operator ?? ''),
+                              _row("Rig", pad?.rig ?? well.pad?.rig ?? ''),
+                            ],
+                          );
+                        }),
                       ),
                     ),
                   ),

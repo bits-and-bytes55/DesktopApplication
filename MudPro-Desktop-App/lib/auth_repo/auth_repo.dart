@@ -3,14 +3,11 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:mudpro_desktop_app/api_endpoint/api_endpoint.dart';
-import 'package:flutter/foundation.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/model/engineers_model.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/model/company_model.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/model/products_model.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/pit_model.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/inventory_model.dart';
-import 'package:mudpro_desktop_app/modules/UG/model/pump_model.dart';
-import 'package:mudpro_desktop_app/modules/UG/model/sce_model.dart';
 
 class AuthRepository {
   final String baseUrl = ApiEndpoint.baseUrl;
@@ -318,11 +315,11 @@ class AuthRepository {
     }
   }
 
-  Future<Map<String, dynamic>> deleteTransferMud(String id) async {
+  Future<Map<String, dynamic>> deleteTransferMud(String wellId, String id) async {
     try {
-      print('Hitting DELETE ${baseUrl}transfer-mud/$id');
+      print('Hitting DELETE ${baseUrl}transfer-mud/$wellId/$id');
       final response = await http.delete(
-        Uri.parse('${baseUrl}transfer-mud/$id'),
+        Uri.parse('${baseUrl}transfer-mud/$wellId/$id'),
         headers: _headers,
       );
       print('statuscode------${response.statusCode}');
@@ -1549,17 +1546,14 @@ class AuthRepository {
   Future<Map<String, dynamic>> getPumps(String wellId) async {
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl/api/pumps/$wellId'),
+        Uri.parse('${baseUrl}pump?wellId=$wellId'),
         headers: _headers,
       );
       final data = jsonDecode(response.body);
       if (response.statusCode == 200) {
-        final List<PumpModel> pumps = (data['data'] as List)
-            .map((item) => PumpModel.fromJson(item))
-            .toList();
         return {
           'success': true,
-          'data': pumps,
+          'data': (data['data'] as List? ?? []),
         };
       }
       return {'success': false, 'message': data['message'] ?? 'Failed to fetch pumps'};
@@ -1568,16 +1562,23 @@ class AuthRepository {
     }
   }
 
-  Future<PumpModel> createPump(String wellId, Map<String, dynamic> pumpData) async {
+  Future<Map<String, dynamic>> createPump(String wellId, Map<String, dynamic> pumpData) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/api/pumps/$wellId'),
+        Uri.parse('${baseUrl}pump'),
         headers: _headers,
-        body: jsonEncode(pumpData),
+        body: jsonEncode({
+          ...pumpData,
+          'wellId': wellId,
+        }),
       );
       final data = jsonDecode(response.body);
       if (response.statusCode == 201 || response.statusCode == 200) {
-        return PumpModel.fromJson(data['data']);
+        return {
+          'success': true,
+          'data': data['data'],
+          'message': data['message'] ?? 'Pump created successfully',
+        };
       }
       throw Exception(data['message'] ?? 'Failed to create pump');
     } catch (e) {
@@ -1585,16 +1586,20 @@ class AuthRepository {
     }
   }
 
-  Future<PumpModel> updatePump(String id, Map<String, dynamic> pumpData) async {
+  Future<Map<String, dynamic>> updatePump(String id, Map<String, dynamic> pumpData) async {
     try {
       final response = await http.put(
-        Uri.parse('$baseUrl/api/pumps/$id'),
+        Uri.parse('${baseUrl}pump/$id'),
         headers: _headers,
         body: jsonEncode(pumpData),
       );
       final data = jsonDecode(response.body);
       if (response.statusCode == 200) {
-        return PumpModel.fromJson(data['data']);
+        return {
+          'success': true,
+          'data': data['data'],
+          'message': data['message'] ?? 'Pump updated successfully',
+        };
       }
       throw Exception(data['message'] ?? 'Failed to update pump');
     } catch (e) {
@@ -1605,7 +1610,7 @@ class AuthRepository {
   Future<Map<String, dynamic>> deletePump(String id) async {
     try {
       final response = await http.delete(
-        Uri.parse('$baseUrl/api/pumps/$id'),
+        Uri.parse('${baseUrl}pump/$id'),
         headers: _headers,
       );
       final data = jsonDecode(response.body);
@@ -1625,17 +1630,14 @@ class AuthRepository {
   Future<Map<String, dynamic>> getShakers(String wellId) async {
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl/api/shakers/$wellId'),
+        Uri.parse('${baseUrl}sce/shakers/$wellId'),
         headers: _headers,
       );
       final data = jsonDecode(response.body);
       if (response.statusCode == 200) {
-        final List<ShakerModel> shakers = (data['data'] as List)
-            .map((item) => ShakerModel.fromJson(item))
-            .toList();
         return {
           'success': true,
-          'data': shakers,
+          'data': (data['data'] as List? ?? []),
         };
       }
       return {'success': false, 'message': data['message'] ?? 'Failed to fetch shakers'};
@@ -1644,16 +1646,20 @@ class AuthRepository {
     }
   }
 
-  Future<ShakerModel> createShaker(String wellId, Map<String, dynamic> shakerData) async {
+  Future<Map<String, dynamic>> createShaker(String wellId, Map<String, dynamic> shakerData) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/api/shakers/$wellId'),
+        Uri.parse('${baseUrl}sce/shakers/$wellId'),
         headers: _headers,
         body: jsonEncode(shakerData),
       );
       final data = jsonDecode(response.body);
       if (response.statusCode == 201 || response.statusCode == 200) {
-        return ShakerModel.fromJson(data['data']);
+        return {
+          'success': true,
+          'data': data['data'],
+          'message': data['message'] ?? 'Shaker created successfully',
+        };
       }
       throw Exception(data['message'] ?? 'Failed to create shaker');
     } catch (e) {
@@ -1661,16 +1667,20 @@ class AuthRepository {
     }
   }
 
-  Future<ShakerModel> updateShaker(String id, Map<String, dynamic> shakerData) async {
+  Future<Map<String, dynamic>> updateShaker(String id, Map<String, dynamic> shakerData) async {
     try {
       final response = await http.put(
-        Uri.parse('$baseUrl/api/shakers/$id'),
+        Uri.parse('${baseUrl}sce/shakers/$id'),
         headers: _headers,
         body: jsonEncode(shakerData),
       );
       final data = jsonDecode(response.body);
       if (response.statusCode == 200) {
-        return ShakerModel.fromJson(data['data']);
+        return {
+          'success': true,
+          'data': data['data'],
+          'message': data['message'] ?? 'Shaker updated successfully',
+        };
       }
       throw Exception(data['message'] ?? 'Failed to update shaker');
     } catch (e) {
@@ -1681,7 +1691,7 @@ class AuthRepository {
   Future<Map<String, dynamic>> deleteShaker(String id) async {
     try {
       final response = await http.delete(
-        Uri.parse('$baseUrl/api/shakers/$id'),
+        Uri.parse('${baseUrl}sce/shakers/$id'),
         headers: _headers,
       );
       final data = jsonDecode(response.body);
@@ -1701,17 +1711,14 @@ class AuthRepository {
   Future<Map<String, dynamic>> getOtherSce(String wellId) async {
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl/api/othersce/$wellId'),
+        Uri.parse('${baseUrl}sce/other-sce/$wellId'),
         headers: _headers,
       );
       final data = jsonDecode(response.body);
       if (response.statusCode == 200) {
-        final List<OtherSceModel> sceList = (data['data'] as List)
-            .map((item) => OtherSceModel.fromJson(item))
-            .toList();
         return {
           'success': true,
-          'data': sceList,
+          'data': (data['data'] as List? ?? []),
         };
       }
       return {'success': false, 'message': data['message'] ?? 'Failed to fetch other SCE'};
@@ -1720,16 +1727,20 @@ class AuthRepository {
     }
   }
 
-  Future<OtherSceModel> createOtherSce(String wellId, Map<String, dynamic> sceData) async {
+  Future<Map<String, dynamic>> createOtherSce(String wellId, Map<String, dynamic> sceData) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/api/othersce/$wellId'),
+        Uri.parse('${baseUrl}sce/other-sce/$wellId'),
         headers: _headers,
         body: jsonEncode(sceData),
       );
       final data = jsonDecode(response.body);
       if (response.statusCode == 201 || response.statusCode == 200) {
-        return OtherSceModel.fromJson(data['data']);
+        return {
+          'success': true,
+          'data': data['data'],
+          'message': data['message'] ?? 'Other SCE created successfully',
+        };
       }
       throw Exception(data['message'] ?? 'Failed to create other SCE');
     } catch (e) {
@@ -1737,16 +1748,20 @@ class AuthRepository {
     }
   }
 
-  Future<OtherSceModel> updateOtherSce(String id, Map<String, dynamic> sceData) async {
+  Future<Map<String, dynamic>> updateOtherSce(String id, Map<String, dynamic> sceData) async {
     try {
       final response = await http.put(
-        Uri.parse('$baseUrl/api/othersce/$id'),
+        Uri.parse('${baseUrl}sce/other-sce/$id'),
         headers: _headers,
         body: jsonEncode(sceData),
       );
       final data = jsonDecode(response.body);
       if (response.statusCode == 200) {
-        return OtherSceModel.fromJson(data['data']);
+        return {
+          'success': true,
+          'data': data['data'],
+          'message': data['message'] ?? 'Other SCE updated successfully',
+        };
       }
       throw Exception(data['message'] ?? 'Failed to update other SCE');
     } catch (e) {
@@ -1757,13 +1772,34 @@ class AuthRepository {
   Future<Map<String, dynamic>> deleteOtherSce(String id) async {
     try {
       final response = await http.delete(
-        Uri.parse('$baseUrl/api/othersce/$id'),
+        Uri.parse('${baseUrl}sce/other-sce/$id'),
         headers: _headers,
       );
       final data = jsonDecode(response.body);
       return {
         'success': response.statusCode == 200,
         'message': data['message'] ?? 'Other SCE deleted successfully',
+      };
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> createReturnLostMud(
+    String wellId,
+    Map<String, dynamic> body,
+  ) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${baseUrl}return-lost-mud/$wellId'),
+        headers: _headers,
+        body: jsonEncode(body),
+      );
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200 || response.statusCode == 201,
+        'data': data['data'],
+        'message': data['message'] ?? 'Return / Lost Mud saved successfully',
       };
     } catch (e) {
       return {'success': false, 'message': e.toString()};

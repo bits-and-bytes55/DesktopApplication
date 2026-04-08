@@ -6,6 +6,7 @@ import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/inventory_s
 import 'package:mudpro_desktop_app/modules/company_setup/model/products_model.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
+import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
 class InventoryProductsView extends StatefulWidget {
   const InventoryProductsView({super.key});
@@ -17,9 +18,9 @@ class InventoryProductsView extends StatefulWidget {
 class _InventoryProductsViewState extends State<InventoryProductsView> {
   final c = Get.find<UgController>();
   final _repository = AuthRepository();
+  final padWellC = padWellContext;
   
-  // Use a hardcoded wellId for now - replace with actual well ID from your auth
-  String get wellId => '507f1f77bcf86cd799439011'; // Replace with actual wellId
+  String get wellId => padWellC.selectedWellId.value;
   
   bool _isLoading = false;
 
@@ -80,6 +81,10 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
 
   Future<void> _loadData() async {
     if (!mounted) return;
+    if (wellId.isEmpty) {
+      setState(() => _isLoading = false);
+      return;
+    }
     setState(() => _isLoading = true);
     try {
       // Load Premixed

@@ -7,9 +7,6 @@ import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_contro
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
-// Static well ID
-const String kPitWellId = '67f1a2b3c4d5e6f7890a1111';
-
 // Row heights and filler
 const double kRowHeight = 22.0;
 const double kHeaderHeight = 26.0;

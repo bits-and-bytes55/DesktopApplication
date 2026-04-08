@@ -27,11 +27,10 @@ import 'package:mudpro_desktop_app/modules/dashboard/controller/cased_hole_contr
 import 'package:mudpro_desktop_app/modules/dashboard/controller/drill_string_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/UG_controller.dart';
+import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 
 // Static well ID — change as needed
-const String kStaticWellId = '67f1a2b3c4d5e6f7890a1111';
-
 class HomeSecondaryTabbar extends StatefulWidget {
   const HomeSecondaryTabbar({super.key});
 
@@ -47,6 +46,7 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
       Get.put(ProductsController(), tag: 'products_controller');
   final InventorySnapshotController _snapshotController =
       InventorySnapshotController();
+  final PadWellController padWellC = padWellContext;
 
   late AnimationController _animationController;
   int _hoveredIndex = -1;
@@ -241,7 +241,13 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
             ),
             child: Row(
               children: [
-                _buildInfoField("Well", "UG-0293 ST", Icons.location_on),
+                Obx(() => _buildInfoField(
+                      "Well",
+                      padWellC.selectedWellName.isEmpty
+                          ? "No well selected"
+                          : padWellC.selectedWellName,
+                      Icons.location_on,
+                    )),
                 const SizedBox(width: 20),
                 _buildInfoFieldWithDatePicker("Date", Icons.calendar_today),
                 const SizedBox(width: 20),
@@ -379,15 +385,20 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
 
               if (opCtrl.totalVolume.value > 0) {
                  final tVol = opCtrl.totalVolume.value;
-                 final res = await authRepo.saveConsumeProductVolumeName({
-                    'wellId': kStaticWellId,
-                    'product': 'Water',
-                    'volumeBbl': tVol,
-                 });
-                 if (res['success'] == true) {
-                    successMessage = "Operations volume data saved";
+                 final activeWellId = padWellC.selectedWellId.value;
+                 if (activeWellId.isEmpty) {
+                   errorMessages.add('Operations API: no backend well selected');
                  } else {
-                    errorMessages.add('Operations API: ${res['message'] ?? 'Failed'}');
+                   final res = await authRepo.saveConsumeProductVolumeName({
+                      'wellId': activeWellId,
+                      'product': 'Water',
+                      'volumeBbl': tVol,
+                   });
+                   if (res['success'] == true) {
+                      successMessage = "Operations volume data saved";
+                   } else {
+                      errorMessages.add('Operations API: ${res['message'] ?? 'Failed'}');
+                   }
                  }
               }
             } else if (selectedOp == OperationType.addWater) {
@@ -981,7 +992,6 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
                         }
                         _generateReportOnSystem(wellNameController.text,
                             reportNumberController.text, dateController.text);
-                        controller.generateDummyReports();
                         Navigator.pop(context);
                         _showDesktopAlert(
                             context, "New report created successfully");
@@ -1200,7 +1210,8 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
       );
       if (filePath != null) {
         final reportData = {
-          'well': 'UG-0293 ST',
+          'well': padWellC.selectedWellName,
+          'wellId': padWellC.selectedWellId.value,
           'date': _dateController.text,
           'reportNumber': '12',
           'md': '9055.0',

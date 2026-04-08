@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
 class TopInfoBar extends StatelessWidget {
+  final padWellC = padWellContext;
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -9,7 +13,12 @@ class TopInfoBar extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Row(
         children: [
-          _buildInfoField("Well", "UG-0293 ST"),
+          Obx(() => _buildInfoField(
+                "Well",
+                padWellC.selectedWellName.isEmpty
+                    ? 'No well selected'
+                    : padWellC.selectedWellName,
+              )),
           const SizedBox(width: 20),
           _buildInfoField("Date", "12/27/2025"),
           const SizedBox(width: 20),
