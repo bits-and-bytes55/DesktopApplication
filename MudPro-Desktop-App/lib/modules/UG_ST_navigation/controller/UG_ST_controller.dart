@@ -2,10 +2,10 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:get/get.dart';
-import 'package:get/get_state_manager/src/simple/get_controllers.dart';
 import 'package:mudpro_desktop_app/api_endpoint/api_endpoint.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/model/UG_ST_model.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/UG_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
@@ -15,6 +15,7 @@ class UgStController extends GetxController {
   var isLocked = true.obs;
   var isLoading = false.obs;
   Worker? _selectedWellWorker;
+  Worker? _dashboardLockWorker;
 
   final casingVerticalScroll = ScrollController();
   final casingHorizontalScroll = ScrollController();
@@ -24,6 +25,17 @@ class UgStController extends GetxController {
     final context = padWellContext;
     selectedWellId.value =
         context.selectedWellId.value.isEmpty ? null : context.selectedWellId.value;
+    final dashboardController = Get.isRegistered<DashboardController>()
+        ? Get.find<DashboardController>()
+        : null;
+    if (dashboardController != null) {
+      isLocked.value = dashboardController.isLocked.value;
+      _dashboardLockWorker = ever<bool>(dashboardController.isLocked, (locked) {
+        if (isLocked.value != locked) {
+          isLocked.value = locked;
+        }
+      });
+    }
     _selectedWellWorker = ever<String>(context.selectedWellId, (wellId) {
       selectedWellId.value = wellId.isEmpty ? null : wellId;
     });
@@ -36,6 +48,7 @@ class UgStController extends GetxController {
     casingVerticalScroll.dispose();
     casingHorizontalScroll.dispose();
     _selectedWellWorker?.dispose();
+    _dashboardLockWorker?.dispose();
     super.onClose();
   }
 
@@ -213,7 +226,15 @@ class UgStController extends GetxController {
   }
 
   void toggleLock() {
-    isLocked.value = !isLocked.value;
+    final next = !isLocked.value;
+    isLocked.value = next;
+
+    if (Get.isRegistered<DashboardController>()) {
+      final dashboardController = Get.find<DashboardController>();
+      if (dashboardController.isLocked.value != next) {
+        dashboardController.isLocked.value = next;
+      }
+    }
   }
 
   void updateSummaryData(int index, String key, String value) {

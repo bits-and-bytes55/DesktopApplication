@@ -58,6 +58,12 @@ class PitController extends GetxController {
 
   bool get _hasWellId => currentWellId != null && currentWellId!.isNotEmpty;
 
+  List<PitModel> get activePitRows =>
+      pits.where((pit) => pit.initialActive.value).toList();
+
+  List<PitModel> get storagePitRows =>
+      pits.where((pit) => !pit.initialActive.value).toList();
+
   @override
   void onInit() {
     super.onInit();
@@ -107,25 +113,28 @@ class PitController extends GetxController {
                 ? List<PitModel>.from(data)
                 : data.map((item) => PitModel.fromJson(item as Map<String, dynamic>)).toList();
             pits.value = allPits;
+            _disposePitControllers();
           } else {
             pits.clear();
+            _disposePitControllers();
           }
         } else {
           pits.clear();
+          _disposePitControllers();
         }
 
         totalCapacity.value = _calculateDouble(result['totalCapacity']);
         _updateSeparatedLists();
-        _ensureEmptyRow();
+        _ensureDraftRows();
       } else {
         _showAlert(result['message'] ?? 'Failed to fetch pits',
             isError: true);
-        _ensureEmptyRow();
+        _ensureDraftRows();
       }
     } catch (e) {
       debugPrint('Error fetching pits: $e');
       _showAlert('Error fetching pits', isError: true);
-      _ensureEmptyRow();
+      _ensureDraftRows();
     } finally {
       isLoading.value = false;
     }
@@ -359,7 +368,7 @@ class PitController extends GetxController {
             : Map<String, dynamic>.from(inner ?? {});
         
         // Duplication filters removed to display all database records correctly
-        
+
         volumeNameData.value = payload;
       }
     } catch (e) {
@@ -370,34 +379,62 @@ class PitController extends GetxController {
   }
 
   Map<String, TextEditingController> getPitCtrl(String pitId,
-      {double vol = 0, double density = 0, String fluid = ''}) {
+      {String pitName = '', double vol = 0, double density = 0, String fluid = ''}) {
     if (!activePitControllers.containsKey(pitId)) {
       activePitControllers[pitId] = {
+        'pitName': TextEditingController(text: pitName),
         'volume': TextEditingController(
             text: vol.toStringAsFixed(2)),
         'density': TextEditingController(
             text: density.toStringAsFixed(2)),
         'fluidType': TextEditingController(text: fluid),
       };
-    } else {
-      // Refresh values from latest API data so UI stays up to date after refetch
-      final existing = activePitControllers[pitId]!;
-      existing['volume']!.text = vol.toStringAsFixed(2);
-      existing['density']!.text = density.toStringAsFixed(2);
-      existing['fluidType']!.text = fluid;
     }
     return activePitControllers[pitId]!;
   }
 
   // Refined: Update only modified pits individually via PUT /pit/:id
   Future<Map<String, dynamic>> saveAllActivePits() async {
-    if (modifiedPitIds.isEmpty) {
-      return {'success': true, 'message': 'No changes to save'};
+    if (!_hasWellId) {
+      return {'success': false, 'message': 'Well ID is required'};
     }
 
     final List<String> errors = [];
     final authRepo = AuthRepository();
     int successCount = 0;
+
+    final draftPits = pits
+        .where((pit) => pit.id == null && _isDraftFilled(pit))
+        .map((pit) => {
+              'pitName': pit.pitName.trim(),
+              'capacity': _draftCapacity(pit),
+              'initialActive': pit.initialActive.value,
+              'volume': pit.volume?.value ?? 0,
+              'density': pit.density?.value ?? 0,
+              'fluidType': pit.fluidType?.value ?? '',
+            })
+        .toList();
+
+    if (draftPits.isNotEmpty) {
+      try {
+        final result = await authRepo.bulkAddPits(
+          pits: draftPits,
+          wellId: currentWellId!,
+        );
+        if (result['success'] == true) {
+          successCount += draftPits.length;
+          await fetchAllPits();
+        } else {
+          errors.add(result['message'] ?? 'Failed to create pit rows');
+        }
+      } catch (e) {
+        errors.add('Failed to create pit rows: $e');
+      }
+    }
+
+    if (modifiedPitIds.isEmpty && draftPits.isEmpty) {
+      return {'success': true, 'message': 'No changes to save'};
+    }
     
     // Create a copy to iterate to avoid concurrent modification issues
     final idsToUpdate = List<String>.from(modifiedPitIds);
@@ -545,17 +582,99 @@ class PitController extends GetxController {
         .fold(0.0, (sum, pit) => sum + pit.capacity.value);
   }
 
-  void _ensureEmptyRow() {
-    final hasEmptyRow = pits.any(
-        (p) => p.id == null && p.pitName.isEmpty && p.capacity.value == 0);
+  void updateDraftPit({
+    required PitModel pit,
+    String? pitName,
+    double? volume,
+    double? density,
+    String? fluidType,
+  }) {
+    if (pit.id != null) return;
 
-    if (!hasEmptyRow) {
+    if (pitName != null) {
+      pit.pitName = pitName;
+    }
+    if (volume != null) {
+      pit.volume?.value = volume;
+      if (pit.capacity.value <= 0 || pit.capacity.value.isNaN) {
+        pit.capacity.value = volume;
+      } else if (volume > pit.capacity.value) {
+        pit.capacity.value = volume;
+      }
+    }
+    if (density != null) {
+      pit.density?.value = density;
+    }
+    if (fluidType != null) {
+      pit.fluidType?.value = fluidType;
+    }
+
+    pits.refresh();
+    _ensureDraftRows();
+  }
+
+  String controllerKeyForPit(PitModel pit, String section, int index) {
+    if (pit.id != null && pit.id!.isNotEmpty) {
+      return pit.id!;
+    }
+    return '$section-draft-$index';
+  }
+
+  bool isDraftPit(PitModel pit) => pit.id == null;
+
+  void _ensureDraftRows() {
+    final hasActiveDraft = pits.any(
+      (pit) => pit.id == null && pit.initialActive.value && _isBlankDraft(pit),
+    );
+    final hasStorageDraft = pits.any(
+      (pit) => pit.id == null && !pit.initialActive.value && _isBlankDraft(pit),
+    );
+
+    if (!hasActiveDraft) {
+      pits.add(PitModel(
+        pitName: '',
+        capacity: 0.0,
+        initialActive: true,
+      ));
+    }
+
+    if (!hasStorageDraft) {
       pits.add(PitModel(
         pitName: '',
         capacity: 0.0,
         initialActive: false,
       ));
     }
+  }
+
+  bool _isBlankDraft(PitModel pit) {
+    return pit.pitName.trim().isEmpty &&
+        pit.capacity.value == 0 &&
+        (pit.volume?.value ?? 0) == 0 &&
+        (pit.density?.value ?? 0) == 0 &&
+        (pit.fluidType?.value ?? '').trim().isEmpty;
+  }
+
+  bool _isDraftFilled(PitModel pit) {
+    return pit.pitName.trim().isNotEmpty &&
+        ((pit.volume?.value ?? 0) > 0 || pit.capacity.value > 0);
+  }
+
+  double _draftCapacity(PitModel pit) {
+    final volume = pit.volume?.value ?? 0;
+    if (pit.capacity.value > 0) {
+      return pit.capacity.value >= volume ? pit.capacity.value : volume;
+    }
+    return volume;
+  }
+
+  void _disposePitControllers() {
+    for (final ctrls in activePitControllers.values) {
+      for (final ctrl in ctrls.values) {
+        ctrl.dispose();
+      }
+    }
+    activePitControllers.clear();
   }
 
   void onRowFilled(int index) {
@@ -733,6 +852,7 @@ class PitController extends GetxController {
   @override
   void onClose() {
     _wellWorker?.dispose();
+    _disposePitControllers();
     for (var row in transferRows) {
       row.volumeController.dispose();
     }

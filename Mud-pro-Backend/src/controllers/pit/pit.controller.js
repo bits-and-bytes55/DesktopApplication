@@ -6,7 +6,16 @@ import Pit from '../../modules/pit/pit.model.js';
 // Add single pit - validation update
 export const addPit = async (req, res) => {
   try {
-    const { pitName, capacity, initialActive, wellId, reportId } = req.body;
+    const {
+      pitName,
+      capacity,
+      initialActive,
+      wellId,
+      reportId,
+      volume,
+      density,
+      fluidType,
+    } = req.body;
 
     // ✅ BETTER VALIDATION
     if (!pitName || !pitName.trim()) {
@@ -48,6 +57,9 @@ export const addPit = async (req, res) => {
       pitName: pitName.trim(),
       capacity: Number(capacity),
       initialActive: Boolean(initialActive),
+      volume: Number(volume) || 0,
+      density: Number(density) || 0,
+      fluidType: fluidType?.trim?.() || "",
       wellId: wellId.trim(),
       reportId: reportId?.trim(),
       isLocked: false
@@ -106,6 +118,9 @@ export const bulkAddPits = async (req, res) => {
         pitName: p.pitName,
         capacity: p.capacity,
         initialActive: p.initialActive || false,
+        volume: Number(p.volume) || 0,
+        density: Number(p.density) || 0,
+        fluidType: p.fluidType?.trim?.() || "",
         wellId,
         reportId: p.reportId,
         isLocked: false

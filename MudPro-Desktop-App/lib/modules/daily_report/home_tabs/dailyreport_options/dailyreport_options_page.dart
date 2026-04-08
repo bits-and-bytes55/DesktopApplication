@@ -5,16 +5,14 @@ import 'package:mudpro_desktop_app/modules/daily_report/home_tabs/dailyreport_op
 import 'package:mudpro_desktop_app/modules/daily_report/home_tabs/dailyreport_options/tabs/summary_tab.dart';
 import 'package:mudpro_desktop_app/modules/daily_report/home_tabs/dailyreport_options/tabs/option_report_tab.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/options_controller.dart';
-import 'package:mudpro_desktop_app/modules/options/options_left_pannel.dart';
-import 'package:mudpro_desktop_app/modules/options/tabs/language_tab.dart';
-import 'package:mudpro_desktop_app/modules/options/tabs/option_report_page.dart';
-import 'package:mudpro_desktop_app/modules/options/tabs/unit_tab.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class DailyreportOptionsPage extends StatelessWidget {
   DailyreportOptionsPage({super.key});
 
-  final OptionsController controller = Get.put(OptionsController());
+  final OptionsController controller = Get.isRegistered<OptionsController>()
+      ? Get.find<OptionsController>()
+      : Get.put(OptionsController(), permanent: true);
 
   @override
   Widget build(BuildContext context) {
@@ -64,7 +62,7 @@ class DailyreportOptionsPage extends StatelessWidget {
               ),
             ),
           ),
-          
+
           // Main Content
           Expanded(
             child: Row(
@@ -84,7 +82,7 @@ class DailyreportOptionsPage extends StatelessWidget {
                   ),
                   child: const DailyreportOptionsLeftPannel(),
                 ),
-                
+
                 // Right Panel
                 Expanded(
                   child: Obx(() {
@@ -97,7 +95,7 @@ class DailyreportOptionsPage extends StatelessWidget {
                       case 2:
                         return DetailReportPage();
                       default:
-                        return  ReportOptionSummaryPage();
+                        return ReportOptionSummaryPage();
                     }
                   }),
                 ),

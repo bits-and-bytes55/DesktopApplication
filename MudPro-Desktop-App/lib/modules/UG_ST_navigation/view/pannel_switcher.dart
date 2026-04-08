@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:get/get_core/src/get_main.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/controller/UG_ST_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/casing_view.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/interval/interval_view.dart';
@@ -11,6 +10,8 @@ import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/w
 
 
 class RightPanel extends StatelessWidget {
+  RightPanel({super.key});
+
   final c = Get.find<UgStController>();
 
   @override
@@ -22,7 +23,7 @@ class RightPanel extends StatelessWidget {
           child: Obx(() {
             switch (c.selectedWellTab.value) {
               case 0:
-                return WellView();
+                return WellView(key: WellView.mountKey);
               case 1:
                 return CasingView();
               case 2:
@@ -32,7 +33,7 @@ class RightPanel extends StatelessWidget {
               case 4:
                 return SurveyView();
               default:
-                return WellView();
+                return WellView(key: WellView.mountKey);
             }
           }),
         ),

@@ -62,6 +62,8 @@ class ReportContextController extends GetxController {
     return (maxValue + 1).toString();
   }
 
+  Future<void> reloadData() => loadForSelectedWell();
+
   Future<void> loadForSelectedWell() async {
     final wellId = currentBackendWellId;
     errorMessage.value = '';
@@ -85,10 +87,7 @@ class ReportContextController extends GetxController {
     } catch (e) {
       reports.clear();
       selectedReportId.value = '';
-      errorMessage.value = e.toString().replaceFirst(
-        RegExp(r'^Exception:\s*'),
-        '',
-      );
+      errorMessage.value = _friendlyError(e);
     } finally {
       isLoading.value = false;
     }
@@ -155,4 +154,17 @@ T? _firstWhereOrNull<T>(Iterable<T> items, bool Function(T item) test) {
     if (test(item)) return item;
   }
   return null;
+}
+
+String _friendlyError(Object error) {
+  final raw = error.toString().replaceFirst(RegExp(r'^Exception:\s*'), '');
+  if (raw.contains('HTML error page returned')) {
+    return 'Report API returned an invalid response. Refresh and try again.';
+  }
+  if (raw.contains('request timed out') ||
+      raw.contains('SocketException') ||
+      raw.contains('connection refused')) {
+    return 'Report data could not be loaded right now. Refresh and try again.';
+  }
+  return raw;
 }

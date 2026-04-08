@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 
 class PumpModel {
   String? id;
@@ -10,8 +11,8 @@ class PumpModel {
   RxString strokeLength;
   RxString efficiency;
   RxString spm;
-  RxString displacement;   // auto-calculated locally + confirmed by backend
-  RxString rate;           // calculated by backend (shown on other pump page)
+  RxString displacement; // auto-calculated locally + confirmed by backend
+  RxString rate; // calculated by backend (shown on other pump page)
   RxString maxPumpP;
   RxString maxHp;
   RxString surfaceLen;
@@ -33,81 +34,107 @@ class PumpModel {
     String? maxHp,
     String? surfaceLen,
     String? surfaceId,
-  })  : rowNumber = (rowNumber ?? 0).obs,
-        type = (type ?? '').obs,
-        model = (model ?? '').obs,
-        linerId = (linerId ?? '').obs,
-        rodOd = (rodOd ?? '').obs,
-        strokeLength = (strokeLength ?? '').obs,
-        efficiency = (efficiency ?? '').obs,
-        spm = (spm ?? '').obs,
-        displacement = (displacement ?? '').obs,
-        rate = (rate ?? '').obs,
-        maxPumpP = (maxPumpP ?? '').obs,
-        maxHp = (maxHp ?? '').obs,
-        surfaceLen = (surfaceLen ?? '').obs,
-        surfaceId = (surfaceId ?? '').obs;
+  }) : rowNumber = (rowNumber ?? 0).obs,
+       type = (type ?? '').obs,
+       model = (model ?? '').obs,
+       linerId = (linerId ?? '').obs,
+       rodOd = (rodOd ?? '').obs,
+       strokeLength = (strokeLength ?? '').obs,
+       efficiency = (efficiency ?? '').obs,
+       spm = (spm ?? '').obs,
+       displacement = (displacement ?? '').obs,
+       rate = (rate ?? '').obs,
+       maxPumpP = (maxPumpP ?? '').obs,
+       maxHp = (maxHp ?? '').obs,
+       surfaceLen = (surfaceLen ?? '').obs,
+       surfaceId = (surfaceId ?? '').obs;
 
+  // AFTER (correct — matches backend & original software)
+  // void recalculateDisplacement() {
+  //   final D = double.tryParse(linerId.value) ?? 0;
+  //   final L = double.tryParse(strokeLength.value) ?? 0;
+  //   final eff = (double.tryParse(efficiency.value) ?? 0) / 100;
 
+  //   double constant = 0;
+  //   switch (type.value) {
+  //     case 'Duplex':     constant = 0.000324; break; // double-acting
+  //     case 'Triplex':    constant = 0.000243; break;
+  //     case 'Quadplex':   constant = 0.000324; break;
+  //     case 'Quintuplex': constant = 0.000405; break;
+  //     default:           constant = 0;
+  //   }
 
-// AFTER (correct — matches backend & original software)
-// void recalculateDisplacement() {
-//   final D = double.tryParse(linerId.value) ?? 0;
-//   final L = double.tryParse(strokeLength.value) ?? 0;
-//   final eff = (double.tryParse(efficiency.value) ?? 0) / 100;
+  //   if (D == 0 || L == 0 || eff == 0 || constant == 0) {
+  //     displacement.value = '';
+  //     return;
+  //   }
 
-//   double constant = 0;
-//   switch (type.value) {
-//     case 'Duplex':     constant = 0.000324; break; // double-acting
-//     case 'Triplex':    constant = 0.000243; break;
-//     case 'Quadplex':   constant = 0.000324; break;
-//     case 'Quintuplex': constant = 0.000405; break;
-//     default:           constant = 0;
-//   }
+  //   final result = constant * D * D * L * eff;
+  //   displacement.value = result.toStringAsFixed(4);
+  // }
 
-//   if (D == 0 || L == 0 || eff == 0 || constant == 0) {
-//     displacement.value = '';
-//     return;
-//   }
+  // AFTER — Duplex uses rod formula when rodOd is provided
+  void recalculateDisplacement() {
+    final diameterValue = double.tryParse(linerId.value) ?? 0;
+    final strokeLengthValue = double.tryParse(strokeLength.value) ?? 0;
+    final eff = (double.tryParse(efficiency.value) ?? 0) / 100;
+    final rodValue = double.tryParse(rodOd.value) ?? 0; // only used for Duplex
 
-//   final result = constant * D * D * L * eff;
-//   displacement.value = result.toStringAsFixed(4);
-// }
+    final D =
+        AppUnits.convertValue(diameterValue, AppUnits.diameter, '(in)') ??
+        diameterValue;
+    final L =
+        AppUnits.convertValue(strokeLengthValue, AppUnits.length, '(in)') ??
+        strokeLengthValue;
+    final d =
+        AppUnits.convertValue(rodValue, AppUnits.diameter, '(in)') ?? rodValue;
 
-// AFTER — Duplex uses rod formula when rodOd is provided
-void recalculateDisplacement() {
-  final D = double.tryParse(linerId.value) ?? 0;
-  final L = double.tryParse(strokeLength.value) ?? 0;
-  final eff = (double.tryParse(efficiency.value) ?? 0) / 100;
-  final d = double.tryParse(rodOd.value) ?? 0; // only used for Duplex
+    if (D == 0 || L == 0 || eff == 0) {
+      displacement.value = '';
+      return;
+    }
 
-  if (D == 0 || L == 0 || eff == 0) { displacement.value = ''; return; }
+    double result = 0;
 
-  double result = 0;
-
-  if (type.value == 'Duplex') {
-    if (d > 0) {
-      // With rod: 0.000162 × (2D² - d²) × L × Efficiency
-      result = 0.000162 * (2 * D * D - d * d) * L * eff;
+    if (type.value == 'Duplex') {
+      if (d > 0) {
+        // With rod: 0.000162 × (2D² - d²) × L × Efficiency
+        result = 0.000162 * (2 * D * D - d * d) * L * eff;
+      } else {
+        // Without rod (approximation)
+        result = 0.000324 * D * D * L * eff;
+      }
     } else {
-      // Without rod (approximation)
-      result = 0.000324 * D * D * L * eff;
+      double constant = 0;
+      switch (type.value) {
+        case 'Triplex':
+          constant = 0.000243;
+          break;
+        case 'Quadplex':
+          constant = 0.000324;
+          break;
+        case 'Quintuplex':
+          constant = 0.000405;
+          break;
+        default:
+          constant = 0;
+      }
+      if (constant == 0) {
+        displacement.value = '';
+        return;
+      }
+      result = constant * D * D * L * eff;
     }
-  } else {
-    double constant = 0;
-    switch (type.value) {
-      case 'Triplex':    constant = 0.000243; break;
-      case 'Quadplex':   constant = 0.000324; break;
-      case 'Quintuplex': constant = 0.000405; break;
-      default:           constant = 0;
-    }
-    if (constant == 0) { displacement.value = ''; return; }
-    result = constant * D * D * L * eff;
+
+    final displayValue =
+        AppUnits.convertValue(
+          result,
+          '(bbl/stk)',
+          AppUnits.strokeDisplacement,
+        ) ??
+        result;
+    displacement.value = displayValue.toStringAsFixed(4);
   }
-
-  displacement.value = result.toStringAsFixed(4);
-}
-
 
   // From JSON - for GET responses
   factory PumpModel.fromJson(Map<String, dynamic> json) {

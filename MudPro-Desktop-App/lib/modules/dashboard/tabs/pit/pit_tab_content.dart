@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart';
+import 'package:mudpro_desktop_app/modules/UG/model/pit_model.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/tabs/pit/pit_concentration.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/tabs/pit/pit_snapshot.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
-import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 // Row heights and filler
@@ -13,7 +14,7 @@ const double kHeaderHeight = 26.0;
 const int kEmptyFillRows = 8; // filler rows to fill height if needed
 
 class PitPage extends StatefulWidget {
-  PitPage({super.key});
+  const PitPage({super.key});
 
   @override
   State<PitPage> createState() => _PitPageState();
@@ -22,6 +23,19 @@ class PitPage extends StatefulWidget {
 class _PitPageState extends State<PitPage> {
   final PitController controller = Get.put(PitController());
   final dashboard = Get.find<DashboardController>();
+
+  double _volumeFromBaseBbl(double value) {
+    return AppUnits.convertValue(value, '(bbl)', AppUnits.fluidVolume) ?? value;
+  }
+
+  String _formatVolumeDisplay(double value) {
+    final converted = _volumeFromBaseBbl(value);
+    final absValue = converted.abs();
+    if (absValue > 0 && absValue < 0.01) {
+      return converted.toStringAsFixed(4);
+    }
+    return converted.toStringAsFixed(2);
+  }
 
   @override
   void initState() {
@@ -37,31 +51,12 @@ class _PitPageState extends State<PitPage> {
     super.dispose();
   }
 
-  // Save active pit volume/density/fluidType then refresh volume name
-  Future<void> _saveActivePitData(String pitId) async {
-    final ctrls = controller.activePitControllers[pitId];
-    if (ctrls == null) return;
-    try {
-      // Use the controller's update method instead of direct repository call
-      // to ensure wellId and pitNames are resolved correctly.
-      await controller.updatePitVolumeData(
-        pitId: pitId,
-        volume: double.tryParse(ctrls['volume']!.text) ?? 0,
-        density: double.tryParse(ctrls['density']!.text) ?? 0,
-        fluidType: ctrls['fluidType']!.text,
-      );
-      // Refresh volume name table after save
-      await controller.fetchVolumeNameData();
-    } catch (e) {
-      debugPrint('Error saving pit data: $e');
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Container(
       color: Colors.white,
       child: Obx(() {
+        AppUnits.signature;
         if (controller.isLoading.value) {
           return const Center(child: CircularProgressIndicator());
         }
@@ -160,24 +155,37 @@ class _PitPageState extends State<PitPage> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(children: [
-                  const Icon(Icons.water_damage, color: Colors.white, size: 14),
-                  const SizedBox(width: 6),
-                  const Text("Active Pits",
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.water_damage,
+                      color: Colors.white,
+                      size: 14,
+                    ),
+                    const SizedBox(width: 6),
+                    const Text(
+                      "Active Pits",
                       style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white)),
-                ]),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
                 Tooltip(
                   message: "View Concentration",
                   child: InkWell(
                     onTap: () => Get.to(() => PitConcentrationPage()),
                     borderRadius: BorderRadius.circular(4),
                     child: Container(
-                        padding: const EdgeInsets.all(4),
-                        child: const Icon(Icons.bar_chart,
-                            size: 14, color: Colors.white)),
+                      padding: const EdgeInsets.all(4),
+                      child: const Icon(
+                        Icons.bar_chart,
+                        size: 14,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -189,9 +197,13 @@ class _PitPageState extends State<PitPage> {
                     },
                     borderRadius: BorderRadius.circular(4),
                     child: Container(
-                        padding: const EdgeInsets.all(4),
-                        child: const Icon(Icons.save,
-                            size: 14, color: Colors.white)),
+                      padding: const EdgeInsets.all(4),
+                      child: const Icon(
+                        Icons.save,
+                        size: 14,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -211,9 +223,8 @@ class _PitPageState extends State<PitPage> {
               ),
             ),
             child: Obx(() {
-              final apiRows = controller.volumeNameData['activePitsTable'];
               return SingleChildScrollView(
-                child: _buildActivePitsTableBody(apiRows),
+                child: _buildActivePitsTableBody(),
               );
             }),
           ),
@@ -249,17 +260,8 @@ class _PitPageState extends State<PitPage> {
     );
   }
 
-  Widget _buildActivePitsTableBody(dynamic apiRows) {
-    final dataRows = (apiRows != null && apiRows is List && apiRows.isNotEmpty)
-        ? apiRows
-        : controller.selectedPits.map((p) => {
-            '_id': p.id ?? '',
-            'pitName': p.pitName,
-            'measuredVol': p.volume?.value ?? 0,
-            'mw': p.density?.value ?? 0,
-            'mud': p.fluidType?.value ?? '',
-          }).toList();
-
+  Widget _buildActivePitsTableBody() {
+    final dataRows = controller.activePitRows;
     return Table(
       border: TableBorder(
         horizontalInside: BorderSide(color: Colors.grey.shade300, width: 1),
@@ -273,28 +275,31 @@ class _PitPageState extends State<PitPage> {
         3: FlexColumnWidth(2),
       },
       children: [
-        ...dataRows.map<TableRow>((row) {
-          final pitId = row['_id']?.toString() ?? '';
-          final pitName = row['pitName']?.toString() ?? '';
-          final measuredVol = (row['measuredVol'] ?? 0).toString();
-          final mw = (row['mw'] ?? 0).toString();
-          final mud = row['mud']?.toString() ?? '';
+        ...List.generate(dataRows.length, (index) {
+          final pit = dataRows[index];
+          final pitKey = controller.controllerKeyForPit(pit, 'active', index);
           final ctrls = controller.getPitCtrl(
-            pitId,
-            vol: double.tryParse(measuredVol) ?? 0,
-            density: double.tryParse(mw) ?? 0,
-            fluid: mud,
+            pitKey,
+            pitName: pit.pitName,
+            vol: pit.volume?.value ?? 0,
+            density: pit.density?.value ?? 0,
+            fluid: pit.fluidType?.value ?? '',
           );
-          return TableRow(children: [
-            _readOnlyCell(pitName),
-            _editableCellWithSave(ctrls, pitId, 'volume'),
-            _editableCellWithSave(ctrls, pitId, 'density'),
-            _editableCellWithSave(ctrls, pitId, 'fluidType'),
-          ]);
-        }).toList(),
-        ...List.generate(kEmptyFillRows, (_) => TableRow(children: [
-          _emptyCell(), _emptyCell(), _emptyCell(), _emptyCell(),
-        ])),
+          return TableRow(
+            children: [
+              _pitNameCell(ctrls, pit),
+              _editableCellWithSave(ctrls, pit, 'volume'),
+              _editableCellWithSave(ctrls, pit, 'density'),
+              _editableCellWithSave(ctrls, pit, 'fluidType'),
+            ],
+          );
+        }),
+        ...List.generate(
+          kEmptyFillRows,
+          (_) => TableRow(
+            children: [_emptyCell(), _emptyCell(), _emptyCell(), _emptyCell()],
+          ),
+        ),
       ],
     );
   }
@@ -315,15 +320,20 @@ class _PitPageState extends State<PitPage> {
           ),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Row(children: [
-              const Icon(Icons.warehouse, color: Colors.white, size: 14),
-              const SizedBox(width: 6),
-              const Text("Storage",
+            child: Row(
+              children: [
+                const Icon(Icons.warehouse, color: Colors.white, size: 14),
+                const SizedBox(width: 6),
+                const Text(
+                  "Storage",
                   style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white)),
-            ]),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
         _buildStorageTableHeader(),
@@ -337,9 +347,8 @@ class _PitPageState extends State<PitPage> {
               ),
             ),
             child: Obx(() {
-              final apiRows = controller.volumeNameData['storageTable'];
               return SingleChildScrollView(
-                child: _buildStorageTableBody(apiRows),
+                child: _buildStorageTableBody(),
               );
             }),
           ),
@@ -377,17 +386,8 @@ class _PitPageState extends State<PitPage> {
     );
   }
 
-  Widget _buildStorageTableBody(dynamic apiRows) {
-    final dataRows = (apiRows != null && apiRows is List && apiRows.isNotEmpty)
-        ? apiRows
-        : controller.unselectedPits.map((p) => {
-            'pitName': p.pitName,
-            'calculatedVol': 0,
-            'measuredVol': p.capacity.value,
-            'mw': 0,
-            'fluidType': '',
-          }).toList();
-
+  Widget _buildStorageTableBody() {
+    final dataRows = controller.storagePitRows;
     return Table(
       border: TableBorder(
         horizontalInside: BorderSide(color: Colors.grey.shade300, width: 1),
@@ -402,32 +402,42 @@ class _PitPageState extends State<PitPage> {
         4: FlexColumnWidth(2),
       },
       children: [
-        ...dataRows.map<TableRow>((row) {
-          final pitId = row['_id']?.toString() ?? '';
-          final pitName = row['pitName']?.toString() ?? '';
-          final calculatedVol = (row['calculatedVol'] ?? 0).toString();
-          final measuredVol = (row['measuredVol'] ?? 0).toString();
-          final mw = (row['mw'] ?? 0).toString();
-          final fluid = row['fluidType']?.toString() ?? '';
-          
+        ...List.generate(dataRows.length, (index) {
+          final pit = dataRows[index];
+          final pitKey = controller.controllerKeyForPit(pit, 'storage', index);
+
           final ctrls = controller.getPitCtrl(
-            pitId,
-            vol: double.tryParse(measuredVol) ?? 0,
-            density: double.tryParse(mw) ?? 0,
-            fluid: fluid,
+            pitKey,
+            pitName: pit.pitName,
+            vol: pit.volume?.value ?? 0,
+            density: pit.density?.value ?? 0,
+            fluid: pit.fluidType?.value ?? '',
           );
 
-          return TableRow(children: [
-            _readOnlyCell(pitName),
-            _readOnlyCell(double.tryParse(calculatedVol)?.toStringAsFixed(2) ?? '0.00'),
-            _editableCellWithSave(ctrls, pitId, 'volume'),
-            _editableCellWithSave(ctrls, pitId, 'density'),
-            _editableCellWithSave(ctrls, pitId, 'fluidType'),
-          ]);
-        }).toList(),
-        ...List.generate(kEmptyFillRows, (_) => TableRow(children: [
-          _emptyCell(), _emptyCell(), _emptyCell(), _emptyCell(), _emptyCell(),
-        ])),
+          return TableRow(
+            children: [
+              _pitNameCell(ctrls, pit),
+              _readOnlyCell(
+                _storageCalculatedVol(pit),
+              ),
+              _editableCellWithSave(ctrls, pit, 'volume'),
+              _editableCellWithSave(ctrls, pit, 'density'),
+              _editableCellWithSave(ctrls, pit, 'fluidType'),
+            ],
+          );
+        }),
+        ...List.generate(
+          kEmptyFillRows,
+          (_) => TableRow(
+            children: [
+              _emptyCell(),
+              _emptyCell(),
+              _emptyCell(),
+              _emptyCell(),
+              _emptyCell(),
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -448,15 +458,20 @@ class _PitPageState extends State<PitPage> {
           ),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Row(children: [
-              const Icon(Icons.summarize, color: Colors.white, size: 16),
-              const SizedBox(width: 8),
-              const Text("Volume Name",
+            child: Row(
+              children: [
+                const Icon(Icons.summarize, color: Colors.white, size: 16),
+                const SizedBox(width: 8),
+                const Text(
+                  "Volume Name",
                   style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white)),
-            ]),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
         // Volume Name header row
@@ -473,10 +488,12 @@ class _PitPageState extends State<PitPage> {
             ),
             child: Obx(() {
               if (controller.isLoadingVolume.value) {
-                return const Center(child: Padding(
-                  padding: EdgeInsets.all(20.0),
-                  child: CircularProgressIndicator(),
-                ));
+                return const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(20.0),
+                    child: CircularProgressIndicator(),
+                  ),
+                );
               }
               final vn = controller.volumeNameData['volumeName'];
               return SingleChildScrollView(
@@ -496,41 +513,33 @@ class _PitPageState extends State<PitPage> {
         left: BorderSide(color: Colors.grey.shade300, width: 1),
         right: BorderSide(color: Colors.grey.shade300, width: 1),
       ),
-      columnWidths: const {
-        0: FlexColumnWidth(3),
-        1: FlexColumnWidth(1.5),
-      },
+      columnWidths: const {0: FlexColumnWidth(3), 1: FlexColumnWidth(1.5)},
       children: [
         TableRow(
           decoration: BoxDecoration(color: Colors.grey.shade100),
-          children: [
-            _headerCell("Volume Name"),
-            _headerCell("Volume\n(bbl)"),
-          ],
+          children: [_headerCell("Volume Name"), _headerCell("Volume\n(bbl)")],
         ),
       ],
     );
   }
 
   Widget _buildVolumeNameTableBody(dynamic vn) {
-    double _d(String key) {
+    double getValue(String key) {
       if (vn == null) return 0.0;
       final v = vn[key];
       if (v is num) return v.toDouble();
       return double.tryParse(v?.toString() ?? '') ?? 0.0;
     }
 
-    String _fmt(double v) => v.toStringAsFixed(2);
-
     final rows = [
-      ['Hole Vol. Difference', _fmt(_d('heldVolDifference'))],
-      ['Hole', _fmt(_d('hole'))],
-      ['Active Pits', _fmt(_d('activePits'))],
-      ['Active System', _fmt(_d('activeSystem'))],
-      ['End Vol.', _fmt(_d('endVol'))],
-      ['End Vol. - Active System', _fmt(_d('endVolMinusActiveSystem'))],
-      ['Total Storage', _fmt(_d('totalStorage'))],
-      ['Total on Location', _fmt(_d('totalOnLocation'))],
+      ['Hole Vol. Difference', _formatVolumeDisplay(getValue('heldVolDifference'))],
+      ['Hole', _formatVolumeDisplay(getValue('hole'))],
+      ['Active Pits', _formatVolumeDisplay(getValue('activePits'))],
+      ['Active System', _formatVolumeDisplay(getValue('activeSystem'))],
+      ['End Vol.', _formatVolumeDisplay(getValue('endVol'))],
+      ['End Vol. - Active System', _formatVolumeDisplay(getValue('endVolMinusActiveSystem'))],
+      ['Total Storage', _formatVolumeDisplay(getValue('totalStorage'))],
+      ['Total on Location', _formatVolumeDisplay(getValue('totalOnLocation'))],
       ['Previous Total on Location', '0.00'],
     ];
 
@@ -540,10 +549,7 @@ class _PitPageState extends State<PitPage> {
         verticalInside: BorderSide(color: Colors.grey.shade300, width: 1),
       ),
       defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-      columnWidths: const {
-        0: FlexColumnWidth(3),
-        1: FlexColumnWidth(1.5),
-      },
+      columnWidths: const {0: FlexColumnWidth(3), 1: FlexColumnWidth(1.5)},
       children: rows.map((row) {
         final label = row[0];
         final value = row[1];
@@ -551,28 +557,33 @@ class _PitPageState extends State<PitPage> {
         final isNegativeWarning = label == 'End Vol. - Active System';
         final isRed = isNegativeWarning && numVal < 0;
 
-        return TableRow(children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            child: Text(label,
+        return TableRow(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              child: Text(
+                label,
                 style: const TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.black87)),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            child: Text(
-              value,
-              textAlign: TextAlign.right,
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
-                color: isRed ? Colors.red : Colors.black87,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.black87,
+                ),
               ),
             ),
-          ),
-        ]);
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              child: Text(
+                value,
+                textAlign: TextAlign.right,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: isRed ? Colors.red : Colors.black87,
+                ),
+              ),
+            ),
+          ],
+        );
       }).toList(),
     );
   }
@@ -594,15 +605,20 @@ class _PitPageState extends State<PitPage> {
           ),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Row(children: [
-              const Icon(Icons.local_shipping, color: Colors.white, size: 16),
-              const SizedBox(width: 8),
-              const Text("Haul Off",
+            child: Row(
+              children: [
+                const Icon(Icons.local_shipping, color: Colors.white, size: 16),
+                const SizedBox(width: 8),
+                const Text(
+                  "Haul Off",
                   style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white)),
-            ]),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
         // Table Column Header (Sticky)
@@ -617,9 +633,7 @@ class _PitPageState extends State<PitPage> {
                 bottomRight: Radius.circular(4),
               ),
             ),
-            child: SingleChildScrollView(
-              child: _buildHaulOffTableBody(),
-            ),
+            child: SingleChildScrollView(child: _buildHaulOffTableBody()),
           ),
         ),
       ],
@@ -680,45 +694,56 @@ class _PitPageState extends State<PitPage> {
   }
 
   TableRow _buildHaulOffRow(String label, String value, String unit) {
-    return TableRow(children: [
-      Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        child: Text(label,
+    return TableRow(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          child: Text(
+            label,
             style: const TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w500,
-                color: Colors.black87)),
-      ),
-      Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        child: Obx(() {
-          if (dashboard.isLocked.value) {
-            return Text(value,
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+              color: Colors.black87,
+            ),
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          child: Obx(() {
+            if (dashboard.isLocked.value) {
+              return Text(
+                value,
                 style: const TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87),
-                textAlign: TextAlign.right);
-          }
-          return TextFormField(
-            initialValue: value,
-            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600),
-            textAlign: TextAlign.right,
-            decoration: const InputDecoration(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
+                textAlign: TextAlign.right,
+              );
+            }
+            return TextFormField(
+              initialValue: value,
+              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600),
+              textAlign: TextAlign.right,
+              decoration: const InputDecoration(
                 isDense: true,
                 contentPadding: EdgeInsets.zero,
                 border: InputBorder.none,
                 enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none),
-          );
-        }),
-      ),
-      Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-        child: Text(unit,
-            style: TextStyle(fontSize: 10, color: Colors.grey.shade700)),
-      ),
-    ]);
+                focusedBorder: InputBorder.none,
+              ),
+            );
+          }),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+          child: Text(
+            AppUnits.unitText(unit),
+            style: TextStyle(fontSize: 10, color: Colors.grey.shade700),
+          ),
+        ),
+      ],
+    );
   }
 
   // ================= PIT SNAPSHOT BUTTON =================
@@ -728,16 +753,18 @@ class _PitPageState extends State<PitPage> {
       child: ElevatedButton.icon(
         onPressed: () => Get.to(() => PitSnapshotPage()),
         icon: const Icon(Icons.camera_alt, size: 16),
-        label: const Text("Pit Snapshot",
-            style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Colors.white)),
+        label: const Text(
+          "Pit Snapshot",
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
+          ),
+        ),
         style: ElevatedButton.styleFrom(
           backgroundColor: AppTheme.primaryColor,
           minimumSize: const Size(double.infinity, 40),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
         ),
       ),
     );
@@ -748,21 +775,59 @@ class _PitPageState extends State<PitPage> {
   Widget _headerCell(String text) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-      child: Text(text,
-          style: const TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-              color: Colors.black87),
-          textAlign: TextAlign.center),
+      child: Text(
+        AppUnits.label(text),
+        style: const TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          color: Colors.black87,
+        ),
+        textAlign: TextAlign.center,
+      ),
     );
   }
 
   Widget _readOnlyCell(String text) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-      child: Text(text,
-          style: const TextStyle(fontSize: 10, color: Colors.black87),
-          textAlign: TextAlign.center),
+      child: Text(
+        text,
+        style: const TextStyle(fontSize: 10, color: Colors.black87),
+        textAlign: TextAlign.center,
+      ),
+    );
+  }
+
+  Widget _pitNameCell(
+    Map<String, TextEditingController> ctrls,
+    PitModel pit,
+  ) {
+    final ctrl = ctrls['pitName']!;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      child: Obx(() {
+        if (dashboard.isLocked.value || !controller.isDraftPit(pit)) {
+          return Text(
+            ctrl.text,
+            style: const TextStyle(fontSize: 10, color: Colors.black87),
+            textAlign: TextAlign.center,
+          );
+        }
+        return TextFormField(
+          controller: ctrl,
+          style: const TextStyle(fontSize: 10),
+          textAlign: TextAlign.center,
+          decoration: const InputDecoration(
+            isDense: true,
+            contentPadding: EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+            border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            hintText: 'Pit',
+          ),
+          onChanged: (val) => controller.updateDraftPit(pit: pit, pitName: val),
+        );
+      }),
     );
   }
 
@@ -773,15 +838,20 @@ class _PitPageState extends State<PitPage> {
   // Editable cell — on save button hit from secondary tabbar,
   // also allows inline edit and triggers save + volume name refresh
   Widget _editableCellWithSave(
-      Map<String, TextEditingController> ctrls, String pitId, String field) {
+    Map<String, TextEditingController> ctrls,
+    PitModel pit,
+    String field,
+  ) {
     final ctrl = ctrls[field]!;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
       child: Obx(() {
         if (dashboard.isLocked.value) {
-          return Text(ctrl.text,
-              style: const TextStyle(fontSize: 10, color: Colors.black87),
-              textAlign: TextAlign.center);
+          return Text(
+            ctrl.text,
+            style: const TextStyle(fontSize: 10, color: Colors.black87),
+            textAlign: TextAlign.center,
+          );
         }
         return TextFormField(
           controller: ctrl,
@@ -791,16 +861,23 @@ class _PitPageState extends State<PitPage> {
               ? TextInputType.text
               : const TextInputType.numberWithOptions(decimal: true),
           decoration: const InputDecoration(
-              isDense: true,
-              contentPadding:
-                  EdgeInsets.symmetric(vertical: 4, horizontal: 4),
-              border: InputBorder.none,
-              enabledBorder: InputBorder.none,
-              focusedBorder: InputBorder.none),
+            isDense: true,
+            contentPadding: EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+            border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+          ),
           onChanged: (val) {
-            if (pitId.isNotEmpty) {
+            if (pit.id != null && pit.id!.isNotEmpty) {
               controller.onPitFieldChanged(
-                pitId: pitId,
+                pitId: pit.id!,
+                volume: double.tryParse(ctrls['volume']!.text) ?? 0,
+                density: double.tryParse(ctrls['density']!.text) ?? 0,
+                fluidType: ctrls['fluidType']!.text,
+              );
+            } else {
+              controller.updateDraftPit(
+                pit: pit,
                 volume: double.tryParse(ctrls['volume']!.text) ?? 0,
                 density: double.tryParse(ctrls['density']!.text) ?? 0,
                 fluidType: ctrls['fluidType']!.text,
@@ -813,5 +890,28 @@ class _PitPageState extends State<PitPage> {
         );
       }),
     );
+  }
+
+  String _storageCalculatedVol(PitModel pit) {
+    final rows = controller.volumeNameData['storageTable'];
+    if (rows is List) {
+      final match = rows.cast<dynamic>().firstWhereOrNull((row) {
+        if (row is! Map) return false;
+        final id = row['_id']?.toString() ?? '';
+        final name = row['pitName']?.toString() ?? '';
+        return (pit.id != null && id == pit.id) || name == pit.pitName;
+      });
+
+      if (match is Map) {
+        final value = double.tryParse(
+          (match['calculatedVol'] ?? 0).toString(),
+        );
+        if (value != null) {
+          return _formatVolumeDisplay(value);
+        }
+      }
+    }
+
+    return '0.00';
   }
 }

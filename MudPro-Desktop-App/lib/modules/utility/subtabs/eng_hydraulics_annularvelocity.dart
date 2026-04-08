@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import '../controller/engineering_tools_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
@@ -10,92 +11,104 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = Get.find<EngineeringToolsController>();
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isSmallScreen = constraints.maxWidth < 800;
-        
-        return Container(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Title and Description
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: AppTheme.infoColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: AppTheme.infoColor.withOpacity(0.2)),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.info_outline, size: 16, color: AppTheme.infoColor),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        "Calculate annular velocity based on pump output, hole size, and pipe OD",
-                        style: AppTheme.caption.copyWith(
-                          color: AppTheme.infoColor,
+    return Obx(() {
+      AppUnits.signature;
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          final isSmallScreen = constraints.maxWidth < 800;
+
+          return Container(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Title and Description
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppTheme.infoColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: AppTheme.infoColor.withOpacity(0.2),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        size: 16,
+                        color: AppTheme.infoColor,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          "Calculate annular velocity based on pump output, hole size, and pipe OD",
+                          style: AppTheme.caption.copyWith(
+                            color: AppTheme.infoColor,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
 
-              const SizedBox(height: 16),
+                const SizedBox(height: 16),
 
-              // Calculator Section - Made scrollable
-              Expanded(
-                child: isSmallScreen
-                    ? _buildMobileLayout(c)
-                    : _buildDesktopLayout(c),
-              ),
-
-              const SizedBox(height: 16),
-
-              // Formula Section
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.grey.shade200),
+                // Calculator Section - Made scrollable
+                Expanded(
+                  child: isSmallScreen
+                      ? _buildMobileLayout(c)
+                      : _buildDesktopLayout(c),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "Formula Used:",
-                      style: AppTheme.caption.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.textPrimary,
+
+                const SizedBox(height: 16),
+
+                // Formula Section
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey.shade200),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Formula Used:",
+                        style: AppTheme.caption.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.textPrimary,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      "AV = (24.51 × Pump Output) ÷ (Hole Size² - Pipe OD²)",
-                      style: AppTheme.caption.copyWith(
-                        color: AppTheme.textSecondary,
-                        fontStyle: FontStyle.italic,
+                      const SizedBox(height: 6),
+                      Text(
+                        "AV = (24.51 × Pump Output) ÷ (Hole Size² - Pipe OD²)",
+                        style: AppTheme.caption.copyWith(
+                          color: AppTheme.textSecondary,
+                          fontStyle: FontStyle.italic,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      "Where: AV = Annular Velocity (ft/min), Pump Output (bpm), Hole Size & Pipe OD (inches)",
-                      style: AppTheme.caption.copyWith(
-                        color: AppTheme.textSecondary,
-                        fontSize: 9,
+                      const SizedBox(height: 4),
+                      Text(
+                        "Where: AV = Annular Velocity ${AppUnits.velocity}, Pump Output ${AppUnits.drillingFlowRate}, Hole Size & Pipe OD ${AppUnits.diameter}",
+                        style: AppTheme.caption.copyWith(
+                          color: AppTheme.textSecondary,
+                          fontSize: 9,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
+              ],
+            ),
+          );
+        },
+      );
+    });
   }
 
   Widget _buildDesktopLayout(EngineeringToolsController c) {
@@ -130,14 +143,29 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 16),
-                
+
                 // Input fields with labels and text fields in rows
-                _inputFieldWithRow("Pump Output", "bpm", c.pumpOutput, "567"),
+                _inputFieldWithRow(
+                  "Pump Output",
+                  AppUnits.strip(AppUnits.drillingFlowRate),
+                  c.pumpOutput,
+                  "567",
+                ),
                 const SizedBox(height: 16),
-                _inputFieldWithRow("Hole Size", "inches", c.holeSize, "456"),
+                _inputFieldWithRow(
+                  "Hole Size",
+                  AppUnits.strip(AppUnits.diameter),
+                  c.holeSize,
+                  "456",
+                ),
                 const SizedBox(height: 16),
-                _inputFieldWithRow("Pipe OD", "inches", c.pipeOD, "45"),
-                
+                _inputFieldWithRow(
+                  "Pipe OD",
+                  AppUnits.strip(AppUnits.diameter),
+                  c.pipeOD,
+                  "45",
+                ),
+
                 const SizedBox(height: 24),
                 Row(
                   children: [
@@ -152,7 +180,12 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                           children: [
                             Icon(Icons.calculate, size: 14),
                             const SizedBox(width: 6),
-                            Text("Calculate", style: AppTheme.caption.copyWith(color: Colors.white)),
+                            Text(
+                              "Calculate",
+                              style: AppTheme.caption.copyWith(
+                                color: Colors.white,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -190,7 +223,7 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
               child: Obx(() {
                 final result = c.annularVelocity.value;
                 final hasResult = result != null;
-                
+
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -202,7 +235,7 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    
+
                     if (!hasResult)
                       Container(
                         height: 300,
@@ -233,7 +266,9 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                             decoration: BoxDecoration(
                               color: AppTheme.successColor.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: AppTheme.successColor.withOpacity(0.2)),
+                              border: Border.all(
+                                color: AppTheme.successColor.withOpacity(0.2),
+                              ),
                             ),
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
@@ -247,7 +282,7 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
-                                  "${result.toStringAsFixed(2)} ft/min",
+                                  "${result.toStringAsFixed(2)} ${AppUnits.strip(AppUnits.velocity)}",
                                   style: TextStyle(
                                     fontSize: 24,
                                     fontWeight: FontWeight.w700,
@@ -260,11 +295,17 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                                   decoration: BoxDecoration(
                                     color: Colors.white,
                                     borderRadius: BorderRadius.circular(6),
-                                    border: Border.all(color: Colors.grey.shade200),
+                                    border: Border.all(
+                                      color: Colors.grey.shade200,
+                                    ),
                                   ),
                                   child: Row(
                                     children: [
-                                      Icon(Icons.info, size: 14, color: AppTheme.infoColor),
+                                      Icon(
+                                        Icons.info,
+                                        size: 14,
+                                        color: AppTheme.infoColor,
+                                      ),
                                       const SizedBox(width: 6),
                                       Expanded(
                                         child: Text(
@@ -299,11 +340,20 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                                   ),
                                 ),
                                 const SizedBox(height: 12),
-                                _inputSummaryRow("Pump Output", "${c.pumpOutput.value} bpm"),
+                                _inputSummaryRow(
+                                  "Pump Output",
+                                  "${c.pumpOutput.value} ${AppUnits.strip(AppUnits.drillingFlowRate)}",
+                                ),
                                 const SizedBox(height: 8),
-                                _inputSummaryRow("Hole Size", "${c.holeSize.value} inches"),
+                                _inputSummaryRow(
+                                  "Hole Size",
+                                  "${c.holeSize.value} ${AppUnits.strip(AppUnits.diameter)}",
+                                ),
                                 const SizedBox(height: 8),
-                                _inputSummaryRow("Pipe OD", "${c.pipeOD.value} inches"),
+                                _inputSummaryRow(
+                                  "Pipe OD",
+                                  "${c.pipeOD.value} ${AppUnits.strip(AppUnits.diameter)}",
+                                ),
                               ],
                             ),
                           ),
@@ -350,11 +400,26 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 16),
-                _inputFieldWithRow("Pump Output", "bpm", c.pumpOutput, "567"),
+                _inputFieldWithRow(
+                  "Pump Output",
+                  AppUnits.strip(AppUnits.drillingFlowRate),
+                  c.pumpOutput,
+                  "567",
+                ),
                 const SizedBox(height: 16),
-                _inputFieldWithRow("Hole Size", "inches", c.holeSize, "456"),
+                _inputFieldWithRow(
+                  "Hole Size",
+                  AppUnits.strip(AppUnits.diameter),
+                  c.holeSize,
+                  "456",
+                ),
                 const SizedBox(height: 16),
-                _inputFieldWithRow("Pipe OD", "inches", c.pipeOD, "45"),
+                _inputFieldWithRow(
+                  "Pipe OD",
+                  AppUnits.strip(AppUnits.diameter),
+                  c.pipeOD,
+                  "45",
+                ),
                 const SizedBox(height: 24),
                 Row(
                   children: [
@@ -369,7 +434,12 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                           children: [
                             Icon(Icons.calculate, size: 14),
                             const SizedBox(width: 6),
-                            Text("Calculate", style: AppTheme.caption.copyWith(color: Colors.white)),
+                            Text(
+                              "Calculate",
+                              style: AppTheme.caption.copyWith(
+                                color: Colors.white,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -407,7 +477,7 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
             child: Obx(() {
               final result = c.annularVelocity.value;
               final hasResult = result != null;
-              
+
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -419,7 +489,7 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  
+
                   if (!hasResult)
                     Container(
                       height: 250,
@@ -450,7 +520,9 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                           decoration: BoxDecoration(
                             color: AppTheme.successColor.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: AppTheme.successColor.withOpacity(0.2)),
+                            border: Border.all(
+                              color: AppTheme.successColor.withOpacity(0.2),
+                            ),
                           ),
                           child: Column(
                             children: [
@@ -463,7 +535,7 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                "${result.toStringAsFixed(2)} ft/min",
+                                "${result.toStringAsFixed(2)} ${AppUnits.strip(AppUnits.velocity)}",
                                 style: TextStyle(
                                   fontSize: 24,
                                   fontWeight: FontWeight.w700,
@@ -492,11 +564,20 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                                 ),
                               ),
                               const SizedBox(height: 12),
-                              _inputSummaryRow("Pump Output", "${c.pumpOutput.value} bpm"),
+                              _inputSummaryRow(
+                                "Pump Output",
+                                "${c.pumpOutput.value} ${AppUnits.strip(AppUnits.drillingFlowRate)}",
+                              ),
                               const SizedBox(height: 8),
-                              _inputSummaryRow("Hole Size", "${c.holeSize.value} inches"),
+                              _inputSummaryRow(
+                                "Hole Size",
+                                "${c.holeSize.value} ${AppUnits.strip(AppUnits.diameter)}",
+                              ),
                               const SizedBox(height: 8),
-                              _inputSummaryRow("Pipe OD", "${c.pipeOD.value} inches"),
+                              _inputSummaryRow(
+                                "Pipe OD",
+                                "${c.pipeOD.value} ${AppUnits.strip(AppUnits.diameter)}",
+                              ),
                             ],
                           ),
                         ),
@@ -511,7 +592,12 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
     );
   }
 
-  Widget _inputFieldWithRow(String label, String unit, RxString value, String example) {
+  Widget _inputFieldWithRow(
+    String label,
+    String unit,
+    RxString value,
+    String example,
+  ) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.grey.shade50,
@@ -543,7 +629,7 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
-          
+
           // Input field with example
           Container(
             height: 40,
@@ -566,7 +652,9 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                     decoration: InputDecoration(
                       isDense: true,
                       border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                      ),
                       hintText: "Enter value",
                       hintStyle: AppTheme.caption.copyWith(
                         color: Colors.grey.shade400,
@@ -604,18 +692,14 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 6),
       decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: Colors.grey.shade200),
-        ),
+        border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
             label,
-            style: AppTheme.caption.copyWith(
-              color: AppTheme.textSecondary,
-            ),
+            style: AppTheme.caption.copyWith(color: AppTheme.textSecondary),
           ),
           Text(
             value,
@@ -632,12 +716,14 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
   // Validation method
   void _validateAndCalculate(EngineeringToolsController c) {
     // Check if any field is empty
-    if (c.pumpOutput.value.isEmpty || c.holeSize.value.isEmpty || c.pipeOD.value.isEmpty) {
+    if (c.pumpOutput.value.isEmpty ||
+        c.holeSize.value.isEmpty ||
+        c.pipeOD.value.isEmpty) {
       // Show small popup alert
       _showRequiredFieldsAlert(c);
       return;
     }
-    
+
     // If all fields are filled, proceed with calculation
     c.calculateAnnularVelocity();
   }
@@ -647,9 +733,7 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
     Get.dialog(
       AlertDialog(
         backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         contentPadding: const EdgeInsets.all(16),
         content: Container(
           width: 280, // Small width
@@ -671,7 +755,7 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
-              
+
               // Title
               Text(
                 "Required Fields",
@@ -682,9 +766,9 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                 ),
                 textAlign: TextAlign.center,
               ),
-              
+
               const SizedBox(height: 8),
-              
+
               // Message
               Text(
                 "Please fill all the input fields to calculate annular velocity.",
@@ -694,9 +778,9 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                 ),
                 textAlign: TextAlign.center,
               ),
-              
+
               const SizedBox(height: 20),
-              
+
               // OK button
               SizedBox(
                 width: double.infinity,

@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/inventory_store/inventory_store.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/options_controller.dart';
 import 'modules/dashboard/view/dashboard_view.dart';
 
 class MyHttpOverrides extends HttpOverrides {
@@ -16,10 +17,10 @@ class MyHttpOverrides extends HttpOverrides {
 void main() {
   HttpOverrides.global = MyHttpOverrides();
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const MyApp());
-  
+  Get.put(OptionsController(), permanent: true);
   Get.put(InventoryProductsStore(), permanent: true);
   Get.put(InventoryServicesStore(), permanent: true);
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -32,10 +33,7 @@ class MyApp extends StatelessWidget {
     return GetMaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'MudPro Desktop',
-      theme: ThemeData(
-        fontFamily: 'Segoe UI',
-        useMaterial3: false,
-      ),
+      theme: ThemeData(fontFamily: 'Segoe UI', useMaterial3: false),
       home: home ?? DashboardView(),
     );
   }

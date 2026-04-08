@@ -1,4 +1,3 @@
-// FIXED: 'final' is JS reserved word — replaced with finalVal everywhere
 import InventorySnapshot from "../../modules/FullInventory/InventorySnapshot.js";
 import ConsumeProduct from "../../modules/Consumeproduct/ConsumeProduct.js";
 import ReceiveProduct from "../../modules/ReceiveProduct/Product/ReceiveProduct.js";
@@ -8,74 +7,167 @@ import Engineering from "../../modules/ConsumeServices/Engineers/Engineering.js"
 import Package from "../../modules/ConsumeServices/Package/Package.js";
 import ReceivePackage from "../../modules/ReceiveProduct/Package/ReceivePackage.js";
 import ReturnPackage from "../../modules/ReturnProduct/Package/ReturnPackage.js";
+import UgInventorySnapshot from "../../modules/ugInventory/ugInventoryProductModel.js";
+import Well from "../../modules/well/well.model.js";
+
+const toNumber = (value) => {
+  if (value === null || value === undefined || value === "") return 0;
+  const parsed = Number(String(value).replace(/[^0-9.-]/g, ""));
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const round2 = (value) => Number(toNumber(value).toFixed(2));
+
+const normalizeText = (value) => String(value || "").trim().toLowerCase();
+
+const keyFromCodeOrName = (code, name, fallback) => {
+  const cleanCode = normalizeText(code);
+  if (cleanCode) return `code:${cleanCode}`;
+
+  const cleanName = normalizeText(name);
+  if (cleanName) return `name:${cleanName}`;
+
+  return fallback;
+};
+
+const readWellId = (req) =>
+  String(req.query.wellId || req.body?.wellId || "").trim();
+
+const summaryFromRows = (rows = []) => {
+  const first = rows[0] || {};
+  return {
+    subtotal: round2(rows.reduce((sum, row) => sum + toNumber(row.subtotal), 0)),
+    taxRate: round2(first.taxRate),
+    taxAmount: round2(first.taxAmount),
+    dailyTotal: round2(first.dailyTotal || first.totalDollar),
+    prevTotal: round2(first.prevTotal),
+    cumTotal: round2(first.cumTotal || first.totalDollar),
+    intervalTotal: round2(first.intervalTotal),
+    stockBalance: round2(first.stockBalance),
+    bulkTankSetupFee: round2(first.bulkTankSetupFee),
+  };
+};
+
+const isVolumeNameWaterHelper = (item) =>
+  normalizeText(item.product) === "water" &&
+  normalizeText(item.code) === "" &&
+  normalizeText(item.unit) === "" &&
+  toNumber(item.price) === 0 &&
+  toNumber(item.initial) === 0 &&
+  toNumber(item.adjust) === 0 &&
+  toNumber(item.used) === 0 &&
+  toNumber(item.final) === 0 &&
+  toNumber(item.cost) === 0 &&
+  toNumber(item.volumeBbl) > 0;
 
 export const generateInventorySnapshot = async (req, res) => {
   try {
-    console.log("🔵 [BACKEND] Starting generateInventorySnapshot...");
+    const wellId = readWellId(req);
+    console.log(
+      `[BACKEND] Starting generateInventorySnapshot for wellId=${wellId || "global"}`
+    );
 
-    const consumes = await ConsumeProduct.find();
-    const receives = await ReceiveProduct.find();
-    const returns = await ReturnProduct.find();
-    const services = await Service.find();
-    const engineering = await Engineering.find();
-    const packages = await Package.find();
-    const packageReceives = await ReceivePackage.find();
-    const packageReturns = await ReturnPackage.find();
+    const consumeFilter = wellId ? { wellId } : {};
+    const rawConsumes = await ConsumeProduct.find(consumeFilter).lean();
+    const consumes = rawConsumes.filter((item) => !isVolumeNameWaterHelper(item));
+
+    const receives = await ReceiveProduct.find().lean();
+    const returns = await ReturnProduct.find().lean();
+    const services = await Service.find().lean();
+    const engineering = await Engineering.find().lean();
+    const packages = await Package.find().lean();
+    const packageReceives = await ReceivePackage.find().lean();
+    const packageReturns = await ReturnPackage.find().lean();
+
+    const existingRows = await InventorySnapshot.find(
+      wellId ? { wellId } : {}
+    ).sort({ createdAt: -1 });
+    const previousDailyTotal = round2(existingRows[0]?.dailyTotal || 0);
+
+    const inventoryConfig = wellId
+      ? await UgInventorySnapshot.findOne({ wellId }).sort({ updatedAt: -1 }).lean()
+      : null;
+    const wellConfig = wellId ? await Well.findById(wellId).lean() : null;
+
+    const taxRate = round2(inventoryConfig?.taxRate);
+    const bulkTankSetupFee = round2(
+      inventoryConfig?.bulkTankSetupFee || wellConfig?.bulkTankSetupFee
+    );
 
     let snapshotData = [];
 
-    // =========================
-    // PRODUCTS
-    // =========================
-
-    const productCodes = [
+    const productKeys = [
       ...new Set([
-        ...receives.map(r => r.code),
-        ...consumes.map(c => c.code),
-        ...returns.map(r => r.code),
-      ])
+        ...receives.map((row, index) =>
+          keyFromCodeOrName(row.code, row.productName, `receive:${index}`)
+        ),
+        ...consumes.map((row, index) =>
+          keyFromCodeOrName(row.code, row.product, `consume:${index}`)
+        ),
+        ...returns.map((row, index) =>
+          keyFromCodeOrName(row.code, row.productName, `return:${index}`)
+        ),
+      ]),
     ];
 
-    for (let code of productCodes) {
+    for (const key of productKeys) {
+      const productReceives = receives.filter(
+        (row, index) =>
+          keyFromCodeOrName(row.code, row.productName, `receive:${index}`) === key
+      );
+      const productConsumes = consumes.filter(
+        (row, index) =>
+          keyFromCodeOrName(row.code, row.product, `consume:${index}`) === key
+      );
+      const productReturns = returns.filter(
+        (row, index) =>
+          keyFromCodeOrName(row.code, row.productName, `return:${index}`) === key
+      );
 
-      const productReceives = receives.filter(r => r.code === code);
-      const productConsumes = consumes.filter(c => c.code === code);
-      const productReturns = returns.filter(r => r.code === code);
+      const cumulativeRec = round2(
+        productReceives.reduce((sum, row) => sum + toNumber(row.amount), 0)
+      );
+      const cumulativeUsed = round2(
+        productConsumes.reduce((sum, row) => sum + toNumber(row.used), 0)
+      );
+      const cumulativeRet = round2(
+        productReturns.reduce((sum, row) => sum + toNumber(row.amount), 0)
+      );
+      const cumulativeAdj = round2(
+        productConsumes.reduce((sum, row) => sum + toNumber(row.adjust), 0)
+      );
 
-      const cumulativeRec = productReceives.reduce((s, r) => s + (r.amount || 0), 0);
-      const cumulativeUsed = productConsumes.reduce((s, c) => s + (c.used || 0), 0);
-      const cumulativeRet = productReturns.reduce((s, r) => s + (r.amount || 0), 0);
-      const cumulativeAdj = productConsumes.reduce((s, c) => s + (c.adjust || 0), 0);
+      const price = round2(productConsumes[0]?.price);
+      const initial = round2(productConsumes[0]?.initial);
 
-      // ✅ DEBUG LOG
-      if (cumulativeAdj !== 0) {
-        console.log(`🟢 [BACKEND] Product Code: ${code}, Cumulative Adj: ${cumulativeAdj}`);
-      }
-
-      const price = productConsumes.length > 0 ? (productConsumes[0].price || 0) : 0;
-      const initial = productConsumes.length > 0 ? (productConsumes[0].initial || 0) : 0;
-
-      // ✅ FIX: productName — receive se lo, nahi to consume ka 'product' field use karo
       const itemName =
-        productReceives[0]?.productName ||   // ReceiveProduct schema: productName
-        productConsumes[0]?.product ||    // ConsumeProduct schema: product
-        productReturns[0]?.productName ||    // ReturnProduct schema: productName
+        productReceives[0]?.productName ||
+        productConsumes[0]?.product ||
+        productReturns[0]?.productName ||
         "";
 
-      // ✅ FIX: unit — receive se lo, nahi to consume se lo
+      const code =
+        productReceives[0]?.code ||
+        productConsumes[0]?.code ||
+        productReturns[0]?.code ||
+        "";
+
       const unit =
         productReceives[0]?.unit ||
         productConsumes[0]?.unit ||
         productReturns[0]?.unit ||
         "";
 
-      const finalVal = initial + cumulativeRec - cumulativeRet - cumulativeUsed + cumulativeAdj; // ✅ FIXED
-      const subtotal = cumulativeUsed * price;
+      const finalVal = round2(
+        initial + cumulativeRec - cumulativeRet - cumulativeUsed + cumulativeAdj
+      );
+      const subtotal = round2(cumulativeUsed * price);
 
       snapshotData.push({
+        wellId,
         category: "Product",
         itemName,
-        code: code || "",
+        code,
         unit,
         price,
         cumulativeRec,
@@ -86,129 +178,171 @@ export const generateInventorySnapshot = async (req, res) => {
         ret: cumulativeRet,
         adj: cumulativeAdj,
         used: cumulativeUsed,
-        final: finalVal,      // ✅ FIXED
+        final: finalVal,
         subtotal,
         costDollar: subtotal,
       });
     }
 
-    // =========================
-    // SERVICES
-    // =========================
-
-    for (let srv of services) {
-      const subtotal = (srv.price || 0) * (srv.usage || 0);
+    for (const srv of services) {
+      const subtotal = round2(toNumber(srv.price) * toNumber(srv.usage));
       snapshotData.push({
+        wellId,
         category: "Service",
         itemName: srv.serviceName || "",
         code: srv.code || "",
         unit: srv.unit || "",
-        price: srv.price || 0,
-        cumulativeUsed: srv.usage || 0,
-        used: srv.usage || 0,
+        price: round2(srv.price),
+        cumulativeUsed: round2(srv.usage),
+        used: round2(srv.usage),
         final: 0,
         subtotal,
         costDollar: subtotal,
       });
     }
 
-    // =========================
-    // ENGINEERING
-    // =========================
-
-    for (let eng of engineering) {
-      const subtotal = (eng.price || 0) * (eng.usage || 0);
+    for (const eng of engineering) {
+      const subtotal = round2(toNumber(eng.price) * toNumber(eng.usage));
       snapshotData.push({
+        wellId,
         category: "Engineering",
         itemName: eng.engineeringName || "",
         code: eng.code || "",
         unit: eng.unit || "",
-        price: eng.price || 0,
-        cumulativeUsed: eng.usage || 0,
-        used: eng.usage || 0,
+        price: round2(eng.price),
+        cumulativeUsed: round2(eng.usage),
+        used: round2(eng.usage),
         final: 0,
         subtotal,
         costDollar: subtotal,
       });
     }
 
-    // =========================
-    // PACKAGE
-    // =========================
-
-    const packageCodes = [
+    const packageKeys = [
       ...new Set([
-        ...packageReceives.map(r => r.code),
-        ...packages.map(c => c.code),
-        ...packageReturns.map(r => r.code)
-      ])
+        ...packageReceives.map((row, index) =>
+          keyFromCodeOrName(row.code, row.packageName, `pkg-receive:${index}`)
+        ),
+        ...packages.map((row, index) =>
+          keyFromCodeOrName(row.code, row.packageName, `pkg-consume:${index}`)
+        ),
+        ...packageReturns.map((row, index) =>
+          keyFromCodeOrName(row.code, row.packageName, `pkg-return:${index}`)
+        ),
+      ]),
     ];
 
-    for (let code of packageCodes) {
+    for (const key of packageKeys) {
+      const rec = packageReceives.filter(
+        (row, index) =>
+          keyFromCodeOrName(row.code, row.packageName, `pkg-receive:${index}`) ===
+          key
+      );
+      const cons = packages.filter(
+        (row, index) =>
+          keyFromCodeOrName(row.code, row.packageName, `pkg-consume:${index}`) ===
+          key
+      );
+      const ret = packageReturns.filter(
+        (row, index) =>
+          keyFromCodeOrName(row.code, row.packageName, `pkg-return:${index}`) ===
+          key
+      );
 
-      const rec = packageReceives.filter(r => r.code === code);
-      const cons = packages.filter(c => c.code === code);
-      const ret = packageReturns.filter(r => r.code === code);
+      const cumulativeRec = round2(
+        rec.reduce((sum, row) => sum + toNumber(row.amount), 0)
+      );
+      const cumulativeUsed = round2(
+        cons.reduce((sum, row) => sum + toNumber(row.used), 0)
+      );
+      const cumulativeRet = round2(
+        ret.reduce((sum, row) => sum + toNumber(row.amount), 0)
+      );
+      const cumulativeAdj = round2(
+        cons.reduce((sum, row) => sum + toNumber(row.adjust), 0)
+      );
 
-      const cumulativeRec = rec.reduce((s, r) => s + (r.amount || 0), 0);
-      const cumulativeUsed = cons.reduce((s, c) => s + (c.used || 0), 0);
-      const cumulativeRet = ret.reduce((s, r) => s + (r.amount || 0), 0);
-      const cumulativeAdj = cons.reduce((s, c) => s + (c.adjust || 0), 0);
-
-      const initial = cons.length > 0 ? (cons[0].initial || 0) : 0;  // ✅ FIX
-      const price = cons.length > 0 ? (cons[0].price || 0) : 0;
-      const subtotal = cumulativeUsed * price;
-
-      // ✅ FIX: 'final' reserved word avoid karo + initial formula mein add karo
-      const finalVal = initial + cumulativeRec - cumulativeRet - cumulativeUsed + cumulativeAdj; // ✅ FIXED
+      const initial = round2(cons[0]?.initial);
+      const price = round2(cons[0]?.price);
+      const subtotal = round2(cumulativeUsed * price);
+      const finalVal = round2(
+        initial + cumulativeRec - cumulativeRet - cumulativeUsed + cumulativeAdj
+      );
 
       snapshotData.push({
+        wellId,
         category: "Package",
         itemName: cons[0]?.packageName || rec[0]?.packageName || "",
-        code,
-        unit: cons[0]?.unit || rec[0]?.unit || "",
+        code: cons[0]?.code || rec[0]?.code || ret[0]?.code || "",
+        unit: cons[0]?.unit || rec[0]?.unit || ret[0]?.unit || "",
         price,
         cumulativeRec,
         cumulativeUsed,
         cumulativeRet,
-        initial,           // ✅ initial ab snapshot mein jayega
+        initial,
         rec: cumulativeRec,
         ret: cumulativeRet,
         adj: cumulativeAdj,
         used: cumulativeUsed,
-        final: finalVal,   // ✅ FIXED
+        final: finalVal,
         subtotal,
-        costDollar: subtotal
+        costDollar: subtotal,
       });
     }
 
-    // =========================
-    // GRAND TOTAL
-    // =========================
-
-    const grandTotal = snapshotData.reduce(
-      (sum, item) => sum + (item.subtotal || 0),
-      0
+    const subtotal = round2(
+      snapshotData.reduce((sum, item) => sum + toNumber(item.subtotal), 0)
+    );
+    const taxAmount = round2(subtotal * (taxRate / 100));
+    const dailyTotal = round2(subtotal + taxAmount);
+    const prevTotal = previousDailyTotal;
+    const cumTotal = round2(prevTotal + dailyTotal);
+    const intervalTotal = dailyTotal;
+    const stockBalance = round2(
+      snapshotData.reduce(
+        (sum, item) => sum + toNumber(item.final) * toNumber(item.price),
+        0
+      )
     );
 
-    snapshotData = snapshotData.map(item => ({
+    snapshotData = snapshotData.map((item) => ({
       ...item,
-      totalDollar: grandTotal,
+      totalDollar: dailyTotal,
+      taxRate,
+      taxAmount,
+      dailyTotal,
+      prevTotal,
+      cumTotal,
+      intervalTotal,
+      stockBalance,
+      bulkTankSetupFee,
     }));
 
-    await InventorySnapshot.deleteMany();
-    await InventorySnapshot.insertMany(snapshotData);
+    await InventorySnapshot.deleteMany(wellId ? { wellId } : {});
+    if (snapshotData.length) {
+      await InventorySnapshot.insertMany(snapshotData);
+    }
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "Inventory Snapshot Generated Successfully",
-      grandTotal,
       count: snapshotData.length,
+      data: snapshotData,
+      summary: {
+        subtotal,
+        taxRate,
+        taxAmount,
+        dailyTotal,
+        prevTotal,
+        cumTotal,
+        intervalTotal,
+        stockBalance,
+        bulkTankSetupFee,
+      },
     });
-
   } catch (error) {
     console.error("generateInventorySnapshot error:", error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: error.message,
     });
@@ -217,14 +351,20 @@ export const generateInventorySnapshot = async (req, res) => {
 
 export const getInventorySnapshot = async (req, res) => {
   try {
-    const data = await InventorySnapshot.find();
-    res.status(200).json({
+    const wellId = readWellId(req);
+    const data = await InventorySnapshot.find(wellId ? { wellId } : {}).sort({
+      category: 1,
+      itemName: 1,
+    });
+
+    return res.status(200).json({
       success: true,
       count: data.length,
       data,
+      summary: summaryFromRows(data),
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: error.message,
     });

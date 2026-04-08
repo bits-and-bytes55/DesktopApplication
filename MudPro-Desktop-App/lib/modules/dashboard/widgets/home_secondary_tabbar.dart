@@ -25,9 +25,11 @@ import 'package:mudpro_desktop_app/modules/dashboard/controller/cased_hole_contr
 import 'package:mudpro_desktop_app/modules/dashboard/controller/drill_string_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/UG_controller.dart';
+import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/well_view.dart';
 import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_models.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 
 // Static well ID — change as needed
@@ -329,11 +331,14 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
                   ),
                 ),
                 const SizedBox(width: 20),
-                _buildInfoField(
-                  "MD (ft)",
-                  "9055.0",
-                  Icons.vertical_align_bottom,
-                ),
+                Obx(() {
+                  AppUnits.signature;
+                  return _buildInfoField(
+                    "MD ${AppUnits.length}",
+                    "9055.0",
+                    Icons.vertical_align_bottom,
+                  );
+                }),
               ],
             ),
           ),
@@ -418,10 +423,28 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
     final List<String> errorMessages = [];
     final activeTab = controller.activeSectionTab.value;
     String successMessage = "Data saved successfully!";
+    bool shouldUseSectionSuccessMessage(String message) {
+      final normalized = message.trim().toLowerCase();
+      if (normalized.isEmpty) return false;
+      if (normalized == 'well editor is not mounted.') return false;
+      if (normalized.startsWith('no new ')) return false;
+      if (normalized.contains('(0 items)')) return false;
+      return true;
+    }
 
     try {
       if (activeTab == 0) {
         // Well Tab
+        final wellEditorRes = await WellView.saveActiveWell();
+        if (wellEditorRes['success'] == true) {
+          final message = wellEditorRes['message']?.toString() ?? '';
+          if (shouldUseSectionSuccessMessage(message)) {
+            successMessage = message;
+          }
+        } else {
+          errorMessages.add(wellEditorRes['message'] ?? 'Well page save failed');
+        }
+
         // ── 1. Save Well General ──────────────────────────────────────────
         final wellGenCtrl = Get.isRegistered<WellGeneralController>()
             ? Get.find<WellGeneralController>()
@@ -429,7 +452,10 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
         if (wellGenCtrl != null) {
           final res = await wellGenCtrl.save();
           if (res['success'] == true) {
-            successMessage = res['message'];
+            final message = res['message']?.toString() ?? '';
+            if (shouldUseSectionSuccessMessage(message)) {
+              successMessage = message;
+            }
           } else {
             errorMessages.add(res['message'] ?? 'Well General save failed');
           }
@@ -442,7 +468,10 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
         if (casedCtrl != null) {
           final res = await casedCtrl.saveAll();
           if (res['success'] == true) {
-            successMessage = res['message'];
+            final message = res['message']?.toString() ?? '';
+            if (shouldUseSectionSuccessMessage(message)) {
+              successMessage = message;
+            }
           } else {
             errorMessages.add(res['message'] ?? 'Casing save failed');
           }
@@ -455,10 +484,20 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
         if (drillStrCtrl != null) {
           final res = await drillStrCtrl.saveAll();
           if (res['success'] == true) {
-            successMessage = res['message'];
+            final message = res['message']?.toString() ?? '';
+            if (shouldUseSectionSuccessMessage(message)) {
+              successMessage = message;
+            }
           } else {
             errorMessages.add(res['message'] ?? 'Drill String save failed');
           }
+        }
+
+        final pitCtrl = Get.isRegistered<PitController>()
+            ? Get.find<PitController>()
+            : null;
+        if (pitCtrl != null) {
+          await pitCtrl.fetchVolumeNameData();
         }
       } else if (activeTab == 1) {
         // Inventory Tab

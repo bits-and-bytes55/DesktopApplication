@@ -347,9 +347,25 @@ class LeftReportTree extends StatelessWidget {
     if (reportC.errorMessage.value.isNotEmpty) {
       return Padding(
         padding: const EdgeInsets.only(top: 6, left: 24, right: 8),
-        child: Text(
-          reportC.errorMessage.value,
-          style: TextStyle(fontSize: 10, color: AppTheme.errorColor),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              reportC.errorMessage.value,
+              style: TextStyle(fontSize: 10, color: AppTheme.errorColor),
+            ),
+            const SizedBox(height: 6),
+            TextButton.icon(
+              onPressed: reportC.reloadData,
+              icon: const Icon(Icons.refresh, size: 12),
+              label: const Text('Refresh reports'),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ),
+          ],
         ),
       );
     }
@@ -481,7 +497,10 @@ class LeftReportTree extends StatelessWidget {
           ),
           SizedBox(height: 12),
           TextButton.icon(
-            onPressed: padWellC.reloadData,
+            onPressed: () async {
+              await padWellC.reloadData();
+              await reportC.reloadData();
+            },
             icon: Icon(Icons.refresh, size: 14),
             label: Text('Refresh'),
           ),

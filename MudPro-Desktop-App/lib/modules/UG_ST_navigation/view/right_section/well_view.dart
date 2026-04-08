@@ -9,6 +9,23 @@ import 'package:mudpro_desktop_app/theme/app_theme.dart';
 class WellView extends StatefulWidget {
   const WellView({super.key});
 
+  static final GlobalKey<_WellViewState> _viewKey = GlobalKey<_WellViewState>();
+  static Key get mountKey => _viewKey;
+
+  static Future<Map<String, dynamic>> saveActiveWell({
+    bool showFeedback = false,
+  }) async {
+    final state = _viewKey.currentState;
+    if (state == null) {
+      return {
+        'success': true,
+        'message': 'Well editor is not mounted.',
+      };
+    }
+
+    return state._saveWell(showFeedback: showFeedback);
+  }
+
   @override
   State<WellView> createState() => _WellViewState();
 }
@@ -77,16 +94,22 @@ class _WellViewState extends State<WellView> {
     }
   }
 
-  Future<void> _saveWell() async {
+  Future<Map<String, dynamic>> _saveWell({bool showFeedback = true}) async {
     if (_selectedPadId.isEmpty) {
-      _showFeedback('Select a pad first.', isSuccess: false);
-      return;
+      const message = 'Select a pad first.';
+      if (showFeedback) {
+        _showFeedback(message, isSuccess: false);
+      }
+      return {'success': false, 'message': message};
     }
 
     final wellName = _controllers['wellNameNo']!.text.trim();
     if (wellName.isEmpty) {
-      _showFeedback('Well name is required.', isSuccess: false);
-      return;
+      const message = 'Well name is required.';
+      if (showFeedback) {
+        _showFeedback(message, isSuccess: false);
+      }
+      return {'success': false, 'message': message};
     }
 
     final payload = <String, dynamic>{
@@ -103,9 +126,22 @@ class _WellViewState extends State<WellView> {
         padWellC.selectWell(wellId);
         dashboardC?.navigate('well:$wellId');
       }
-      _showFeedback(result['message']?.toString() ?? 'Well saved successfully');
+      if (showFeedback) {
+        _showFeedback(
+          result['message']?.toString() ?? 'Well saved successfully',
+        );
+      }
+      return {
+        'success': true,
+        'message': result['message']?.toString() ?? 'Well saved successfully',
+        'data': result['data'],
+      };
     } catch (e) {
-      _showFeedback(_cleanError(e), isSuccess: false);
+      final message = _cleanError(e);
+      if (showFeedback) {
+        _showFeedback(message, isSuccess: false);
+      }
+      return {'success': false, 'message': message};
     }
   }
 
@@ -298,7 +334,11 @@ class _WellViewState extends State<WellView> {
           _headerButton(
             icon: Icons.save,
             tooltip: 'Save well',
-            onTap: canEdit && hasExistingWell ? _saveWell : null,
+            onTap: canEdit && hasExistingWell
+                ? () {
+                    _saveWell(showFeedback: true);
+                  }
+                : null,
           ),
           const SizedBox(width: 6),
           _headerButton(

@@ -2,6 +2,12 @@ import mongoose from "mongoose";
 
 const inventorySnapshotSchema = new mongoose.Schema(
   {
+    wellId: {
+      type: String,
+      default: "",
+      index: true,
+    },
+
     category: {
       type: String,
       default: "",
@@ -86,6 +92,46 @@ const inventorySnapshotSchema = new mongoose.Schema(
     },
 
     totalDollar: {
+      type: Number,
+      default: 0,
+    },
+
+    taxRate: {
+      type: Number,
+      default: 0,
+    },
+
+    taxAmount: {
+      type: Number,
+      default: 0,
+    },
+
+    dailyTotal: {
+      type: Number,
+      default: 0,
+    },
+
+    prevTotal: {
+      type: Number,
+      default: 0,
+    },
+
+    cumTotal: {
+      type: Number,
+      default: 0,
+    },
+
+    intervalTotal: {
+      type: Number,
+      default: 0,
+    },
+
+    stockBalance: {
+      type: Number,
+      default: 0,
+    },
+
+    bulkTankSetupFee: {
       type: Number,
       default: 0,
     },

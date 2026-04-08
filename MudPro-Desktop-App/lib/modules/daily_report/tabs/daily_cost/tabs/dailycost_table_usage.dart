@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../controller/inventory_snapshot_controller.dart';
+import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
 class DailyCostTableUsagePage extends StatefulWidget {
   const DailyCostTableUsagePage({super.key});
@@ -21,6 +22,8 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
   String _errorMessage = '';
 
   double _subtotal = 0;
+  double _taxRate = 0;
+  double _taxAmount = 0;
   double _dailyTotal = 0;
   double _prevTotal = 0;
   double _cumTotal = 0;
@@ -44,12 +47,25 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
     });
 
     try {
-      final data = await _inventoryController.getInventorySnapshot();
+      final result = await _inventoryController.getInventorySnapshot();
+      if (result['success'] != true) {
+        throw Exception(result['message'] ?? 'Failed to load inventory snapshot');
+      }
+
+      final data =
+          (result['items'] as List<dynamic>? ?? const [])
+              .map((e) => Map<String, dynamic>.from(e as Map))
+              .toList();
+      final summary = Map<String, dynamic>.from(
+        result['summary'] as Map? ?? const <String, dynamic>{},
+      );
 
       if (data.isEmpty) {
         setState(() {
           _groupedData = {};
           _subtotal = 0;
+          _taxRate = 0;
+          _taxAmount = 0;
           _dailyTotal = 0;
           _prevTotal = 0;
           _cumTotal = 0;
@@ -68,21 +84,27 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
         grouped[category]!.add(item);
       }
 
-      double subtotal = 0;
-      final double grandTotal = (data[0]['totalDollar'] ?? 0).toDouble();
-      for (final item in data) {
-        subtotal += (item['subtotal'] ?? 0).toDouble();
-      }
+      final subtotal = _toDouble(summary['subtotal']);
+      final taxRate = _toDouble(summary['taxRate']);
+      final taxAmount = _toDouble(summary['taxAmount']);
+      final dailyTotal = _toDouble(summary['dailyTotal']);
+      final prevTotal = _toDouble(summary['prevTotal']);
+      final cumTotal = _toDouble(summary['cumTotal']);
+      final intervalTotal = _toDouble(summary['intervalTotal']);
+      final stockBalance = _toDouble(summary['stockBalance']);
+      final bulkTankSetupFee = _toDouble(summary['bulkTankSetupFee']);
 
       setState(() {
         _groupedData = grouped;
         _subtotal = subtotal;
-        _dailyTotal = grandTotal > 0 ? grandTotal : subtotal;
-        _prevTotal = 0;
-        _cumTotal = _dailyTotal;
-        _intervalTotal = 0;
-        _stockBalance = _dailyTotal;
-        _bulkSetupFee = 0;
+        _taxRate = taxRate;
+        _taxAmount = taxAmount;
+        _dailyTotal = dailyTotal > 0 ? dailyTotal : subtotal + taxAmount;
+        _prevTotal = prevTotal;
+        _cumTotal = cumTotal > 0 ? cumTotal : _dailyTotal;
+        _intervalTotal = intervalTotal > 0 ? intervalTotal : _dailyTotal;
+        _stockBalance = stockBalance;
+        _bulkSetupFee = bulkTankSetupFee;
         _isLoading = false;
       });
     } catch (e) {
@@ -137,6 +159,11 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
     return d.toStringAsFixed(decimals);
   }
 
+  double _toDouble(dynamic value) {
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString() ?? '') ?? 0.0;
+  }
+
   // ─────────────────────────────────────────────
   //  CELL
   // ─────────────────────────────────────────────
@@ -158,7 +185,7 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
         color: bg,
         border: Border.all(
           color: isHeader
-              ? Colors.white.withOpacity(0.3)
+              ? Colors.white.withValues(alpha: 0.3)
               : Colors.grey.shade200,
           width: 0.5,
         ),
@@ -209,7 +236,9 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
               padding: const EdgeInsets.symmetric(horizontal: 6),
               decoration: BoxDecoration(
                 border: Border.all(
-                    color: Colors.white.withOpacity(0.3), width: 0.5),
+                  color: Colors.white.withValues(alpha: 0.3),
+                  width: 0.5,
+                ),
               ),
               child: const Text('Cumulative',
                   style: TextStyle(
@@ -367,6 +396,13 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
           labelColor: const Color(0xff856404),
           totalColor: const Color(0xff856404),
         );
+      case 'package':
+        return _CategoryStyle(
+          bgLabel: const Color(0xffEAF7EE),
+          bgTotal: const Color(0xffEAF7EE),
+          labelColor: const Color(0xff2E8B57),
+          totalColor: const Color(0xff2E8B57),
+        );
       case 'engineering':
         return _CategoryStyle(
           bgLabel: const Color(0xffF0E8FD),
@@ -446,7 +482,7 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
             alignment: Alignment.center,
             padding: const EdgeInsets.symmetric(horizontal: 6),
             decoration: BoxDecoration(
-              color: style.bgTotal.withOpacity(0.7),
+              color: style.bgTotal.withValues(alpha: 0.7),
               border: Border.all(color: Colors.grey.shade200, width: 0.5),
             ),
             child: Text(
@@ -486,6 +522,25 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
             tooltip: 'Refresh',
           ),
         ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(22),
+          child: Padding(
+            padding: const EdgeInsets.only(left: 16, right: 16, bottom: 4),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                padWellContext.selectedWellName.isEmpty
+                    ? 'Current well inventory snapshot'
+                    : 'Well: ${padWellContext.selectedWellName}',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.blue[700],
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -533,7 +588,7 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
           border: Border.all(color: const Color(0xffE2E8F0), width: 1),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.03),
+              color: Colors.black.withValues(alpha: 0.03),
               blurRadius: 6,
               offset: const Offset(0, 2),
             ),
@@ -561,7 +616,7 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
                           children: [
                             ...categoryBlocks,
                             summaryRow('Subtotal (\$)',        _fmt(_subtotal)),
-                            summaryRow('Tax (0.000%)',          ''),
+                            summaryRow('Tax (${_fmt(_taxRate, decimals: 3)}%)', _fmt(_taxAmount)),
                             summaryRow('Daily Total (\$)',      _fmt(_dailyTotal)),
                             summaryRow('Prev. Total (\$)',      _fmt(_prevTotal)),
                             summaryRow('Cum. Total (\$)',       _fmt(_cumTotal)),

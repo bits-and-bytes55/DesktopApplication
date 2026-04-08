@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/modules/utility/controller/bit_hydra_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
@@ -8,19 +9,26 @@ class BitHydraulicsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = Get.put(BitHydraulicsController());
+    final c = Get.isRegistered<BitHydraulicsController>()
+        ? Get.find<BitHydraulicsController>()
+        : Get.put(BitHydraulicsController());
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isSmallScreen = constraints.maxWidth < 1024;
-        final isVerySmallScreen = constraints.maxWidth < 768;
+    return Obx(() {
+      AppUnits.signature;
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          final isSmallScreen = constraints.maxWidth < 1024;
+          final isVerySmallScreen = constraints.maxWidth < 768;
 
-        return Padding(
-          padding: const EdgeInsets.all(16),
-          child: isSmallScreen ? _buildMobileLayout(c, isVerySmallScreen) : _buildDesktopLayout(c),
-        );
-      },
-    );
+          return Padding(
+            padding: const EdgeInsets.all(16),
+            child: isSmallScreen
+                ? _buildMobileLayout(c, isVerySmallScreen)
+                : _buildDesktopLayout(c),
+          );
+        },
+      );
+    });
   }
 
   Widget _buildDesktopLayout(BitHydraulicsController c) {
@@ -69,10 +77,18 @@ class BitHydraulicsPage extends StatelessWidget {
                   const SizedBox(height: 8),
 
                   // Input Fields
-                  _requiredRow("MW (ppg)", c.mw, "10.5"),
-                  _row("Pump output (gpm)", c.pumpOutput, "500"),
-                  _row("Standpipe pressure (psi)", c.standpipePressure, "3000"),
-                  _row("Bit size (in)", c.bitSize, "8.5"),
+                  _requiredRow("MW ${AppUnits.mudWeight}", c.mw, "10.5"),
+                  _row(
+                    "Pump output ${AppUnits.drillingFlowRate}",
+                    c.pumpOutput,
+                    "500",
+                  ),
+                  _row(
+                    "Standpipe pressure ${AppUnits.pressure}",
+                    c.standpipePressure,
+                    "3000",
+                  ),
+                  _row("Bit size ${AppUnits.diameter}", c.bitSize, "8.5"),
                   const SizedBox(height: 8),
                   const Divider(height: 1),
                   const SizedBox(height: 8),
@@ -93,15 +109,20 @@ class BitHydraulicsPage extends StatelessWidget {
                     child: GridView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        crossAxisSpacing: 8,
-                        mainAxisSpacing: 8,
-                        childAspectRatio: 4,
-                      ),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 8,
+                            mainAxisSpacing: 8,
+                            childAspectRatio: 4,
+                          ),
                       itemCount: 10,
                       itemBuilder: (context, i) {
-                        return _jetNozzleRow("Jet ${i + 1}", c.jetNozzles[i], i == 0 ? "14" : "");
+                        return _jetNozzleRow(
+                          "Jet ${i + 1}",
+                          c.jetNozzles[i],
+                          i == 0 ? "14" : "",
+                        );
                       },
                     ),
                   ),
@@ -117,7 +138,10 @@ class BitHydraulicsPage extends StatelessWidget {
                       children: [
                         Icon(Icons.calculate, size: 14),
                         const SizedBox(width: 6),
-                        Text("Calculate", style: AppTheme.caption.copyWith(color: Colors.white)),
+                        Text(
+                          "Calculate",
+                          style: AppTheme.caption.copyWith(color: Colors.white),
+                        ),
                       ],
                     ),
                   ),
@@ -247,11 +271,19 @@ class BitHydraulicsPage extends StatelessWidget {
                   const SizedBox(height: 16),
 
                   // Required Fields
-                  _requiredRow("MW (ppg)", c.mw, "10.5"),
-                  _row("Pump output (gpm)", c.pumpOutput, "500"),
-                  _row("Standpipe pressure (psi)", c.standpipePressure, "3000"),
-                  _row("Bit size (in)", c.bitSize, "8.5"),
-                  
+                  _requiredRow("MW ${AppUnits.mudWeight}", c.mw, "10.5"),
+                  _row(
+                    "Pump output ${AppUnits.drillingFlowRate}",
+                    c.pumpOutput,
+                    "500",
+                  ),
+                  _row(
+                    "Standpipe pressure ${AppUnits.pressure}",
+                    c.standpipePressure,
+                    "3000",
+                  ),
+                  _row("Bit size ${AppUnits.diameter}", c.bitSize, "8.5"),
+
                   const SizedBox(height: 16),
                   const Divider(height: 1),
                   const SizedBox(height: 8),
@@ -278,7 +310,11 @@ class BitHydraulicsPage extends StatelessWidget {
                     ),
                     itemCount: 10,
                     itemBuilder: (context, i) {
-                      return _jetNozzleRow("Jet ${i + 1}", c.jetNozzles[i], i == 0 ? "14" : "");
+                      return _jetNozzleRow(
+                        "Jet ${i + 1}",
+                        c.jetNozzles[i],
+                        i == 0 ? "14" : "",
+                      );
                     },
                   ),
 
@@ -288,14 +324,19 @@ class BitHydraulicsPage extends StatelessWidget {
                   ElevatedButton(
                     onPressed: () => _validateAndCalculate(c),
                     style: AppTheme.primaryButtonStyle.copyWith(
-                      minimumSize: MaterialStateProperty.all(const Size(double.infinity, 40)),
+                      minimumSize: MaterialStateProperty.all(
+                        const Size(double.infinity, 40),
+                      ),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(Icons.calculate, size: 14),
                         const SizedBox(width: 6),
-                        Text("Calculate", style: AppTheme.caption.copyWith(color: Colors.white)),
+                        Text(
+                          "Calculate",
+                          style: AppTheme.caption.copyWith(color: Colors.white),
+                        ),
                       ],
                     ),
                   ),
@@ -612,6 +653,13 @@ class BitHydraulicsPage extends StatelessWidget {
           {"label": "P. drop (%)", "value": c.pressureDropPercent.value},
           {"label": "Jet impact force (lb)", "value": c.jetImpactForce.value},
         ];
+        results[0]["label"] = "Nozzle area ${AppUnits.crossSection}";
+        results[1]["label"] = "Nozzle velocity ${AppUnits.nozzleVelocity}";
+        results[2]["label"] = "Bit P. drop ${AppUnits.pressure}";
+        results[3]["label"] = "Hydraulic horsepower ${AppUnits.power}";
+        results[4]["label"] =
+            "Bit HHP / unit bit area (${AppUnits.strip(AppUnits.power)}/${AppUnits.strip(AppUnits.crossSection)})";
+        results[6]["label"] = "Jet impact force ${AppUnits.force}";
 
         final result = results[index];
         final value = result["value"];
@@ -668,39 +716,44 @@ class BitHydraulicsPage extends StatelessWidget {
     // Check required fields
     if (c.mw.value.isEmpty) {
       requiredFields.add(c.mw.value);
-      fieldNames.add("MW (ppg)");
+      fieldNames.add("MW ${AppUnits.mudWeight}");
     }
     if (c.pumpOutput.value.isEmpty) {
       requiredFields.add(c.pumpOutput.value);
-      fieldNames.add("Pump output (gpm)");
+      fieldNames.add("Pump output ${AppUnits.drillingFlowRate}");
     }
     if (c.standpipePressure.value.isEmpty) {
       requiredFields.add(c.standpipePressure.value);
-      fieldNames.add("Standpipe pressure (psi)");
+      fieldNames.add("Standpipe pressure ${AppUnits.pressure}");
     }
     if (c.bitSize.value.isEmpty) {
       requiredFields.add(c.bitSize.value);
-      fieldNames.add("Bit size (in)");
+      fieldNames.add("Bit size ${AppUnits.diameter}");
     }
 
     // Check if fields are greater than 0
     List<String> zeroFields = [];
     try {
       if (c.mw.value.isNotEmpty && double.parse(c.mw.value) <= 0) {
-        zeroFields.add("MW (ppg)");
+        zeroFields.add("MW ${AppUnits.mudWeight}");
       }
-      if (c.pumpOutput.value.isNotEmpty && double.parse(c.pumpOutput.value) <= 0) {
-        zeroFields.add("Pump output (gpm)");
+      if (c.pumpOutput.value.isNotEmpty &&
+          double.parse(c.pumpOutput.value) <= 0) {
+        zeroFields.add("Pump output ${AppUnits.drillingFlowRate}");
       }
-      if (c.standpipePressure.value.isNotEmpty && double.parse(c.standpipePressure.value) <= 0) {
-        zeroFields.add("Standpipe pressure (psi)");
+      if (c.standpipePressure.value.isNotEmpty &&
+          double.parse(c.standpipePressure.value) <= 0) {
+        zeroFields.add("Standpipe pressure ${AppUnits.pressure}");
       }
       if (c.bitSize.value.isNotEmpty && double.parse(c.bitSize.value) <= 0) {
-        zeroFields.add("Bit size (in)");
+        zeroFields.add("Bit size ${AppUnits.diameter}");
       }
     } catch (e) {
       // If parsing fails, show validation error
-      _showValidationAlert("Invalid Input", "Please enter valid numeric values in all fields.");
+      _showValidationAlert(
+        "Invalid Input",
+        "Please enter valid numeric values in all fields.",
+      );
       return;
     }
 
@@ -732,9 +785,7 @@ class BitHydraulicsPage extends StatelessWidget {
     Get.dialog(
       AlertDialog(
         backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         contentPadding: const EdgeInsets.all(16),
         content: Container(
           width: 300,
@@ -756,7 +807,7 @@ class BitHydraulicsPage extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
-              
+
               // Title
               Text(
                 title,
@@ -767,9 +818,9 @@ class BitHydraulicsPage extends StatelessWidget {
                 ),
                 textAlign: TextAlign.center,
               ),
-              
+
               const SizedBox(height: 12),
-              
+
               // Message
               Text(
                 message,
@@ -779,9 +830,9 @@ class BitHydraulicsPage extends StatelessWidget {
                 ),
                 textAlign: TextAlign.center,
               ),
-              
+
               const SizedBox(height: 20),
-              
+
               // OK button
               SizedBox(
                 width: double.infinity,
