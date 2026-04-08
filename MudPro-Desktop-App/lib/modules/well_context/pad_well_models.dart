@@ -7,10 +7,19 @@ class AppPad {
   final String stateProvince;
   final String country;
   final String stockPoint;
+  final String phone;
   final String operator;
   final String operatorRep;
   final String contractor;
   final String contractorRep;
+  final String sl;
+  final String airGap;
+  final String waterDepth;
+  final String riserOD;
+  final String riserID;
+  final String chokeLineID;
+  final String killLineID;
+  final String boostLineID;
   final List<AppWell> wells;
 
   const AppPad({
@@ -22,10 +31,19 @@ class AppPad {
     required this.stateProvince,
     required this.country,
     required this.stockPoint,
+    required this.phone,
     required this.operator,
     required this.operatorRep,
     required this.contractor,
     required this.contractorRep,
+    required this.sl,
+    required this.airGap,
+    required this.waterDepth,
+    required this.riserOD,
+    required this.riserID,
+    required this.chokeLineID,
+    required this.killLineID,
+    required this.boostLineID,
     required this.wells,
   });
 
@@ -42,10 +60,19 @@ class AppPad {
       stateProvince: _text(json['stateProvince']),
       country: _text(json['country']),
       stockPoint: _text(json['stockPoint']),
+      phone: _text(json['phone']),
       operator: _text(json['operator']),
       operatorRep: _text(json['operatorRep']),
       contractor: _text(json['contractor']),
       contractorRep: _text(json['contractorRep']),
+      sl: _text(json['sl']),
+      airGap: _text(json['airGap']),
+      waterDepth: _text(json['waterDepth']),
+      riserOD: _text(json['riserOD']),
+      riserID: _text(json['riserID']),
+      chokeLineID: _text(json['chokeLineID']),
+      killLineID: _text(json['killLineID']),
+      boostLineID: _text(json['boostLineID']),
       wells: wellsJson is List
           ? wellsJson
               .whereType<Map>()
@@ -76,10 +103,19 @@ class AppPad {
         stateProvince: stateProvince,
         country: country,
         stockPoint: stockPoint,
+        phone: phone,
         operator: operator,
         operatorRep: operatorRep,
         contractor: contractor,
         contractorRep: contractorRep,
+        sl: sl,
+        airGap: airGap,
+        waterDepth: waterDepth,
+        riserOD: riserOD,
+        riserID: riserID,
+        chokeLineID: chokeLineID,
+        killLineID: killLineID,
+        boostLineID: boostLineID,
         wells: wells ?? this.wells,
       );
 }

@@ -19,15 +19,15 @@ import '../../options/options_page.dart';
 
 // ── Import controllers needed for save ──
 import 'package:mudpro_desktop_app/modules/dashboard/controller/well_general_controller.dart';
-import 'package:mudpro_desktop_app/modules/UG_ST_navigation/controller/UG_ST_controller.dart';
-import 'package:mudpro_desktop_app/modules/dashboard/controller/consume_product_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/operation_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/recievemud_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/cased_hole_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/drill_string_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/UG_controller.dart';
+import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
+import 'package:mudpro_desktop_app/modules/well_context/pad_well_models.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 
 // Static well ID — change as needed
@@ -42,15 +42,19 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
     with TickerProviderStateMixin {
   final DashboardController controller = Get.find<DashboardController>();
   final CompanyController companyController = Get.put(CompanyController());
-  final ProductsController productsController =
-      Get.put(ProductsController(), tag: 'products_controller');
+  final ProductsController productsController = Get.put(
+    ProductsController(),
+    tag: 'products_controller',
+  );
   final InventorySnapshotController _snapshotController =
       InventorySnapshotController();
   final PadWellController padWellC = padWellContext;
+  final ReportContextController reportC = reportContext;
 
   late AnimationController _animationController;
   int _hoveredIndex = -1;
-  TextEditingController _dateController = TextEditingController();
+  final TextEditingController _dateController = TextEditingController();
+  Worker? _reportWorker;
 
   final List<Map<String, dynamic>> tabs = [
     {"icon": Icons.add_circle_outline},
@@ -69,7 +73,7 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
   ];
 
   final List<String> tooltips = [
-    "New Report",
+    "New Well",
     "Open Folder",
     "Save",
     "Save as",
@@ -92,13 +96,50 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
       vsync: this,
     );
     _dateController.text = DateFormat('MM/dd/yyyy').format(DateTime.now());
+    _syncDateFromSelectedReport();
+    _reportWorker = ever<String>(reportC.selectedReportId, (_) {
+      _syncDateFromSelectedReport();
+    });
   }
 
   @override
   void dispose() {
+    _reportWorker?.dispose();
     _animationController.dispose();
     _dateController.dispose();
     super.dispose();
+  }
+
+  void _syncDateFromSelectedReport() {
+    final selectedDate = reportC.selectedReportDate;
+    if (selectedDate.isNotEmpty) {
+      _dateController.text = selectedDate;
+    }
+  }
+
+  bool _isActionEnabled(int index) {
+    switch (index) {
+      case 0:
+        return padWellC.isSelectedPadReadyForWellCreation;
+      case 5:
+        return padWellC.isSelectedWellReadyForReportCreation;
+      default:
+        return reportC.hasSelectedReport;
+    }
+  }
+
+  String _disabledReason(int index) {
+    switch (index) {
+      case 0:
+        return padWellC.padReadinessMessage;
+      case 5:
+        return padWellC.wellReadinessMessage;
+      default:
+        if (!padWellC.isSelectedWellReadyForReportCreation) {
+          return padWellC.wellReadinessMessage;
+        }
+        return 'Create and select a report first.';
+    }
   }
 
   @override
@@ -127,101 +168,124 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
           Expanded(
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
-              child: Obx(() => Row(
-                    children: List.generate(tabs.length, (index) {
-                      final isActive =
-                          controller.activeSecondaryTab.value == index;
+              child: Obx(
+                () => Row(
+                  children: List.generate(tabs.length, (index) {
+                    final isActive =
+                        controller.activeSecondaryTab.value == index;
+                    final isEnabled = _isActionEnabled(index);
 
-                      return MouseRegion(
-                        onEnter: (_) => setState(() => _hoveredIndex = index),
-                        onExit: (_) => setState(() => _hoveredIndex = -1),
-                        child: Tooltip(
-                          message: tooltips[index],
-                          waitDuration: const Duration(milliseconds: 300),
-                          decoration: BoxDecoration(
-                            gradient: AppTheme.primaryGradient,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          textStyle: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
-                          ),
-                          child: GestureDetector(
-                            onTap: () => _handleTabAction(context, index),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 250),
-                              curve: Curves.easeInOut,
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 14, vertical: 10),
-                              margin: const EdgeInsets.only(left: 2),
-                              decoration: BoxDecoration(
-                                gradient: isActive
-                                    ? AppTheme.primaryGradient
+                    return MouseRegion(
+                      onEnter: (_) {
+                        if (isEnabled) {
+                          setState(() => _hoveredIndex = index);
+                        }
+                      },
+                      onExit: (_) => setState(() => _hoveredIndex = -1),
+                      child: Tooltip(
+                        message: isEnabled
+                            ? tooltips[index]
+                            : _disabledReason(index),
+                        waitDuration: const Duration(milliseconds: 300),
+                        decoration: BoxDecoration(
+                          gradient: AppTheme.primaryGradient,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        textStyle: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        child: GestureDetector(
+                          onTap: isEnabled
+                              ? () => _handleTabAction(context, index)
+                              : null,
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 250),
+                            curve: Curves.easeInOut,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 10,
+                            ),
+                            margin: const EdgeInsets.only(left: 2),
+                            decoration: BoxDecoration(
+                              gradient: !isEnabled
+                                  ? null
+                                  : isActive
+                                  ? AppTheme.primaryGradient
+                                  : _hoveredIndex == index
+                                  ? LinearGradient(
+                                      colors: [
+                                        AppTheme.primaryColor.withOpacity(0.15),
+                                        AppTheme.primaryColor.withOpacity(0.08),
+                                      ],
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                    )
+                                  : null,
+                              color: !isEnabled
+                                  ? Colors.grey.withValues(alpha: 0.08)
+                                  : isActive || _hoveredIndex == index
+                                  ? null
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: !isEnabled
+                                    ? Colors.grey.withValues(alpha: 0.15)
+                                    : isActive
+                                    ? AppTheme.primaryColor.withOpacity(0.3)
                                     : _hoveredIndex == index
-                                        ? LinearGradient(
-                                            colors: [
-                                              AppTheme.primaryColor
-                                                  .withOpacity(0.15),
-                                              AppTheme.primaryColor
-                                                  .withOpacity(0.08),
-                                            ],
-                                            begin: Alignment.topCenter,
-                                            end: Alignment.bottomCenter,
-                                          )
-                                        : null,
-                                color: isActive || _hoveredIndex == index
-                                    ? null
+                                    ? AppTheme.primaryColor.withOpacity(0.15)
                                     : Colors.transparent,
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: isActive
-                                      ? AppTheme.primaryColor.withOpacity(0.3)
-                                      : _hoveredIndex == index
-                                          ? AppTheme.primaryColor
-                                              .withOpacity(0.15)
-                                          : Colors.transparent,
-                                  width: 1,
-                                ),
-                                boxShadow: isActive
-                                    ? [
-                                        BoxShadow(
-                                          color: AppTheme.primaryColor
-                                              .withOpacity(0.25),
-                                          blurRadius: 8,
-                                          offset: const Offset(0, 3),
-                                        ),
-                                      ]
-                                    : _hoveredIndex == index
-                                        ? [
-                                            BoxShadow(
-                                              color: AppTheme.primaryColor
-                                                  .withOpacity(0.1),
-                                              blurRadius: 4,
-                                              offset: const Offset(0, 2),
-                                            ),
-                                          ]
-                                        : null,
+                                width: 1,
                               ),
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 200),
-                                transform: Matrix4.identity()
-                                  ..scale(
-                                      _hoveredIndex == index ? 1.15 : 1.0),
-                                child: Icon(
-                                  tabs[index]["icon"] as IconData,
-                                  size: 16,
-                                  color: isActive
-                                      ? Colors.white
-                                      : AppTheme.primaryColor,
+                              boxShadow: !isEnabled
+                                  ? null
+                                  : isActive
+                                  ? [
+                                      BoxShadow(
+                                        color: AppTheme.primaryColor
+                                            .withOpacity(0.25),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 3),
+                                      ),
+                                    ]
+                                  : _hoveredIndex == index
+                                  ? [
+                                      BoxShadow(
+                                        color: AppTheme.primaryColor
+                                            .withOpacity(0.1),
+                                        blurRadius: 4,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ]
+                                  : null,
+                            ),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              transform: Matrix4.identity()
+                                ..scale(
+                                  _hoveredIndex == index && isEnabled
+                                      ? 1.15
+                                      : 1.0,
                                 ),
+                              child: Icon(
+                                tabs[index]["icon"] as IconData,
+                                size: 16,
+                                color: !isEnabled
+                                    ? Colors.grey.shade400
+                                    : isActive
+                                    ? Colors.white
+                                    : AppTheme.primaryColor,
                               ),
                             ),
                           ),
                         ),
-                      );
-                    }),
-                  )),
+                      ),
+                    );
+                  }),
+                ),
+              ),
             ),
           ),
 
@@ -231,7 +295,9 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
             decoration: BoxDecoration(
               border: Border(
                 left: BorderSide(
-                    color: AppTheme.textSecondary.withOpacity(0.12), width: 1),
+                  color: AppTheme.textSecondary.withOpacity(0.12),
+                  width: 1,
+                ),
               ),
               gradient: const LinearGradient(
                 colors: [Color(0xffF1F5F9), Color(0xffE2E8F0)],
@@ -241,20 +307,33 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
             ),
             child: Row(
               children: [
-                Obx(() => _buildInfoField(
-                      "Well",
-                      padWellC.selectedWellName.isEmpty
-                          ? "No well selected"
-                          : padWellC.selectedWellName,
-                      Icons.location_on,
-                    )),
+                Obx(
+                  () => _buildInfoField(
+                    "Well",
+                    padWellC.selectedWellName.isEmpty
+                        ? "No well selected"
+                        : padWellC.selectedWellName,
+                    Icons.location_on,
+                  ),
+                ),
                 const SizedBox(width: 20),
                 _buildInfoFieldWithDatePicker("Date", Icons.calendar_today),
                 const SizedBox(width: 20),
-                _buildInfoField("Report #", "12", Icons.numbers),
+                Obx(
+                  () => _buildInfoField(
+                    "Report #",
+                    reportC.selectedReportNumber.isEmpty
+                        ? "No report"
+                        : reportC.selectedReportNumber,
+                    Icons.numbers,
+                  ),
+                ),
                 const SizedBox(width: 20),
                 _buildInfoField(
-                    "MD (ft)", "9055.0", Icons.vertical_align_bottom),
+                  "MD (ft)",
+                  "9055.0",
+                  Icons.vertical_align_bottom,
+                ),
               ],
             ),
           ),
@@ -268,8 +347,11 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
   // ══════════════════════════════════════════════════════════════════════════
   Future<void> _saveAll(BuildContext context) async {
     if (controller.isLocked.value) {
-      _showDesktopAlert(context, "Report is locked. Unlock to save.",
-          isSuccess: false);
+      _showDesktopAlert(
+        context,
+        "Report is locked. Unlock to save.",
+        isSuccess: false,
+      );
       return;
     }
 
@@ -279,42 +361,55 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
       builder: (_) => PopScope(
         canPop: false,
         child: Dialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
           backgroundColor: Colors.transparent,
           child: Container(
-            padding:
-                const EdgeInsets.symmetric(vertical: 24, horizontal: 28),
+            padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 28),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(14),
               boxShadow: [
                 BoxShadow(
-                    color: Colors.black.withOpacity(0.15),
-                    blurRadius: 20,
-                    offset: const Offset(0, 8))
+                  color: Colors.black.withOpacity(0.15),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                ),
               ],
             ),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              CircularProgressIndicator(
-                  color: AppTheme.primaryColor, strokeWidth: 2.5),
-              const SizedBox(width: 20),
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text("Saving...",
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(
+                  color: AppTheme.primaryColor,
+                  strokeWidth: 2.5,
+                ),
+                const SizedBox(width: 20),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Saving...",
                       style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.textPrimary)),
-                  const SizedBox(height: 4),
-                  Text("Saving all data",
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      "Saving all data",
                       style: TextStyle(
-                          fontSize: 12, color: AppTheme.textSecondary)),
-                ],
-              ),
-            ]),
+                        fontSize: 12,
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -325,9 +420,12 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
     String successMessage = "Data saved successfully!";
 
     try {
-      if (activeTab == 0) { // Well Tab
+      if (activeTab == 0) {
+        // Well Tab
         // ── 1. Save Well General ──────────────────────────────────────────
-        final wellGenCtrl = Get.isRegistered<WellGeneralController>() ? Get.find<WellGeneralController>() : null;
+        final wellGenCtrl = Get.isRegistered<WellGeneralController>()
+            ? Get.find<WellGeneralController>()
+            : null;
         if (wellGenCtrl != null) {
           final res = await wellGenCtrl.save();
           if (res['success'] == true) {
@@ -338,7 +436,9 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
         }
 
         // ── 2. Save Casing ──────────────────────────────────────────────
-        final casedCtrl = Get.isRegistered<CasedHoleUIController>() ? Get.find<CasedHoleUIController>() : null;
+        final casedCtrl = Get.isRegistered<CasedHoleUIController>()
+            ? Get.find<CasedHoleUIController>()
+            : null;
         if (casedCtrl != null) {
           final res = await casedCtrl.saveAll();
           if (res['success'] == true) {
@@ -349,7 +449,9 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
         }
 
         // ── 3. Save Drill String ──────────────────────────────────────────
-        final drillStrCtrl = Get.isRegistered<DrillStringController>() ? Get.find<DrillStringController>() : null;
+        final drillStrCtrl = Get.isRegistered<DrillStringController>()
+            ? Get.find<DrillStringController>()
+            : null;
         if (drillStrCtrl != null) {
           final res = await drillStrCtrl.saveAll();
           if (res['success'] == true) {
@@ -358,8 +460,11 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
             errorMessages.add(res['message'] ?? 'Drill String save failed');
           }
         }
-      } else if (activeTab == 1) { // Inventory Tab
-        final ugCtrl = Get.isRegistered<UgController>() ? Get.find<UgController>() : null;
+      } else if (activeTab == 1) {
+        // Inventory Tab
+        final ugCtrl = Get.isRegistered<UgController>()
+            ? Get.find<UgController>()
+            : null;
         if (ugCtrl != null) {
           final res = await ugCtrl.saveInventory();
           if (res['success'] == true) {
@@ -368,9 +473,12 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
             errorMessages.add(res['message'] ?? 'Inventory save failed');
           }
         }
-      } else if (activeTab == 3) { // Operations Tab
+      } else if (activeTab == 3) {
+        // Operations Tab
         try {
-          final opCtrl = Get.isRegistered<OperationController>() ? Get.find<OperationController>() : null;
+          final opCtrl = Get.isRegistered<OperationController>()
+              ? Get.find<OperationController>()
+              : null;
           if (opCtrl != null) {
             final selectedOpIndex = opCtrl.selectedRowIndex.value;
             final selectedOp = opCtrl.dropdownValues[selectedOpIndex];
@@ -378,28 +486,33 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
 
             if (selectedOp == OperationType.consumeProduct) {
               // ── Inventory Snapshot + Product Save ────────────────────────
-              final snapResult = await _snapshotController.generateInventorySnapshot();
+              final snapResult = await _snapshotController
+                  .generateInventorySnapshot();
               if (snapResult['success'] != true) {
-                errorMessages.add('Consume Product snapshot: ${snapResult['message'] ?? 'Failed'}');
+                errorMessages.add(
+                  'Consume Product snapshot: ${snapResult['message'] ?? 'Failed'}',
+                );
               }
 
               if (opCtrl.totalVolume.value > 0) {
-                 final tVol = opCtrl.totalVolume.value;
-                 final activeWellId = padWellC.selectedWellId.value;
-                 if (activeWellId.isEmpty) {
-                   errorMessages.add('Operations API: no backend well selected');
-                 } else {
-                   final res = await authRepo.saveConsumeProductVolumeName({
-                      'wellId': activeWellId,
-                      'product': 'Water',
-                      'volumeBbl': tVol,
-                   });
-                   if (res['success'] == true) {
-                      successMessage = "Operations volume data saved";
-                   } else {
-                      errorMessages.add('Operations API: ${res['message'] ?? 'Failed'}');
-                   }
-                 }
+                final tVol = opCtrl.totalVolume.value;
+                final activeWellId = padWellC.selectedWellId.value;
+                if (activeWellId.isEmpty) {
+                  errorMessages.add('Operations API: no backend well selected');
+                } else {
+                  final res = await authRepo.saveConsumeProductVolumeName({
+                    'wellId': activeWellId,
+                    'product': 'Water',
+                    'volumeBbl': tVol,
+                  });
+                  if (res['success'] == true) {
+                    successMessage = "Operations volume data saved";
+                  } else {
+                    errorMessages.add(
+                      'Operations API: ${res['message'] ?? 'Failed'}',
+                    );
+                  }
+                }
               }
             } else if (selectedOp == OperationType.addWater) {
               // ── Add Water ────────────────────────────────────────────────
@@ -407,30 +520,39 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
               if (waterRes['success'] == true) {
                 successMessage = waterRes['message'];
               } else {
-                if (waterRes['message'] != 'No new transfers to save' && !waterRes['message'].contains('No new')) {
+                if (waterRes['message'] != 'No new transfers to save' &&
+                    !waterRes['message'].contains('No new')) {
                   errorMessages.add('Add Water: ${waterRes['message']}');
                 }
               }
             } else if (selectedOp == OperationType.transferMud) {
               // ── Transfer Mud ─────────────────────────────────────────────
-              final pitCtrl = Get.isRegistered<PitController>() ? Get.find<PitController>() : null;
+              final pitCtrl = Get.isRegistered<PitController>()
+                  ? Get.find<PitController>()
+                  : null;
               if (pitCtrl != null) {
                 final res = await pitCtrl.saveTransferMud();
                 if (res['success'] == true) {
                   successMessage = res['message'];
                 } else {
-                  errorMessages.add('Transfer Mud: ${res['message'] ?? 'Failed'}');
+                  errorMessages.add(
+                    'Transfer Mud: ${res['message'] ?? 'Failed'}',
+                  );
                 }
               }
             } else if (selectedOp == OperationType.receiveMud) {
               // ── Receive Mud ──────────────────────────────────────────────
-              final recieveMudCtrl = Get.isRegistered<ReceiveMudController>() ? Get.find<ReceiveMudController>() : null;
+              final recieveMudCtrl = Get.isRegistered<ReceiveMudController>()
+                  ? Get.find<ReceiveMudController>()
+                  : null;
               if (recieveMudCtrl != null) {
                 final res = await recieveMudCtrl.saveReceiveMud();
                 if (res['success'] == true) {
                   successMessage = res['message'];
                 } else {
-                  errorMessages.add('Receive Mud: ${res['message'] ?? 'Failed'}');
+                  errorMessages.add(
+                    'Receive Mud: ${res['message'] ?? 'Failed'}',
+                  );
                 }
               }
             }
@@ -438,8 +560,11 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
         } catch (e) {
           errorMessages.add('Operations save error: $e');
         }
-      } else if (activeTab == 4) { // Pit Tab
-        final pitCtrl = Get.isRegistered<PitController>() ? Get.find<PitController>() : null;
+      } else if (activeTab == 4) {
+        // Pit Tab
+        final pitCtrl = Get.isRegistered<PitController>()
+            ? Get.find<PitController>()
+            : null;
         if (pitCtrl != null) {
           final res = await pitCtrl.saveAllActivePits();
           if (res['success'] == true) {
@@ -475,7 +600,7 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
 
     switch (index) {
       case 0:
-        _createNewReport(context);
+        _createNewWell(context);
         break;
       case 1:
         await _openFolder(context);
@@ -524,60 +649,75 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(children: [
-          Icon(icon, size: 12, color: AppTheme.primaryColor),
-          const SizedBox(width: 6),
-          Text(label,
+        Row(
+          children: [
+            Icon(icon, size: 12, color: AppTheme.primaryColor),
+            const SizedBox(width: 6),
+            Text(
+              label,
               style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.textSecondary,
-                  letterSpacing: 0.5)),
-        ]),
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textSecondary,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ],
+        ),
         const SizedBox(height: 4),
-        Obx(() => MouseRegion(
-              cursor: SystemMouseCursors.click,
-              child: GestureDetector(
-                onTap: () {
-                  if (!controller.isLocked.value) {
-                    _showEditFieldDialog(context, label, value);
-                  }
-                },
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    gradient: AppTheme.secondaryGradient,
-                    border: Border.all(
-                      color: controller.isLocked.value
-                          ? Colors.black.withOpacity(0.1)
-                          : AppTheme.primaryColor.withOpacity(0.3),
-                      width: controller.isLocked.value ? 0.5 : 1,
-                    ),
-                    borderRadius: BorderRadius.circular(6),
-                    boxShadow: [
-                      BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 3,
-                          offset: const Offset(0, 1))
-                    ],
+        Obx(
+          () => MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: GestureDetector(
+              onTap: () {
+                if (!controller.isLocked.value) {
+                  _showEditFieldDialog(context, label, value);
+                }
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  gradient: AppTheme.secondaryGradient,
+                  border: Border.all(
+                    color: controller.isLocked.value
+                        ? Colors.black.withOpacity(0.1)
+                        : AppTheme.primaryColor.withOpacity(0.3),
+                    width: controller.isLocked.value ? 0.5 : 1,
                   ),
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    Text(value,
-                        style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: AppTheme.textPrimary)),
+                  borderRadius: BorderRadius.circular(6),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 3,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      value,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.textPrimary,
+                      ),
+                    ),
                     if (!controller.isLocked.value) ...[
                       const SizedBox(width: 6),
-                      Icon(Icons.edit,
-                          size: 10, color: AppTheme.primaryColor),
+                      Icon(Icons.edit, size: 10, color: AppTheme.primaryColor),
                     ],
-                  ]),
+                  ],
                 ),
               ),
-            )),
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -587,68 +727,91 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(children: [
-          Icon(icon, size: 12, color: AppTheme.primaryColor),
-          const SizedBox(width: 6),
-          Text(label,
+        Row(
+          children: [
+            Icon(icon, size: 12, color: AppTheme.primaryColor),
+            const SizedBox(width: 6),
+            Text(
+              label,
               style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.textSecondary,
-                  letterSpacing: 0.5)),
-        ]),
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textSecondary,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ],
+        ),
         const SizedBox(height: 4),
-        Obx(() => MouseRegion(
-              cursor: SystemMouseCursors.click,
-              child: GestureDetector(
-                onTap: () {
-                  if (!controller.isLocked.value) {
-                    _showDatePickerDialog(context, label);
-                  }
-                },
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    gradient: AppTheme.secondaryGradient,
-                    border: Border.all(
-                      color: controller.isLocked.value
-                          ? Colors.black.withOpacity(0.1)
-                          : AppTheme.primaryColor.withOpacity(0.3),
-                      width: controller.isLocked.value ? 0.5 : 1,
-                    ),
-                    borderRadius: BorderRadius.circular(6),
-                    boxShadow: [
-                      BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 3,
-                          offset: const Offset(0, 1))
-                    ],
+        Obx(
+          () => MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: GestureDetector(
+              onTap: () {
+                if (!controller.isLocked.value && reportC.hasSelectedReport) {
+                  _showDatePickerDialog(context, label);
+                }
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  gradient: AppTheme.secondaryGradient,
+                  border: Border.all(
+                    color: controller.isLocked.value
+                        ? Colors.black.withOpacity(0.1)
+                        : AppTheme.primaryColor.withOpacity(0.3),
+                    width: controller.isLocked.value ? 0.5 : 1,
                   ),
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    Text(_dateController.text,
-                        style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: AppTheme.textPrimary)),
-                    if (!controller.isLocked.value) ...[
+                  borderRadius: BorderRadius.circular(6),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 3,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      reportC.selectedReportDate.isNotEmpty
+                          ? reportC.selectedReportDate
+                          : _dateController.text,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.textPrimary,
+                      ),
+                    ),
+                    if (!controller.isLocked.value &&
+                        reportC.hasSelectedReport) ...[
                       const SizedBox(width: 6),
-                      Icon(Icons.calendar_today,
-                          size: 10, color: AppTheme.primaryColor),
+                      Icon(
+                        Icons.calendar_today,
+                        size: 10,
+                        color: AppTheme.primaryColor,
+                      ),
                     ],
-                  ]),
+                  ],
                 ),
               ),
-            )),
+            ),
+          ),
+        ),
       ],
     );
   }
 
   void _showDatePickerDialog(BuildContext context, String label) async {
+    final selectedDate = _parseReportDate(reportC.selectedReportDate);
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: DateTime.now(),
+      initialDate: selectedDate ?? DateTime.now(),
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
       builder: (context, child) => Theme(
@@ -662,22 +825,41 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
       ),
     );
     if (picked != null) {
+      final formattedDate = DateFormat('MM/dd/yyyy').format(picked);
+      if (reportC.hasSelectedReport) {
+        try {
+          await reportC.updateSelectedReport({'reportDate': formattedDate});
+        } catch (e) {
+          _showDesktopAlert(
+            context,
+            e.toString().replaceFirst(RegExp(r'^Exception:\s*'), ''),
+            isSuccess: false,
+          );
+          return;
+        }
+      }
       setState(() {
-        _dateController.text = DateFormat('MM/dd/yyyy').format(picked);
+        _dateController.text = formattedDate;
       });
+      if (Get.isRegistered<WellGeneralController>()) {
+        Get.find<WellGeneralController>().date.value = _dateController.text;
+      }
       _showDesktopAlert(context, "$label updated to ${_dateController.text}");
     }
   }
 
   void _showEditFieldDialog(
-      BuildContext context, String label, String currentValue) {
-    final TextEditingController textController =
-        TextEditingController(text: currentValue);
+    BuildContext context,
+    String label,
+    String currentValue,
+  ) {
+    final TextEditingController textController = TextEditingController(
+      text: currentValue,
+    );
     showDialog(
       context: context,
       builder: (context) => Dialog(
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         elevation: 0,
         backgroundColor: Colors.transparent,
         child: Container(
@@ -691,23 +873,29 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
-                  color: Colors.black.withOpacity(0.15),
-                  blurRadius: 20,
-                  offset: const Offset(0, 10))
+                color: Colors.black.withOpacity(0.15),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
             ],
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Row(children: [
-                Icon(Icons.edit, color: AppTheme.primaryColor),
-                const SizedBox(width: 10),
-                Text("Edit $label",
+              Row(
+                children: [
+                  Icon(Icons.edit, color: AppTheme.primaryColor),
+                  const SizedBox(width: 10),
+                  Text(
+                    "Edit $label",
                     style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.textPrimary)),
-              ]),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 20),
               TextField(
                 controller: textController,
@@ -715,21 +903,27 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
                   filled: true,
                   fillColor: Colors.white,
                   contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 12),
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide:
-                        BorderSide(color: Colors.black.withOpacity(0.1)),
+                    borderSide: BorderSide(
+                      color: Colors.black.withOpacity(0.1),
+                    ),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide:
-                        BorderSide(color: Colors.black.withOpacity(0.1)),
+                    borderSide: BorderSide(
+                      color: Colors.black.withOpacity(0.1),
+                    ),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide:
-                        BorderSide(color: AppTheme.primaryColor, width: 1.5),
+                    borderSide: BorderSide(
+                      color: AppTheme.primaryColor,
+                      width: 1.5,
+                    ),
                   ),
                 ),
               ),
@@ -739,23 +933,27 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
                 children: [
                   TextButton(
                     onPressed: () => Navigator.pop(context),
-                    child: Text("Cancel",
-                        style: TextStyle(color: AppTheme.textSecondary)),
+                    child: Text(
+                      "Cancel",
+                      style: TextStyle(color: AppTheme.textSecondary),
+                    ),
                   ),
                   const SizedBox(width: 10),
                   ElevatedButton(
                     onPressed: () {
                       Navigator.pop(context);
-                      _showDesktopAlert(
-                          context, "$label updated successfully");
+                      _showDesktopAlert(context, "$label updated successfully");
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.primaryColor,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 24, vertical: 10),
+                        horizontal: 24,
+                        vertical: 10,
+                      ),
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8)),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
                     child: const Text("Save"),
                   ),
@@ -780,8 +978,11 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
     });
   }
 
-  void _showDesktopAlert(BuildContext context, String message,
-      {bool isSuccess = true}) {
+  void _showDesktopAlert(
+    BuildContext context,
+    String message, {
+    bool isSuccess = true,
+  }) {
     final overlay = Overlay.of(context);
     late final OverlayEntry overlayEntry;
     overlayEntry = OverlayEntry(
@@ -794,8 +995,7 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 400),
             curve: Curves.easeInOutBack,
-            constraints:
-                const BoxConstraints(maxWidth: 350, minWidth: 200),
+            constraints: const BoxConstraints(maxWidth: 350, minWidth: 200),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -808,32 +1008,45 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
               borderRadius: BorderRadius.circular(10),
               boxShadow: [
                 BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
-                    blurRadius: 15,
-                    offset: const Offset(0, 5))
+                  color: Colors.black.withOpacity(0.2),
+                  blurRadius: 15,
+                  offset: const Offset(0, 5),
+                ),
               ],
             ),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Icon(isSuccess ? Icons.check_circle : Icons.error,
-                  color: Colors.white, size: 22),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(message,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  isSuccess ? Icons.check_circle : Icons.error,
+                  color: Colors.white,
+                  size: 22,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    message,
                     style: const TextStyle(
-                        fontSize: 13,
-                        color: Colors.white,
-                        fontWeight: FontWeight.w500,
-                        letterSpacing: 0.3)),
-              ),
-              const SizedBox(width: 8),
-              IconButton(
-                icon: Icon(Icons.close,
-                    size: 16, color: Colors.white.withOpacity(0.8)),
-                onPressed: () => overlayEntry.remove(),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-              ),
-            ]),
+                      fontSize: 13,
+                      color: Colors.white,
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: Icon(
+                    Icons.close,
+                    size: 16,
+                    color: Colors.white.withOpacity(0.8),
+                  ),
+                  onPressed: () => overlayEntry.remove(),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -866,8 +1079,11 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
       final filePath = "${dir.path}/Daily_Inventory_$timestamp.xlsx";
       var fileBytes = excel.encode();
       if (fileBytes == null) {
-        _showDesktopAlert(context, "Failed to generate Excel file",
-            isSuccess: false);
+        _showDesktopAlert(
+          context,
+          "Failed to generate Excel file",
+          isSuccess: false,
+        );
         return;
       }
       File(filePath)
@@ -877,16 +1093,23 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
       _showDesktopAlert(context, "Excel file generated successfully!");
     } catch (e) {
       if (Navigator.canPop(context)) Navigator.pop(context);
-      _showDesktopAlert(context, "Failed to generate Excel: $e",
-          isSuccess: false);
+      _showDesktopAlert(
+        context,
+        "Failed to generate Excel: $e",
+        isSuccess: false,
+      );
     }
   }
 
-  void _setCellValue(Sheet sheet, String cellAddress, String value,
-      {bool bold = false,
-      int fontSize = 10,
-      String? bgColor,
-      bool isNumber = false}) {
+  void _setCellValue(
+    Sheet sheet,
+    String cellAddress,
+    String value, {
+    bool bold = false,
+    int fontSize = 10,
+    String? bgColor,
+    bool isNumber = false,
+  }) {
     var cell = sheet.cell(CellIndex.indexByString(cellAddress));
     if (isNumber && value.isNotEmpty) {
       final numValue = double.tryParse(value);
@@ -902,18 +1125,255 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
     );
   }
 
-  void _createNewReport(BuildContext context) {
+  void _createNewWell(BuildContext context) {
+    final creatablePads = padWellC.pads
+        .where((pad) => padWellC.isPadReady(pad))
+        .toList();
+
+    if (creatablePads.isEmpty) {
+      _showDesktopAlert(
+        context,
+        padWellC.padReadinessMessage,
+        isSuccess: false,
+      );
+      return;
+    }
+
     final TextEditingController wellNameController = TextEditingController();
-    final TextEditingController reportNumberController =
-        TextEditingController();
-    final TextEditingController dateController =
-        TextEditingController(text: DateFormat('MM/dd/yyyy').format(DateTime.now()));
+    final TextEditingController apiWellNoController = TextEditingController();
+    final TextEditingController dateController = TextEditingController(
+      text: DateFormat('MM/dd/yyyy').format(DateTime.now()),
+    );
+    final selectedPad = padWellC.selectedPad;
+    String selectedPadId = padWellC.isPadReady(selectedPad)
+        ? selectedPad!.id
+        : creatablePads.first.id;
 
     showDialog(
       context: context,
-      builder: (context) => Dialog(
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          elevation: 0,
+          backgroundColor: Colors.transparent,
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Colors.white, Color(0xffF8FAFC)],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.15),
+                  blurRadius: 25,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    gradient: AppTheme.primaryGradient,
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(16),
+                      topRight: Radius.circular(16),
+                    ),
+                  ),
+                  child: Row(
+                    children: const [
+                      Icon(Icons.add_circle_outline, color: Colors.white),
+                      SizedBox(width: 12),
+                      Text(
+                        "Create New Well",
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    children: [
+                      _buildPadDropdownField(
+                        pads: creatablePads,
+                        selectedPadId: selectedPadId,
+                        onChanged: (value) {
+                          if (value == null) return;
+                          setDialogState(() {
+                            selectedPadId = value;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      _buildFormField(
+                        "Well Name",
+                        Icons.location_on,
+                        wellNameController,
+                      ),
+                      const SizedBox(height: 16),
+                      _buildFormField(
+                        "API Well No.",
+                        Icons.numbers,
+                        apiWellNoController,
+                      ),
+                      const SizedBox(height: 16),
+                      _buildDateField(
+                        "Spud Date",
+                        Icons.calendar_today,
+                        dateController,
+                        dialogContext,
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 16,
+                  ),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      top: BorderSide(color: Colors.black.withOpacity(0.1)),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(dialogContext),
+                        child: Text(
+                          "Cancel",
+                          style: TextStyle(color: AppTheme.textSecondary),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      ElevatedButton.icon(
+                        onPressed: () async {
+                          if (wellNameController.text.trim().isEmpty) {
+                            _showDesktopAlert(
+                              context,
+                              "Well name is required",
+                              isSuccess: false,
+                            );
+                            return;
+                          }
+
+                          try {
+                            AppPad? targetPad;
+                            for (final pad in padWellC.pads) {
+                              if (pad.id == selectedPadId) {
+                                targetPad = pad;
+                                break;
+                              }
+                            }
+                            if (!padWellC.isPadReady(targetPad)) {
+                              _showDesktopAlert(
+                                context,
+                                'Selected pad is not fully completed yet.',
+                                isSuccess: false,
+                              );
+                              return;
+                            }
+
+                            final result = await padWellC.createWell({
+                              'padId': selectedPadId,
+                              'wellNameNo': wellNameController.text.trim(),
+                              'apiWellNo': apiWellNoController.text.trim(),
+                              'spudDate': dateController.text.trim(),
+                            });
+
+                            final createdWellId = _dialogEntityId(
+                              result['data'],
+                            );
+                            if (createdWellId.isNotEmpty) {
+                              padWellC.selectWell(createdWellId);
+                              controller.navigate('well:$createdWellId');
+                            }
+
+                            if (dialogContext.mounted) {
+                              Navigator.pop(dialogContext);
+                            }
+
+                            _showDesktopAlert(
+                              context,
+                              result['message']?.toString() ??
+                                  "Well created successfully",
+                            );
+                          } catch (e) {
+                            _showDesktopAlert(
+                              context,
+                              e.toString().replaceFirst(
+                                RegExp(r'^Exception:\s*'),
+                                '',
+                              ),
+                              isSuccess: false,
+                            );
+                          }
+                        },
+                        icon: const Icon(Icons.add, size: 18),
+                        label: const Text("Create"),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.successColor,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          elevation: 2,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _createNewReport(BuildContext context) {
+    if (!padWellC.isSelectedWellReadyForReportCreation) {
+      _showDesktopAlert(
+        context,
+        padWellC.wellReadinessMessage,
+        isSuccess: false,
+      );
+      return;
+    }
+
+    final TextEditingController reportNoController = TextEditingController(
+      text: reportC.nextSuggestedReportNo,
+    );
+    final TextEditingController userReportNoController = TextEditingController(
+      text: reportC.nextSuggestedReportNo,
+    );
+    final TextEditingController reportTitleController = TextEditingController(
+      text: 'Report ${reportC.nextSuggestedReportNo}',
+    );
+    final TextEditingController reportDateController = TextEditingController(
+      text: DateFormat('MM/dd/yyyy').format(DateTime.now()),
+    );
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         elevation: 0,
         backgroundColor: Colors.transparent,
         child: Container(
@@ -926,9 +1386,10 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                  color: Colors.black.withOpacity(0.15),
-                  blurRadius: 25,
-                  offset: const Offset(0, 10))
+                color: Colors.black.withOpacity(0.15),
+                blurRadius: 25,
+                offset: const Offset(0, 10),
+              ),
             ],
           ),
           child: Column(
@@ -943,58 +1404,135 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
                     topRight: Radius.circular(16),
                   ),
                 ),
-                child: Row(children: [
-                  const Icon(Icons.add_circle_outline, color: Colors.white),
-                  const SizedBox(width: 12),
-                  const Text("Create New Report",
-                      style: TextStyle(
+                child: Row(
+                  children: [
+                    const Icon(Icons.insert_drive_file, color: Colors.white),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Create New Report',
+                        style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
-                          color: Colors.white)),
-                ]),
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
               Padding(
                 padding: const EdgeInsets.all(24),
-                child: Column(children: [
-                  _buildFormField(
-                      "Well Name", Icons.location_on, wellNameController),
-                  const SizedBox(height: 16),
-                  _buildFormField(
-                      "Report Number", Icons.numbers, reportNumberController),
-                  const SizedBox(height: 16),
-                  _buildDateField(
-                      "Date", Icons.calendar_today, dateController, context),
-                ]),
+                child: Column(
+                  children: [
+                    _buildFormField(
+                      "Report Title",
+                      Icons.description_outlined,
+                      reportTitleController,
+                    ),
+                    const SizedBox(height: 16),
+                    _buildFormField(
+                      "Report Number",
+                      Icons.numbers,
+                      reportNoController,
+                    ),
+                    const SizedBox(height: 16),
+                    _buildFormField(
+                      "User Report #",
+                      Icons.tag,
+                      userReportNoController,
+                    ),
+                    const SizedBox(height: 16),
+                    _buildDateField(
+                      "Report Date",
+                      Icons.calendar_today,
+                      reportDateController,
+                      dialogContext,
+                    ),
+                  ],
+                ),
               ),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 16,
+                ),
                 decoration: BoxDecoration(
-                    border: Border(
-                        top: BorderSide(
-                            color: Colors.black.withOpacity(0.1)))),
+                  border: Border(
+                    top: BorderSide(color: Colors.black.withOpacity(0.1)),
+                  ),
+                ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: Text("Cancel",
-                          style: TextStyle(color: AppTheme.textSecondary)),
+                      onPressed: () => Navigator.pop(dialogContext),
+                      child: Text(
+                        "Cancel",
+                        style: TextStyle(color: AppTheme.textSecondary),
+                      ),
                     ),
                     const SizedBox(width: 12),
                     ElevatedButton.icon(
-                      onPressed: () {
-                        if (wellNameController.text.isEmpty ||
-                            reportNumberController.text.isEmpty) {
-                          _showDesktopAlert(context, "Please fill all fields",
-                              isSuccess: false);
+                      onPressed: () async {
+                        if (reportNoController.text.trim().isEmpty) {
+                          _showDesktopAlert(
+                            context,
+                            "Report number is required",
+                            isSuccess: false,
+                          );
                           return;
                         }
-                        _generateReportOnSystem(wellNameController.text,
-                            reportNumberController.text, dateController.text);
-                        Navigator.pop(context);
-                        _showDesktopAlert(
-                            context, "New report created successfully");
+
+                        try {
+                          final result = await reportC.createReport({
+                            'reportNo': reportNoController.text.trim(),
+                            'userReportNo': userReportNoController.text.trim(),
+                            'reportDate': reportDateController.text.trim(),
+                            'title': reportTitleController.text.trim(),
+                          });
+
+                          final createdReportId = _dialogEntityId(
+                            result['data'],
+                          );
+                          if (createdReportId.isNotEmpty) {
+                            reportC.selectReport(createdReportId);
+                            controller.navigate('report:$createdReportId');
+                          }
+
+                          _dateController.text = reportDateController.text
+                              .trim();
+
+                          if (Get.isRegistered<WellGeneralController>()) {
+                            final wellGeneral =
+                                Get.find<WellGeneralController>();
+                            wellGeneral.reportNo.value = reportNoController.text
+                                .trim();
+                            wellGeneral.userReportNo.value =
+                                userReportNoController.text.trim();
+                            wellGeneral.date.value = reportDateController.text
+                                .trim();
+                          }
+
+                          if (dialogContext.mounted) {
+                            Navigator.pop(dialogContext);
+                          }
+
+                          _showDesktopAlert(
+                            context,
+                            result['message']?.toString() ??
+                                "Report created successfully",
+                          );
+                        } catch (e) {
+                          _showDesktopAlert(
+                            context,
+                            e.toString().replaceFirst(
+                              RegExp(r'^Exception:\s*'),
+                              '',
+                            ),
+                            isSuccess: false,
+                          );
+                        }
                       },
                       icon: const Icon(Icons.add, size: 18),
                       label: const Text("Create"),
@@ -1002,9 +1540,12 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
                         backgroundColor: AppTheme.successColor,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 24, vertical: 12),
+                          horizontal: 24,
+                          vertical: 12,
+                        ),
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8)),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                         elevation: 2,
                       ),
                     ),
@@ -1018,86 +1559,169 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
     );
   }
 
-  Widget _buildFormField(
-      String label, IconData icon, TextEditingController controller) {
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(label,
+  Widget _buildPadDropdownField({
+    required List<AppPad> pads,
+    required String selectedPadId,
+    required ValueChanged<String?> onChanged,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          "Pad",
           style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: AppTheme.textPrimary)),
-      const SizedBox(height: 6),
-      Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.black.withOpacity(0.1)),
-        ),
-        child: TextField(
-          controller: controller,
-          decoration: InputDecoration(
-            prefixIcon: Icon(icon, size: 18, color: AppTheme.primaryColor),
-            border: InputBorder.none,
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: AppTheme.textPrimary,
           ),
         ),
-      ),
-    ]);
-  }
-
-  Widget _buildDateField(String label, IconData icon,
-      TextEditingController controller, BuildContext context) {
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(label,
-          style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: AppTheme.textPrimary)),
-      const SizedBox(height: 6),
-      GestureDetector(
-        onTap: () async {
-          final DateTime? picked = await showDatePicker(
-            context: context,
-            initialDate: DateTime.now(),
-            firstDate: DateTime(2000),
-            lastDate: DateTime(2100),
-            builder: (context, child) => Theme(
-              data: ThemeData.light().copyWith(
-                colorScheme: const ColorScheme.light(
-                    primary: AppTheme.primaryColor, onPrimary: Colors.white),
-              ),
-              child: child!,
-            ),
-          );
-          if (picked != null) {
-            controller.text = DateFormat('MM/dd/yyyy').format(picked);
-          }
-        },
-        child: Container(
+        const SizedBox(height: 6),
+        Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(8),
             border: Border.all(color: Colors.black.withOpacity(0.1)),
           ),
-          child: Row(children: [
-            Padding(
-              padding: const EdgeInsets.only(left: 12),
-              child: Icon(icon, size: 18, color: AppTheme.primaryColor),
-            ),
-            Expanded(
-              child: TextField(
-                controller: controller,
-                enabled: false,
-                decoration: const InputDecoration(
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 14),
-                    hintText: 'Select date'),
+          child: DropdownButtonFormField<String>(
+            value: selectedPadId,
+            isExpanded: true,
+            decoration: InputDecoration(
+              prefixIcon: Icon(
+                Icons.folder,
+                size: 18,
+                color: AppTheme.primaryColor,
+              ),
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 14,
               ),
             ),
-          ]),
+            items: pads
+                .map(
+                  (pad) => DropdownMenuItem<String>(
+                    value: pad.id,
+                    child: Text(
+                      pad.displayName,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                )
+                .toList(),
+            onChanged: onChanged,
+          ),
         ),
-      ),
-    ]);
+      ],
+    );
+  }
+
+  Widget _buildFormField(
+    String label,
+    IconData icon,
+    TextEditingController controller,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: AppTheme.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.black.withOpacity(0.1)),
+          ),
+          child: TextField(
+            controller: controller,
+            decoration: InputDecoration(
+              prefixIcon: Icon(icon, size: 18, color: AppTheme.primaryColor),
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 14,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDateField(
+    String label,
+    IconData icon,
+    TextEditingController controller,
+    BuildContext context,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: AppTheme.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 6),
+        GestureDetector(
+          onTap: () async {
+            final DateTime? picked = await showDatePicker(
+              context: context,
+              initialDate: DateTime.now(),
+              firstDate: DateTime(2000),
+              lastDate: DateTime(2100),
+              builder: (context, child) => Theme(
+                data: ThemeData.light().copyWith(
+                  colorScheme: const ColorScheme.light(
+                    primary: AppTheme.primaryColor,
+                    onPrimary: Colors.white,
+                  ),
+                ),
+                child: child!,
+              ),
+            );
+            if (picked != null) {
+              controller.text = DateFormat('MM/dd/yyyy').format(picked);
+            }
+          },
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.black.withOpacity(0.1)),
+            ),
+            child: Row(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(left: 12),
+                  child: Icon(icon, size: 18, color: AppTheme.primaryColor),
+                ),
+                Expanded(
+                  child: TextField(
+                    controller: controller,
+                    enabled: false,
+                    decoration: const InputDecoration(
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 14,
+                      ),
+                      hintText: 'Select date',
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   Future<void> _openFolder(BuildContext context) async {
@@ -1119,13 +1743,15 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
     }
   }
 
-  void _showFilesDialog(BuildContext context, List<FileSystemEntity> files,
-      String folderPath) {
+  void _showFilesDialog(
+    BuildContext context,
+    List<FileSystemEntity> files,
+    String folderPath,
+  ) {
     showDialog(
       context: context,
       builder: (context) => Dialog(
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         elevation: 0,
         backgroundColor: Colors.transparent,
         child: Container(
@@ -1136,64 +1762,80 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                  color: Colors.black.withOpacity(0.15),
-                  blurRadius: 25,
-                  offset: const Offset(0, 10))
+                color: Colors.black.withOpacity(0.15),
+                blurRadius: 25,
+                offset: const Offset(0, 10),
+              ),
             ],
           ),
-          child: Column(children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: AppTheme.primaryGradient,
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(16)),
-              ),
-              child: Row(children: [
-                const Icon(Icons.folder_open, color: Colors.white),
-                const SizedBox(width: 12),
-                Expanded(
-                    child: Text(folderPath,
-                        style: const TextStyle(
-                            fontSize: 14,
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600),
-                        overflow: TextOverflow.ellipsis)),
-              ]),
-            ),
-            Expanded(
-                child: ListView.builder(
-              padding: const EdgeInsets.all(12),
-              itemCount: files.length,
-              itemBuilder: (context, index) {
-                final file = files[index];
-                final isDir = file is Directory;
-                final name = file.path.split(Platform.pathSeparator).last;
-                return ListTile(
-                  leading: Icon(
-                      isDir ? Icons.folder : Icons.insert_drive_file,
-                      color:
-                          isDir ? Colors.orange : AppTheme.primaryColor),
-                  title: Text(name, style: const TextStyle(fontSize: 12)),
-                  subtitle: Text(isDir ? "Folder" : "File",
-                      style: const TextStyle(fontSize: 10)),
-                );
-              },
-            )),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-                ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryColor,
-                    foregroundColor: Colors.white,
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: AppTheme.primaryGradient,
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(16),
                   ),
-                  child: const Text("Close"),
                 ),
-              ]),
-            ),
-          ]),
+                child: Row(
+                  children: [
+                    const Icon(Icons.folder_open, color: Colors.white),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        folderPath,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: ListView.builder(
+                  padding: const EdgeInsets.all(12),
+                  itemCount: files.length,
+                  itemBuilder: (context, index) {
+                    final file = files[index];
+                    final isDir = file is Directory;
+                    final name = file.path.split(Platform.pathSeparator).last;
+                    return ListTile(
+                      leading: Icon(
+                        isDir ? Icons.folder : Icons.insert_drive_file,
+                        color: isDir ? Colors.orange : AppTheme.primaryColor,
+                      ),
+                      title: Text(name, style: const TextStyle(fontSize: 12)),
+                      subtitle: Text(
+                        isDir ? "Folder" : "File",
+                        style: const TextStyle(fontSize: 10),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    ElevatedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryColor,
+                        foregroundColor: Colors.white,
+                      ),
+                      child: const Text("Close"),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -1228,55 +1870,84 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
 
   Future<Directory> getDocumentsDirectory() async {
     if (Platform.isWindows) {
-      return Directory(path.join(
-          Platform.environment['USERPROFILE']!, 'Documents', 'MudPro Reports'));
+      return Directory(
+        path.join(
+          Platform.environment['USERPROFILE']!,
+          'Documents',
+          'MudPro Reports',
+        ),
+      );
     } else if (Platform.isMacOS || Platform.isLinux) {
-      return Directory(path.join(
-          Platform.environment['HOME']!, 'Documents', 'MudPro Reports'));
+      return Directory(
+        path.join(Platform.environment['HOME']!, 'Documents', 'MudPro Reports'),
+      );
     } else {
       return Directory.current;
     }
   }
 
   void _generateReportOnSystem(
-      String wellName, String reportNumber, String date) async {
+    String wellName,
+    String reportNumber,
+    String date,
+  ) async {
     try {
       final reportsDir = await getDocumentsDirectory();
       if (!await reportsDir.exists()) {
         await reportsDir.create(recursive: true);
       }
-      final reportFile = File(path.join(
-        reportsDir.path,
-        '${wellName.replaceAll(' ', '_')}_${reportNumber}_${date.replaceAll('/', '-')}.json',
-      ));
-      await reportFile.writeAsString(jsonEncode(
-          {'wellName': wellName, 'reportNumber': reportNumber, 'date': date}));
+      final reportFile = File(
+        path.join(
+          reportsDir.path,
+          '${wellName.replaceAll(' ', '_')}_${reportNumber}_${date.replaceAll('/', '-')}.json',
+        ),
+      );
+      await reportFile.writeAsString(
+        jsonEncode({
+          'wellName': wellName,
+          'reportNumber': reportNumber,
+          'date': date,
+        }),
+      );
     } catch (e) {
       debugPrint('Error generating report: $e');
     }
+  }
+
+  String _dialogEntityId(dynamic data) {
+    if (data is Map<String, dynamic>) {
+      return (data['_id'] ?? data['id'] ?? '').toString();
+    }
+    if (data is Map) {
+      final map = Map<String, dynamic>.from(data);
+      return (map['_id'] ?? map['id'] ?? '').toString();
+    }
+    return '';
   }
 
   void _carryOverPad(BuildContext context) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         title: const Text("Carry-over Pad"),
         content: const Text(
-            "This will copy all current pad data to a new report. Continue?"),
+          "This will copy all current pad data to a new report. Continue?",
+        ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel")),
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
               _showDesktopAlert(context, "Pad data carried over successfully");
             },
             style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.warningColor,
-                foregroundColor: Colors.white),
+              backgroundColor: AppTheme.warningColor,
+              foregroundColor: Colors.white,
+            ),
             child: const Text("Continue"),
           ),
         ],
@@ -1288,23 +1959,25 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         title: const Text("Carry-over Report"),
         content: const Text(
-            "This will carry selected data to the next report."),
+          "This will carry selected data to the next report.",
+        ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel")),
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
               _showDesktopAlert(context, "Data carried over successfully");
             },
             style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.warningColor,
-                foregroundColor: Colors.white),
+              backgroundColor: AppTheme.warningColor,
+              foregroundColor: Colors.white,
+            ),
             child: const Text("Carry Over"),
           ),
         ],
@@ -1346,20 +2019,28 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
       context: context,
       barrierDismissible: false,
       builder: (ctx) => Dialog(
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            CircularProgressIndicator(color: AppTheme.successColor),
-            const SizedBox(height: 16),
-            Text(fileName,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(color: AppTheme.successColor),
+              const SizedBox(height: 16),
+              Text(
+                fileName,
                 style: const TextStyle(
-                    fontWeight: FontWeight.w600, fontSize: 14)),
-            const SizedBox(height: 8),
-            const Text("Processing...",
-                style: TextStyle(fontSize: 12, color: Colors.black54)),
-          ]),
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                "Processing...",
+                style: TextStyle(fontSize: 12, color: Colors.black54),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -1377,10 +2058,21 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
         await Future.delayed(const Duration(seconds: 1));
         if (Navigator.canPop(context)) Navigator.pop(context);
         _showDesktopAlert(
-            context, "${result.files.length} files uploaded successfully");
+          context,
+          "${result.files.length} files uploaded successfully",
+        );
       }
     } catch (e) {
       _showDesktopAlert(context, "Batch upload failed: $e", isSuccess: false);
+    }
+  }
+
+  DateTime? _parseReportDate(String value) {
+    if (value.trim().isEmpty) return null;
+    try {
+      return DateFormat('MM/dd/yyyy').parseStrict(value.trim());
+    } catch (_) {
+      return null;
     }
   }
 }

@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/controller/UG_ST_controller.dart';
+import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class RightTopTabs extends StatelessWidget {
+  RightTopTabs({super.key});
+
   final c = Get.find<UgStController>();
+  final reportC = reportContext;
 
   final List<Map<String, dynamic>> tabs = const [
     {"label": "Well", "icon": Icons.oil_barrel},
@@ -20,9 +24,7 @@ class RightTopTabs extends StatelessWidget {
       height: 44,
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border(
-          bottom: BorderSide(color: Colors.grey.shade300),
-        ),
+        border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.03),
@@ -33,7 +35,6 @@ class RightTopTabs extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // TABS CONTAINER
           Expanded(
             child: Container(
               margin: const EdgeInsets.symmetric(horizontal: 8),
@@ -41,41 +42,63 @@ class RightTopTabs extends StatelessWidget {
                 children: List.generate(tabs.length, (i) {
                   return Obx(() {
                     final active = c.selectedWellTab.value == i;
+                    final isEnabled = i == 0 || reportC.hasSelectedReport;
+
                     return Expanded(
-                      child: GestureDetector(
-                        onTap: () => c.switchWellTab(i),
-                        child: Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 2),
-                          decoration: BoxDecoration(
-                            border: Border(
-                              bottom: BorderSide(
-                                color: active ? AppTheme.primaryColor : Colors.transparent,
-                                width: 3,
+                      child: Tooltip(
+                        message: isEnabled
+                            ? tabs[i]['label'] as String
+                            : 'Create and select a report first.',
+                        child: GestureDetector(
+                          onTap: isEnabled ? () => c.switchWellTab(i) : null,
+                          child: Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 2),
+                            decoration: BoxDecoration(
+                              border: Border(
+                                bottom: BorderSide(
+                                  color: isEnabled && active
+                                      ? AppTheme.primaryColor
+                                      : Colors.transparent,
+                                  width: 3,
+                                ),
                               ),
+                              color: isEnabled
+                                  ? Colors.transparent
+                                  : Colors.grey.withValues(alpha: 0.08),
                             ),
-                          ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    tabs[i]['icon'],
-                                    size: 16,
-                                    color: active ? AppTheme.primaryColor : AppTheme.textSecondary,
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    tabs[i]['label'],
-                                    style: AppTheme.bodySmall.copyWith(
-                                      fontWeight: active ? FontWeight.w600 : FontWeight.normal,
-                                      color: active ? AppTheme.primaryColor : AppTheme.textSecondary,
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      tabs[i]['icon'],
+                                      size: 16,
+                                      color: !isEnabled
+                                          ? Colors.grey.shade400
+                                          : active
+                                          ? AppTheme.primaryColor
+                                          : AppTheme.textSecondary,
                                     ),
-                                  ),
-                                ],
-                              ),
-                            ],
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      tabs[i]['label'],
+                                      style: AppTheme.bodySmall.copyWith(
+                                        fontWeight: active
+                                            ? FontWeight.w600
+                                            : FontWeight.normal,
+                                        color: !isEnabled
+                                            ? Colors.grey.shade400
+                                            : active
+                                            ? AppTheme.primaryColor
+                                            : AppTheme.textSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -85,37 +108,35 @@ class RightTopTabs extends StatelessWidget {
               ),
             ),
           ),
-
-          // LOCK/UNLOCK BUTTON
           Container(
             margin: const EdgeInsets.only(right: 8),
-            child: Obx(() => Container(
-              decoration: BoxDecoration(
-                color: c.isLocked.value 
-                    ? AppTheme.errorColor.withOpacity(0.1)
-                    : AppTheme.successColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(
-                  color: c.isLocked.value 
-                      ? AppTheme.errorColor.withOpacity(0.3)
-                      : AppTheme.successColor.withOpacity(0.3),
+            child: Obx(
+              () => Container(
+                decoration: BoxDecoration(
+                  color: c.isLocked.value
+                      ? AppTheme.errorColor.withOpacity(0.1)
+                      : AppTheme.successColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: c.isLocked.value
+                        ? AppTheme.errorColor.withOpacity(0.3)
+                        : AppTheme.successColor.withOpacity(0.3),
+                  ),
+                ),
+                child: IconButton(
+                  icon: Icon(
+                    c.isLocked.value ? Icons.lock : Icons.lock_open,
+                    size: 18,
+                    color: c.isLocked.value
+                        ? AppTheme.errorColor
+                        : AppTheme.successColor,
+                  ),
+                  onPressed: c.toggleLock,
+                  tooltip: c.isLocked.value ? "Unlock" : "Lock",
                 ),
               ),
-              child: IconButton(
-                icon: Icon(
-                  c.isLocked.value ? Icons.lock : Icons.lock_open,
-                  size: 18,
-                  color: c.isLocked.value 
-                      ? AppTheme.errorColor
-                      : AppTheme.successColor,
-                ),
-                onPressed: c.toggleLock,
-                tooltip: c.isLocked.value ? "Unlock" : "Lock",
-              ),
-            )),
+            ),
           ),
-
-          // STATUS INDICATOR
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(

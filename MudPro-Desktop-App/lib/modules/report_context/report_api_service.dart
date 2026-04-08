@@ -3,114 +3,59 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 import 'package:mudpro_desktop_app/api_endpoint/api_endpoint.dart';
-import 'package:mudpro_desktop_app/modules/well_context/pad_well_models.dart';
+import 'package:mudpro_desktop_app/modules/report_context/report_models.dart';
 
-class PadWellApiService {
+class ReportApiService {
   static const String _localDevBaseUrl = 'http://localhost:3000/api/';
   static const _headers = {
     'Accept': 'application/json',
     'Content-Type': 'application/json',
   };
 
-  Future<List<AppPad>> fetchPads({bool includeWells = true}) async {
+  Future<List<AppReport>> fetchReports(String wellId) async {
     final decoded = await _getObject(
-      path: 'pads',
-      queryParameters: {
-        if (includeWells) 'includeWells': 'true',
-      },
+      path: 'reports',
+      queryParameters: {'wellId': wellId},
     );
 
     final data = decoded['data'];
-    if (data is! List) return const <AppPad>[];
+    if (data is! List) return const <AppReport>[];
 
     return data
         .whereType<Map>()
-        .map((item) => AppPad.fromJson(Map<String, dynamic>.from(item)))
+        .map((item) => AppReport.fromJson(Map<String, dynamic>.from(item)))
         .toList();
   }
 
-  Future<List<AppWell>> fetchWells({
-    String padId = '',
-    bool includePad = true,
-  }) async {
-    final decoded = await _getObject(
-      path: 'wells',
-      queryParameters: {
-        if (padId.isNotEmpty) 'padId': padId,
-        if (includePad) 'includePad': 'true',
-      },
-    );
-
-    final data = decoded['data'];
-    if (data is! List) return const <AppWell>[];
-
-    return data
-        .whereType<Map>()
-        .map((item) => AppWell.fromJson(Map<String, dynamic>.from(item)))
-        .toList();
-  }
-
-  Future<Map<String, dynamic>> createPad(Map<String, dynamic> payload) {
+  Future<Map<String, dynamic>> createReport(Map<String, dynamic> payload) {
     return _sendObject(
       method: 'POST',
-      path: 'pads',
+      path: 'reports',
       body: payload,
       successStatusCodes: const {201},
-      defaultErrorMessage: 'Failed to create pad',
+      defaultErrorMessage: 'Failed to create report',
     );
   }
 
-  Future<Map<String, dynamic>> updatePad(
-    String padId,
+  Future<Map<String, dynamic>> updateReport(
+    String reportId,
     Map<String, dynamic> payload,
   ) {
     return _sendObject(
       method: 'PUT',
-      path: 'pads/$padId',
+      path: 'reports/$reportId',
       body: payload,
       successStatusCodes: const {200},
-      defaultErrorMessage: 'Failed to update pad',
+      defaultErrorMessage: 'Failed to update report',
     );
   }
 
-  Future<Map<String, dynamic>> deletePad(String padId) {
+  Future<Map<String, dynamic>> deleteReport(String reportId) {
     return _sendObject(
       method: 'DELETE',
-      path: 'pads/$padId',
+      path: 'reports/$reportId',
       successStatusCodes: const {200},
-      defaultErrorMessage: 'Failed to delete pad',
-    );
-  }
-
-  Future<Map<String, dynamic>> createWell(Map<String, dynamic> payload) {
-    return _sendObject(
-      method: 'POST',
-      path: 'wells',
-      body: payload,
-      successStatusCodes: const {201},
-      defaultErrorMessage: 'Failed to create well',
-    );
-  }
-
-  Future<Map<String, dynamic>> updateWell(
-    String wellId,
-    Map<String, dynamic> payload,
-  ) {
-    return _sendObject(
-      method: 'PUT',
-      path: 'wells/$wellId',
-      body: payload,
-      successStatusCodes: const {200},
-      defaultErrorMessage: 'Failed to update well',
-    );
-  }
-
-  Future<Map<String, dynamic>> deleteWell(String wellId) {
-    return _sendObject(
-      method: 'DELETE',
-      path: 'wells/$wellId',
-      successStatusCodes: const {200},
-      defaultErrorMessage: 'Failed to delete well',
+      defaultErrorMessage: 'Failed to delete report',
     );
   }
 
@@ -121,9 +66,9 @@ class PadWellApiService {
     final failures = <String>[];
 
     for (final baseUrl in _candidateBaseUrls) {
-      final uri = Uri.parse('$baseUrl$path').replace(
-        queryParameters: queryParameters,
-      );
+      final uri = Uri.parse(
+        '$baseUrl$path',
+      ).replace(queryParameters: queryParameters);
 
       try {
         final response = await http
@@ -160,7 +105,7 @@ class PadWellApiService {
     }
 
     throw Exception(
-      'Pad/well backend routes are not available. '
+      'Report backend routes are not available. '
       'Deploy the latest backend or run local backend on '
       '$_localDevBaseUrl '
       'Tried: ${failures.join(' | ')}',
@@ -170,7 +115,6 @@ class PadWellApiService {
   Future<Map<String, dynamic>> _sendObject({
     required String method,
     required String path,
-    Map<String, String>? queryParameters,
     Map<String, dynamic>? body,
     required Set<int> successStatusCodes,
     required String defaultErrorMessage,
@@ -178,9 +122,7 @@ class PadWellApiService {
     final failures = <String>[];
 
     for (final baseUrl in _candidateBaseUrls) {
-      final uri = Uri.parse('$baseUrl$path').replace(
-        queryParameters: queryParameters,
-      );
+      final uri = Uri.parse('$baseUrl$path');
 
       try {
         final response = await _sendRequest(
@@ -265,7 +207,7 @@ class PadWellApiService {
     final lowerContentType = (contentType ?? '').toLowerCase();
 
     if (trimmed.isEmpty) {
-      throw FormatException('empty response');
+      throw const FormatException('empty response');
     }
 
     if (lowerContentType.contains('text/html') ||

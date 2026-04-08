@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
+import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
+import 'package:mudpro_desktop_app/modules/report_context/report_models.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_models.dart';
 
@@ -10,6 +12,7 @@ class LeftReportTree extends StatelessWidget {
 
   final c = Get.find<DashboardController>();
   final padWellC = padWellContext;
+  final reportC = reportContext;
 
   @override
   Widget build(BuildContext context) {
@@ -73,7 +76,8 @@ class LeftReportTree extends StatelessWidget {
           Obx(() {
             final wellId = padWellC.selectedWellId.value;
             final wellName = padWellC.selectedWellName;
-            if (wellId.isEmpty || wellName.isEmpty) return const SizedBox.shrink();
+            if (wellId.isEmpty || wellName.isEmpty)
+              return const SizedBox.shrink();
             return _clickableHeader(
               icon: Icons.location_on,
               text: wellName,
@@ -122,11 +126,15 @@ class LeftReportTree extends StatelessWidget {
               text: TextSpan(
                 children: [
                   WidgetSpan(
-                    child: Icon(Icons.info, size: 10, color: AppTheme.primaryColor),
+                    child: Icon(
+                      Icons.info,
+                      size: 10,
+                      color: AppTheme.primaryColor,
+                    ),
                   ),
                   TextSpan(text: ' '),
                   TextSpan(
-                    text: "Pad/well list is loaded from backend only.",
+                    text: "Pad/well/report list is loaded from backend.",
                     style: TextStyle(
                       fontSize: 10,
                       color: AppTheme.textSecondary,
@@ -175,7 +183,8 @@ class LeftReportTree extends StatelessWidget {
     return ListView.builder(
       padding: EdgeInsets.only(bottom: 16),
       itemCount: padWellC.pads.length,
-      itemBuilder: (context, index) => _buildBackendPadTile(padWellC.pads[index]),
+      itemBuilder: (context, index) =>
+          _buildBackendPadTile(padWellC.pads[index]),
     );
   }
 
@@ -189,8 +198,9 @@ class LeftReportTree extends StatelessWidget {
         border: Border.all(color: Colors.black.withOpacity(0.06)),
       ),
       child: ExpansionTile(
-        initiallyExpanded:
-            wells.any((well) => well.id == padWellC.selectedWellId.value),
+        initiallyExpanded: wells.any(
+          (well) => well.id == padWellC.selectedWellId.value,
+        ),
         tilePadding: EdgeInsets.symmetric(horizontal: 10),
         childrenPadding: EdgeInsets.fromLTRB(8, 0, 8, 8),
         leading: Icon(Icons.folder, size: 15, color: AppTheme.primaryColor),
@@ -219,9 +229,12 @@ class LeftReportTree extends StatelessWidget {
                   padding: EdgeInsets.all(8),
                   child: Text(
                     'No wells linked to this pad',
-                    style: TextStyle(fontSize: 10, color: AppTheme.textSecondary),
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: AppTheme.textSecondary,
+                    ),
                   ),
-                )
+                ),
               ]
             : wells.map(_buildBackendWellRow).toList(),
       ),
@@ -231,50 +244,208 @@ class LeftReportTree extends StatelessWidget {
   Widget _buildBackendWellRow(AppWell well) {
     final id = 'well:${well.id}';
     return Obx(() {
-      final selected = padWellC.selectedWellId.value == well.id ||
+      final selectedWell = padWellC.selectedWellId.value == well.id;
+      final selected = selectedWell || c.selectedNodeId.value == id;
+      final reports = selectedWell
+          ? reportC.reports.toList()
+          : const <AppReport>[];
+
+      return Column(
+        children: [
+          MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: GestureDetector(
+              onTap: () {
+                padWellC.selectWell(well.id);
+                c.navigate(id);
+              },
+              child: AnimatedContainer(
+                duration: Duration(milliseconds: 180),
+                margin: EdgeInsets.only(top: 4),
+                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: selected
+                      ? AppTheme.primaryColor.withOpacity(0.12)
+                      : Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: selected
+                        ? AppTheme.primaryColor.withOpacity(0.35)
+                        : Colors.transparent,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.location_on,
+                      size: 13,
+                      color: selected
+                          ? AppTheme.primaryColor
+                          : AppTheme.textSecondary,
+                    ),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        well.displayName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: selected
+                              ? FontWeight.w700
+                              : FontWeight.w500,
+                          color: selected
+                              ? AppTheme.primaryColor
+                              : AppTheme.textPrimary,
+                        ),
+                      ),
+                    ),
+                    if (selectedWell)
+                      Text(
+                        '${reports.length}',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.textSecondary,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          if (selectedWell) _buildReportList(reports),
+        ],
+      );
+    });
+  }
+
+  Widget _buildReportList(List<AppReport> reports) {
+    if (reportC.isLoading.value) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 6, left: 24, right: 8),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 12,
+              height: 12,
+              child: CircularProgressIndicator(
+                strokeWidth: 1.6,
+                color: AppTheme.primaryColor,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Loading reports...',
+              style: TextStyle(fontSize: 10, color: AppTheme.textSecondary),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (reportC.errorMessage.value.isNotEmpty) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 6, left: 24, right: 8),
+        child: Text(
+          reportC.errorMessage.value,
+          style: TextStyle(fontSize: 10, color: AppTheme.errorColor),
+        ),
+      );
+    }
+
+    if (reports.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 6, left: 24, right: 8),
+        child: Text(
+          'No reports under this well yet',
+          style: TextStyle(fontSize: 10, color: AppTheme.textSecondary),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 4, left: 18),
+      child: Column(children: reports.map(_buildReportRow).toList()),
+    );
+  }
+
+  Widget _buildReportRow(AppReport report) {
+    final id = 'report:${report.id}';
+    return Obx(() {
+      final selected =
+          reportC.selectedReportId.value == report.id ||
           c.selectedNodeId.value == id;
       return MouseRegion(
         cursor: SystemMouseCursors.click,
         child: GestureDetector(
           onTap: () {
-            padWellC.selectWell(well.id);
+            reportC.selectReport(report.id);
             c.navigate(id);
           },
           child: AnimatedContainer(
-            duration: Duration(milliseconds: 180),
-            margin: EdgeInsets.only(top: 4),
-            padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            duration: const Duration(milliseconds: 180),
+            margin: const EdgeInsets.only(top: 4, right: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             decoration: BoxDecoration(
               color: selected
-                  ? AppTheme.primaryColor.withOpacity(0.12)
-                  : Colors.grey.shade50,
+                  ? AppTheme.accentColor.withOpacity(0.18)
+                  : Colors.white,
               borderRadius: BorderRadius.circular(6),
               border: Border.all(
                 color: selected
-                    ? AppTheme.primaryColor.withOpacity(0.35)
-                    : Colors.transparent,
+                    ? AppTheme.accentColor.withOpacity(0.45)
+                    : Colors.grey.shade200,
               ),
             ),
             child: Row(
               children: [
                 Icon(
-                  Icons.location_on,
+                  Icons.description_outlined,
                   size: 13,
-                  color: selected ? AppTheme.primaryColor : AppTheme.textSecondary,
+                  color: selected
+                      ? AppTheme.accentColor
+                      : AppTheme.textSecondary,
                 ),
-                SizedBox(width: 8),
+                const SizedBox(width: 8),
                 Expanded(
-                  child: Text(
-                    well.displayName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                      color: selected ? AppTheme.primaryColor : AppTheme.textPrimary,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        report.displayName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w700,
+                          color: selected
+                              ? AppTheme.textPrimary
+                              : AppTheme.textPrimary,
+                        ),
+                      ),
+                      if (report.reportDate.isNotEmpty)
+                        Text(
+                          report.reportDate,
+                          style: TextStyle(
+                            fontSize: 9.5,
+                            color: AppTheme.textSecondary,
+                          ),
+                        ),
+                    ],
                   ),
                 ),
+                if (report.reportNo.isNotEmpty)
+                  Text(
+                    '#${report.reportNo}',
+                    style: TextStyle(
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w700,
+                      color: selected
+                          ? AppTheme.accentColor
+                          : AppTheme.textSecondary,
+                    ),
+                  ),
               ],
             ),
           ),
@@ -402,9 +573,7 @@ class LeftReportTree extends StatelessWidget {
   Widget _buildDateNode(ReportDate dateNode) {
     return Container(
       margin: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-      ),
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(8)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -414,7 +583,10 @@ class LeftReportTree extends StatelessWidget {
             child: GestureDetector(
               onTap: () => c.navigate(dateNode.date),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: dateNode.expanded
                       ? AppTheme.cardColor
@@ -490,80 +662,81 @@ class LeftReportTree extends StatelessWidget {
                 ),
               ),
               child: Column(
-                children: dateNode.items.map(
-                  (item) {
-                    final id = '${dateNode.date}-$item';
-                    return Obx(() {
-                      final selected = c.selectedNodeId.value == id;
+                children: dateNode.items.map((item) {
+                  final id = '${dateNode.date}-$item';
+                  return Obx(() {
+                    final selected = c.selectedNodeId.value == id;
 
-                      return MouseRegion(
-                        cursor: SystemMouseCursors.click,
-                        child: GestureDetector(
-                          onTap: () => c.navigate(id),
-                          child: AnimatedContainer(
-                            duration: Duration(milliseconds: 200),
-                            curve: Curves.easeInOut,
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 8),
-                            margin: EdgeInsets.only(bottom: 2),
-                            decoration: BoxDecoration(
-                              color: selected
-                                  ? AppTheme.primaryColor.withOpacity(0.1)
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.only(
-                                topRight: Radius.circular(6),
-                                bottomRight: Radius.circular(6),
-                              ),
-                              border: selected
-                                  ? Border.all(
-                                      color: AppTheme.primaryColor
-                                          .withOpacity(0.3),
-                                      width: 1,
-                                    )
-                                  : null,
+                    return MouseRegion(
+                      cursor: SystemMouseCursors.click,
+                      child: GestureDetector(
+                        onTap: () => c.navigate(id),
+                        child: AnimatedContainer(
+                          duration: Duration(milliseconds: 200),
+                          curve: Curves.easeInOut,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          margin: EdgeInsets.only(bottom: 2),
+                          decoration: BoxDecoration(
+                            color: selected
+                                ? AppTheme.primaryColor.withOpacity(0.1)
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.only(
+                              topRight: Radius.circular(6),
+                              bottomRight: Radius.circular(6),
                             ),
-                            child: Row(
-                              children: [
-                                AnimatedContainer(
-                                  duration: Duration(milliseconds: 200),
-                                  width: selected ? 8 : 4,
-                                  height: 4,
-                                  decoration: BoxDecoration(
+                            border: selected
+                                ? Border.all(
+                                    color: AppTheme.primaryColor.withOpacity(
+                                      0.3,
+                                    ),
+                                    width: 1,
+                                  )
+                                : null,
+                          ),
+                          child: Row(
+                            children: [
+                              AnimatedContainer(
+                                duration: Duration(milliseconds: 200),
+                                width: selected ? 8 : 4,
+                                height: 4,
+                                decoration: BoxDecoration(
+                                  color: selected
+                                      ? AppTheme.primaryColor
+                                      : AppTheme.textSecondary,
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
+                              SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  item,
+                                  style: TextStyle(
+                                    fontSize: 11,
                                     color: selected
                                         ? AppTheme.primaryColor
-                                        : AppTheme.textSecondary,
-                                    borderRadius: BorderRadius.circular(2),
+                                        : AppTheme.textPrimary,
+                                    fontWeight: selected
+                                        ? FontWeight.w600
+                                        : FontWeight.normal,
                                   ),
                                 ),
-                                SizedBox(width: 12),
-                                Expanded(
-                                  child: Text(
-                                    item,
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: selected
-                                          ? AppTheme.primaryColor
-                                          : AppTheme.textPrimary,
-                                      fontWeight: selected
-                                          ? FontWeight.w600
-                                          : FontWeight.normal,
-                                    ),
-                                  ),
+                              ),
+                              if (selected)
+                                Icon(
+                                  Icons.arrow_right,
+                                  size: 14,
+                                  color: AppTheme.primaryColor,
                                 ),
-                                if (selected)
-                                  Icon(
-                                    Icons.arrow_right,
-                                    size: 14,
-                                    color: AppTheme.primaryColor,
-                                  ),
-                              ],
-                            ),
+                            ],
                           ),
                         ),
-                      );
-                    });
-                  },
-                ).toList(),
+                      ),
+                    );
+                  });
+                }).toList(),
               ),
             ),
         ],

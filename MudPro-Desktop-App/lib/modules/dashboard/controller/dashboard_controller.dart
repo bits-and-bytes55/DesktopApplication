@@ -1,8 +1,9 @@
 // ==================== CONTROLLER ====================
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:get/get_state_manager/src/simple/get_controllers.dart';
 import 'dart:async';
+import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
+import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
 class DashboardController extends GetxController {
   var activePrimaryTab = 0.obs;
@@ -16,18 +17,30 @@ class DashboardController extends GetxController {
   // Debouncing for frequent updates
   Timer? _debounceTimer;
   final Duration _debounceDuration = const Duration(milliseconds: 100);
+  Worker? _reportWorker;
 
   void toggleLock() => isLocked.toggle();
 
   @override
   void onInit() {
     super.onInit();
+    _reportWorker = ever<String>(reportContext.selectedReportId, (reportId) {
+      if (reportId.isNotEmpty) return;
+
+      activePrimaryTab.value = 0;
+      activeSectionTab.value = 0;
+      activeSecondaryTab.value = -1;
+
+      if (padWellContext.selectedWellId.value.isNotEmpty) {
+        selectedNodeId.value = 'well:${padWellContext.selectedWellId.value}';
+      } else {
+        selectedNodeId.value = 'pads';
+      }
+    });
   }
 
-
-
   /// secondary tab index per primary tab
- var activeHomeTab = (-1).obs;
+  var activeHomeTab = (-1).obs;
   var activeReportTab = (-1).obs;
   var activeUtilityTab = (-1).obs;
   var activeHelpTab = (-1).obs;
@@ -57,11 +70,12 @@ class DashboardController extends GetxController {
 
   @override
   void onClose() {
+    _reportWorker?.dispose();
     _debounceTimer?.cancel();
     super.onClose();
   }
 
- // 👇 All actions kept here (clean separation)
+  // 👇 All actions kept here (clean separation)
   void createNewReport(BuildContext context) {}
   void openFolder(BuildContext context) {}
   void saveReport(BuildContext context, bool saveAs) {}
@@ -72,7 +86,6 @@ class DashboardController extends GetxController {
   void showMudCompanySetup(BuildContext context) {}
   void uploadFile(BuildContext context) {}
   void batchUpload(BuildContext context) {}
-  
 
   void addCasing(String description) {
     if (description.isNotEmpty) {
@@ -80,8 +93,7 @@ class DashboardController extends GetxController {
     }
   }
 
-
-   var selectedNodeId = ''.obs;
+  var selectedNodeId = ''.obs;
 
   /// Tree data (date → reports)
   final reportsTree = <ReportDate>[].obs;
@@ -97,9 +109,5 @@ class ReportDate {
   final List<String> items;
   bool expanded;
 
-  ReportDate({
-    required this.date,
-    required this.items,
-    this.expanded = true,
-  });
+  ReportDate({required this.date, required this.items, this.expanded = true});
 }

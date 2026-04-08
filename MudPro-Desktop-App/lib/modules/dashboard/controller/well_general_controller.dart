@@ -3,7 +3,9 @@ import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:mudpro_desktop_app/api_endpoint/api_endpoint.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
-import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart' show kControllerWellId;
+import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart'
+    show kControllerWellId;
+import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
 class WellGeneralController extends GetxController {
@@ -45,6 +47,7 @@ class WellGeneralController extends GetxController {
   var nptCost = ''.obs;
   var depthDrilled = ''.obs;
   Worker? _wellWorker;
+  Worker? _reportWorker;
 
   @override
   void onInit() {
@@ -52,51 +55,56 @@ class WellGeneralController extends GetxController {
     _wellWorker = ever<String>(padWellContext.selectedWellId, (_) {
       fetchLatest();
     });
+    _reportWorker = ever<String>(reportContext.selectedReportId, (_) {
+      _applySelectedReportMetadata();
+    });
+    fetchLatest();
   }
 
   @override
   void onClose() {
     _wellWorker?.dispose();
+    _reportWorker?.dispose();
     super.onClose();
   }
 
   Map<String, String> get _headers => {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      };
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+  };
 
   Map<String, dynamic> _toJson() => {
-        'reportNo': reportNo.value,
-        'userReportNo': userReportNo.value,
-        'date': date.value,
-        'time': time.value,
-        'engineer': engineer.value,
-        'engineer2': engineer2.value,
-        'operatorRep': operatorRep.value,
-        'contractorRep': contractorRep.value,
-        'activity': activity.value,
-        'md': double.tryParse(md.value) ?? 0,
-        'tvd': double.tryParse(tvd.value) ?? 0,
-        'inc': double.tryParse(inc.value) ?? 0,
-        'azi': double.tryParse(azi.value) ?? 0,
-        'wob': double.tryParse(wob.value) ?? 0,
-        'rotWt': double.tryParse(rotWt.value) ?? 0,
-        'soWt': double.tryParse(soWt.value) ?? 0,
-        'puWt': double.tryParse(puWt.value) ?? 0,
-        'rpm': double.tryParse(rpm.value) ?? 0,
-        'rop': double.tryParse(rop.value) ?? 0,
-        'offBottomTq': double.tryParse(offBottomTq.value) ?? 0,
-        'onBottomTq': double.tryParse(onBottomTq.value) ?? 0,
-        'suctionT': double.tryParse(suctionT.value) ?? 0,
-        'bottomT': double.tryParse(bottomT.value) ?? 0,
-        'interval': interval.value,
-        'fit': fit.value,
-        'formation': formation.value,
-        'additionalFootage': double.tryParse(additionalFootage.value) ?? 0,
-        'nptTime': double.tryParse(nptTime.value) ?? 0,
-        'nptCost': double.tryParse(nptCost.value) ?? 0,
-        'depthDrilled': double.tryParse(depthDrilled.value) ?? 0,
-      };
+    'reportNo': reportNo.value,
+    'userReportNo': userReportNo.value,
+    'date': date.value,
+    'time': time.value,
+    'engineer': engineer.value,
+    'engineer2': engineer2.value,
+    'operatorRep': operatorRep.value,
+    'contractorRep': contractorRep.value,
+    'activity': activity.value,
+    'md': double.tryParse(md.value) ?? 0,
+    'tvd': double.tryParse(tvd.value) ?? 0,
+    'inc': double.tryParse(inc.value) ?? 0,
+    'azi': double.tryParse(azi.value) ?? 0,
+    'wob': double.tryParse(wob.value) ?? 0,
+    'rotWt': double.tryParse(rotWt.value) ?? 0,
+    'soWt': double.tryParse(soWt.value) ?? 0,
+    'puWt': double.tryParse(puWt.value) ?? 0,
+    'rpm': double.tryParse(rpm.value) ?? 0,
+    'rop': double.tryParse(rop.value) ?? 0,
+    'offBottomTq': double.tryParse(offBottomTq.value) ?? 0,
+    'onBottomTq': double.tryParse(onBottomTq.value) ?? 0,
+    'suctionT': double.tryParse(suctionT.value) ?? 0,
+    'bottomT': double.tryParse(bottomT.value) ?? 0,
+    'interval': interval.value,
+    'fit': fit.value,
+    'formation': formation.value,
+    'additionalFootage': double.tryParse(additionalFootage.value) ?? 0,
+    'nptTime': double.tryParse(nptTime.value) ?? 0,
+    'nptCost': double.tryParse(nptCost.value) ?? 0,
+    'depthDrilled': double.tryParse(depthDrilled.value) ?? 0,
+  };
 
   void _fromJson(Map<String, dynamic> d) {
     savedId.value = d['_id'] ?? '';
@@ -132,18 +140,70 @@ class WellGeneralController extends GetxController {
     depthDrilled.value = (d['depthDrilled'] ?? '').toString();
   }
 
+  void _clearFields() {
+    savedId.value = '';
+    reportNo.value = '';
+    userReportNo.value = '';
+    date.value = '';
+    time.value = '';
+    engineer.value = '';
+    engineer2.value = '';
+    operatorRep.value = '';
+    contractorRep.value = '';
+    activity.value = '';
+    md.value = '';
+    tvd.value = '';
+    inc.value = '';
+    azi.value = '';
+    wob.value = '';
+    rotWt.value = '';
+    soWt.value = '';
+    puWt.value = '';
+    rpm.value = '';
+    rop.value = '';
+    offBottomTq.value = '';
+    onBottomTq.value = '';
+    suctionT.value = '';
+    bottomT.value = '';
+    interval.value = '';
+    fit.value = '';
+    formation.value = '';
+    additionalFootage.value = '';
+    nptTime.value = '';
+    nptCost.value = '';
+    depthDrilled.value = '';
+  }
+
+  void _applySelectedReportMetadata() {
+    final report = reportContext.selectedReport;
+    if (report == null) return;
+
+    reportNo.value = report.reportNo;
+    userReportNo.value = report.userReportNo.isNotEmpty
+        ? report.userReportNo
+        : report.reportNo;
+    if (report.reportDate.isNotEmpty) {
+      date.value = report.reportDate;
+    }
+  }
+
   // ─── FETCH latest record ───────────────────────
   Future<void> fetchLatest() async {
-    if (kControllerWellId.isEmpty) return;
+    if (kControllerWellId.isEmpty) {
+      _clearFields();
+      return;
+    }
     isLoading.value = true;
     try {
+      _clearFields();
       final response = await http.get(
         Uri.parse('${baseUrl}well-general/$kControllerWellId'),
         headers: _headers,
       );
 
-
-print('WellGeneral fetch response: ${response.statusCode} ${response.body}');
+      print(
+        'WellGeneral fetch response: ${response.statusCode} ${response.body}',
+      );
 
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body);
@@ -151,9 +211,11 @@ print('WellGeneral fetch response: ${response.statusCode} ${response.body}');
         if (data.isNotEmpty) {
           _fromJson(data.first);
         }
+        _applySelectedReportMetadata();
       }
     } catch (e) {
       print('WellGeneral fetch error: $e');
+      _applySelectedReportMetadata();
     } finally {
       isLoading.value = false;
     }
@@ -167,7 +229,7 @@ print('WellGeneral fetch response: ${response.statusCode} ${response.body}');
     isSaving.value = true;
     try {
       final authRepo = AuthRepository();
-      
+
       // We always send the wellId from kControllerWellId to the new unified Save endpoint
       final payload = _toJson();
       payload['wellId'] = kControllerWellId;
@@ -175,15 +237,19 @@ print('WellGeneral fetch response: ${response.statusCode} ${response.body}');
       final result = await authRepo.saveWellGeneral(payload);
 
       if (result['success'] == true) {
-        final data = result['data']?['data']; // auth_repo returns {success, data: {success, data, message}}
+        final data =
+            result['data']?['data']; // auth_repo returns {success, data: {success, data, message}}
         if (data != null) {
           _fromJson(data);
         }
-        return {'success': true, 'message': 'Well General data saved successfully'};
+        return {
+          'success': true,
+          'message': 'Well General data saved successfully',
+        };
       } else {
         return {
-          'success': false, 
-          'message': result['message'] ?? 'Failed to save Well General data'
+          'success': false,
+          'message': result['message'] ?? 'Failed to save Well General data',
         };
       }
     } catch (e) {

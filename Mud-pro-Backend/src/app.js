@@ -75,6 +75,7 @@ import padRoutes from "./routes/pad/pad.routes.js";
 import wellRoutes from "./routes/well/well.routes.js";
 import emptyFluidActiveSystemRoutes from "./routes/emptyfluidactivesystem/emptyFluidActiveSystem.routes.js";
 import operationRoutes from "./routes/operation/operation.routes.js";
+import reportRoutes from "./routes/report/report.routes.js";
 
 
 
@@ -200,6 +201,7 @@ app.use("/api/intervals", intervalRoutes);
 app.use("/api/pads", padRoutes);
 app.use("/api/wells", wellRoutes);
 app.use("/api/operations", operationRoutes);
+app.use("/api/reports", reportRoutes);
 
 
 // Error handler (ALWAYS LAST)
