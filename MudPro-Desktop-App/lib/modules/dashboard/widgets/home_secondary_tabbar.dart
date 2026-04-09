@@ -136,7 +136,9 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
                         onEnter: (_) => setState(() => _hoveredIndex = index),
                         onExit: (_) => setState(() => _hoveredIndex = -1),
                         child: Tooltip(
-                          message: tooltips[index],
+                          message: index == 7 
+                            ? (controller.isLocked.value ? "Unlock" : "Lock")
+                            : tooltips[index],
                           waitDuration: const Duration(milliseconds: 300),
                           decoration: BoxDecoration(
                             gradient: AppTheme.primaryGradient,
@@ -209,7 +211,9 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
                                   ..scale(
                                       _hoveredIndex == index ? 1.15 : 1.0),
                                 child: Icon(
-                                  tabs[index]["icon"] as IconData,
+                                  index == 7 
+                                    ? (controller.isLocked.value ? Icons.lock : Icons.lock_open)
+                                    : tabs[index]["icon"] as IconData,
                                   size: 16,
                                   color: isActive
                                       ? Colors.white
@@ -316,13 +320,35 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
 
     final List<String> errorMessages = [];
     final activeTab = controller.activeSectionTab.value;
+    final selectedNodeId = controller.selectedNodeId.value;
     String successMessage = "Data saved successfully!";
 
+    final wellGenCtrl = Get.isRegistered<WellGeneralController>() ? Get.find<WellGeneralController>() : null;
+    final ugCtrl = Get.isRegistered<UgController>() ? Get.find<UgController>() : null;
+
     try {
-      if (activeTab == 0) { // Well Tab
+      if (selectedNodeId == 'UG' && ugCtrl != null) {
+        // ── SAVE PAD ────────────────────────────────────────────────────────
+        final res = await ugCtrl.savePad();
+        if (res['success']) {
+          successMessage = res['message'];
+          // If we have a WellGeneralController, keep Pad IDs in sync
+          if (wellGenCtrl != null) {
+            wellGenCtrl.currentPadId.value = ugCtrl.currentPadId.value;
+          }
+        } else {
+          errorMessages.add(res['message'] ?? 'Pad save failed');
+        }
+      } else if (activeTab == 0) { // Well Tab
         // ── 1. Save Well General ──────────────────────────────────────────
         final wellGenCtrl = Get.isRegistered<WellGeneralController>() ? Get.find<WellGeneralController>() : null;
         if (wellGenCtrl != null) {
+          // If this is a new well being created, we might need padId
+          if (wellGenCtrl.currentWellId.value.isEmpty && ugCtrl != null) {
+             // Create well if it doesn't exist? 
+             // Usually, the user fills name and we save. 
+             // For now, call save() which expects currentWellId to be set.
+          }
           final res = await wellGenCtrl.save();
           if (res['success'] == true) {
             successMessage = res['message'];
@@ -378,17 +404,22 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
               }
 
               if (opCtrl.totalVolume.value > 0) {
-                 final tVol = opCtrl.totalVolume.value;
-                 final res = await authRepo.saveConsumeProductVolumeName({
-                    'wellId': kStaticWellId,
-                    'product': 'Water',
-                    'volumeBbl': tVol,
-                 });
-                 if (res['success'] == true) {
-                    successMessage = "Operations volume data saved";
-                 } else {
-                    errorMessages.add('Operations API: ${res['message'] ?? 'Failed'}');
-                 }
+                  final tVol = opCtrl.totalVolume.value;
+                  final activeWellId = wellGenCtrl?.currentWellId.value ?? '';
+                  if (activeWellId.isEmpty) {
+                    errorMessages.add('No active Well ID found. Please select a well.');
+                  } else {
+                    final res = await authRepo.saveConsumeProductVolumeName({
+                      'wellId': activeWellId,
+                      'product': 'Water',
+                      'volumeBbl': tVol,
+                    });
+                    if (res['success'] == true) {
+                      successMessage = "Operations volume data saved";
+                    } else {
+                      errorMessages.add('Operations API: ${res['message'] ?? 'Failed'}');
+                    }
+                  }
               }
             } else if (selectedOp == OperationType.addWater) {
               // ── Add Water ────────────────────────────────────────────────
@@ -1302,13 +1333,7 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
   }
 
   void _toggleLock(BuildContext context) {
-    controller.toggleLock();
-    _showDesktopAlert(
-      context,
-      controller.isLocked.value
-          ? "Report locked for editing"
-          : "Report unlocked for editing",
-    );
+    controller.toggleLock(context: context);
   }
 
   Future<void> _uploadFile(BuildContext context) async {

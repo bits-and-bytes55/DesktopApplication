@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/controller/UG_ST_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
 
 class PlanPageView extends StatelessWidget {
   const PlanPageView({super.key});
@@ -9,6 +10,7 @@ class PlanPageView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final UgStController controller = Get.find<UgStController>();
+    final DashboardController dashCtrl = Get.find<DashboardController>();
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -24,11 +26,11 @@ class PlanPageView extends StatelessWidget {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _summaryTable(),
+                    _summaryTable(dashCtrl),
                     const SizedBox(height: 12),
                     Align(
                       alignment: Alignment.centerRight,
-                      child: _quickFillButton(),
+                      child: _quickFillButton(dashCtrl),
                     ),
                   ],
                 );
@@ -36,9 +38,9 @@ class PlanPageView extends StatelessWidget {
                 return Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _summaryTable(),
+                    _summaryTable(dashCtrl),
                     const Spacer(),
-                    _quickFillButton(),
+                    _quickFillButton(dashCtrl),
                   ],
                 );
               }
@@ -107,7 +109,7 @@ class PlanPageView extends StatelessWidget {
 
                   // TABLE CONTENT
                   Expanded(
-                    child: _bigPlanTable(),
+                    child: _bigPlanTable(dashCtrl),
                   ),
                 ],
               ),
@@ -119,7 +121,7 @@ class PlanPageView extends StatelessWidget {
   }
 
   // ================= SUMMARY TABLE =================
-  Widget _summaryTable() {
+  Widget _summaryTable(DashboardController dashCtrl) {
     final UgStController controller = Get.find<UgStController>();
     return Container(
       width: 360,
@@ -183,6 +185,7 @@ class PlanPageView extends StatelessWidget {
                   controller.summaryData[i]['amount']!,
                   controller.summaryData[i]['unit']!,
                   i,
+                  dashCtrl,
                 ),
             ],
           )),
@@ -208,33 +211,39 @@ class PlanPageView extends StatelessWidget {
     );
   }
 
-  TableRow _summaryDataRow(String label, String value, String unit, int index) {
+  TableRow _summaryDataRow(
+      String label, String value, String unit, int index, DashboardController dashCtrl) {
     return TableRow(
       decoration: BoxDecoration(
         color: index.isEven ? Colors.white : AppTheme.cardColor,
       ),
       children: [
-        _summaryCell(label, isLabel: true),
-        _summaryCell(value, isLabel: false, index: index, key: 'amount'),
-        _summaryCell(unit, isLabel: false, index: index, key: 'unit'),
+        _summaryCell(label, dashCtrl, isLabel: true),
+        _summaryCell(value, dashCtrl, isLabel: false, index: index, key: 'amount'),
+        _summaryCell(unit, dashCtrl, isLabel: false, index: index, key: 'unit'),
       ],
     );
   }
 
-  Widget _summaryCell(String text, {bool isLabel = false, int? index, String? key}) {
+  Widget _summaryCell(String text, DashboardController dashCtrl, {bool isLabel = false, int? index, String? key}) {
     final UgStController controller = Get.find<UgStController>();
     return Container(
       height: 36,
       padding: const EdgeInsets.symmetric(horizontal: 12),
       alignment: Alignment.center,
-      child: Obx(() => controller.isLocked.value
-          ? Text(
-              text,
-              style: AppTheme.bodySmall.copyWith(
-                fontWeight: isLabel ? FontWeight.w600 : FontWeight.normal,
-                color: isLabel ? AppTheme.textPrimary : AppTheme.textSecondary,
+      child: Obx(() => dashCtrl.isLocked.value
+          ? GestureDetector(
+              onTap: () => dashCtrl.showLockedPopup(),
+              behavior: HitTestBehavior.opaque,
+              child: Text(
+                text,
+                style: AppTheme.bodySmall.copyWith(
+                  fontWeight: isLabel ? FontWeight.w600 : FontWeight.normal,
+                  color:
+                      isLabel ? AppTheme.textPrimary : AppTheme.textSecondary,
+                ),
+                textAlign: isLabel ? TextAlign.left : TextAlign.center,
               ),
-              textAlign: isLabel ? TextAlign.left : TextAlign.center,
             )
           : TextFormField(
               initialValue: text,
@@ -274,7 +283,7 @@ class PlanPageView extends StatelessWidget {
   }
 
   // ================= QUICK FILL =================
-  Widget _quickFillButton() {
+  Widget _quickFillButton(DashboardController dashCtrl) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -289,7 +298,7 @@ class PlanPageView extends StatelessWidget {
         ],
       ),
       child: ElevatedButton.icon(
-        onPressed: () {},
+        onPressed: dashCtrl.isLocked.value ? () => dashCtrl.showLockedPopup() : () {},
         icon: Icon(Icons.auto_fix_high, size: 18, color: Colors.white),
         label: Text(
           "Quick Fill",
@@ -299,7 +308,7 @@ class PlanPageView extends StatelessWidget {
           ),
         ),
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppTheme.primaryColor,
+          backgroundColor: dashCtrl.isLocked.value ? Colors.grey : AppTheme.primaryColor,
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           shape: RoundedRectangleBorder(
@@ -312,7 +321,7 @@ class PlanPageView extends StatelessWidget {
   }
 
   // ================= BIG TABLE =================
-  Widget _bigPlanTable() {
+  Widget _bigPlanTable(DashboardController dashCtrl) {
     final UgStController controller = Get.find<UgStController>();
     return Scrollbar(
       thumbVisibility: true,
@@ -348,7 +357,7 @@ class PlanPageView extends StatelessWidget {
               _mainHeaderRow(),
               _subHeaderRow(),
               for (int i = 0; i < controller.planData.length; i++)
-                _dataRow(controller.planData[i], i),
+                _dataRow(controller.planData[i], i, dashCtrl),
             ],
           )),
         ),
@@ -446,7 +455,7 @@ class PlanPageView extends StatelessWidget {
   }
 
   // ================= DATA ROW =================
-  TableRow _dataRow(List<String> values, int rowIndex) {
+  TableRow _dataRow(List<String> values, int rowIndex, DashboardController dashCtrl) {
     final UgStController controller = Get.find<UgStController>();
     return TableRow(
       decoration: BoxDecoration(
@@ -459,14 +468,21 @@ class PlanPageView extends StatelessWidget {
           height: 36,
           padding: const EdgeInsets.symmetric(horizontal: 8),
           alignment: Alignment.center,
-          child: Obx(() => controller.isLocked.value
-              ? Text(
-                  v,
-                  style: AppTheme.caption.copyWith(
-                    color: v.isEmpty ? Colors.grey.shade400 : AppTheme.textPrimary,
-                    fontWeight: v.isEmpty ? FontWeight.normal : FontWeight.normal,
+          child: Obx(() => dashCtrl.isLocked.value
+              ? GestureDetector(
+                  onTap: () => dashCtrl.showLockedPopup(),
+                  behavior: HitTestBehavior.opaque,
+                  child: Text(
+                    v,
+                    style: AppTheme.caption.copyWith(
+                      color: v.isEmpty
+                          ? Colors.grey.shade400
+                          : AppTheme.textPrimary,
+                      fontWeight:
+                          v.isEmpty ? FontWeight.normal : FontWeight.normal,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
-                  textAlign: TextAlign.center,
                 )
               : TextFormField(
                   initialValue: v,
@@ -474,8 +490,10 @@ class PlanPageView extends StatelessWidget {
                     controller.updatePlanData(rowIndex, colIndex, value);
                   },
                   style: AppTheme.caption.copyWith(
-                    color: v.isEmpty ? Colors.grey.shade400 : AppTheme.textPrimary,
-                    fontWeight: v.isEmpty ? FontWeight.normal : FontWeight.normal,
+                    color:
+                        v.isEmpty ? Colors.grey.shade400 : AppTheme.textPrimary,
+                    fontWeight:
+                        v.isEmpty ? FontWeight.normal : FontWeight.normal,
                   ),
                   textAlign: TextAlign.center,
                   decoration: const InputDecoration(

@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../controller/UG_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
+import 'package:mudpro_desktop_app/modules/UG/controller/UG_controller.dart';
+import 'package:mudpro_desktop_app/modules/UG_ST_navigation/controller/UG_ST_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class FormationView extends StatelessWidget {
   FormationView({super.key});
   final c = Get.find<UgController>();
+  final dashCtrl = Get.find<DashboardController>();
 
   static const rowH = 32.0;
 
@@ -46,14 +49,19 @@ class FormationView extends StatelessWidget {
                               : Colors.grey.shade300,
                         ),
                       ),
-                      child: Checkbox(
-                        value: c.poreFromTop.value,
-                        onChanged: c.isLocked.value
-                            ? null
-                            : (v) => c.poreFromTop.value = v!,
-                        activeColor: AppTheme.successColor,
-                        checkColor: Colors.white,
-                        visualDensity: VisualDensity.compact,
+                      child: GestureDetector(
+                        onTap: dashCtrl.isLocked.value ? () => dashCtrl.showLockedPopup() : null,
+                        behavior: HitTestBehavior.opaque,
+                        child: AbsorbPointer(
+                          absorbing: dashCtrl.isLocked.value,
+                          child: Checkbox(
+                            value: c.poreFromTop.value,
+                            onChanged: (v) => c.poreFromTop.value = v!,
+                            activeColor: AppTheme.successColor,
+                            checkColor: Colors.white,
+                            visualDensity: VisualDensity.compact,
+                          ),
+                        ),
                       ),
                     )),
                 SizedBox(width: 8),
@@ -75,32 +83,36 @@ class FormationView extends StatelessWidget {
                         border: Border.all(color: Colors.grey.shade300),
                         color: Colors.white,
                       ),
-                      padding: EdgeInsets.symmetric(horizontal: 8),
-                      child: DropdownButton<String>(
-                        value: c.formationMode.value,
-                        items: const [
-                          DropdownMenuItem(
-                            value: 'Density',
-                            child: Text('Density',
-                                style: TextStyle(fontSize: 11)),
+                      child: GestureDetector(
+                        onTap: dashCtrl.isLocked.value ? () => dashCtrl.showLockedPopup() : null,
+                        behavior: HitTestBehavior.opaque,
+                        child: AbsorbPointer(
+                          absorbing: dashCtrl.isLocked.value,
+                          child: DropdownButton<String>(
+                            value: c.formationMode.value,
+                            items: const [
+                              DropdownMenuItem(
+                                value: 'Density',
+                                child: Text('Density',
+                                    style: TextStyle(fontSize: 11)),
+                              ),
+                              DropdownMenuItem(
+                                value: 'Gradient',
+                                child: Text('Gradient',
+                                    style: TextStyle(fontSize: 11)),
+                              ),
+                              DropdownMenuItem(
+                                value: 'Pressure',
+                                child: Text('Pressure',
+                                    style: TextStyle(fontSize: 11)),
+                              ),
+                            ],
+                            onChanged: (v) => c.formationMode.value = v!,
+                            isDense: true,
+                            underline: SizedBox(),
+                            icon: Icon(Icons.arrow_drop_down, size: 16),
                           ),
-                          DropdownMenuItem(
-                            value: 'Gradient',
-                            child: Text('Gradient',
-                                style: TextStyle(fontSize: 11)),
-                          ),
-                          DropdownMenuItem(
-                            value: 'Pressure',
-                            child: Text('Pressure',
-                                style: TextStyle(fontSize: 11)),
-                          ),
-                        ],
-                        onChanged: c.isLocked.value
-                            ? null
-                            : (v) => c.formationMode.value = v!,
-                        isDense: true,
-                        underline: SizedBox(),
-                        icon: Icon(Icons.arrow_drop_down, size: 16),
+                        ),
                       ),
                     )),
 
@@ -576,15 +588,19 @@ class FormationView extends StatelessWidget {
             right: BorderSide(color: Colors.grey.shade200, width: 1),
           ),
         ),
-        child: Obx(() => c.isLocked.value || v == null
-            ? Container(
-                padding: EdgeInsets.symmetric(vertical: 8),
-                alignment: Alignment.center,
-                child: Text(
-                  v?.value ?? '',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: AppTheme.textSecondary,
+        child: Obx(() => dashCtrl.isLocked.value || v == null
+            ? GestureDetector(
+                onTap: dashCtrl.isLocked.value ? () => dashCtrl.showLockedPopup() : null,
+                behavior: HitTestBehavior.opaque,
+                child: Container(
+                  padding: EdgeInsets.symmetric(vertical: 8),
+                  alignment: Alignment.center,
+                  child: Text(
+                    v?.value ?? '',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppTheme.textSecondary,
+                    ),
                   ),
                 ),
               )

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/interval/controller/interval_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/controller/UG_ST_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/interval/interval_left_pannel.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/interval/interval_general_tab.dart';
@@ -182,25 +183,37 @@ class _IntervalViewState extends State<IntervalView>
               ],
             ),
           ),
-          Obx(() => ElevatedButton(
-            onPressed: (ugSt.isLocked.value || c.isSaving.value)
-                ? null
-                : c.saveGeneralData,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(6)),
-              textStyle: AppTheme.bodySmall.copyWith(fontWeight: FontWeight.w600),
-            ),
-            child: c.isSaving.value
-                ? const SizedBox(
-                    width: 14,
-                    height: 14,
-                    child: CircularProgressIndicator(strokeWidth: 1.5, color: Colors.white))
-                : const Text("Save Conclusions"),
-          )),
+          Obx(() {
+            final dashCtrl = Get.find<DashboardController>();
+            final isLocked = dashCtrl.isLocked.value;
+            return GestureDetector(
+              onTap: isLocked ? () => dashCtrl.showLockedPopup() : null,
+              behavior: HitTestBehavior.opaque,
+              child: ElevatedButton(
+                onPressed: (isLocked || c.isSaving.value)
+                    ? null
+                    : c.saveGeneralData,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor:
+                      isLocked ? Colors.grey : AppTheme.primaryColor,
+                  foregroundColor: Colors.white,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(6)),
+                  textStyle:
+                      AppTheme.bodySmall.copyWith(fontWeight: FontWeight.w600),
+                ),
+                child: c.isSaving.value
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 1.5, color: Colors.white))
+                    : const Text("Save Conclusions"),
+              ),
+            );
+          }),
         ]),
       ),
     );

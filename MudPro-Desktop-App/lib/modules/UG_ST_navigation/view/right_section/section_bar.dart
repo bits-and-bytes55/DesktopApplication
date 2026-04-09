@@ -86,35 +86,6 @@ class RightTopTabs extends StatelessWidget {
             ),
           ),
 
-          // LOCK/UNLOCK BUTTON
-          Container(
-            margin: const EdgeInsets.only(right: 8),
-            child: Obx(() => Container(
-              decoration: BoxDecoration(
-                color: c.isLocked.value 
-                    ? AppTheme.errorColor.withOpacity(0.1)
-                    : AppTheme.successColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(
-                  color: c.isLocked.value 
-                      ? AppTheme.errorColor.withOpacity(0.3)
-                      : AppTheme.successColor.withOpacity(0.3),
-                ),
-              ),
-              child: IconButton(
-                icon: Icon(
-                  c.isLocked.value ? Icons.lock : Icons.lock_open,
-                  size: 18,
-                  color: c.isLocked.value 
-                      ? AppTheme.errorColor
-                      : AppTheme.successColor,
-                ),
-                onPressed: c.toggleLock,
-                tooltip: c.isLocked.value ? "Unlock" : "Lock",
-              ),
-            )),
-          ),
-
           // STATUS INDICATOR
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),

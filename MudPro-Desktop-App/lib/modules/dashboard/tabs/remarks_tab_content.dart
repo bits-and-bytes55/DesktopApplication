@@ -13,7 +13,7 @@ class RemarksView extends StatefulWidget {
 }
 
 class _RemarksViewState extends State<RemarksView> {
-  final DashboardController controller = Get.find<DashboardController>();
+  final DashboardController dashCtrl = Get.find<DashboardController>();
   final TextEditingController recommendedCtrl = TextEditingController();
   final TextEditingController remarksCtrl = TextEditingController();
   final TextEditingController recapCtrl = TextEditingController();
@@ -166,6 +166,13 @@ class _RemarksViewState extends State<RemarksView> {
                   // ================= LEFT BIG EDITOR =================
                   Expanded(
                     flex: 4,
+                    child: Obx(() => GestureDetector(
+                  onTap: dashCtrl.isLocked.value 
+                      ? () => dashCtrl.showLockedPopup() 
+                      : null,
+                  behavior: HitTestBehavior.opaque,
+                  child: AbsorbPointer(
+                    absorbing: dashCtrl.isLocked.value,
                     child: _buildEditorContainer(
                       title: 'Recommended Tour Treatments',
                       controller: recommendedCtrl,
@@ -174,6 +181,8 @@ class _RemarksViewState extends State<RemarksView> {
                       isBold: isBoldRecommended,
                       isItalic: isItalicRecommended,
                     ),
+                  ),
+                )),
                   ),
 
                   const SizedBox(width: 16),
@@ -187,7 +196,14 @@ class _RemarksViewState extends State<RemarksView> {
                         // REMARKS EDITOR - Increased height
                         Container(
                           height: MediaQuery.of(context).size.height * 0.4,
-                          child: _buildEditorContainer(
+                          child: Obx(() => GestureDetector(
+                  onTap: dashCtrl.isLocked.value 
+                      ? () => dashCtrl.showLockedPopup() 
+                      : null,
+                  behavior: HitTestBehavior.opaque,
+                  child: AbsorbPointer(
+                    absorbing: dashCtrl.isLocked.value,
+                    child: _buildEditorContainer(
                             title: 'Remarks',
                             controller: remarksCtrl,
                             icon: Icons.comment,
@@ -195,13 +211,22 @@ class _RemarksViewState extends State<RemarksView> {
                             isBold: isBoldRemarks,
                             isItalic: isItalicRemarks,
                           ),
+                  ),
+                )),
                         ),
                         const SizedBox(height: 16),
                         
                         // RECAP REMARKS EDITOR - Increased height
                         Container(
                           height: MediaQuery.of(context).size.height * 0.4,
-                          child: _buildEditorContainer(
+                          child: Obx(() => GestureDetector(
+                  onTap: dashCtrl.isLocked.value 
+                      ? () => dashCtrl.showLockedPopup() 
+                      : null,
+                  behavior: HitTestBehavior.opaque,
+                  child: AbsorbPointer(
+                    absorbing: dashCtrl.isLocked.value,
+                    child: _buildEditorContainer(
                             title: 'Recap Remarks',
                             controller: recapCtrl,
                             icon: Icons.summarize,
@@ -209,13 +234,22 @@ class _RemarksViewState extends State<RemarksView> {
                             isBold: isBoldRecap,
                             isItalic: isItalicRecap,
                           ),
+                  ),
+                )),
                         ),
                         const SizedBox(height: 16),
                         
                         // INTERNAL NOTES EDITOR - Increased height
                         Container(
                           height: MediaQuery.of(context).size.height * 0.4,
-                          child: _buildEditorContainer(
+                          child: Obx(() => GestureDetector(
+                  onTap: dashCtrl.isLocked.value 
+                      ? () => dashCtrl.showLockedPopup() 
+                      : null,
+                  behavior: HitTestBehavior.opaque,
+                  child: AbsorbPointer(
+                    absorbing: dashCtrl.isLocked.value,
+                    child: _buildEditorContainer(
                             title: 'Internal Notes',
                             controller: internalCtrl,
                             icon: Icons.note,
@@ -223,6 +257,8 @@ class _RemarksViewState extends State<RemarksView> {
                             isBold: isBoldInternal,
                             isItalic: isItalicInternal,
                           ),
+                  ),
+                )),
                         ),
                       ],
                     ),
@@ -327,30 +363,29 @@ class _RemarksViewState extends State<RemarksView> {
               color: Colors.white,
               child: Padding(
                 padding: const EdgeInsets.all(1),
-                child: Obx(() => TextField(
-                  controller: controller,
-                  readOnly: this.controller.isLocked.value,
-                  maxLines: null,
-                  minLines: 1,
-                  textAlignVertical: TextAlignVertical.top,
-                  style: AppTheme.bodyLarge.copyWith(
-                    color: AppTheme.textPrimary,
-                    fontSize: 13,
-                    fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-                    fontStyle: isItalic ? FontStyle.italic : FontStyle.normal,
-                  ),
-                  decoration: InputDecoration(
-                    hintText: 'Type your ${title.toLowerCase()} here...',
-                    hintStyle: TextStyle(
-                      color: Colors.grey.shade400,
-                      fontSize: 13,
+                child: TextField(
+                      controller: controller,
+                      maxLines: null,
+                      minLines: 1,
+                      textAlignVertical: TextAlignVertical.top,
+                      style: AppTheme.bodyLarge.copyWith(
+                        color: AppTheme.textPrimary,
+                        fontSize: 13,
+                        fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+                        fontStyle: isItalic ? FontStyle.italic : FontStyle.normal,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: 'Type your ${title.toLowerCase()} here...',
+                        hintStyle: TextStyle(
+                          color: Colors.grey.shade400,
+                          fontSize: 13,
+                        ),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.all(16),
+                        filled: true,
+                        fillColor: Colors.white,
+                      ),
                     ),
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.all(16),
-                    filled: true,
-                    fillColor: this.controller.isLocked.value ? Colors.grey.shade100 : Colors.white,
-                  ),
-                )),
               ),
             ),
           ),
@@ -369,23 +404,19 @@ class _RemarksViewState extends State<RemarksView> {
                 bottomRight: Radius.circular(12),
               ),
             ),
-            child: Obx(() => Row(
+            child: Row(
               children: [
                 // Bold Button
                 GestureDetector(
-                  onTap: this.controller.isLocked.value ? null : () => _toggleBold(editorType),
+                  onTap: () => _toggleBold(editorType),
                   child: Container(
                     width: 32,
                     height: 32,
                     decoration: BoxDecoration(
-                      color: this.controller.isLocked.value
-                          ? Colors.grey.shade300
-                          : (isBold ? AppTheme.primaryColor : Colors.white),
+                      color: (isBold ? AppTheme.primaryColor : Colors.white),
                       borderRadius: BorderRadius.circular(6),
                       border: Border.all(
-                        color: this.controller.isLocked.value
-                            ? Colors.grey.shade400
-                            : (isBold ? AppTheme.primaryColor : Colors.grey.shade300),
+                        color: (isBold ? AppTheme.primaryColor : Colors.grey.shade300),
                         width: 1,
                       ),
                     ),
@@ -393,9 +424,7 @@ class _RemarksViewState extends State<RemarksView> {
                       child: Icon(
                         Icons.format_bold,
                         size: 16,
-                        color: this.controller.isLocked.value
-                            ? Colors.grey.shade500
-                            : (isBold ? Colors.white : AppTheme.textSecondary),
+                        color: (isBold ? Colors.white : AppTheme.textSecondary),
                       ),
                     ),
                   ),
@@ -404,19 +433,15 @@ class _RemarksViewState extends State<RemarksView> {
 
                 // Italic Button
                 GestureDetector(
-                  onTap: this.controller.isLocked.value ? null : () => _toggleItalic(editorType),
+                  onTap: () => _toggleItalic(editorType),
                   child: Container(
                     width: 32,
                     height: 32,
                     decoration: BoxDecoration(
-                      color: this.controller.isLocked.value
-                          ? Colors.grey.shade300
-                          : (isItalic ? AppTheme.primaryColor : Colors.white),
+                      color: (isItalic ? AppTheme.primaryColor : Colors.white),
                       borderRadius: BorderRadius.circular(6),
                       border: Border.all(
-                        color: this.controller.isLocked.value
-                            ? Colors.grey.shade400
-                            : (isItalic ? AppTheme.primaryColor : Colors.grey.shade300),
+                        color: (isItalic ? AppTheme.primaryColor : Colors.grey.shade300),
                         width: 1,
                       ),
                     ),
@@ -424,9 +449,7 @@ class _RemarksViewState extends State<RemarksView> {
                       child: Icon(
                         Icons.format_italic,
                         size: 16,
-                        color: this.controller.isLocked.value
-                            ? Colors.grey.shade500
-                            : (isItalic ? Colors.white : AppTheme.textSecondary),
+                        color: (isItalic ? Colors.white : AppTheme.textSecondary),
                       ),
                     ),
                   ),
@@ -438,10 +461,10 @@ class _RemarksViewState extends State<RemarksView> {
                   width: 32,
                   height: 32,
                   decoration: BoxDecoration(
-                    color: this.controller.isLocked.value ? Colors.grey.shade300 : Colors.white,
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(6),
                     border: Border.all(
-                      color: this.controller.isLocked.value ? Colors.grey.shade400 : Colors.grey.shade300,
+                      color: Colors.grey.shade300,
                       width: 1,
                     ),
                   ),
@@ -449,7 +472,7 @@ class _RemarksViewState extends State<RemarksView> {
                     child: Icon(
                       Icons.format_list_bulleted,
                       size: 16,
-                      color: this.controller.isLocked.value ? Colors.grey.shade500 : AppTheme.textSecondary,
+                      color: AppTheme.textSecondary,
                     ),
                   ),
                 ),
@@ -458,7 +481,7 @@ class _RemarksViewState extends State<RemarksView> {
 
                 // Clear Button
                 TextButton.icon(
-                  onPressed: this.controller.isLocked.value ? null : () {
+                  onPressed: () {
                     controller.clear();
                     setState(() {
                       // Reset formatting states for this editor
@@ -485,17 +508,17 @@ class _RemarksViewState extends State<RemarksView> {
                   icon: Icon(
                     Icons.clear_all,
                     size: 16,
-                    color: this.controller.isLocked.value ? Colors.grey.shade500 : AppTheme.errorColor,
+                    color: AppTheme.errorColor,
                   ),
                   label: Text(
                     'Clear',
                     style: AppTheme.caption.copyWith(
-                      color: this.controller.isLocked.value ? Colors.grey.shade500 : AppTheme.errorColor,
+                      color: AppTheme.errorColor,
                     ),
                   ),
                 ),
               ],
-            )),
+            ),
           ),
         ],
       ),
@@ -576,7 +599,14 @@ class _RemarksViewState extends State<RemarksView> {
                 bottomRight: Radius.circular(12),
               ),
             ),
-            child: Column(
+            child: Obx(() => GestureDetector(
+                  onTap: dashCtrl.isLocked.value 
+                      ? () => dashCtrl.showLockedPopup() 
+                      : null,
+                  behavior: HitTestBehavior.opaque,
+                  child: AbsorbPointer(
+                    absorbing: dashCtrl.isLocked.value,
+                    child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 // File Info
@@ -649,15 +679,15 @@ class _RemarksViewState extends State<RemarksView> {
                 ],
                 
                 // Buttons Row
-                Obx(() => Row(
+                Row(
                   children: [
                     Expanded(
                       child: ElevatedButton.icon(
-                        onPressed: this.controller.isLocked.value ? null : pickFile,
+                        onPressed: pickFile,
                         icon: const Icon(Icons.cloud_upload, size: 16),
                         label: const Text('Upload'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: this.controller.isLocked.value ? Colors.grey.shade400 : AppTheme.primaryColor,
+                          backgroundColor: AppTheme.primaryColor,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(
@@ -670,11 +700,11 @@ class _RemarksViewState extends State<RemarksView> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: ElevatedButton.icon(
-                        onPressed: this.controller.isLocked.value ? null : (selectedFile != null ? deleteFile : null),
+                        onPressed: selectedFile != null ? deleteFile : null,
                         icon: const Icon(Icons.delete_outline, size: 16),
                         label: const Text('Delete'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: this.controller.isLocked.value ? Colors.grey.shade400 : AppTheme.errorColor,
+                          backgroundColor: AppTheme.errorColor,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(
@@ -685,9 +715,11 @@ class _RemarksViewState extends State<RemarksView> {
                       ),
                     ),
                   ],
-                )),
+                ),
               ],
             ),
+                  ),
+                )),
           ),
         ],
       ),

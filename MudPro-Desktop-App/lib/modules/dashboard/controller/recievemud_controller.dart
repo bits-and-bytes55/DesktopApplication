@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:mudpro_desktop_app/utils/alert_service.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/inventory_model.dart';
@@ -49,7 +50,12 @@ class ReceiveMudController extends GetxController {
   bool _isProgrammaticUpdate = false;
 
   // Well ID 
-  String get wellId => '507f1f77bcf86cd799439011';
+  String get wellId => kControllerWellId;
+
+  // =========== LIST STATE for history view ===========
+  final receiveMudRecords = <Map<String, dynamic>>[].obs;
+  final selectedRecordIndex = RxnInt(null);
+  final isDeleting = false.obs;
   
   @override
   void onInit() {
@@ -180,40 +186,92 @@ class ReceiveMudController extends GetxController {
     try {
       final res = await _repository.getReceiveMudList(wellId);
       if (res['success'] == true && res['data'] != null) {
-        final items = res['data'] as List;
+        final raw = res['data'];
+        final List items = (raw is Map && raw['data'] is List)
+            ? raw['data']
+            : (raw is List ? raw : []);
+        receiveMudRecords.value = List<Map<String, dynamic>>.from(
+            items.map((e) => Map<String, dynamic>.from(e as Map)));
+        
         if (items.isNotEmpty) {
-           final item = items.first; 
-           _isProgrammaticUpdate = true;
-           
-           recordId.value = item['_id'];
-           bolNoController.text = item['bolNo'] ?? '';
-           
-           if (item['premixedMud'] != null && item['premixedMud'].toString().isNotEmpty) {
-             try {
-                final premix = premixedList.firstWhere((p) => p.description.toLowerCase() == item['premixedMud'].toString().toLowerCase());
-                selectedPremixedId.value = premix.id ?? '';
-                selectedPremixed.value = premix;
-             } catch(_) {}
-           }
-           
-           mwController.text = item['mw']?.toString() ?? '';
-           mudTypeController.text = item['mudType'] ?? '';
-           leasingFeeController.text = item['leasingFee']?.toString() ?? '';
-           fromController.text = item['from'] ?? '';
-           selectedToDestination.value = item['to'] ?? '';
-           volController.text = item['volume']?.toString() ?? '';
-           isLeased.value = item['leased'] == true;
-           hasLossVolume.value = (item['lossVolume'] ?? 0) > 0;
-           lossVolumeController.text = item['lossVolume']?.toString() ?? '';
-           
-           _isProgrammaticUpdate = false;
-           print('✅ Restored Receive Mud data into UI');
+           _restoreFromRecord(items.first);
         }
       }
     } catch (e) {
        print('❌ Error fetching receive mud list: $e');
     } finally {
        _isProgrammaticUpdate = false;
+    }
+  }
+
+  void _restoreFromRecord(Map<String, dynamic> item) {
+    _isProgrammaticUpdate = true;
+    recordId.value = item['_id'];
+    bolNoController.text = item['bolNo'] ?? '';
+    
+    if (item['premixedMud'] != null && item['premixedMud'].toString().isNotEmpty) {
+      try {
+         final premix = premixedList.firstWhere(
+           (p) => p.description.toLowerCase() == item['premixedMud'].toString().toLowerCase());
+         selectedPremixedId.value = premix.id ?? '';
+         selectedPremixed.value = premix;
+      } catch(_) {}
+    }
+    
+    mwController.text = item['mw']?.toString() ?? '';
+    mudTypeController.text = item['mudType'] ?? '';
+    leasingFeeController.text = item['leasingFee']?.toString() ?? '';
+    fromController.text = item['from'] ?? '';
+    selectedToDestination.value = item['to'] ?? '';
+    volController.text = item['volume']?.toString() ?? '';
+    isLeased.value = item['leased'] == true;
+    hasLossVolume.value = (item['lossVolume'] ?? 0) > 0;
+    lossVolumeController.text = item['lossVolume']?.toString() ?? '';
+    _isProgrammaticUpdate = false;
+    print('✅ Restored Receive Mud data into UI');
+  }
+
+  void loadRecord(int index) {
+    if (index < 0 || index >= receiveMudRecords.length) return;
+    selectedRecordIndex.value = index;
+    _restoreFromRecord(receiveMudRecords[index]);
+  }
+
+  void deselectRecord() {
+    selectedRecordIndex.value = null;
+    _clearForm();
+    recordId.value = null;
+  }
+
+  Future<void> deleteRecord(int index) async {
+    if (index < 0 || index >= receiveMudRecords.length) return;
+    final rec = receiveMudRecords[index];
+    final id = rec['_id']?.toString();
+    if (id == null) return;
+
+    isDeleting.value = true;
+    try {
+      final res = await _repository.deleteReceiveMud(wellId, id);
+      if (res['success'] == true) {
+        receiveMudRecords.removeAt(index);
+        // If we deleted the currently loaded record, clear the form
+        if (recordId.value == id) {
+          _clearForm();
+          recordId.value = null;
+          selectedRecordIndex.value = null;
+        } else if (selectedRecordIndex.value != null) {
+          if (selectedRecordIndex.value! >= receiveMudRecords.length) {
+            selectedRecordIndex.value = null;
+          }
+        }
+        _showToast('Record deleted', isError: false);
+      } else {
+        _showToast('Delete failed: ${res["message"]}', isError: true);
+      }
+    } catch (e) {
+      _showToast('Error deleting: $e', isError: true);
+    } finally {
+      isDeleting.value = false;
     }
   }
 
@@ -338,19 +396,6 @@ class ReceiveMudController extends GetxController {
   // ================= TOAST NOTIFICATIONS =================
   
   void _showToast(String message, {required bool isError}) {
-    Get.snackbar(
-      isError ? 'Error' : 'Success',
-      message,
-      backgroundColor: isError ? Colors.red.shade600 : Colors.green.shade600,
-      colorText: Colors.white,
-      snackPosition: SnackPosition.TOP,
-      margin: const EdgeInsets.only(top: 16, right: 16, left: 200),
-      duration: const Duration(seconds: 3),
-      icon: Icon(
-        isError ? Icons.error_outline : Icons.check_circle_outline,
-        color: Colors.white,
-        size: 20,
-      ),
-    );
+    AlertService.show(message, isSuccess: !isError);
   }
 }

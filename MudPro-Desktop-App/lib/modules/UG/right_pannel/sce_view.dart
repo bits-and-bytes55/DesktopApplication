@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import '../controller/UG_controller.dart';
 import '../controller/sce_controller.dart';
 import '../model/sce_model.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class SceView extends StatefulWidget {
@@ -15,6 +16,7 @@ class SceView extends StatefulWidget {
 class _SceViewState extends State<SceView> {
   late final UgController ugController;
   late final SceController sceController;
+  late final DashboardController dashCtrl;
 
   static const String WELL_ID = '507f1f77bcf86cd799439011';
 
@@ -43,6 +45,7 @@ class _SceViewState extends State<SceView> {
     sceController = Get.isRegistered<SceController>()
         ? Get.find<SceController>()
         : Get.put(SceController());
+    dashCtrl = Get.find<DashboardController>();
     // ✅ Load data only once when the page is first shown — NOT on every rebuild
     WidgetsBinding.instance.addPostFrameCallback((_) {
       sceController.loadSceData(WELL_ID);
@@ -194,13 +197,15 @@ class _SceViewState extends State<SceView> {
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
           Obx(() => ElevatedButton.icon(
-            onPressed: sceController.isLoading.value ? null : () => _bulkSaveShakers(context),
+            onPressed: dashCtrl.isLocked.value
+                ? () => dashCtrl.showLockedPopup()
+                : (sceController.isLoading.value ? null : () => _bulkSaveShakers(context)),
             icon: sceController.isLoading.value
                 ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                 : const Icon(Icons.save, size: 16),
             label: Text(sceController.isLoading.value ? 'Saving...' : 'Save All', style: const TextStyle(fontSize: 12)),
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor,
+              backgroundColor: dashCtrl.isLocked.value ? Colors.grey : AppTheme.primaryColor,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
             ),
@@ -345,13 +350,15 @@ class _SceViewState extends State<SceView> {
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
           Obx(() => ElevatedButton.icon(
-            onPressed: sceController.isLoading.value ? null : () => _bulkSaveOtherSce(context),
+            onPressed: dashCtrl.isLocked.value
+                ? () => dashCtrl.showLockedPopup()
+                : (sceController.isLoading.value ? null : () => _bulkSaveOtherSce(context)),
             icon: sceController.isLoading.value
                 ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                 : const Icon(Icons.save, size: 16),
             label: Text(sceController.isLoading.value ? 'Saving...' : 'Save All', style: const TextStyle(fontSize: 12)),
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor,
+              backgroundColor: dashCtrl.isLocked.value ? Colors.grey : AppTheme.primaryColor,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
             ),
@@ -412,13 +419,17 @@ class _SceViewState extends State<SceView> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 6),
         child: Obx(() {
-          final isLocked = ugController.isLocked.value;
+          final isLocked = dashCtrl.isLocked.value;
           if (isLocked) {
-            return Container(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              alignment: Alignment.center,
-              child: Text(value.value, textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 11, color: value.value.isEmpty ? Colors.grey.shade400 : AppTheme.textSecondary)),
+            return GestureDetector(
+              onTap: () => dashCtrl.showLockedPopup(),
+              behavior: HitTestBehavior.opaque,
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                alignment: Alignment.center,
+                child: Text(value.value, textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 11, color: value.value.isEmpty ? Colors.grey.shade400 : AppTheme.textSecondary)),
+              ),
             );
           } else {
             return TextField(
@@ -445,17 +456,24 @@ class _SceViewState extends State<SceView> {
       child: Container(
         alignment: Alignment.center,
         child: Obx(() {
-          final isLocked = ugController.isLocked.value;
-          return Transform.scale(
-            scale: 0.8,
-            child: Checkbox(
-              value: value.value,
-              onChanged: isLocked ? null : (x) => value.value = x!,
-              activeColor: AppTheme.successColor,
-              checkColor: Colors.white,
-              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              visualDensity: VisualDensity.compact,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(3)),
+          final isLocked = dashCtrl.isLocked.value;
+          return GestureDetector(
+            onTap: isLocked ? () => dashCtrl.showLockedPopup() : null,
+            behavior: HitTestBehavior.opaque,
+            child: AbsorbPointer(
+              absorbing: isLocked,
+              child: Transform.scale(
+                scale: 0.8,
+                child: Checkbox(
+                  value: value.value,
+                  onChanged: isLocked ? null : (x) => value.value = x!,
+                  activeColor: AppTheme.successColor,
+                  checkColor: Colors.white,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  visualDensity: VisualDensity.compact,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(3)),
+                ),
+              ),
             ),
           );
         }),
@@ -471,7 +489,7 @@ class _SceViewState extends State<SceView> {
         shaker: shaker,
         label: label,
         sceController: sceController,
-        ugController: ugController,
+        dashCtrl: dashCtrl,
       ),
     );
   }
@@ -480,8 +498,21 @@ class _SceViewState extends State<SceView> {
     return Expanded(
       flex: flex,
       child: Obx(() {
-        final isLocked = ugController.isLocked.value;
-        if (isLocked) return const SizedBox.shrink();
+        final isLocked = dashCtrl.isLocked.value;
+        if (isLocked) {
+          return Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.lock, size: 16, color: Colors.grey),
+                onPressed: () => dashCtrl.showLockedPopup(),
+                tooltip: 'Locked',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+            ],
+          );
+        }
         return Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -509,8 +540,21 @@ class _SceViewState extends State<SceView> {
     return Expanded(
       flex: flex,
       child: Obx(() {
-        final isLocked = ugController.isLocked.value;
-        if (isLocked) return const SizedBox.shrink();
+        final isLocked = dashCtrl.isLocked.value;
+        if (isLocked) {
+          return Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.lock, size: 16, color: Colors.grey),
+                onPressed: () => dashCtrl.showLockedPopup(),
+                tooltip: 'Locked',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+            ],
+          );
+        }
         return Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -692,13 +736,13 @@ class _ScreensDropdownCell extends StatefulWidget {
   final ShakerModel? shaker;
   final String label;
   final SceController sceController;
-  final UgController ugController;
+  final DashboardController dashCtrl;
 
   const _ScreensDropdownCell({
     required this.shaker,
     required this.label,
     required this.sceController,
-    required this.ugController,
+    required this.dashCtrl,
   });
 
   @override
@@ -726,14 +770,14 @@ class _ScreensDropdownCellState extends State<_ScreensDropdownCell> {
         if (mounted) setState(() => _localValue = val.isEmpty ? null : val);
       });
     }
-    _lockWorker = ever<bool>(widget.ugController.isLocked, (val) {
+    _lockWorker = ever<bool>(widget.dashCtrl.isLocked, (val) {
       if (mounted) setState(() => _isLocked = val);
     });
   }
 
   void _updateLocalStates() {
     _localValue = (widget.shaker?.screens.value.isEmpty ?? true) ? null : widget.shaker?.screens.value;
-    _isLocked = widget.ugController.isLocked.value;
+    _isLocked = widget.dashCtrl.isLocked.value;
   }
 
   @override
@@ -760,13 +804,17 @@ class _ScreensDropdownCellState extends State<_ScreensDropdownCell> {
   @override
   Widget build(BuildContext context) {
     if (_isLocked) {
-      return Container(
-        alignment: Alignment.center,
-        child: Text(
-          _localValue ?? '',
-          style: TextStyle(
-            fontSize: 11,
-            color: _localValue == null ? Colors.grey.shade400 : AppTheme.textSecondary,
+      return GestureDetector(
+        onTap: () => widget.dashCtrl.showLockedPopup(),
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          alignment: Alignment.center,
+          child: Text(
+            _localValue ?? '',
+            style: TextStyle(
+              fontSize: 11,
+              color: _localValue == null ? Colors.grey.shade400 : AppTheme.textSecondary,
+            ),
           ),
         ),
       );

@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../controller/UG_controller.dart';
+import 'package:mudpro_desktop_app/modules/UG/controller/UG_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class ReportView extends StatelessWidget {
   ReportView({super.key});
 
   final c = Get.find<UgController>();
+  final dashCtrl = Get.find<DashboardController>();
 
   @override
   Widget build(BuildContext context) {
@@ -72,8 +74,8 @@ class ReportView extends StatelessWidget {
 
                     Divider(height: 20, color: Colors.grey.shade200),
 
-                    const Text(
-                      'Factors Considered in Hydraulics Calculation',
+                    Text(
+                      'Factors Considered in Hydraulics Efficiency',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
@@ -166,7 +168,7 @@ class ReportView extends StatelessWidget {
 
                     Divider(height: 20, color: Colors.grey.shade200),
 
-                    const Text(
+                    Text(
                       'Rheology Model Configuration',
                       style: TextStyle(
                         fontSize: 12,
@@ -270,11 +272,11 @@ class ReportView extends StatelessWidget {
                       children: [
                         Expanded(
                           child: ElevatedButton(
-                            onPressed: c.isLocked.value ? null : () {
+                            onPressed: dashCtrl.isLocked.value ? () => dashCtrl.showLockedPopup() : () {
                               // Save configuration
                             },
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: AppTheme.primaryColor,
+                              backgroundColor: dashCtrl.isLocked.value ? Colors.grey : AppTheme.primaryColor,
                               foregroundColor: Colors.white,
                               padding: EdgeInsets.symmetric(vertical: 10),
                               shape: RoundedRectangleBorder(
@@ -297,12 +299,12 @@ class ReportView extends StatelessWidget {
                         SizedBox(width: 8),
                         Expanded(
                           child: OutlinedButton(
-                            onPressed: c.isLocked.value ? null : () {
+                            onPressed: dashCtrl.isLocked.value ? () => dashCtrl.showLockedPopup() : () {
                               // Reset to defaults
                             },
                             style: OutlinedButton.styleFrom(
-                              foregroundColor: AppTheme.textSecondary,
-                              side: BorderSide(color: Colors.grey.shade300),
+                              foregroundColor: dashCtrl.isLocked.value ? Colors.grey : AppTheme.textSecondary,
+                              side: BorderSide(color: dashCtrl.isLocked.value ? Colors.grey.shade300 : Colors.grey.shade300),
                               padding: EdgeInsets.symmetric(vertical: 10),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(6),
@@ -349,17 +351,22 @@ class ReportView extends StatelessWidget {
                     color: value.value ? AppTheme.successColor : Colors.grey.shade400,
                   ),
                 ),
-                child: Checkbox(
-                  value: value.value,
-                  onChanged: c.isLocked.value
-                      ? null
-                      : (v) => value.value = v!,
-                  activeColor: AppTheme.successColor,
-                  checkColor: Colors.white,
-                  visualDensity: VisualDensity.compact,
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(4),
+                child: GestureDetector(
+                  onTap: dashCtrl.isLocked.value ? () => dashCtrl.showLockedPopup() : null,
+                  behavior: HitTestBehavior.opaque,
+                  child: AbsorbPointer(
+                    absorbing: dashCtrl.isLocked.value,
+                    child: Checkbox(
+                      value: value.value,
+                      onChanged: (v) => value.value = v!,
+                      activeColor: AppTheme.successColor,
+                      checkColor: Colors.white,
+                      visualDensity: VisualDensity.compact,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
                   ),
                 ),
               ),

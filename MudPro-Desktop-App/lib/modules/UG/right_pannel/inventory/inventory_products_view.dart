@@ -4,6 +4,7 @@ import 'package:mudpro_desktop_app/modules/UG/controller/UG_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/inventory_model.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/inventory_store/inventory_store.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/model/products_model.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 
@@ -16,6 +17,7 @@ class InventoryProductsView extends StatefulWidget {
 
 class _InventoryProductsViewState extends State<InventoryProductsView> {
   final c = Get.find<UgController>();
+  final dashCtrl = Get.find<DashboardController>();
   final _repository = AuthRepository();
   
   // Use a hardcoded wellId for now - replace with actual well ID from your auth
@@ -582,7 +584,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                                 children: [
                                   IconButton(
                                     icon: Icon(Icons.save, size: 14, color: Colors.blue),
-                                    onPressed: c.isLocked.value ? null : () => _updatePremixed(e),
+                                    onPressed: dashCtrl.isLocked.value ? () => dashCtrl.showLockedPopup() : () => _updatePremixed(e),
                                     tooltip: 'Update',
                                     padding: EdgeInsets.all(2),
                                     constraints: BoxConstraints(),
@@ -590,7 +592,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                                   SizedBox(width: 2),
                                   IconButton(
                                     icon: Icon(Icons.delete, size: 14, color: Colors.red),
-                                    onPressed: c.isLocked.value ? null : () => _deletePremixed(e.id!),
+                                    onPressed: dashCtrl.isLocked.value ? () => dashCtrl.showLockedPopup() : () => _deletePremixed(e.id!),
                                     tooltip: 'Delete',
                                     padding: EdgeInsets.all(2),
                                     constraints: BoxConstraints(),
@@ -615,7 +617,8 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                             child: TextFormField(
                               controller: c.premixedDescController,
-                              readOnly: c.isLocked.value,
+                              readOnly: dashCtrl.isLocked.value,
+                              onTap: dashCtrl.isLocked.value ? () => dashCtrl.showLockedPopup() : null,
                               style: TextStyle(fontSize: 10, color: Colors.black87),
                               decoration: InputDecoration(
                                 hintText: 'Enter description...',
@@ -632,7 +635,8 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                             child: TextFormField(
                               controller: c.premixedMwController,
-                              readOnly: c.isLocked.value,
+                              readOnly: dashCtrl.isLocked.value,
+                              onTap: dashCtrl.isLocked.value ? () => dashCtrl.showLockedPopup() : null,
                               style: TextStyle(fontSize: 10, color: Colors.black87),
                               decoration: InputDecoration(
                                 hintText: 'MW...',
@@ -649,7 +653,8 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                             child: TextFormField(
                               controller: c.premixedLeasingFeeController,
-                              readOnly: c.isLocked.value,
+                              readOnly: dashCtrl.isLocked.value,
+                              onTap: dashCtrl.isLocked.value ? () => dashCtrl.showLockedPopup() : null,
                               style: TextStyle(fontSize: 10, color: Colors.black87),
                               decoration: InputDecoration(
                                 hintText: 'Fee...',
@@ -666,7 +671,8 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                             child: TextFormField(
                               controller: c.premixedMudTypeController,
-                              readOnly: c.isLocked.value,
+                              readOnly: dashCtrl.isLocked.value,
+                              onTap: dashCtrl.isLocked.value ? () => dashCtrl.showLockedPopup() : null,
                               style: TextStyle(fontSize: 10, color: Colors.black87),
                               decoration: InputDecoration(
                                 hintText: 'Type...',
@@ -686,7 +692,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                             padding: const EdgeInsets.all(2.0),
                             child: IconButton(
                               icon: Icon(Icons.add_circle, color: Colors.green, size: 18),
-                              onPressed: c.isLocked.value ? null : _addPremixedFromEmptyRow,
+                              onPressed: dashCtrl.isLocked.value ? () => dashCtrl.showLockedPopup() : _addPremixedFromEmptyRow,
                               tooltip: 'Add',
                               padding: EdgeInsets.all(2),
                               constraints: BoxConstraints(),
@@ -841,7 +847,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                                 children: [
                                   IconButton(
                                     icon: Icon(Icons.save, size: 14, color: Colors.blue),
-                                    onPressed: c.isLocked.value ? null : () => _updateObm(e),
+                                    onPressed: dashCtrl.isLocked.value ? () => dashCtrl.showLockedPopup() : () => _updateObm(e),
                                     tooltip: 'Update',
                                     padding: EdgeInsets.all(2),
                                     constraints: BoxConstraints(),
@@ -849,7 +855,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                                   SizedBox(width: 2),
                                   IconButton(
                                     icon: Icon(Icons.delete, size: 14, color: Colors.red),
-                                    onPressed: c.isLocked.value ? null : () => _deleteObm(e.id!),
+                                    onPressed: dashCtrl.isLocked.value ? () => dashCtrl.showLockedPopup() : () => _deleteObm(e.id!),
                                     tooltip: 'Delete',
                                     padding: EdgeInsets.all(2),
                                     constraints: BoxConstraints(),
@@ -874,7 +880,8 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                             child: TextFormField(
                               controller: c.obmProductController,
-                              readOnly: c.isLocked.value,
+                              readOnly: dashCtrl.isLocked.value,
+                              onTap: dashCtrl.isLocked.value ? () => dashCtrl.showLockedPopup() : null,
                               style: TextStyle(fontSize: 10, color: Colors.black87),
                               decoration: InputDecoration(
                                 hintText: 'Enter product...',
@@ -891,7 +898,8 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                             child: TextFormField(
                               controller: c.obmCodeController,
-                              readOnly: c.isLocked.value,
+                              readOnly: dashCtrl.isLocked.value,
+                              onTap: dashCtrl.isLocked.value ? () => dashCtrl.showLockedPopup() : null,
                               style: TextStyle(fontSize: 10, color: Colors.black87),
                               decoration: InputDecoration(
                                 hintText: 'Code...',
@@ -901,65 +909,68 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                                 border: InputBorder.none,
                                 enabledBorder: InputBorder.none,
                                 focusedBorder: InputBorder.none,
-                                                  ),
-                                                ),
-                                              ),
-                                              Padding(
-                                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                                                child: TextFormField(
-                                                  controller: c.obmSgController,
-                                                  readOnly: c.isLocked.value,
-                                                  style: TextStyle(fontSize: 10, color: Colors.black87),
-                                                  decoration: InputDecoration(
-                                                    hintText: 'SG...',
-                                                    hintStyle: TextStyle(fontSize: 9, color: Colors.grey.shade400),
-                                                    isDense: true,
-                                                    contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                                                    border: InputBorder.none,
-                                                    enabledBorder: InputBorder.none,
-                                                    focusedBorder: InputBorder.none,
-                                                  ),
-                                                ),
-                                              ),
-                                              Padding(
-                                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                                                child: TextFormField(
-                                                  controller: c.obmConcController,
-                                                  readOnly: c.isLocked.value,
-                                                  style: TextStyle(fontSize: 10, color: Colors.black87),
-                                                  decoration: InputDecoration(
-                                                    hintText: 'Conc...',
-                                                    hintStyle: TextStyle(fontSize: 9, color: Colors.grey.shade400),
-                                                    isDense: true,
-                                                    contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                                                    border: InputBorder.none,
-                                                    enabledBorder: InputBorder.none,
-                                                    focusedBorder: InputBorder.none,
-                                                  ),
-                                                ),
-                                              ),
-                                              Padding(
-                                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                                                child: TextFormField(
-                                                  controller: c.obmUnitController,
-                                                  readOnly: c.isLocked.value,
-                                                  style: TextStyle(fontSize: 10, color: Colors.black87),
-                                                  decoration: InputDecoration(
-                                                    hintText: 'Unit...',
-                                                    hintStyle: TextStyle(fontSize: 9, color: Colors.grey.shade400),
-                                                    isDense: true,
-                                                    contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                                                    border: InputBorder.none,
-                                                    enabledBorder: InputBorder.none,
-                                                    focusedBorder: InputBorder.none,
-                                                  ),
-                                                ),
-                                              ),
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                            child: TextFormField(
+                              controller: c.obmSgController,
+                              readOnly: dashCtrl.isLocked.value,
+                              onTap: dashCtrl.isLocked.value ? () => dashCtrl.showLockedPopup() : null,
+                              style: TextStyle(fontSize: 10, color: Colors.black87),
+                              decoration: InputDecoration(
+                                hintText: 'SG...',
+                                hintStyle: TextStyle(fontSize: 9, color: Colors.grey.shade400),
+                                isDense: true,
+                                contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                border: InputBorder.none,
+                                enabledBorder: InputBorder.none,
+                                focusedBorder: InputBorder.none,
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                            child: TextFormField(
+                              controller: c.obmConcController,
+                              readOnly: dashCtrl.isLocked.value,
+                              onTap: dashCtrl.isLocked.value ? () => dashCtrl.showLockedPopup() : null,
+                              style: TextStyle(fontSize: 10, color: Colors.black87),
+                              decoration: InputDecoration(
+                                hintText: 'Conc...',
+                                hintStyle: TextStyle(fontSize: 9, color: Colors.grey.shade400),
+                                isDense: true,
+                                contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                border: InputBorder.none,
+                                enabledBorder: InputBorder.none,
+                                focusedBorder: InputBorder.none,
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                            child: TextFormField(
+                              controller: c.obmUnitController,
+                              readOnly: dashCtrl.isLocked.value,
+                              onTap: dashCtrl.isLocked.value ? () => dashCtrl.showLockedPopup() : null,
+                              style: TextStyle(fontSize: 10, color: Colors.black87),
+                              decoration: InputDecoration(
+                                hintText: 'Unit...',
+                                hintStyle: TextStyle(fontSize: 9, color: Colors.grey.shade400),
+                                isDense: true,
+                                contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                border: InputBorder.none,
+                                enabledBorder: InputBorder.none,
+                                focusedBorder: InputBorder.none,
+                              ),
+                            ),
+                          ),
                           Padding(
                             padding: const EdgeInsets.all(2.0),
                             child: IconButton(
                               icon: Icon(Icons.add_circle, color: Colors.green, size: 18),
-                              onPressed: c.isLocked.value ? null : _addObmFromEmptyRow,
+                              onPressed: dashCtrl.isLocked.value ? () => dashCtrl.showLockedPopup() : _addObmFromEmptyRow,
                               tooltip: 'Add',
                               padding: EdgeInsets.all(2),
                               constraints: BoxConstraints(),
@@ -1105,74 +1116,82 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
           ),
         ),
       );
+  Widget _tableCell(String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      alignment: Alignment.centerLeft,
+      child: Text(
+        text,
+        style: const TextStyle(fontSize: 9, color: AppTheme.textPrimary),
+      ),
+    );
+  }
 
-  Widget _tableCell(String value) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-        child: Text(
-          value,
-          style: TextStyle(
-            fontSize: 9,
-            color: AppTheme.textPrimary,
-          ),
-        ),
-      );
-
-  Widget _editableTableCell(String value, {Function(String)? onChanged, Key? key}) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
-        child: c.isLocked.value
-            ? Text(
-                value,
-                style: TextStyle(
-                  fontSize: 9,
-                  color: AppTheme.textPrimary,
-                ),
-              )
-            : TextFormField(key: key ?? ValueKey(value),
-                initialValue: value,
-                onChanged: onChanged,
-                style: TextStyle(
-                  fontSize: 9,
-                  color: AppTheme.textPrimary,
-                ),
-                decoration: const InputDecoration(
-                  isDense: true,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                  border: InputBorder.none,
-                ),
+  Widget _editableTableCell(String val, {Key? key, required void Function(String) onChanged}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+      child: Obx(() => dashCtrl.isLocked.value
+          ? GestureDetector(
+              onTap: () => dashCtrl.showLockedPopup(),
+              behavior: HitTestBehavior.opaque,
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                alignment: Alignment.center,
+                child: Text(val,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 9, color: AppTheme.textSecondary)),
               ),
-      );
+            )
+          : TextFormField(
+              key: key ?? ValueKey(val),
+              initialValue: val,
+              onChanged: onChanged,
+              style: const TextStyle(fontSize: 9, color: AppTheme.textPrimary),
+              decoration: const InputDecoration(
+                isDense: true,
+                contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                border: InputBorder.none,
+              ),
+              textAlign: TextAlign.center,
+            )),
+    );
+  }
 
-  Widget _checkboxCell(bool Function() getter, Function(bool) onChange) {
+  Widget _checkboxCell(bool Function() getValue, void Function(bool) onChanged) {
     return Center(
       child: Container(
         decoration: BoxDecoration(
-          color: getter()
+          color: getValue()
               ? AppTheme.successColor.withOpacity(0.1)
               : Colors.grey.shade100,
           borderRadius: BorderRadius.circular(3),
           border: Border.all(
-            color: getter() ? AppTheme.successColor : Colors.grey.shade400,
+            color: getValue() ? AppTheme.successColor : Colors.grey.shade400,
           ),
         ),
         margin: const EdgeInsets.symmetric(vertical: 2, horizontal: 4),
-        child: Transform.scale(
-          scale: 0.7,
-          child: Checkbox(
-            value: getter(),
-            onChanged: c.isLocked.value ? null : (v) => onChange(v!),
-            activeColor: AppTheme.successColor,
-            checkColor: Colors.white,
-            visualDensity: VisualDensity.compact,
-            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          ),
-        ),
+        child: Obx(() {
+          final val = getValue();
+          return GestureDetector(
+            onTap: dashCtrl.isLocked.value ? () => dashCtrl.showLockedPopup() : null,
+            behavior: HitTestBehavior.opaque,
+            child: AbsorbPointer(
+              absorbing: dashCtrl.isLocked.value,
+              child: Transform.scale(
+                scale: 0.7,
+                child: Checkbox(
+                  value: val,
+                  onChanged: (v) => onChanged(v ?? false),
+                  activeColor: AppTheme.successColor,
+                  checkColor: Colors.white,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+            ),
+          );
+        }),
       ),
     );
   }
 }
-
-
-
-
-
-

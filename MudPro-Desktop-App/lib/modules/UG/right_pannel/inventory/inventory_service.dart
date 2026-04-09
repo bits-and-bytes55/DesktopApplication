@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/producst_model.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/inventory_store/inventory_store.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class InventoryServicesView extends StatefulWidget {
@@ -12,7 +13,7 @@ class InventoryServicesView extends StatefulWidget {
 }
 
 class _InventoryServicesViewState extends State<InventoryServicesView> {
-  final isLocked = false.obs;
+  final dashCtrl = Get.find<DashboardController>();
   final ScrollController _scrollController = ScrollController();
 
   @override
@@ -341,9 +342,18 @@ class _InventoryServicesViewState extends State<InventoryServicesView> {
   Widget _editableCell(String value, {Function(String)? onChanged, String? cellKey}) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-      child: Obx(() => isLocked.value
-          ? Text(value, style: TextStyle(fontSize: 8.5, color: AppTheme.textPrimary))
-          // ✅ FIX: no border Container — just TextFormField directly
+      child: Obx(() => dashCtrl.isLocked.value
+          ? GestureDetector(
+              onTap: () => dashCtrl.showLockedPopup(),
+              behavior: HitTestBehavior.opaque,
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                alignment: Alignment.centerLeft,
+                child: Text(value,
+                    style: TextStyle(
+                        fontSize: 8.5, color: AppTheme.textSecondary)),
+              ),
+            )
           : TextFormField(
               key: ValueKey(cellKey ?? value),
               initialValue: value,
@@ -351,8 +361,9 @@ class _InventoryServicesViewState extends State<InventoryServicesView> {
               style: TextStyle(fontSize: 8.5, color: AppTheme.textPrimary),
               decoration: const InputDecoration(
                 isDense: true,
-                contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 3),
-                border: InputBorder.none,        // ✅ no border
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+                border: InputBorder.none, // ✅ no border
                 enabledBorder: InputBorder.none, // ✅ no border
                 focusedBorder: InputBorder.none, // ✅ no border
               ),
@@ -362,17 +373,26 @@ class _InventoryServicesViewState extends State<InventoryServicesView> {
 
   Widget _checkboxCell(bool value, {Function(bool)? onChanged}) {
     return Center(
-      child: Obx(() => Transform.scale(
-        scale: 0.75,
-        child: Checkbox(
-          value: value,
-          onChanged: isLocked.value ? null : (v) => onChanged?.call(v!),
-          activeColor: AppTheme.successColor,
-          checkColor: Colors.white,
-          visualDensity: VisualDensity.compact,
-          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        ),
-      )),
+      child: Obx(() => GestureDetector(
+            onTap:
+                dashCtrl.isLocked.value ? () => dashCtrl.showLockedPopup() : null,
+            behavior: HitTestBehavior.opaque,
+            child: AbsorbPointer(
+              absorbing: dashCtrl.isLocked.value,
+              child: Transform.scale(
+                scale: 0.75,
+                child: Checkbox(
+                  value: value,
+                  onChanged:
+                      dashCtrl.isLocked.value ? null : (v) => onChanged?.call(v!),
+                  activeColor: AppTheme.successColor,
+                  checkColor: Colors.white,
+                  visualDensity: VisualDensity.compact,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ),
+            ),
+          )),
     );
   }
 }

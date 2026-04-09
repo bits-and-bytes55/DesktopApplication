@@ -8,10 +8,12 @@ import 'package:mudpro_desktop_app/modules/UG/model/pit_model.dart';
 class TransferRowData {
   String pitName = '';
   String volume = '';
-  String? savedId;
+  String? savedId;        // The parent document _id
+  String? transferItemId; // The individual transfer item _id inside transfers[]
   final TextEditingController volumeController = TextEditingController();
+  Timer? _debounce;
 
-  TransferRowData({this.pitName = '', this.volume = '', this.savedId}) {
+  TransferRowData({this.pitName = '', this.volume = '', this.savedId, this.transferItemId}) {
     volumeController.text = volume;
   }
 
@@ -21,6 +23,11 @@ class TransferRowData {
       'volume': double.tryParse(volume) ?? 0.0,
       'notTreatedMud': notTreated,
     };
+  }
+
+  void dispose() {
+    _debounce?.cancel();
+    volumeController.dispose();
   }
 }
 
@@ -594,19 +601,37 @@ class PitController extends GetxController {
       final authRepo = AuthRepository();
       final result = await authRepo.getTransferMud(currentWellId!);
       if (result['success'] == true) {
-        final List data = result['data'] is List ? result['data'] : (result['data']['data'] ?? []);
-        
-        for (var r in transferRows) r.volumeController.dispose();
+        // backend returns { success, count, data: [ { _id, from, transfers:[{pitName,volume,_id}], ... } ] }
+        final raw = result['data'];
+        final List records = (raw is Map && raw['data'] is List)
+            ? raw['data']
+            : (raw is List ? raw : []);
+
+        for (var r in transferRows) r.dispose();
         transferRows.clear();
 
-        for (var item in data) {
-          transferRows.add(TransferRowData(
-            pitName: item['pitName']?.toString() ?? '',
-            volume: item['volumeBbl']?.toString() ?? '',
-            savedId: item['_id']?.toString(),
-          ));
+        for (var doc in records) {
+          // Each document has a transfers array
+          final from = doc['from']?.toString() ?? '';
+          final docId = doc['_id']?.toString();
+          final List transfers = doc['transfers'] is List ? doc['transfers'] : [];
+
+          for (var t in transfers) {
+            transferRows.add(TransferRowData(
+              pitName: t['pitName']?.toString() ?? '',
+              volume: (t['volume'] ?? 0).toString(),
+              savedId: docId,
+              transferItemId: t['_id']?.toString(),
+            ));
+          }
+
+          // Store from for the document
+          if (transfers.isNotEmpty && from.isNotEmpty) {
+            selectedFromPit.value = from;
+          }
         }
 
+        // Always maintain at least 5 rows
         while (transferRows.length < 5) {
           transferRows.add(TransferRowData());
         }
@@ -665,47 +690,81 @@ class PitController extends GetxController {
     }
   }
 
+
+  /// Called when volume changes inline on a saved row — debounced PUT
+  void onTransferVolumeChanged(int index, String newVolume) {
+    if (index >= transferRows.length) return;
+    final row = transferRows[index];
+    row.volume = newVolume;
+    row._debounce?.cancel();
+    row._debounce = Timer(const Duration(milliseconds: 1500), () {
+      _updateTransferMudRow(row);
+    });
+  }
+
+  Future<void> _updateTransferMudRow(TransferRowData row) async {
+    if (row.savedId == null || currentWellId == null) return;
+    if (row.pitName.isEmpty) return;
+    try {
+      final authRepo = AuthRepository();
+      final body = {
+        'from': selectedFromPit.value,
+        'transfers': [{
+          'pitName': row.pitName,
+          'volume': double.tryParse(row.volume) ?? 0.0,
+        }],
+      };
+      final res = await authRepo.updateTransferMud(currentWellId!, row.savedId!, body);
+      if (res['success'] == true) {
+        debugPrint('✅ Transfer Mud row updated: ${row.pitName}');
+      } else {
+        debugPrint('❌ Failed to update transfer row: ${res["message"]}');
+      }
+    } catch (e) {
+      debugPrint('Error updating transfer mud row: $e');
+    }
+  }
+
+
+  void checkAndAddTransferRow() {
+    final lastRow = transferRows.lastOrNull;
+    if (lastRow != null && lastRow.pitName.isNotEmpty) {
+      transferRows.add(TransferRowData());
+    }
+  }
+
   Future<void> deleteTransferRow(int index) async {
     if (index >= transferRows.length) return;
-
     final row = transferRows[index];
+
     if (row.savedId != null) {
       try {
         final authRepo = AuthRepository();
-        final res = await authRepo.deleteTransferMud(row.savedId!);
+        final res = await authRepo.deleteTransferMud(currentWellId!, row.savedId!);
         if (res['success'] != true) {
-          _showAlert('Failed to delete transfer: ${res['message']}', isError: true);
+          _showAlert('Failed to delete: ${res["message"]}', isError: true);
           return;
         }
+        debugPrint('✅ Transfer Mud deleted: ${row.savedId}');
       } catch (e) {
         _showAlert('Error deleting transfer: $e', isError: true);
         return;
       }
     }
 
-    row.volumeController.dispose();
+    row.dispose();
     transferRows.removeAt(index);
-    
     while (transferRows.length < 5) {
       transferRows.add(TransferRowData());
     }
     transferRows.refresh();
   }
 
-  void checkAndAddTransferRow() {
-    if (transferRows.length >= 5) {
-      final lastRow = transferRows.last;
-      if (lastRow.pitName.isNotEmpty) {
-        transferRows.add(TransferRowData());
-      }
-    }
-  }
-
   @override
   void onClose() {
     for (var row in transferRows) {
-      row.volumeController.dispose();
+      row.dispose();
     }
     super.onClose();
   }
-}
+}

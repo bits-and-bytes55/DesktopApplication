@@ -88,32 +88,44 @@ class PitConcentrationPage extends StatelessWidget {
 
   // ================= DROPDOWN =================
   Widget _systemDropdown() {
-    return Obx(() => Container(
-      width: 300,
-      child: DropdownButtonFormField<String>(
-        value: controller.selectedSystem.value,
-        items: controller.systems
-            .map(
-              (e) => DropdownMenuItem(
-                value: e,
-                child: Text(e, style: AppTheme.caption),
+    return Obx(() {
+      final isLocked = dashboard.isLocked.value;
+      return GestureDetector(
+        onTap: isLocked ? () => dashboard.showLockedPopup() : null,
+        behavior: HitTestBehavior.opaque,
+        child: AbsorbPointer(
+          absorbing: isLocked,
+          child: Container(
+            width: 300,
+            child: DropdownButtonFormField<String>(
+              value: controller.selectedSystem.value,
+              items: controller.systems
+                  .map(
+                    (e) => DropdownMenuItem(
+                      value: e,
+                      child: Text(e, style: AppTheme.caption),
+                    ),
+                  )
+                  .toList(),
+              onChanged: isLocked ? null : (v) => controller.selectedSystem.value = v!,
+              decoration: InputDecoration(
+                isDense: true,
+                labelText: "Select System",
+                labelStyle:
+                    AppTheme.caption.copyWith(color: AppTheme.textSecondary),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(6),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               ),
-            )
-            .toList(),
-        onChanged: (v) => controller.selectedSystem.value = v!,
-        decoration: InputDecoration(
-          isDense: true,
-          labelText: "Select System",
-          labelStyle: AppTheme.caption.copyWith(color: AppTheme.textSecondary),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(6),
-            borderSide: BorderSide(color: Colors.grey.shade300),
+              style: AppTheme.caption.copyWith(color: AppTheme.textPrimary),
+            ),
           ),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         ),
-        style: AppTheme.caption.copyWith(color: AppTheme.textPrimary),
-      ),
-    ));
+      );
+    });
   }
 
   // ================= TABLE =================
@@ -214,18 +226,23 @@ class PitConcentrationPage extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12),
         child: Obx(() {
-          if (dashboard.isLocked.value) {
-            return Container(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                value.value.isEmpty ? "-" : value.value,
-                style: AppTheme.caption.copyWith(
-                  color: value.value.isEmpty 
-                    ? Colors.grey.shade400 
-                    : AppTheme.textPrimary,
-                  fontStyle: value.value.isEmpty 
-                    ? FontStyle.italic 
-                    : FontStyle.normal,
+          final isLocked = dashboard.isLocked.value;
+          if (isLocked) {
+            return GestureDetector(
+              onTap: () => dashboard.showLockedPopup(),
+              behavior: HitTestBehavior.opaque,
+              child: Container(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  value.value.isEmpty ? "-" : value.value,
+                  style: AppTheme.caption.copyWith(
+                    color: value.value.isEmpty
+                        ? Colors.grey.shade400
+                        : AppTheme.textPrimary,
+                    fontStyle: value.value.isEmpty
+                        ? FontStyle.italic
+                        : FontStyle.normal,
+                  ),
                 ),
               ),
             );
@@ -247,7 +264,8 @@ class PitConcentrationPage extends StatelessWidget {
                 border: InputBorder.none,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 12),
                 hintText: "Enter value",
-                hintStyle: AppTheme.caption.copyWith(color: Colors.grey.shade400),
+                hintStyle:
+                    AppTheme.caption.copyWith(color: Colors.grey.shade400),
               ),
             ),
           );
@@ -299,10 +317,12 @@ class PitConcentrationPage extends StatelessWidget {
           ),
           const SizedBox(width: 12),
           ElevatedButton(
-            onPressed: () {
-              // Save logic here
-              Get.back();
-            },
+            onPressed: dashboard.isLocked.value 
+                ? () => dashboard.showLockedPopup() 
+                : () {
+                    // Save logic here
+                    Get.back();
+                  },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.primaryColor,
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),

@@ -84,73 +84,132 @@ class _IntervalMudPlanTabState extends State<IntervalMudPlanTab> {
             style: AppTheme.caption.copyWith(
                 fontWeight: FontWeight.w600, color: AppTheme.textPrimary, fontSize: 11)),
         const SizedBox(width: 10),
-        Container(
-          width: 200, height: 28,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(3),
-            border: Border.all(color: Colors.grey.shade300),
-          ),
-          child: TextField(
-            controller: c.fluidnameController,
-            style: AppTheme.caption.copyWith(color: AppTheme.textPrimary, fontSize: 11),
-            decoration: const InputDecoration(
-              isDense: true, border: InputBorder.none,
-              contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-            ),
-          ),
-        ),
+        Obx(() => GestureDetector(
+              onTap: dashboard.isLocked.value
+                  ? () => dashboard.showLockedPopup()
+                  : null,
+              behavior: HitTestBehavior.opaque,
+              child: Container(
+                width: 200,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: dashboard.isLocked.value
+                      ? Colors.grey.shade50
+                      : Colors.white,
+                  borderRadius: BorderRadius.circular(3),
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+                child: AbsorbPointer(
+                  absorbing: dashboard.isLocked.value,
+                  child: TextField(
+                    controller: c.fluidnameController,
+                    style: AppTheme.caption
+                        .copyWith(color: AppTheme.textPrimary, fontSize: 11),
+                    decoration: const InputDecoration(
+                      isDense: true,
+                      border: InputBorder.none,
+                      contentPadding:
+                          EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                    ),
+                  ),
+                ),
+              ),
+            )),
         const SizedBox(width: 20),
         Text('Fluid Type',
             style: AppTheme.caption.copyWith(
                 fontWeight: FontWeight.w600, color: AppTheme.textPrimary, fontSize: 11)),
         const SizedBox(width: 10),
-        Obx(() => Container(
-              height: 28,
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(3),
-                border: Border.all(color: Colors.grey.shade300),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: c.selectedFluidType.value,
-                  items: const [
-                    DropdownMenuItem(value: 'Water-based', child: Text('Water-based', style: TextStyle(fontSize: 11))),
-                    DropdownMenuItem(value: 'Oil-based',   child: Text('Oil-based',   style: TextStyle(fontSize: 11))),
-                    DropdownMenuItem(value: 'Synthetic',   child: Text('Synthetic',   style: TextStyle(fontSize: 11))),
-                  ],
-                  onChanged: dashboard.isLocked.value ? null : (v) => c.changeFluidType(v!),
-                  style: AppTheme.caption.copyWith(color: AppTheme.textPrimary, fontSize: 11),
-                  isDense: true,
+        Obx(() => GestureDetector(
+              onTap: dashboard.isLocked.value
+                  ? () => dashboard.showLockedPopup()
+                  : null,
+              behavior: HitTestBehavior.opaque,
+              child: Container(
+                height: 28,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                decoration: BoxDecoration(
+                  color: dashboard.isLocked.value
+                      ? Colors.grey.shade50
+                      : Colors.white,
+                  borderRadius: BorderRadius.circular(3),
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+                child: AbsorbPointer(
+                  absorbing: dashboard.isLocked.value,
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: c.selectedFluidType.value,
+                      items: const [
+                        DropdownMenuItem(
+                            value: 'Water-based',
+                            child: Text('Water-based',
+                                style: TextStyle(fontSize: 11))),
+                        DropdownMenuItem(
+                            value: 'Oil-based',
+                            child: Text('Oil-based',
+                                style: TextStyle(fontSize: 11))),
+                        DropdownMenuItem(
+                            value: 'Synthetic',
+                            child: Text('Synthetic',
+                                style: TextStyle(fontSize: 11))),
+                      ],
+                      onChanged: (v) => c.changeFluidType(v!),
+                      style: AppTheme.caption
+                          .copyWith(color: AppTheme.textPrimary, fontSize: 11),
+                      isDense: true,
+                    ),
+                  ),
                 ),
               ),
             )),
         const SizedBox(width: 20),
-        Obx(() => Row(children: [
-              Transform.scale(scale: 0.8,
-                child: Checkbox(
-                  value: c.isCompletionFluid.value,
-                  onChanged: dashboard.isLocked.value ? null : (v) => c.isCompletionFluid.value = v ?? false,
-                  activeColor: AppTheme.primaryColor,
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                )),
-              Text('Completion Fluid',
-                  style: AppTheme.caption.copyWith(color: AppTheme.textSecondary, fontSize: 11)),
-            ])),
+        Obx(() => GestureDetector(
+              onTap: dashboard.isLocked.value
+                  ? () => dashboard.showLockedPopup()
+                  : null,
+              behavior: HitTestBehavior.opaque,
+              child: Row(children: [
+                AbsorbPointer(
+                  absorbing: dashboard.isLocked.value,
+                  child: Transform.scale(
+                      scale: 0.8,
+                      child: Checkbox(
+                        value: c.isCompletionFluid.value,
+                        onChanged: (v) =>
+                            c.isCompletionFluid.value = v ?? false,
+                        activeColor: AppTheme.primaryColor,
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      )),
+                ),
+                Text('Completion Fluid',
+                    style: AppTheme.caption.copyWith(
+                        color: AppTheme.textSecondary, fontSize: 11)),
+              ]),
+            )),
         const SizedBox(width: 12),
-        Obx(() => Row(children: [
-              Transform.scale(scale: 0.8,
-                child: Checkbox(
-                  value: c.isWeightedMud.value,
-                  onChanged: dashboard.isLocked.value ? null : (v) => c.isWeightedMud.value = v ?? false,
-                  activeColor: AppTheme.primaryColor,
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                )),
-              Text('Weighted Mud',
-                  style: AppTheme.caption.copyWith(color: AppTheme.textSecondary, fontSize: 11)),
-            ])),
+        Obx(() => GestureDetector(
+              onTap: dashboard.isLocked.value
+                  ? () => dashboard.showLockedPopup()
+                  : null,
+              behavior: HitTestBehavior.opaque,
+              child: Row(children: [
+                AbsorbPointer(
+                  absorbing: dashboard.isLocked.value,
+                  child: Transform.scale(
+                      scale: 0.8,
+                      child: Checkbox(
+                        value: c.isWeightedMud.value,
+                        onChanged: (v) => c.isWeightedMud.value = v ?? false,
+                        activeColor: AppTheme.primaryColor,
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      )),
+                ),
+                Text('Weighted Mud',
+                    style: AppTheme.caption.copyWith(
+                        color: AppTheme.textSecondary, fontSize: 11)),
+              ]),
+            )),
       ]),
     );
   }
@@ -275,19 +334,31 @@ class _IntervalMudPlanTabState extends State<IntervalMudPlanTab> {
               decoration: BoxDecoration(
                 border: Border(right: BorderSide(
                   color: isLastCol ? Colors.transparent : Colors.grey.shade200))),
-              child: Obx(() => TextField(
-                    key: ValueKey('${name}_$dataIdx'),
-                    controller: TextEditingController(text: cell.value)
-                      ..selection = TextSelection.collapsed(
-                          offset: cell.value.length),
-                    onChanged: (v) => cell.value = v,
-                    style: AppTheme.caption.copyWith(color: AppTheme.textPrimary, fontSize: 9),
-                    decoration: const InputDecoration(
-                      isDense: true, border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 5),
+            child: Obx(() => GestureDetector(
+                  onTap: dashboard.isLocked.value
+                      ? () => dashboard.showLockedPopup()
+                      : null,
+                  behavior: HitTestBehavior.opaque,
+                  child: AbsorbPointer(
+                    absorbing: dashboard.isLocked.value,
+                    child: TextField(
+                      key: ValueKey('${name}_$dataIdx'),
+                      controller: TextEditingController(text: cell.value)
+                        ..selection =
+                            TextSelection.collapsed(offset: cell.value.length),
+                      onChanged: (v) => cell.value = v,
+                      style: AppTheme.caption
+                          .copyWith(color: AppTheme.textPrimary, fontSize: 9),
+                      decoration: const InputDecoration(
+                        isDense: true,
+                        border: InputBorder.none,
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 4, vertical: 5),
+                      ),
+                      textAlign: TextAlign.center,
                     ),
-                    textAlign: TextAlign.center,
-                  )),
+                  ),
+                )),
             ),
           );
         }),
@@ -315,28 +386,48 @@ class _IntervalMudPlanTabState extends State<IntervalMudPlanTab> {
                 style: AppTheme.caption.copyWith(
                     fontWeight: FontWeight.w600, color: AppTheme.textPrimary, fontSize: 11)),
             const SizedBox(width: 10),
-            Obx(() => Container(
-                  height: 28,
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(3),
-                    border: Border.all(color: Colors.grey.shade300),
-                  ),
+            Obx(() => GestureDetector(
+              onTap: dashboard.isLocked.value
+                  ? () => dashboard.showLockedPopup()
+                  : null,
+              behavior: HitTestBehavior.opaque,
+              child: Container(
+                height: 28,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                decoration: BoxDecoration(
+                  color: dashboard.isLocked.value
+                      ? Colors.grey.shade50
+                      : Colors.white,
+                  borderRadius: BorderRadius.circular(3),
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+                child: AbsorbPointer(
+                  absorbing: dashboard.isLocked.value,
                   child: DropdownButtonHideUnderline(
                     child: DropdownButton<String>(
                       value: c.rheologyModel.value,
                       items: const [
-                        DropdownMenuItem(value: 'Bingham',   child: Text('Bingham',   style: TextStyle(fontSize: 11))),
-                        DropdownMenuItem(value: 'Power Law', child: Text('Power Law', style: TextStyle(fontSize: 11))),
-                        DropdownMenuItem(value: 'HB',        child: Text('HB',        style: TextStyle(fontSize: 11))),
+                        DropdownMenuItem(
+                            value: 'Bingham',
+                            child: Text('Bingham',
+                                style: TextStyle(fontSize: 11))),
+                        DropdownMenuItem(
+                            value: 'Power Law',
+                            child:
+                                Text('Power Law', style: TextStyle(fontSize: 11))),
+                        DropdownMenuItem(
+                            value: 'HB',
+                            child: Text('HB', style: TextStyle(fontSize: 11))),
                       ],
-                      onChanged: dashboard.isLocked.value ? null : (v) => c.changeModel(v!),
-                      style: AppTheme.caption.copyWith(color: AppTheme.textPrimary, fontSize: 11),
+                      onChanged: (v) => c.changeModel(v!),
+                      style: AppTheme.caption
+                          .copyWith(color: AppTheme.textPrimary, fontSize: 11),
                       isDense: true,
                     ),
                   ),
-                )),
+                ),
+              ),
+            )),
           ]),
         ),
         const SizedBox(height: 10),
@@ -418,22 +509,47 @@ class _IntervalMudPlanTabState extends State<IntervalMudPlanTab> {
                                                   textAlign: TextAlign.center,
                                                 ),
                                               ))
-                                          : Obx(() => TextField(
-                                                key: ValueKey('rheo_${entry.key}_$dataIdx'),
-                                                controller: TextEditingController(
-                                                    text: cell.value)
-                                                  ..selection = TextSelection.collapsed(
-                                                      offset: cell.value.length),
-                                                onChanged: (v) => cell.value = v,
-                                                style: AppTheme.caption.copyWith(
-                                                    color: AppTheme.textPrimary, fontSize: 9),
-                                                decoration: const InputDecoration(
-                                                  isDense: true, border: InputBorder.none,
-                                                  contentPadding: EdgeInsets.symmetric(
-                                                      horizontal: 4, vertical: 5),
+                                          : Obx(() => GestureDetector(
+                                                onTap: dashboard.isLocked.value
+                                                    ? () => dashboard
+                                                        .showLockedPopup()
+                                                    : null,
+                                                behavior:
+                                                    HitTestBehavior.opaque,
+                                                child: AbsorbPointer(
+                                                  absorbing:
+                                                      dashboard.isLocked.value,
+                                                  child: TextField(
+                                                    key: ValueKey(
+                                                        'rheo_${entry.key}_$dataIdx'),
+                                                    controller: TextEditingController(
+                                                        text: cell.value)
+                                                      ..selection =
+                                                          TextSelection.collapsed(
+                                                              offset: cell
+                                                                  .value
+                                                                  .length),
+                                                    onChanged: (v) =>
+                                                        cell.value = v,
+                                                    style: AppTheme.caption
+                                                        .copyWith(
+                                                            color: AppTheme
+                                                                .textPrimary,
+                                                            fontSize: 9),
+                                                    decoration:
+                                                        const InputDecoration(
+                                                      isDense: true,
+                                                      border: InputBorder.none,
+                                                      contentPadding:
+                                                          EdgeInsets.symmetric(
+                                                              horizontal: 4,
+                                                              vertical: 5),
+                                                    ),
+                                                    textAlign: TextAlign.center,
+                                                    keyboardType:
+                                                        TextInputType.number,
+                                                  ),
                                                 ),
-                                                textAlign: TextAlign.center,
-                                                keyboardType: TextInputType.number,
                                               )),
                                     ),
                                   );
@@ -468,21 +584,36 @@ class _IntervalMudPlanTabState extends State<IntervalMudPlanTab> {
             return Text(controller.text.isEmpty ? '-' : controller.text,
                 style: AppTheme.caption.copyWith(color: AppTheme.textPrimary, fontSize: 10));
           }
-          return Container(
-            width: 70, height: 22,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(3),
-              border: Border.all(color: Colors.grey.shade300),
-            ),
-            child: TextField(
-              controller: controller,
-              decoration: const InputDecoration(
-                isDense: true, border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+          return GestureDetector(
+            onTap: dashboard.isLocked.value
+                ? () => dashboard.showLockedPopup()
+                : null,
+            behavior: HitTestBehavior.opaque,
+            child: Container(
+              width: 70,
+              height: 22,
+              decoration: BoxDecoration(
+                color: dashboard.isLocked.value
+                    ? Colors.grey.shade50
+                    : Colors.white,
+                borderRadius: BorderRadius.circular(3),
+                border: Border.all(color: Colors.grey.shade300),
               ),
-              style: AppTheme.caption.copyWith(color: AppTheme.textPrimary, fontSize: 10),
-              textAlign: TextAlign.right,
+              child: AbsorbPointer(
+                absorbing: dashboard.isLocked.value,
+                child: TextField(
+                  controller: controller,
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    border: InputBorder.none,
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                  ),
+                  style: AppTheme.caption
+                      .copyWith(color: AppTheme.textPrimary, fontSize: 10),
+                  textAlign: TextAlign.right,
+                ),
+              ),
             ),
           );
         }),
@@ -606,38 +737,48 @@ class _SingleDropdownRowState extends State<_SingleDropdownRow> {
           width: 150,
           decoration: BoxDecoration(
             border: Border(right: BorderSide(color: Colors.grey.shade200))),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              isExpanded: true,
-              value: _value,
-              hint: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: Row(children: [
-                  Icon(Icons.add, size: 11, color: Colors.grey.shade400),
-                  const SizedBox(width: 4),
-                  Flexible(
-                    child: Text('Add property',
-                        style: TextStyle(fontSize: 10, color: Colors.grey.shade400),
-                        overflow: TextOverflow.ellipsis),
+          child: Obx(() {
+            final dashCtrl = Get.find<DashboardController>();
+            return GestureDetector(
+              onTap: dashCtrl.isLocked.value ? () => dashCtrl.showLockedPopup() : null,
+              behavior: HitTestBehavior.opaque,
+              child: AbsorbPointer(
+                absorbing: dashCtrl.isLocked.value,
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    isExpanded: true,
+                    value: _value,
+                    hint: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Row(children: [
+                        Icon(Icons.add, size: 11, color: Colors.grey.shade400),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text('Add property',
+                              style: TextStyle(fontSize: 10, color: Colors.grey.shade400),
+                              overflow: TextOverflow.ellipsis),
+                        ),
+                      ]),
+                    ),
+                    items: widget.allOptions.map((p) => DropdownMenuItem(
+                          value: p,
+                          child: Text(p,
+                              style: TextStyle(fontSize: 10, color: AppTheme.textPrimary),
+                              overflow: TextOverflow.ellipsis),
+                        )).toList(),
+                    onChanged: (v) {
+                      if (v == null) return;
+                      setState(() => _value = null); // reset immediately
+                      widget.onPicked(v);
+                    },
+                    isDense: true,
+                    icon: Icon(Icons.arrow_drop_down, size: 14, color: Colors.grey.shade400),
+                    style: TextStyle(color: AppTheme.textPrimary, fontSize: 10),
                   ),
-                ]),
+                ),
               ),
-              items: widget.allOptions.map((p) => DropdownMenuItem(
-                    value: p,
-                    child: Text(p,
-                        style: TextStyle(fontSize: 10, color: AppTheme.textPrimary),
-                        overflow: TextOverflow.ellipsis),
-                  )).toList(),
-              onChanged: (v) {
-                if (v == null) return;
-                setState(() => _value = null); // reset immediately
-                widget.onPicked(v);
-              },
-              isDense: true,
-              icon: Icon(Icons.arrow_drop_down, size: 14, color: Colors.grey.shade400),
-              style: TextStyle(color: AppTheme.textPrimary, fontSize: 10),
-            ),
-          ),
+            );
+          }),
         ),
         // Sample columns — empty cells matching table row style
         ...widget.samples.asMap().entries.map((e) {

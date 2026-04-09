@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/interval/controller/interval_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/controller/UG_ST_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class IntervalGeneralTab extends StatelessWidget {
@@ -10,7 +11,7 @@ class IntervalGeneralTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c    = Get.find<IntervalController>();
-    final ugSt = Get.find<UgStController>();
+    final dashCtrl = Get.find<DashboardController>();
 
     return Obx(() {
       if (c.isLoading.value) {
@@ -27,11 +28,11 @@ class IntervalGeneralTab extends StatelessWidget {
             // ── LEFT COLUMN ──────────────────────────────────────
             Expanded(
               child: Column(children: [
-                _tableCard(c, ugSt, iv),
+                _tableCard(c, dashCtrl, iv),
                 const SizedBox(height: 10),
-                _textCard("Interval Summary",    c.intervalSummaryCtrl, ugSt),
+                _textCard("Interval Summary",    c.intervalSummaryCtrl, dashCtrl),
                 const SizedBox(height: 10),
-                _textCard("Solid Control",       c.solidControlCtrl, ugSt),
+                _textCard("Solid Control",       c.solidControlCtrl, dashCtrl),
               ]),
             ),
             const SizedBox(width: 10),
@@ -39,11 +40,11 @@ class IntervalGeneralTab extends StatelessWidget {
             Expanded(
               child: Column(children: [
                 _textCard("Interval Conclusion and Recommendations",
-                    c.intervalConclusionCtrl, ugSt),
+                    c.intervalConclusionCtrl, dashCtrl),
                 const SizedBox(height: 10),
-                _textCard("Sweeps",      c.sweepsCtrl,      ugSt),
+                _textCard("Sweeps",      c.sweepsCtrl,      dashCtrl),
                 const SizedBox(height: 10),
-                _textCard("Lab Testing", c.labTestingCtrl,  ugSt),
+                _textCard("Lab Testing", c.labTestingCtrl,  dashCtrl),
               ]),
             ),
           ],
@@ -55,7 +56,7 @@ class IntervalGeneralTab extends StatelessWidget {
   // ── TABLE CARD (heading = selected interval name) ────────────────
   Widget _tableCard(
     IntervalController c,
-    UgStController ugSt,
+    DashboardController dashCtrl,
     IntervalItem? iv,
   ) {
     final heading = iv?.name ?? "—";
@@ -106,11 +107,11 @@ class IntervalGeneralTab extends StatelessWidget {
                     height: 14,
                     child: CircularProgressIndicator(strokeWidth: 1.5, color: Colors.white))
                 : InkWell(
-                    onTap: ugSt.isLocked.value ? null : c.saveGeneralData,
+                    onTap: dashCtrl.isLocked.value ? () => dashCtrl.showLockedPopup() : c.saveGeneralData,
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.25),
+                        color: dashCtrl.isLocked.value ? Colors.grey : Colors.white.withOpacity(0.25),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: const Text("Save",
@@ -133,12 +134,12 @@ class IntervalGeneralTab extends StatelessWidget {
           },
           defaultVerticalAlignment: TableCellVerticalAlignment.middle,
           children: [
-            _tRow("Formation",      c.formationCtrl,   "",      ugSt),
-            _tRow("Bit Size",       c.bitSizeCtrl,     "(in)",  ugSt),
-            _tRow("Casing",         c.casingCtrl,      "(in)",  ugSt),
-            _tRow("Interval FIT",   c.intervalFITCtrl, "(ppg)", ugSt),
-            _tRow("Mud Description",c.mudDescCtrl,     "",      ugSt),
-            _tRow("Mud Type",       c.mudTypeCtrl,     "",      ugSt),
+            _tRow("Formation",      c.formationCtrl,   "",      dashCtrl),
+            _tRow("Bit Size",       c.bitSizeCtrl,     "(in)",  dashCtrl),
+            _tRow("Casing",         c.casingCtrl,      "(in)",  dashCtrl),
+            _tRow("Interval FIT",   c.intervalFITCtrl, "(ppg)", dashCtrl),
+            _tRow("Mud Description",c.mudDescCtrl,     "",      dashCtrl),
+            _tRow("Mud Type",       c.mudTypeCtrl,     "",      dashCtrl),
           ],
         ),
       ]),
@@ -150,7 +151,7 @@ class IntervalGeneralTab extends StatelessWidget {
     String label,
     TextEditingController ctrl,
     String suffix,
-    UgStController ugSt,
+    DashboardController dashCtrl,
   ) {
     return TableRow(
       decoration: BoxDecoration(
@@ -170,11 +171,15 @@ class IntervalGeneralTab extends StatelessWidget {
         Obx(() => Container(
           height: 30,
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-          child: ugSt.isLocked.value
-              ? Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(ctrl.text,
-                      style: const TextStyle(fontSize: 11, color: Color(0xff6B7280))),
+          child: dashCtrl.isLocked.value
+              ? GestureDetector(
+                  onTap: () => dashCtrl.showLockedPopup(),
+                  behavior: HitTestBehavior.opaque,
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(ctrl.text,
+                        style: const TextStyle(fontSize: 11, color: Color(0xff6B7280))),
+                  ),
                 )
               : TextField(
                   controller: ctrl,
@@ -215,7 +220,7 @@ class IntervalGeneralTab extends StatelessWidget {
   Widget _textCard(
     String title,
     TextEditingController ctrl,
-    UgStController ugSt,
+    DashboardController dashCtrl,
   ) {
     return Container(
       height: 130,
@@ -260,17 +265,22 @@ class IntervalGeneralTab extends StatelessWidget {
         Expanded(
           child: Padding(
             padding: const EdgeInsets.all(6),
-            child: Obx(() => ugSt.isLocked.value
-                ? Container(
-                    padding: const EdgeInsets.all(8),
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade50,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      ctrl.text.isEmpty ? "—" : ctrl.text,
-                      style: const TextStyle(fontSize: 11, color: Color(0xff6B7280)),
+            child: Obx(() => dashCtrl.isLocked.value
+                ? GestureDetector(
+                    onTap: () => dashCtrl.showLockedPopup(),
+                    behavior: HitTestBehavior.opaque,
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        ctrl.text.isEmpty ? "—" : ctrl.text,
+                        style: const TextStyle(
+                            fontSize: 11, color: Color(0xff6B7280)),
+                      ),
                     ),
                   )
                 : Container(
@@ -282,12 +292,14 @@ class IntervalGeneralTab extends StatelessWidget {
                       controller: ctrl,
                       maxLines: null,
                       expands: true,
-                      style: const TextStyle(fontSize: 11, color: Color(0xff111827)),
+                      style: const TextStyle(
+                          fontSize: 11, color: Color(0xff111827)),
                       decoration: InputDecoration(
                         border: InputBorder.none,
                         contentPadding: const EdgeInsets.all(8),
                         hintText: 'Enter $title...',
-                        hintStyle: const TextStyle(fontSize: 11, color: Color(0xffD1D5DB)),
+                        hintStyle: const TextStyle(
+                            fontSize: 11, color: Color(0xffD1D5DB)),
                       ),
                     ),
                   )),

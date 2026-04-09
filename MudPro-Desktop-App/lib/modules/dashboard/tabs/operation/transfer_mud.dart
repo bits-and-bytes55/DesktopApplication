@@ -265,26 +265,43 @@ class _TransferMudViewState extends State<TransferMudView> {
                             final row = pitController.transferRows[index];
                             final isSelected = selectedRow.value == index;
 
-                            return Container(
-                              decoration: BoxDecoration(
-                                color: index % 2 == 0
-                                    ? Colors.white
-                                    : Colors.grey.shade50,
-                                border: Border(
-                                  bottom: BorderSide(
-                                      color: Colors.grey.shade200, width: 0.5),
-                                ),
-                              ),
-                              child: Row(
+                            return GestureDetector(
+                              onTap: () => selectedRow.value = index,
+                              child: Stack(
                                 children: [
-                                  // Number cell
-                                  _buildNumberCell(index + 1, 50),
-                                  // Pit dropdown cell
-                                  _buildPitDropdownCell(row, index, isSelected, 260),
-                                  // Volume cell
-                                  _buildVolumeCell(row, 140),
-                                  // Action cell
-                                  _buildActionCell(index, 50),
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      color: isSelected
+                                          ? AppTheme.primaryColor.withOpacity(0.07)
+                                          : (index % 2 == 0 ? Colors.white : Colors.grey.shade50),
+                                      border: Border(
+                                        bottom: BorderSide(
+                                            color: Colors.grey.shade200, width: 0.5),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        // Number cell
+                                        _buildNumberCell(index + 1, 50),
+                                        // Pit dropdown cell
+                                        _buildPitDropdownCell(row, index, isSelected, 260),
+                                        // Volume cell
+                                        _buildVolumeCell(row, index, 140),
+                                        // Action cell — only visible when row selected
+                                        _buildActionCell(index, isSelected, 50),
+                                      ],
+                                    ),
+                                  ),
+                                  if (isSelected)
+                                    Positioned(
+                                      left: 0,
+                                      top: 0,
+                                      bottom: 0,
+                                      child: Container(
+                                        width: 2,
+                                        color: AppTheme.primaryColor,
+                                      ),
+                                    ),
                                 ],
                               ),
                             );
@@ -420,7 +437,7 @@ class _TransferMudViewState extends State<TransferMudView> {
     );
   }
 
-  Widget _buildVolumeCell(TransferRowData row, double width) {
+  Widget _buildVolumeCell(TransferRowData row, int index, double width) {
     return Container(
       width: width,
       height: 32,
@@ -443,25 +460,27 @@ class _TransferMudViewState extends State<TransferMudView> {
         textAlign: TextAlign.right,
         onChanged: (val) {
           row.volume = val;
+          pitController.onTransferVolumeChanged(index, val);
         },
       ),
     );
   }
 
-  Widget _buildActionCell(int index, double width) {
-    return Container(
+  Widget _buildActionCell(int index, bool isSelected, double width) {
+    return SizedBox(
       width: width,
       height: 32,
-      alignment: Alignment.center,
-      child: IconButton(
-        icon: Icon(Icons.delete_outline, size: 16, color: Colors.red.shade400),
-        onPressed: dashboardController.isLocked.value 
-            ? null 
-            : () => pitController.deleteTransferRow(index),
-        padding: EdgeInsets.zero,
-        constraints: const BoxConstraints(),
-        tooltip: 'Delete row',
-      ),
+      child: isSelected
+          ? IconButton(
+              icon: Icon(Icons.delete_outline, size: 16, color: Colors.red.shade400),
+              onPressed: dashboardController.isLocked.value
+                  ? null
+                  : () => pitController.deleteTransferRow(index),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+              tooltip: 'Delete row',
+            )
+          : const SizedBox.shrink(),
     );
   }
 

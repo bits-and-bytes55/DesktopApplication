@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class SurveyDataTab extends StatelessWidget {
   SurveyDataTab({super.key});
 
-  final RxBool isLocked = true.obs;
   final ScrollController _horizontalScrollController = ScrollController();
   final ScrollController _verticalScrollController = ScrollController();
+  final DashboardController _dashCtrl = Get.find<DashboardController>();
 
   final headers = const [
     "#",
@@ -82,55 +83,44 @@ class SurveyDataTab extends StatelessWidget {
             ),
           ),
           const Spacer(),
-          Obx(() => Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: isLocked.value 
-                  ? AppTheme.errorColor.withOpacity(0.1)
-                  : AppTheme.successColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(
-                color: isLocked.value 
-                    ? AppTheme.errorColor.withOpacity(0.3)
-                    : AppTheme.successColor.withOpacity(0.3),
-              ),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  isLocked.value ? Icons.lock : Icons.lock_open,
-                  size: 14,
-                  color: isLocked.value ? AppTheme.errorColor : AppTheme.successColor,
+          Obx(() {
+            final dashCtrl = Get.find<DashboardController>();
+            final isLocked = dashCtrl.isLocked.value;
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: isLocked
+                    ? AppTheme.errorColor.withOpacity(0.1)
+                    : AppTheme.successColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(
+                  color: isLocked
+                      ? AppTheme.errorColor.withOpacity(0.3)
+                      : AppTheme.successColor.withOpacity(0.3),
                 ),
-                const SizedBox(width: 6),
-                Text(
-                  isLocked.value ? "Locked" : "Editing",
-                  style: AppTheme.caption.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: isLocked.value ? AppTheme.errorColor : AppTheme.successColor,
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    isLocked ? Icons.lock : Icons.lock_open,
+                    size: 14,
+                    color:
+                        isLocked ? AppTheme.errorColor : AppTheme.successColor,
                   ),
-                ),
-              ],
-            ),
-          )),
-          const SizedBox(width: 12),
-          Obx(() => ElevatedButton(
-            onPressed: () => isLocked.value = !isLocked.value,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: isLocked.value ? AppTheme.primaryColor : Colors.grey.shade300,
-              foregroundColor: isLocked.value ? Colors.white : AppTheme.textPrimary,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(6),
+                  const SizedBox(width: 6),
+                  Text(
+                    isLocked ? "Locked" : "Editing",
+                    style: AppTheme.caption.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: isLocked
+                          ? AppTheme.errorColor
+                          : AppTheme.successColor,
+                    ),
+                  ),
+                ],
               ),
-            ),
-            child: Text(
-              isLocked.value ? "Unlock" : "Lock",
-              style: AppTheme.caption.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          )),
+            );
+          }),
         ],
       ),
     );
@@ -237,15 +227,20 @@ class SurveyDataTab extends StatelessWidget {
   }
 
   Widget _cell(String value, {required int index}) {
+    final dashCtrl = Get.find<DashboardController>();
     return Container(
       width: index == 0 ? 60 : 100,
       alignment: Alignment.center,
       child: Obx(
-        () => isLocked.value
-            ? Text(
-                value,
-                style: AppTheme.caption.copyWith(
-                  color: AppTheme.textPrimary,
+        () => dashCtrl.isLocked.value
+            ? GestureDetector(
+                onTap: () => dashCtrl.showLockedPopup(),
+                behavior: HitTestBehavior.opaque,
+                child: Text(
+                  value,
+                  style: AppTheme.caption.copyWith(
+                    color: AppTheme.textPrimary,
+                  ),
                 ),
               )
             : Container(
@@ -262,7 +257,8 @@ class SurveyDataTab extends StatelessWidget {
                   ),
                   decoration: const InputDecoration(
                     isDense: true,
-                    contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 6, vertical: 8),
                     border: InputBorder.none,
                   ),
                 ),
@@ -373,47 +369,57 @@ class SurveyDataTab extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  Obx(() => Expanded(
-                    child: isLocked.value
-                        ? Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.grey.shade50,
-                              borderRadius: BorderRadius.circular(6),
-                              border: Border.all(color: Colors.grey.shade200),
-                            ),
-                            child: Center(
-                              child: Text(
-                                "Unlock to add annotations",
-                                style: AppTheme.caption.copyWith(
-                                  color: Colors.grey.shade500,
-                                  fontStyle: FontStyle.italic,
+                  Obx(() {
+                    final dashCtrl = Get.find<DashboardController>();
+                    final isLocked = dashCtrl.isLocked.value;
+                    return Expanded(
+                      child: isLocked
+                          ? GestureDetector(
+                              onTap: () => dashCtrl.showLockedPopup(),
+                              behavior: HitTestBehavior.opaque,
+                              child: Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade50,
+                                  borderRadius: BorderRadius.circular(6),
+                                  border:
+                                      Border.all(color: Colors.grey.shade200),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    "App is currently Locked",
+                                    style: AppTheme.caption.copyWith(
+                                      color: Colors.grey.shade500,
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            )
+                          : Container(
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.grey.shade300),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: TextField(
+                                maxLines: null,
+                                expands: true,
+                                style: AppTheme.bodySmall.copyWith(
+                                  color: AppTheme.textPrimary,
+                                ),
+                                decoration: InputDecoration(
+                                  border: InputBorder.none,
+                                  contentPadding: const EdgeInsets.all(12),
+                                  hintText:
+                                      'Add notes about survey points...\n• Well trajectory\n• Formation changes\n• Survey quality\n• Additional observations',
+                                  hintStyle: AppTheme.caption.copyWith(
+                                    color: Colors.grey.shade400,
+                                  ),
                                 ),
                               ),
                             ),
-                          )
-                        : Container(
-                            decoration: BoxDecoration(
-                              border: Border.all(color: Colors.grey.shade300),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: TextField(
-                              maxLines: null,
-                              expands: true,
-                              style: AppTheme.bodySmall.copyWith(
-                                color: AppTheme.textPrimary,
-                              ),
-                              decoration: InputDecoration(
-                                border: InputBorder.none,
-                                contentPadding: const EdgeInsets.all(12),
-                                hintText: 'Add notes about survey points...\n• Well trajectory\n• Formation changes\n• Survey quality\n• Additional observations',
-                                hintStyle: AppTheme.caption.copyWith(
-                                  color: Colors.grey.shade400,
-                                ),
-                              ),
-                            ),
-                          ),
-                  )),
+                    );
+                  }),
                   const SizedBox(height: 16),
                   Text(
                     "Selected Point: Row 1",
@@ -484,18 +490,30 @@ class _ToolIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 40,
-      height: 40,
-      decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: Tooltip(
-        message: tooltip,
-        child: Icon(icon, size: 18, color: AppTheme.textSecondary),
-      ),
-    );
+    final dashCtrl = Get.find<DashboardController>();
+    return Obx(() => GestureDetector(
+          onTap:
+              dashCtrl.isLocked.value ? () => dashCtrl.showLockedPopup() : null,
+          behavior: HitTestBehavior.opaque,
+          child: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: dashCtrl.isLocked.value
+                  ? Colors.grey.shade100
+                  : Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            child: Tooltip(
+              message: tooltip,
+              child: Icon(icon,
+                  size: 18,
+                  color: dashCtrl.isLocked.value
+                      ? Colors.grey.shade400
+                      : AppTheme.textSecondary),
+            ),
+          ),
+        ));
   }
 }

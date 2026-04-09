@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
+import 'package:mudpro_desktop_app/modules/UG/controller/UG_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/well_general_controller.dart';
 
 class LeftReportTree extends StatelessWidget {
   LeftReportTree({super.key});
@@ -61,18 +63,26 @@ class LeftReportTree extends StatelessWidget {
           // SizedBox(height: 8),
 
           // ───── UG HEADER ─────
-          _clickableHeader(
-            icon: Icons.account_tree,
-            text: 'UG',
-            id: 'UG',
-          ),
-
-          _clickableHeader(
-            icon: Icons.location_on,
-            text: 'UG-0293 ST',
-            id: 'UG-0293-ST',
-            indent: 24,
-          ),
+          Obx(() {
+            final ugCtrl = Get.isRegistered<UgController>() ? Get.find<UgController>() : null;
+            final wellGenCtrl = Get.isRegistered<WellGeneralController>() ? Get.find<WellGeneralController>() : null;
+            
+            return Column(
+              children: [
+                _clickableHeader(
+                  icon: Icons.account_tree,
+                  text: ugCtrl?.padName.value ?? 'UG',
+                  id: 'UG',
+                ),
+                _clickableHeader(
+                  icon: Icons.location_on,
+                  text: wellGenCtrl?.wellNameNo.value ?? 'UG-0293 ST',
+                  id: 'UG-0293-ST',
+                  indent: 24,
+                ),
+              ],
+            );
+          }),
 
           // Divider with gradient
           Container(

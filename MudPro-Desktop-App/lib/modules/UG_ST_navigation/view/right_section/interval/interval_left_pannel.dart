@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/interval/controller/interval_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class IntervalLeftPanel extends StatelessWidget {
@@ -9,6 +10,7 @@ class IntervalLeftPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = Get.find<IntervalController>();
+    final dashCtrl = Get.find<DashboardController>();
 
     return Container(
       width: 240,
@@ -113,12 +115,20 @@ class IntervalLeftPanel extends StatelessWidget {
                 _iconBtn(
                   icon: Icons.vertical_align_top,
                   tooltip: "Insert Before",
-                  onTap: c.isSaving.value ? null : c.insertBefore,
+                  onTap: (c.isSaving.value)
+                      ? null
+                      : (dashCtrl.isLocked.value
+                          ? () => dashCtrl.showLockedPopup()
+                          : c.insertBefore),
                 ),
                 _iconBtn(
                   icon: Icons.vertical_align_bottom,
                   tooltip: "Insert After",
-                  onTap: c.isSaving.value ? null : c.insertAfter,
+                  onTap: (c.isSaving.value)
+                      ? null
+                      : (dashCtrl.isLocked.value
+                          ? () => dashCtrl.showLockedPopup()
+                          : c.insertAfter),
                 ),
                 _iconBtn(
                   icon: Icons.delete_outline,
@@ -126,14 +136,18 @@ class IntervalLeftPanel extends StatelessWidget {
                   color: AppTheme.errorColor,
                   onTap: (c.isSaving.value || c.selected.value == null)
                       ? null
-                      : c.removeSelected,
+                      : (dashCtrl.isLocked.value
+                          ? () => dashCtrl.showLockedPopup()
+                          : c.removeSelected),
                 ),
                 _iconBtn(
                   icon: Icons.folder_outlined,
                   tooltip: "Group Intervals",
                   onTap: c.isSaving.value
                       ? null
-                      : () => _showGroupDialog(context, c),
+                      : (dashCtrl.isLocked.value
+                          ? () => dashCtrl.showLockedPopup()
+                          : () => _showGroupDialog(context, c)),
                 ),
               ],
             )),
@@ -309,12 +323,15 @@ class _IntervalTileState extends State<_IntervalTile> {
 
     return Obx(() {
       final isSelected = c.selected.value?.id == iv.id;
+      final dashCtrl = Get.find<DashboardController>();
       return GestureDetector(
         onTap: () => c.selectInterval(iv),
-        onDoubleTap: () => setState(() {
-          _editing  = true;
-          _nameCtrl.text = iv.name;
-        }),
+        onDoubleTap: (dashCtrl.isLocked.value)
+            ? () => dashCtrl.showLockedPopup()
+            : () => setState(() {
+                  _editing = true;
+                  _nameCtrl.text = iv.name;
+                }),
         child: Container(
           margin: EdgeInsets.only(
             left: isInGroup ? 14 : 0,
@@ -437,8 +454,16 @@ class _GroupTile extends StatelessWidget {
                   Tooltip(
                     message: "Remove Group",
                     child: InkWell(
-                      onTap: () => _confirmDeleteGroup(context),
-                      child: Icon(Icons.close, size: 13, color: Colors.grey.shade500),
+                      onTap: () {
+                        final dashCtrl = Get.find<DashboardController>();
+                        if (dashCtrl.isLocked.value) {
+                          dashCtrl.showLockedPopup();
+                        } else {
+                          _confirmDeleteGroup(context);
+                        }
+                      },
+                      child: Icon(Icons.close,
+                          size: 13, color: Colors.grey.shade500),
                     ),
                   ),
                 ],

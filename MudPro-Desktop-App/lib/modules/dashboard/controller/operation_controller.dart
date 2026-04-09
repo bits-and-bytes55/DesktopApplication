@@ -1,5 +1,6 @@
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/well_general_controller.dart';
 
 enum OperationType {
   consumeServices,
@@ -31,8 +32,12 @@ class OperationController extends GetxController {
 
   Future<Map<String, dynamic>> saveAddWater() async {
     final authRepo = AuthRepository();
-    // Assuming kStaticWellId is available from common context or hardcoded as before
-    const String wellId = '67f1a2b3c4d5e6f7890a1111'; 
+    final wellGenCtrl = Get.isRegistered<WellGeneralController>() ? Get.find<WellGeneralController>() : null;
+    final String wellId = wellGenCtrl?.currentWellId.value ?? '';
+
+    if (wellId.isEmpty) {
+      return {'success': false, 'message': 'No active Well ID found. Please select a well.'};
+    }
 
     int successCount = 0;
     List<String> errors = [];

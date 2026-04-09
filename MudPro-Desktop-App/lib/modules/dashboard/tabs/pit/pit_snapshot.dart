@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_pit_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/pit_snapshot_Controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
@@ -10,6 +11,7 @@ class PitSnapshotPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(PitSnapshotController());
+    final dashboard = Get.find<DashboardController>();
     
     return Scaffold(
       backgroundColor: Colors.white,
@@ -331,41 +333,58 @@ class PitSnapshotPage extends StatelessWidget {
                     ),
                   ],
                 ),
-                Row(
-                  children: [
-                    ElevatedButton(
-                      onPressed: () => _showHoleVolumeDialog(),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        minimumSize: const Size(0, 28),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(4),
+                Obx(() {
+                  final isLocked = Get.find<DashboardController>().isLocked.value;
+                  return Row(
+                    children: [
+                      ElevatedButton(
+                        onPressed: isLocked
+                            ? () => Get.find<DashboardController>()
+                                .showLockedPopup()
+                            : () => _showHoleVolumeDialog(),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
+                          minimumSize: const Size(0, 28),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                        child: Text(
+                          'Hole Volume',
+                          style: TextStyle(
+                              fontSize: 10,
+                              color: AppTheme.primaryColor,
+                              fontWeight: FontWeight.w600),
                         ),
                       ),
-                      child: Text(
-                        'Hole Volume',
-                        style: TextStyle(fontSize: 10, color: AppTheme.primaryColor, fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    ElevatedButton(
-                      onPressed: () => _showCkbVolumeDialog(),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        minimumSize: const Size(0, 28),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(4),
+                      const SizedBox(width: 6),
+                      ElevatedButton(
+                        onPressed: isLocked
+                            ? () => Get.find<DashboardController>()
+                                .showLockedPopup()
+                            : () => _showCkbVolumeDialog(),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
+                          minimumSize: const Size(0, 28),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                        child: Text(
+                          'CKB Volume',
+                          style: TextStyle(
+                              fontSize: 10,
+                              color: AppTheme.primaryColor,
+                              fontWeight: FontWeight.w600),
                         ),
                       ),
-                      child: Text(
-                        'CKB Volume',
-                        style: TextStyle(fontSize: 10, color: AppTheme.primaryColor, fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                  ],
-                ),
+                    ],
+                  );
+                }),
               ],
             ),
           ),
@@ -396,22 +415,36 @@ class PitSnapshotPage extends StatelessWidget {
                     ),
                     Padding(
                       padding: const EdgeInsets.all(6.0),
-                      child: TextField(
-                        decoration: InputDecoration(
-                          border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                          hintText: entry.value['volume'],
-                          hintStyle: TextStyle(fontSize: 11),
-                          isDense: true,
-                        ),
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: isNegative ? Colors.red : Colors.black,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        textAlign: TextAlign.right,
-                        onChanged: (value) => controller.updateVolumeSummary(entry.key, value),
-                      ),
+                      child: Obx(() {
+                        final isLocked =
+                            Get.find<DashboardController>().isLocked.value;
+                        return GestureDetector(
+                          onTap:
+                              isLocked ? () => Get.find<DashboardController>().showLockedPopup() : null,
+                          behavior: HitTestBehavior.opaque,
+                          child: AbsorbPointer(
+                            absorbing: isLocked,
+                            child: TextField(
+                              decoration: InputDecoration(
+                                border: InputBorder.none,
+                                contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 6),
+                                hintText: entry.value['volume'],
+                                hintStyle: TextStyle(fontSize: 11),
+                                isDense: true,
+                              ),
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: isNegative ? Colors.red : Colors.black,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              textAlign: TextAlign.right,
+                              onChanged: (value) => controller
+                                  .updateVolumeSummary(entry.key, value),
+                            ),
+                          ),
+                        );
+                      }),
                     ),
                   ],
                 );
@@ -462,29 +495,47 @@ class PitSnapshotPage extends StatelessWidget {
                     ),
                   ],
                 ),
-                Obx(() => Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(color: Colors.grey.shade300),
-                  ),
-                  child: DropdownButton<String>(
-                    value: controller.selectedSystem.value,
-                    underline: const SizedBox(),
-                    isDense: true,
-                    style: TextStyle(fontSize: 10, color: AppTheme.primaryColor, fontWeight: FontWeight.w600),
-                    items: controller.systemOptions.map((option) {
-                      return DropdownMenuItem(
-                        value: option,
-                        child: Text(option),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      if (value != null) controller.changeSystem(value);
-                    },
-                  ),
-                )),
+                Obx(() {
+                  final isLocked =
+                      Get.find<DashboardController>().isLocked.value;
+                  return GestureDetector(
+                    onTap: isLocked ? () => Get.find<DashboardController>().showLockedPopup() : null,
+                    behavior: HitTestBehavior.opaque,
+                    child: AbsorbPointer(
+                      absorbing: isLocked,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: DropdownButton<String>(
+                          value: controller.selectedSystem.value,
+                          underline: const SizedBox(),
+                          isDense: true,
+                          style: TextStyle(
+                              fontSize: 10,
+                              color: AppTheme.primaryColor,
+                              fontWeight: FontWeight.w600),
+                          items: controller.systemOptions.map((option) {
+                            return DropdownMenuItem(
+                              value: option,
+                              child: Text(option),
+                            );
+                          }).toList(),
+                          onChanged: isLocked
+                              ? null
+                              : (value) {
+                                  if (value != null)
+                                    controller.changeSystem(value);
+                                },
+                        ),
+                      ),
+                    ),
+                  );
+                }),
               ],
             ),
           ),
@@ -585,32 +636,68 @@ class PitSnapshotPage extends StatelessWidget {
                           SizedBox(
                             width: 80,
                             height: 30,
-                            child: TextField(
-                              decoration: const InputDecoration(
-                                border: InputBorder.none,
-                                contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                                isDense: true,
-                              ),
-                              style: const TextStyle(fontSize: 10),
-                              textAlign: TextAlign.center,
-                              onChanged: (value) => controller.updatePitConcentration(entry.key, 'startConc', value),
-                            ),
+                            child: Obx(() {
+                              final isLocked = Get.find<DashboardController>()
+                                  .isLocked
+                                  .value;
+                              return GestureDetector(
+                                onTap: isLocked
+                                    ? () => Get.find<DashboardController>()
+                                        .showLockedPopup()
+                                    : null,
+                                behavior: HitTestBehavior.opaque,
+                                child: AbsorbPointer(
+                                  absorbing: isLocked,
+                                  child: TextField(
+                                    decoration: const InputDecoration(
+                                      border: InputBorder.none,
+                                      contentPadding: EdgeInsets.symmetric(
+                                          horizontal: 6, vertical: 4),
+                                      isDense: true,
+                                    ),
+                                    style: const TextStyle(fontSize: 10),
+                                    textAlign: TextAlign.center,
+                                    onChanged: (value) => controller
+                                        .updatePitConcentration(
+                                            entry.key, 'startConc', value),
+                                  ),
+                                ),
+                              );
+                            }),
                           ),
                         ),
                         DataCell(
                           SizedBox(
                             width: 80,
                             height: 30,
-                            child: TextField(
-                              decoration: const InputDecoration(
-                                border: InputBorder.none,
-                                contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                                isDense: true,
-                              ),
-                              style: const TextStyle(fontSize: 10),
-                              textAlign: TextAlign.center,
-                              onChanged: (value) => controller.updatePitConcentration(entry.key, 'endConc', value),
-                            ),
+                            child: Obx(() {
+                              final isLocked = Get.find<DashboardController>()
+                                  .isLocked
+                                  .value;
+                              return GestureDetector(
+                                onTap: isLocked
+                                    ? () => Get.find<DashboardController>()
+                                        .showLockedPopup()
+                                    : null,
+                                behavior: HitTestBehavior.opaque,
+                                child: AbsorbPointer(
+                                  absorbing: isLocked,
+                                  child: TextField(
+                                    decoration: const InputDecoration(
+                                      border: InputBorder.none,
+                                      contentPadding: EdgeInsets.symmetric(
+                                          horizontal: 6, vertical: 4),
+                                      isDense: true,
+                                    ),
+                                    style: const TextStyle(fontSize: 10),
+                                    textAlign: TextAlign.center,
+                                    onChanged: (value) => controller
+                                        .updatePitConcentration(
+                                            entry.key, 'endConc', value),
+                                  ),
+                                ),
+                              );
+                            }),
                           ),
                         ),
                       ],
@@ -702,16 +789,33 @@ class PitSnapshotPage extends StatelessWidget {
                           ),
                           Padding(
                             padding: const EdgeInsets.all(6.0),
-                            child: TextField(
-                              decoration: const InputDecoration(
-                                border: InputBorder.none,
-                                contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                                isDense: true,
-                              ),
-                              style: const TextStyle(fontSize: 11),
-                              textAlign: TextAlign.right,
-                              onChanged: (value) => controller.updateHoleVolume(entry.key, value),
-                            ),
+                            child: Obx(() {
+                              final isLocked = Get.find<DashboardController>()
+                                  .isLocked
+                                  .value;
+                              return GestureDetector(
+                                onTap: isLocked
+                                    ? () => Get.find<DashboardController>()
+                                        .showLockedPopup()
+                                    : null,
+                                behavior: HitTestBehavior.opaque,
+                                child: AbsorbPointer(
+                                  absorbing: isLocked,
+                                  child: TextField(
+                                    decoration: const InputDecoration(
+                                      border: InputBorder.none,
+                                      contentPadding: EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 6),
+                                      isDense: true,
+                                    ),
+                                    style: const TextStyle(fontSize: 11),
+                                    textAlign: TextAlign.right,
+                                    onChanged: (value) => controller
+                                        .updateHoleVolume(entry.key, value),
+                                  ),
+                                ),
+                              );
+                            }),
                           ),
                         ],
                       );
@@ -788,16 +892,33 @@ class PitSnapshotPage extends StatelessWidget {
                           ),
                           Padding(
                             padding: const EdgeInsets.all(6.0),
-                            child: TextField(
-                              decoration: const InputDecoration(
-                                border: InputBorder.none,
-                                contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                                isDense: true,
-                              ),
-                              style: const TextStyle(fontSize: 11),
-                              textAlign: TextAlign.right,
-                              onChanged: (value) => controller.updateCkbVolume(entry.key, value),
-                            ),
+                            child: Obx(() {
+                              final isLocked = Get.find<DashboardController>()
+                                  .isLocked
+                                  .value;
+                              return GestureDetector(
+                                onTap: isLocked
+                                    ? () => Get.find<DashboardController>()
+                                        .showLockedPopup()
+                                    : null,
+                                behavior: HitTestBehavior.opaque,
+                                child: AbsorbPointer(
+                                  absorbing: isLocked,
+                                  child: TextField(
+                                    decoration: const InputDecoration(
+                                      border: InputBorder.none,
+                                      contentPadding: EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 6),
+                                      isDense: true,
+                                    ),
+                                    style: const TextStyle(fontSize: 11),
+                                    textAlign: TextAlign.right,
+                                    onChanged: (value) => controller
+                                        .updateCkbVolume(entry.key, value),
+                                  ),
+                                ),
+                              );
+                            }),
                           ),
                         ],
                       );

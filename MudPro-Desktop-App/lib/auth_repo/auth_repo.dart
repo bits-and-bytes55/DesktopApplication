@@ -26,6 +26,119 @@ class AuthRepository {
   // ══════════════════════════════════════════════════════════════════════════════
 
   // ── Save Well General ────────────────────────────────────────────────────────
+  Future<Map<String, dynamic>> createWellGeneral(
+      String wellId, Map<String, dynamic> body) async {
+    try {
+      print('Hitting POST ${baseUrl}well-general/$wellId');
+      final response = await http.post(
+        Uri.parse('${baseUrl}well-general/$wellId'),
+        headers: _headers,
+        body: jsonEncode(body),
+      );
+      print('statuscode------${response.statusCode}');
+      print('response body------${response.body}');
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200 || response.statusCode == 201,
+        'data': data,
+        'message': data['message'] ?? 'Saved successfully',
+      };
+    } catch (e) {
+      print('Error in createWellGeneral: $e');
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  // ── Pad Operations ──────────────────────────────────────────────────────────
+  Future<Map<String, dynamic>> createPad(Map<String, dynamic> body) async {
+    try {
+      print('Hitting POST ${baseUrl}pads');
+      final response = await http.post(
+        Uri.parse('${baseUrl}pads'),
+        headers: _headers,
+        body: jsonEncode(body),
+      );
+      print('statuscode------${response.statusCode}');
+      print('response body------${response.body}');
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200 || response.statusCode == 201,
+        'data': data['data'],
+        'message': data['message'] ?? 'Pad created successfully',
+      };
+    } catch (e) {
+      print('Error in createPad: $e');
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  // ── Well Operations ──────────────────────────────────────────────────────────
+  Future<Map<String, dynamic>> createWell(Map<String, dynamic> body) async {
+    try {
+      print('Hitting POST ${baseUrl}wells');
+      final response = await http.post(
+        Uri.parse('${baseUrl}wells'),
+        headers: _headers,
+        body: jsonEncode(body),
+      );
+      print('statuscode------${response.statusCode}');
+      print('response body------${response.body}');
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200 || response.statusCode == 201,
+        'data': data['data'],
+        'message': data['message'] ?? 'Well created successfully',
+      };
+    } catch (e) {
+      print('Error in createWell: $e');
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> updateWell(String id, Map<String, dynamic> body) async {
+    try {
+      print('Hitting PUT ${baseUrl}wells/$id');
+      final response = await http.put(
+        Uri.parse('${baseUrl}wells/$id'),
+        headers: _headers,
+        body: jsonEncode(body),
+      );
+      print('statuscode------${response.statusCode}');
+      print('response body------${response.body}');
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200,
+        'data': data['data'],
+        'message': data['message'] ?? 'Well updated successfully',
+      };
+    } catch (e) {
+      print('Error in updateWell: $e');
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> getWellsByPad(String padId) async {
+    try {
+      print('Hitting GET ${baseUrl}wells/pad/$padId');
+      final response = await http.get(
+        Uri.parse('${baseUrl}wells/pad/$padId'),
+        headers: _headers,
+      );
+      print('statuscode------${response.statusCode}');
+      print('response body------${response.body}');
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200,
+        'data': data['data'],
+        'message': data['message'] ?? 'Success',
+      };
+    } catch (e) {
+      print('Error in getWellsByPad: $e');
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  // ── Save Well General (Legacy Support) ──────────────────────────────────────
   Future<Map<String, dynamic>> saveWellGeneral(
       Map<String, dynamic> body) async {
     try {
@@ -318,11 +431,33 @@ class AuthRepository {
     }
   }
 
-  Future<Map<String, dynamic>> deleteTransferMud(String id) async {
+  Future<Map<String, dynamic>> updateTransferMud(String wellId, String id, Map<String, dynamic> body) async {
     try {
-      print('Hitting DELETE ${baseUrl}transfer-mud/$id');
+      print('Hitting PUT ${baseUrl}transfer-mud/$wellId/$id');
+      final response = await http.put(
+        Uri.parse('${baseUrl}transfer-mud/$wellId/$id'),
+        headers: _headers,
+        body: jsonEncode(body),
+      );
+      print('statuscode------${response.statusCode}');
+      print('response body------${response.body}');
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200,
+        'data': data,
+        'message': data['message'] ?? 'Transfer Mud updated successfully',
+      };
+    } catch (e) {
+      print('Error in updateTransferMud: $e');
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> deleteTransferMud(String wellId, String id) async {
+    try {
+      print('Hitting DELETE ${baseUrl}transfer-mud/$wellId/$id');
       final response = await http.delete(
-        Uri.parse('${baseUrl}transfer-mud/$id'),
+        Uri.parse('${baseUrl}transfer-mud/$wellId/$id'),
         headers: _headers,
       );
       print('statuscode------${response.statusCode}');

@@ -10,9 +10,25 @@ class WellGeneralController extends GetxController {
 
   var isLoading = false.obs;
   var isSaving = false.obs;
-  var savedId = ''.obs; // ID of currently loaded record
+  var savedId = ''.obs; // ID of currently loaded report record
+
+  // Dynamic IDs
+  final currentPadId = ''.obs;
+  final currentWellId = ''.obs;
+  final wellIdForReport = ''.obs; // The _id of the 'Well' from /api/wells
 
   // All field values as Rx strings so UI can react
+  var wellNameNo = 'UG-0293 ST'.obs;
+  var apiWellNo = ''.obs;
+  var spudDate = ''.obs;
+  var sectionTownshipRange = 'UMM Gudair (UG)'.obs;
+  var longitude = ''.obs;
+  var latitude = ''.obs;
+  var kop = ''.obs;
+  var lp = ''.obs;
+  var bulkTankSetupFee = ''.obs;
+  var memo = ''.obs;
+
   var reportNo = ''.obs;
   var userReportNo = ''.obs;
   var date = ''.obs;
@@ -148,14 +164,32 @@ print('WellGeneral fetch response: ${response.statusCode} ${response.body}');
     try {
       final authRepo = AuthRepository();
       
-      // We always send the wellId from kControllerWellId to the new unified Save endpoint
+      // 1. Ensure we have a Well ID. If not, we might need to create one.
+      // Note: In this architecture, usually the Well creation happens when saving 
+      // the Well tab for the first time or via a separate 'Create Well' action.
+      // For now, we'll ensure we have a wellId before saving the report.
+      
+      if (currentWellId.value.isEmpty) {
+        if (currentPadId.value.isNotEmpty) {
+          // Auto-create well if it doesn't exist
+          final wellRes = await saveWell(); 
+          if (!wellRes['success']) {
+            return wellRes;
+          }
+        } else {
+          return {'success': false, 'message': 'No Well ID available. Please create/select a well first.'};
+        }
+      } else {
+        // Update existing well info (longitude, latitude, etc.) to keep it dynamic
+        await updateWellStaticInfo();
+      }
       final payload = _toJson();
-      payload['wellId'] = kControllerWellId;
+      payload['wellId'] = currentWellId.value;
 
       final result = await authRepo.saveWellGeneral(payload);
 
       if (result['success'] == true) {
-        final data = result['data']?['data']; // auth_repo returns {success, data: {success, data, message}}
+        final data = result['data']?['data'];
         if (data != null) {
           _fromJson(data);
         }
@@ -171,6 +205,65 @@ print('WellGeneral fetch response: ${response.statusCode} ${response.body}');
       return {'success': false, 'message': 'Error saving Well General: $e'};
     } finally {
       isSaving.value = false;
+    }
+  }
+
+  // ─── SAVE WELL ───────────────────
+  Future<Map<String, dynamic>> saveWell() async {
+    final authRepo = AuthRepository();
+    try {
+      if (currentPadId.value.isEmpty) {
+        return {'success': false, 'message': 'Cannot create well: Missing Pad ID'};
+      }
+
+      final payload = {
+        'padId': currentPadId.value,
+        'wellNameNo': wellNameNo.value,
+        'apiWellNo': apiWellNo.value,
+        'spudDate': spudDate.value,
+        'sectionTownshipRange': sectionTownshipRange.value,
+        'longitude': longitude.value,
+        'latitude': latitude.value,
+        'kop': double.tryParse(kop.value) ?? 0,
+        'lp': double.tryParse(lp.value) ?? 0,
+        'bulkTankSetupFee': double.tryParse(bulkTankSetupFee.value) ?? 0,
+      };
+
+      final res = await authRepo.createWell(payload);
+      if (res['success']) {
+        if (res['data'] != null && res['data']['_id'] != null) {
+          currentWellId.value = res['data']['_id'];
+        }
+        return {'success': true, 'message': 'Well created successfully'};
+      }
+      return {'success': false, 'message': res['message'] ?? 'Failed to create well'};
+    } catch (e) {
+      return {'success': false, 'message': 'Error creating well: $e'};
+    }
+  }
+
+  // ─── UPDATE WELL STATIC INFO ───────────────────
+  Future<Map<String, dynamic>> updateWellStaticInfo() async {
+    final authRepo = AuthRepository();
+    try {
+      if (currentWellId.value.isEmpty) return {'success': false};
+
+      final payload = {
+        'wellNameNo': wellNameNo.value,
+        'apiWellNo': apiWellNo.value,
+        'spudDate': spudDate.value,
+        'sectionTownshipRange': sectionTownshipRange.value,
+        'longitude': longitude.value,
+        'latitude': latitude.value,
+        'kop': double.tryParse(kop.value) ?? 0,
+        'lp': double.tryParse(lp.value) ?? 0,
+        'bulkTankSetupFee': double.tryParse(bulkTankSetupFee.value) ?? 0,
+      };
+
+      return await authRepo.updateWell(currentWellId.value, payload);
+    } catch (e) {
+      print('Error updating well info: $e');
+      return {'success': false, 'message': e.toString()};
     }
   }
 }

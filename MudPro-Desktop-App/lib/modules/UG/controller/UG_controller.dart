@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get/get_state_manager/src/simple/get_controllers.dart';
+import 'package:mudpro_desktop_app/utils/alert_service.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/formation_row_model.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/inventory_model.dart';
@@ -14,12 +15,36 @@ import 'package:mudpro_desktop_app/modules/company_setup/model/products_model.da
 class UgController extends GetxController {
   final AuthRepository repository = AuthRepository();
   
+  // Dynamic IDs
+  final currentPadId = ''.obs;
+  final padName = 'UG'.obs;
+
+  // Location Details
+  final location = 'Land'.obs;
+  final fieldBlock = 'Umm Gudair (UG)'.obs;
+  final rig = 'SP-175'.obs;
+  final county = 'Kuwait'.obs;
+  final state = 'West Kuwait'.obs;
+  final country = 'Kuwait'.obs;
+  final stockPoint = 'Burgan'.obs;
+  final operator = 'Kuwait Oil Company'.obs;
+  final operatorRep = 'Chandra Shekhar'.obs;
+  final contractor = 'Sinopec'.obs;
+  final contractorRep = 'Yin'.obs;
+  final airGap = ''.obs;
+  final waterDepth = ''.obs;
+  final riserOd = ''.obs;
+  final riserId = ''.obs;
+  final chokeLineId = ''.obs;
+  final killLineId = ''.obs;
+  final boostLineId = ''.obs;
+  final memo = ''.obs;
+
   // Replace with actual well ID logic later
   String get wellId => '507f1f77bcf86cd799439011';
 
   // Right panel main tab
   final activeRightTab = 'pad'.obs;
-   final location = 'Land'.obs;
 
   // Lock / Unlock
   final isLocked = true.obs;
@@ -233,22 +258,10 @@ final services = <ServiceModel>[
         final fetchedProducts = result['products'] as List<dynamic>;
         products.value = fetchedProducts.map((p) => p as ProductModel).toList();
       } else {
-        Get.snackbar(
-          'Error',
-          result['message'],
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.red,
-          colorText: Colors.white,
-        );
+        AlertService.show(result['message'], isSuccess: false);
       }
     } catch (e) {
-      Get.snackbar(
-        'Error',
-        'Failed to fetch products: $e',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
+      AlertService.show('Failed to fetch products: $e', isSuccess: false);
     }
   }
 
@@ -267,13 +280,7 @@ final services = <ServiceModel>[
         false, // tax
       )).toList();
     } catch (e) {
-      Get.snackbar(
-        'Error',
-        'Failed to fetch packages: $e',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
+      AlertService.show('Failed to fetch packages: $e', isSuccess: false);
     }
   }
 
@@ -291,13 +298,7 @@ final services = <ServiceModel>[
         false, // tax
       )).toList();
     } catch (e) {
-      Get.snackbar(
-        'Error',
-        'Failed to fetch engineering: $e',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
+      AlertService.show('Failed to fetch engineering: $e', isSuccess: false);
     }
   }
 
@@ -315,13 +316,7 @@ final services = <ServiceModel>[
         false, // tax
       )).toList();
     } catch (e) {
-      Get.snackbar(
-        'Error',
-        'Failed to fetch services: $e',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
+      AlertService.show('Failed to fetch services: $e', isSuccess: false);
     }
   }
 
@@ -524,5 +519,45 @@ final services = <ServiceModel>[
     }
 
     return {'success': true, 'message': 'No changes to save'};
+  }
+
+  // ================= SAVE PAD =================
+  Future<Map<String, dynamic>> savePad() async {
+    final Map<String, dynamic> padData = {
+      'padName': padName.value,
+      'location': location.value,
+      'fieldBlock': fieldBlock.value,
+      'rig': rig.value,
+      'county': county.value,
+      'state': state.value,
+      'country': country.value,
+      'stockPoint': stockPoint.value,
+      'operator': operator.value,
+      'operatorRep': operatorRep.value,
+      'contractor': contractor.value,
+      'contractorRep': contractorRep.value,
+      'airGap': airGap.value,
+      'waterDepth': waterDepth.value,
+      'riserOd': riserOd.value,
+      'riserId': riserId.value,
+      'chokeLineId': chokeLineId.value,
+      'killLineId': killLineId.value,
+      'boostLineId': boostLineId.value,
+      'memo': memo.value,
+    };
+
+    try {
+      final res = await repository.createPad(padData);
+      if (res['success']) {
+        if (res['data'] != null && res['data']['_id'] != null) {
+          currentPadId.value = res['data']['_id'];
+        }
+        return {'success': true, 'message': 'Pad saved successfully'};
+      } else {
+        return {'success': false, 'message': res['message']};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Failed to save pad: $e'};
+    }
   }
 }

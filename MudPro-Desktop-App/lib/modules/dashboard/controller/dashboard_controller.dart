@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get/get_state_manager/src/simple/get_controllers.dart';
+import 'package:mudpro_desktop_app/utils/alert_service.dart';
 import 'dart:async';
 
 class DashboardController extends GetxController {
@@ -17,7 +18,21 @@ class DashboardController extends GetxController {
   Timer? _debounceTimer;
   final Duration _debounceDuration = const Duration(milliseconds: 100);
 
-  void toggleLock() => isLocked.toggle();
+  void toggleLock({BuildContext? context}) {
+    isLocked.toggle();
+    AlertService.show(
+      isLocked.value ? 'App Locked for Editing' : 'App Unlocked for Editing',
+      isSuccess: !isLocked.value,
+      context: context,
+    );
+  }
+
+  void showLockedPopup() {
+    AlertService.show(
+      'Locked: Unlock from Top Bar first!',
+      isSuccess: false,
+    );
+  }
 
   @override
   void onInit() {

@@ -514,36 +514,56 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
   }
 
   Widget _buildTopProductDropdown() {
-    return Container(
-      height: 32,
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: BoxDecoration(
-        color: Colors.white, borderRadius: BorderRadius.circular(3),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: Row(children: [
-        Icon(Icons.inventory_2_outlined, size: 14, color: AppTheme.textSecondary),
-        const SizedBox(width: 6),
-        Expanded(child: Obx(() => DropdownButtonHideUnderline(
-          child: DropdownButton<ProductModel>(
-            value: selectedTopProduct.value != null &&
-                products.any((p) => p.id == selectedTopProduct.value?.id)
-                ? selectedTopProduct.value : null,
-            hint: Text("Select Products",
-                style: AppTheme.bodySmall.copyWith(fontSize: 10, color: AppTheme.textSecondary)),
-            icon: const Icon(Icons.arrow_drop_down, size: 16),
-            isExpanded: true, isDense: true, menuMaxHeight: 300,
-            items: products.where((p) => p.id != null).map((p) =>
-              DropdownMenuItem(value: p,
-                child: Text(p.product,
-                    style: AppTheme.bodySmall.copyWith(fontSize: 10),
-                    overflow: TextOverflow.ellipsis))).toList(),
-            onChanged: dashboardController.isLocked.value
-                ? null : (v) => selectedTopProduct.value = v,
+    return Obx(() {
+      final isLocked = dashboardController.isLocked.value;
+      return GestureDetector(
+        onTap: isLocked ? () => dashboardController.showLockedPopup() : null,
+        behavior: HitTestBehavior.opaque,
+        child: AbsorbPointer(
+          absorbing: isLocked,
+          child: Container(
+            height: 32,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(3),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            child: Row(children: [
+              Icon(Icons.inventory_2_outlined,
+                  size: 14, color: AppTheme.textSecondary),
+              const SizedBox(width: 6),
+              Expanded(
+                  child: DropdownButtonHideUnderline(
+                child: DropdownButton<ProductModel>(
+                  value: selectedTopProduct.value != null &&
+                          products
+                              .any((p) => p.id == selectedTopProduct.value?.id)
+                      ? selectedTopProduct.value
+                      : null,
+                  hint: Text("Select Products",
+                      style: AppTheme.bodySmall.copyWith(
+                          fontSize: 10, color: AppTheme.textSecondary)),
+                  icon: const Icon(Icons.arrow_drop_down, size: 16),
+                  isExpanded: true,
+                  isDense: true,
+                  menuMaxHeight: 300,
+                  items: products
+                      .where((p) => p.id != null)
+                      .map((p) => DropdownMenuItem(
+                          value: p,
+                          child: Text(p.product,
+                              style: AppTheme.bodySmall.copyWith(fontSize: 10),
+                              overflow: TextOverflow.ellipsis)))
+                      .toList(),
+                  onChanged: isLocked ? null : (v) => selectedTopProduct.value = v,
+                ),
+              )),
+            ]),
           ),
-        ))),
-      ]),
-    );
+        ),
+      );
+    });
   }
 
   Widget _buildDropdown({required String hint, required IconData icon}) {
@@ -570,45 +590,60 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
   }
 
   Widget _buildRadioBtn(String value) {
-    return Obx(() => InkWell(
-      onTap: dashboardController.isLocked.value
-          ? null : () => selectedMethod.value = value,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-        decoration: BoxDecoration(
-          color: selectedMethod.value == value
-              ? AppTheme.primaryColor.withOpacity(0.1) : Colors.transparent,
-          borderRadius: BorderRadius.circular(3),
-          border: Border.all(
-              color: selectedMethod.value == value
-                  ? AppTheme.primaryColor : Colors.grey.shade300),
-        ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Container(
-            width: 11, height: 11,
+    return Obx(() {
+      final isLocked = dashboardController.isLocked.value;
+      return GestureDetector(
+        onTap: isLocked ? () => dashboardController.showLockedPopup() : null,
+        behavior: HitTestBehavior.opaque,
+        child: InkWell(
+          onTap: isLocked ? null : () => selectedMethod.value = value,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(
-              shape: BoxShape.circle,
+              color: selectedMethod.value == value
+                  ? AppTheme.primaryColor.withOpacity(0.1)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(3),
               border: Border.all(
                   color: selectedMethod.value == value
-                      ? AppTheme.primaryColor : Colors.grey.shade400,
-                  width: 1.5),
+                      ? AppTheme.primaryColor
+                      : Colors.grey.shade300),
             ),
-            child: selectedMethod.value == value
-                ? Center(child: Container(
-                    width: 5, height: 5,
-                    decoration: BoxDecoration(
-                        shape: BoxShape.circle, color: AppTheme.primaryColor)))
-                : null,
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Container(
+                width: 11,
+                height: 11,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                      color: selectedMethod.value == value
+                          ? AppTheme.primaryColor
+                          : Colors.grey.shade400,
+                      width: 1.5),
+                ),
+                child: selectedMethod.value == value
+                    ? Center(
+                        child: Container(
+                            width: 5,
+                            height: 5,
+                            decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: AppTheme.primaryColor)))
+                    : null,
+              ),
+              const SizedBox(width: 5),
+              Text(value,
+                  style: AppTheme.bodySmall.copyWith(
+                    fontSize: 10,
+                    color: selectedMethod.value == value
+                        ? AppTheme.primaryColor
+                        : AppTheme.textSecondary,
+                  )),
+            ]),
           ),
-          const SizedBox(width: 5),
-          Text(value, style: AppTheme.bodySmall.copyWith(
-            fontSize: 10,
-            color: selectedMethod.value == value
-                ? AppTheme.primaryColor : AppTheme.textSecondary,
-          )),
-        ]),
-      ),
-    ));
+        ),
+      );
+    });
   }
 
   Widget _buildProductTable() {
@@ -917,23 +952,32 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     bool locked = false,
     bool highlighted = false,
   }) {
-    return Container(
-      key: key,
-      width: width,
-      padding: const EdgeInsets.symmetric(horizontal: 6),
-      color: highlighted ? const Color(0xFFE8F4FD) : null,
-      child: TextFormField(
-        initialValue: value,
-        enabled: !locked,
-        style: AppTheme.bodySmall.copyWith(fontSize: 10),
-        textAlign: TextAlign.right,
-        keyboardType: const TextInputType.numberWithOptions(signed: true, decimal: true),
-        decoration: const InputDecoration(
-          isDense: true,
-          contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-          border: InputBorder.none,
+    final isLockedGlobal = dashboardController.isLocked.value;
+    return GestureDetector(
+      onTap: isLockedGlobal ? () => dashboardController.showLockedPopup() : null,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        key: key,
+        width: width,
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        color: highlighted ? const Color(0xFFE8F4FD) : null,
+        child: AbsorbPointer(
+          absorbing: isLockedGlobal || locked,
+          child: TextFormField(
+            initialValue: value,
+            enabled: !(isLockedGlobal || locked),
+            style: AppTheme.bodySmall.copyWith(fontSize: 10),
+            textAlign: TextAlign.right,
+            keyboardType:
+                const TextInputType.numberWithOptions(signed: true, decimal: true),
+            decoration: const InputDecoration(
+              isDense: true,
+              contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+              border: InputBorder.none,
+            ),
+            onChanged: onChange,
+          ),
         ),
-        onChanged: onChange,
       ),
     );
   }
@@ -1124,28 +1168,39 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     final validValues = {kEmpty, kActiveSystem, ...unselectedPits.map((p) => p.pitName)};
     final currentValue = validValues.contains(dr.pit) ? dr.pit : kEmpty;
 
-    return DropdownButtonHideUnderline(
-      child: DropdownButton<String>(
-        value: currentValue,
-        isExpanded: true,
-        isDense: true,
-        icon: Icon(
-          Icons.arrow_drop_down,
-          size: 14,
-          color: Colors.grey.shade500,
+    return Obx(() {
+      final isLocked = dashboardController.isLocked.value;
+      return GestureDetector(
+        onTap: isLocked ? () => dashboardController.showLockedPopup() : null,
+        behavior: HitTestBehavior.opaque,
+        child: AbsorbPointer(
+          absorbing: isLocked,
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: currentValue,
+              isExpanded: true,
+              isDense: true,
+              icon: Icon(
+                Icons.arrow_drop_down,
+                size: 14,
+                color: Colors.grey.shade500,
+              ),
+              style: AppTheme.bodySmall
+                  .copyWith(fontSize: 10, color: AppTheme.textPrimary),
+              menuMaxHeight: 250,
+              items: items,
+              onChanged: isLocked
+                  ? null
+                  : (String? val) {
+                      if (val == null) return;
+                      selectedDistributeRow.value = index;
+                      _onDistributePitSelected(index, val);
+                    },
+            ),
+          ),
         ),
-        style: AppTheme.bodySmall.copyWith(fontSize: 10, color: AppTheme.textPrimary),
-        menuMaxHeight: 250,
-        items: items,
-        onChanged: dashboardController.isLocked.value
-            ? null
-            : (String? val) {
-                if (val == null) return;
-                selectedDistributeRow.value = index;
-                _onDistributePitSelected(index, val);
-              },
-      ),
-    );
+      );
+    });
   }
 
   Widget _distributeHeaderBtn({
@@ -1155,16 +1210,18 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     Color? color,
     Color? iconColor,
   }) {
-    return Tooltip(
+    return Obx(() => Tooltip(
       message: tooltip,
       child: InkWell(
-        onTap: onTap,
+        onTap: dashboardController.isLocked.value 
+            ? () => dashboardController.showLockedPopup() 
+            : onTap,
         borderRadius: BorderRadius.circular(3),
         child: Container(
           width: 22,
           height: 22,
           decoration: BoxDecoration(
-            color: onTap == null
+            color: dashboardController.isLocked.value
                 ? Colors.white.withOpacity(0.1)
                 : (color ?? Colors.white.withOpacity(0.2)),
             borderRadius: BorderRadius.circular(3),
@@ -1172,13 +1229,13 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
           child: Icon(
             icon,
             size: 13,
-            color: onTap == null
+            color: dashboardController.isLocked.value
                 ? Colors.white.withOpacity(0.3)
                 : (iconColor ?? Colors.white),
           ),
         ),
       ),
-    );
+    ));
   }
 
   Widget _distHeaderCell(String text, double width, {bool right = false}) {
@@ -1304,36 +1361,54 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
   }
 
   Widget _waterField() {
-    return Container(
-      height: 32,
-      decoration: BoxDecoration(
-        color: Colors.white, borderRadius: BorderRadius.circular(3),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: Row(children: [
-        Expanded(child: TextField(
-          controller: waterVolumeController,
-          enabled: !dashboardController.isLocked.value,
-          style: AppTheme.bodySmall.copyWith(fontSize: 10),
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            isDense: true,
-            contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            border: InputBorder.none,
-          ),
-        )),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
+    return Obx(() {
+      final isLocked = dashboardController.isLocked.value;
+      return GestureDetector(
+        onTap: isLocked ? () => dashboardController.showLockedPopup() : null,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          height: 32,
           decoration: BoxDecoration(
-            color: AppTheme.primaryColor.withOpacity(0.1),
-            borderRadius: const BorderRadius.only(
-                topRight: Radius.circular(3), bottomRight: Radius.circular(3)),
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(3),
+            border: Border.all(color: Colors.grey.shade300),
           ),
-          child: Center(child: Text("bbl", style: AppTheme.bodySmall.copyWith(
-              fontSize: 10, color: AppTheme.primaryColor, fontWeight: FontWeight.w600))),
+          child: Row(children: [
+            Expanded(
+                child: AbsorbPointer(
+              absorbing: isLocked,
+              child: TextField(
+                controller: waterVolumeController,
+                enabled: !isLocked,
+                style: AppTheme.bodySmall.copyWith(fontSize: 10),
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  isDense: true,
+                  contentPadding:
+                      EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  border: InputBorder.none,
+                ),
+              ),
+            )),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryColor.withOpacity(0.1),
+                borderRadius: const BorderRadius.only(
+                    topRight: Radius.circular(3),
+                    bottomRight: Radius.circular(3)),
+              ),
+              child: Center(
+                  child: Text("bbl",
+                      style: AppTheme.bodySmall.copyWith(
+                          fontSize: 10,
+                          color: AppTheme.primaryColor,
+                          fontWeight: FontWeight.w600))),
+            ),
+          ]),
         ),
-      ]),
-    );
+      );
+    });
   }
 }
 

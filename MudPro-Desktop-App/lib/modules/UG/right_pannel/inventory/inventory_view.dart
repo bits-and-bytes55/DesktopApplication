@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/UG_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/inventory_pickup/inventory_pickup_tabs.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/inventory_products_view.dart';
@@ -13,6 +14,7 @@ import 'package:mudpro_desktop_app/theme/app_theme.dart';
 class InventoryView extends StatelessWidget {
   InventoryView({super.key});
   final c = Get.find<UgController>();
+  final dashCtrl = Get.find<DashboardController>();
 
   @override
   Widget build(BuildContext context) {
@@ -161,9 +163,9 @@ class InventoryView extends StatelessWidget {
       ),
       child: Column(
         children: [
-          _footerRow('Bulk Tank Setup Fee (\$)', enabled: !c.isLocked.value),
+          _footerRow('Bulk Tank Setup Fee (\$)', enabled: !dashCtrl.isLocked.value),
           const SizedBox(height: 8),
-          _footerRow('Tax Rate (%)', enabled: !c.isLocked.value),
+          _footerRow('Tax Rate (%)', enabled: !dashCtrl.isLocked.value),
         ],
       ),
     );
@@ -201,7 +203,7 @@ class InventoryView extends StatelessWidget {
                   height: 24,
                   child: Obx(() => TextField(
                     controller: TextEditingController(text: c.fromDate.value),
-                    enabled: !c.isLocked.value,
+                    enabled: !dashCtrl.isLocked.value,
                     onChanged: (value) => c.fromDate.value = value,
                     decoration: InputDecoration(
                       isDense: true,
@@ -255,9 +257,9 @@ class InventoryView extends StatelessWidget {
         SizedBox(
           height: 32,
           child: Obx(() => ElevatedButton(
-            onPressed: c.isLocked.value ? null : () => _applyAll(context),
+            onPressed: dashCtrl.isLocked.value ? () => dashCtrl.showLockedPopup() : () => _applyAll(context),
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor,
+              backgroundColor: dashCtrl.isLocked.value ? Colors.grey : AppTheme.primaryColor,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
               shape: RoundedRectangleBorder(
@@ -415,6 +417,7 @@ class InventoryView extends StatelessWidget {
               text: label.contains('Bulk Tank') ? c.bulkTankSetupFee.value : c.taxRate.value,
             ),
             enabled: enabled,
+            onTap: dashCtrl.isLocked.value ? () => dashCtrl.showLockedPopup() : null,
             onChanged: (value) {
               if (label.contains('Bulk Tank')) {
                 c.bulkTankSetupFee.value = value;
@@ -444,7 +447,7 @@ class InventoryView extends StatelessWidget {
         Obx(() => Radio<String>(
           value: text,
           groupValue: c.applyChangedPricesOption.value,
-          onChanged: c.isLocked.value ? null : (value) => c.applyChangedPricesOption.value = value!,
+          onChanged: dashCtrl.isLocked.value ? (val) => dashCtrl.showLockedPopup() : (value) => c.applyChangedPricesOption.value = value!,
           visualDensity: VisualDensity.compact,
           activeColor: AppTheme.primaryColor,
         )),

@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controller/UG_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class PadView extends StatelessWidget {
   PadView({super.key});
 
   final c = Get.find<UgController>();
+  final dashCtrl = Get.find<DashboardController>();
 
   @override
   Widget build(BuildContext context) {
@@ -83,6 +85,7 @@ class PadView extends StatelessWidget {
                           0: FixedColumnWidth(200),
                         },
                         children: [
+                          _row('Pad Name', c.padName),
                           // LOCATION (RADIO BUTTONS ROW)
                           TableRow(
                             decoration: BoxDecoration(
@@ -92,34 +95,34 @@ class PadView extends StatelessWidget {
                               _labelCell('Location'),
                               Padding(
                                 padding: const EdgeInsets.all(10),
-                                child: Obx(() => Row(
-                                      children: [
-                                        _radio('Land'),
-                                        const SizedBox(width: 20),
-                                        _radio('Offshore'),
-                                      ],
-                                    )),
+                                child: Row(
+                                  children: [
+                                    _radio('Land'),
+                                    const SizedBox(width: 20),
+                                    _radio('Offshore'),
+                                  ],
+                                ),
                               ),
                             ],
                           ),
                           
-                          _row('Field/Block', 'Umm Gudair (UG)'),
-                          _row('Rig', 'SP-175'),
-                          _row('County/Parish/Offshore Area', 'Kuwait'),
-                          _row('State/Province', 'West Kuwait'),
-                          _row('Country', 'Kuwait'),
-                          _row('Stock Point', 'Burgan'),
-                          _row('Operator', 'Kuwait Oil Company'),
-                          _row('Operator Rep.', 'Chandra Shekhar'),
-                          _row('Contractor', 'Sinopec'),
-                          _row('Contractor Rep.', 'Yin'),
-                          _row('Air Gap', ''),
-                          _row('Water Depth', ''),
-                          _row('Riser OD', ''),
-                          _row('Riser ID', ''),
-                          _row('Choke Line ID', ''),
-                          _row('Kill Line ID', ''),
-                          _row('Boost Line ID', ''),
+                          _row('Field/Block', c.fieldBlock),
+                          _row('Rig', c.rig),
+                          _row('County/Parish/Offshore Area', c.county),
+                          _row('State/Province', c.state),
+                          _row('Country', c.country),
+                          _row('Stock Point', c.stockPoint),
+                          _row('Operator', c.operator),
+                          _row('Operator Rep.', c.operatorRep),
+                          _row('Contractor', c.contractor),
+                          _row('Contractor Rep.', c.contractorRep),
+                          _row('Air Gap', c.airGap),
+                          _row('Water Depth', c.waterDepth),
+                          _row('Riser OD', c.riserOd),
+                          _row('Riser ID', c.riserId),
+                          _row('Choke Line ID', c.chokeLineId),
+                          _row('Kill Line ID', c.killLineId),
+                          _row('Boost Line ID', c.boostLineId),
                         ],
                       ),
                     ),
@@ -232,22 +235,29 @@ class PadView extends StatelessWidget {
                         Expanded(
                           child: Padding(
                             padding: const EdgeInsets.all(12),
-                            child: Obx(() => TextField(
-                                  enabled: !c.isLocked.value,
-                                  maxLines: null,
-                                  expands: true,
-                                  textAlignVertical: TextAlignVertical.top,
-                                  decoration: InputDecoration(
-                                    hintText: 'Enter memo here...',
-                                    border: InputBorder.none,
-                                    hintStyle: TextStyle(color: Colors.grey.shade400),
-                                    contentPadding: EdgeInsets.zero,
-                                  ),
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: AppTheme.textPrimary,
-                                  ),
-                                )),
+                            child: Obx(() => dashCtrl.isLocked.value
+                                ? GestureDetector(
+                                    onTap: () => dashCtrl.showLockedPopup(),
+                                    behavior: HitTestBehavior.opaque,
+                                    child: AbsorbPointer(
+                                      child: TextField(
+                                        controller: TextEditingController(text: c.memo.value)..selection = TextSelection.collapsed(offset: c.memo.value.length),
+                                        maxLines: null,
+                                        style: TextStyle(color: AppTheme.textSecondary),
+                                        decoration: InputDecoration(
+                                          border: InputBorder.none,
+                                        ),
+                                      ),
+                                    ),
+                                  )
+                                : TextField(
+                                    controller: TextEditingController(text: c.memo.value)..selection = TextSelection.collapsed(offset: c.memo.value.length),
+                                    onChanged: (v) => c.memo.value = v,
+                                    maxLines: null,
+                                    decoration: InputDecoration(
+                                      border: InputBorder.none,
+                                    ),
+                                  )),
                           ),
                         ),
                       ],
@@ -264,7 +274,7 @@ class PadView extends StatelessWidget {
 
   // ================= HELPERS =================
 
-  TableRow _row(String label, String value) {
+  TableRow _row(String label, RxString value) {
     return TableRow(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -296,22 +306,28 @@ class PadView extends StatelessWidget {
     );
   }
 
-  Widget _valueCell(String value) {
+  Widget _valueCell(RxString rxValue) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      child: Obx(() => c.isLocked.value
-          ? Container(
-              padding: EdgeInsets.symmetric(vertical: 6),
-              child: Text(
-                value,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: AppTheme.textSecondary,
+      child: Obx(() => dashCtrl.isLocked.value
+          ? GestureDetector(
+              onTap: () => dashCtrl.showLockedPopup(),
+              behavior: HitTestBehavior.opaque,
+              child: Container(
+                width: double.infinity,
+                padding: EdgeInsets.symmetric(vertical: 6),
+                child: Text(
+                  rxValue.value,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: AppTheme.textSecondary,
+                  ),
                 ),
               ),
             )
           : TextFormField(
-              initialValue: value,
+              initialValue: rxValue.value,
+              onChanged: (v) => rxValue.value = v,
               style: TextStyle(fontSize: 11, color: AppTheme.textPrimary),
               decoration: InputDecoration(
                 isDense: true,
@@ -331,28 +347,33 @@ class PadView extends StatelessWidget {
         borderRadius: BorderRadius.circular(4),
         color: Colors.grey.shade100,
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Radio<String>(
-            value: text,
-            groupValue: c.location.value,
-            onChanged: c.isLocked.value ? null : (v) => c.location.value = v!,
-            visualDensity: VisualDensity.compact,
-            activeColor: AppTheme.primaryColor,
-          ),
-          Padding(
-            padding: EdgeInsets.only(right: 8),
-            child: Text(
-              text,
-              style: TextStyle(
-                fontSize: 11,
-                color: AppTheme.textPrimary,
-              ),
+      child: Obx(() => GestureDetector(
+            onTap: dashCtrl.isLocked.value
+                ? () => dashCtrl.showLockedPopup()
+                : null,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Radio<String>(
+                  value: text,
+                  groupValue: c.location.value,
+                  onChanged: dashCtrl.isLocked.value ? null : (v) => c.location.value = v!,
+                  visualDensity: VisualDensity.compact,
+                  activeColor: AppTheme.primaryColor,
+                ),
+                Padding(
+                  padding: EdgeInsets.only(right: 8),
+                  child: Text(
+                    text,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: dashCtrl.isLocked.value ? Colors.grey : AppTheme.textPrimary,
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
-      ),
+          )),
     );
   }
 }

@@ -20,9 +20,9 @@ class ReceiveMudView extends StatelessWidget {
         children: [
           // Header
           _buildHeader(),
-          
+
           const SizedBox(height: 8),
-          
+
           // Main Content - Compressed width
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -35,7 +35,7 @@ class ReceiveMudView extends StatelessWidget {
                 ),
               ),
               
-              Expanded(child: SizedBox()), // Spacer to push everything left
+              const Expanded(child: SizedBox()), // Spacer to push everything left
             ],
           ),
         ],
@@ -43,6 +43,7 @@ class ReceiveMudView extends StatelessWidget {
     );
   }
 
+  // â”€â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   Widget _buildHeader() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -53,9 +54,9 @@ class ReceiveMudView extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.water_drop, size: 18, color: Colors.white),
+          const Icon(Icons.water_drop, size: 18, color: Colors.white),
           const SizedBox(width: 8),
-          Text(
+          const Text(
             'Receive Mud',
             style: TextStyle(
               fontSize: 14,
@@ -63,11 +64,45 @@ class ReceiveMudView extends StatelessWidget {
               color: Colors.white,
             ),
           ),
+          const SizedBox(width: 16),
+          // Refresh button
+          Obx(() => controller.isLoading.value
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: Colors.white),
+                )
+              : InkWell(
+                  onTap: () => controller.refreshData(),
+                  borderRadius: BorderRadius.circular(4),
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.refresh, size: 14, color: Colors.white),
+                        SizedBox(width: 4),
+                        Text('Refresh',
+                            style:
+                                TextStyle(fontSize: 11, color: Colors.white)),
+                      ],
+                    ),
+                  ),
+                )),
         ],
       ),
     );
   }
 
+
+
+  // â”€â”€â”€ Form Section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   Widget _buildFormSection() {
     return Container(
       decoration: BoxDecoration(
@@ -81,14 +116,14 @@ class ReceiveMudView extends StatelessWidget {
         children: [
           // BOL No
           _buildBolSection(),
-          
+
           Divider(height: 1, color: Colors.grey.shade300),
-          
+
           // Data Table
           _buildDataTable(),
-          
+
           Divider(height: 1, color: Colors.grey.shade300),
-          
+
           // Loss Volume Section (below table)
           _buildLossVolumeSection(),
         ],
@@ -105,37 +140,47 @@ class ReceiveMudView extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Container(
+          SizedBox(
             width: 100,
             child: Text(
               'BOL No.',
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: AppTheme.textPrimary),
+              style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: AppTheme.textPrimary),
             ),
           ),
           Expanded(
             child: Obx(() => TextField(
-              controller: controller.bolNoController,
-              enabled: !dashboardController.isLocked.value,
-              style: TextStyle(fontSize: 11, color: AppTheme.textPrimary),
-              decoration: InputDecoration(
-                isDense: true,
-                contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                border: OutlineInputBorder(
-                  borderSide: BorderSide(color: Colors.grey.shade300),
-                  borderRadius: BorderRadius.circular(3),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderSide: BorderSide(color: Colors.grey.shade300),
-                  borderRadius: BorderRadius.circular(3),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderSide: BorderSide(color: AppTheme.primaryColor, width: 1.5),
-                  borderRadius: BorderRadius.circular(3),
-                ),
-                filled: true,
-                fillColor: dashboardController.isLocked.value ? Colors.grey.shade100 : Colors.white,
-              ),
-            )),
+                  controller: controller.bolNoController,
+                  enabled: !dashboardController.isLocked.value,
+                  style:
+                      TextStyle(fontSize: 11, color: AppTheme.textPrimary),
+                  decoration: InputDecoration(
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 8),
+                    border: OutlineInputBorder(
+                      borderSide:
+                          BorderSide(color: Colors.grey.shade300),
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderSide:
+                          BorderSide(color: Colors.grey.shade300),
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: BorderSide(
+                          color: AppTheme.primaryColor, width: 1.5),
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                    filled: true,
+                    fillColor: dashboardController.isLocked.value
+                        ? Colors.grey.shade100
+                        : Colors.white,
+                  ),
+                )),
           ),
         ],
       ),
@@ -146,11 +191,12 @@ class ReceiveMudView extends StatelessWidget {
     return Obx(() {
       if (controller.isLoading.value) {
         return Container(
-          padding: EdgeInsets.all(40),
+          padding: const EdgeInsets.all(40),
           child: Center(
             child: CircularProgressIndicator(
               strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
+              valueColor:
+                  AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
             ),
           ),
         );
@@ -158,8 +204,10 @@ class ReceiveMudView extends StatelessWidget {
 
       return Table(
         border: TableBorder(
-          horizontalInside: BorderSide(color: Colors.grey.shade300, width: 1),
-          verticalInside: BorderSide(color: Colors.grey.shade300, width: 1),
+          horizontalInside:
+              BorderSide(color: Colors.grey.shade300, width: 1),
+          verticalInside:
+              BorderSide(color: Colors.grey.shade300, width: 1),
         ),
         columnWidths: const {
           0: FixedColumnWidth(100),
@@ -167,67 +215,21 @@ class ReceiveMudView extends StatelessWidget {
           2: FixedColumnWidth(70),
         },
         children: [
-          // Premixed Mud Row (Dropdown)
           _buildPremixedMudRow(),
-          
-          // MW Row
-          _buildEditableRow('MW', controller.mwController, '(ppg)'),
-
-          // Mud Type Row
-          _buildEditableRow('Mud Type', controller.mudTypeController, ''),
-
-          // Leasing Fee Row
-          _buildEditableRow('Leasing Fee', controller.leasingFeeController, '(kwd/bbl)'),
-
-          // From Row (Pit Dropdown)
+          _buildEditableRow(
+              'MW', controller.mwController, '(ppg)'),
+          _buildEditableRow(
+              'Mud Type', controller.mudTypeController, ''),
+          _buildEditableRow(
+              'Leasing Fee', controller.leasingFeeController, '(kwd/bbl)'),
           _buildFromPitRow(),
-          
-          // To Row (Active System / Pit Dropdown)
           _buildToPitRow(),
-          
-          // Vol Row (Manual Input - Locked)
-          _buildEditableRow('Vol.', controller.volController, '(bbl)', isReadOnly: true),
-
-          // Leased Row (Locked)
+          _buildEditableRow('Vol.', controller.volController, '(bbl)',
+              isReadOnly: true),
           _buildLeasedRow(),
         ],
       );
     });
-  }
-
-  TableRow _buildBolRow() {
-    return TableRow(
-      children: [
-        _buildLabelCell('BOL. No.'),
-        Padding(
-          padding: const EdgeInsets.all(6),
-          child: Obx(() => TextField(
-            controller: controller.bolNoController,
-            enabled: !dashboardController.isLocked.value,
-            style: TextStyle(fontSize: 11, color: AppTheme.textPrimary),
-            decoration: InputDecoration(
-              isDense: true,
-              contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-              border: OutlineInputBorder(
-                borderSide: BorderSide(color: Colors.grey.shade300),
-                borderRadius: BorderRadius.circular(3),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderSide: BorderSide(color: Colors.grey.shade300),
-                borderRadius: BorderRadius.circular(3),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderSide: BorderSide(color: AppTheme.primaryColor, width: 1.5),
-                borderRadius: BorderRadius.circular(3),
-              ),
-              filled: true,
-              fillColor: dashboardController.isLocked.value ? Colors.grey.shade100 : Colors.white,
-            ),
-          )),
-        ),
-        _buildUnitCell(''),
-      ],
-    );
   }
 
   TableRow _buildPremixedMudRow() {
@@ -235,34 +237,47 @@ class ReceiveMudView extends StatelessWidget {
       children: [
         _buildLabelCell('Premixed Mud'),
         Padding(
-          padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 6),
+          padding:
+              const EdgeInsets.symmetric(vertical: 2, horizontal: 6),
           child: Obx(() => Container(
-            height: 25,
-            decoration: BoxDecoration(
-              color: Colors.transparent,
-              borderRadius: BorderRadius.circular(3),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: controller.selectedPremixedId.value.isEmpty ? null : controller.selectedPremixedId.value,
-                hint: Text('Select', style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
-                isExpanded: true,
-                isDense: true,
-                icon: Icon(Icons.arrow_drop_down, size: 18, color: Colors.grey.shade700),
-                style: TextStyle(fontSize: 11, color: AppTheme.textPrimary),
-                dropdownColor: Colors.white,
-                items: controller.premixedList.map((premixed) {
-                  return DropdownMenuItem<String>(
-                    value: premixed.id,
-                    child: Text(premixed.description, style: TextStyle(fontSize: 11), overflow: TextOverflow.ellipsis),
-                  );
-                }).toList(),
-                onChanged: dashboardController.isLocked.value ? null : (value) => value != null ? controller.selectPremixed(value) : null,
-                padding: EdgeInsets.symmetric(horizontal: 4),
-                menuMaxHeight: 200,
-              ),
-            ),
-          )),
+                height: 25,
+                decoration: BoxDecoration(
+                  color: Colors.transparent,
+                  borderRadius: BorderRadius.circular(3),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: controller.selectedPremixedId.value.isEmpty
+                        ? null
+                        : controller.selectedPremixedId.value,
+                    hint: Text('Select',
+                        style: TextStyle(
+                            fontSize: 11, color: Colors.grey.shade500)),
+                    isExpanded: true,
+                    isDense: true,
+                    icon: Icon(Icons.arrow_drop_down,
+                        size: 18, color: Colors.grey.shade700),
+                    style: TextStyle(
+                        fontSize: 11, color: AppTheme.textPrimary),
+                    dropdownColor: Colors.white,
+                    items: controller.premixedList.map((premixed) {
+                      return DropdownMenuItem<String>(
+                        value: premixed.id,
+                        child: Text(premixed.description,
+                            style: const TextStyle(fontSize: 11),
+                            overflow: TextOverflow.ellipsis),
+                      );
+                    }).toList(),
+                    onChanged: dashboardController.isLocked.value
+                        ? null
+                        : (value) => value != null
+                            ? controller.selectPremixed(value)
+                            : null,
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    menuMaxHeight: 200,
+                  ),
+                ),
+              )),
         ),
         Container(
           color: Colors.grey.shade50,
@@ -283,26 +298,32 @@ class ReceiveMudView extends StatelessWidget {
       children: [
         _buildLabelCell('From'),
         Padding(
-          padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 6),
+          padding:
+              const EdgeInsets.symmetric(vertical: 2, horizontal: 6),
           child: Obx(() => TextField(
-            controller: controller.fromController,
-            enabled: !dashboardController.isLocked.value,
-            style: TextStyle(fontSize: 11, color: AppTheme.textPrimary),
-            decoration: InputDecoration(
-              isDense: true,
-              contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-              border: InputBorder.none,
-              enabledBorder: InputBorder.none,
-              focusedBorder: InputBorder.none,
-            ),
-          )),
+                controller: controller.fromController,
+                enabled: !dashboardController.isLocked.value,
+                style:
+                    TextStyle(fontSize: 11, color: AppTheme.textPrimary),
+                decoration: const InputDecoration(
+                  isDense: true,
+                  contentPadding:
+                      EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                ),
+              )),
         ),
         _buildUnitCell(''),
       ],
     );
   }
 
-  Widget _buildIconButton({required IconData icon, required String tooltip, required VoidCallback onTap}) {
+  Widget _buildIconButton(
+      {required IconData icon,
+      required String tooltip,
+      required VoidCallback onTap}) {
     return Tooltip(
       message: tooltip,
       child: InkWell(
@@ -313,7 +334,8 @@ class ReceiveMudView extends StatelessWidget {
           decoration: BoxDecoration(
             color: AppTheme.primaryColor.withOpacity(0.1),
             borderRadius: BorderRadius.circular(4),
-            border: Border.all(color: AppTheme.primaryColor.withOpacity(0.3)),
+            border:
+                Border.all(color: AppTheme.primaryColor.withOpacity(0.3)),
           ),
           child: Icon(icon, size: 16, color: AppTheme.primaryColor),
         ),
@@ -334,38 +356,58 @@ class ReceiveMudView extends StatelessWidget {
                   final options = [
                     '',
                     'Active System',
-                    ...controller.pitController.unselectedPits.map((e) => e.pitName),
+                    ...controller.pitController.unselectedPits
+                        .map((e) => e.pitName),
                   ];
-                  final currentVal = controller.selectedToDestination.value;
-                  final validVal = options.contains(currentVal) ? currentVal : null;
+                  final currentVal =
+                      controller.selectedToDestination.value;
+                  final validVal =
+                      options.contains(currentVal) ? currentVal : null;
                   return Container(
                     height: 30,
                     decoration: BoxDecoration(
-                      color: dashboardController.isLocked.value ? Colors.grey.shade100 : Colors.white,
+                      color: dashboardController.isLocked.value
+                          ? Colors.grey.shade100
+                          : Colors.white,
                       border: Border.all(color: Colors.grey.shade300),
                       borderRadius: BorderRadius.circular(3),
                     ),
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<String>(
                         value: validVal,
-                        hint: Text('Select Destination', style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+                        hint: Text('Select Destination',
+                            style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey.shade500)),
                         isExpanded: true,
                         isDense: true,
-                        icon: Icon(Icons.arrow_drop_down, size: 18, color: Colors.grey.shade700),
-                        style: TextStyle(fontSize: 11, color: AppTheme.textPrimary),
+                        icon: Icon(Icons.arrow_drop_down,
+                            size: 18, color: Colors.grey.shade700),
+                        style: TextStyle(
+                            fontSize: 11, color: AppTheme.textPrimary),
                         dropdownColor: Colors.white,
                         items: options.map((name) {
                           return DropdownMenuItem<String>(
                             value: name,
                             child: name.isEmpty
-                                ? Text('-- None --', style: TextStyle(fontSize: 11, color: Colors.grey.shade400), overflow: TextOverflow.ellipsis)
-                                : Text(name, style: TextStyle(fontSize: 11), overflow: TextOverflow.ellipsis),
+                                ? Text('-- None --',
+                                    style: TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.grey.shade400),
+                                    overflow: TextOverflow.ellipsis)
+                                : Text(name,
+                                    style: const TextStyle(fontSize: 11),
+                                    overflow: TextOverflow.ellipsis),
                           );
                         }).toList(),
-                        onChanged: dashboardController.isLocked.value ? null : (value) {
-                          controller.selectedToDestination.value = value ?? '';
-                        },
-                        padding: EdgeInsets.symmetric(horizontal: 8),
+                        onChanged: dashboardController.isLocked.value
+                            ? null
+                            : (value) {
+                                controller.selectedToDestination.value =
+                                    value ?? '';
+                              },
+                        padding:
+                            const EdgeInsets.symmetric(horizontal: 8),
                         menuMaxHeight: 200,
                       ),
                     ),
@@ -380,43 +422,40 @@ class ReceiveMudView extends StatelessWidget {
     );
   }
 
-  TableRow _buildTableRow(String label, String value, String unit) {
-    return TableRow(
-      children: [
-        _buildLabelCell(label),
-        _buildValueCell(value),
-        _buildUnitCell(unit),
-      ],
-    );
-  }
-
-  TableRow _buildEditableRow(String label, TextEditingController controller, String unit, {bool isReadOnly = false}) {
+  TableRow _buildEditableRow(
+      String label, TextEditingController ctrl, String unit,
+      {bool isReadOnly = false}) {
     return TableRow(
       children: [
         _buildLabelCell(label),
         Padding(
-          padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 6),
+          padding:
+              const EdgeInsets.symmetric(vertical: 2, horizontal: 6),
           child: Obx(() => Opacity(
-            opacity: isReadOnly ? 0.6 : 1.0,
-            child: TextField(
-              controller: controller,
-              enabled: !dashboardController.isLocked.value && !isReadOnly,
-              readOnly: isReadOnly,
-              style: TextStyle(
-                fontSize: 11, 
-                color: isReadOnly ? Colors.grey.shade700 : AppTheme.textPrimary
-              ),
-              decoration: InputDecoration(
-                isDense: true,
-                contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                filled: isReadOnly,
-                fillColor: isReadOnly ? Colors.grey.shade200 : null,
-              ),
-            ),
-          )),
+                opacity: isReadOnly ? 0.6 : 1.0,
+                child: TextField(
+                  controller: ctrl,
+                  enabled: !dashboardController.isLocked.value &&
+                      !isReadOnly,
+                  readOnly: isReadOnly,
+                  style: TextStyle(
+                      fontSize: 11,
+                      color: isReadOnly
+                          ? Colors.grey.shade700
+                          : AppTheme.textPrimary),
+                  decoration: InputDecoration(
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 4, vertical: 8),
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    filled: isReadOnly,
+                    fillColor:
+                        isReadOnly ? Colors.grey.shade200 : null,
+                  ),
+                ),
+              )),
         ),
         _buildUnitCell(unit),
       ],
@@ -428,7 +467,8 @@ class ReceiveMudView extends StatelessWidget {
       children: [
         _buildLabelCell('Leased'),
         Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
+          padding:
+              const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
           child: Container(
             color: Colors.grey.shade50,
             child: Opacity(
@@ -438,10 +478,11 @@ class ReceiveMudView extends StatelessWidget {
                   Transform.scale(
                     scale: 0.85,
                     child: Checkbox(
-                      value: true, // Hardcoded to true for locked state
-                      onChanged: null, // Always disabled
-                      activeColor: Colors.grey.shade400, // Show it as disabled but checked
-                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      value: true,
+                      onChanged: null,
+                      activeColor: Colors.grey.shade400,
+                      materialTapTargetSize:
+                          MaterialTapTargetSize.shrinkWrap,
                       visualDensity: VisualDensity.compact,
                     ),
                   ),
@@ -457,7 +498,8 @@ class ReceiveMudView extends StatelessWidget {
 
   Widget _buildLabelCell(String text) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding:
+          const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       color: Colors.grey.shade50,
       child: Text(
         text,
@@ -470,30 +512,14 @@ class ReceiveMudView extends StatelessWidget {
     );
   }
 
-  Widget _buildValueCell(String text) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      color: Colors.white,
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: 11,
-          color: AppTheme.textPrimary,
-        ),
-      ),
-    );
-  }
-
   Widget _buildUnitCell(String text) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding:
+          const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       color: Colors.grey.shade50,
       child: Text(
         text,
-        style: TextStyle(
-          fontSize: 10,
-          color: AppTheme.textSecondary,
-        ),
+        style: TextStyle(fontSize: 10, color: AppTheme.textSecondary),
       ),
     );
   }
@@ -504,70 +530,79 @@ class ReceiveMudView extends StatelessWidget {
       child: Row(
         children: [
           Obx(() => Row(
-            children: [
-              Transform.scale(
-                scale: 0.85,
-                child: Checkbox(
-                  value: controller.hasLossVolume.value,
-                  onChanged: dashboardController.isLocked.value 
-                      ? null 
-                      : (value) {
-                          controller.hasLossVolume.value = value ?? false;
-                        },
-                  activeColor: AppTheme.primaryColor,
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  visualDensity: VisualDensity.compact,
-                ),
-              ),
-              const SizedBox(width: 4),
-              Text(
-                'Loss Volume',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                  color: AppTheme.textPrimary,
-                ),
-              ),
-            ],
-          )),
-          
+                children: [
+                  Transform.scale(
+                    scale: 0.85,
+                    child: Checkbox(
+                      value: controller.hasLossVolume.value,
+                      onChanged: dashboardController.isLocked.value
+                          ? null
+                          : (value) {
+                              controller.hasLossVolume.value =
+                                  value ?? false;
+                            },
+                      activeColor: AppTheme.primaryColor,
+                      materialTapTargetSize:
+                          MaterialTapTargetSize.shrinkWrap,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Loss Volume',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                ],
+              )),
           const SizedBox(width: 12),
-          
           Expanded(
             child: Obx(() => TextField(
-              controller: controller.lossVolumeController,
-              enabled: !dashboardController.isLocked.value && controller.hasLossVolume.value,
-              style: TextStyle(fontSize: 11, color: AppTheme.textPrimary),
-              decoration: InputDecoration(
-                isDense: true,
-                contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                border: OutlineInputBorder(
-                  borderSide: BorderSide(color: Colors.grey.shade300),
-                  borderRadius: BorderRadius.circular(3),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderSide: BorderSide(color: Colors.grey.shade300),
-                  borderRadius: BorderRadius.circular(3),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderSide: BorderSide(color: AppTheme.primaryColor, width: 1.5),
-                  borderRadius: BorderRadius.circular(3),
-                ),
-                disabledBorder: OutlineInputBorder(
-                  borderSide: BorderSide(color: Colors.grey.shade200),
-                  borderRadius: BorderRadius.circular(3),
-                ),
-                filled: true,
-                fillColor: !controller.hasLossVolume.value || dashboardController.isLocked.value
-                    ? Colors.grey.shade100 
-                    : Colors.white,
-                suffixText: '(bbl)',
-                suffixStyle: TextStyle(
-                  fontSize: 10,
-                  color: AppTheme.textSecondary,
-                ),
-              ),
-            )),
+                  controller: controller.lossVolumeController,
+                  enabled: !dashboardController.isLocked.value &&
+                      controller.hasLossVolume.value,
+                  style:
+                      TextStyle(fontSize: 11, color: AppTheme.textPrimary),
+                  decoration: InputDecoration(
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 8),
+                    border: OutlineInputBorder(
+                      borderSide:
+                          BorderSide(color: Colors.grey.shade300),
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderSide:
+                          BorderSide(color: Colors.grey.shade300),
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: BorderSide(
+                          color: AppTheme.primaryColor, width: 1.5),
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                    disabledBorder: OutlineInputBorder(
+                      borderSide:
+                          BorderSide(color: Colors.grey.shade200),
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                    filled: true,
+                    fillColor:
+                        !controller.hasLossVolume.value ||
+                                dashboardController.isLocked.value
+                            ? Colors.grey.shade100
+                            : Colors.white,
+                    suffixText: '(bbl)',
+                    suffixStyle: TextStyle(
+                      fontSize: 10,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                )),
           ),
         ],
       ),
@@ -577,11 +612,11 @@ class ReceiveMudView extends StatelessWidget {
   void _openConcentrationDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => _PremixedMudConcentrationDialog(controller: controller),
+      builder: (context) =>
+          _PremixedMudConcentrationDialog(controller: controller),
     );
   }
 }
-
 class _PremixedMudConcentrationDialog extends StatelessWidget {
   final ReceiveMudController controller;
 

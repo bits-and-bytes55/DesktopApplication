@@ -57,35 +57,6 @@ class UGRightPanel extends StatelessWidget {
                   ),
                 ),
               ),
-              Container(
-                margin: EdgeInsets.only(right: 8),
-                child: Obx(() => IconButton(
-                      icon: Container(
-                        padding: EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          gradient: c.isLocked.value 
-                            ? LinearGradient(
-                                colors: [Color(0xffFC8181), Color(0xffF56565)],
-                              )
-                            : AppTheme.secondaryGradient,
-                          borderRadius: BorderRadius.circular(6),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 3,
-                              offset: Offset(0, 1),
-                            ),
-                          ],
-                        ),
-                        child: Icon(
-                          c.isLocked.value ? Icons.lock : Icons.lock_open,
-                          size: 16,
-                          color: Colors.white,
-                        ),
-                      ),
-                      onPressed: c.toggleLock,
-                    )),
-              ),
             ],
           ),
         ),

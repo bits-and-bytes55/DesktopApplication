@@ -306,28 +306,35 @@ class _PumpPageState extends State<PumpPage> {
     return Obx(() {
       final ctrl = TextEditingController(text: row.spm.value)
         ..selection = TextSelection.collapsed(offset: row.spm.value.length);
-      return TextField(
-        enabled: !isLocked,
-        controller: ctrl,
-        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-        onChanged: (val) {
-          row.spm.value = val;
-          row.recalculateRate();
-          // ✅ Auto-add row when last row has data
-          _checkAddPumpRow(rowIndex);
-        },
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          fontSize: 9,
-          color: isLocked ? Colors.grey.shade400 : Colors.black87,
-          fontWeight: FontWeight.w500,
-        ),
-        decoration: InputDecoration(
-          border: InputBorder.none,
-          contentPadding: EdgeInsets.zero,
-          isDense: true,
-          filled: isLocked,
-          fillColor: isLocked ? Colors.grey.shade50 : null,
+      return GestureDetector(
+        onTap: isLocked ? () => dashboard.showLockedPopup() : null,
+        behavior: HitTestBehavior.opaque,
+        child: AbsorbPointer(
+          absorbing: isLocked,
+          child: TextField(
+            enabled: !isLocked,
+            controller: ctrl,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            onChanged: (val) {
+              row.spm.value = val;
+              row.recalculateRate();
+              // ✅ Auto-add row when last row has data
+              _checkAddPumpRow(rowIndex);
+            },
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 9,
+              color: isLocked ? Colors.grey.shade400 : Colors.black87,
+              fontWeight: FontWeight.w500,
+            ),
+            decoration: InputDecoration(
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.zero,
+              isDense: true,
+              filled: isLocked,
+              fillColor: isLocked ? Colors.grey.shade50 : null,
+            ),
+          ),
         ),
       );
     });
@@ -343,47 +350,56 @@ class _PumpPageState extends State<PumpPage> {
     return Obx(() {
       final current = row.model.value.isEmpty ? null : row.model.value;
       final safeVal = models.contains(current) ? current : null;
-      return DropdownButtonHideUnderline(
-        child: DropdownButton<String?>(
-          value: safeVal,
-          isExpanded: true,
-          isDense: true,
-          style: const TextStyle(fontSize: 9, color: Colors.black87),
-          onChanged: isLocked ? null : (selected) {
-            if (selected == null || selected.isEmpty) {
-              row.clear();
-              return;
-            }
+      return GestureDetector(
+        onTap: isLocked ? () => dashboard.showLockedPopup() : null,
+        behavior: HitTestBehavior.opaque,
+        child: AbsorbPointer(
+          absorbing: isLocked,
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String?>(
+              value: safeVal,
+              isExpanded: true,
+              isDense: true,
+              style: const TextStyle(fontSize: 9, color: Colors.black87),
+              onChanged: isLocked
+                  ? null
+                  : (selected) {
+                      if (selected == null || selected.isEmpty) {
+                        row.clear();
+                        return;
+                      }
 
-            final source = pumpController.pumps.firstWhereOrNull(
-              (p) => p.model.value == selected && p.hasData,
-            );
+                      final source = pumpController.pumps.firstWhereOrNull(
+                        (p) => p.model.value == selected && p.hasData,
+                      );
 
-            if (source != null) {
-              row.model.value        = selected;
-              row.type.value         = source.type.value;
-              row.linerId.value      = source.linerId.value;
-              final rodVal = double.tryParse(source.rodOd.value) ?? 0;
-              row.rodOd.value = rodVal > 0 ? source.rodOd.value : '';
-              row.strokeLength.value = source.strokeLength.value;
-              row.efficiency.value   = source.efficiency.value;
-              row.displacement.value = source.displacement.value;
-              row.spm.value          = '';
-              row.rate.value         = '';
-            }
-            // ✅ Auto-add row when last row's model is selected
-            _checkAddPumpRow(rowIndex);
-          },
-          items: [
-            const DropdownMenuItem<String?>(
-              value: null,
-              child: Text('', style: TextStyle(fontSize: 9)),
+                      if (source != null) {
+                        row.model.value = selected;
+                        row.type.value = source.type.value;
+                        row.linerId.value = source.linerId.value;
+                        final rodVal = double.tryParse(source.rodOd.value) ?? 0;
+                        row.rodOd.value = rodVal > 0 ? source.rodOd.value : '';
+                        row.strokeLength.value = source.strokeLength.value;
+                        row.efficiency.value = source.efficiency.value;
+                        row.displacement.value = source.displacement.value;
+                        row.spm.value = '';
+                        row.rate.value = '';
+                      }
+                      // ✅ Auto-add row when last row's model is selected
+                      _checkAddPumpRow(rowIndex);
+                    },
+              items: [
+                const DropdownMenuItem<String?>(
+                  value: null,
+                  child: Text('', style: TextStyle(fontSize: 9)),
+                ),
+                ...models.map((m) => DropdownMenuItem<String?>(
+                      value: m,
+                      child: Text(m, style: const TextStyle(fontSize: 9)),
+                    )),
+              ],
             ),
-            ...models.map((m) => DropdownMenuItem<String?>(
-              value: m,
-              child: Text(m, style: const TextStyle(fontSize: 9)),
-            )),
-          ],
+          ),
         ),
       );
     });
@@ -463,23 +479,35 @@ class _PumpPageState extends State<PumpPage> {
   Widget _shakerTypeDropdown({required _ShakerRow row, required bool isLocked, required int rowIndex}) {
     return Obx(() {
       final current = row.shakerType.value.isEmpty ? null : row.shakerType.value;
-      final safe    = _shakerTypes.contains(current) ? current : null;
-      return DropdownButtonHideUnderline(
-        child: DropdownButton<String?>(
-          value: safe, isExpanded: true, isDense: true,
-          style: const TextStyle(fontSize: 9, color: Colors.black87),
-          onChanged: isLocked ? null : (sel) {
-            row.shakerType.value = sel ?? '';
-            // ✅ Auto-add row when last row gets a type selected
-            _checkAddShakerRow(rowIndex);
-          },
-          items: [
-            const DropdownMenuItem<String?>(value: null, child: Text('', style: TextStyle(fontSize: 9))),
-            ..._shakerTypes.map((t) => DropdownMenuItem<String?>(
-              value: t,
-              child: Text(t, style: const TextStyle(fontSize: 9)),
-            )),
-          ],
+      final safe = _shakerTypes.contains(current) ? current : null;
+      return GestureDetector(
+        onTap: isLocked ? () => dashboard.showLockedPopup() : null,
+        behavior: HitTestBehavior.opaque,
+        child: AbsorbPointer(
+          absorbing: isLocked,
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String?>(
+              value: safe,
+              isExpanded: true,
+              isDense: true,
+              style: const TextStyle(fontSize: 9, color: Colors.black87),
+              onChanged: isLocked
+                  ? null
+                  : (sel) {
+                      row.shakerType.value = sel ?? '';
+                      // ✅ Auto-add row when last row gets a type selected
+                      _checkAddShakerRow(rowIndex);
+                    },
+              items: [
+                const DropdownMenuItem<String?>(
+                    value: null, child: Text('', style: TextStyle(fontSize: 9))),
+                ..._shakerTypes.map((t) => DropdownMenuItem<String?>(
+                      value: t,
+                      child: Text(t, style: const TextStyle(fontSize: 9)),
+                    )),
+              ],
+            ),
+          ),
         ),
       );
     });
@@ -488,37 +516,58 @@ class _PumpPageState extends State<PumpPage> {
   Widget _shakerModelDropdown({required _ShakerRow row, required List<String> models, required bool isLocked, required int rowIndex}) {
     return Obx(() {
       final current = row.model.value.isEmpty ? null : row.model.value;
-      final safe    = models.contains(current) ? current : null;
-      return DropdownButtonHideUnderline(
-        child: DropdownButton<String?>(
-          value: safe, isExpanded: true, isDense: true,
-          style: const TextStyle(fontSize: 9, color: Colors.black87),
-          onChanged: isLocked ? null : (sel) async {
-            row.model.value = sel ?? '';
-            if (sel != null && sel.isNotEmpty) {
-              final data = await sceController.getShakerDataByModel(sel);
-              if (data != null) {
-                final apiType = data['shaker']?.toString() ?? '';
-                if (row.shakerType.value.isEmpty && apiType.isNotEmpty) {
-                  row.shakerType.value = apiType;
-                }
-                final n = int.tryParse(data['screens']?.toString() ?? '0') ?? 0;
-                row.enabledScreens.value = n;
-              }
-              // ✅ Auto-add row when last row's model is selected
-              _checkAddShakerRow(rowIndex);
-            } else {
-              row.enabledScreens.value = 0;
-              row.screen1.value = ''; row.screen2.value = '';
-              row.screen3.value = ''; row.screen4.value = '';
-              row.screen5.value = ''; row.screen6.value = '';
-              row.screen7.value = ''; row.screen8.value = '';
-            }
-          },
-          items: [
-            const DropdownMenuItem<String?>(value: null, child: Text('', style: TextStyle(fontSize: 9))),
-            ...models.map((m) => DropdownMenuItem<String?>(value: m, child: Text(m, style: const TextStyle(fontSize: 9)))),
-          ],
+      final safe = models.contains(current) ? current : null;
+      return GestureDetector(
+        onTap: isLocked ? () => dashboard.showLockedPopup() : null,
+        behavior: HitTestBehavior.opaque,
+        child: AbsorbPointer(
+          absorbing: isLocked,
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String?>(
+              value: safe,
+              isExpanded: true,
+              isDense: true,
+              style: const TextStyle(fontSize: 9, color: Colors.black87),
+              onChanged: isLocked
+                  ? null
+                  : (sel) async {
+                      row.model.value = sel ?? '';
+                      if (sel != null && sel.isNotEmpty) {
+                        final data =
+                            await sceController.getShakerDataByModel(sel);
+                        if (data != null) {
+                          final apiType = data['shaker']?.toString() ?? '';
+                          if (row.shakerType.value.isEmpty &&
+                              apiType.isNotEmpty) {
+                            row.shakerType.value = apiType;
+                          }
+                          final n = int.tryParse(
+                                  data['screens']?.toString() ?? '0') ??
+                              0;
+                          row.enabledScreens.value = n;
+                        }
+                        // ✅ Auto-add row when last row's model is selected
+                        _checkAddShakerRow(rowIndex);
+                      } else {
+                        row.enabledScreens.value = 0;
+                        row.screen1.value = '';
+                        row.screen2.value = '';
+                        row.screen3.value = '';
+                        row.screen4.value = '';
+                        row.screen5.value = '';
+                        row.screen6.value = '';
+                        row.screen7.value = '';
+                        row.screen8.value = '';
+                      }
+                    },
+              items: [
+                const DropdownMenuItem<String?>(
+                    value: null, child: Text('', style: TextStyle(fontSize: 9))),
+                ...models.map((m) => DropdownMenuItem<String?>(
+                    value: m, child: Text(m, style: const TextStyle(fontSize: 9)))),
+              ],
+            ),
+          ),
         ),
       );
     });
@@ -536,16 +585,29 @@ class _PumpPageState extends State<PumpPage> {
         width: 48,
         child: Obx(() {
           final isEnabled = !isLocked && idx < row.enabledScreens.value;
-          return TextField(
-            enabled: isEnabled,
-            controller: TextEditingController(text: fields[idx].value)
-              ..selection = TextSelection.collapsed(offset: fields[idx].value.length),
-            onChanged: (v) => fields[idx].value = v,
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 9, color: isEnabled ? Colors.black87 : Colors.grey.shade400),
-            decoration: InputDecoration(
-              border: InputBorder.none, contentPadding: EdgeInsets.zero, isDense: true,
-              filled: !isEnabled, fillColor: isEnabled ? null : Colors.grey.shade100,
+          return GestureDetector(
+            onTap: isLocked ? () => dashboard.showLockedPopup() : null,
+            behavior: HitTestBehavior.opaque,
+            child: AbsorbPointer(
+              absorbing: isLocked,
+              child: TextField(
+                enabled: isEnabled,
+                controller: TextEditingController(text: fields[idx].value)
+                  ..selection =
+                      TextSelection.collapsed(offset: fields[idx].value.length),
+                onChanged: (v) => fields[idx].value = v,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    fontSize: 9,
+                    color: isEnabled ? Colors.black87 : Colors.grey.shade400),
+                decoration: InputDecoration(
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.zero,
+                  isDense: true,
+                  filled: !isEnabled,
+                  fillColor: isEnabled ? null : Colors.grey.shade100,
+                ),
+              ),
             ),
           );
         }),
@@ -609,16 +671,21 @@ class _PumpPageState extends State<PumpPage> {
               SizedBox(
                 height: 22,
                 child: ElevatedButton(
-                  onPressed: isLocked ? null : _autoFillScreenValues,
+                  onPressed:
+                      isLocked ? () => dashboard.showLockedPopup() : _autoFillScreenValues,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.primaryColor,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
                     minimumSize: Size.zero,
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(3)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(3)),
                   ),
-                  child: const Text('Fill', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600)),
+                  child: const Text('Fill',
+                      style:
+                          TextStyle(fontSize: 9, fontWeight: FontWeight.w600)),
                 ),
               ),
             ],

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import '../controller/ug_pit_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/pit_model.dart';
 
@@ -9,6 +10,7 @@ class PitView extends StatelessWidget {
   PitView({super.key});
 
   final c = Get.put(PitController());
+  final dashCtrl = Get.find<DashboardController>();
 
   @override
   Widget build(BuildContext context) {
@@ -205,24 +207,36 @@ class PitView extends StatelessWidget {
                 border: Border.all(color: Colors.grey.shade300, width: 1),
                 borderRadius: BorderRadius.circular(3),
               ),
-              child: TextFormField(
-                initialValue: pit.pitName,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: AppTheme.textPrimary,
-                ),
-                decoration: const InputDecoration(
-                  isDense: true,
-                  contentPadding: EdgeInsets.zero,
-                  border: InputBorder.none,
-                ),
-                onChanged: (value) {
-                  pit.pitName = value;
-                  if (c.isRowFilled(pit)) {
-                    c.onRowFilled(index);
-                  }
-                },
-              ),
+              child: Obx(() => dashCtrl.isLocked.value
+                  ? GestureDetector(
+                      onTap: () => dashCtrl.showLockedPopup(),
+                      behavior: HitTestBehavior.opaque,
+                      child: Text(
+                        pit.pitName.isEmpty ? "Enter name" : pit.pitName,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: pit.pitName.isEmpty ? Colors.grey : AppTheme.textPrimary,
+                        ),
+                      ),
+                    )
+                  : TextFormField(
+                      initialValue: pit.pitName,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppTheme.textPrimary,
+                      ),
+                      decoration: const InputDecoration(
+                        isDense: true,
+                        contentPadding: EdgeInsets.zero,
+                        border: InputBorder.none,
+                      ),
+                      onChanged: (value) {
+                        pit.pitName = value;
+                        if (c.isRowFilled(pit)) {
+                          c.onRowFilled(index);
+                        }
+                      },
+                    )),
             ),
     );
   }
@@ -247,33 +261,45 @@ class PitView extends StatelessWidget {
                 border: Border.all(color: Colors.grey.shade300, width: 1),
                 borderRadius: BorderRadius.circular(3),
               ),
-              child: TextFormField(
-                initialValue: pit.capacity.value > 0 ? pit.capacity.value.toString() : '',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: AppTheme.textPrimary,
-                ),
-                decoration: const InputDecoration(
-                  isDense: true,
-                  contentPadding: EdgeInsets.zero,
-                  border: InputBorder.none,
-                  suffixText: 'bbl',
-                  suffixStyle: TextStyle(
-                    fontSize: 9,
-                    color: Colors.grey,
-                  ),
-                ),
-                keyboardType: TextInputType.number,
-                onChanged: (value) {
-                  final newCapacity = double.tryParse(value);
-                  if (newCapacity != null) {
-                    pit.capacity.value = newCapacity;
-                    if (c.isRowFilled(pit)) {
-                      c.onRowFilled(index);
-                    }
-                  }
-                },
-              ),
+              child: Obx(() => dashCtrl.isLocked.value
+                  ? GestureDetector(
+                      onTap: () => dashCtrl.showLockedPopup(),
+                      behavior: HitTestBehavior.opaque,
+                      child: Text(
+                        pit.capacity.value > 0 ? "${pit.capacity.value} bbl" : "0.0 bbl",
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: pit.capacity.value > 0 ? AppTheme.textPrimary : Colors.grey,
+                        ),
+                      ),
+                    )
+                  : TextFormField(
+                      initialValue: pit.capacity.value > 0 ? pit.capacity.value.toString() : '',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppTheme.textPrimary,
+                      ),
+                      decoration: const InputDecoration(
+                        isDense: true,
+                        contentPadding: EdgeInsets.zero,
+                        border: InputBorder.none,
+                        suffixText: 'bbl',
+                        suffixStyle: TextStyle(
+                          fontSize: 9,
+                          color: Colors.grey,
+                        ),
+                      ),
+                      keyboardType: TextInputType.number,
+                      onChanged: (value) {
+                        final newCapacity = double.tryParse(value);
+                        if (newCapacity != null) {
+                          pit.capacity.value = newCapacity;
+                          if (c.isRowFilled(pit)) {
+                            c.onRowFilled(index);
+                          }
+                        }
+                      },
+                    )),
             ),
     );
   }
@@ -286,15 +312,29 @@ class PitView extends StatelessWidget {
       child: SizedBox(
         height: 24,
         width: 24,
-        child: Obx(() => Checkbox(
-          value: pit.initialActive.value,
-          onChanged: hasData
-              ? (value) => c.togglePitActive(pit)
-              : (value) => pit.initialActive.value = value ?? false,
-          activeColor: AppTheme.successColor,
-          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          visualDensity: VisualDensity.compact,
-        )),
+        child: Obx(() => dashCtrl.isLocked.value
+            ? GestureDetector(
+                onTap: () => dashCtrl.showLockedPopup(),
+                behavior: HitTestBehavior.opaque,
+                child: AbsorbPointer(
+                  child: Checkbox(
+                    value: pit.initialActive.value,
+                    onChanged: (v) {},
+                    activeColor: AppTheme.successColor,
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
+              )
+            : Checkbox(
+                value: pit.initialActive.value,
+                onChanged: hasData
+                    ? (value) => c.togglePitActive(pit)
+                    : (value) => pit.initialActive.value = value ?? false,
+                activeColor: AppTheme.successColor,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                visualDensity: VisualDensity.compact,
+              )),
       ),
     );
   }
@@ -307,30 +347,34 @@ class PitView extends StatelessWidget {
     return Container(
       width: 80,
       padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Row(
+      child: Obx(() => Row(
         children: [
           // Edit button
           IconButton(
-            onPressed: () => _showEditDialog(pit),
+            onPressed: dashCtrl.isLocked.value
+                ? () => dashCtrl.showLockedPopup()
+                : () => _showEditDialog(pit),
             icon: const Icon(Icons.edit, size: 14),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
             tooltip: 'Edit',
-            color: AppTheme.primaryColor,
+            color: dashCtrl.isLocked.value ? Colors.grey : AppTheme.primaryColor,
           ),
           const SizedBox(width: 8),
           
           // Delete button
           IconButton(
-            onPressed: () => c.deletePit(pit),
+            onPressed: dashCtrl.isLocked.value
+                ? () => dashCtrl.showLockedPopup()
+                : () => c.deletePit(pit),
             icon: const Icon(Icons.delete, size: 14),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
             tooltip: 'Delete',
-            color: Colors.red,
+            color: dashCtrl.isLocked.value ? Colors.grey : Colors.red,
           ),
         ],
-      ),
+      )),
     );
   }
 
@@ -353,7 +397,9 @@ class PitView extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
           Obx(() => ElevatedButton.icon(
-            onPressed: c.isSaving.value ? null : () => c.bulkSavePits(),
+            onPressed: dashCtrl.isLocked.value
+                ? () => dashCtrl.showLockedPopup()
+                : (c.isSaving.value ? null : () => c.bulkSavePits()),
             icon: c.isSaving.value
                 ? const SizedBox(
                     width: 14,
@@ -369,7 +415,7 @@ class PitView extends StatelessWidget {
               style: const TextStyle(fontSize: 12),
             ),
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor,
+              backgroundColor: dashCtrl.isLocked.value ? Colors.grey : AppTheme.primaryColor,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
             ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/daily_report/tabs/daily_cost/tabs/dailycost_table_usage.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/operation_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/add_water_view.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/consume_product.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/consume_service.dart';
@@ -23,6 +24,7 @@ import 'package:mudpro_desktop_app/theme/app_theme.dart';
 class OperationPage extends StatelessWidget {
   OperationPage({super.key});
   final controller = Get.find<OperationController>();
+  final dashCtrl = Get.find<DashboardController>();
   final ScrollController scrollController = ScrollController();
 
   @override
@@ -204,66 +206,74 @@ class OperationPage extends StatelessWidget {
                             // Always show dropdown
                             Expanded(
                               child: DropdownButtonHideUnderline(
-                                child: DropdownButton<OperationType?>(
-                                  isExpanded: true,
-                                  isDense: true,
-                                  icon: Padding(
-                                    padding: const EdgeInsets.only(left: 4),
-                                    child: Icon(
-                                      Icons.arrow_drop_down_rounded,
-                                      size: 18,
-                                      color: AppTheme.textSecondary,
-                                    ),
-                                  ),
-                                  dropdownColor: Colors.white,
-                                  value: controller.dropdownValues[index],
-                                  onChanged: (v) {
-                                    controller.dropdownValues[index] = v;
-                                    controller.selectedRowIndex.value = index;
-                                  },
-                                  menuMaxHeight: 200,
-                                  itemHeight: null,
-                                  hint: Text(
-                                    "",
-                                    style: AppTheme.bodySmall.copyWith(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w500,
-                                      color: AppTheme.textSecondary,
-                                    ),
-                                  ),
-                                  style: AppTheme.bodySmall.copyWith(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w500,
-                                    color: AppTheme.textPrimary,
-                                  ),
-                                  items: [
-                                    DropdownMenuItem<OperationType?>(
-                                      value: null,
-                                      child: Text(
-                                        "",
-                                        style: AppTheme.bodySmall.copyWith(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w500,
-                                          color: AppTheme.textPrimary,
-                                        ),
-                                      ),
-                                    ),
-                                    ...controller.dropdownItems.map(
-                                      (e) => DropdownMenuItem(
-                                        value: e,
-                                        child: Text(
-                                          controller.labels[e]!,
+                                child: Obx(() => GestureDetector(
+                                      onTap: dashCtrl.isLocked.value
+                                          ? () => dashCtrl.showLockedPopup()
+                                          : null,
+                                      child: AbsorbPointer(
+                                        absorbing: dashCtrl.isLocked.value,
+                                        child: DropdownButton<OperationType?>(
+                                          isExpanded: true,
+                                          isDense: true,
+                                          icon: Padding(
+                                            padding: const EdgeInsets.only(left: 4),
+                                            child: Icon(
+                                              Icons.arrow_drop_down_rounded,
+                                              size: 18,
+                                              color: AppTheme.textSecondary,
+                                            ),
+                                          ),
+                                          dropdownColor: Colors.white,
+                                          value: controller.dropdownValues[index],
+                                          onChanged: (v) {
+                                            controller.dropdownValues[index] = v;
+                                            controller.selectedRowIndex.value = index;
+                                          },
+                                          menuMaxHeight: 200,
+                                          itemHeight: null,
+                                          hint: Text(
+                                            "",
+                                            style: AppTheme.bodySmall.copyWith(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w500,
+                                              color: AppTheme.textSecondary,
+                                            ),
+                                          ),
                                           style: AppTheme.bodySmall.copyWith(
                                             fontSize: 11,
                                             fontWeight: FontWeight.w500,
                                             color: AppTheme.textPrimary,
                                           ),
-                                          overflow: TextOverflow.ellipsis,
+                                          items: [
+                                            DropdownMenuItem<OperationType?>(
+                                              value: null,
+                                              child: Text(
+                                                "",
+                                                style: AppTheme.bodySmall.copyWith(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w500,
+                                                  color: AppTheme.textPrimary,
+                                                ),
+                                              ),
+                                            ),
+                                            ...controller.dropdownItems.map(
+                                              (e) => DropdownMenuItem(
+                                                value: e,
+                                                child: Text(
+                                                  controller.labels[e]!,
+                                                  style: AppTheme.bodySmall.copyWith(
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.w500,
+                                                    color: AppTheme.textPrimary,
+                                                  ),
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
-                                    ),
-                                  ],
-                                ),
+                                    )),
                               ),
                             ),
 

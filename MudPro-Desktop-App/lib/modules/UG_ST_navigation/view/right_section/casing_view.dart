@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/controller/UG_ST_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/model/UG_ST_model.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/widgets/tabular_database.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 // ── Column widths ─────────────────────────────────────────────
@@ -37,12 +38,14 @@ class CasingView extends StatefulWidget {
 
 class _CasingViewState extends State<CasingView> {
   late final UgStController c;
+  late final DashboardController dashCtrl;
   final _vScroll = ScrollController();
 
   @override
   void initState() {
     super.initState();
     c = Get.find<UgStController>();
+    dashCtrl = Get.find<DashboardController>();
   }
 
   @override
@@ -240,6 +243,7 @@ class _CasingViewState extends State<CasingView> {
                 row: db[i],
                 isEven: i.isEven,
                 ctrl: c,
+                dashCtrl: dashCtrl,
               );
             }
             return _EmptyRow(
@@ -247,6 +251,7 @@ class _CasingViewState extends State<CasingView> {
               index: i,
               isEven: i.isEven,
               ctrl: c,
+              dashCtrl: dashCtrl,
             );
           },
         );
@@ -287,28 +292,44 @@ Widget _lockedCell(double w) => Container(
       color: const Color(0xFFF0F0F0),
     );
 
-Widget _inputCell(TextEditingController ctrl, double w, RxString rx) => SizedBox(
+Widget _inputCell(TextEditingController ctrl, double w, RxString rx, DashboardController dashCtrl) =>
+    SizedBox(
       width: w,
       height: _rowH,
-      child: TextField(
-        controller: ctrl,
-        onChanged: (v) => rx.value = v,
-        textAlign: TextAlign.center,
-        style: AppTheme.caption
-            .copyWith(fontSize: 11, color: AppTheme.textPrimary),
-        decoration: _noBorder,
+      child: GestureDetector(
+        onTap: dashCtrl.isLocked.value ? () => dashCtrl.showLockedPopup() : null,
+        behavior: HitTestBehavior.opaque,
+        child: AbsorbPointer(
+          absorbing: dashCtrl.isLocked.value,
+          child: TextField(
+            controller: ctrl,
+            onChanged: (v) => rx.value = v,
+            textAlign: TextAlign.center,
+            style: AppTheme.caption
+                .copyWith(fontSize: 11, color: AppTheme.textPrimary),
+            decoration: _noBorder,
+          ),
+        ),
       ),
     );
 
-Widget _inputCellPlain(TextEditingController ctrl, double w) => SizedBox(
+Widget _inputCellPlain(TextEditingController ctrl, double w, DashboardController dashCtrl) =>
+    SizedBox(
       width: w,
       height: _rowH,
-      child: TextField(
-        controller: ctrl,
-        textAlign: TextAlign.center,
-        style: AppTheme.caption
-            .copyWith(fontSize: 11, color: AppTheme.textPrimary),
-        decoration: _noBorder,
+      child: GestureDetector(
+        onTap: dashCtrl.isLocked.value ? () => dashCtrl.showLockedPopup() : null,
+        behavior: HitTestBehavior.opaque,
+        child: AbsorbPointer(
+          absorbing: dashCtrl.isLocked.value,
+          child: TextField(
+            controller: ctrl,
+            textAlign: TextAlign.center,
+            style: AppTheme.caption
+                .copyWith(fontSize: 11, color: AppTheme.textPrimary),
+            decoration: _noBorder,
+          ),
+        ),
       ),
     );
 
@@ -320,6 +341,7 @@ class _DataRow extends StatefulWidget {
   final CasingRow row;
   final bool isEven;
   final UgStController ctrl;
+  final DashboardController dashCtrl;
 
   const _DataRow({
     super.key,
@@ -327,6 +349,7 @@ class _DataRow extends StatefulWidget {
     required this.row,
     required this.isEven,
     required this.ctrl,
+    required this.dashCtrl,
   });
 
   @override
@@ -366,7 +389,7 @@ class _DataRowState extends State<_DataRow> {
     final bg = widget.isEven ? Colors.white : const Color(0xFFF7F9FC);
 
     return Obx(() {
-      final locked  = c.isLocked.value;
+      final locked = widget.dashCtrl.isLocked.value;
       final isLiner = r.type.value == 'Liner';
 
       return Container(
@@ -394,44 +417,59 @@ class _DataRowState extends State<_DataRow> {
             ),
             _vDiv(),
             locked
-                ? _textCell(r.description.value, _wDesc)
-                : _inputCell(_desc, _wDesc, r.description),
+                ? GestureDetector(
+                    onTap: () => widget.dashCtrl.showLockedPopup(),
+                    behavior: HitTestBehavior.opaque,
+                    child: _textCell(r.description.value, _wDesc),
+                  )
+                : _inputCell(_desc, _wDesc, r.description, widget.dashCtrl),
             _vDiv(),
             _typeCell(r, locked),
             _vDiv(),
             locked
-                ? _textCell(r.od.value, _wStd)
-                : _inputCell(_od, _wStd, r.od),
+                ? GestureDetector(
+                    onTap: () => widget.dashCtrl.showLockedPopup(),
+                    behavior: HitTestBehavior.opaque,
+                    child: _textCell(r.od.value, _wStd),
+                  )
+                : _inputCell(_od, _wStd, r.od, widget.dashCtrl),
             _vDiv(),
             locked
-                ? _textCell(r.wt.value, _wStd)
-                : _inputCell(_wt, _wStd, r.wt),
+                ? GestureDetector(
+                    onTap: () => widget.dashCtrl.showLockedPopup(),
+                    behavior: HitTestBehavior.opaque,
+                    child: _textCell(r.wt.value, _wStd),
+                  )
+                : _inputCell(_wt, _wStd, r.wt, widget.dashCtrl),
             _vDiv(),
             locked
-                ? _textCell(r.id.value, _wStd)
-                : _inputCell(_id, _wStd, r.id),
+                ? GestureDetector(
+                    onTap: () => widget.dashCtrl.showLockedPopup(),
+                    behavior: HitTestBehavior.opaque,
+                    child: _textCell(r.id.value, _wStd),
+                  )
+                : _inputCell(_id, _wStd, r.id, widget.dashCtrl),
             _vDiv(),
             // Top — editable only for Liner
-            if (locked)
-              _textCell(isLiner ? r.top.value : '', _wStd, grey: !isLiner)
-            else if (isLiner)
-              _inputCell(_top, _wStd, r.top)
-            else
-              _lockedCell(_wStd),
-            _vDiv(),
             locked
-                ? _textCell(r.shoe.value, _wStd)
-                : _inputCell(_shoe, _wStd, r.shoe),
+                ? GestureDetector(
+                    onTap: () => widget.dashCtrl.showLockedPopup(),
+                    behavior: HitTestBehavior.opaque,
+                    child: _textCell(isLiner ? r.top.value : '', _wStd,
+                        grey: !isLiner),
+                  )
+                : isLiner
+                    ? _inputCell(_top, _wStd, r.top, widget.dashCtrl)
+                    : _lockedCell(_wStd),
             _vDiv(),
-            locked
-                ? _textCell(r.bit.value, _wStd)
-                : _inputCell(_bit, _wStd, r.bit),
+            _inputCell(_shoe, _wStd, r.shoe, widget.dashCtrl),
             _vDiv(),
-            locked
-                ? _textCell(r.toc.value, _wStd)
-                : _inputCell(_toc, _wStd, r.toc),
+            _inputCell(_bit, _wStd, r.bit, widget.dashCtrl),
             _vDiv(),
-            SizedBox(width: _wAct, child: _actionsCell(r, c)),
+            _inputCell(_toc, _wStd, r.toc, widget.dashCtrl),
+            _vDiv(),
+            SizedBox(
+                width: _wAct, child: _actionsCell(r, c, widget.dashCtrl)),
           ],
         ),
       );
@@ -479,7 +517,7 @@ class _DataRowState extends State<_DataRow> {
     );
   }
 
-  Widget _actionsCell(CasingRow row, UgStController c) {
+  Widget _actionsCell(CasingRow row, UgStController c, DashboardController dashCtrl) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -487,9 +525,9 @@ class _DataRowState extends State<_DataRow> {
           message: 'Save',
           child: InkWell(
             borderRadius: BorderRadius.circular(4),
-            onTap: () => row.dbId != null
-                ? c.updateCasing(row)
-                : c.addCasing(row),
+            onTap: dashCtrl.isLocked.value
+                ? () => dashCtrl.showLockedPopup()
+                : () => row.dbId != null ? c.updateCasing(row) : c.addCasing(row),
             child: Padding(
               padding: const EdgeInsets.all(4),
               child: Icon(Icons.save_outlined,
@@ -502,9 +540,11 @@ class _DataRowState extends State<_DataRow> {
           message: 'Delete',
           child: InkWell(
             borderRadius: BorderRadius.circular(4),
-            onTap: () => row.dbId != null
-                ? c.deleteCasing(row.dbId!)
-                : c.casings.remove(row),
+            onTap: dashCtrl.isLocked.value
+                ? () => dashCtrl.showLockedPopup()
+                : () => row.dbId != null
+                    ? c.deleteCasing(row.dbId!)
+                    : c.casings.remove(row),
             child: Padding(
               padding: const EdgeInsets.all(4),
               child: Icon(Icons.delete_outline,
@@ -524,12 +564,14 @@ class _EmptyRow extends StatefulWidget {
   final int index;
   final bool isEven;
   final UgStController ctrl;
+  final DashboardController dashCtrl;
 
   const _EmptyRow({
     super.key,
     required this.index,
     required this.isEven,
     required this.ctrl,
+    required this.dashCtrl,
   });
 
   @override
@@ -589,7 +631,7 @@ class _EmptyRowState extends State<_EmptyRow> {
     final bg = widget.isEven ? Colors.white : const Color(0xFFF7F9FC);
 
     return Obx(() {
-      final locked  = c.isLocked.value;
+      final locked = widget.dashCtrl.isLocked.value;
       final isLiner = _selType == 'Liner';
 
       return Container(
@@ -615,29 +657,73 @@ class _EmptyRowState extends State<_EmptyRow> {
             ),
             _vDiv(),
             locked
-                ? SizedBox(width: _wDesc)
-                : _inputCellPlain(_desc, _wDesc),
+                ? GestureDetector(
+                    onTap: () => widget.dashCtrl.showLockedPopup(),
+                    behavior: HitTestBehavior.opaque,
+                    child: SizedBox(width: _wDesc),
+                  )
+                : _inputCellPlain(_desc, _wDesc, widget.dashCtrl),
             _vDiv(),
             _emptyTypeCell(locked),
             _vDiv(),
-            locked ? SizedBox(width: _wStd) : _inputCellPlain(_od, _wStd),
+            locked
+                ? GestureDetector(
+                    onTap: () => widget.dashCtrl.showLockedPopup(),
+                    behavior: HitTestBehavior.opaque,
+                    child: SizedBox(width: _wStd),
+                  )
+                : _inputCellPlain(_od, _wStd, widget.dashCtrl),
             _vDiv(),
-            locked ? SizedBox(width: _wStd) : _inputCellPlain(_wt, _wStd),
+            locked
+                ? GestureDetector(
+                    onTap: () => widget.dashCtrl.showLockedPopup(),
+                    behavior: HitTestBehavior.opaque,
+                    child: SizedBox(width: _wStd),
+                  )
+                : _inputCellPlain(_wt, _wStd, widget.dashCtrl),
             _vDiv(),
-            locked ? SizedBox(width: _wStd) : _inputCellPlain(_id, _wStd),
+            locked
+                ? GestureDetector(
+                    onTap: () => widget.dashCtrl.showLockedPopup(),
+                    behavior: HitTestBehavior.opaque,
+                    child: SizedBox(width: _wStd),
+                  )
+                : _inputCellPlain(_id, _wStd, widget.dashCtrl),
             _vDiv(),
             if (locked)
-              SizedBox(width: _wStd)
+              GestureDetector(
+                onTap: () => widget.dashCtrl.showLockedPopup(),
+                behavior: HitTestBehavior.opaque,
+                child: SizedBox(width: _wStd),
+              )
             else if (isLiner)
-              _inputCellPlain(_top, _wStd)
+              _inputCellPlain(_top, _wStd, widget.dashCtrl)
             else
               _lockedCell(_wStd),
             _vDiv(),
-            locked ? SizedBox(width: _wStd) : _inputCellPlain(_shoe, _wStd),
+            locked
+                ? GestureDetector(
+                    onTap: () => widget.dashCtrl.showLockedPopup(),
+                    behavior: HitTestBehavior.opaque,
+                    child: SizedBox(width: _wStd),
+                  )
+                : _inputCellPlain(_shoe, _wStd, widget.dashCtrl),
             _vDiv(),
-            locked ? SizedBox(width: _wStd) : _inputCellPlain(_bit, _wStd),
+            locked
+                ? GestureDetector(
+                    onTap: () => widget.dashCtrl.showLockedPopup(),
+                    behavior: HitTestBehavior.opaque,
+                    child: SizedBox(width: _wStd),
+                  )
+                : _inputCellPlain(_bit, _wStd, widget.dashCtrl),
             _vDiv(),
-            locked ? SizedBox(width: _wStd) : _inputCellPlain(_toc, _wStd),
+            locked
+                ? GestureDetector(
+                    onTap: () => widget.dashCtrl.showLockedPopup(),
+                    behavior: HitTestBehavior.opaque,
+                    child: SizedBox(width: _wStd),
+                  )
+                : _inputCellPlain(_toc, _wStd, widget.dashCtrl),
             _vDiv(),
             SizedBox(
               width: _wAct,
@@ -646,14 +732,14 @@ class _EmptyRowState extends State<_EmptyRow> {
                   message: 'Save',
                   child: InkWell(
                     borderRadius: BorderRadius.circular(4),
-                    onTap: locked ? null : _save,
+                    onTap: locked ? () => widget.dashCtrl.showLockedPopup() : _save,
                     child: Padding(
                       padding: const EdgeInsets.all(4),
                       child: Icon(
                         Icons.save_outlined,
                         size: 15,
                         color: locked
-                            ? Colors.grey.shade300
+                            ? Colors.grey.shade400
                             : AppTheme.primaryColor,
                       ),
                     ),
@@ -668,35 +754,40 @@ class _EmptyRowState extends State<_EmptyRow> {
   }
 
   Widget _emptyTypeCell(bool locked) {
-    if (locked) return SizedBox(width: _wType);
-
-    return SizedBox(
-      width: _wType,
-      height: _rowH,
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: _selType,
-          isDense: true,
-          isExpanded: true,
-          icon: const Icon(Icons.arrow_drop_down, size: 16),
-          alignment: Alignment.center,
-          style: AppTheme.caption
-              .copyWith(fontSize: 11, color: AppTheme.textPrimary),
-          items: [
-            const DropdownMenuItem(value: '', child: SizedBox.shrink()),
-            ...['Casing', 'Liner'].map((o) => DropdownMenuItem(
-                  value: o,
-                  child: Center(
-                    child: Text(o,
-                        style: AppTheme.caption.copyWith(
-                            fontSize: 11, color: AppTheme.textPrimary)),
-                  ),
-                )),
-          ],
-          onChanged: (v) => setState(() {
-            _selType = v ?? '';
-            if (_selType == 'Casing') _top.clear();
-          }),
+    return GestureDetector(
+      onTap: locked ? () => widget.dashCtrl.showLockedPopup() : null,
+      behavior: HitTestBehavior.opaque,
+      child: AbsorbPointer(
+        absorbing: locked,
+        child: SizedBox(
+          width: _wType,
+          height: _rowH,
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: _selType,
+              isDense: true,
+              isExpanded: true,
+              icon: const Icon(Icons.arrow_drop_down, size: 16),
+              alignment: Alignment.center,
+              style: AppTheme.caption
+                  .copyWith(fontSize: 11, color: AppTheme.textPrimary),
+              items: [
+                const DropdownMenuItem(value: '', child: SizedBox.shrink()),
+                ...['Casing', 'Liner'].map((o) => DropdownMenuItem(
+                      value: o,
+                      child: Center(
+                        child: Text(o,
+                            style: AppTheme.caption.copyWith(
+                                fontSize: 11, color: AppTheme.textPrimary)),
+                      ),
+                    )),
+              ],
+              onChanged: (v) => setState(() {
+                _selType = v ?? '';
+                if (_selType == 'Casing') _top.clear();
+              }),
+            ),
+          ),
         ),
       ),
     );

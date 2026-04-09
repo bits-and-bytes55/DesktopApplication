@@ -184,19 +184,21 @@ class _PitPageState extends State<PitPage> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                Tooltip(
+                Obx(() => Tooltip(
                   message: "Save & Calculate",
                   child: InkWell(
-                    onTap: () async {
-                      await controller.saveAllActivePits();
-                    },
+                    onTap: dashboard.isLocked.value 
+                        ? () => dashboard.showLockedPopup() 
+                        : () async {
+                            await controller.saveAllActivePits();
+                          },
                     borderRadius: BorderRadius.circular(4),
                     child: Container(
                         padding: const EdgeInsets.all(4),
                         child: const Icon(Icons.save,
                             size: 14, color: Colors.white)),
                   ),
-                ),
+                )),
               ],
             ),
           ),
@@ -696,12 +698,16 @@ class _PitPageState extends State<PitPage> {
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         child: Obx(() {
           if (dashboard.isLocked.value) {
-            return Text(value,
+          return GestureDetector(
+            onTap: () => dashboard.showLockedPopup(),
+            behavior: HitTestBehavior.opaque,
+            child: Text(value,
                 style: const TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
                     color: Colors.black87),
-                textAlign: TextAlign.right);
+                textAlign: TextAlign.right),
+          );
           }
           return TextFormField(
             initialValue: value,
@@ -726,10 +732,12 @@ class _PitPageState extends State<PitPage> {
 
   // ================= PIT SNAPSHOT BUTTON =================
   Widget _pitSnapshotButton() {
-    return SizedBox(
+    return Obx(() => SizedBox(
       width: double.infinity,
       child: ElevatedButton.icon(
-        onPressed: () => Get.to(() => PitSnapshotPage()),
+        onPressed: dashboard.isLocked.value 
+            ? () => dashboard.showLockedPopup() 
+            : () => Get.to(() => PitSnapshotPage()),
         icon: const Icon(Icons.camera_alt, size: 16),
         label: const Text("Pit Snapshot",
             style: TextStyle(
@@ -743,7 +751,7 @@ class _PitPageState extends State<PitPage> {
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
         ),
       ),
-    );
+    ));
   }
 
   // ================= SHARED CELL BUILDERS =================
@@ -782,9 +790,13 @@ class _PitPageState extends State<PitPage> {
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
       child: Obx(() {
         if (dashboard.isLocked.value) {
-          return Text(ctrl.text,
-              style: const TextStyle(fontSize: 10, color: Colors.black87),
-              textAlign: TextAlign.center);
+          return GestureDetector(
+            onTap: () => dashboard.showLockedPopup(),
+            behavior: HitTestBehavior.opaque,
+            child: Text(ctrl.text,
+                style: const TextStyle(fontSize: 10, color: Colors.black87),
+                textAlign: TextAlign.center),
+          );
         }
         return TextFormField(
           controller: ctrl,

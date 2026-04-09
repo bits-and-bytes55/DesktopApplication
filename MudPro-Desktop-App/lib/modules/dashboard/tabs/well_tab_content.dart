@@ -159,6 +159,15 @@ class _GeneralSectionState extends State<GeneralSection> {
         : Get.put(EngineerController());
 
     fc = {
+      'Well Name':          TextEditingController(),
+      'API Well No':        TextEditingController(),
+      'Spud Date':          TextEditingController(),
+      'Section/Township/Range': TextEditingController(),
+      'Longitude':          TextEditingController(),
+      'Latitude':           TextEditingController(),
+      'KOP':                TextEditingController(),
+      'LP':                 TextEditingController(),
+      'Bulk Tank Setup Fee': TextEditingController(),
       'Report #':           TextEditingController(),
       'User Report #':      TextEditingController(),
       'Bottom T.':          TextEditingController(),
@@ -211,6 +220,15 @@ class _GeneralSectionState extends State<GeneralSection> {
     if (wellGenCtrl.savedId.value.isEmpty) return;
     final w = wellGenCtrl;
     setState(() {
+      fc['Well Name']!.text          = w.wellNameNo.value;
+      fc['API Well No']!.text        = w.apiWellNo.value;
+      fc['Spud Date']!.text          = w.spudDate.value;
+      fc['Section/Township/Range']!.text = w.sectionTownshipRange.value;
+      fc['Longitude']!.text          = w.longitude.value;
+      fc['Latitude']!.text           = w.latitude.value;
+      fc['KOP']!.text                = w.kop.value;
+      fc['LP']!.text                 = w.lp.value;
+      fc['Bulk Tank Setup Fee']!.text = w.bulkTankSetupFee.value;
       fc['Report #']!.text           = w.reportNo.value;
       fc['User Report #']!.text      = w.userReportNo.value;
       fc['MD']!.text                 = w.md.value;
@@ -260,6 +278,15 @@ class _GeneralSectionState extends State<GeneralSection> {
 
   void _sync() {
     final w = wellGenCtrl;
+    w.wellNameNo.value        = fc['Well Name']!.text;
+    w.apiWellNo.value         = fc['API Well No']!.text;
+    w.spudDate.value          = fc['Spud Date']!.text;
+    w.sectionTownshipRange.value = fc['Section/Township/Range']!.text;
+    w.longitude.value         = fc['Longitude']!.text;
+    w.latitude.value          = fc['Latitude']!.text;
+    w.kop.value               = fc['KOP']!.text;
+    w.lp.value                = fc['LP']!.text;
+    w.bulkTankSetupFee.value  = fc['Bulk Tank Setup Fee']!.text;
     w.reportNo.value          = fc['Report #']!.text;
     w.userReportNo.value      = fc['User Report #']!.text;
     w.date.value              = _storedDate;
@@ -313,6 +340,15 @@ class _GeneralSectionState extends State<GeneralSection> {
             defaultVerticalAlignment: TableCellVerticalAlignment.middle,
             columnWidths: const {0: FlexColumnWidth(2), 1: FlexColumnWidth(2), 2: FlexColumnWidth(1)},
             children: [
+              _tfRow("Well Name", "Well Name", ""),
+              _tfRow("API Well No", "API Well No", ""),
+              _tfRow("Spud Date", "Spud Date", ""),
+              _tfRow("Section/Township/Range", "Section/Township/Range", ""),
+              _tfRow("Longitude", "Longitude", ""),
+              _tfRow("Latitude", "Latitude", ""),
+              _tfRow("KOP", "KOP", "ft"),
+              _tfRow("LP", "LP", "ft"),
+              _tfRow("Bulk Tank Setup Fee", "Bulk Tank Setup Fee", "\$"),
               _tfRow("Report #", "Report #", ""),
               _tfRow("User Report #", "User Report #", ""),
               _dateRow(),
@@ -585,9 +621,21 @@ Widget _noCell(int rowNo, bool sel, Color primary) => Container(
 
 Widget _eCell(TextEditingController ctrl, DashboardController c, {ValueChanged<String>? onChanged, bool readOnly = false}) => Container(
   padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
-  child: Obx(() => (c.isLocked.value || readOnly)
-      ? SizedBox(height: _kRowH, child: Center(child: Text(ctrl.text, style: TextStyle(fontSize: 9, color: AppTheme.textPrimary), textAlign: TextAlign.center)))
-      : SizedBox(height: _kRowH, child: TextField(
+    child: Obx(() => (c.isLocked.value || readOnly)
+        ? GestureDetector(
+            onTap: c.isLocked.value ? () => c.showLockedPopup() : null,
+            behavior: HitTestBehavior.opaque,
+            child: SizedBox(
+                height: _kRowH,
+                child: Center(
+                    child: Text(ctrl.text,
+                        style: TextStyle(
+                            fontSize: 9, color: AppTheme.textPrimary),
+                        textAlign: TextAlign.center))),
+          )
+        : SizedBox(
+            height: _kRowH,
+            child: TextField(
           controller: ctrl,
           style: const TextStyle(fontSize: 9),
           textAlign: TextAlign.center,
@@ -641,12 +689,21 @@ class _MiddlePortionState extends State<MiddlePortion> {
   Widget _cementRow() => SingleChildScrollView(
     scrollDirection: Axis.horizontal,
     child: Row(children: [
-      Obx(() => Checkbox(
-        value: cementPlug,
-        onChanged: c.isLocked.value ? null : (v) => setState(() => cementPlug = v ?? false),
-        visualDensity: VisualDensity.compact,
-        activeColor: AppTheme.primaryColor,
-      )),
+      Obx(() => GestureDetector(
+            onTap: c.isLocked.value ? () => c.showLockedPopup() : null,
+            behavior: HitTestBehavior.opaque,
+            child: AbsorbPointer(
+              absorbing: c.isLocked.value,
+              child: Checkbox(
+                value: cementPlug,
+                onChanged: c.isLocked.value
+                    ? null
+                    : (v) => setState(() => cementPlug = v ?? false),
+                visualDensity: VisualDensity.compact,
+                activeColor: AppTheme.primaryColor,
+              ),
+            ),
+          )),
       const Text("Cement Plug Vol. (bbl)", style: TextStyle(fontSize: 10)),
       const SizedBox(width: 6),
       SizedBox(width: 110, child: _field(_cemCtrl)),
@@ -661,8 +718,21 @@ class _MiddlePortionState extends State<MiddlePortion> {
     height: 22,
     decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300)),
     child: Obx(() => c.isLocked.value
-        ? Padding(padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3), child: Text(ctrl.text, style: const TextStyle(fontSize: 10)))
-        : TextField(controller: ctrl, style: const TextStyle(fontSize: 10), decoration: const InputDecoration(isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 4), border: InputBorder.none))),
+        ? GestureDetector(
+            onTap: () => c.showLockedPopup(),
+            behavior: HitTestBehavior.opaque,
+            child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+                child: Text(ctrl.text, style: const TextStyle(fontSize: 10))),
+          )
+        : TextField(
+            controller: ctrl,
+            style: const TextStyle(fontSize: 10),
+            decoration: const InputDecoration(
+                isDense: true,
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                border: InputBorder.none))),
   );
 }
 
@@ -787,7 +857,7 @@ class _CasedHoleSectionState extends State<CasedHoleSection> {
 
           // ── Add button ────────────────────────────────────────
           InkWell(
-            onTap: _addCasingRow,
+            onTap: c.isLocked.value ? () => c.showLockedPopup() : _addCasingRow,
             child: Icon(Icons.add_box, color: AppTheme.primaryColor, size: 16),
           ),
           const SizedBox(width: 4),
@@ -1470,8 +1540,18 @@ class _TimeDistributionSectionState extends State<TimeDistributionSection> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
                     child: Obx(() => c.isLocked.value
-                        ? SizedBox(height: _kRowH, child: Align(alignment: Alignment.centerLeft,
-                            child: Text(currentActivity, style: TextStyle(fontSize: 9, color: AppTheme.textPrimary))))
+                        ? GestureDetector(
+                            onTap: () => c.showLockedPopup(),
+                            behavior: HitTestBehavior.opaque,
+                            child: SizedBox(
+                                height: _kRowH,
+                                child: Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: Text(currentActivity,
+                                        style: TextStyle(
+                                            fontSize: 9,
+                                            color: AppTheme.textPrimary)))),
+                          )
                         : SizedBox(
                             height: _kRowH,
                             child: _isLoadingActivities
@@ -1503,7 +1583,18 @@ class _TimeDistributionSectionState extends State<TimeDistributionSection> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
                     child: Obx(() => c.isLocked.value
-                        ? SizedBox(height: _kRowH, child: Center(child: Text(timeCtrl.text, style: TextStyle(fontSize: 9, color: AppTheme.textPrimary), textAlign: TextAlign.center)))
+                        ? GestureDetector(
+                            onTap: () => c.showLockedPopup(),
+                            behavior: HitTestBehavior.opaque,
+                            child: SizedBox(
+                                height: _kRowH,
+                                child: Center(
+                                    child: Text(timeCtrl.text,
+                                        style: TextStyle(
+                                            fontSize: 9,
+                                            color: AppTheme.textPrimary),
+                                        textAlign: TextAlign.center))),
+                          )
                         : SizedBox(height: _kRowH, child: TextField(
                             controller: timeCtrl,
                             style: const TextStyle(fontSize: 9),

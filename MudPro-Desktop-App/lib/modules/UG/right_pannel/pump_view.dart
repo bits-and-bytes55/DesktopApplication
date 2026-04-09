@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/pump_model.dart';
 import '../controller/pump_controller.dart';
 import '../controller/UG_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class PumpView extends StatefulWidget {
@@ -15,12 +16,14 @@ class PumpView extends StatefulWidget {
 class _PumpViewState extends State<PumpView> {
   late final UgController ugController;
   late final PumpController pumpController;
+  late final DashboardController dashCtrl;
 
   @override
   void initState() {
     super.initState();
     ugController = Get.find<UgController>();
     pumpController = Get.put(PumpController());
+    dashCtrl = Get.find<DashboardController>();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadPumpsIfNeeded();
@@ -296,38 +299,42 @@ Expanded(
   flex: 2,
   child: Obx(() {
     final isDuplex = p.type.value == 'Duplex';
-    final isLocked = ugController.isLocked.value || !isDuplex; // ✅ locked if not Duplex
+    final isLocked = dashCtrl.isLocked.value || !isDuplex; // ✅ locked if app is locked OR not Duplex
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6),
-      color: !isDuplex ? const Color(0xfff5f5f5) : null, // grey bg for non-Duplex
-      child: isLocked
-          ? Container(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              alignment: Alignment.center,
-              child: Text(
-                isDuplex ? p.rodOd.value : '', // non-Duplex shows empty
+    return GestureDetector(
+      onTap: dashCtrl.isLocked.value ? () => dashCtrl.showLockedPopup() : null,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        color: !isDuplex ? const Color(0xfff5f5f5) : null, // grey bg for non-Duplex
+        child: isLocked
+            ? Container(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                alignment: Alignment.center,
+                child: Text(
+                  isDuplex ? p.rodOd.value : '', // non-Duplex shows empty
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+                ),
+              )
+            : TextField(
+                controller: TextEditingController(text: p.rodOd.value)
+                  ..selection = TextSelection.fromPosition(
+                      TextPosition(offset: p.rodOd.value.length)),
+                onChanged: (val) {
+                  p.rodOd.value = val;
+                  p.recalculateDisplacement(); // always safe, only Duplex reaches here
+                  pumpController.onFieldChanged(i);
+                },
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+                style: const TextStyle(fontSize: 11, color: AppTheme.textPrimary),
+                decoration: const InputDecoration(
+                  isDense: true,
+                  contentPadding: EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                  border: InputBorder.none,
+                ),
               ),
-            )
-          : TextField(
-              controller: TextEditingController(text: p.rodOd.value)
-                ..selection = TextSelection.fromPosition(
-                    TextPosition(offset: p.rodOd.value.length)),
-              onChanged: (val) {
-                p.rodOd.value = val;
-                p.recalculateDisplacement(); // always safe, only Duplex reaches here
-                pumpController.onFieldChanged(i);
-              },
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 11, color: AppTheme.textPrimary),
-              decoration: const InputDecoration(
-                isDense: true,
-                contentPadding: EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-                border: InputBorder.none,
-              ),
-            ),
+      ),
     );
   }),
 ),
@@ -380,16 +387,20 @@ Expanded(
                                     right: BorderSide(
                                         color: Colors.grey.shade300,
                                         width: 1))),
-                            child: Obx(() => ugController.isLocked.value
-                                ? Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 8),
-                                    alignment: Alignment.center,
-                                    child: Text(p.surfaceLen.value,
-                                        textAlign: TextAlign.center,
-                                        style: const TextStyle(
-                                            fontSize: 11,
-                                            color: AppTheme.textSecondary)))
+                            child: Obx(() => dashCtrl.isLocked.value
+                                ? GestureDetector(
+                                    onTap: () => dashCtrl.showLockedPopup(),
+                                    behavior: HitTestBehavior.opaque,
+                                    child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 8),
+                                        alignment: Alignment.center,
+                                        child: Text(p.surfaceLen.value,
+                                            textAlign: TextAlign.center,
+                                            style: const TextStyle(
+                                                fontSize: 11,
+                                                color: AppTheme.textSecondary))),
+                                  )
                                 : TextField(
                                     controller: TextEditingController(
                                         text: p.surfaceLen.value)
@@ -420,16 +431,20 @@ Expanded(
                           child: Container(
                             padding:
                                 const EdgeInsets.symmetric(horizontal: 6),
-                            child: Obx(() => ugController.isLocked.value
-                                ? Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 8),
-                                    alignment: Alignment.center,
-                                    child: Text(p.surfaceId.value,
-                                        textAlign: TextAlign.center,
-                                        style: const TextStyle(
-                                            fontSize: 11,
-                                            color: AppTheme.textSecondary)))
+                            child: Obx(() => dashCtrl.isLocked.value
+                                ? GestureDetector(
+                                    onTap: () => dashCtrl.showLockedPopup(),
+                                    behavior: HitTestBehavior.opaque,
+                                    child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 8),
+                                        alignment: Alignment.center,
+                                        child: Text(p.surfaceId.value,
+                                            textAlign: TextAlign.center,
+                                            style: const TextStyle(
+                                                fontSize: 11,
+                                                color: AppTheme.textSecondary))),
+                                  )
                                 : TextField(
                                     controller: TextEditingController(
                                         text: p.surfaceId.value)
@@ -528,14 +543,18 @@ Expanded(
       flex: flex,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 6),
-        child: Obx(() => ugController.isLocked.value
-            ? Container(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                alignment: Alignment.center,
-                child: Text(pump.type.value,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                        fontSize: 11, color: AppTheme.textSecondary)))
+        child: Obx(() => dashCtrl.isLocked.value
+            ? GestureDetector(
+                onTap: () => dashCtrl.showLockedPopup(),
+                behavior: HitTestBehavior.opaque,
+                child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    alignment: Alignment.center,
+                    child: Text(pump.type.value,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                            fontSize: 11, color: AppTheme.textSecondary))),
+              )
             : DropdownButtonHideUnderline(
                 child: DropdownButton<String>(
                   value: pumpTypes.contains(pump.type.value)
@@ -582,14 +601,18 @@ Expanded(
       flex: flex,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 6),
-        child: Obx(() => ugController.isLocked.value
-            ? Container(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                alignment: Alignment.center,
-                child: Text(value.value,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                        fontSize: 11, color: AppTheme.textSecondary)))
+        child: Obx(() => dashCtrl.isLocked.value
+            ? GestureDetector(
+                onTap: () => dashCtrl.showLockedPopup(),
+                behavior: HitTestBehavior.opaque,
+                child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    alignment: Alignment.center,
+                    child: Text(value.value,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                            fontSize: 11, color: AppTheme.textSecondary))),
+              )
             : TextField(
                 controller: TextEditingController(text: value.value)
                   ..selection = TextSelection.fromPosition(
@@ -611,7 +634,20 @@ Expanded(
     return Expanded(
       flex: flex,
       child: Obx(() {
-        if (ugController.isLocked.value) return const SizedBox.shrink();
+        if (dashCtrl.isLocked.value) {
+          return Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.lock, size: 16, color: Colors.grey),
+                onPressed: () => dashCtrl.showLockedPopup(),
+                tooltip: 'Locked',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+            ],
+          );
+        }
 
         final isSyncing = pumpController.updatingRows.contains(index);
 
@@ -719,9 +755,9 @@ Expanded(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
           Obx(() => ElevatedButton.icon(
-                onPressed: pumpController.isLoading.value
-                    ? null
-                    : () => _bulkSavePumps(),
+                onPressed: dashCtrl.isLocked.value
+                    ? () => dashCtrl.showLockedPopup()
+                    : (pumpController.isLoading.value ? null : () => _bulkSavePumps()),
                 icon: pumpController.isLoading.value
                     ? const SizedBox(
                         width: 14,
@@ -735,7 +771,7 @@ Expanded(
                         : 'Save All Pumps',
                     style: const TextStyle(fontSize: 12)),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primaryColor,
+                  backgroundColor: dashCtrl.isLocked.value ? Colors.grey : AppTheme.primaryColor,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(
                       horizontal: 20, vertical: 10),
