@@ -224,6 +224,82 @@ export const createConsumeProduct = async (req, res) => {
   }
 };
 
+// ------------------ SAVE / UPDATE PIT VOLUME DATA ------------------
+export const createPit = async (req, res) => {
+  try {
+    const wellId = getWellId(req);
+    const {
+      pitName,
+      volume,
+      density,
+      fluidType,
+      capacity,
+      initialActive,
+      reportId,
+    } = req.body;
+
+    if (!wellId) {
+      return res.status(400).json({
+        success: false,
+        message: "wellId is required",
+      });
+    }
+
+    const safePitName = String(pitName || "").trim();
+    if (!safePitName) {
+      return res.status(400).json({
+        success: false,
+        message: "pitName is required",
+      });
+    }
+
+    const pitPayload = {
+      wellId,
+      pitName: safePitName,
+      volume: Number(volume) || 0,
+      density: Number(density) || 0,
+      fluidType: fluidType || "",
+      capacity: Number(capacity) || 0,
+      initialActive: Boolean(initialActive),
+      reportId: reportId || "",
+    };
+
+    let item = await Pit.findOne({
+      wellId,
+      pitName: safePitName,
+    }).sort({ createdAt: -1 });
+
+    if (item) {
+      item.volume = pitPayload.volume;
+      item.density = pitPayload.density;
+      item.fluidType = pitPayload.fluidType;
+      item.capacity = pitPayload.capacity;
+      item.initialActive = pitPayload.initialActive;
+      item.reportId = pitPayload.reportId;
+      await item.save();
+
+      return res.status(200).json({
+        success: true,
+        message: "Pit updated successfully",
+        data: item,
+      });
+    }
+
+    item = await Pit.create(pitPayload);
+
+    return res.status(201).json({
+      success: true,
+      message: "Pit saved successfully",
+      data: item,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 
 // ------------------ GET VOLUME NAME ------------------
 export const getVolumeNameCalculation = async (req, res) => {
