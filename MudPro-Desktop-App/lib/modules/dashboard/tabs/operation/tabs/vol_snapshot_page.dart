@@ -59,7 +59,7 @@ class VolumeSnapshotController extends GetxController {
       final volumeName = _asMap(payload['volumeName']);
       final values = snapshot.isNotEmpty
           ? _normalizeSnapshot(snapshot)
-          : _deriveLegacySnapshot(payload);
+          : await _deriveOperationSnapshot(payload, wellId);
       final volumeNameValues = volumeName.isNotEmpty
           ? _normalizeVolumeName(volumeName)
           : _deriveLegacyVolumeName(payload);
@@ -141,17 +141,134 @@ class VolumeSnapshotController extends GetxController {
     };
   }
 
-  Map<String, double> _deriveLegacySnapshot(Map<String, dynamic> payload) {
+  Future<Map<String, double>> _deriveOperationSnapshot(
+    Map<String, dynamic> payload,
+    String wellId,
+  ) async {
     final volumeName = _asMap(payload['volumeName']);
     final totals = _asMap(payload['totalsBreakdown']);
 
-    final receiveMud = _number(totals['receivedMudTotal']);
+    final responses = await Future.wait<List<Map<String, dynamic>>>([
+      _fetchList(() => _repo.getReceiveMudList(wellId)),
+      _fetchList(() => _repo.getReturnLostMudList(wellId)),
+      _fetchList(() => _repo.getAddWaterList(wellId)),
+      _fetchList(() => _repo.getMudLossList(wellId)),
+      _fetchList(() => _repo.getMudLossStorageList(wellId)),
+      _fetchList(() => _repo.getOtherVolAdditionList(wellId)),
+      _fetchList(() => _repo.getTransferMud(wellId)),
+    ]);
+
+    final receiveMudItems = responses[0];
+    final returnLostMudItems = responses[1];
+    final addWaterItems = responses[2];
+    final mudLossItems = responses[3];
+    final mudLossStorageItems = responses[4];
+    final otherVolItems = responses[5];
+    final transferMudItems = responses[6];
+
+    final receiveMud = _sum(receiveMudItems, 'netVolume');
+    final leasedMudReceived = _sumWhere(
+      receiveMudItems,
+      'netVolume',
+      (item) => _boolValue(item['leased']),
+    );
+    final nonLeasedMudReceived = _round2(receiveMud - leasedMudReceived);
+
+    final returnVol = _sum(returnLostMudItems, 'volReturned');
+    final leasedMudReturned = _sumWhere(
+      returnLostMudItems,
+      'volReturned',
+      (item) => _boolValue(item['leased']),
+    );
+    final nonLeasedMudReturned = _round2(returnVol - leasedMudReturned);
+    final leasedMudLost = _sumWhere(
+      returnLostMudItems,
+      'volLost',
+      (item) => _boolValue(item['leased']),
+    );
+
+    final water = _sum(addWaterItems, 'volume');
+
+    final formation = _sum(otherVolItems, 'formation');
+    final cuttings = _sum(otherVolItems, 'cuttings');
+    final volumeNotFluid = _sum(otherVolItems, 'volumeNotFluid');
+
+    final dump = _sum(mudLossItems, 'dump');
+    final shakers = _sum(mudLossItems, 'shakers');
+    final centrifuge = _sum(mudLossItems, 'centrifuge');
+    final evaporation = _sum(mudLossItems, 'evaporation');
+    final pitCleaning = _sum(mudLossItems, 'pitCleaning');
+    final formationLoss = _sum(mudLossItems, 'formation');
+    final cuttingsRetention = _sum(mudLossItems, 'cuttingsRetention');
+    final seepage = _sum(mudLossItems, 'seepage');
+    final abandonInHole = _sum(mudLossItems, 'abandonInHole');
+    final leftBehindCasing = _sum(mudLossItems, 'leftBehindCasing');
+    final tripping = _sum(mudLossItems, 'tripping');
+
+    final storageDump = _sum(mudLossStorageItems, 'dump');
+    final storageEvaporation = _sum(mudLossStorageItems, 'evaporation');
+    final storagePitCleaning = _sum(mudLossStorageItems, 'pitCleaning');
+
+    final transferToStorage = _round2(
+      transferMudItems
+          .where(
+            (item) =>
+                (item['from'] ?? '').toString().trim().toLowerCase() ==
+                'active system',
+          )
+          .fold<double>(
+            0,
+            (sum, item) => sum + _number(item['totalTransferVol']),
+          ),
+    );
+    final transferFromStorage = _round2(
+      transferMudItems
+          .where(
+            (item) =>
+                (item['from'] ?? '').toString().trim().toLowerCase() !=
+                'active system',
+          )
+          .fold<double>(
+            0,
+            (sum, item) => sum + _number(item['totalTransferVol']),
+          ),
+    );
+
+    final baseFluid = 0.0;
+    final weightMaterial = 0.0;
     final products = _number(totals['consumeProductTotal']);
-    final water = _number(totals['addWaterTotal']);
-    final formation = _number(totals['otherVolAdditionTotal']);
-    final lossTotal = _number(totals['mudLossTotal']);
-    final storageLossTotal = _number(totals['mudLossStorageTotal']);
-    final returnLost = _number(totals['lostMudTotal']);
+
+    final additionTotal = _round2(
+      receiveMud +
+          baseFluid +
+          weightMaterial +
+          products +
+          water +
+          formation +
+          cuttings +
+          volumeNotFluid,
+    );
+    final lossTotal = _round2(
+      dump +
+          shakers +
+          centrifuge +
+          evaporation +
+          pitCleaning +
+          formationLoss +
+          cuttingsRetention +
+          seepage +
+          abandonInHole +
+          leftBehindCasing +
+          tripping,
+    );
+    final storageLossTotal =
+        _round2(storageDump + storageEvaporation + storagePitCleaning);
+
+    final endVol = _number(volumeName['endVol']);
+    final transferNet = _round2(
+      transferFromStorage - transferToStorage + returnVol,
+    );
+    final startVol = _round2(endVol - additionTotal + lossTotal - transferNet);
 
     final hole = _number(volumeName['hole']);
     final activePits = _number(volumeName['activePits']);
@@ -159,46 +276,51 @@ class VolumeSnapshotController extends GetxController {
     final totalStorage = _number(volumeName['totalStorage']);
     final ledgerTotalOnLocation = _number(volumeName['totalOnLocation']);
     final measuredTotalOnLocation = _round2(activeSystem + totalStorage);
+    final cumLeased = _round2(
+      (leasedMudReceived - leasedMudReturned - leasedMudLost)
+          .clamp(0, double.infinity),
+    );
     final volumeDifference = _round2(
       ledgerTotalOnLocation - measuredTotalOnLocation,
     );
 
     return {
-      'startVol': _round2(activeSystem - receiveMud - products - water),
+      'startVol': startVol,
       'receiveMud': receiveMud,
-      'baseFluid': 0,
-      'weightMaterial': 0,
+      'baseFluid': baseFluid,
+      'weightMaterial': weightMaterial,
       'products': products,
       'water': water,
       'formation': formation,
-      'cuttings': 0,
-      'cuttingsRetention': 0,
-      'seepage': 0,
-      'additionTotal': _round2(receiveMud + products + water + formation),
-      'dump': 0,
-      'shakers': 0,
-      'centrifuge': 0,
-      'evaporation': 0,
-      'pitCleaning': 0,
-      'formationLoss': 0,
-      'abandonInHole': 0,
-      'leftBehindCasing': 0,
-      'tripping': 0,
+      'cuttings': cuttings,
+      'volumeNotFluid': volumeNotFluid,
+      'cuttingsRetention': cuttingsRetention,
+      'seepage': seepage,
+      'additionTotal': additionTotal,
+      'dump': dump,
+      'shakers': shakers,
+      'centrifuge': centrifuge,
+      'evaporation': evaporation,
+      'pitCleaning': pitCleaning,
+      'formationLoss': formationLoss,
+      'abandonInHole': abandonInHole,
+      'leftBehindCasing': leftBehindCasing,
+      'tripping': tripping,
       'lossTotal': lossTotal,
-      'fromStorage': 0,
-      'toStorage': 0,
-      'returnVol': returnLost,
-      'endVol': _number(volumeName['endVol']),
+      'fromStorage': transferFromStorage,
+      'toStorage': transferToStorage,
+      'returnVol': returnVol,
+      'endVol': endVol,
       'endVolActiveSystem': _number(volumeName['endVolMinusActiveSystem']),
-      'storageDump': 0,
-      'storageEvaporation': 0,
-      'storagePitCleaning': 0,
-      'premixedMud': 0,
-      'leasedMudReceived': 0,
-      'leasedMudReturned': 0,
-      'nonLeasedMudReceived': receiveMud,
-      'nonLeasedMudReturned': returnLost,
-      'cumLeased': 0,
+      'storageDump': storageDump,
+      'storageEvaporation': storageEvaporation,
+      'storagePitCleaning': storagePitCleaning,
+      'premixedMud': receiveMud,
+      'leasedMudReceived': leasedMudReceived,
+      'leasedMudReturned': leasedMudReturned,
+      'nonLeasedMudReceived': nonLeasedMudReceived,
+      'nonLeasedMudReturned': nonLeasedMudReturned,
+      'cumLeased': cumLeased,
       'volumeSummary': totalStorage,
       'hole': hole,
       'activePits': activePits,
@@ -206,10 +328,63 @@ class VolumeSnapshotController extends GetxController {
       'totalStorage': totalStorage,
       'totalOnLocation': measuredTotalOnLocation,
       'totalOnLocationLedger': ledgerTotalOnLocation,
-      'totalOnLocationCumLeased': measuredTotalOnLocation,
+      'totalOnLocationCumLeased': cumLeased,
       'volumeDifference': volumeDifference,
       'storageLossTotal': storageLossTotal,
     };
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchList(
+    Future<Map<String, dynamic>> Function() request,
+  ) async {
+    try {
+      final result = await request();
+      if (result['success'] != true) {
+        return const <Map<String, dynamic>>[];
+      }
+      return _extractList(result['data']);
+    } catch (_) {
+      return const <Map<String, dynamic>>[];
+    }
+  }
+
+  List<Map<String, dynamic>> _extractList(dynamic raw) {
+    if (raw is List) {
+      return raw.map(_asMap).where((item) => item.isNotEmpty).toList();
+    }
+
+    final envelope = _asMap(raw);
+    final data = envelope['data'];
+    if (data is List) {
+      return data.map(_asMap).where((item) => item.isNotEmpty).toList();
+    }
+
+    return const <Map<String, dynamic>>[];
+  }
+
+  double _sum(List<Map<String, dynamic>> items, String key) {
+    return _round2(
+      items.fold<double>(0, (sum, item) => sum + _number(item[key])),
+    );
+  }
+
+  double _sumWhere(
+    List<Map<String, dynamic>> items,
+    String key,
+    bool Function(Map<String, dynamic> item) predicate,
+  ) {
+    return _round2(
+      items.where(predicate).fold<double>(
+            0,
+            (sum, item) => sum + _number(item[key]),
+          ),
+    );
+  }
+
+  bool _boolValue(dynamic value) {
+    if (value is bool) return value;
+    final text = value?.toString().trim().toLowerCase() ?? '';
+    return text == 'true' || text == '1' || text == 'yes';
   }
 
   static double _number(dynamic value) {
@@ -884,6 +1059,7 @@ const List<String> _snapshotKeys = [
   'water',
   'formation',
   'cuttings',
+  'volumeNotFluid',
   'cuttingsRetention',
   'seepage',
   'additionTotal',
