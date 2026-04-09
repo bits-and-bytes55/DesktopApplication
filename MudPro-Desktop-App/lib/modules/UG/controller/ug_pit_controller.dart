@@ -765,28 +765,36 @@ class PitController extends GetxController {
     if (!_hasWellId) return {'success': false, 'message': 'Well ID missing'};
 
     final authRepo = AuthRepository();
-    final unsavedRows = transferRows.where((r) => r.pitName.isNotEmpty && r.savedId == null).toList();
+    final filledRows = transferRows.where((r) => r.pitName.isNotEmpty).toList();
 
-    if (unsavedRows.isEmpty) {
-      return {'success': true, 'message': 'No new transfers to save'};
+    if (filledRows.isEmpty) {
+      return {'success': true, 'message': 'No transfers to save'};
     }
 
     try {
       int successCount = 0;
       final List<String> errors = [];
 
-      for (final row in unsavedRows) {
+      for (final row in filledRows) {
         final payload = {
           'wellId': currentWellId!,
           'from': selectedFromPit.value,
           'transfers': [row.toTransferMap(notTreatedMud.value)],
         };
 
-        final result = await authRepo.createTransferMud(currentWellId!, payload);
+        final result = row.savedId == null
+            ? await authRepo.createTransferMud(currentWellId!, payload)
+            : await authRepo.updateTransferMud(
+                currentWellId!,
+                row.savedId!,
+                payload,
+              );
 
         if (result['success'] == true) {
-          final saved = result['data'];
-          row.savedId = saved is Map ? saved['_id']?.toString() : null;
+          final savedEnvelope = result['data'];
+          final saved = savedEnvelope is Map ? savedEnvelope['data'] : null;
+          final parsedId = saved is Map ? saved['_id']?.toString() : null;
+          row.savedId = parsedId ?? row.savedId;
           successCount++;
         } else {
           errors.add(result['message']?.toString() ?? 'Unknown transfer error');
@@ -794,12 +802,15 @@ class PitController extends GetxController {
       }
 
       transferRows.refresh();
+      await fetchTransferMud();
+      await fetchAllPits();
+      await fetchVolumeNameData();
 
       return {
         'success': errors.isEmpty,
         'message': errors.isEmpty
             ? 'Saved $successCount transfers successfully'
-            : 'Saved $successCount transfers, ${errors.length} failed',
+            : 'Saved/updated $successCount transfers, ${errors.length} failed',
         if (errors.isNotEmpty) 'errors': errors,
       };
     } catch (e) {
@@ -838,6 +849,9 @@ class PitController extends GetxController {
       transferRows.add(TransferRowData());
     }
     transferRows.refresh();
+    await fetchTransferMud();
+    await fetchAllPits();
+    await fetchVolumeNameData();
   }
 
   void checkAndAddTransferRow() {

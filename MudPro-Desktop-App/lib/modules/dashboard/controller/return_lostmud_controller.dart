@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
+import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/inventory_model.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/pit_model.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
 class ReturnLostMudController extends GetxController {
   final AuthRepository _repository = AuthRepository();
+  Worker? _wellWorker;
   
   // Loading states
   final isLoading = false.obs;
   final isSaving = false.obs;
+  final recordId = RxnString();
   
   // Premixed Mud checkbox
   final isPremixedMud = false.obs;
@@ -49,6 +52,10 @@ class ReturnLostMudController extends GetxController {
     super.onInit();
     print('🚀 ReturnLostMudController initialized');
     _loadInitialData();
+    _wellWorker = ever<String>(padWellContext.selectedWellId, (_) {
+      _clearForm();
+      _loadInitialData();
+    });
   }
   
   @override
@@ -58,6 +65,7 @@ class ReturnLostMudController extends GetxController {
     bolController.dispose();
     volLostController.dispose();
     costOfLostController.dispose();
+    _wellWorker?.dispose();
     super.onClose();
   }
   
@@ -78,12 +86,86 @@ class ReturnLostMudController extends GetxController {
         _loadPremixedMud(),
         _loadPits(),
       ]);
+      await _loadExistingReturnLostMud();
     } catch (e) {
       _showToast('Failed to load data', isError: true);
       print('❌ Error loading initial data: $e');
     } finally {
       isLoading.value = false;
     }
+  }
+
+  Future<void> _loadExistingReturnLostMud() async {
+    final currentWellId = wellId;
+    if (currentWellId == null) return;
+
+    try {
+      final result = await _repository.getReturnLostMudList(currentWellId);
+      if (result['success'] != true) return;
+
+      final envelope = result['data'];
+      final data = envelope is Map<String, dynamic>
+          ? envelope['data']
+          : envelope is Map
+              ? Map<String, dynamic>.from(envelope)['data']
+              : null;
+      final items = data is List ? data : const [];
+      if (items.isEmpty) {
+        recordId.value = null;
+        return;
+      }
+
+      final item = Map<String, dynamic>.from(items.first as Map);
+      recordId.value = (item['_id'] ?? item['id'] ?? '').toString();
+
+      final premixedName = (item['premixedMud'] ?? '').toString().trim();
+      isPremixedMud.value = premixedName.isNotEmpty;
+      PremixModel? matchedPremixed;
+      for (final premixed in premixedList) {
+        if (premixed.description.trim().toLowerCase() ==
+            premixedName.toLowerCase()) {
+          matchedPremixed = premixed;
+          break;
+        }
+      }
+      if (matchedPremixed != null) {
+        selectedPremixedId.value = matchedPremixed.id ?? '';
+        selectedPremixed.value = matchedPremixed;
+      }
+
+      final fromName = (item['from'] ?? '').toString().trim();
+      PitModel? matchedPit;
+      for (final pit in pitsList) {
+        if (pit.pitName.trim().toLowerCase() == fromName.toLowerCase()) {
+          matchedPit = pit;
+          break;
+        }
+      }
+      if (matchedPit != null) {
+        selectedPitId.value = matchedPit.id ?? '';
+        selectedPit.value = matchedPit;
+      }
+
+      toController.text = (item['to'] ?? '').toString();
+      volReturnedController.text = (item['volReturned'] ?? '').toString();
+      bolController.text = (item['bol'] ?? '').toString();
+      volLostController.text = (item['volLost'] ?? '').toString();
+      costOfLostController.text = (item['costOfLostPreTax'] ?? '').toString();
+      mw.value = (item['mw'] ?? '').toString();
+      mudType.value = (item['mudType'] ?? '').toString();
+      isLeased.value = item['leased'] == true;
+    } catch (e) {
+      print('Error loading return/lost mud record: $e');
+    }
+  }
+
+  Future<void> _refreshPitState() async {
+    if (!Get.isRegistered<PitController>()) return;
+    final pitCtrl = Get.find<PitController>();
+    await pitCtrl.fetchAllPits();
+    await pitCtrl.fetchSelectedPits();
+    await pitCtrl.fetchUnselectedPits();
+    await pitCtrl.fetchVolumeNameData();
   }
   
   // ================= LOAD PREMIXED MUD =================
@@ -201,32 +283,80 @@ class ReturnLostMudController extends GetxController {
   
   // ================= SAVE RETURN/LOST MUD =================
   
-  Future<void> saveReturnLostMud() async {
+  Future<Map<String, dynamic>> saveReturnLostMud() async {
+    final currentWellId = wellId;
+    if (currentWellId == null) {
+      _showToast('Well ID not found', isError: true);
+      return {'success': false, 'message': 'Well ID not found'};
+    }
+
+    final isFormEmpty =
+        selectedPremixed.value == null &&
+        selectedPit.value == null &&
+        toController.text.trim().isEmpty &&
+        volReturnedController.text.trim().isEmpty &&
+        bolController.text.trim().isEmpty &&
+        volLostController.text.trim().isEmpty &&
+        costOfLostController.text.trim().isEmpty;
+
+    if (isFormEmpty) {
+      if (recordId.value == null || recordId.value!.isEmpty) {
+        _showToast('No Return / Lost Mud data to save', isError: false);
+        return {'success': true, 'message': 'No Return / Lost Mud data to save'};
+      }
+
+      isSaving.value = true;
+      try {
+        final deleteResult = await _repository.deleteReturnLostMud(
+          currentWellId,
+          recordId.value!,
+        );
+        if (deleteResult['success'] == true) {
+          _clearForm();
+          await _refreshPitState();
+          _showToast('Data deleted successfully', isError: false);
+          return {
+            'success': true,
+            'message': 'Return / Lost Mud deleted successfully',
+          };
+        } else {
+          _showToast(
+            deleteResult['message'] ?? 'Failed to delete data',
+            isError: true,
+          );
+          return {
+            'success': false,
+            'message': deleteResult['message'] ?? 'Failed to delete data',
+          };
+        }
+      } catch (e) {
+        print('Error deleting return/lost mud: $e');
+        _showToast('Failed to delete data', isError: true);
+        return {'success': false, 'message': 'Failed to delete data'};
+      } finally {
+        isSaving.value = false;
+      }
+    }
+
     // Validation
     if (selectedPremixed.value == null) {
       _showToast('Please select Premixed Mud', isError: true);
-      return;
+      return {'success': false, 'message': 'Please select Premixed Mud'};
     }
     
     if (selectedPit.value == null) {
       _showToast('Please select From Pit', isError: true);
-      return;
+      return {'success': false, 'message': 'Please select From Pit'};
     }
     
     if (toController.text.isEmpty) {
       _showToast('To field is required', isError: true);
-      return;
+      return {'success': false, 'message': 'To field is required'};
     }
     
     if (volReturnedController.text.isEmpty) {
       _showToast('Volume Returned is required', isError: true);
-      return;
-    }
-    
-    final currentWellId = wellId;
-    if (currentWellId == null) {
-      _showToast('Well ID not found', isError: true);
-      return;
+      return {'success': false, 'message': 'Volume Returned is required'};
     }
     
     isSaving.value = true;
@@ -248,18 +378,40 @@ class ReturnLostMudController extends GetxController {
       
       print('📤 Saving return/lost mud data: $data');
       
-      final result = await _repository.createReturnLostMud(currentWellId, data);
+      final result = recordId.value != null && recordId.value!.isNotEmpty
+          ? await _repository.updateReturnLostMud(
+              currentWellId,
+              recordId.value!,
+              data,
+            )
+          : await _repository.createReturnLostMud(currentWellId, data);
       if (result['success'] != true) {
         _showToast(result['message'] ?? 'Failed to save data', isError: true);
-        return;
+        return {
+          'success': false,
+          'message': result['message'] ?? 'Failed to save data',
+        };
       }
-      
+
+      final savedData = result['data'];
+      if (savedData is Map<String, dynamic>) {
+        recordId.value = (savedData['_id'] ?? savedData['id'] ?? '').toString();
+      } else if (savedData is Map) {
+        final map = Map<String, dynamic>.from(savedData);
+        recordId.value = (map['_id'] ?? map['id'] ?? '').toString();
+      }
+
+      await _refreshPitState();
       _showToast('Data saved successfully', isError: false);
-      _clearForm();
+      return {
+        'success': true,
+        'message': 'Return / Lost Mud saved successfully',
+      };
       
     } catch (e) {
       print('❌ Error saving return/lost mud: $e');
       _showToast('Failed to save data', isError: true);
+      return {'success': false, 'message': 'Failed to save data'};
     } finally {
       isSaving.value = false;
     }
@@ -279,6 +431,7 @@ class ReturnLostMudController extends GetxController {
     selectedPitId.value = '';
     selectedPremixed.value = null;
     selectedPit.value = null;
+    recordId.value = null;
     
     mw.value = '';
     mudType.value = '';

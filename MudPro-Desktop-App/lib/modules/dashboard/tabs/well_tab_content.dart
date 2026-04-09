@@ -1296,7 +1296,7 @@ class _OpenHoleSectionState extends State<OpenHoleSection> {
 
     final validRows = casedHoleCtrl.entries.where((entry) {
       final idValue = double.tryParse(entry.idCtrl.text.trim()) ?? 0;
-      return idValue > 0;
+      return entry.description.text.trim().isNotEmpty && idValue > 0;
     }).toList();
 
     if (validRows.isEmpty) {
@@ -1309,7 +1309,7 @@ class _OpenHoleSectionState extends State<OpenHoleSection> {
     final latest = validRows.last;
     final holeDescription = latest.description.text.trim().isNotEmpty
         ? latest.description.text.trim()
-        : '${latest.idCtrl.text.trim()} Hole';
+        : '${latest.idCtrl.text.trim()}" Hole';
 
     return [
       [
@@ -1393,8 +1393,8 @@ class _OpenHoleSectionState extends State<OpenHoleSection> {
                         children: [
                           'No.',
                           'Description',
-                          AppUnits.label('ID\n(in)'),
-                          AppUnits.label('MD\n(ft)'),
+                          'ID\n(in)',
+                          'MD\n(ft)',
                           'Washout\n(%)',
                         ].map((h) => _hCell(h, AppTheme.primaryColor)).toList(),
                       ),

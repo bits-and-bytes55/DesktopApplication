@@ -16,7 +16,7 @@ import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/return_produ
 import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/switch_mudtype_view.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/switch_pit_view.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/tabs/mud_treated_page.dart';
-import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/tabs/vol_snapshot_page.dart' hide AppTheme;
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/tabs/vol_snapshot_page.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/transfer_mud.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
@@ -251,8 +251,8 @@ class OperationPage extends StatelessWidget {
                                     ...controller.dropdownItems.map(
                                       (e) => DropdownMenuItem(
                                         value: e,
-                                        child: Text(
-                                          controller.labels[e]!,
+                                      child: Text(
+                                          controller.labelFor(e),
                                           style: AppTheme.bodySmall.copyWith(
                                             fontSize: 11,
                                             fontWeight: FontWeight.w500,
@@ -305,24 +305,30 @@ class OperationPage extends StatelessWidget {
               bottomRight: Radius.circular(12),
             ),
           ),
-          child: Row(
-            children: [
-              Icon(
-                Icons.info_outline_rounded,
-                size: 14,
-                color: AppTheme.textSecondary,
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  "Select an operation to view details",
-                  style: AppTheme.caption.copyWith(
-                    color: AppTheme.textSecondary,
-                  ),
-                  overflow: TextOverflow.ellipsis,
+          child: Obx(
+            () => Row(
+              children: [
+                Icon(
+                  Icons.info_outline_rounded,
+                  size: 14,
+                  color: AppTheme.textSecondary,
                 ),
-              ),
-            ],
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    controller.isMenuLoading.value
+                        ? "Loading operations from backend..."
+                        : controller.menuError.value.isNotEmpty
+                            ? "Backend sync failed. Static menu fallback active."
+                            : "Operations menu is loaded from backend.",
+                    style: AppTheme.caption.copyWith(
+                      color: AppTheme.textSecondary,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ],
@@ -438,8 +444,6 @@ case OperationType.otherVolAddition:
 
 
 
-      default:
-        return _buildPlaceholderView();
     }
   }
 

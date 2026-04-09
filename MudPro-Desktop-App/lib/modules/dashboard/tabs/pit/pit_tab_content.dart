@@ -24,19 +24,6 @@ class _PitPageState extends State<PitPage> {
   final PitController controller = Get.put(PitController());
   final dashboard = Get.find<DashboardController>();
 
-  double _volumeFromBaseBbl(double value) {
-    return AppUnits.convertValue(value, '(bbl)', AppUnits.fluidVolume) ?? value;
-  }
-
-  String _formatVolumeDisplay(double value) {
-    final converted = _volumeFromBaseBbl(value);
-    final absValue = converted.abs();
-    if (absValue > 0 && absValue < 0.01) {
-      return converted.toStringAsFixed(4);
-    }
-    return converted.toStringAsFixed(2);
-  }
-
   @override
   void initState() {
     super.initState();
@@ -531,15 +518,17 @@ class _PitPageState extends State<PitPage> {
       return double.tryParse(v?.toString() ?? '') ?? 0.0;
     }
 
+    String formatValue(double v) => v.toStringAsFixed(2);
+
     final rows = [
-      ['Hole Vol. Difference', _formatVolumeDisplay(getValue('heldVolDifference'))],
-      ['Hole', _formatVolumeDisplay(getValue('hole'))],
-      ['Active Pits', _formatVolumeDisplay(getValue('activePits'))],
-      ['Active System', _formatVolumeDisplay(getValue('activeSystem'))],
-      ['End Vol.', _formatVolumeDisplay(getValue('endVol'))],
-      ['End Vol. - Active System', _formatVolumeDisplay(getValue('endVolMinusActiveSystem'))],
-      ['Total Storage', _formatVolumeDisplay(getValue('totalStorage'))],
-      ['Total on Location', _formatVolumeDisplay(getValue('totalOnLocation'))],
+      ['Hole Vol. Difference', formatValue(getValue('heldVolDifference'))],
+      ['Hole', formatValue(getValue('hole'))],
+      ['Active Pits', formatValue(getValue('activePits'))],
+      ['Active System', formatValue(getValue('activeSystem'))],
+      ['End Vol.', formatValue(getValue('endVol'))],
+      ['End Vol. - Active System', formatValue(getValue('endVolMinusActiveSystem'))],
+      ['Total Storage', formatValue(getValue('totalStorage'))],
+      ['Total on Location', formatValue(getValue('totalOnLocation'))],
       ['Previous Total on Location', '0.00'],
     ];
 
@@ -907,7 +896,7 @@ class _PitPageState extends State<PitPage> {
           (match['calculatedVol'] ?? 0).toString(),
         );
         if (value != null) {
-          return _formatVolumeDisplay(value);
+          return value.toStringAsFixed(2);
         }
       }
     }

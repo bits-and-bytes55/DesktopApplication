@@ -5,7 +5,6 @@ import 'package:mudpro_desktop_app/api_endpoint/api_endpoint.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart'
     show kControllerWellId;
-import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
@@ -49,8 +48,6 @@ class WellGeneralController extends GetxController {
   var depthDrilled = ''.obs;
   Worker? _wellWorker;
   Worker? _reportWorker;
-  Worker? _unitMapWorker;
-  Worker? _unitSystemWorker;
 
   @override
   void onInit() {
@@ -61,17 +58,6 @@ class WellGeneralController extends GetxController {
     _reportWorker = ever<String>(reportContext.selectedReportId, (_) {
       _applySelectedReportMetadata();
     });
-    final options = AppUnits.controller;
-    _unitMapWorker = ever<dynamic>(options.customUnits, (_) {
-      if (kControllerWellId.isNotEmpty) {
-        fetchLatest();
-      }
-    });
-    _unitSystemWorker = ever<dynamic>(options.unitSystem, (_) {
-      if (kControllerWellId.isNotEmpty) {
-        fetchLatest();
-      }
-    });
     fetchLatest();
   }
 
@@ -79,8 +65,6 @@ class WellGeneralController extends GetxController {
   void onClose() {
     _wellWorker?.dispose();
     _reportWorker?.dispose();
-    _unitMapWorker?.dispose();
-    _unitSystemWorker?.dispose();
     super.onClose();
   }
 
@@ -88,47 +72,6 @@ class WellGeneralController extends GetxController {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
   };
-
-  double _toBaseValue(
-    String rawValue, {
-    required String displayUnit,
-    required String baseUnit,
-  }) {
-    final parsed = double.tryParse(rawValue.trim());
-    if (parsed == null) {
-      return 0;
-    }
-    return AppUnits.convertValue(parsed, displayUnit, baseUnit) ?? parsed;
-  }
-
-  String _fromBaseValue(
-    dynamic rawValue, {
-    required String baseUnit,
-    required String displayUnit,
-  }) {
-    if (rawValue == null || rawValue.toString().trim().isEmpty) {
-      return '';
-    }
-    final parsed = double.tryParse(rawValue.toString().trim());
-    if (parsed == null) {
-      return rawValue.toString();
-    }
-    final converted =
-        AppUnits.convertValue(parsed, baseUnit, displayUnit) ?? parsed;
-    return _formatNumber(converted);
-  }
-
-  String _formatNumber(double value) {
-    if (value.isNaN || value.isInfinite) {
-      return '0';
-    }
-    if (value == value.truncateToDouble()) {
-      return value.truncate().toString();
-    }
-    return value
-        .toStringAsFixed(4)
-        .replaceFirst(RegExp(r'\.?0+$'), '');
-  }
 
   Map<String, dynamic> _toJson() => {
     if (savedId.value.isNotEmpty) 'recordId': savedId.value,
@@ -141,83 +84,27 @@ class WellGeneralController extends GetxController {
     'operatorRep': operatorRep.value,
     'contractorRep': contractorRep.value,
     'activity': activity.value,
-    'md': _toBaseValue(
-      md.value,
-      displayUnit: AppUnits.length,
-      baseUnit: '(ft)',
-    ),
-    'tvd': _toBaseValue(
-      tvd.value,
-      displayUnit: AppUnits.length,
-      baseUnit: '(ft)',
-    ),
+    'md': double.tryParse(md.value) ?? 0,
+    'tvd': double.tryParse(tvd.value) ?? 0,
     'inc': double.tryParse(inc.value) ?? 0,
     'azi': double.tryParse(azi.value) ?? 0,
-    'wob': _toBaseValue(
-      wob.value,
-      displayUnit: AppUnits.force,
-      baseUnit: '(lbf)',
-    ),
-    'rotWt': _toBaseValue(
-      rotWt.value,
-      displayUnit: AppUnits.force,
-      baseUnit: '(lbf)',
-    ),
-    'soWt': _toBaseValue(
-      soWt.value,
-      displayUnit: AppUnits.force,
-      baseUnit: '(lbf)',
-    ),
-    'puWt': _toBaseValue(
-      puWt.value,
-      displayUnit: AppUnits.force,
-      baseUnit: '(lbf)',
-    ),
+    'wob': double.tryParse(wob.value) ?? 0,
+    'rotWt': double.tryParse(rotWt.value) ?? 0,
+    'soWt': double.tryParse(soWt.value) ?? 0,
+    'puWt': double.tryParse(puWt.value) ?? 0,
     'rpm': double.tryParse(rpm.value) ?? 0,
-    'rop': _toBaseValue(
-      rop.value,
-      displayUnit: AppUnits.rop,
-      baseUnit: '(ft/hr)',
-    ),
-    'offBottomTq': _toBaseValue(
-      offBottomTq.value,
-      displayUnit: AppUnits.torque,
-      baseUnit: '(ft-lb)',
-    ),
-    'onBottomTq': _toBaseValue(
-      onBottomTq.value,
-      displayUnit: AppUnits.torque,
-      baseUnit: '(ft-lb)',
-    ),
-    'suctionT': _toBaseValue(
-      suctionT.value,
-      displayUnit: AppUnits.temperature,
-      baseUnit: '(Â°F)',
-    ),
-    'bottomT': _toBaseValue(
-      bottomT.value,
-      displayUnit: AppUnits.temperature,
-      baseUnit: '(Â°F)',
-    ),
+    'rop': double.tryParse(rop.value) ?? 0,
+    'offBottomTq': double.tryParse(offBottomTq.value) ?? 0,
+    'onBottomTq': double.tryParse(onBottomTq.value) ?? 0,
+    'suctionT': double.tryParse(suctionT.value) ?? 0,
+    'bottomT': double.tryParse(bottomT.value) ?? 0,
     'interval': interval.value,
-    'fit': _toBaseValue(
-      fit.value,
-      displayUnit: AppUnits.mudWeight,
-      baseUnit: '(ppg)',
-    ),
+    'fit': fit.value,
     'formation': formation.value,
-    'additionalFootage': _toBaseValue(
-      additionalFootage.value,
-      displayUnit: AppUnits.length,
-      baseUnit: '(ft)',
-    ),
+    'additionalFootage': double.tryParse(additionalFootage.value) ?? 0,
     'nptTime': double.tryParse(nptTime.value) ?? 0,
     'nptCost': double.tryParse(nptCost.value) ?? 0,
-    'depthDrilled': _toBaseValue(
-      depthDrilled.value,
-      displayUnit: AppUnits.length,
-      baseUnit: '(ft)',
-    ),
+    'depthDrilled': double.tryParse(depthDrilled.value) ?? 0,
   };
 
   void _fromJson(Map<String, dynamic> d) {
@@ -231,83 +118,27 @@ class WellGeneralController extends GetxController {
     operatorRep.value = d['operatorRep']?.toString() ?? '';
     contractorRep.value = d['contractorRep']?.toString() ?? '';
     activity.value = d['activity']?.toString() ?? '';
-    md.value = _fromBaseValue(
-      d['md'],
-      baseUnit: '(ft)',
-      displayUnit: AppUnits.length,
-    );
-    tvd.value = _fromBaseValue(
-      d['tvd'],
-      baseUnit: '(ft)',
-      displayUnit: AppUnits.length,
-    );
+    md.value = (d['md'] ?? '').toString();
+    tvd.value = (d['tvd'] ?? '').toString();
     inc.value = (d['inc'] ?? '').toString();
     azi.value = (d['azi'] ?? '').toString();
-    wob.value = _fromBaseValue(
-      d['wob'],
-      baseUnit: '(lbf)',
-      displayUnit: AppUnits.force,
-    );
-    rotWt.value = _fromBaseValue(
-      d['rotWt'],
-      baseUnit: '(lbf)',
-      displayUnit: AppUnits.force,
-    );
-    soWt.value = _fromBaseValue(
-      d['soWt'],
-      baseUnit: '(lbf)',
-      displayUnit: AppUnits.force,
-    );
-    puWt.value = _fromBaseValue(
-      d['puWt'],
-      baseUnit: '(lbf)',
-      displayUnit: AppUnits.force,
-    );
+    wob.value = (d['wob'] ?? '').toString();
+    rotWt.value = (d['rotWt'] ?? '').toString();
+    soWt.value = (d['soWt'] ?? '').toString();
+    puWt.value = (d['puWt'] ?? '').toString();
     rpm.value = (d['rpm'] ?? '').toString();
-    rop.value = _fromBaseValue(
-      d['rop'],
-      baseUnit: '(ft/hr)',
-      displayUnit: AppUnits.rop,
-    );
-    offBottomTq.value = _fromBaseValue(
-      d['offBottomTq'],
-      baseUnit: '(ft-lb)',
-      displayUnit: AppUnits.torque,
-    );
-    onBottomTq.value = _fromBaseValue(
-      d['onBottomTq'],
-      baseUnit: '(ft-lb)',
-      displayUnit: AppUnits.torque,
-    );
-    suctionT.value = _fromBaseValue(
-      d['suctionT'],
-      baseUnit: '(Â°F)',
-      displayUnit: AppUnits.temperature,
-    );
-    bottomT.value = _fromBaseValue(
-      d['bottomT'],
-      baseUnit: '(Â°F)',
-      displayUnit: AppUnits.temperature,
-    );
+    rop.value = (d['rop'] ?? '').toString();
+    offBottomTq.value = (d['offBottomTq'] ?? '').toString();
+    onBottomTq.value = (d['onBottomTq'] ?? '').toString();
+    suctionT.value = (d['suctionT'] ?? '').toString();
+    bottomT.value = (d['bottomT'] ?? '').toString();
     interval.value = d['interval']?.toString() ?? '';
-    fit.value = _fromBaseValue(
-      d['fit'],
-      baseUnit: '(ppg)',
-      displayUnit: AppUnits.mudWeight,
-    );
+    fit.value = d['fit']?.toString() ?? '';
     formation.value = d['formation']?.toString() ?? '';
-    additionalFootage.value = _fromBaseValue(
-      d['additionalFootage'],
-      baseUnit: '(ft)',
-      displayUnit: AppUnits.length,
-    );
+    additionalFootage.value = (d['additionalFootage'] ?? '').toString();
     nptTime.value = (d['nptTime'] ?? '').toString();
     nptCost.value = (d['nptCost'] ?? '').toString();
-    depthDrilled.value = _fromBaseValue(
-      d['depthDrilled'],
-      baseUnit: '(ft)',
-      displayUnit: AppUnits.length,
-    );
+    depthDrilled.value = (d['depthDrilled'] ?? '').toString();
   }
 
   void _clearFields() {
@@ -357,7 +188,7 @@ class WellGeneralController extends GetxController {
     }
   }
 
-  // ─── FETCH latest record ───────────────────────
+  // FETCH latest record
   Future<void> fetchLatest() async {
     if (kControllerWellId.isEmpty) {
       _clearFields();
@@ -391,7 +222,7 @@ class WellGeneralController extends GetxController {
     }
   }
 
-  // ─── SAVE (create or update) ───────────────────
+  // SAVE (create or update)
   Future<Map<String, dynamic>> save() async {
     if (kControllerWellId.isEmpty) {
       return {'success': false, 'message': 'No backend well selected'};
@@ -400,15 +231,13 @@ class WellGeneralController extends GetxController {
     try {
       final authRepo = AuthRepository();
 
-      // We always send the wellId from kControllerWellId to the new unified Save endpoint
       final payload = _toJson();
       payload['wellId'] = kControllerWellId;
 
       final result = await authRepo.saveWellGeneral(payload);
 
       if (result['success'] == true) {
-        final data =
-            result['data']?['data']; // auth_repo returns {success, data: {success, data, message}}
+        final data = result['data']?['data'];
         if (data != null) {
           _fromJson(data);
         }

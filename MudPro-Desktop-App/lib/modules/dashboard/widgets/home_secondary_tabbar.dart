@@ -23,6 +23,10 @@ import 'package:mudpro_desktop_app/modules/dashboard/controller/operation_contro
 import 'package:mudpro_desktop_app/modules/dashboard/controller/recievemud_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/cased_hole_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/drill_string_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/return_lostmud_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/mud_loss_active_system_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/other_vol_addition_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/mud_loss_storage_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/UG_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/well_view.dart';
@@ -591,6 +595,69 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
                 } else {
                   errorMessages.add(
                     'Receive Mud: ${res['message'] ?? 'Failed'}',
+                  );
+                }
+              }
+            } else if (selectedOp == OperationType.returnLostMud) {
+              final returnLostCtrl = Get.isRegistered<ReturnLostMudController>()
+                  ? Get.find<ReturnLostMudController>()
+                  : null;
+              if (returnLostCtrl != null) {
+                final res = await returnLostCtrl.saveReturnLostMud();
+                if (res['success'] == true) {
+                  successMessage = res['message']?.toString() ??
+                      'Return / Lost Mud saved successfully';
+                } else {
+                  errorMessages.add(
+                    'Return / Lost Mud: ${res['message'] ?? 'Failed'}',
+                  );
+                }
+              }
+            } else if (selectedOp == OperationType.mudLossActiveSystem) {
+              final mudLossCtrl =
+                  Get.isRegistered<MudLossActiveSystemController>()
+                      ? Get.find<MudLossActiveSystemController>()
+                      : null;
+              if (mudLossCtrl != null) {
+                final res = await mudLossCtrl.save();
+                if (res['success'] == true) {
+                  successMessage = res['message']?.toString() ??
+                      'Mud Loss - Active System saved successfully';
+                } else {
+                  errorMessages.add(
+                    'Mud Loss - Active System: ${res['message'] ?? 'Failed'}',
+                  );
+                }
+              }
+            } else if (selectedOp == OperationType.otherVolAddition) {
+              final otherVolCtrl =
+                  Get.isRegistered<OtherVolAdditionController>()
+                      ? Get.find<OtherVolAdditionController>()
+                      : null;
+              if (otherVolCtrl != null) {
+                final res = await otherVolCtrl.save();
+                if (res['success'] == true) {
+                  successMessage = res['message']?.toString() ??
+                      'Other Vol Addition saved successfully';
+                } else {
+                  errorMessages.add(
+                    'Other Vol Addition: ${res['message'] ?? 'Failed'}',
+                  );
+                }
+              }
+            } else if (selectedOp == OperationType.mudLossStorage) {
+              final mudLossStorageCtrl =
+                  Get.isRegistered<MudLossStorageController>()
+                      ? Get.find<MudLossStorageController>()
+                      : null;
+              if (mudLossStorageCtrl != null) {
+                final res = await mudLossStorageCtrl.save();
+                if (res['success'] == true) {
+                  successMessage = res['message']?.toString() ??
+                      'Mud Loss - Storage saved successfully';
+                } else {
+                  errorMessages.add(
+                    'Mud Loss - Storage: ${res['message'] ?? 'Failed'}',
                   );
                 }
               }

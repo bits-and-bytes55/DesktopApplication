@@ -3,12 +3,12 @@ import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
-import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class VolumeSnapshotController extends GetxController {
   final AuthRepository _repo = AuthRepository();
 
   final RxMap<String, double> _rawValues = <String, double>{}.obs;
+  final RxMap<String, double> _volumeNameValues = <String, double>{}.obs;
   final isLoading = false.obs;
   final errorMessage = ''.obs;
 
@@ -35,6 +35,7 @@ class VolumeSnapshotController extends GetxController {
     final wellId = currentBackendWellId.trim();
     if (wellId.isEmpty) {
       _rawValues.clear();
+      _volumeNameValues.clear();
       errorMessage.value = 'Select a well first to load volume snapshot.';
       return;
     }
@@ -55,13 +56,19 @@ class VolumeSnapshotController extends GetxController {
       }
 
       final snapshot = _asMap(payload['volSnapshot']);
+      final volumeName = _asMap(payload['volumeName']);
       final values = snapshot.isNotEmpty
           ? _normalizeSnapshot(snapshot)
           : _deriveLegacySnapshot(payload);
+      final volumeNameValues = volumeName.isNotEmpty
+          ? _normalizeVolumeName(volumeName)
+          : _deriveLegacyVolumeName(payload);
 
       _rawValues.assignAll(values);
+      _volumeNameValues.assignAll(volumeNameValues);
     } catch (e) {
       _rawValues.clear();
+      _volumeNameValues.clear();
       errorMessage.value = e.toString().replaceFirst(
         RegExp(r'^Exception:\s*'),
         '',
@@ -80,6 +87,13 @@ class VolumeSnapshotController extends GetxController {
 
   double raw(String key) => (_rawValues[key] ?? 0).toDouble();
 
+  String displayVolumeName(String key, {bool negative = false}) {
+    final value = rawVolumeName(key) * (negative ? -1 : 1);
+    return _format(value);
+  }
+
+  double rawVolumeName(String key) => (_volumeNameValues[key] ?? 0).toDouble();
+
   Map<String, dynamic> _asMap(dynamic value) {
     if (value is Map<String, dynamic>) return value;
     if (value is Map) return Map<String, dynamic>.from(value);
@@ -89,6 +103,41 @@ class VolumeSnapshotController extends GetxController {
   Map<String, double> _normalizeSnapshot(Map<String, dynamic> snapshot) {
     return {
       for (final key in _snapshotKeys) key: _number(snapshot[key]),
+    };
+  }
+
+  Map<String, double> _normalizeVolumeName(Map<String, dynamic> volumeName) {
+    return {
+      'heldVolDifference': _number(volumeName['heldVolDifference']),
+      'hole': _number(volumeName['hole']),
+      'activePits': _number(volumeName['activePits']),
+      'activeSystem': _number(volumeName['activeSystem']),
+      'endVol': _number(volumeName['endVol']),
+      'endVolMinusActiveSystem': _number(
+        volumeName['endVolMinusActiveSystem'],
+      ),
+      'totalStorage': _number(volumeName['totalStorage']),
+      'totalOnLocation': _number(volumeName['totalOnLocation']),
+      'previousTotalOnLocation': _number(
+        volumeName['previousTotalOnLocation'],
+      ),
+    };
+  }
+
+  Map<String, double> _deriveLegacyVolumeName(Map<String, dynamic> payload) {
+    final volumeName = _asMap(payload['volumeName']);
+    return {
+      'heldVolDifference': _number(volumeName['heldVolDifference']),
+      'hole': _number(volumeName['hole']),
+      'activePits': _number(volumeName['activePits']),
+      'activeSystem': _number(volumeName['activeSystem']),
+      'endVol': _number(volumeName['endVol']),
+      'endVolMinusActiveSystem': _number(
+        volumeName['endVolMinusActiveSystem'],
+      ),
+      'totalStorage': _number(volumeName['totalStorage']),
+      'totalOnLocation': _number(volumeName['totalOnLocation']),
+      'previousTotalOnLocation': 0,
     };
   }
 
@@ -204,50 +253,7 @@ class VolumeSnapshotPage extends StatelessWidget {
         : Get.put(VolumeSnapshotController());
 
     return Scaffold(
-      backgroundColor: const Color(0xFFE8E8E8),
-      appBar: AppBar(
-        title: Obx(
-          () => Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Volume Snapshot',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.white,
-                ),
-              ),
-              if (controller.selectedWellName.isNotEmpty)
-                Text(
-                  controller.selectedWellName,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w400,
-                    color: Colors.white70,
-                  ),
-                ),
-            ],
-          ),
-        ),
-        backgroundColor: AppTheme.primaryColor,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: Get.back,
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh, size: 20),
-            onPressed: controller.load,
-          ),
-          IconButton(
-            icon: const Icon(Icons.close, size: 20),
-            onPressed: Get.back,
-          ),
-        ],
-      ),
+      backgroundColor: const Color(0xFFF2F2F2),
       body: Obx(() {
         final unitSignature = AppUnits.signature;
 
@@ -264,323 +270,429 @@ class VolumeSnapshotPage extends StatelessWidget {
 
         return KeyedSubtree(
           key: ValueKey(unitSignature),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              return Padding(
-                padding: const EdgeInsets.all(12),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(8),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border.all(color: const Color(0xFFC8C8C8)),
+                ),
                 child: Column(
                   children: [
-                    if (controller.errorMessage.value.isNotEmpty)
-                      Container(
-                        width: double.infinity,
-                        margin: const EdgeInsets.only(bottom: 12),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFF4E5),
-                          border: Border.all(color: const Color(0xFFFFD7A8)),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          controller.errorMessage.value,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: Color(0xFF8A5A00),
-                          ),
-                        ),
-                      ),
+                    _buildHeader(controller),
+                    const Divider(height: 1, thickness: 1),
                     Expanded(
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: _buildLeftTable(
-                              controller,
-                              constraints.maxHeight - 24,
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+                        child: Column(
+                          children: [
+                            if (controller.errorMessage.value.isNotEmpty)
+                              Container(
+                                width: double.infinity,
+                                margin: const EdgeInsets.only(bottom: 10),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFFF4E5),
+                                  border: Border.all(
+                                    color: const Color(0xFFFFD7A8),
+                                  ),
+                                ),
+                                child: Text(
+                                  controller.errorMessage.value,
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: Color(0xFF8A5A00),
+                                  ),
+                                ),
+                              ),
+                            Expanded(
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(
+                                    flex: 11,
+                                    child: _buildLeftTable(controller),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    flex: 8,
+                                    child: _buildRightTables(controller),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _buildRightTables(
-                              controller,
-                              constraints.maxHeight - 24,
-                            ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ],
                 ),
-              );
-            },
+              ),
+            ),
           ),
         );
       }),
     );
   }
 
-  Widget _buildLeftTable(
-    VolumeSnapshotController controller,
-    double availableHeight,
-  ) {
-    return _SnapshotCard(
-      title: 'Active System Volume',
-      unitLabel: AppUnits.fluidVolume,
-      child: Column(
+  Widget _buildHeader(VolumeSnapshotController controller) {
+    return SizedBox(
+      height: 40,
+      child: Row(
         children: [
-          Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  _valueRow(
-                    'Start Vol.',
-                    controller.display('startVol'),
-                    isBold: true,
-                  ),
-                  _sectionHeader('Addition'),
-                  _groupedRows(
-                    [
-                      _SnapshotRow('Receive Mud', controller.display('receiveMud')),
-                      _SnapshotRow('Base Fluid', controller.display('baseFluid')),
-                      _SnapshotRow(
-                        'Weight Material',
-                        controller.display('weightMaterial'),
-                      ),
-                      _SnapshotRow('Products', controller.display('products')),
-                      _SnapshotRow('Water', controller.display('water')),
-                      _SnapshotRow('Formation', controller.display('formation')),
-                      _SnapshotRow('Cuttings', controller.display('cuttings')),
-                      _SnapshotRow(
-                        'Cuttings/Retention',
-                        controller.display('cuttingsRetention'),
-                      ),
-                      _SnapshotRow('Seepage', controller.display('seepage')),
-                    ],
-                    total: controller.display('additionTotal'),
-                  ),
-                  _sectionHeader('Loss'),
-                  _groupedRows(
-                    [
-                      _SnapshotRow('Dump', controller.display('dump')),
-                      _SnapshotRow('Shakers', controller.display('shakers')),
-                      _SnapshotRow(
-                        'Centrifuge',
-                        controller.display('centrifuge'),
-                      ),
-                      _SnapshotRow(
-                        'Evaporation',
-                        controller.display('evaporation'),
-                      ),
-                      _SnapshotRow(
-                        'Pit Cleaning',
-                        controller.display('pitCleaning'),
-                      ),
-                      _SnapshotRow(
-                        'Formation',
-                        controller.display('formationLoss'),
-                      ),
-                      _SnapshotRow(
-                        'Abandon in Hole',
-                        controller.display('abandonInHole'),
-                      ),
-                      _SnapshotRow(
-                        'Left behind Casing',
-                        controller.display('leftBehindCasing'),
-                      ),
-                      _SnapshotRow('Tripping', controller.display('tripping')),
-                    ],
-                    total: controller.display('lossTotal'),
-                  ),
-                  _sectionHeader('Transfer'),
-                  _groupedRows([
-                    _SnapshotRow(
-                      'From Storage',
-                      controller.display('fromStorage'),
-                    ),
-                    _SnapshotRow(
-                      'To Storage',
-                      controller.display('toStorage', negative: true),
-                      valueColor: Colors.red,
-                    ),
-                    _SnapshotRow('Return', controller.display('returnVol')),
-                  ]),
-                  const Divider(
-                    height: 1,
-                    thickness: 1.5,
-                    color: Color(0xFFB8B8B8),
-                  ),
-                  _valueRow(
-                    'End Vol.',
-                    controller.display('endVol'),
-                    isBold: true,
-                  ),
-                  _valueRow(
-                    'End Vol. - Active System',
-                    controller.display('endVolActiveSystem'),
-                    isBold: true,
-                    valueColor:
-                        controller.raw('endVolActiveSystem').abs() > 0.001
-                        ? Colors.red
-                        : const Color(0xFF333333),
-                  ),
-                ],
+          const SizedBox(width: 10),
+          const Expanded(
+            child: Text(
+              'Volume Snapshot',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF333333),
               ),
             ),
+          ),
+          IconButton(
+            onPressed: Get.back,
+            icon: const Icon(Icons.close, color: Color(0xFF7A7A7A), size: 24),
+            splashRadius: 18,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildRightTables(
-    VolumeSnapshotController controller,
-    double availableHeight,
-  ) {
-    final tableHeight = (availableHeight - 24) / 3;
+  Widget _buildLeftTable(VolumeSnapshotController controller) {
+    final transferTotal = controller.raw('fromStorage') -
+        controller.raw('toStorage') +
+        controller.raw('returnVol');
 
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(
-          height: tableHeight,
-          child: _SnapshotCard(
-            title: 'Storage Loss',
-            unitLabel: AppUnits.fluidVolume,
+        const Padding(
+          padding: EdgeInsets.only(left: 2, bottom: 6),
+          child: Text(
+            'Active System Volume',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF333333),
+            ),
+          ),
+        ),
+        Expanded(
+          child: _sheetPanel(
             child: SingleChildScrollView(
-              child: Column(
+              child: Table(
+                border: TableBorder.all(color: const Color(0xFFC4C4C4)),
+                columnWidths: const {
+                  0: FixedColumnWidth(102),
+                  1: FlexColumnWidth(1.5),
+                  2: FixedColumnWidth(122),
+                  3: FixedColumnWidth(118),
+                },
+                defaultVerticalAlignment: TableCellVerticalAlignment.middle,
                 children: [
-                  _valueRow('Dump', controller.display('storageDump')),
-                  _valueRow(
-                    'Evaporation',
-                    controller.display('storageEvaporation'),
+                  TableRow(
+                    children: [
+                      _headerCell(''),
+                      _headerCell(''),
+                      _headerCell('Vol. ${AppUnits.fluidVolume}'),
+                      _headerCell(''),
+                    ],
                   ),
-                  _valueRow(
-                    'Pit Cleaning',
-                    controller.display('storagePitCleaning'),
+                  _spreadsheetRow(
+                    group: 'Start Vol.',
+                    label: '',
+                    value: '',
+                    total: controller.display('startVol'),
+                    emphasizeGroup: true,
+                    groupTextColor: const Color(0xFF2E79C9),
                   ),
-                  _valueRow(
-                    'Premixed Mud',
-                    controller.display('premixedMud'),
+                  _spreadsheetRow(
+                    group: 'Addition',
+                    label: 'Receive Mud',
+                    value: controller.display('receiveMud'),
+                    total: controller.display('additionTotal'),
                   ),
-                  const Divider(
-                    height: 1,
-                    thickness: 1,
-                    color: Color(0xFFB8B8B8),
+                  _spreadsheetRow(
+                    group: '',
+                    label: 'Base Fluid',
+                    value: controller.display('baseFluid'),
                   ),
-                  _valueRow(
-                    'Leased Mud Received',
-                    controller.display('leasedMudReceived'),
+                  _spreadsheetRow(
+                    group: '',
+                    label: 'Weight Material',
+                    value: controller.display('weightMaterial'),
                   ),
-                  _valueRow(
-                    'Leased Mud Returned',
-                    controller.display('leasedMudReturned'),
+                  _spreadsheetRow(
+                    group: '',
+                    label: 'Products',
+                    value: controller.display('products'),
                   ),
-                  _valueRow(
-                    'Non-leased Mud Received',
-                    controller.display('nonLeasedMudReceived'),
+                  _spreadsheetRow(
+                    group: '',
+                    label: 'Water',
+                    value: controller.display('water'),
                   ),
-                  _valueRow(
-                    'Non-leased Mud Returned',
-                    controller.display('nonLeasedMudReturned'),
+                  _spreadsheetRow(
+                    group: '',
+                    label: 'Formation',
+                    value: controller.display('formation'),
                   ),
-                  _valueRow('Cum. Leased', controller.display('cumLeased')),
-                  const Divider(
-                    height: 1,
-                    thickness: 1,
-                    color: Color(0xFFB8B8B8),
+                  _spreadsheetRow(
+                    group: '',
+                    label: 'Cuttings',
+                    value: controller.display('cuttings'),
                   ),
-                  _valueRow(
-                    'Volume Summary',
-                    controller.display('volumeSummary'),
-                    isBold: true,
+                  _spreadsheetRow(
+                    group: '',
+                    label: 'Volume Not Fluid',
+                    value: controller.display('volumeNotFluid'),
+                  ),
+                  _spreadsheetRow(
+                    group: '',
+                    label: 'Cuttings/Retention',
+                    value: controller.display('cuttingsRetention'),
+                  ),
+                  _spreadsheetRow(
+                    group: '',
+                    label: 'Seepage',
+                    value: controller.display('seepage'),
+                  ),
+                  _spreadsheetRow(
+                    group: 'Loss',
+                    label: 'Dump',
+                    value: controller.display('dump'),
+                    total: controller.display('lossTotal'),
+                  ),
+                  _spreadsheetRow(
+                    group: '',
+                    label: 'Shakers',
+                    value: controller.display('shakers'),
+                  ),
+                  _spreadsheetRow(
+                    group: '',
+                    label: 'Centrifuge',
+                    value: controller.display('centrifuge'),
+                  ),
+                  _spreadsheetRow(
+                    group: '',
+                    label: 'Evaporation',
+                    value: controller.display('evaporation'),
+                  ),
+                  _spreadsheetRow(
+                    group: '',
+                    label: 'Pit Cleaning',
+                    value: controller.display('pitCleaning'),
+                  ),
+                  _spreadsheetRow(
+                    group: '',
+                    label: 'Formation',
+                    value: controller.display('formationLoss'),
+                  ),
+                  _spreadsheetRow(
+                    group: '',
+                    label: 'Abandon in Hole',
+                    value: controller.display('abandonInHole'),
+                  ),
+                  _spreadsheetRow(
+                    group: '',
+                    label: 'Left behind Casing',
+                    value: controller.display('leftBehindCasing'),
+                  ),
+                  _spreadsheetRow(
+                    group: '',
+                    label: 'Tripping',
+                    value: controller.display('tripping'),
+                  ),
+                  _spreadsheetRow(
+                    group: 'Transfer',
+                    label: 'From Storage',
+                    value: controller.display('fromStorage'),
+                    total: controller._format(transferTotal),
+                  ),
+                  _spreadsheetRow(
+                    group: '',
+                    label: 'To Storage',
+                    value: controller.display('toStorage', negative: true),
+                    valueColor: Colors.red,
+                  ),
+                  _spreadsheetRow(
+                    group: '',
+                    label: 'Return',
+                    value: controller.display('returnVol'),
+                  ),
+                  _spreadsheetRow(
+                    group: 'End Vol.',
+                    label: '',
+                    value: '',
+                    total: controller.display('endVol'),
+                    emphasizeGroup: true,
                   ),
                 ],
               ),
             ),
           ),
         ),
-        const SizedBox(height: 12),
-        SizedBox(
-          height: tableHeight,
-          child: _SnapshotCard(
-            title: 'Hole Vol. Difference',
-            unitLabel: AppUnits.fluidVolume,
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  _valueRow('Hole', controller.display('hole'), isBold: true),
-                  const Divider(
-                    height: 1,
-                    thickness: 1,
-                    color: Color(0xFFB8B8B8),
+      ],
+    );
+  }
+
+  Widget _buildRightTables(VolumeSnapshotController controller) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _tableSection(
+                  title: 'Storage Loss',
+                  child: Table(
+                    border: TableBorder.all(color: const Color(0xFFC4C4C4)),
+                    columnWidths: const {
+                      0: FlexColumnWidth(),
+                      1: FixedColumnWidth(132),
+                    },
+                    children: [
+                      TableRow(
+                        children: [
+                          _headerCell(''),
+                          _headerCell('Vol. ${AppUnits.fluidVolume}'),
+                        ],
+                      ),
+                      _twoColumnRow('Dump', controller.display('storageDump')),
+                      _twoColumnRow(
+                        'Evaporation',
+                        controller.display('storageEvaporation'),
+                      ),
+                      _twoColumnRow(
+                        'Pit Cleaning',
+                        controller.display('storagePitCleaning'),
+                      ),
+                    ],
                   ),
-                  _valueRow(
-                    'Active Pits',
-                    controller.display('activePits'),
-                    isBold: true,
+                ),
+                const SizedBox(height: 8),
+                _tableSection(
+                  title: 'Premixed Mud',
+                  child: Table(
+                    border: TableBorder.all(color: const Color(0xFFC4C4C4)),
+                    columnWidths: const {
+                      0: FlexColumnWidth(),
+                      1: FixedColumnWidth(132),
+                    },
+                    children: [
+                      TableRow(
+                        children: [
+                          _headerCell(''),
+                          _headerCell('Vol. ${AppUnits.fluidVolume}'),
+                        ],
+                      ),
+                      _twoColumnRow(
+                        'Leased Mud Received',
+                        controller.display('leasedMudReceived'),
+                      ),
+                      _twoColumnRow(
+                        'Leased Mud Returned',
+                        controller.display('leasedMudReturned'),
+                      ),
+                      _twoColumnRow(
+                        'Non-leased Mud Received',
+                        controller.display('nonLeasedMudReceived'),
+                      ),
+                      _twoColumnRow(
+                        'Non-leased Mud Returned',
+                        controller.display('nonLeasedMudReturned'),
+                      ),
+                      _twoColumnRow('Cum. Leased', controller.display('cumLeased')),
+                    ],
                   ),
-                  _valueRow(
-                    'Active System',
-                    controller.display('activeSystem'),
-                    isBold: true,
+                ),
+                const SizedBox(height: 8),
+                _tableSection(
+                  title: 'Volume Summary',
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Table(
+                        border: TableBorder.all(color: const Color(0xFFC4C4C4)),
+                        columnWidths: const {
+                          0: FlexColumnWidth(),
+                          1: FixedColumnWidth(132),
+                        },
+                        children: [
+                          TableRow(
+                            children: [
+                              _headerCell(''),
+                              _headerCell('Vol. ${AppUnits.fluidVolume}'),
+                            ],
+                          ),
+                          _twoColumnRow(
+                            'Hole Vol. Difference',
+                            controller.displayVolumeName('heldVolDifference'),
+                          ),
+                          _twoColumnRow(
+                            'Hole',
+                            controller.displayVolumeName('hole'),
+                          ),
+                          _twoColumnRow(
+                            'Active Pits',
+                            controller.displayVolumeName('activePits'),
+                          ),
+                          _twoColumnRow(
+                            'Active System',
+                            controller.displayVolumeName('activeSystem'),
+                          ),
+                          _twoColumnRow(
+                            'Total Storage',
+                            controller.displayVolumeName('totalStorage'),
+                          ),
+                          _twoColumnRow(
+                            'Total on Location',
+                            controller.displayVolumeName('totalOnLocation'),
+                          ),
+                          _twoColumnRow('Cum. Leased', controller.display('cumLeased')),
+                          _twoColumnRow(
+                            'Volume Difference*',
+                            controller.display('volumeDifference'),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        '*Total on Location - Cum. Leased',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Color(0xFF555555),
+                        ),
+                      ),
+                    ],
                   ),
-                  _valueRow(
-                    'Total Storage',
-                    controller.display('totalStorage'),
-                    isBold: true,
-                  ),
-                  _valueRow(
-                    'Total on Location',
-                    controller.display('totalOnLocation'),
-                    isBold: true,
-                  ),
-                  _valueRow(
-                    'Cum. Leased',
-                    controller.display('cumLeased'),
-                    isBold: true,
-                  ),
-                  _valueRow(
-                    'Volume Difference*',
-                    controller.display('volumeDifference'),
-                    isBold: true,
-                    valueColor:
-                        controller.raw('volumeDifference').abs() > 0.001
-                        ? Colors.red
-                        : const Color(0xFF333333),
-                  ),
-                  const Divider(
-                    height: 1,
-                    thickness: 1,
-                    color: Color(0xFFB8B8B8),
-                  ),
-                  _valueRow(
-                    'Total on Location - Cum. Leased',
-                    controller.display('totalOnLocationCumLeased'),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
-        const SizedBox(height: 12),
-        SizedBox(
-          height: tableHeight,
-          child: Align(
-            alignment: Alignment.topRight,
-            child: ElevatedButton(
+        const SizedBox(height: 8),
+        Align(
+          alignment: Alignment.centerRight,
+          child: SizedBox(
+            width: 108,
+            child: OutlinedButton(
               onPressed: Get.back,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFD0D0D0),
-                foregroundColor: const Color(0xFF333333),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 8,
-                ),
-                elevation: 1,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(3),
-                ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF555555),
+                side: const BorderSide(color: Color(0xFFC4C4C4)),
+                backgroundColor: const Color(0xFFF8F8F8),
+                shape: const RoundedRectangleBorder(),
+                padding: const EdgeInsets.symmetric(vertical: 10),
               ),
               child: const Text(
                 'OK',
@@ -593,184 +705,122 @@ class VolumeSnapshotPage extends StatelessWidget {
     );
   }
 
-  Widget _sectionHeader(String label) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: const BoxDecoration(
-        color: Color(0xFFE6E6FA),
-        border: Border(
-          top: BorderSide(color: Color(0xFFB8B8B8), width: 1),
-          bottom: BorderSide(color: Color(0xFFB8B8B8), width: 1),
-        ),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: Color(0xFF4B0082),
-        ),
-      ),
-    );
-  }
-
-  Widget _groupedRows(List<_SnapshotRow> rows, {String? total}) {
+  Widget _tableSection({required String title, required Widget child}) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        for (final row in rows)
-          _valueRow(
-            row.label,
-            row.value,
-            indent: 1,
-            valueColor: row.valueColor,
-          ),
-        if (total != null)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: const BoxDecoration(
-              border: Border(
-                bottom: BorderSide(color: Color(0xFFD0D0D0), width: 0.5),
-              ),
-            ),
-            child: Row(
-              children: [
-                const Spacer(),
-                Text(
-                  total,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF333333),
-                  ),
-                  textAlign: TextAlign.right,
-                ),
-              ],
+        Padding(
+          padding: const EdgeInsets.only(left: 2, bottom: 6),
+          child: Text(
+            title,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF333333),
             ),
           ),
+        ),
+        _sheetPanel(child: child),
       ],
     );
   }
 
-  Widget _valueRow(
-    String label,
-    String value, {
-    int indent = 0,
-    bool isBold = false,
-    Color? valueColor,
-  }) {
-    return Container(
-      padding: EdgeInsets.only(
-        left: 10 + (indent * 20.0),
-        right: 10,
-        top: 4,
-        bottom: 4,
-      ),
-      decoration: const BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: Color(0xFFD0D0D0), width: 0.5),
-        ),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 6,
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: isBold ? FontWeight.w600 : FontWeight.normal,
-                color: const Color(0xFF333333),
-              ),
-            ),
-          ),
-          Expanded(
-            flex: 4,
-            child: Text(
-              value,
-              textAlign: TextAlign.right,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: isBold ? FontWeight.w600 : FontWeight.normal,
-                color: valueColor ?? const Color(0xFF333333),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SnapshotCard extends StatelessWidget {
-  final String title;
-  final String unitLabel;
-  final Widget child;
-
-  const _SnapshotCard({
-    required this.title,
-    required this.unitLabel,
-    required this.child,
-  });
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _sheetPanel({required Widget child}) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFFBF9F3),
-        border: Border.all(color: const Color(0xFFB8B8B8), width: 1),
-        borderRadius: BorderRadius.circular(4),
+        color: Colors.white,
+        border: Border.all(color: const Color(0xFFC4C4C4)),
       ),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            decoration: const BoxDecoration(
-              color: Color(0xFFE8E8E8),
-              border: Border(
-                bottom: BorderSide(color: Color(0xFFB8B8B8), width: 1),
-              ),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF333333),
-                    ),
-                  ),
-                ),
-                Text(
-                  'Vol. $unitLabel',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF333333),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Expanded(child: child),
-        ],
+      child: child,
+    );
+  }
+
+  TableRow _spreadsheetRow({
+    required String group,
+    required String label,
+    required String value,
+    String total = '',
+    bool emphasizeGroup = false,
+    Color? groupTextColor,
+    Color? valueColor,
+  }) {
+    return TableRow(
+      children: [
+        _bodyCell(
+          group,
+          emphasize: emphasizeGroup,
+          textColor: groupTextColor,
+        ),
+        _bodyCell(label),
+        _valueCell(value, valueColor: valueColor),
+        _valueCell(total),
+      ],
+    );
+  }
+
+  TableRow _twoColumnRow(String label, String value) {
+    return TableRow(
+      children: [
+        _bodyCell(label),
+        _valueCell(value),
+      ],
+    );
+  }
+
+  Widget _headerCell(String text) {
+    return Container(
+      height: 28,
+      alignment: Alignment.center,
+      color: const Color(0xFFF7F7F7),
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 10.5,
+          fontWeight: FontWeight.w500,
+          color: Color(0xFF444444),
+        ),
       ),
     );
   }
-}
 
-class _SnapshotRow {
-  final String label;
-  final String value;
-  final Color? valueColor;
+  Widget _bodyCell(
+    String text, {
+    bool emphasize = false,
+    Color? textColor,
+  }) {
+    return Container(
+      height: 26,
+      alignment: Alignment.centerLeft,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      color: Colors.white,
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 10.5,
+          fontWeight: emphasize ? FontWeight.w600 : FontWeight.w400,
+          color: textColor ?? const Color(0xFF333333),
+        ),
+      ),
+    );
+  }
 
-  const _SnapshotRow(
-    this.label,
-    this.value, {
-    this.valueColor,
-  });
+  Widget _valueCell(String text, {Color? valueColor}) {
+    return Container(
+      height: 26,
+      alignment: Alignment.centerRight,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      color: const Color(0xFFFFF8C6),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 10.5,
+          fontWeight: FontWeight.w400,
+          color: valueColor ?? const Color(0xFF333333),
+        ),
+      ),
+    );
+  }
 }
 
 class _ErrorState extends StatelessWidget {

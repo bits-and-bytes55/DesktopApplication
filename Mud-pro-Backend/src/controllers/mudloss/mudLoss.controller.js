@@ -33,7 +33,7 @@ const deductFromActivePits = async ({ wellId, totalLoss }) => {
     const currentPitVol = toNumber(pit.volume);
     const actualDeduct = Math.min(currentPitVol, deduct);
 
-    pit.volume = round2(Math.max(0, currentVol - actualDeduct));
+    pit.volume = round2(Math.max(0, currentPitVol - actualDeduct));
     
     remaining = round2(remaining - actualDeduct);
     await pit.save();

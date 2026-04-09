@@ -212,6 +212,32 @@ class AuthRepository {
     }
   }
 
+  Future<Map<String, dynamic>> updateTransferMud(
+    String wellId,
+    String id,
+    Map<String, dynamic> body,
+  ) async {
+    try {
+      print('Hitting PUT ${baseUrl}transfer-mud/$wellId/$id');
+      final response = await http.put(
+        Uri.parse('${baseUrl}transfer-mud/$wellId/$id'),
+        headers: _headers,
+        body: jsonEncode(body),
+      );
+      print('statuscode------${response.statusCode}');
+      print('response body------${response.body}');
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200,
+        'data': data,
+        'message': data['message'] ?? 'Updated successfully',
+      };
+    } catch (e) {
+      print('Error in updateTransferMud: $e');
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
   // ── Create Add Water ─────────────────────────────────────────────────────────
   Future<Map<String, dynamic>> createAddWater(String wellId, Map<String, dynamic> body) async {
     try {
@@ -231,6 +257,64 @@ class AuthRepository {
       };
     } catch (e) {
       print('Error in createAddWater: $e');
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> getAddWaterList(String wellId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('${baseUrl}add-water/$wellId'),
+        headers: _headers,
+      );
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200,
+        'data': data,
+        'message': data['message'] ?? '',
+      };
+    } catch (e) {
+      print('Error in getAddWaterList: $e');
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> updateAddWater(
+    String wellId,
+    String id,
+    Map<String, dynamic> body,
+  ) async {
+    try {
+      final response = await http.put(
+        Uri.parse('${baseUrl}add-water/$wellId/$id'),
+        headers: _headers,
+        body: jsonEncode(body),
+      );
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200,
+        'data': data,
+        'message': data['message'] ?? 'Add Water updated successfully',
+      };
+    } catch (e) {
+      print('Error in updateAddWater: $e');
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> deleteAddWater(String wellId, String id) async {
+    try {
+      final response = await http.delete(
+        Uri.parse('${baseUrl}add-water/$wellId/$id'),
+        headers: _headers,
+      );
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200,
+        'message': data['message'] ?? 'Add Water deleted successfully',
+      };
+    } catch (e) {
+      print('Error in deleteAddWater: $e');
       return {'success': false, 'message': e.toString()};
     }
   }
@@ -331,6 +415,27 @@ class AuthRepository {
       };
     } catch (e) {
       print('Error in deleteTransferMud: $e');
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> getOperations({bool activeOnly = true}) async {
+    try {
+      final uri = Uri.parse(
+        '${baseUrl}operations${activeOnly ? '?activeOnly=true' : ''}',
+      );
+      print('Hitting GET $uri');
+      final response = await http.get(uri, headers: _headers);
+      print('statuscode------${response.statusCode}');
+      print('response body------${response.body}');
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200,
+        'data': data,
+        'message': data['message'] ?? 'Operations fetched successfully',
+      };
+    } catch (e) {
+      print('Error in getOperations: $e');
       return {'success': false, 'message': e.toString()};
     }
   }
@@ -1800,6 +1905,300 @@ class AuthRepository {
         'success': response.statusCode == 200 || response.statusCode == 201,
         'data': data['data'],
         'message': data['message'] ?? 'Return / Lost Mud saved successfully',
+      };
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> getReturnLostMudList(String wellId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('${baseUrl}return-lost-mud/$wellId'),
+        headers: _headers,
+      );
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200,
+        'data': data,
+        'message': data['message'] ?? '',
+      };
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> updateReturnLostMud(
+    String wellId,
+    String id,
+    Map<String, dynamic> body,
+  ) async {
+    try {
+      final response = await http.put(
+        Uri.parse('${baseUrl}return-lost-mud/$wellId/$id'),
+        headers: _headers,
+        body: jsonEncode(body),
+      );
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200,
+        'data': data['data'],
+        'message': data['message'] ?? 'Return / Lost Mud updated successfully',
+      };
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> deleteReturnLostMud(
+    String wellId,
+    String id,
+  ) async {
+    try {
+      final response = await http.delete(
+        Uri.parse('${baseUrl}return-lost-mud/$wellId/$id'),
+        headers: _headers,
+      );
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200,
+        'message': data['message'] ?? 'Return / Lost Mud deleted successfully',
+      };
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> createMudLoss(
+    String wellId,
+    Map<String, dynamic> body,
+  ) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${baseUrl}mud-loss/$wellId'),
+        headers: _headers,
+        body: jsonEncode(body),
+      );
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200 || response.statusCode == 201,
+        'data': data['data'],
+        'message': data['message'] ?? 'Mud Loss saved successfully',
+      };
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> getMudLossList(String wellId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('${baseUrl}mud-loss/$wellId'),
+        headers: _headers,
+      );
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200,
+        'data': data,
+        'message': data['message'] ?? '',
+      };
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> updateMudLoss(
+    String wellId,
+    String id,
+    Map<String, dynamic> body,
+  ) async {
+    try {
+      final response = await http.put(
+        Uri.parse('${baseUrl}mud-loss/$wellId/$id'),
+        headers: _headers,
+        body: jsonEncode(body),
+      );
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200,
+        'data': data['data'],
+        'message': data['message'] ?? 'Mud Loss updated successfully',
+      };
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> deleteMudLoss(String wellId, String id) async {
+    try {
+      final response = await http.delete(
+        Uri.parse('${baseUrl}mud-loss/$wellId/$id'),
+        headers: _headers,
+      );
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200,
+        'message': data['message'] ?? 'Mud Loss deleted successfully',
+      };
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> createOtherVolAddition(
+    String wellId,
+    Map<String, dynamic> body,
+  ) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${baseUrl}other-vol-addition'),
+        headers: _headers,
+        body: jsonEncode({'wellId': wellId, ...body}),
+      );
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200 || response.statusCode == 201,
+        'data': data['data'],
+        'message': data['message'] ?? 'Other Vol Addition saved successfully',
+      };
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> getOtherVolAdditionList(String wellId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('${baseUrl}other-vol-addition/$wellId'),
+        headers: _headers,
+      );
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200,
+        'data': data,
+        'message': data['message'] ?? '',
+      };
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> updateOtherVolAddition(
+    String wellId,
+    String id,
+    Map<String, dynamic> body,
+  ) async {
+    try {
+      final response = await http.put(
+        Uri.parse('${baseUrl}other-vol-addition/$wellId/$id'),
+        headers: _headers,
+        body: jsonEncode({'wellId': wellId, ...body}),
+      );
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200,
+        'data': data['data'],
+        'message':
+            data['message'] ?? 'Other Vol Addition updated successfully',
+      };
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> deleteOtherVolAddition(
+    String wellId,
+    String id,
+  ) async {
+    try {
+      final response = await http.delete(
+        Uri.parse('${baseUrl}other-vol-addition/$wellId/$id'),
+        headers: _headers,
+      );
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200,
+        'message': data['message'] ?? 'Other Vol Addition deleted successfully',
+      };
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> createMudLossStorage(
+    String wellId,
+    Map<String, dynamic> body,
+  ) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${baseUrl}mud-loss-storage/$wellId'),
+        headers: _headers,
+        body: jsonEncode(body),
+      );
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200 || response.statusCode == 201,
+        'data': data['data'],
+        'message': data['message'] ?? 'Mud Loss - Storage saved successfully',
+      };
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> getMudLossStorageList(String wellId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('${baseUrl}mud-loss-storage/$wellId'),
+        headers: _headers,
+      );
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200,
+        'data': data,
+        'message': data['message'] ?? '',
+      };
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> updateMudLossStorage(
+    String wellId,
+    String id,
+    Map<String, dynamic> body,
+  ) async {
+    try {
+      final response = await http.put(
+        Uri.parse('${baseUrl}mud-loss-storage/$wellId/$id'),
+        headers: _headers,
+        body: jsonEncode(body),
+      );
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200,
+        'data': data['data'],
+        'message':
+            data['message'] ?? 'Mud Loss - Storage updated successfully',
+      };
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> deleteMudLossStorage(
+    String wellId,
+    String id,
+  ) async {
+    try {
+      final response = await http.delete(
+        Uri.parse('${baseUrl}mud-loss-storage/$wellId/$id'),
+        headers: _headers,
+      );
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200,
+        'message': data['message'] ?? 'Mud Loss - Storage deleted successfully',
       };
     } catch (e) {
       return {'success': false, 'message': e.toString()};

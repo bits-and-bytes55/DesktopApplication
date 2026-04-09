@@ -6,42 +6,7 @@ import 'package:mudpro_desktop_app/api_endpoint/api_endpoint.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/model/UG_ST_model.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart' show kControllerWellId;
-import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
-
-double _convertCasedDisplayToBase(
-  String rawValue, {
-  required String displayUnit,
-  required String baseUnit,
-}) {
-  final parsed = double.tryParse(rawValue.trim());
-  if (parsed == null) {
-    return 0;
-  }
-  return AppUnits.convertValue(parsed, displayUnit, baseUnit) ?? parsed;
-}
-
-String _convertCasedBaseToDisplay(
-  dynamic rawValue, {
-  required String baseUnit,
-  required String displayUnit,
-}) {
-  if (rawValue == null || rawValue.toString().trim().isEmpty) {
-    return '';
-  }
-  final parsed = double.tryParse(rawValue.toString().trim());
-  if (parsed == null) {
-    return rawValue.toString();
-  }
-  final converted =
-      AppUnits.convertValue(parsed, baseUnit, displayUnit) ?? parsed;
-  if (converted == converted.truncateToDouble()) {
-    return converted.truncate().toString();
-  }
-  return converted
-      .toStringAsFixed(4)
-      .replaceFirst(RegExp(r'\.?0+$'), '');
-}
 
 class CasedHoleEntry {
   final String? id;
@@ -91,27 +56,11 @@ class CasedHoleEntry {
   Map<String, dynamic> toJson() => {
         if (id != null && id!.isNotEmpty) 'recordId': id,
         'description': description.text,
-        'od': _convertCasedDisplayToBase(
-          od.text,
-          displayUnit: AppUnits.diameter,
-          baseUnit: '(in)',
-        ),
+        'od': od.text,
         'wt': wt.text,
-        'id': _convertCasedDisplayToBase(
-          idCtrl.text,
-          displayUnit: AppUnits.diameter,
-          baseUnit: '(in)',
-        ),
-        'top': _convertCasedDisplayToBase(
-          top.text,
-          displayUnit: AppUnits.length,
-          baseUnit: '(ft)',
-        ),
-        'shoe': _convertCasedDisplayToBase(
-          shoe.text,
-          displayUnit: AppUnits.length,
-          baseUnit: '(ft)',
-        ),
+        'id': idCtrl.text,
+        'top': top.text,
+        'shoe': shoe.text,
         'type': '',
         'bit': '',
         'toc': '',
@@ -125,8 +74,6 @@ class CasedHoleUIController extends GetxController {
   var isLoading = false.obs;
   var isSaving = false.obs;
   Worker? _wellWorker;
-  Worker? _unitMapWorker;
-  Worker? _unitSystemWorker;
 
   Map<String, String> get _headers => {
         'Content-Type': 'application/json',
@@ -139,17 +86,6 @@ class CasedHoleUIController extends GetxController {
     _initEmptyRows();
     _wellWorker = ever<String>(padWellContext.selectedWellId, (_) {
       fetchTableCasings();
-    });
-    final options = AppUnits.controller;
-    _unitMapWorker = ever<dynamic>(options.customUnits, (_) {
-      if (kControllerWellId.isNotEmpty) {
-        fetchTableCasings();
-      }
-    });
-    _unitSystemWorker = ever<dynamic>(options.unitSystem, (_) {
-      if (kControllerWellId.isNotEmpty) {
-        fetchTableCasings();
-      }
     });
   }
 
@@ -167,7 +103,6 @@ class CasedHoleUIController extends GetxController {
   }
 
   void recalcLength(CasedHoleEntry e) {
-    // Trim and remove any commas for safer parsing
     final topStr = e.top.text.trim().replaceAll(',', '');
     final shoeStr = e.shoe.text.trim().replaceAll(',', '');
 
@@ -175,7 +110,6 @@ class CasedHoleUIController extends GetxController {
     final s = double.tryParse(shoeStr);
 
     if (t != null && s != null) {
-      // Length = Absolute difference between Shoe and Top
       final len = (s - t).abs();
       e.length.text = len.toStringAsFixed(1);
     } else {
@@ -187,7 +121,12 @@ class CasedHoleUIController extends GetxController {
   void checkAndAddRow(int rowIndex) {
     if (rowIndex == entries.length - 1) {
       final last = entries[rowIndex];
-      final hasContent = last.hasContent;
+      final hasContent = last.description.text.isNotEmpty ||
+          last.od.text.isNotEmpty ||
+          last.wt.text.isNotEmpty ||
+          last.idCtrl.text.isNotEmpty ||
+          last.top.text.isNotEmpty ||
+          last.shoe.text.isNotEmpty;
       if (hasContent) {
         final e = CasedHoleEntry();
         _attachListeners(e);
@@ -204,24 +143,28 @@ class CasedHoleUIController extends GetxController {
       wtVal: casing.wt.value,
       idVal: casing.id.value,
       topVal: casing.top.value,
-      shoeVal: '', // 🔥 Keep Shoe empty for manual entry
+      shoeVal: '',
     );
-     
-    final emptyIndex = entries.indexWhere((e) => 
-        e.description.text.isEmpty && e.od.text.isEmpty && e.wt.text.isEmpty &&
-        e.idCtrl.text.isEmpty && e.top.text.isEmpty && e.shoe.text.isEmpty);
-        
+
+    final emptyIndex = entries.indexWhere((e) =>
+        e.description.text.isEmpty &&
+        e.od.text.isEmpty &&
+        e.wt.text.isEmpty &&
+        e.idCtrl.text.isEmpty &&
+        e.top.text.isEmpty &&
+        e.shoe.text.isEmpty);
+
     _attachListeners(entry);
     recalcLength(entry);
-    
+
     if (emptyIndex != -1) {
       entries[emptyIndex].dispose();
       entries[emptyIndex] = entry;
     } else {
       entries.add(entry);
     }
-    
-    if (entries.isNotEmpty && entries.last.hasContent) {
+
+    if (entries.last.hasContent) {
       final empty = CasedHoleEntry();
       _attachListeners(empty);
       entries.add(empty);
@@ -230,63 +173,50 @@ class CasedHoleUIController extends GetxController {
   }
 
   Future<void> fetchTableCasings() async {
-     if (kControllerWellId.isEmpty) return;
-     isLoading.value = true;
-     try {
-       final response = await http.get(Uri.parse('${baseUrl}casing'), headers: _headers);
-       if (response.statusCode == 200) {
-          final json = jsonDecode(response.body);
-          final List data = json['data'] ?? [];
-          
-          if (data.isNotEmpty) {
-             for (final e in entries) e.dispose();
-             entries.clear();
-             for (final item in data) {
-                // 🔥 ONLY add items that belong to the current Well
-                if (item['wellId'] != kControllerWellId) continue;
-                
-                final entry = CasedHoleEntry(
-                  id: item['_id'],
-                  desc: item['description']?.toString() ?? '',
-                  odVal: _convertCasedBaseToDisplay(
-                    item['od'],
-                    baseUnit: '(in)',
-                    displayUnit: AppUnits.diameter,
-                  ),
-                  wtVal: item['wt']?.toString() ?? '',
-                  idVal: _convertCasedBaseToDisplay(
-                    item['id'],
-                    baseUnit: '(in)',
-                    displayUnit: AppUnits.diameter,
-                  ),
-                  topVal: _convertCasedBaseToDisplay(
-                    item['top'],
-                    baseUnit: '(ft)',
-                    displayUnit: AppUnits.length,
-                  ),
-                  shoeVal: _convertCasedBaseToDisplay(
-                    item['shoe'],
-                    baseUnit: '(ft)',
-                    displayUnit: AppUnits.length,
-                  ),
-                );
-                final t = double.tryParse(entry.top.text);
-                final s = double.tryParse(entry.shoe.text);
-                if (t != null && s != null) entry.length.text = (s - t).toStringAsFixed(1);
-                
-                _attachListeners(entry);
-                entries.add(entry);
-             }
-             if (entries.isEmpty) _initEmptyRows();
-             if (entries.isNotEmpty && entries.last.hasContent) {
-                 final e = CasedHoleEntry();
-                 _attachListeners(e);
-                 entries.add(e);
-             }
+    if (kControllerWellId.isEmpty) return;
+    isLoading.value = true;
+    try {
+      final response = await http.get(Uri.parse('${baseUrl}casing'), headers: _headers);
+      if (response.statusCode == 200) {
+        final json = jsonDecode(response.body);
+        final List data = json['data'] ?? [];
+
+        if (data.isNotEmpty) {
+          for (final e in entries) {
+            e.dispose();
           }
-       }
-     } catch (e) {
-       print('CasedHole fetch error: $e');
+          entries.clear();
+          for (final item in data) {
+            if (item['wellId'] != kControllerWellId) continue;
+
+            final entry = CasedHoleEntry(
+              id: item['_id'],
+              desc: item['description']?.toString() ?? '',
+              odVal: item['od']?.toString() ?? '',
+              wtVal: item['wt']?.toString() ?? '',
+              idVal: item['id']?.toString() ?? '',
+              topVal: item['top']?.toString() ?? '',
+              shoeVal: item['shoe']?.toString() ?? '',
+            );
+            final t = double.tryParse(entry.top.text);
+            final s = double.tryParse(entry.shoe.text);
+            if (t != null && s != null) {
+              entry.length.text = (s - t).toStringAsFixed(1);
+            }
+
+            _attachListeners(entry);
+            entries.add(entry);
+          }
+          if (entries.isEmpty) _initEmptyRows();
+          if (entries.last.hasContent) {
+            final e = CasedHoleEntry();
+            _attachListeners(e);
+            entries.add(e);
+          }
+        }
+      }
+    } catch (e) {
+      print('CasedHole fetch error: $e');
     } finally {
       isLoading.value = false;
     }
@@ -301,24 +231,22 @@ class CasedHoleUIController extends GetxController {
     int successCount = 0;
     try {
       final authRepo = AuthRepository();
-      // For the Volume Name calculation, we send all rows to the unified POST endpoint
       final List<CasedHoleEntry> allRows =
-          entries.where((e) => e.hasContent).toList();
-      
+          entries.where((e) => e.hasContent && e.idCtrl.text.trim().isNotEmpty).toList();
+
       for (final entry in allRows) {
         final payload = entry.toJson();
         payload['wellId'] = kControllerWellId;
-        
+
         final result = await authRepo.saveCasing(payload);
-        
+
         if (result['success'] == true) {
           successCount++;
-          // auth_repo returns {success, data: {success, data, message}}
           final data = result['data']?['data'];
           if (data != null && entry.id == null) {
             final newId = data['_id'];
             final rowIndex = entries.indexOf(entry);
-            
+
             final updated = CasedHoleEntry(
               id: newId,
               desc: entry.description.text,
@@ -337,15 +265,15 @@ class CasedHoleUIController extends GetxController {
             if (rowIndex != -1) entries[rowIndex] = updated;
           }
         } else {
-           final rowLabel = entry.description.text.trim().isNotEmpty
-               ? entry.description.text.trim()
-               : 'ID ${entry.idCtrl.text.trim()}';
-           errors.add('Failed to save row $rowLabel: ${result['message']}');
+          final rowLabel = entry.description.text.trim().isNotEmpty
+              ? entry.description.text.trim()
+              : 'ID ${entry.idCtrl.text.trim()}';
+          errors.add('Failed to save row $rowLabel: ${result['message']}');
         }
       }
-      
+
       entries.refresh();
-      
+
       if (errors.isEmpty) {
         return {'success': true, 'message': 'Casing data saved successfully ($successCount items)'};
       } else {
@@ -366,8 +294,6 @@ class CasedHoleUIController extends GetxController {
   @override
   void onClose() {
     _wellWorker?.dispose();
-    _unitMapWorker?.dispose();
-    _unitSystemWorker?.dispose();
     for (final e in entries) e.dispose();
     super.onClose();
   }
