@@ -1,4 +1,31 @@
 import ReceivePackage from "../../../modules/ReceiveProduct/Package/ReceivePackage.js";
+import {
+  buildScopedFilter,
+  readReportId,
+  readWellId,
+  toText,
+} from "../../../utils/reportScope.js";
+
+const getScope = (req) => {
+  const wellId = readWellId(req);
+  const reportId = readReportId(req);
+
+  if (wellId) {
+    return { wellId, reportId, filter: buildScopedFilter(wellId, reportId) };
+  }
+
+  return {
+    wellId,
+    reportId,
+    filter: reportId ? { reportId } : {},
+  };
+};
+
+const buildPayload = (req, existing = {}) => ({
+  ...req.body,
+  wellId: readWellId(req) || toText(existing.wellId),
+  reportId: readReportId(req) || toText(existing.reportId),
+});
 
 /**
  * @desc    Create Receive Package
@@ -6,7 +33,7 @@ import ReceivePackage from "../../../modules/ReceiveProduct/Package/ReceivePacka
 export const createReceivePackage = async (req, res) => {
   try {
     const newPackage = await ReceivePackage.create({
-      ...req.body,
+      ...buildPayload(req),
     });
 
     res.status(201).json({
@@ -29,7 +56,11 @@ export const createReceivePackage = async (req, res) => {
  */
 export const getAllReceivePackages = async (req, res) => {
   try {
-    const packages = await ReceivePackage.find();
+    const { filter } = getScope(req);
+    const packages = await ReceivePackage.find(filter).sort({
+      createdAt: 1,
+      _id: 1,
+    });
 
     res.status(200).json({
       success: true,
@@ -79,20 +110,20 @@ export const getReceivePackageById = async (req, res) => {
  */
 export const updateReceivePackage = async (req, res) => {
   try {
-    const updatedPackage = await ReceivePackage.findByIdAndUpdate(
-      req.params.id,
-      {
-        ...req.body,
-      },
-      { new: true }
-    );
+    const existing = await ReceivePackage.findById(req.params.id);
 
-    if (!updatedPackage) {
+    if (!existing) {
       return res.status(404).json({
         success: false,
         message: "Receive Package not found",
       });
     }
+
+    const updatedPackage = await ReceivePackage.findByIdAndUpdate(
+      req.params.id,
+      buildPayload(req, existing),
+      { new: true }
+    );
 
     res.status(200).json({
       success: true,

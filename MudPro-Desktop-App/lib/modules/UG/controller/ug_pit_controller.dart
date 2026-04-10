@@ -86,6 +86,7 @@ class PitController extends GetxController {
       if (!_hasWellId) return;
       fetchAllPits();
       fetchVolumeNameData();
+      fetchTransferMud();
     });
     fetchAllPits();
     fetchVolumeNameData();
@@ -787,7 +788,10 @@ class PitController extends GetxController {
     isLoadingTransfer.value = true;
     try {
       final authRepo = AuthRepository();
-      final result = await authRepo.getTransferMud(currentWellId!);
+      final result = await authRepo.getTransferMud(
+        currentWellId!,
+        reportId: _currentReportId,
+      );
       if (result['success'] == true) {
         final List data = result['data'] is List
             ? result['data']
@@ -856,11 +860,16 @@ class PitController extends GetxController {
         };
 
         final result = row.savedId == null
-            ? await authRepo.createTransferMud(currentWellId!, payload)
+            ? await authRepo.createTransferMud(
+                currentWellId!,
+                payload,
+                reportId: _currentReportId,
+              )
             : await authRepo.updateTransferMud(
                 currentWellId!,
                 row.savedId!,
                 payload,
+                reportId: _currentReportId,
               );
 
         if (result['success'] == true) {
@@ -906,6 +915,7 @@ class PitController extends GetxController {
         final res = await authRepo.deleteTransferMud(
           currentWellId!,
           row.savedId!,
+          reportId: _currentReportId,
         );
         if (res['success'] != true) {
           _showAlert(

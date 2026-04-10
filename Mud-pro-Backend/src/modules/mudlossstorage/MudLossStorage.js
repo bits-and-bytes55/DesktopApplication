@@ -7,6 +7,11 @@ const mudLossStorageSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    reportId: {
+      type: String,
+      default: "",
+      index: true,
+    },
     storage: {
       type: String,
       required: true,

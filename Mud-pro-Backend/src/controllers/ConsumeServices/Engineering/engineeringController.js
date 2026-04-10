@@ -1,29 +1,47 @@
 import Engineering from "../../../modules/ConsumeServices/Engineers/Engineering.js";
+import {
+  buildScopedFilter,
+  readReportId,
+  readWellId,
+  toText,
+} from "../../../utils/reportScope.js";
 
-/**
- * @desc    Create Engineering (With Auto Cost Calculation)
- */
+const getScope = (req) => {
+  const wellId = readWellId(req);
+  const reportId = readReportId(req);
+
+  if (wellId) {
+    return { wellId, reportId, filter: buildScopedFilter(wellId, reportId) };
+  }
+
+  return {
+    wellId,
+    reportId,
+    filter: reportId ? { reportId } : {},
+  };
+};
+
+const buildPayload = (req, existing = {}) => {
+  const usage = Number(req.body.usage ?? existing.usage ?? 0);
+  const price = Number(req.body.price ?? existing.price ?? 0);
+
+  return {
+    ...req.body,
+    wellId: readWellId(req) || toText(existing.wellId),
+    reportId: readReportId(req) || toText(existing.reportId),
+    cost: usage * price,
+  };
+};
+
 export const createEngineering = async (req, res) => {
   try {
-    let {
-      usage = 0,
-      price = 0,
-    } = req.body;
-
-    // 🔥 Auto Cost Calculation
-    const cost = Number(usage) * Number(price);
-
-    const newEngineering = await Engineering.create({
-      ...req.body,
-      cost,
-    });
+    const newEngineering = await Engineering.create(buildPayload(req));
 
     res.status(201).json({
       success: true,
       message: "Engineering created successfully",
       data: newEngineering,
     });
-
   } catch (error) {
     res.status(500).json({
       success: false,
@@ -32,20 +50,19 @@ export const createEngineering = async (req, res) => {
   }
 };
 
-
-/**
- * @desc    Get All Engineering Records
- */
 export const getAllEngineering = async (req, res) => {
   try {
-    const records = await Engineering.find();
+    const { filter } = getScope(req);
+    const records = await Engineering.find(filter).sort({
+      createdAt: 1,
+      _id: 1,
+    });
 
     res.status(200).json({
       success: true,
       count: records.length,
       data: records,
     });
-
   } catch (error) {
     res.status(500).json({
       success: false,
@@ -54,10 +71,6 @@ export const getAllEngineering = async (req, res) => {
   }
 };
 
-
-/**
- * @desc    Get Single Engineering Record
- */
 export const getEngineeringById = async (req, res) => {
   try {
     const record = await Engineering.findById(req.params.id);
@@ -73,7 +86,6 @@ export const getEngineeringById = async (req, res) => {
       success: true,
       data: record,
     });
-
   } catch (error) {
     res.status(500).json({
       success: false,
@@ -82,10 +94,6 @@ export const getEngineeringById = async (req, res) => {
   }
 };
 
-
-/**
- * @desc    Update Engineering (With Recalculation)
- */
 export const updateEngineering = async (req, res) => {
   try {
     const existing = await Engineering.findById(req.params.id);
@@ -97,18 +105,9 @@ export const updateEngineering = async (req, res) => {
       });
     }
 
-    const usage = Number(req.body.usage ?? existing.usage ?? 0);
-    const price = Number(req.body.price ?? existing.price ?? 0);
-
-    // 🔥 Recalculate
-    const cost = usage * price;
-
     const updatedRecord = await Engineering.findByIdAndUpdate(
       req.params.id,
-      {
-        ...req.body,
-        cost,
-      },
+      buildPayload(req, existing),
       { new: true }
     );
 
@@ -117,7 +116,6 @@ export const updateEngineering = async (req, res) => {
       message: "Engineering updated successfully",
       data: updatedRecord,
     });
-
   } catch (error) {
     res.status(500).json({
       success: false,
@@ -126,10 +124,6 @@ export const updateEngineering = async (req, res) => {
   }
 };
 
-
-/**
- * @desc    Delete Engineering
- */
 export const deleteEngineering = async (req, res) => {
   try {
     const record = await Engineering.findByIdAndDelete(req.params.id);
@@ -145,7 +139,6 @@ export const deleteEngineering = async (req, res) => {
       success: true,
       message: "Engineering deleted successfully",
     });
-
   } catch (error) {
     res.status(500).json({
       success: false,

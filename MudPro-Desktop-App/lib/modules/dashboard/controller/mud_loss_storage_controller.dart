@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart';
+import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
 class MudLossStorageEntry {
@@ -63,8 +64,13 @@ class MudLossStorageController extends GetxController {
   final isLoading = false.obs;
 
   Worker? _wellWorker;
+  Worker? _reportWorker;
 
   String get wellId => currentBackendWellId.trim();
+  String? get _currentReportId {
+    final reportId = reportContext.selectedReportId.value.trim();
+    return reportId.isEmpty ? null : reportId;
+  }
 
   @override
   void onInit() {
@@ -72,11 +78,13 @@ class MudLossStorageController extends GetxController {
     _ensureMinimumRows();
     load();
     _wellWorker = ever<String>(padWellContext.selectedWellId, (_) => load(force: true));
+    _reportWorker = ever<String>(reportContext.selectedReportId, (_) => load(force: true));
   }
 
   @override
   void onClose() {
     _wellWorker?.dispose();
+    _reportWorker?.dispose();
     for (final row in rows) {
       row.dispose();
     }
@@ -126,7 +134,10 @@ class MudLossStorageController extends GetxController {
 
     isLoading.value = true;
     try {
-      final result = await _repository.getMudLossStorageList(wellId);
+      final result = await _repository.getMudLossStorageList(
+        wellId,
+        reportId: _currentReportId,
+      );
       if (result['success'] != true) {
         throw Exception(result['message'] ?? 'Failed to load Mud Loss Storage');
       }
@@ -176,7 +187,11 @@ class MudLossStorageController extends GetxController {
         return {'success': true, 'message': 'No Mud Loss - Storage data to save'};
       }
       for (final row in existingRows) {
-        final result = await _repository.deleteMudLossStorage(wellId, row.id.value);
+        final result = await _repository.deleteMudLossStorage(
+          wellId,
+          row.id.value,
+          reportId: _currentReportId,
+        );
         if (result['success'] == true) {
           successCount++;
         } else {
@@ -200,8 +215,17 @@ class MudLossStorageController extends GetxController {
       final row = filledRows[index];
       final body = row.toBody();
       final result = row.id.value.isNotEmpty
-          ? await _repository.updateMudLossStorage(wellId, row.id.value, body)
-          : await _repository.createMudLossStorage(wellId, body);
+          ? await _repository.updateMudLossStorage(
+              wellId,
+              row.id.value,
+              body,
+              reportId: _currentReportId,
+            )
+          : await _repository.createMudLossStorage(
+              wellId,
+              body,
+              reportId: _currentReportId,
+            );
       if (result['success'] == true) {
         successCount++;
       } else {
@@ -214,7 +238,11 @@ class MudLossStorageController extends GetxController {
         .where((id) => id.isNotEmpty)
         .toSet();
     for (final id in currentIds.where((id) => !filledIds.contains(id))) {
-      final deleteRes = await _repository.deleteMudLossStorage(wellId, id);
+      final deleteRes = await _repository.deleteMudLossStorage(
+        wellId,
+        id,
+        reportId: _currentReportId,
+      );
       if (deleteRes['success'] == true) {
         successCount++;
       } else {

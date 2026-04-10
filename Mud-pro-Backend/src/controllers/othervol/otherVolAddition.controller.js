@@ -1,5 +1,7 @@
 import Pit from "../../modules/pit/pit.model.js";
 import OtherVolAddition from "../../modules/othervol/OtherVolAddition.js";
+import { getWritablePits } from "../../utils/pitReportState.js";
+import { buildScopedFilter, readReportId } from "../../utils/reportScope.js";
 
 const toNumber = (value) => {
   if (value === null || value === undefined || value === "") return 0;
@@ -12,11 +14,12 @@ const round2 = (num) => Number(num.toFixed(2));
 const getWellId = (req) =>
   String(req.params.wellId || req.body.wellId || "").trim();
 
-const getActivePits = async (wellId) => {
-  const activePits = await Pit.find({
+const getActivePits = async (wellId, reportId) => {
+  const activePits = await getWritablePits({
     wellId,
+    reportId,
     initialActive: true,
-  }).sort({ createdAt: 1 });
+  });
 
   if (!activePits.length) {
     throw new Error("No active pits found for this wellId");
@@ -25,8 +28,13 @@ const getActivePits = async (wellId) => {
   return activePits;
 };
 
-const prepareOtherVolAdditionData = (payload = {}, fallbackWellId = "") => {
+const prepareOtherVolAdditionData = (
+  payload = {},
+  fallbackWellId = "",
+  fallbackReportId = ""
+) => {
   const wellId = String(payload.wellId || fallbackWellId || "").trim();
+  const reportId = String(payload.reportId || fallbackReportId || "").trim();
   const formationVol = round2(toNumber(payload.formation));
   const cuttingsVol = round2(toNumber(payload.cuttings));
   const volumeNotFluidVol = round2(toNumber(payload.volumeNotFluid));
@@ -45,6 +53,7 @@ const prepareOtherVolAdditionData = (payload = {}, fallbackWellId = "") => {
 
   return {
     wellId,
+    reportId,
     formation: formationVol,
     cuttings: cuttingsVol,
     volumeNotFluid: volumeNotFluidVol,
@@ -52,8 +61,8 @@ const prepareOtherVolAdditionData = (payload = {}, fallbackWellId = "") => {
   };
 };
 
-const addToActivePits = async ({ wellId, totalVolume }) => {
-  const activePits = await getActivePits(wellId);
+const addToActivePits = async ({ wellId, reportId, totalVolume }) => {
+  const activePits = await getActivePits(wellId, reportId);
 
   let remaining = round2(totalVolume);
 
@@ -69,10 +78,10 @@ const addToActivePits = async ({ wellId, totalVolume }) => {
   }
 };
 
-const revertFromActivePits = async ({ wellId, totalVolume }) => {
+const revertFromActivePits = async ({ wellId, reportId, totalVolume }) => {
   if (totalVolume <= 0) return;
 
-  const activePits = await getActivePits(wellId);
+  const activePits = await getActivePits(wellId, reportId);
 
   let remaining = round2(totalVolume);
 
@@ -91,6 +100,7 @@ const revertFromActivePits = async ({ wellId, totalVolume }) => {
 export const createOtherVolAddition = async (req, res) => {
   try {
     const fallbackWellId = getWellId(req);
+    const fallbackReportId = readReportId(req);
     const payloads = Array.isArray(req.body) ? req.body : [req.body];
 
     if (!payloads.length) {
@@ -103,10 +113,15 @@ export const createOtherVolAddition = async (req, res) => {
     const createdItems = [];
 
     for (const payload of payloads) {
-      const prepared = prepareOtherVolAdditionData(payload, fallbackWellId);
+      const prepared = prepareOtherVolAdditionData(
+        payload,
+        fallbackWellId,
+        fallbackReportId
+      );
 
       await addToActivePits({
         wellId: prepared.wellId,
+        reportId: prepared.reportId,
         totalVolume: prepared.totalVolume,
       });
 
@@ -135,6 +150,7 @@ export const createOtherVolAddition = async (req, res) => {
 export const getOtherVolAdditionList = async (req, res) => {
   try {
     const wellId = getWellId(req);
+    const reportId = readReportId(req);
 
     if (!wellId) {
       return res.status(400).json({
@@ -143,7 +159,9 @@ export const getOtherVolAdditionList = async (req, res) => {
       });
     }
 
-    const items = await OtherVolAddition.find({ wellId }).sort({ createdAt: -1 });
+    const items = await OtherVolAddition.find(
+      buildScopedFilter(wellId, reportId)
+    ).sort({ createdAt: -1 });
 
     return res.status(200).json({
       success: true,
@@ -162,9 +180,13 @@ export const getOtherVolAdditionList = async (req, res) => {
 export const getOtherVolAdditionById = async (req, res) => {
   try {
     const wellId = getWellId(req);
+    const reportId = readReportId(req);
     const { id } = req.params;
 
-    const item = await OtherVolAddition.findOne({ _id: id, wellId });
+    const item = await OtherVolAddition.findOne({
+      _id: id,
+      ...buildScopedFilter(wellId, reportId),
+    });
 
     if (!item) {
       return res.status(404).json({
@@ -189,9 +211,13 @@ export const getOtherVolAdditionById = async (req, res) => {
 export const updateOtherVolAddition = async (req, res) => {
   try {
     const wellId = getWellId(req);
+    const reportId = readReportId(req);
     const { id } = req.params;
 
-    const existing = await OtherVolAddition.findOne({ _id: id, wellId });
+    const existing = await OtherVolAddition.findOne({
+      _id: id,
+      ...buildScopedFilter(wellId, reportId),
+    });
 
     if (!existing) {
       return res.status(404).json({
@@ -202,11 +228,13 @@ export const updateOtherVolAddition = async (req, res) => {
 
     await revertFromActivePits({
       wellId: existing.wellId,
+      reportId,
       totalVolume: toNumber(existing.totalVolume),
     });
 
     const mergedPayload = {
       wellId: req.body.wellId ?? existing.wellId,
+      reportId: req.body.reportId ?? existing.reportId ?? reportId,
       formation: req.body.formation ?? existing.formation,
       cuttings: req.body.cuttings ?? existing.cuttings,
       volumeNotFluid: req.body.volumeNotFluid ?? existing.volumeNotFluid,
@@ -216,10 +244,12 @@ export const updateOtherVolAddition = async (req, res) => {
 
     await addToActivePits({
       wellId: prepared.wellId,
+      reportId: prepared.reportId,
       totalVolume: prepared.totalVolume,
     });
 
     existing.wellId = prepared.wellId;
+    existing.reportId = prepared.reportId;
     existing.formation = prepared.formation;
     existing.cuttings = prepared.cuttings;
     existing.volumeNotFluid = prepared.volumeNotFluid;
@@ -244,9 +274,13 @@ export const updateOtherVolAddition = async (req, res) => {
 export const deleteOtherVolAddition = async (req, res) => {
   try {
     const wellId = getWellId(req);
+    const reportId = readReportId(req);
     const { id } = req.params;
 
-    const existing = await OtherVolAddition.findOne({ _id: id, wellId });
+    const existing = await OtherVolAddition.findOne({
+      _id: id,
+      ...buildScopedFilter(wellId, reportId),
+    });
 
     if (!existing) {
       return res.status(404).json({
@@ -257,10 +291,14 @@ export const deleteOtherVolAddition = async (req, res) => {
 
     await revertFromActivePits({
       wellId: existing.wellId,
+      reportId,
       totalVolume: toNumber(existing.totalVolume),
     });
 
-    await OtherVolAddition.deleteOne({ _id: id, wellId });
+    await OtherVolAddition.deleteOne({
+      _id: id,
+      ...buildScopedFilter(wellId, reportId),
+    });
 
     return res.status(200).json({
       success: true,

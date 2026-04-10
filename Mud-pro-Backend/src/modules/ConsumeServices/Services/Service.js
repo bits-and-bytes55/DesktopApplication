@@ -2,6 +2,18 @@ import mongoose from "mongoose";
 
 const serviceSchema = new mongoose.Schema(
   {
+    wellId: {
+      type: String,
+      default: "",
+      index: true,
+    },
+
+    reportId: {
+      type: String,
+      default: "",
+      index: true,
+    },
+
     serviceName: {
       type: String,
       default: "",

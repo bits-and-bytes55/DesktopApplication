@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:mudpro_desktop_app/api_endpoint/api_endpoint.dart';
+import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
 class InventorySnapshotController {
@@ -12,23 +13,29 @@ class InventorySnapshotController {
     'Accept': 'application/json',
   };
 
-  Uri _buildUri(String path, {String? wellId}) {
+  Uri _buildUri(String path, {String? wellId, String? reportId}) {
     final activeWellId = (wellId ?? currentBackendWellId).trim();
+    final activeReportId = (reportId ?? reportContext.selectedReportId.value)
+        .trim();
     final base = Uri.parse('$baseUrl$path');
-    if (activeWellId.isEmpty) return base;
+    if (activeWellId.isEmpty && activeReportId.isEmpty) return base;
 
     return base.replace(
       queryParameters: {
         ...base.queryParameters,
-        'wellId': activeWellId,
+        if (activeWellId.isNotEmpty) 'wellId': activeWellId,
+        if (activeReportId.isNotEmpty) 'reportId': activeReportId,
       },
     );
   }
 
-  Future<Map<String, dynamic>> getInventorySnapshot({String? wellId}) async {
+  Future<Map<String, dynamic>> getInventorySnapshot({
+    String? wellId,
+    String? reportId,
+  }) async {
     try {
       final response = await http.get(
-        _buildUri('inventory/', wellId: wellId),
+        _buildUri('inventory/', wellId: wellId, reportId: reportId),
         headers: _headers,
       );
 
@@ -40,7 +47,9 @@ class InventorySnapshotController {
         final List items = data['data'] ?? const [];
         return {
           'success': true,
-          'items': items.map((e) => Map<String, dynamic>.from(e as Map)).toList(),
+          'items': items
+              .map((e) => Map<String, dynamic>.from(e as Map))
+              .toList(),
           'summary': _map(data['summary']),
         };
       }
@@ -57,15 +66,22 @@ class InventorySnapshotController {
     }
   }
 
-  Future<Map<String, dynamic>> generateInventorySnapshot({String? wellId}) async {
+  Future<Map<String, dynamic>> generateInventorySnapshot({
+    String? wellId,
+    String? reportId,
+  }) async {
     try {
       final response = await http.post(
-        _buildUri('inventory/generate', wellId: wellId),
+        _buildUri('inventory/generate', wellId: wellId, reportId: reportId),
         headers: _headers,
       );
 
-      debugPrint("Generate Inventory Snapshot - responseBody: ${response.body}");
-      debugPrint("Generate Inventory Snapshot - statusCode: ${response.statusCode}");
+      debugPrint(
+        "Generate Inventory Snapshot - responseBody: ${response.body}",
+      );
+      debugPrint(
+        "Generate Inventory Snapshot - statusCode: ${response.statusCode}",
+      );
 
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       if (response.statusCode == 200 || response.statusCode == 201) {
@@ -82,10 +98,7 @@ class InventorySnapshotController {
         'message': data['message'] ?? 'Failed to generate snapshot',
       };
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Error: $e',
-      };
+      return {'success': false, 'message': 'Error: $e'};
     }
   }
 

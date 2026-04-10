@@ -1,6 +1,8 @@
 import Pit from "../../modules/pit/pit.model.js";
 import Premixed from "../../modules/inventory/premixed.model.js";
 import ReturnLostMud from "../../modules/returnlostmud/ReturnLostMud.js";
+import { findWritablePitByName, getWritablePits } from "../../utils/pitReportState.js";
+import { buildScopedFilter, readReportId } from "../../utils/reportScope.js";
 
 const getWellId = (req) => String(req.params.wellId || "").trim();
 
@@ -19,8 +21,8 @@ const findPremixedMud = async (wellId, premixedMud) => {
   });
 };
 
-const getAllPits = async (wellId) => {
-  const pits = await Pit.find({ wellId }).sort({ createdAt: 1 });
+const getAllPits = async (wellId, reportId) => {
+  const pits = await getWritablePits({ wellId, reportId });
   if (!pits.length) {
     throw new Error("No pits found for this wellId");
   }
@@ -35,8 +37,8 @@ const getActivePits = (allPits) => {
   return activePits;
 };
 
-const deductFromLocation = async ({ wellId, from, totalDeduct }) => {
-  const allPits = await getAllPits(wellId);
+const deductFromLocation = async ({ wellId, reportId, from, totalDeduct }) => {
+  const allPits = await getAllPits(wellId, reportId);
   const safeFrom = String(from).trim();
 
   if (safeFrom === "Active System") {
@@ -75,8 +77,9 @@ const deductFromLocation = async ({ wellId, from, totalDeduct }) => {
       throw new Error("Unable to deduct full volume from Active System");
     }
   } else {
-    const sourcePit = await Pit.findOne({
+    const sourcePit = await findWritablePitByName({
       wellId,
+      reportId,
       pitName: safeFrom,
     });
 
@@ -95,11 +98,11 @@ const deductFromLocation = async ({ wellId, from, totalDeduct }) => {
   }
 };
 
-const addToLocation = async ({ wellId, to, returned, mw, mudType }) => {
+const addToLocation = async ({ wellId, reportId, to, returned, mw, mudType }) => {
   if (returned <= 0) return;
 
   const safeTo = String(to).trim();
-  const allPits = await getAllPits(wellId);
+  const allPits = await getAllPits(wellId, reportId);
 
   if (safeTo === "Active System") {
     const activePits = getActivePits(allPits);
@@ -119,8 +122,9 @@ const addToLocation = async ({ wellId, to, returned, mw, mudType }) => {
       await pit.save();
     }
   } else if (safeTo !== "Imp") {
-    const targetPit = await Pit.findOne({
+    const targetPit = await findWritablePitByName({
       wellId,
+      reportId,
       pitName: safeTo,
     });
 
@@ -136,10 +140,17 @@ const addToLocation = async ({ wellId, to, returned, mw, mudType }) => {
   }
 };
 
-const revertDeduction = async ({ wellId, from, totalDeduct, mw, mudType }) => {
+const revertDeduction = async ({
+  wellId,
+  reportId,
+  from,
+  totalDeduct,
+  mw,
+  mudType,
+}) => {
   if (totalDeduct <= 0) return;
 
-  const allPits = await getAllPits(wellId);
+  const allPits = await getAllPits(wellId, reportId);
   const safeFrom = String(from).trim();
 
   if (safeFrom === "Active System") {
@@ -160,8 +171,9 @@ const revertDeduction = async ({ wellId, from, totalDeduct, mw, mudType }) => {
       await pit.save();
     }
   } else {
-    const sourcePit = await Pit.findOne({
+    const sourcePit = await findWritablePitByName({
       wellId,
+      reportId,
       pitName: safeFrom,
     });
 
@@ -177,10 +189,10 @@ const revertDeduction = async ({ wellId, from, totalDeduct, mw, mudType }) => {
   }
 };
 
-const revertAddition = async ({ wellId, to, returned }) => {
+const revertAddition = async ({ wellId, reportId, to, returned }) => {
   if (returned <= 0) return;
 
-  const allPits = await getAllPits(wellId);
+  const allPits = await getAllPits(wellId, reportId);
   const safeTo = String(to).trim();
 
   if (safeTo === "Active System") {
@@ -198,8 +210,9 @@ const revertAddition = async ({ wellId, to, returned }) => {
       await pit.save();
     }
   } else if (safeTo !== "Imp") {
-    const targetPit = await Pit.findOne({
+    const targetPit = await findWritablePitByName({
       wellId,
+      reportId,
       pitName: safeTo,
     });
 
@@ -212,7 +225,7 @@ const revertAddition = async ({ wellId, to, returned }) => {
   }
 };
 
-const prepareReturnLostMudData = async (wellId, payload) => {
+const prepareReturnLostMudData = async (wellId, reportId, payload) => {
   const {
     premixedMud,
     from,
@@ -274,6 +287,7 @@ const prepareReturnLostMudData = async (wellId, payload) => {
 
   return {
     wellId: safeWellId,
+    reportId,
     premixedMud: safePremixedMud,
     from: safeFrom,
     to: safeTo,
@@ -291,6 +305,7 @@ const prepareReturnLostMudData = async (wellId, payload) => {
 export const createReturnLostMud = async (req, res) => {
   try {
     const wellId = getWellId(req);
+    const reportId = readReportId(req);
     const payloads = Array.isArray(req.body) ? req.body : [req.body];
 
     if (!payloads.length) {
@@ -303,16 +318,18 @@ export const createReturnLostMud = async (req, res) => {
     const createdItems = [];
 
     for (const payload of payloads) {
-      const prepared = await prepareReturnLostMudData(wellId, payload);
+      const prepared = await prepareReturnLostMudData(wellId, reportId, payload);
 
       await deductFromLocation({
         wellId: prepared.wellId,
+        reportId: prepared.reportId,
         from: prepared.from,
         totalDeduct: prepared.totalDeduct,
       });
 
       await addToLocation({
         wellId: prepared.wellId,
+        reportId: prepared.reportId,
         to: prepared.to,
         returned: prepared.volReturned,
         mw: prepared.mw,
@@ -321,6 +338,7 @@ export const createReturnLostMud = async (req, res) => {
 
       const item = await ReturnLostMud.create({
         wellId: prepared.wellId,
+        reportId: prepared.reportId,
         premixedMud: prepared.premixedMud,
         from: prepared.from,
         to: prepared.to,
@@ -357,8 +375,11 @@ export const createReturnLostMud = async (req, res) => {
 export const getReturnLostMudList = async (req, res) => {
   try {
     const wellId = getWellId(req);
+    const reportId = readReportId(req);
 
-    const items = await ReturnLostMud.find({ wellId }).sort({ createdAt: -1 });
+    const items = await ReturnLostMud.find(
+      buildScopedFilter(wellId, reportId)
+    ).sort({ createdAt: -1 });
 
     return res.status(200).json({
       success: true,
@@ -377,9 +398,13 @@ export const getReturnLostMudList = async (req, res) => {
 export const getReturnLostMudById = async (req, res) => {
   try {
     const wellId = getWellId(req);
+    const reportId = readReportId(req);
     const { id } = req.params;
 
-    const item = await ReturnLostMud.findOne({ _id: id, wellId });
+    const item = await ReturnLostMud.findOne({
+      _id: id,
+      ...buildScopedFilter(wellId, reportId),
+    });
 
     if (!item) {
       return res.status(404).json({
@@ -404,9 +429,13 @@ export const getReturnLostMudById = async (req, res) => {
 export const updateReturnLostMud = async (req, res) => {
   try {
     const wellId = getWellId(req);
+    const reportId = readReportId(req);
     const { id } = req.params;
 
-    const existing = await ReturnLostMud.findOne({ _id: id, wellId });
+    const existing = await ReturnLostMud.findOne({
+      _id: id,
+      ...buildScopedFilter(wellId, reportId),
+    });
 
     if (!existing) {
       return res.status(404).json({
@@ -421,12 +450,14 @@ export const updateReturnLostMud = async (req, res) => {
 
     await revertAddition({
       wellId,
+      reportId,
       to: existing.to,
       returned: toNumber(existing.volReturned),
     });
 
     await revertDeduction({
       wellId,
+      reportId,
       from: existing.from,
       totalDeduct: oldTotalDeduct,
       mw: toNumber(existing.mw),
@@ -446,16 +477,18 @@ export const updateReturnLostMud = async (req, res) => {
       leased: req.body.leased ?? existing.leased,
     };
 
-    const prepared = await prepareReturnLostMudData(wellId, mergedPayload);
+    const prepared = await prepareReturnLostMudData(wellId, reportId, mergedPayload);
 
     await deductFromLocation({
       wellId: prepared.wellId,
+      reportId: prepared.reportId,
       from: prepared.from,
       totalDeduct: prepared.totalDeduct,
     });
 
     await addToLocation({
       wellId: prepared.wellId,
+      reportId: prepared.reportId,
       to: prepared.to,
       returned: prepared.volReturned,
       mw: prepared.mw,
@@ -472,6 +505,7 @@ export const updateReturnLostMud = async (req, res) => {
     existing.volLost = prepared.volLost;
     existing.costOfLostPreTax = prepared.costOfLostPreTax;
     existing.leased = prepared.leased;
+    existing.reportId = prepared.reportId;
 
     await existing.save();
 
@@ -492,9 +526,13 @@ export const updateReturnLostMud = async (req, res) => {
 export const deleteReturnLostMud = async (req, res) => {
   try {
     const wellId = getWellId(req);
+    const reportId = readReportId(req);
     const { id } = req.params;
 
-    const existing = await ReturnLostMud.findOne({ _id: id, wellId });
+    const existing = await ReturnLostMud.findOne({
+      _id: id,
+      ...buildScopedFilter(wellId, reportId),
+    });
 
     if (!existing) {
       return res.status(404).json({
@@ -509,19 +547,24 @@ export const deleteReturnLostMud = async (req, res) => {
 
     await revertAddition({
       wellId,
+      reportId,
       to: existing.to,
       returned: toNumber(existing.volReturned),
     });
 
     await revertDeduction({
       wellId,
+      reportId,
       from: existing.from,
       totalDeduct: oldTotalDeduct,
       mw: toNumber(existing.mw),
       mudType: existing.mudType || "",
     });
 
-    await ReturnLostMud.deleteOne({ _id: id, wellId });
+    await ReturnLostMud.deleteOne({
+      _id: id,
+      ...buildScopedFilter(wellId, reportId),
+    });
 
     return res.status(200).json({
       success: true,

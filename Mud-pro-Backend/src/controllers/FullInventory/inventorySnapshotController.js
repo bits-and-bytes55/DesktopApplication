@@ -9,6 +9,11 @@ import ReceivePackage from "../../modules/ReceiveProduct/Package/ReceivePackage.
 import ReturnPackage from "../../modules/ReturnProduct/Package/ReturnPackage.js";
 import UgInventorySnapshot from "../../modules/ugInventory/ugInventoryProductModel.js";
 import Well from "../../modules/well/well.model.js";
+import {
+  buildScopedFilter,
+  readReportId,
+  readWellId,
+} from "../../utils/reportScope.js";
 
 const toNumber = (value) => {
   if (value === null || value === undefined || value === "") return 0;
@@ -29,9 +34,6 @@ const keyFromCodeOrName = (code, name, fallback) => {
 
   return fallback;
 };
-
-const readWellId = (req) =>
-  String(req.query.wellId || req.body?.wellId || "").trim();
 
 const summaryFromRows = (rows = []) => {
   const first = rows[0] || {};
@@ -63,24 +65,34 @@ const isVolumeNameWaterHelper = (item) =>
 export const generateInventorySnapshot = async (req, res) => {
   try {
     const wellId = readWellId(req);
+    const reportId = readReportId(req);
     console.log(
-      `[BACKEND] Starting generateInventorySnapshot for wellId=${wellId || "global"}`
+      `[BACKEND] Starting generateInventorySnapshot for wellId=${wellId || "global"} reportId=${reportId || "legacy"}`
     );
 
-    const consumeFilter = wellId ? { wellId } : {};
+    const consumeFilter = wellId
+      ? buildScopedFilter(wellId, reportId)
+      : reportId
+        ? { reportId }
+        : {};
     const rawConsumes = await ConsumeProduct.find(consumeFilter).lean();
     const consumes = rawConsumes.filter((item) => !isVolumeNameWaterHelper(item));
+    const sourceFilter = consumeFilter;
 
-    const receives = await ReceiveProduct.find().lean();
-    const returns = await ReturnProduct.find().lean();
-    const services = await Service.find().lean();
-    const engineering = await Engineering.find().lean();
-    const packages = await Package.find().lean();
-    const packageReceives = await ReceivePackage.find().lean();
-    const packageReturns = await ReturnPackage.find().lean();
+    const receives = await ReceiveProduct.find(sourceFilter).lean();
+    const returns = await ReturnProduct.find(sourceFilter).lean();
+    const services = await Service.find(sourceFilter).lean();
+    const engineering = await Engineering.find(sourceFilter).lean();
+    const packages = await Package.find(sourceFilter).lean();
+    const packageReceives = await ReceivePackage.find(sourceFilter).lean();
+    const packageReturns = await ReturnPackage.find(sourceFilter).lean();
 
     const existingRows = await InventorySnapshot.find(
-      wellId ? { wellId } : {}
+      wellId
+        ? { wellId, ...(reportId ? { reportId } : {}) }
+        : reportId
+          ? { reportId }
+          : {}
     ).sort({ createdAt: -1 });
     const previousDailyTotal = round2(existingRows[0]?.dailyTotal || 0);
 
@@ -165,6 +177,7 @@ export const generateInventorySnapshot = async (req, res) => {
 
       snapshotData.push({
         wellId,
+        reportId,
         category: "Product",
         itemName,
         code,
@@ -188,6 +201,7 @@ export const generateInventorySnapshot = async (req, res) => {
       const subtotal = round2(toNumber(srv.price) * toNumber(srv.usage));
       snapshotData.push({
         wellId,
+        reportId,
         category: "Service",
         itemName: srv.serviceName || "",
         code: srv.code || "",
@@ -205,6 +219,7 @@ export const generateInventorySnapshot = async (req, res) => {
       const subtotal = round2(toNumber(eng.price) * toNumber(eng.usage));
       snapshotData.push({
         wellId,
+        reportId,
         category: "Engineering",
         itemName: eng.engineeringName || "",
         code: eng.code || "",
@@ -271,6 +286,7 @@ export const generateInventorySnapshot = async (req, res) => {
 
       snapshotData.push({
         wellId,
+        reportId,
         category: "Package",
         itemName: cons[0]?.packageName || rec[0]?.packageName || "",
         code: cons[0]?.code || rec[0]?.code || ret[0]?.code || "",
@@ -318,7 +334,13 @@ export const generateInventorySnapshot = async (req, res) => {
       bulkTankSetupFee,
     }));
 
-    await InventorySnapshot.deleteMany(wellId ? { wellId } : {});
+    await InventorySnapshot.deleteMany(
+      wellId
+        ? { wellId, ...(reportId ? { reportId } : {}) }
+        : reportId
+          ? { reportId }
+          : {}
+    );
     if (snapshotData.length) {
       await InventorySnapshot.insertMany(snapshotData);
     }
@@ -352,7 +374,14 @@ export const generateInventorySnapshot = async (req, res) => {
 export const getInventorySnapshot = async (req, res) => {
   try {
     const wellId = readWellId(req);
-    const data = await InventorySnapshot.find(wellId ? { wellId } : {}).sort({
+    const reportId = readReportId(req);
+    const data = await InventorySnapshot.find(
+      wellId
+        ? { wellId, ...(reportId ? { reportId } : {}) }
+        : reportId
+          ? { reportId }
+          : {}
+    ).sort({
       category: 1,
       itemName: 1,
     });

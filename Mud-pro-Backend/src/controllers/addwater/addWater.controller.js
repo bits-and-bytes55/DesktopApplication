@@ -1,5 +1,7 @@
 import Pit from "../../modules/pit/pit.model.js";
 import AddWater from "../../modules/addwater/AddWater.js";
+import { findWritablePitByName, getWritablePits } from "../../utils/pitReportState.js";
+import { buildScopedFilter, readReportId } from "../../utils/reportScope.js";
 
 const toNumber = (value) => {
   if (value === null || value === undefined || value === "") return 0;
@@ -10,8 +12,8 @@ const toNumber = (value) => {
 const round2 = (num) => Number(num.toFixed(2));
 const getWellId = (req) => String(req.params.wellId || "").trim();
 
-const getAllPits = async (wellId) => {
-  const pits = await Pit.find({ wellId }).sort({ createdAt: 1 });
+const getAllPits = async (wellId, reportId) => {
+  const pits = await getWritablePits({ wellId, reportId });
 
   if (!pits.length) {
     throw new Error("No pits found for this wellId");
@@ -30,10 +32,10 @@ const getActivePits = (allPits) => {
   return activePits;
 };
 
-const addWaterToPit = async ({ wellId, to, volume }) => {
+const addWaterToPit = async ({ wellId, reportId, to, volume }) => {
   const safeTo = String(to).trim();
   const waterVol = round2(toNumber(volume));
-  const allPits = await getAllPits(wellId);
+  const allPits = await getAllPits(wellId, reportId);
 
   if (safeTo === "Active System") {
     const activePits = getActivePits(allPits);
@@ -50,8 +52,9 @@ const addWaterToPit = async ({ wellId, to, volume }) => {
       await pit.save();
     }
   } else {
-    const targetPit = await Pit.findOne({
+    const targetPit = await findWritablePitByName({
       wellId,
+      reportId,
       pitName: safeTo,
     });
 
@@ -64,10 +67,10 @@ const addWaterToPit = async ({ wellId, to, volume }) => {
   }
 };
 
-const revertWaterFromPit = async ({ wellId, to, volume }) => {
+const revertWaterFromPit = async ({ wellId, reportId, to, volume }) => {
   const safeTo = String(to).trim();
   const waterVol = round2(toNumber(volume));
-  const allPits = await getAllPits(wellId);
+  const allPits = await getAllPits(wellId, reportId);
 
   if (safeTo === "Active System") {
     const activePits = getActivePits(allPits);
@@ -84,8 +87,9 @@ const revertWaterFromPit = async ({ wellId, to, volume }) => {
       await pit.save();
     }
   } else {
-    const targetPit = await Pit.findOne({
+    const targetPit = await findWritablePitByName({
       wellId,
+      reportId,
       pitName: safeTo,
     });
 
@@ -98,7 +102,7 @@ const revertWaterFromPit = async ({ wellId, to, volume }) => {
   }
 };
 
-const prepareAddWaterData = (wellId, payload) => {
+const prepareAddWaterData = (wellId, reportId, payload) => {
   const { to, volume } = payload;
 
   if (!wellId || !to || volume === undefined || volume === null) {
@@ -114,6 +118,7 @@ const prepareAddWaterData = (wellId, payload) => {
 
   return {
     wellId,
+    reportId,
     to: safeTo,
     volume: waterVol,
   };
@@ -122,6 +127,7 @@ const prepareAddWaterData = (wellId, payload) => {
 export const createAddWater = async (req, res) => {
   try {
     const wellId = getWellId(req);
+    const reportId = readReportId(req);
     const payloads = Array.isArray(req.body) ? req.body : [req.body];
 
     if (!payloads.length) {
@@ -134,10 +140,11 @@ export const createAddWater = async (req, res) => {
     const createdItems = [];
 
     for (const payload of payloads) {
-      const prepared = prepareAddWaterData(wellId, payload);
+      const prepared = prepareAddWaterData(wellId, reportId, payload);
 
       await addWaterToPit({
         wellId: prepared.wellId,
+        reportId: prepared.reportId,
         to: prepared.to,
         volume: prepared.volume,
       });
@@ -167,8 +174,11 @@ export const createAddWater = async (req, res) => {
 export const getAddWaterList = async (req, res) => {
   try {
     const wellId = getWellId(req);
+    const reportId = readReportId(req);
 
-    const items = await AddWater.find({ wellId }).sort({ createdAt: -1 });
+    const items = await AddWater.find(
+      buildScopedFilter(wellId, reportId)
+    ).sort({ createdAt: -1 });
 
     return res.status(200).json({
       success: true,
@@ -187,9 +197,13 @@ export const getAddWaterList = async (req, res) => {
 export const getAddWaterById = async (req, res) => {
   try {
     const wellId = getWellId(req);
+    const reportId = readReportId(req);
     const { id } = req.params;
 
-    const item = await AddWater.findOne({ _id: id, wellId });
+    const item = await AddWater.findOne({
+      _id: id,
+      ...buildScopedFilter(wellId, reportId),
+    });
 
     if (!item) {
       return res.status(404).json({
@@ -214,9 +228,13 @@ export const getAddWaterById = async (req, res) => {
 export const updateAddWater = async (req, res) => {
   try {
     const wellId = getWellId(req);
+    const reportId = readReportId(req);
     const { id } = req.params;
 
-    const existing = await AddWater.findOne({ _id: id, wellId });
+    const existing = await AddWater.findOne({
+      _id: id,
+      ...buildScopedFilter(wellId, reportId),
+    });
 
     if (!existing) {
       return res.status(404).json({
@@ -227,6 +245,7 @@ export const updateAddWater = async (req, res) => {
 
     await revertWaterFromPit({
       wellId,
+      reportId,
       to: existing.to,
       volume: existing.volume,
     });
@@ -236,16 +255,18 @@ export const updateAddWater = async (req, res) => {
       volume: req.body.volume ?? existing.volume,
     };
 
-    const prepared = prepareAddWaterData(wellId, mergedPayload);
+    const prepared = prepareAddWaterData(wellId, reportId, mergedPayload);
 
     await addWaterToPit({
       wellId: prepared.wellId,
+      reportId: prepared.reportId,
       to: prepared.to,
       volume: prepared.volume,
     });
 
     existing.to = prepared.to;
     existing.volume = prepared.volume;
+    existing.reportId = prepared.reportId;
 
     await existing.save();
 
@@ -266,9 +287,13 @@ export const updateAddWater = async (req, res) => {
 export const deleteAddWater = async (req, res) => {
   try {
     const wellId = getWellId(req);
+    const reportId = readReportId(req);
     const { id } = req.params;
 
-    const existing = await AddWater.findOne({ _id: id, wellId });
+    const existing = await AddWater.findOne({
+      _id: id,
+      ...buildScopedFilter(wellId, reportId),
+    });
 
     if (!existing) {
       return res.status(404).json({
@@ -279,11 +304,15 @@ export const deleteAddWater = async (req, res) => {
 
     await revertWaterFromPit({
       wellId,
+      reportId,
       to: existing.to,
       volume: existing.volume,
     });
 
-    await AddWater.deleteOne({ _id: id, wellId });
+    await AddWater.deleteOne({
+      _id: id,
+      ...buildScopedFilter(wellId, reportId),
+    });
 
     return res.status(200).json({
       success: true,

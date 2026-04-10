@@ -1,6 +1,8 @@
 import Pit from "../../modules/pit/pit.model.js";
 import Premixed from "../../modules/inventory/premixed.model.js";
 import ReceiveMud from "../../modules/receivemud/ReceiveMud.js";
+import { findWritablePitByName, getWritablePits } from "../../utils/pitReportState.js";
+import { buildScopedFilter, readReportId } from "../../utils/reportScope.js";
 
 const toNumber = (value) => {
   if (value === null || value === undefined || value === "") return 0;
@@ -18,8 +20,15 @@ const findPremixedMud = async (wellId, premixedMud) => {
   });
 };
 
-const applyVolumeToPit = async ({ wellId, to, netVolume, mw, mudType }) => {
-  const allPits = await Pit.find({ wellId }).sort({ createdAt: 1 });
+const applyVolumeToPit = async ({
+  wellId,
+  reportId,
+  to,
+  netVolume,
+  mw,
+  mudType,
+}) => {
+  const allPits = await getWritablePits({ wellId, reportId });
 
   if (!allPits.length) {
     throw new Error("No pits found for this wellId");
@@ -47,8 +56,9 @@ const applyVolumeToPit = async ({ wellId, to, netVolume, mw, mudType }) => {
       await pit.save();
     }
   } else {
-    const targetPit = await Pit.findOne({
+    const targetPit = await findWritablePitByName({
       wellId,
+      reportId,
       pitName: String(to).trim(),
     });
 
@@ -64,8 +74,8 @@ const applyVolumeToPit = async ({ wellId, to, netVolume, mw, mudType }) => {
   }
 };
 
-const revertVolumeFromPit = async ({ wellId, to, netVolume }) => {
-  const allPits = await Pit.find({ wellId }).sort({ createdAt: 1 });
+const revertVolumeFromPit = async ({ wellId, reportId, to, netVolume }) => {
+  const allPits = await getWritablePits({ wellId, reportId });
 
   if (!allPits.length) {
     throw new Error("No pits found for this wellId");
@@ -92,8 +102,9 @@ const revertVolumeFromPit = async ({ wellId, to, netVolume }) => {
       await pit.save();
     }
   } else {
-    const targetPit = await Pit.findOne({
+    const targetPit = await findWritablePitByName({
       wellId,
+      reportId,
       pitName: String(to).trim(),
     });
 
@@ -108,7 +119,7 @@ const revertVolumeFromPit = async ({ wellId, to, netVolume }) => {
   }
 };
 
-const prepareReceiveMudData = async (wellId, payload) => {
+const prepareReceiveMudData = async (wellId, reportId, payload) => {
   const {
     bolNo,
     premixedMud,
@@ -161,6 +172,7 @@ const prepareReceiveMudData = async (wellId, payload) => {
 
   return {
     wellId,
+    reportId,
     bolNo: bolNo || "",
     premixedMud: String(premixedMud).trim(),
     mw: finalMw,
@@ -178,6 +190,7 @@ const prepareReceiveMudData = async (wellId, payload) => {
 export const createReceiveMud = async (req, res) => {
   try {
     const wellId = getWellId(req);
+    const reportId = readReportId(req);
     const payloads = Array.isArray(req.body) ? req.body : [req.body];
 
     if (!payloads.length) {
@@ -190,10 +203,11 @@ export const createReceiveMud = async (req, res) => {
     const createdItems = [];
 
     for (const payload of payloads) {
-      const prepared = await prepareReceiveMudData(wellId, payload);
+      const prepared = await prepareReceiveMudData(wellId, reportId, payload);
 
       await applyVolumeToPit({
         wellId,
+        reportId,
         to: prepared.to,
         netVolume: prepared.netVolume,
         mw: prepared.mw,
@@ -225,8 +239,11 @@ export const createReceiveMud = async (req, res) => {
 export const getReceiveMudList = async (req, res) => {
   try {
     const wellId = getWellId(req);
+    const reportId = readReportId(req);
 
-    const items = await ReceiveMud.find({ wellId }).sort({ createdAt: -1 });
+    const items = await ReceiveMud.find(
+      buildScopedFilter(wellId, reportId)
+    ).sort({ createdAt: -1 });
 
     return res.status(200).json({
       success: true,
@@ -245,9 +262,13 @@ export const getReceiveMudList = async (req, res) => {
 export const getReceiveMudById = async (req, res) => {
   try {
     const wellId = getWellId(req);
+    const reportId = readReportId(req);
     const { id } = req.params;
 
-    const item = await ReceiveMud.findOne({ _id: id, wellId });
+    const item = await ReceiveMud.findOne({
+      _id: id,
+      ...buildScopedFilter(wellId, reportId),
+    });
 
     if (!item) {
       return res.status(404).json({
@@ -272,9 +293,13 @@ export const getReceiveMudById = async (req, res) => {
 export const updateReceiveMud = async (req, res) => {
   try {
     const wellId = getWellId(req);
+    const reportId = readReportId(req);
     const { id } = req.params;
 
-    const existing = await ReceiveMud.findOne({ _id: id, wellId });
+    const existing = await ReceiveMud.findOne({
+      _id: id,
+      ...buildScopedFilter(wellId, reportId),
+    });
 
     if (!existing) {
       return res.status(404).json({
@@ -285,6 +310,7 @@ export const updateReceiveMud = async (req, res) => {
 
     await revertVolumeFromPit({
       wellId,
+      reportId,
       to: existing.to,
       netVolume: toNumber(existing.netVolume),
     });
@@ -302,10 +328,11 @@ export const updateReceiveMud = async (req, res) => {
       lossVolume: req.body.lossVolume ?? existing.lossVolume,
     };
 
-    const prepared = await prepareReceiveMudData(wellId, mergedPayload);
+    const prepared = await prepareReceiveMudData(wellId, reportId, mergedPayload);
 
     await applyVolumeToPit({
       wellId,
+      reportId,
       to: prepared.to,
       netVolume: prepared.netVolume,
       mw: prepared.mw,
@@ -323,6 +350,7 @@ export const updateReceiveMud = async (req, res) => {
     existing.leased = prepared.leased;
     existing.lossVolume = prepared.lossVolume;
     existing.netVolume = prepared.netVolume;
+    existing.reportId = prepared.reportId;
 
     await existing.save();
 
@@ -343,9 +371,13 @@ export const updateReceiveMud = async (req, res) => {
 export const deleteReceiveMud = async (req, res) => {
   try {
     const wellId = getWellId(req);
+    const reportId = readReportId(req);
     const { id } = req.params;
 
-    const existing = await ReceiveMud.findOne({ _id: id, wellId });
+    const existing = await ReceiveMud.findOne({
+      _id: id,
+      ...buildScopedFilter(wellId, reportId),
+    });
 
     if (!existing) {
       return res.status(404).json({
@@ -356,11 +388,15 @@ export const deleteReceiveMud = async (req, res) => {
 
     await revertVolumeFromPit({
       wellId,
+      reportId,
       to: existing.to,
       netVolume: toNumber(existing.netVolume),
     });
 
-    await ReceiveMud.deleteOne({ _id: id, wellId });
+    await ReceiveMud.deleteOne({
+      _id: id,
+      ...buildScopedFilter(wellId, reportId),
+    });
 
     return res.status(200).json({
       success: true,

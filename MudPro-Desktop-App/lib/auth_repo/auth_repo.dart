@@ -176,11 +176,19 @@ class AuthRepository {
   }
 
   // ── Get Transfer Mud ─────────────────────────────────────────────────────────
-  Future<Map<String, dynamic>> getTransferMud(String wellId) async {
+  Future<Map<String, dynamic>> getTransferMud(
+    String wellId, {
+    String? reportId,
+  }) async {
     try {
-      print('Hitting GET ${baseUrl}transfer-mud/$wellId');
+      final uri = Uri.parse('${baseUrl}transfer-mud/$wellId').replace(
+        queryParameters: {
+          if (reportId != null && reportId.isNotEmpty) 'reportId': reportId,
+        },
+      );
+      print('Hitting GET $uri');
       final response = await http.get(
-        Uri.parse('${baseUrl}transfer-mud/$wellId'),
+        uri,
         headers: _headers,
       );
       print('statuscode------${response.statusCode}');
@@ -201,13 +209,17 @@ class AuthRepository {
   Future<Map<String, dynamic>> createTransferMud(
     String wellId,
     Map<String, dynamic> body,
+    {String? reportId}
   ) async {
     try {
       print('Hitting POST ${baseUrl}transfer-mud/$wellId');
       final response = await http.post(
         Uri.parse('${baseUrl}transfer-mud/$wellId'),
         headers: _headers,
-        body: jsonEncode(body),
+        body: jsonEncode({
+          ...body,
+          if (reportId != null && reportId.isNotEmpty) 'reportId': reportId,
+        }),
       );
       print('statuscode------${response.statusCode}');
       print('response body------${response.body}');
@@ -227,13 +239,22 @@ class AuthRepository {
     String wellId,
     String id,
     Map<String, dynamic> body,
+    {String? reportId}
   ) async {
     try {
-      print('Hitting PUT ${baseUrl}transfer-mud/$wellId/$id');
+      final uri = Uri.parse('${baseUrl}transfer-mud/$wellId/$id').replace(
+        queryParameters: {
+          if (reportId != null && reportId.isNotEmpty) 'reportId': reportId,
+        },
+      );
+      print('Hitting PUT $uri');
       final response = await http.put(
-        Uri.parse('${baseUrl}transfer-mud/$wellId/$id'),
+        uri,
         headers: _headers,
-        body: jsonEncode(body),
+        body: jsonEncode({
+          ...body,
+          if (reportId != null && reportId.isNotEmpty) 'reportId': reportId,
+        }),
       );
       print('statuscode------${response.statusCode}');
       print('response body------${response.body}');
@@ -253,13 +274,17 @@ class AuthRepository {
   Future<Map<String, dynamic>> createAddWater(
     String wellId,
     Map<String, dynamic> body,
+    {String? reportId}
   ) async {
     try {
       print('Hitting POST ${baseUrl}add-water/$wellId');
       final response = await http.post(
         Uri.parse('${baseUrl}add-water/$wellId'),
         headers: _headers,
-        body: jsonEncode(body),
+        body: jsonEncode({
+          ...body,
+          if (reportId != null && reportId.isNotEmpty) 'reportId': reportId,
+        }),
       );
       print('statuscode------${response.statusCode}');
       print('response body------${response.body}');
@@ -275,10 +300,18 @@ class AuthRepository {
     }
   }
 
-  Future<Map<String, dynamic>> getAddWaterList(String wellId) async {
+  Future<Map<String, dynamic>> getAddWaterList(
+    String wellId, {
+    String? reportId,
+  }) async {
     try {
+      final uri = Uri.parse('${baseUrl}add-water/$wellId').replace(
+        queryParameters: {
+          if (reportId != null && reportId.isNotEmpty) 'reportId': reportId,
+        },
+      );
       final response = await http.get(
-        Uri.parse('${baseUrl}add-water/$wellId'),
+        uri,
         headers: _headers,
       );
       final data = jsonDecode(response.body);
@@ -297,12 +330,21 @@ class AuthRepository {
     String wellId,
     String id,
     Map<String, dynamic> body,
+    {String? reportId}
   ) async {
     try {
+      final uri = Uri.parse('${baseUrl}add-water/$wellId/$id').replace(
+        queryParameters: {
+          if (reportId != null && reportId.isNotEmpty) 'reportId': reportId,
+        },
+      );
       final response = await http.put(
-        Uri.parse('${baseUrl}add-water/$wellId/$id'),
+        uri,
         headers: _headers,
-        body: jsonEncode(body),
+        body: jsonEncode({
+          ...body,
+          if (reportId != null && reportId.isNotEmpty) 'reportId': reportId,
+        }),
       );
       final data = jsonDecode(response.body);
       return {
@@ -316,10 +358,19 @@ class AuthRepository {
     }
   }
 
-  Future<Map<String, dynamic>> deleteAddWater(String wellId, String id) async {
+  Future<Map<String, dynamic>> deleteAddWater(
+    String wellId,
+    String id, {
+    String? reportId,
+  }) async {
     try {
+      final uri = Uri.parse('${baseUrl}add-water/$wellId/$id').replace(
+        queryParameters: {
+          if (reportId != null && reportId.isNotEmpty) 'reportId': reportId,
+        },
+      );
       final response = await http.delete(
-        Uri.parse('${baseUrl}add-water/$wellId/$id'),
+        uri,
         headers: _headers,
       );
       final data = jsonDecode(response.body);
@@ -337,13 +388,17 @@ class AuthRepository {
   Future<Map<String, dynamic>> createReceiveMud(
     String wellId,
     Map<String, dynamic> body,
+    {String? reportId}
   ) async {
     try {
       print('Hitting POST ${baseUrl}receive-mud/$wellId');
       final response = await http.post(
         Uri.parse('${baseUrl}receive-mud/$wellId'),
         headers: _headers,
-        body: jsonEncode(body),
+        body: jsonEncode({
+          ...body,
+          if (reportId != null && reportId.isNotEmpty) 'reportId': reportId,
+        }),
       );
       print('statuscode------${response.statusCode}');
       print('response body------${response.body}');
@@ -360,10 +415,18 @@ class AuthRepository {
   }
 
   // ── Get Receive Mud ────────────────────────────────────────────────────────
-  Future<Map<String, dynamic>> getReceiveMudList(String wellId) async {
+  Future<Map<String, dynamic>> getReceiveMudList(
+    String wellId, {
+    String? reportId,
+  }) async {
     try {
+      final uri = Uri.parse('${baseUrl}receive-mud/$wellId').replace(
+        queryParameters: {
+          if (reportId != null && reportId.isNotEmpty) 'reportId': reportId,
+        },
+      );
       final response = await http.get(
-        Uri.parse('${baseUrl}receive-mud/$wellId'),
+        uri,
         headers: _headers,
       );
       final data = jsonDecode(response.body);
@@ -383,12 +446,21 @@ class AuthRepository {
     String wellId,
     String id,
     Map<String, dynamic> body,
+    {String? reportId}
   ) async {
     try {
+      final uri = Uri.parse('${baseUrl}receive-mud/$wellId/$id').replace(
+        queryParameters: {
+          if (reportId != null && reportId.isNotEmpty) 'reportId': reportId,
+        },
+      );
       final response = await http.put(
-        Uri.parse('${baseUrl}receive-mud/$wellId/$id'),
+        uri,
         headers: _headers,
-        body: jsonEncode(body),
+        body: jsonEncode({
+          ...body,
+          if (reportId != null && reportId.isNotEmpty) 'reportId': reportId,
+        }),
       );
       final data = jsonDecode(response.body);
       return {
@@ -406,10 +478,16 @@ class AuthRepository {
   Future<Map<String, dynamic>> deleteReceiveMud(
     String wellId,
     String id,
+    {String? reportId}
   ) async {
     try {
+      final uri = Uri.parse('${baseUrl}receive-mud/$wellId/$id').replace(
+        queryParameters: {
+          if (reportId != null && reportId.isNotEmpty) 'reportId': reportId,
+        },
+      );
       final response = await http.delete(
-        Uri.parse('${baseUrl}receive-mud/$wellId/$id'),
+        uri,
         headers: _headers,
       );
       final data = jsonDecode(response.body);
@@ -426,11 +504,17 @@ class AuthRepository {
   Future<Map<String, dynamic>> deleteTransferMud(
     String wellId,
     String id,
+    {String? reportId}
   ) async {
     try {
-      print('Hitting DELETE ${baseUrl}transfer-mud/$wellId/$id');
+      final uri = Uri.parse('${baseUrl}transfer-mud/$wellId/$id').replace(
+        queryParameters: {
+          if (reportId != null && reportId.isNotEmpty) 'reportId': reportId,
+        },
+      );
+      print('Hitting DELETE $uri');
       final response = await http.delete(
-        Uri.parse('${baseUrl}transfer-mud/$wellId/$id'),
+        uri,
         headers: _headers,
       );
       print('statuscode------${response.statusCode}');
@@ -1855,12 +1939,16 @@ class AuthRepository {
   Future<Map<String, dynamic>> createReturnLostMud(
     String wellId,
     Map<String, dynamic> body,
+    {String? reportId}
   ) async {
     try {
       final response = await http.post(
         Uri.parse('${baseUrl}return-lost-mud/$wellId'),
         headers: _headers,
-        body: jsonEncode(body),
+        body: jsonEncode({
+          ...body,
+          if (reportId != null && reportId.isNotEmpty) 'reportId': reportId,
+        }),
       );
       final data = jsonDecode(response.body);
       return {
@@ -1873,10 +1961,18 @@ class AuthRepository {
     }
   }
 
-  Future<Map<String, dynamic>> getReturnLostMudList(String wellId) async {
+  Future<Map<String, dynamic>> getReturnLostMudList(
+    String wellId, {
+    String? reportId,
+  }) async {
     try {
+      final uri = Uri.parse('${baseUrl}return-lost-mud/$wellId').replace(
+        queryParameters: {
+          if (reportId != null && reportId.isNotEmpty) 'reportId': reportId,
+        },
+      );
       final response = await http.get(
-        Uri.parse('${baseUrl}return-lost-mud/$wellId'),
+        uri,
         headers: _headers,
       );
       final data = jsonDecode(response.body);
@@ -1894,12 +1990,21 @@ class AuthRepository {
     String wellId,
     String id,
     Map<String, dynamic> body,
+    {String? reportId}
   ) async {
     try {
+      final uri = Uri.parse('${baseUrl}return-lost-mud/$wellId/$id').replace(
+        queryParameters: {
+          if (reportId != null && reportId.isNotEmpty) 'reportId': reportId,
+        },
+      );
       final response = await http.put(
-        Uri.parse('${baseUrl}return-lost-mud/$wellId/$id'),
+        uri,
         headers: _headers,
-        body: jsonEncode(body),
+        body: jsonEncode({
+          ...body,
+          if (reportId != null && reportId.isNotEmpty) 'reportId': reportId,
+        }),
       );
       final data = jsonDecode(response.body);
       return {
@@ -1915,10 +2020,16 @@ class AuthRepository {
   Future<Map<String, dynamic>> deleteReturnLostMud(
     String wellId,
     String id,
+    {String? reportId}
   ) async {
     try {
+      final uri = Uri.parse('${baseUrl}return-lost-mud/$wellId/$id').replace(
+        queryParameters: {
+          if (reportId != null && reportId.isNotEmpty) 'reportId': reportId,
+        },
+      );
       final response = await http.delete(
-        Uri.parse('${baseUrl}return-lost-mud/$wellId/$id'),
+        uri,
         headers: _headers,
       );
       final data = jsonDecode(response.body);
@@ -1934,12 +2045,16 @@ class AuthRepository {
   Future<Map<String, dynamic>> createMudLoss(
     String wellId,
     Map<String, dynamic> body,
+    {String? reportId}
   ) async {
     try {
       final response = await http.post(
         Uri.parse('${baseUrl}mud-loss/$wellId'),
         headers: _headers,
-        body: jsonEncode(body),
+        body: jsonEncode({
+          ...body,
+          if (reportId != null && reportId.isNotEmpty) 'reportId': reportId,
+        }),
       );
       final data = jsonDecode(response.body);
       return {
@@ -1952,10 +2067,18 @@ class AuthRepository {
     }
   }
 
-  Future<Map<String, dynamic>> getMudLossList(String wellId) async {
+  Future<Map<String, dynamic>> getMudLossList(
+    String wellId, {
+    String? reportId,
+  }) async {
     try {
+      final uri = Uri.parse('${baseUrl}mud-loss/$wellId').replace(
+        queryParameters: {
+          if (reportId != null && reportId.isNotEmpty) 'reportId': reportId,
+        },
+      );
       final response = await http.get(
-        Uri.parse('${baseUrl}mud-loss/$wellId'),
+        uri,
         headers: _headers,
       );
       final data = jsonDecode(response.body);
@@ -1973,12 +2096,21 @@ class AuthRepository {
     String wellId,
     String id,
     Map<String, dynamic> body,
+    {String? reportId}
   ) async {
     try {
+      final uri = Uri.parse('${baseUrl}mud-loss/$wellId/$id').replace(
+        queryParameters: {
+          if (reportId != null && reportId.isNotEmpty) 'reportId': reportId,
+        },
+      );
       final response = await http.put(
-        Uri.parse('${baseUrl}mud-loss/$wellId/$id'),
+        uri,
         headers: _headers,
-        body: jsonEncode(body),
+        body: jsonEncode({
+          ...body,
+          if (reportId != null && reportId.isNotEmpty) 'reportId': reportId,
+        }),
       );
       final data = jsonDecode(response.body);
       return {
@@ -1991,10 +2123,19 @@ class AuthRepository {
     }
   }
 
-  Future<Map<String, dynamic>> deleteMudLoss(String wellId, String id) async {
+  Future<Map<String, dynamic>> deleteMudLoss(
+    String wellId,
+    String id, {
+    String? reportId,
+  }) async {
     try {
+      final uri = Uri.parse('${baseUrl}mud-loss/$wellId/$id').replace(
+        queryParameters: {
+          if (reportId != null && reportId.isNotEmpty) 'reportId': reportId,
+        },
+      );
       final response = await http.delete(
-        Uri.parse('${baseUrl}mud-loss/$wellId/$id'),
+        uri,
         headers: _headers,
       );
       final data = jsonDecode(response.body);
@@ -2010,12 +2151,17 @@ class AuthRepository {
   Future<Map<String, dynamic>> createOtherVolAddition(
     String wellId,
     Map<String, dynamic> body,
+    {String? reportId}
   ) async {
     try {
       final response = await http.post(
         Uri.parse('${baseUrl}other-vol-addition'),
         headers: _headers,
-        body: jsonEncode({'wellId': wellId, ...body}),
+        body: jsonEncode({
+          'wellId': wellId,
+          ...body,
+          if (reportId != null && reportId.isNotEmpty) 'reportId': reportId,
+        }),
       );
       final data = jsonDecode(response.body);
       return {
@@ -2028,10 +2174,18 @@ class AuthRepository {
     }
   }
 
-  Future<Map<String, dynamic>> getOtherVolAdditionList(String wellId) async {
+  Future<Map<String, dynamic>> getOtherVolAdditionList(
+    String wellId, {
+    String? reportId,
+  }) async {
     try {
+      final uri = Uri.parse('${baseUrl}other-vol-addition/$wellId').replace(
+        queryParameters: {
+          if (reportId != null && reportId.isNotEmpty) 'reportId': reportId,
+        },
+      );
       final response = await http.get(
-        Uri.parse('${baseUrl}other-vol-addition/$wellId'),
+        uri,
         headers: _headers,
       );
       final data = jsonDecode(response.body);
@@ -2049,12 +2203,22 @@ class AuthRepository {
     String wellId,
     String id,
     Map<String, dynamic> body,
+    {String? reportId}
   ) async {
     try {
+      final uri = Uri.parse('${baseUrl}other-vol-addition/$wellId/$id').replace(
+        queryParameters: {
+          if (reportId != null && reportId.isNotEmpty) 'reportId': reportId,
+        },
+      );
       final response = await http.put(
-        Uri.parse('${baseUrl}other-vol-addition/$wellId/$id'),
+        uri,
         headers: _headers,
-        body: jsonEncode({'wellId': wellId, ...body}),
+        body: jsonEncode({
+          'wellId': wellId,
+          ...body,
+          if (reportId != null && reportId.isNotEmpty) 'reportId': reportId,
+        }),
       );
       final data = jsonDecode(response.body);
       return {
@@ -2070,10 +2234,16 @@ class AuthRepository {
   Future<Map<String, dynamic>> deleteOtherVolAddition(
     String wellId,
     String id,
+    {String? reportId}
   ) async {
     try {
+      final uri = Uri.parse('${baseUrl}other-vol-addition/$wellId/$id').replace(
+        queryParameters: {
+          if (reportId != null && reportId.isNotEmpty) 'reportId': reportId,
+        },
+      );
       final response = await http.delete(
-        Uri.parse('${baseUrl}other-vol-addition/$wellId/$id'),
+        uri,
         headers: _headers,
       );
       final data = jsonDecode(response.body);
@@ -2089,12 +2259,16 @@ class AuthRepository {
   Future<Map<String, dynamic>> createMudLossStorage(
     String wellId,
     Map<String, dynamic> body,
+    {String? reportId}
   ) async {
     try {
       final response = await http.post(
         Uri.parse('${baseUrl}mud-loss-storage/$wellId'),
         headers: _headers,
-        body: jsonEncode(body),
+        body: jsonEncode({
+          ...body,
+          if (reportId != null && reportId.isNotEmpty) 'reportId': reportId,
+        }),
       );
       final data = jsonDecode(response.body);
       return {
@@ -2107,10 +2281,18 @@ class AuthRepository {
     }
   }
 
-  Future<Map<String, dynamic>> getMudLossStorageList(String wellId) async {
+  Future<Map<String, dynamic>> getMudLossStorageList(
+    String wellId, {
+    String? reportId,
+  }) async {
     try {
+      final uri = Uri.parse('${baseUrl}mud-loss-storage/$wellId').replace(
+        queryParameters: {
+          if (reportId != null && reportId.isNotEmpty) 'reportId': reportId,
+        },
+      );
       final response = await http.get(
-        Uri.parse('${baseUrl}mud-loss-storage/$wellId'),
+        uri,
         headers: _headers,
       );
       final data = jsonDecode(response.body);
@@ -2128,12 +2310,21 @@ class AuthRepository {
     String wellId,
     String id,
     Map<String, dynamic> body,
+    {String? reportId}
   ) async {
     try {
+      final uri = Uri.parse('${baseUrl}mud-loss-storage/$wellId/$id').replace(
+        queryParameters: {
+          if (reportId != null && reportId.isNotEmpty) 'reportId': reportId,
+        },
+      );
       final response = await http.put(
-        Uri.parse('${baseUrl}mud-loss-storage/$wellId/$id'),
+        uri,
         headers: _headers,
-        body: jsonEncode(body),
+        body: jsonEncode({
+          ...body,
+          if (reportId != null && reportId.isNotEmpty) 'reportId': reportId,
+        }),
       );
       final data = jsonDecode(response.body);
       return {
@@ -2149,10 +2340,16 @@ class AuthRepository {
   Future<Map<String, dynamic>> deleteMudLossStorage(
     String wellId,
     String id,
+    {String? reportId}
   ) async {
     try {
+      final uri = Uri.parse('${baseUrl}mud-loss-storage/$wellId/$id').replace(
+        queryParameters: {
+          if (reportId != null && reportId.isNotEmpty) 'reportId': reportId,
+        },
+      );
       final response = await http.delete(
-        Uri.parse('${baseUrl}mud-loss-storage/$wellId/$id'),
+        uri,
         headers: _headers,
       );
       final data = jsonDecode(response.body);

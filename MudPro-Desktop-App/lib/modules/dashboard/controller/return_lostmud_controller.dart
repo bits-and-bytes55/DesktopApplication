@@ -48,6 +48,10 @@ class ReturnLostMudController extends GetxController {
 
   String? get wellId =>
       currentBackendWellId.isEmpty ? null : currentBackendWellId;
+  String? get _currentReportId {
+    final reportId = reportContext.selectedReportId.value.trim();
+    return reportId.isEmpty ? null : reportId;
+  }
 
   @override
   void onInit() {
@@ -59,7 +63,8 @@ class ReturnLostMudController extends GetxController {
       _loadInitialData();
     });
     _reportWorker = ever<String>(reportContext.selectedReportId, (_) {
-      _loadPits();
+      _clearForm();
+      _loadInitialData();
     });
   }
 
@@ -103,7 +108,10 @@ class ReturnLostMudController extends GetxController {
     if (currentWellId == null) return;
 
     try {
-      final result = await _repository.getReturnLostMudList(currentWellId);
+      final result = await _repository.getReturnLostMudList(
+        currentWellId,
+        reportId: _currentReportId,
+      );
       if (result['success'] != true) return;
 
       final envelope = result['data'];
@@ -325,6 +333,7 @@ class ReturnLostMudController extends GetxController {
         final deleteResult = await _repository.deleteReturnLostMud(
           currentWellId,
           recordId.value!,
+          reportId: _currentReportId,
         );
         if (deleteResult['success'] == true) {
           _clearForm();
@@ -389,6 +398,7 @@ class ReturnLostMudController extends GetxController {
         'volLost': double.tryParse(volLostController.text) ?? 0.0,
         'costOfLostPreTax': double.tryParse(costOfLostController.text) ?? 0.0,
         'leased': isLeased.value,
+        if (_currentReportId != null) 'reportId': _currentReportId,
       };
 
       print('📤 Saving return/lost mud data: $data');
@@ -398,8 +408,13 @@ class ReturnLostMudController extends GetxController {
               currentWellId,
               recordId.value!,
               data,
+              reportId: _currentReportId,
             )
-          : await _repository.createReturnLostMud(currentWellId, data);
+          : await _repository.createReturnLostMud(
+              currentWellId,
+              data,
+              reportId: _currentReportId,
+            );
       if (result['success'] != true) {
         _showToast(result['message'] ?? 'Failed to save data', isError: true);
         return {

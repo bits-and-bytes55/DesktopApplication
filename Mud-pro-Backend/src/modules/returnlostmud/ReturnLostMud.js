@@ -7,6 +7,11 @@ const returnLostMudSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    reportId: {
+      type: String,
+      default: "",
+      index: true,
+    },
     premixedMud: {
       type: String,
       required: true,

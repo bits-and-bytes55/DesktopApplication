@@ -10,20 +10,48 @@ class ReturnProductController {
     'Accept': 'application/json',
   };
 
+  Uri _buildUri(String path, {String? wellId, String? reportId}) {
+    final base = Uri.parse('${baseUrl}$path');
+    return base.replace(
+      queryParameters: {
+        ...base.queryParameters,
+        if (wellId != null && wellId.isNotEmpty) 'wellId': wellId,
+        if (reportId != null && reportId.isNotEmpty) 'reportId': reportId,
+      },
+    );
+  }
+
+  Map<String, dynamic> _withScope(
+    Map<String, dynamic> data, {
+    String? wellId,
+    String? reportId,
+  }) {
+    return {
+      ...data,
+      if (wellId != null && wellId.isNotEmpty) 'wellId': wellId,
+      if (reportId != null && reportId.isNotEmpty) 'reportId': reportId,
+    };
+  }
+
   // ============ RETURN PRODUCT APIs ============
-  
-  Future<List<Map<String, dynamic>>> getReturnProducts() async {
+
+  Future<List<Map<String, dynamic>>> getReturnProducts({
+    String? wellId,
+    String? reportId,
+  }) async {
     try {
-print("Fetching return products from: ${Uri.parse('${baseUrl}return-product')}");
+      print(
+        "Fetching return products from: ${_buildUri('return-product', wellId: wellId, reportId: reportId)}",
+      );
 
       final response = await http.get(
-        Uri.parse('${baseUrl}return-product'),
+        _buildUri('return-product', wellId: wellId, reportId: reportId),
         headers: _headers,
       );
 
       print("Get Return Products - responsebody: ${response.body}");
       print("Get Return Products - statusCode: ${response.statusCode}");
-      
+
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body);
         final List items = data['data'] ?? [];
@@ -36,33 +64,39 @@ print("Fetching return products from: ${Uri.parse('${baseUrl}return-product')}")
       return [];
     }
   }
-  
+
   Future<Map<String, dynamic>> createReturnProduct({
+    String? wellId,
+    String? reportId,
     required String productName,
     required String code,
     required String unit,
     required double amount,
   }) async {
     try {
-
       print("url: ${Uri.parse('${baseUrl}return-product')}");
 
-      
       final response = await http.post(
         Uri.parse('${baseUrl}return-product'),
         headers: _headers,
-        body: jsonEncode({
-          'productName': productName,
-          'code': code,
-          'unit': unit,
-          'amount': amount,
-        }),
+        body: jsonEncode(
+          _withScope(
+            {
+              'productName': productName,
+              'code': code,
+              'unit': unit,
+              'amount': amount,
+            },
+            wellId: wellId,
+            reportId: reportId,
+          ),
+        ),
       );
 
       final responseData = jsonDecode(response.body);
       print("Create Return Product - responsebody: ${response.body}");
       print("Create Return Product - statusCode: ${response.statusCode}");
-      
+
       if (response.statusCode == 201 || response.statusCode == 200) {
         return {
           'success': true,
@@ -76,15 +110,14 @@ print("Fetching return products from: ${Uri.parse('${baseUrl}return-product')}")
         };
       }
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Error: $e',
-      };
+      return {'success': false, 'message': 'Error: $e'};
     }
   }
 
   Future<Map<String, dynamic>> updateReturnProduct({
     required String id,
+    String? wellId,
+    String? reportId,
     required String productName,
     required String code,
     required String unit,
@@ -94,18 +127,24 @@ print("Fetching return products from: ${Uri.parse('${baseUrl}return-product')}")
       final response = await http.put(
         Uri.parse('${baseUrl}return-product/$id'),
         headers: _headers,
-        body: jsonEncode({
-          'productName': productName,
-          'code': code,
-          'unit': unit,
-          'amount': amount,
-        }),
+        body: jsonEncode(
+          _withScope(
+            {
+              'productName': productName,
+              'code': code,
+              'unit': unit,
+              'amount': amount,
+            },
+            wellId: wellId,
+            reportId: reportId,
+          ),
+        ),
       );
 
       final responseData = jsonDecode(response.body);
       print("Update Return Product - responsebody: ${response.body}");
       print("Update Return Product - statusCode: ${response.statusCode}");
-      
+
       if (response.statusCode == 200) {
         return {
           'success': true,
@@ -119,10 +158,7 @@ print("Fetching return products from: ${Uri.parse('${baseUrl}return-product')}")
         };
       }
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Error: $e',
-      };
+      return {'success': false, 'message': 'Error: $e'};
     }
   }
 
@@ -136,12 +172,9 @@ print("Fetching return products from: ${Uri.parse('${baseUrl}return-product')}")
       final responseData = jsonDecode(response.body);
       print("Delete Return Product - responsebody: ${response.body}");
       print("Delete Return Product - statusCode: ${response.statusCode}");
-      
+
       if (response.statusCode == 200) {
-        return {
-          'success': true,
-          'message': 'Product deleted successfully',
-        };
+        return {'success': true, 'message': 'Product deleted successfully'};
       } else {
         return {
           'success': false,
@@ -149,25 +182,25 @@ print("Fetching return products from: ${Uri.parse('${baseUrl}return-product')}")
         };
       }
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Error: $e',
-      };
+      return {'success': false, 'message': 'Error: $e'};
     }
   }
 
   // ============ RETURN PACKAGE APIs ============
-  
-  Future<List<Map<String, dynamic>>> getReturnPackages() async {
+
+  Future<List<Map<String, dynamic>>> getReturnPackages({
+    String? wellId,
+    String? reportId,
+  }) async {
     try {
       final response = await http.get(
-        Uri.parse('${baseUrl}return-package'),
+        _buildUri('return-package', wellId: wellId, reportId: reportId),
         headers: _headers,
       );
 
       print("Get Return Packages - responsebody: ${response.body}");
       print("Get Return Packages - statusCode: ${response.statusCode}");
-      
+
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body);
         final List items = data['data'] ?? [];
@@ -180,8 +213,10 @@ print("Fetching return products from: ${Uri.parse('${baseUrl}return-product')}")
       return [];
     }
   }
-  
+
   Future<Map<String, dynamic>> createReturnPackage({
+    String? wellId,
+    String? reportId,
     required String packageName,
     required String code,
     required String unit,
@@ -191,18 +226,24 @@ print("Fetching return products from: ${Uri.parse('${baseUrl}return-product')}")
       final response = await http.post(
         Uri.parse('${baseUrl}return-package'),
         headers: _headers,
-        body: jsonEncode({
-          'packageName': packageName,
-          'code': code,
-          'unit': unit,
-          'amount': amount,
-        }),
+        body: jsonEncode(
+          _withScope(
+            {
+              'packageName': packageName,
+              'code': code,
+              'unit': unit,
+              'amount': amount,
+            },
+            wellId: wellId,
+            reportId: reportId,
+          ),
+        ),
       );
 
       final responseData = jsonDecode(response.body);
       print("Create Return Package - responsebody: ${response.body}");
       print("Create Return Package - statusCode: ${response.statusCode}");
-      
+
       if (response.statusCode == 201 || response.statusCode == 200) {
         return {
           'success': true,
@@ -216,15 +257,14 @@ print("Fetching return products from: ${Uri.parse('${baseUrl}return-product')}")
         };
       }
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Error: $e',
-      };
+      return {'success': false, 'message': 'Error: $e'};
     }
   }
 
   Future<Map<String, dynamic>> updateReturnPackage({
     required String id,
+    String? wellId,
+    String? reportId,
     required String packageName,
     required String code,
     required String unit,
@@ -234,18 +274,24 @@ print("Fetching return products from: ${Uri.parse('${baseUrl}return-product')}")
       final response = await http.put(
         Uri.parse('${baseUrl}return-package/$id'),
         headers: _headers,
-        body: jsonEncode({
-          'packageName': packageName,
-          'code': code,
-          'unit': unit,
-          'amount': amount,
-        }),
+        body: jsonEncode(
+          _withScope(
+            {
+              'packageName': packageName,
+              'code': code,
+              'unit': unit,
+              'amount': amount,
+            },
+            wellId: wellId,
+            reportId: reportId,
+          ),
+        ),
       );
 
       final responseData = jsonDecode(response.body);
       print("Update Return Package - responsebody: ${response.body}");
       print("Update Return Package - statusCode: ${response.statusCode}");
-      
+
       if (response.statusCode == 200) {
         return {
           'success': true,
@@ -259,10 +305,7 @@ print("Fetching return products from: ${Uri.parse('${baseUrl}return-product')}")
         };
       }
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Error: $e',
-      };
+      return {'success': false, 'message': 'Error: $e'};
     }
   }
 
@@ -276,12 +319,9 @@ print("Fetching return products from: ${Uri.parse('${baseUrl}return-product')}")
       final responseData = jsonDecode(response.body);
       print("Delete Return Package - responsebody: ${response.body}");
       print("Delete Return Package - statusCode: ${response.statusCode}");
-      
+
       if (response.statusCode == 200) {
-        return {
-          'success': true,
-          'message': 'Package deleted successfully',
-        };
+        return {'success': true, 'message': 'Package deleted successfully'};
       } else {
         return {
           'success': false,
@@ -289,16 +329,15 @@ print("Fetching return products from: ${Uri.parse('${baseUrl}return-product')}")
         };
       }
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Error: $e',
-      };
+      return {'success': false, 'message': 'Error: $e'};
     }
   }
 
   // ============ SAVE ALL RETURN DATA ============
-  
+
   Future<Map<String, dynamic>> saveAllReturnData({
+    String? wellId,
+    String? reportId,
     required List<Map<String, dynamic>> products,
     List<Map<String, dynamic>> packages = const [],
   }) async {
@@ -308,8 +347,11 @@ print("Fetching return products from: ${Uri.parse('${baseUrl}return-product')}")
 
       // Save products
       for (var product in products) {
-        if (product['productName'] != null && product['productName'].toString().isNotEmpty) {
+        if (product['productName'] != null &&
+            product['productName'].toString().isNotEmpty) {
           final result = await createReturnProduct(
+            wellId: wellId,
+            reportId: reportId,
             productName: product['productName'],
             code: product['code'] ?? '',
             unit: product['unit'] ?? '',
@@ -321,8 +363,11 @@ print("Fetching return products from: ${Uri.parse('${baseUrl}return-product')}")
 
       // Save packages
       for (var pkg in packages) {
-        if (pkg['packageName'] != null && pkg['packageName'].toString().isNotEmpty) {
+        if (pkg['packageName'] != null &&
+            pkg['packageName'].toString().isNotEmpty) {
           final result = await createReturnPackage(
+            wellId: wellId,
+            reportId: reportId,
             packageName: pkg['packageName'],
             code: pkg['code'] ?? '',
             unit: pkg['unit'] ?? '',
@@ -332,7 +377,8 @@ print("Fetching return products from: ${Uri.parse('${baseUrl}return-product')}")
         }
       }
 
-      final totalSuccess = productResults.where((r) => r['success'] == true).length +
+      final totalSuccess =
+          productResults.where((r) => r['success'] == true).length +
           packageResults.where((r) => r['success'] == true).length;
 
       return {
@@ -342,10 +388,7 @@ print("Fetching return products from: ${Uri.parse('${baseUrl}return-product')}")
         'packageResults': packageResults,
       };
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Error saving data: $e',
-      };
+      return {'success': false, 'message': 'Error saving data: $e'};
     }
   }
 }

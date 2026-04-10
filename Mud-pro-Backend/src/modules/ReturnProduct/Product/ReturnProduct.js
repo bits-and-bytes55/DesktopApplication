@@ -2,6 +2,18 @@ import mongoose from "mongoose";
 
 const returnProductSchema = new mongoose.Schema(
   {
+    wellId: {
+      type: String,
+      default: "",
+      index: true,
+    },
+
+    reportId: {
+      type: String,
+      default: "",
+      index: true,
+    },
+
     productName: {
       type: String,
       default: "",

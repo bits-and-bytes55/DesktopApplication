@@ -1,33 +1,50 @@
 import Package from "../../../modules/ConsumeServices/Package/Package.js";
+import {
+  buildScopedFilter,
+  readReportId,
+  readWellId,
+  toText,
+} from "../../../utils/reportScope.js";
 
-/**
- * @desc    Create Package (With Auto Calculation)
- */
+const getScope = (req) => {
+  const wellId = readWellId(req);
+  const reportId = readReportId(req);
+
+  if (wellId) {
+    return { wellId, reportId, filter: buildScopedFilter(wellId, reportId) };
+  }
+
+  return {
+    wellId,
+    reportId,
+    filter: reportId ? { reportId } : {},
+  };
+};
+
+const buildPayload = (req, existing = {}) => {
+  const initial = Number(req.body.initial ?? existing.initial ?? 0);
+  const adjust = Number(req.body.adjust ?? existing.adjust ?? 0);
+  const used = Number(req.body.used ?? existing.used ?? 0);
+  const price = Number(req.body.price ?? existing.price ?? 0);
+
+  return {
+    ...req.body,
+    wellId: readWellId(req) || toText(existing.wellId),
+    reportId: readReportId(req) || toText(existing.reportId),
+    final: initial + adjust - used,
+    cost: used * price,
+  };
+};
+
 export const createPackage = async (req, res) => {
   try {
-    let {
-      initial = 0,
-      adjust = 0,
-      used = 0,
-      price = 0,
-    } = req.body;
-
-    // 🔥 Auto Calculation
-    const final = Number(initial) + Number(adjust) - Number(used);
-    const cost = Number(used) * Number(price);
-
-    const newPackage = await Package.create({
-      ...req.body,
-      final,
-      cost,
-    });
+    const newPackage = await Package.create(buildPayload(req));
 
     res.status(201).json({
       success: true,
       message: "Package created successfully",
       data: newPackage,
     });
-
   } catch (error) {
     res.status(500).json({
       success: false,
@@ -36,20 +53,19 @@ export const createPackage = async (req, res) => {
   }
 };
 
-
-/**
- * @desc    Get All Packages
- */
 export const getAllPackages = async (req, res) => {
   try {
-    const packages = await Package.find();
+    const { filter } = getScope(req);
+    const packages = await Package.find(filter).sort({
+      createdAt: 1,
+      _id: 1,
+    });
 
     res.status(200).json({
       success: true,
       count: packages.length,
       data: packages,
     });
-
   } catch (error) {
     res.status(500).json({
       success: false,
@@ -58,10 +74,6 @@ export const getAllPackages = async (req, res) => {
   }
 };
 
-
-/**
- * @desc    Get Single Package
- */
 export const getPackageById = async (req, res) => {
   try {
     const pkg = await Package.findById(req.params.id);
@@ -77,7 +89,6 @@ export const getPackageById = async (req, res) => {
       success: true,
       data: pkg,
     });
-
   } catch (error) {
     res.status(500).json({
       success: false,
@@ -86,10 +97,6 @@ export const getPackageById = async (req, res) => {
   }
 };
 
-
-/**
- * @desc    Update Package (With Recalculation)
- */
 export const updatePackage = async (req, res) => {
   try {
     const existing = await Package.findById(req.params.id);
@@ -101,22 +108,9 @@ export const updatePackage = async (req, res) => {
       });
     }
 
-    const initial = Number(req.body.initial ?? existing.initial ?? 0);
-    const adjust = Number(req.body.adjust ?? existing.adjust ?? 0);
-    const used = Number(req.body.used ?? existing.used ?? 0);
-    const price = Number(req.body.price ?? existing.price ?? 0);
-
-    // 🔥 Recalculate
-    const final = initial + adjust - used;
-    const cost = used * price;
-
     const updatedPackage = await Package.findByIdAndUpdate(
       req.params.id,
-      {
-        ...req.body,
-        final,
-        cost,
-      },
+      buildPayload(req, existing),
       { new: true }
     );
 
@@ -125,7 +119,6 @@ export const updatePackage = async (req, res) => {
       message: "Package updated successfully",
       data: updatedPackage,
     });
-
   } catch (error) {
     res.status(500).json({
       success: false,
@@ -134,10 +127,6 @@ export const updatePackage = async (req, res) => {
   }
 };
 
-
-/**
- * @desc    Delete Package
- */
 export const deletePackage = async (req, res) => {
   try {
     const pkg = await Package.findByIdAndDelete(req.params.id);
@@ -153,7 +142,6 @@ export const deletePackage = async (req, res) => {
       success: true,
       message: "Package deleted successfully",
     });
-
   } catch (error) {
     res.status(500).json({
       success: false,

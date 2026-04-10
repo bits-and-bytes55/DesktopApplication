@@ -1,4 +1,5 @@
 import ConsumeProduct from "../../modules/Consumeproduct/ConsumeProduct.js";
+import { readReportId } from "../../utils/reportScope.js";
 
 const toNumber = (value, fallback = 0) => {
   const numericValue = Number(value);
@@ -98,6 +99,7 @@ const buildConsumeProductPayload = (payload = {}, existing = {}) => {
 
   return {
     wellId: String(payload.wellId ?? existing.wellId ?? "").trim(),
+    reportId: String(payload.reportId ?? existing.reportId ?? "").trim(),
     product: String(payload.product ?? existing.product ?? "").trim(),
     code: String(payload.code ?? existing.code ?? "").trim(),
     sg,
@@ -117,7 +119,10 @@ const buildConsumeProductPayload = (payload = {}, existing = {}) => {
  */
 export const createConsumeProduct = async (req, res) => {
   try {
-    const consumeProductPayload = buildConsumeProductPayload(req.body);
+    const consumeProductPayload = buildConsumeProductPayload({
+      ...req.body,
+      reportId: req.body.reportId ?? readReportId(req),
+    });
 
     if (!consumeProductPayload.wellId) {
       return res.status(400).json({
@@ -153,9 +158,13 @@ export const getAllConsumeProducts = async (req, res) => {
   try {
     const filter = {};
     const wellId = String(req.query.wellId ?? "").trim();
+    const reportId = String(req.query.reportId ?? "").trim();
 
     if (wellId) {
       filter.wellId = wellId;
+    }
+    if (reportId) {
+      filter.reportId = reportId;
     }
 
     const products = await ConsumeProduct.find(filter).sort({
@@ -203,7 +212,13 @@ export const updateConsumeProduct = async (req, res) => {
       return res.status(404).json({ success: false, message: "Consume Product not found" });
     }
 
-    const updatedPayload = buildConsumeProductPayload(req.body, existing);
+    const updatedPayload = buildConsumeProductPayload(
+      {
+        ...req.body,
+        reportId: req.body.reportId ?? readReportId(req),
+      },
+      existing
+    );
 
     if (!updatedPayload.wellId) {
       updatedPayload.wellId = String(existing.wellId ?? "").trim();

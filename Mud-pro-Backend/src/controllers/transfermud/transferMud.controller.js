@@ -1,5 +1,7 @@
 import Pit from "../../modules/pit/pit.model.js";
 import TransferMud from "../../modules/transfermud/TransferMud.js";
+import { getWritablePits } from "../../utils/pitReportState.js";
+import { buildScopedFilter, readReportId } from "../../utils/reportScope.js";
 
 const toNumber = (value) => {
   if (value === null || value === undefined || value === "") return 0;
@@ -19,13 +21,14 @@ const normalizeTransfers = (transfers = []) => {
     .filter((item) => item.pitName && item.volume > 0);
 };
 
-const addBackToActivePits = async ({ wellId, totalVolume }) => {
+const addBackToActivePits = async ({ wellId, reportId, totalVolume }) => {
   if (totalVolume <= 0) return;
 
-  const activePits = await Pit.find({
+  const activePits = await getWritablePits({
     wellId,
+    reportId,
     initialActive: true,
-  }).sort({ createdAt: 1 });
+  });
 
   if (!activePits.length) {
     throw new Error("No active pits found");
@@ -44,13 +47,14 @@ const addBackToActivePits = async ({ wellId, totalVolume }) => {
   }
 };
 
-const deductFromActivePits = async ({ wellId, totalVolume }) => {
+const deductFromActivePits = async ({ wellId, reportId, totalVolume }) => {
   if (totalVolume <= 0) return;
 
-  const activePits = await Pit.find({
+  const activePits = await getWritablePits({
     wellId,
+    reportId,
     initialActive: true,
-  }).sort({ createdAt: 1 });
+  });
 
   if (!activePits.length) {
     throw new Error("No active pits found");
@@ -104,7 +108,7 @@ const deductFromActivePits = async ({ wellId, totalVolume }) => {
   }
 };
 
-const revertTransferOnPits = async ({ wellId, from, transfers }) => {
+const revertTransferOnPits = async ({ wellId, reportId, from, transfers }) => {
   const cleanTransfers = normalizeTransfers(transfers);
   if (!wellId || !from || cleanTransfers.length === 0) return;
 
@@ -112,7 +116,7 @@ const revertTransferOnPits = async ({ wellId, from, transfers }) => {
     cleanTransfers.reduce((sum, item) => sum + item.volume, 0)
   );
 
-  const allPits = await Pit.find({ wellId }).sort({ createdAt: 1 });
+  const allPits = await getWritablePits({ wellId, reportId });
   if (!allPits.length) {
     throw new Error("No pits found for this wellId");
   }
@@ -144,6 +148,7 @@ const revertTransferOnPits = async ({ wellId, from, transfers }) => {
 
     await addBackToActivePits({
       wellId,
+      reportId,
       totalVolume: totalTransferVol,
     });
 
@@ -159,10 +164,11 @@ const revertTransferOnPits = async ({ wellId, from, transfers }) => {
     throw new Error("No active pits found");
   }
 
-  await deductFromActivePits({
-    wellId,
-    totalVolume: totalTransferVol,
-  });
+    await deductFromActivePits({
+      wellId,
+      reportId,
+      totalVolume: totalTransferVol,
+    });
 
   sourceStoragePit.volume = round2(
     toNumber(sourceStoragePit.volume) + totalTransferVol
@@ -170,7 +176,7 @@ const revertTransferOnPits = async ({ wellId, from, transfers }) => {
   await sourceStoragePit.save();
 };
 
-const applyTransferToPits = async ({ wellId, from, transfers }) => {
+const applyTransferToPits = async ({ wellId, reportId, from, transfers }) => {
   const cleanTransfers = normalizeTransfers(transfers);
 
   if (!wellId || !from || cleanTransfers.length === 0) {
@@ -181,7 +187,7 @@ const applyTransferToPits = async ({ wellId, from, transfers }) => {
     cleanTransfers.reduce((sum, item) => sum + item.volume, 0)
   );
 
-  const allPits = await Pit.find({ wellId }).sort({ createdAt: 1 });
+  const allPits = await getWritablePits({ wellId, reportId });
 
   if (!allPits.length) {
     throw new Error("No pits found for this wellId");
@@ -307,6 +313,7 @@ const applyTransferToPits = async ({ wellId, from, transfers }) => {
 export const createTransferMud = async (req, res) => {
   try {
     const wellId = getWellId(req);
+    const reportId = readReportId(req);
     const { from, transfers } = req.body;
 
     if (!wellId || !from || !Array.isArray(transfers) || transfers.length === 0) {
@@ -318,12 +325,14 @@ export const createTransferMud = async (req, res) => {
 
     const { cleanTransfers, totalTransferVol } = await applyTransferToPits({
       wellId,
+      reportId,
       from,
       transfers,
     });
 
     const item = await TransferMud.create({
       wellId,
+      reportId,
       from: String(from).trim(),
       transfers: cleanTransfers,
       totalTransferVol,
@@ -347,6 +356,7 @@ export const createTransferMud = async (req, res) => {
 export const createManyTransferMud = async (req, res) => {
   try {
     const wellId = getWellId(req);
+    const reportId = readReportId(req);
     const { entries } = req.body;
 
     if (!wellId || !Array.isArray(entries) || entries.length === 0) {
@@ -364,12 +374,14 @@ export const createManyTransferMud = async (req, res) => {
 
       const { cleanTransfers, totalTransferVol } = await applyTransferToPits({
         wellId,
+        reportId,
         from,
         transfers,
       });
 
       const item = await TransferMud.create({
         wellId,
+        reportId,
         from,
         transfers: cleanTransfers,
         totalTransferVol,
@@ -397,8 +409,11 @@ export const createManyTransferMud = async (req, res) => {
 export const getTransferMudByWell = async (req, res) => {
   try {
     const wellId = getWellId(req);
+    const reportId = readReportId(req);
 
-    const data = await TransferMud.find({ wellId }).sort({ createdAt: -1 });
+    const data = await TransferMud.find(
+      buildScopedFilter(wellId, reportId)
+    ).sort({ createdAt: -1 });
 
     return res.status(200).json({
       success: true,
@@ -418,9 +433,13 @@ export const getTransferMudByWell = async (req, res) => {
 export const getTransferMudById = async (req, res) => {
   try {
     const wellId = getWellId(req);
+    const reportId = readReportId(req);
     const { id } = req.params;
 
-    const data = await TransferMud.findOne({ _id: id, wellId });
+    const data = await TransferMud.findOne({
+      _id: id,
+      ...buildScopedFilter(wellId, reportId),
+    });
 
     if (!data) {
       return res.status(404).json({
@@ -446,8 +465,12 @@ export const getTransferMudById = async (req, res) => {
 export const updateTransferMud = async (req, res) => {
   try {
     const wellId = getWellId(req);
+    const reportId = readReportId(req);
     const { id } = req.params;
-    const existing = await TransferMud.findOne({ _id: id, wellId });
+    const existing = await TransferMud.findOne({
+      _id: id,
+      ...buildScopedFilter(wellId, reportId),
+    });
 
     if (!existing) {
       return res.status(404).json({
@@ -461,6 +484,7 @@ export const updateTransferMud = async (req, res) => {
 
     await revertTransferOnPits({
       wellId,
+      reportId,
       from: previousFrom,
       transfers: previousTransfers,
     });
@@ -475,6 +499,7 @@ export const updateTransferMud = async (req, res) => {
     try {
       const applied = await applyTransferToPits({
         wellId,
+        reportId,
         from: nextFrom,
         transfers: nextTransfers,
       });
@@ -483,6 +508,7 @@ export const updateTransferMud = async (req, res) => {
     } catch (error) {
       await applyTransferToPits({
         wellId,
+        reportId,
         from: previousFrom,
         transfers: previousTransfers,
       });
@@ -492,6 +518,7 @@ export const updateTransferMud = async (req, res) => {
     existing.from = nextFrom;
     existing.transfers = cleanTransfers;
     existing.totalTransferVol = totalTransferVol;
+    existing.reportId = reportId;
     await existing.save();
 
     return res.status(200).json({
@@ -512,9 +539,13 @@ export const updateTransferMud = async (req, res) => {
 export const deleteTransferMud = async (req, res) => {
   try {
     const wellId = getWellId(req);
+    const reportId = readReportId(req);
     const { id } = req.params;
 
-    const data = await TransferMud.findOne({ _id: id, wellId });
+    const data = await TransferMud.findOne({
+      _id: id,
+      ...buildScopedFilter(wellId, reportId),
+    });
 
     if (!data) {
       return res.status(404).json({
@@ -525,11 +556,15 @@ export const deleteTransferMud = async (req, res) => {
 
     await revertTransferOnPits({
       wellId,
+      reportId,
       from: data.from,
       transfers: data.transfers,
     });
 
-    await TransferMud.deleteOne({ _id: id, wellId });
+    await TransferMud.deleteOne({
+      _id: id,
+      ...buildScopedFilter(wellId, reportId),
+    });
 
     return res.status(200).json({
       success: true,

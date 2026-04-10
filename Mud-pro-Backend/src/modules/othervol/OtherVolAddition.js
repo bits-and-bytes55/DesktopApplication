@@ -7,6 +7,11 @@ const otherVolAdditionSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    reportId: {
+      type: String,
+      default: "",
+      index: true,
+    },
     formation: {
       type: Number,
       default: 0,

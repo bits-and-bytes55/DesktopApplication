@@ -7,6 +7,11 @@ const inventorySnapshotSchema = new mongoose.Schema(
       default: "",
       index: true,
     },
+    reportId: {
+      type: String,
+      default: "",
+      index: true,
+    },
 
     category: {
       type: String,

@@ -10,18 +10,44 @@ class ReceiveProductController {
     'Accept': 'application/json',
   };
 
+  Uri _buildUri(String path, {String? wellId, String? reportId}) {
+    final base = Uri.parse('${baseUrl}$path');
+    return base.replace(
+      queryParameters: {
+        ...base.queryParameters,
+        if (wellId != null && wellId.isNotEmpty) 'wellId': wellId,
+        if (reportId != null && reportId.isNotEmpty) 'reportId': reportId,
+      },
+    );
+  }
+
+  Map<String, dynamic> _withScope(
+    Map<String, dynamic> data, {
+    String? wellId,
+    String? reportId,
+  }) {
+    return {
+      ...data,
+      if (wellId != null && wellId.isNotEmpty) 'wellId': wellId,
+      if (reportId != null && reportId.isNotEmpty) 'reportId': reportId,
+    };
+  }
+
   // ============ RECEIVE PRODUCT APIs ============
-  
-  Future<List<Map<String, dynamic>>> getReceiveProducts() async {
+
+  Future<List<Map<String, dynamic>>> getReceiveProducts({
+    String? wellId,
+    String? reportId,
+  }) async {
     try {
       final response = await http.get(
-        Uri.parse('${baseUrl}receive-product'),
+        _buildUri('receive-product', wellId: wellId, reportId: reportId),
         headers: _headers,
       );
 
       print("Get Receive Products - responsebody: ${response.body}");
       print("Get Receive Products - statusCode: ${response.statusCode}");
-      
+
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body);
         final List items = data['data'] ?? [];
@@ -34,8 +60,10 @@ class ReceiveProductController {
       return [];
     }
   }
-  
+
   Future<Map<String, dynamic>> createReceiveProduct({
+    String? wellId,
+    String? reportId,
     required String productName,
     required String code,
     required String unit,
@@ -45,18 +73,24 @@ class ReceiveProductController {
       final response = await http.post(
         Uri.parse('${baseUrl}receive-product'),
         headers: _headers,
-        body: jsonEncode({
-          'productName': productName,
-          'code': code,
-          'unit': unit,
-          'amount': amount,
-        }),
+        body: jsonEncode(
+          _withScope(
+            {
+              'productName': productName,
+              'code': code,
+              'unit': unit,
+              'amount': amount,
+            },
+            wellId: wellId,
+            reportId: reportId,
+          ),
+        ),
       );
 
       final responseData = jsonDecode(response.body);
       print("Create Receive Product - responsebody: ${response.body}");
       print("Create Receive Product - statusCode: ${response.statusCode}");
-      
+
       if (response.statusCode == 201 || response.statusCode == 200) {
         return {
           'success': true,
@@ -70,15 +104,14 @@ class ReceiveProductController {
         };
       }
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Error: $e',
-      };
+      return {'success': false, 'message': 'Error: $e'};
     }
   }
 
   Future<Map<String, dynamic>> updateReceiveProduct({
     required String id,
+    String? wellId,
+    String? reportId,
     required String productName,
     required String code,
     required String unit,
@@ -88,18 +121,24 @@ class ReceiveProductController {
       final response = await http.put(
         Uri.parse('${baseUrl}receive-product/$id'),
         headers: _headers,
-        body: jsonEncode({
-          'productName': productName,
-          'code': code,
-          'unit': unit,
-          'amount': amount,
-        }),
+        body: jsonEncode(
+          _withScope(
+            {
+              'productName': productName,
+              'code': code,
+              'unit': unit,
+              'amount': amount,
+            },
+            wellId: wellId,
+            reportId: reportId,
+          ),
+        ),
       );
 
       final responseData = jsonDecode(response.body);
       print("Update Receive Product - responsebody: ${response.body}");
       print("Update Receive Product - statusCode: ${response.statusCode}");
-      
+
       if (response.statusCode == 200) {
         return {
           'success': true,
@@ -113,10 +152,7 @@ class ReceiveProductController {
         };
       }
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Error: $e',
-      };
+      return {'success': false, 'message': 'Error: $e'};
     }
   }
 
@@ -130,12 +166,9 @@ class ReceiveProductController {
       final responseData = jsonDecode(response.body);
       print("Delete Receive Product - responsebody: ${response.body}");
       print("Delete Receive Product - statusCode: ${response.statusCode}");
-      
+
       if (response.statusCode == 200) {
-        return {
-          'success': true,
-          'message': 'Product deleted successfully',
-        };
+        return {'success': true, 'message': 'Product deleted successfully'};
       } else {
         return {
           'success': false,
@@ -143,25 +176,25 @@ class ReceiveProductController {
         };
       }
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Error: $e',
-      };
+      return {'success': false, 'message': 'Error: $e'};
     }
   }
 
   // ============ RECEIVE PACKAGE APIs ============
-  
-  Future<List<Map<String, dynamic>>> getReceivePackages() async {
+
+  Future<List<Map<String, dynamic>>> getReceivePackages({
+    String? wellId,
+    String? reportId,
+  }) async {
     try {
       final response = await http.get(
-        Uri.parse('${baseUrl}receive-package'),
+        _buildUri('receive-package', wellId: wellId, reportId: reportId),
         headers: _headers,
       );
 
       print("Get Receive Packages - responsebody: ${response.body}");
       print("Get Receive Packages - statusCode: ${response.statusCode}");
-      
+
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body);
         final List items = data['data'] ?? [];
@@ -174,8 +207,10 @@ class ReceiveProductController {
       return [];
     }
   }
-  
+
   Future<Map<String, dynamic>> createReceivePackage({
+    String? wellId,
+    String? reportId,
     required String packageName,
     required String code,
     required String unit,
@@ -185,18 +220,24 @@ class ReceiveProductController {
       final response = await http.post(
         Uri.parse('${baseUrl}receive-package'),
         headers: _headers,
-        body: jsonEncode({
-          'packageName': packageName,
-          'code': code,
-          'unit': unit,
-          'amount': amount,
-        }),
+        body: jsonEncode(
+          _withScope(
+            {
+              'packageName': packageName,
+              'code': code,
+              'unit': unit,
+              'amount': amount,
+            },
+            wellId: wellId,
+            reportId: reportId,
+          ),
+        ),
       );
 
       final responseData = jsonDecode(response.body);
       print("Create Receive Package - responsebody: ${response.body}");
       print("Create Receive Package - statusCode: ${response.statusCode}");
-      
+
       if (response.statusCode == 201 || response.statusCode == 200) {
         return {
           'success': true,
@@ -210,15 +251,14 @@ class ReceiveProductController {
         };
       }
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Error: $e',
-      };
+      return {'success': false, 'message': 'Error: $e'};
     }
   }
 
   Future<Map<String, dynamic>> updateReceivePackage({
     required String id,
+    String? wellId,
+    String? reportId,
     required String packageName,
     required String code,
     required String unit,
@@ -228,18 +268,24 @@ class ReceiveProductController {
       final response = await http.put(
         Uri.parse('${baseUrl}receive-package/$id'),
         headers: _headers,
-        body: jsonEncode({
-          'packageName': packageName,
-          'code': code,
-          'unit': unit,
-          'amount': amount,
-        }),
+        body: jsonEncode(
+          _withScope(
+            {
+              'packageName': packageName,
+              'code': code,
+              'unit': unit,
+              'amount': amount,
+            },
+            wellId: wellId,
+            reportId: reportId,
+          ),
+        ),
       );
 
       final responseData = jsonDecode(response.body);
       print("Update Receive Package - responsebody: ${response.body}");
       print("Update Receive Package - statusCode: ${response.statusCode}");
-      
+
       if (response.statusCode == 200) {
         return {
           'success': true,
@@ -253,10 +299,7 @@ class ReceiveProductController {
         };
       }
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Error: $e',
-      };
+      return {'success': false, 'message': 'Error: $e'};
     }
   }
 
@@ -269,12 +312,9 @@ class ReceiveProductController {
       final responseData = jsonDecode(response.body);
       print("Delete Receive Package - responsebody: ${response.body}");
       print("Delete Receive Package - statusCode: ${response.statusCode}");
-      
+
       if (response.statusCode == 200) {
-        return {
-          'success': true,
-          'message': 'Package deleted successfully',
-        };
+        return {'success': true, 'message': 'Package deleted successfully'};
       } else {
         return {
           'success': false,
@@ -282,16 +322,15 @@ class ReceiveProductController {
         };
       }
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Error: $e',
-      };
+      return {'success': false, 'message': 'Error: $e'};
     }
   }
 
   // ============ SAVE ALL RECEIVE DATA ============
-  
+
   Future<Map<String, dynamic>> saveAllReceiveData({
+    String? wellId,
+    String? reportId,
     required List<Map<String, dynamic>> products,
     List<Map<String, dynamic>> packages = const [],
   }) async {
@@ -301,8 +340,11 @@ class ReceiveProductController {
 
       // Save products
       for (var product in products) {
-        if (product['productName'] != null && product['productName'].toString().isNotEmpty) {
+        if (product['productName'] != null &&
+            product['productName'].toString().isNotEmpty) {
           final result = await createReceiveProduct(
+            wellId: wellId,
+            reportId: reportId,
             productName: product['productName'],
             code: product['code'] ?? '',
             unit: product['unit'] ?? '',
@@ -314,8 +356,11 @@ class ReceiveProductController {
 
       // Save packages
       for (var pkg in packages) {
-        if (pkg['packageName'] != null && pkg['packageName'].toString().isNotEmpty) {
+        if (pkg['packageName'] != null &&
+            pkg['packageName'].toString().isNotEmpty) {
           final result = await createReceivePackage(
+            wellId: wellId,
+            reportId: reportId,
             packageName: pkg['packageName'],
             code: pkg['code'] ?? '',
             unit: pkg['unit'] ?? '',
@@ -325,7 +370,8 @@ class ReceiveProductController {
         }
       }
 
-      final totalSuccess = productResults.where((r) => r['success'] == true).length +
+      final totalSuccess =
+          productResults.where((r) => r['success'] == true).length +
           packageResults.where((r) => r['success'] == true).length;
 
       return {
@@ -335,10 +381,7 @@ class ReceiveProductController {
         'packageResults': packageResults,
       };
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Error saving data: $e',
-      };
+      return {'success': false, 'message': 'Error saving data: $e'};
     }
   }
 }

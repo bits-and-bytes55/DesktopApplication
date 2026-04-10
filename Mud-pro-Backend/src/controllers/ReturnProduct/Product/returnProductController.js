@@ -1,4 +1,31 @@
 import ReturnProduct from "../../../modules/ReturnProduct/Product/ReturnProduct.js";
+import {
+  buildScopedFilter,
+  readReportId,
+  readWellId,
+  toText,
+} from "../../../utils/reportScope.js";
+
+const getScope = (req) => {
+  const wellId = readWellId(req);
+  const reportId = readReportId(req);
+
+  if (wellId) {
+    return { wellId, reportId, filter: buildScopedFilter(wellId, reportId) };
+  }
+
+  return {
+    wellId,
+    reportId,
+    filter: reportId ? { reportId } : {},
+  };
+};
+
+const buildPayload = (req, existing = {}) => ({
+  ...req.body,
+  wellId: readWellId(req) || toText(existing.wellId),
+  reportId: readReportId(req) || toText(existing.reportId),
+});
 
 /**
  * @desc    Create Return Product
@@ -6,7 +33,7 @@ import ReturnProduct from "../../../modules/ReturnProduct/Product/ReturnProduct.
 export const createReturnProduct = async (req, res) => {
   try {
     const newReturnProduct = await ReturnProduct.create({
-      ...req.body,
+      ...buildPayload(req),
     });
 
     res.status(201).json({
@@ -29,7 +56,11 @@ export const createReturnProduct = async (req, res) => {
  */
 export const getAllReturnProducts = async (req, res) => {
   try {
-    const products = await ReturnProduct.find();
+    const { filter } = getScope(req);
+    const products = await ReturnProduct.find(filter).sort({
+      createdAt: 1,
+      _id: 1,
+    });
 
     res.status(200).json({
       success: true,
@@ -79,20 +110,20 @@ export const getReturnProductById = async (req, res) => {
  */
 export const updateReturnProduct = async (req, res) => {
   try {
-    const updatedProduct = await ReturnProduct.findByIdAndUpdate(
-      req.params.id,
-      {
-        ...req.body,
-      },
-      { new: true }
-    );
+    const existing = await ReturnProduct.findById(req.params.id);
 
-    if (!updatedProduct) {
+    if (!existing) {
       return res.status(404).json({
         success: false,
         message: "Return Product not found",
       });
     }
+
+    const updatedProduct = await ReturnProduct.findByIdAndUpdate(
+      req.params.id,
+      buildPayload(req, existing),
+      { new: true }
+    );
 
     res.status(200).json({
       success: true,

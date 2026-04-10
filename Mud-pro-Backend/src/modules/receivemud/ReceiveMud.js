@@ -7,6 +7,11 @@ const receiveMudSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    reportId: {
+      type: String,
+      default: "",
+      index: true,
+    },
     bolNo: {
       type: String,
       default: "",

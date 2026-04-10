@@ -1,5 +1,7 @@
 import Pit from "../../modules/pit/pit.model.js";
 import MudLossStorage from "../../modules/mudlossstorage/MudLossStorage.js";
+import { findWritablePitByName } from "../../utils/pitReportState.js";
+import { buildScopedFilter, readReportId } from "../../utils/reportScope.js";
 
 const toNumber = (value) => {
   if (value === null || value === undefined || value === "") return 0;
@@ -10,7 +12,7 @@ const toNumber = (value) => {
 const round2 = (num) => Number(num.toFixed(2));
 const getWellId = (req) => String(req.params.wellId || "").trim();
 
-const prepareMudLossStorageData = (wellId, payload = {}) => {
+const prepareMudLossStorageData = (wellId, reportId, payload = {}) => {
   const { storage, dump, evaporation, pitCleaning } = payload;
 
   if (!wellId || !storage) {
@@ -31,6 +33,7 @@ const prepareMudLossStorageData = (wellId, payload = {}) => {
 
   return {
     wellId,
+    reportId,
     storage: safeStorage,
     dump: dumpVol,
     evaporation: evaporationVol,
@@ -39,9 +42,10 @@ const prepareMudLossStorageData = (wellId, payload = {}) => {
   };
 };
 
-const deductFromStoragePit = async ({ wellId, storage, totalLoss }) => {
-  const sourcePit = await Pit.findOne({
+const deductFromStoragePit = async ({ wellId, reportId, storage, totalLoss }) => {
+  const sourcePit = await findWritablePitByName({
     wellId,
+    reportId,
     pitName: String(storage).trim(),
     initialActive: false,
   });
@@ -62,11 +66,12 @@ const deductFromStoragePit = async ({ wellId, storage, totalLoss }) => {
   await sourcePit.save();
 };
 
-const revertToStoragePit = async ({ wellId, storage, totalLoss }) => {
+const revertToStoragePit = async ({ wellId, reportId, storage, totalLoss }) => {
   if (totalLoss <= 0) return;
 
-  const sourcePit = await Pit.findOne({
+  const sourcePit = await findWritablePitByName({
     wellId,
+    reportId,
     pitName: String(storage).trim(),
     initialActive: false,
   });
@@ -82,6 +87,7 @@ const revertToStoragePit = async ({ wellId, storage, totalLoss }) => {
 export const createMudLossStorage = async (req, res) => {
   try {
     const wellId = getWellId(req);
+    const reportId = readReportId(req);
     const payloads = Array.isArray(req.body) ? req.body : [req.body];
 
     if (!payloads.length) {
@@ -94,10 +100,11 @@ export const createMudLossStorage = async (req, res) => {
     const createdItems = [];
 
     for (const payload of payloads) {
-      const prepared = prepareMudLossStorageData(wellId, payload);
+      const prepared = prepareMudLossStorageData(wellId, reportId, payload);
 
       await deductFromStoragePit({
         wellId: prepared.wellId,
+        reportId: prepared.reportId,
         storage: prepared.storage,
         totalLoss: prepared.totalLoss,
       });
@@ -127,8 +134,11 @@ export const createMudLossStorage = async (req, res) => {
 export const getMudLossStorageList = async (req, res) => {
   try {
     const wellId = getWellId(req);
+    const reportId = readReportId(req);
 
-    const items = await MudLossStorage.find({ wellId }).sort({ createdAt: -1 });
+    const items = await MudLossStorage.find(
+      buildScopedFilter(wellId, reportId)
+    ).sort({ createdAt: -1 });
 
     return res.status(200).json({
       success: true,
@@ -147,9 +157,13 @@ export const getMudLossStorageList = async (req, res) => {
 export const getMudLossStorageById = async (req, res) => {
   try {
     const wellId = getWellId(req);
+    const reportId = readReportId(req);
     const { id } = req.params;
 
-    const item = await MudLossStorage.findOne({ _id: id, wellId });
+    const item = await MudLossStorage.findOne({
+      _id: id,
+      ...buildScopedFilter(wellId, reportId),
+    });
 
     if (!item) {
       return res.status(404).json({
@@ -174,9 +188,13 @@ export const getMudLossStorageById = async (req, res) => {
 export const updateMudLossStorage = async (req, res) => {
   try {
     const wellId = getWellId(req);
+    const reportId = readReportId(req);
     const { id } = req.params;
 
-    const existing = await MudLossStorage.findOne({ _id: id, wellId });
+    const existing = await MudLossStorage.findOne({
+      _id: id,
+      ...buildScopedFilter(wellId, reportId),
+    });
 
     if (!existing) {
       return res.status(404).json({
@@ -187,6 +205,7 @@ export const updateMudLossStorage = async (req, res) => {
 
     await revertToStoragePit({
       wellId,
+      reportId,
       storage: existing.storage,
       totalLoss: toNumber(existing.totalLoss),
     });
@@ -198,10 +217,11 @@ export const updateMudLossStorage = async (req, res) => {
       pitCleaning: req.body.pitCleaning ?? existing.pitCleaning,
     };
 
-    const prepared = prepareMudLossStorageData(wellId, mergedPayload);
+    const prepared = prepareMudLossStorageData(wellId, reportId, mergedPayload);
 
     await deductFromStoragePit({
       wellId: prepared.wellId,
+      reportId: prepared.reportId,
       storage: prepared.storage,
       totalLoss: prepared.totalLoss,
     });
@@ -211,6 +231,7 @@ export const updateMudLossStorage = async (req, res) => {
     existing.evaporation = prepared.evaporation;
     existing.pitCleaning = prepared.pitCleaning;
     existing.totalLoss = prepared.totalLoss;
+    existing.reportId = prepared.reportId;
 
     await existing.save();
 
@@ -231,9 +252,13 @@ export const updateMudLossStorage = async (req, res) => {
 export const deleteMudLossStorage = async (req, res) => {
   try {
     const wellId = getWellId(req);
+    const reportId = readReportId(req);
     const { id } = req.params;
 
-    const existing = await MudLossStorage.findOne({ _id: id, wellId });
+    const existing = await MudLossStorage.findOne({
+      _id: id,
+      ...buildScopedFilter(wellId, reportId),
+    });
 
     if (!existing) {
       return res.status(404).json({
@@ -244,11 +269,15 @@ export const deleteMudLossStorage = async (req, res) => {
 
     await revertToStoragePit({
       wellId,
+      reportId,
       storage: existing.storage,
       totalLoss: toNumber(existing.totalLoss),
     });
 
-    await MudLossStorage.deleteOne({ _id: id, wellId });
+    await MudLossStorage.deleteOne({
+      _id: id,
+      ...buildScopedFilter(wellId, reportId),
+    });
 
     return res.status(200).json({
       success: true,

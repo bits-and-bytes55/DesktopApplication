@@ -4,6 +4,18 @@ import mongoose from "mongoose";
 
 const packageSchema = new mongoose.Schema(
   {
+    wellId: {
+      type: String,
+      default: "",
+      index: true,
+    },
+
+    reportId: {
+      type: String,
+      default: "",
+      index: true,
+    },
+
     packageName: {
       type: String,
       default: "",

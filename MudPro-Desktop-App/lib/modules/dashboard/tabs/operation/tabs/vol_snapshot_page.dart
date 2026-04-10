@@ -148,15 +148,20 @@ class VolumeSnapshotController extends GetxController {
   ) async {
     final volumeName = _asMap(payload['volumeName']);
     final totals = _asMap(payload['totalsBreakdown']);
+    final reportId = reportContext.selectedReportId.value.trim().isEmpty
+        ? null
+        : reportContext.selectedReportId.value.trim();
 
     final responses = await Future.wait<List<Map<String, dynamic>>>([
-      _fetchList(() => _repo.getReceiveMudList(wellId)),
-      _fetchList(() => _repo.getReturnLostMudList(wellId)),
-      _fetchList(() => _repo.getAddWaterList(wellId)),
-      _fetchList(() => _repo.getMudLossList(wellId)),
-      _fetchList(() => _repo.getMudLossStorageList(wellId)),
-      _fetchList(() => _repo.getOtherVolAdditionList(wellId)),
-      _fetchList(() => _repo.getTransferMud(wellId)),
+      _fetchList(() => _repo.getReceiveMudList(wellId, reportId: reportId)),
+      _fetchList(() => _repo.getReturnLostMudList(wellId, reportId: reportId)),
+      _fetchList(() => _repo.getAddWaterList(wellId, reportId: reportId)),
+      _fetchList(() => _repo.getMudLossList(wellId, reportId: reportId)),
+      _fetchList(() => _repo.getMudLossStorageList(wellId, reportId: reportId)),
+      _fetchList(
+        () => _repo.getOtherVolAdditionList(wellId, reportId: reportId),
+      ),
+      _fetchList(() => _repo.getTransferMud(wellId, reportId: reportId)),
     ]);
 
     final receiveMudItems = responses[0];

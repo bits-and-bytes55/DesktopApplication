@@ -19,6 +19,11 @@ const transferMudSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    reportId: {
+      type: String,
+      default: "",
+      index: true,
+    },
     from: {
       type: String,
       required: true,

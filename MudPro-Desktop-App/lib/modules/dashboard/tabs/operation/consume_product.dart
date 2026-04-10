@@ -5,6 +5,7 @@ import 'package:mudpro_desktop_app/modules/company_setup/model/products_model.da
 import 'package:mudpro_desktop_app/modules/daily_report/controller/inventory_snapshot_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/consume_product_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/inventory_store/inventory_store.dart';
+import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 import '../../controller/operation_controller.dart';
 import '../../controller/dashboard_controller.dart';
@@ -48,12 +49,19 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
   final RxInt selectedProductRow = 0.obs;
   final Rx<ProductModel?> selectedTopProduct = Rx<ProductModel?>(null);
   final RxBool isSavingAll = false.obs;
+  Worker? _wellWorker;
+  Worker? _reportWorker;
+  Worker? _volumeWorker;
 
   // Special option constants
   static const String kActiveSystem = 'Active System';
   static const String kEmpty = '';
 
   RxList<ProductModel> get products => _inventoryStore.selectedProducts;
+  String? get _currentReportId {
+    final reportId = reportContext.selectedReportId.value.trim();
+    return reportId.isEmpty ? null : reportId;
+  }
 
   @override
   void initState() {
@@ -71,13 +79,25 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     });
 
     // Automatically rebalance distribution whenever total volume changes
-    ever(operationController.totalVolume, (_) => _rebalanceDistributeVolumes());
+    _volumeWorker = ever<double>(
+      operationController.totalVolume,
+      (_) => _rebalanceDistributeVolumes(),
+    );
+    _wellWorker = ever<String>(padWellContext.selectedWellId, (_) {
+      _handleContextChange();
+    });
+    _reportWorker = ever<String>(reportContext.selectedReportId, (_) {
+      _handleContextChange();
+    });
   }
 
   @override
   void dispose() {
     waterVolumeController.removeListener(_recalculateTotalVolume);
     waterVolumeController.dispose();
+    _wellWorker?.dispose();
+    _reportWorker?.dispose();
+    _volumeWorker?.dispose();
 
     // Dispose all distribution row controllers
     for (var row in distributeRows) {
@@ -99,6 +119,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
 
       final data = await consumeProductController.getAllConsumeProducts(
         wellId: wellId,
+        reportId: _currentReportId,
       );
       debugPrint('🟢 [FETCH] ConsumeProducts: ${data.length} items');
 
@@ -197,6 +218,24 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     }
     totalVolumeDisplay.value = total.toStringAsFixed(3);
     operationController.totalVolume.value = total;
+  }
+
+  void _handleContextChange() {
+    addWater.value = false;
+    waterVolumeController.clear();
+    _resetDistributeRows();
+    pitController.fetchAllPits();
+    pitController.fetchUnselectedPits();
+    _fetchAllConsumeProducts();
+  }
+
+  void _resetDistributeRows() {
+    for (final row in distributeRows) {
+      row.volumeController.dispose();
+    }
+    distributeRows.clear();
+    selectedDistributeRow.value = -1;
+    _addDistributeRow();
   }
 
   bool _isCostCalculated(ProductRowData row) {
@@ -363,6 +402,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
         debugPrint('🆕 [CREATE] Row $index — product="$productName"');
         result = await consumeProductController.createConsumeProduct(
           wellId: wellId,
+          reportId: _currentReportId,
           productName: productName,
           code: row.code,
           sg: double.tryParse(row.sg) ?? 0.0,
@@ -390,6 +430,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
         result = await consumeProductController.updateConsumeProduct(
           id: row.savedId!,
           wellId: wellId,
+          reportId: _currentReportId,
           productName: productName,
           code: row.code,
           sg: double.tryParse(row.sg) ?? 0.0,

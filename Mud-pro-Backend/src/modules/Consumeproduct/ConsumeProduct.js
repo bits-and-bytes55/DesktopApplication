@@ -7,6 +7,11 @@ const consumeProductSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    reportId: {
+      type: String,
+      default: "",
+      index: true,
+    },
 
     product: {
       type: String,

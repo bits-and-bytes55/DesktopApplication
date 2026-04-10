@@ -1,5 +1,7 @@
 import Pit from "../../modules/pit/pit.model.js";
 import MudLoss from "../../modules/mudloss/MudLoss.js";
+import { getWritablePits } from "../../utils/pitReportState.js";
+import { buildScopedFilter, readReportId } from "../../utils/reportScope.js";
 
 const toNumber = (value) => {
   if (value === null || value === undefined || value === "") return 0;
@@ -10,9 +12,12 @@ const toNumber = (value) => {
 const round2 = (num) => Number(num.toFixed(2));
 const getWellId = (req) => String(req.params.wellId || "").trim();
 
-const deductFromActivePits = async ({ wellId, totalLoss }) => {
-  const allPits = await Pit.find({ wellId }).sort({ createdAt: 1 });
-  const activePits = allPits.filter((pit) => pit.initialActive === true);
+const deductFromActivePits = async ({ wellId, reportId, totalLoss }) => {
+  const activePits = await getWritablePits({
+    wellId,
+    reportId,
+    initialActive: true,
+  });
 
   if (!activePits.length) {
     throw new Error("No active pits found for this wellId");
@@ -54,11 +59,14 @@ const deductFromActivePits = async ({ wellId, totalLoss }) => {
   }
 };
 
-const revertToActivePits = async ({ wellId, totalLoss }) => {
+const revertToActivePits = async ({ wellId, reportId, totalLoss }) => {
   if (totalLoss <= 0) return;
 
-  const allPits = await Pit.find({ wellId }).sort({ createdAt: 1 });
-  const activePits = allPits.filter((pit) => pit.initialActive === true);
+  const activePits = await getWritablePits({
+    wellId,
+    reportId,
+    initialActive: true,
+  });
 
   if (!activePits.length) return;
 
@@ -77,6 +85,7 @@ const revertToActivePits = async ({ wellId, totalLoss }) => {
 export const createMudLoss = async (req, res) => {
   try {
     const wellId = getWellId(req);
+    const reportId = readReportId(req);
     const {
       cuttingsRetention,
       seepage,
@@ -112,10 +121,11 @@ export const createMudLoss = async (req, res) => {
       });
     }
 
-    await deductFromActivePits({ wellId, totalLoss });
+    await deductFromActivePits({ wellId, reportId, totalLoss });
 
     const item = await MudLoss.create({
       wellId,
+      reportId,
       cuttingsRetention: toNumber(cuttingsRetention),
       seepage: toNumber(seepage),
       dump: toNumber(dump),
@@ -147,7 +157,10 @@ export const createMudLoss = async (req, res) => {
 export const getMudLossList = async (req, res) => {
   try {
     const wellId = getWellId(req);
-    const items = await MudLoss.find({ wellId }).sort({ createdAt: -1 });
+    const reportId = readReportId(req);
+    const items = await MudLoss.find(
+      buildScopedFilter(wellId, reportId)
+    ).sort({ createdAt: -1 });
 
     return res.status(200).json({
       success: true,
@@ -166,9 +179,13 @@ export const getMudLossList = async (req, res) => {
 export const getMudLossById = async (req, res) => {
   try {
     const wellId = getWellId(req);
+    const reportId = readReportId(req);
     const { id } = req.params;
 
-    const item = await MudLoss.findOne({ _id: id, wellId });
+    const item = await MudLoss.findOne({
+      _id: id,
+      ...buildScopedFilter(wellId, reportId),
+    });
 
     if (!item) {
       return res.status(404).json({
@@ -193,9 +210,13 @@ export const getMudLossById = async (req, res) => {
 export const updateMudLoss = async (req, res) => {
   try {
     const wellId = getWellId(req);
+    const reportId = readReportId(req);
     const { id } = req.params;
 
-    const existing = await MudLoss.findOne({ _id: id, wellId });
+    const existing = await MudLoss.findOne({
+      _id: id,
+      ...buildScopedFilter(wellId, reportId),
+    });
 
     if (!existing) {
       return res.status(404).json({
@@ -205,7 +226,11 @@ export const updateMudLoss = async (req, res) => {
     }
 
     // Revert old volume
-    await revertToActivePits({ wellId, totalLoss: toNumber(existing.totalLoss) });
+    await revertToActivePits({
+      wellId,
+      reportId,
+      totalLoss: toNumber(existing.totalLoss),
+    });
 
     const updatedData = {
       cuttingsRetention: req.body.cuttingsRetention ?? existing.cuttingsRetention,
@@ -235,9 +260,9 @@ export const updateMudLoss = async (req, res) => {
         toNumber(updatedData.tripping)
     );
 
-    await deductFromActivePits({ wellId, totalLoss });
+    await deductFromActivePits({ wellId, reportId, totalLoss });
 
-    existing.set({ ...updatedData, totalLoss });
+    existing.set({ ...updatedData, totalLoss, reportId });
     await existing.save();
 
     return res.status(200).json({
@@ -257,9 +282,13 @@ export const updateMudLoss = async (req, res) => {
 export const deleteMudLoss = async (req, res) => {
   try {
     const wellId = getWellId(req);
+    const reportId = readReportId(req);
     const { id } = req.params;
 
-    const existing = await MudLoss.findOne({ _id: id, wellId });
+    const existing = await MudLoss.findOne({
+      _id: id,
+      ...buildScopedFilter(wellId, reportId),
+    });
 
     if (!existing) {
       return res.status(404).json({
@@ -268,9 +297,16 @@ export const deleteMudLoss = async (req, res) => {
       });
     }
 
-    await revertToActivePits({ wellId, totalLoss: toNumber(existing.totalLoss) });
+    await revertToActivePits({
+      wellId,
+      reportId,
+      totalLoss: toNumber(existing.totalLoss),
+    });
 
-    await MudLoss.deleteOne({ _id: id, wellId });
+    await MudLoss.deleteOne({
+      _id: id,
+      ...buildScopedFilter(wellId, reportId),
+    });
 
     return res.status(200).json({
       success: true,

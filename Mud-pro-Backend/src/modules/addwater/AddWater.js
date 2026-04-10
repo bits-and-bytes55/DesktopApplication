@@ -7,6 +7,11 @@ const addWaterSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    reportId: {
+      type: String,
+      default: "",
+      index: true,
+    },
     to: {
       type: String,
       required: true,

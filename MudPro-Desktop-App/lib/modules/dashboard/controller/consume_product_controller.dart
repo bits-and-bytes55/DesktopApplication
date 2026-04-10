@@ -15,6 +15,7 @@ class ConsumeProductController {
   // ═══════════════════════════════════════════
   Future<Map<String, dynamic>> createConsumeProduct({
     required String wellId,
+    String? reportId,
     required String productName, // ✅ FIX: productId → productName
     required String code,
     required double sg,
@@ -29,6 +30,7 @@ class ConsumeProductController {
     try {
       final body = jsonEncode({
         'wellId': wellId,
+        if (reportId != null && reportId.isNotEmpty) 'reportId': reportId,
         'product': productName, // ✅ FIX: name send ho raha hai
         'code': code,
         'sg': sg,
@@ -80,6 +82,7 @@ class ConsumeProductController {
   Future<Map<String, dynamic>> updateConsumeProduct({
     required String id,
     required String wellId,
+    String? reportId,
     required String productName, // ✅ FIX: productId → productName
     required String code,
     required double sg,
@@ -94,6 +97,7 @@ class ConsumeProductController {
     try {
       final body = jsonEncode({
         'wellId': wellId,
+        if (reportId != null && reportId.isNotEmpty) 'reportId': reportId,
         'product': productName, // ✅ FIX: name send ho raha hai
         'code': code,
         'sg': sg,
@@ -179,12 +183,19 @@ class ConsumeProductController {
   // ═══════════════════════════════════════════
   Future<List<Map<String, dynamic>>> getAllConsumeProducts({
     required String wellId,
+    String? reportId,
   }) async {
     try {
-      print('🔵 [API] GET ${baseUrl}consume-product?wellId=$wellId');
+      final uri = Uri.parse('${baseUrl}consume-product').replace(
+        queryParameters: {
+          'wellId': wellId,
+          if (reportId != null && reportId.isNotEmpty) 'reportId': reportId,
+        },
+      );
+      print('🔵 [API] GET $uri');
 
       final response = await http.get(
-        Uri.parse('${baseUrl}consume-product?wellId=$wellId'),
+        uri,
         headers: _headers,
       );
 

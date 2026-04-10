@@ -7,6 +7,11 @@ const mudLossSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    reportId: {
+      type: String,
+      default: "",
+      index: true,
+    },
     cuttingsRetention: {
       type: Number,
       default: 0,
