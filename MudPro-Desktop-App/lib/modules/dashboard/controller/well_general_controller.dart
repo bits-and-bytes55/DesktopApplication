@@ -56,7 +56,7 @@ class WellGeneralController extends GetxController {
       fetchLatest();
     });
     _reportWorker = ever<String>(reportContext.selectedReportId, (_) {
-      _applySelectedReportMetadata();
+      fetchLatest();
     });
     fetchLatest();
   }
@@ -75,6 +75,8 @@ class WellGeneralController extends GetxController {
 
   Map<String, dynamic> _toJson() => {
     if (savedId.value.isNotEmpty) 'recordId': savedId.value,
+    if (reportContext.selectedReportId.value.isNotEmpty)
+      'reportId': reportContext.selectedReportId.value,
     'reportNo': reportNo.value,
     'userReportNo': userReportNo.value,
     'date': date.value,
@@ -194,13 +196,26 @@ class WellGeneralController extends GetxController {
       _clearFields();
       return;
     }
+
+    if (!reportContext.hasSelectedReport) {
+      _clearFields();
+      return;
+    }
+
     isLoading.value = true;
     try {
       _clearFields();
-      final response = await http.get(
-        Uri.parse('${baseUrl}well-general/$kControllerWellId'),
-        headers: _headers,
-      );
+      final selectedReport = reportContext.selectedReport;
+      final uri = Uri.parse('${baseUrl}well-general/$kControllerWellId')
+          .replace(
+            queryParameters: {
+              if (selectedReport != null && selectedReport.id.isNotEmpty)
+                'reportId': selectedReport.id,
+              if (selectedReport != null && selectedReport.reportNo.isNotEmpty)
+                'reportNo': selectedReport.reportNo,
+            },
+          );
+      final response = await http.get(uri, headers: _headers);
 
       print(
         'WellGeneral fetch response: ${response.statusCode} ${response.body}',
@@ -211,9 +226,11 @@ class WellGeneralController extends GetxController {
         final List data = json['data'] ?? [];
         if (data.isNotEmpty) {
           _fromJson(data.first);
+        } else {
+          _clearFields();
         }
-        _applySelectedReportMetadata();
       }
+      _applySelectedReportMetadata();
     } catch (e) {
       print('WellGeneral fetch error: $e');
       _applySelectedReportMetadata();

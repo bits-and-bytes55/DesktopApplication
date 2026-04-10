@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/pit_model.dart';
+import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
 // ── Transfer Mud Row Data ────
@@ -48,15 +49,21 @@ class PitController extends GetxController {
   // UI state migrated from PitPage for global Save access
   final RxMap<String, dynamic> volumeNameData = <String, dynamic>{}.obs;
   final RxBool isLoadingVolume = false.obs;
-  final Map<String, Map<String, TextEditingController>> activePitControllers = {};
-  
+  final Map<String, Map<String, TextEditingController>> activePitControllers =
+      {};
+
   // Track modified pits for single-pit update on global Save
   final Set<String> modifiedPitIds = {};
-  
+
   Timer? _debounceTimer;
   Worker? _wellWorker;
+  Worker? _reportWorker;
 
   bool get _hasWellId => currentWellId != null && currentWellId!.isNotEmpty;
+  String? get _currentReportId {
+    final reportId = reportContext.selectedReportId.value.trim();
+    return reportId.isEmpty ? null : reportId;
+  }
 
   List<PitModel> get activePitRows =>
       pits.where((pit) => pit.initialActive.value).toList();
@@ -67,14 +74,18 @@ class PitController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    currentWellId =
-        Get.arguments?['wellId'] ?? kControllerWellId;
+    currentWellId = Get.arguments?['wellId'] ?? kControllerWellId;
     _wellWorker = ever<String>(padWellContext.selectedWellId, (wellId) {
       if (wellId.isEmpty || wellId == currentWellId) return;
       currentWellId = wellId;
       fetchAllPits();
       fetchVolumeNameData();
       fetchTransferMud();
+    });
+    _reportWorker = ever<String>(reportContext.selectedReportId, (_) {
+      if (!_hasWellId) return;
+      fetchAllPits();
+      fetchVolumeNameData();
     });
     fetchAllPits();
     fetchVolumeNameData();
@@ -102,7 +113,10 @@ class PitController extends GetxController {
     isLoading.value = true;
     try {
       final authRepo = AuthRepository();
-      final result = await authRepo.getAllPits(currentWellId!);
+      final result = await authRepo.getAllPits(
+        currentWellId!,
+        reportId: _currentReportId,
+      );
 
       if (result['success'] == true) {
         final data = result['data'];
@@ -111,7 +125,12 @@ class PitController extends GetxController {
           if (data is List) {
             final allPits = data.isNotEmpty && data.first is PitModel
                 ? List<PitModel>.from(data)
-                : data.map((item) => PitModel.fromJson(item as Map<String, dynamic>)).toList();
+                : data
+                      .map(
+                        (item) =>
+                            PitModel.fromJson(item as Map<String, dynamic>),
+                      )
+                      .toList();
             pits.value = allPits;
             _disposePitControllers();
           } else {
@@ -127,8 +146,7 @@ class PitController extends GetxController {
         _updateSeparatedLists();
         _ensureDraftRows();
       } else {
-        _showAlert(result['message'] ?? 'Failed to fetch pits',
-            isError: true);
+        _showAlert(result['message'] ?? 'Failed to fetch pits', isError: true);
         _ensureDraftRows();
       }
     } catch (e) {
@@ -145,7 +163,10 @@ class PitController extends GetxController {
 
     try {
       final authRepo = AuthRepository();
-      final result = await authRepo.getSelectedPits(currentWellId!);
+      final result = await authRepo.getSelectedPits(
+        currentWellId!,
+        reportId: _currentReportId,
+      );
 
       if (result['success'] == true) {
         final data = result['data'];
@@ -153,7 +174,11 @@ class PitController extends GetxController {
         if (data != null && data is List) {
           final allPits = data.isNotEmpty && data.first is PitModel
               ? List<PitModel>.from(data)
-              : data.map((item) => PitModel.fromJson(item as Map<String, dynamic>)).toList();
+              : data
+                    .map(
+                      (item) => PitModel.fromJson(item as Map<String, dynamic>),
+                    )
+                    .toList();
           selectedPits.value = allPits;
         } else {
           selectedPits.clear();
@@ -169,7 +194,10 @@ class PitController extends GetxController {
 
     try {
       final authRepo = AuthRepository();
-      final result = await authRepo.getUnselectedPits(currentWellId!);
+      final result = await authRepo.getUnselectedPits(
+        currentWellId!,
+        reportId: _currentReportId,
+      );
 
       if (result['success'] == true) {
         final data = result['data'];
@@ -177,7 +205,11 @@ class PitController extends GetxController {
         if (data != null && data is List) {
           final allPits = data.isNotEmpty && data.first is PitModel
               ? List<PitModel>.from(data)
-              : data.map((item) => PitModel.fromJson(item as Map<String, dynamic>)).toList();
+              : data
+                    .map(
+                      (item) => PitModel.fromJson(item as Map<String, dynamic>),
+                    )
+                    .toList();
           unselectedPits.value = allPits;
         } else {
           unselectedPits.clear();
@@ -188,7 +220,7 @@ class PitController extends GetxController {
     }
   }
 
-  // _filterLatestPits method removed 
+  // _filterLatestPits method removed
 
   // ================= BULK SAVE NEW PITS =================
 
@@ -199,18 +231,22 @@ class PitController extends GetxController {
     }
 
     final newPits = pits
-        .where((pit) =>
-            pit.id == null &&
-            pit.pitName.isNotEmpty &&
-            pit.capacity.value > 0)
-        .map((pit) => {
-              'pitName': pit.pitName,
-              'capacity': pit.capacity.value,
-              'initialActive': pit.initialActive.value,
-              'volume': pit.volume?.value ?? 0.0,
-              'density': pit.density?.value ?? 0.0,
-              'fluidType': pit.fluidType?.value ?? '',
-            })
+        .where(
+          (pit) =>
+              pit.id == null &&
+              pit.pitName.isNotEmpty &&
+              pit.capacity.value > 0,
+        )
+        .map(
+          (pit) => {
+            'pitName': pit.pitName,
+            'capacity': pit.capacity.value,
+            'initialActive': pit.initialActive.value,
+            'volume': pit.volume?.value ?? 0.0,
+            'density': pit.density?.value ?? 0.0,
+            'fluidType': pit.fluidType?.value ?? '',
+          },
+        )
         .toList();
 
     if (newPits.isEmpty) {
@@ -224,15 +260,17 @@ class PitController extends GetxController {
       final result = await authRepo.bulkAddPits(
         pits: newPits,
         wellId: currentWellId!,
+        reportId: _currentReportId,
       );
 
       if (result['success'] == true) {
-        _showAlert('${newPits.length} pit(s) saved successfully',
-            isError: false);
+        _showAlert(
+          '${newPits.length} pit(s) saved successfully',
+          isError: false,
+        );
         await fetchAllPits();
       } else {
-        _showAlert(result['message'] ?? 'Failed to save pits',
-            isError: true);
+        _showAlert(result['message'] ?? 'Failed to save pits', isError: true);
       }
     } catch (e) {
       debugPrint('Error saving pits: $e');
@@ -252,7 +290,7 @@ class PitController extends GetxController {
     required String fluidType,
   }) {
     _debounceTimer?.cancel();
-    
+
     // Mark as modified immediately
     if (pitId.isNotEmpty) {
       modifiedPitIds.add(pitId);
@@ -279,10 +317,11 @@ class PitController extends GetxController {
     try {
       final authRepo = AuthRepository();
       // Find the pit model context
-      final pitModel = pits.firstWhereOrNull((p) => p.id == pitId) ??
-                      selectedPits.firstWhereOrNull((p) => p.id == pitId) ??
-                      unselectedPits.firstWhereOrNull((p) => p.id == pitId);
-      
+      final pitModel =
+          pits.firstWhereOrNull((p) => p.id == pitId) ??
+          selectedPits.firstWhereOrNull((p) => p.id == pitId) ??
+          unselectedPits.firstWhereOrNull((p) => p.id == pitId);
+
       final result = await authRepo.updatePit(
         id: pitId,
         pitName: pitModel?.pitName,
@@ -291,10 +330,26 @@ class PitController extends GetxController {
         volume: volume,
         density: density,
         fluidType: fluidType,
+        reportId: _currentReportId,
       );
 
       if (result['success'] == true) {
         debugPrint('Master pit $pitId updated successfully');
+        final savedPit = result['data'] as PitModel?;
+        if (savedPit != null && savedPit.id != null && savedPit.id != pitId) {
+          if (activePitControllers.containsKey(pitId)) {
+            activePitControllers[savedPit.id!] = activePitControllers.remove(
+              pitId,
+            )!;
+          }
+          if (modifiedPitIds.remove(pitId)) {
+            modifiedPitIds.add(savedPit.id!);
+          }
+          if (pitModel != null) {
+            pitModel.id = savedPit.id;
+            pitModel.reportId = savedPit.reportId;
+          }
+        }
         // Update local model values if different
         if (pitModel != null) {
           pitModel.volume?.value = volume;
@@ -331,6 +386,7 @@ class PitController extends GetxController {
         fluidType: fluidType,
         capacity: pitModel?.capacity.value ?? 0,
         initialActive: pitModel?.initialActive.value ?? true,
+        reportId: _currentReportId,
       );
       if (result['success'] == true) {
         // Update local model
@@ -343,8 +399,10 @@ class PitController extends GetxController {
           _updateSeparatedLists();
         }
       } else {
-        _showAlert(result['message'] ?? 'Failed to update pit volume',
-            isError: true);
+        _showAlert(
+          result['message'] ?? 'Failed to update pit volume',
+          isError: true,
+        );
       }
     } catch (e) {
       debugPrint('Error updating pit volume: $e');
@@ -358,7 +416,10 @@ class PitController extends GetxController {
     isLoadingVolume.value = true;
     try {
       final authRepo = AuthRepository();
-      final result = await authRepo.getVolumeNameCalculation(currentWellId!);
+      final result = await authRepo.getVolumeNameCalculation(
+        currentWellId!,
+        reportId: _currentReportId,
+      );
       if (result['success'] == true) {
         final inner = result['data'];
         // auth_repo wraps the raw JSON as result['data'], so the actual
@@ -366,7 +427,7 @@ class PitController extends GetxController {
         final payload = (inner is Map && inner['data'] != null)
             ? Map<String, dynamic>.from(inner['data'])
             : Map<String, dynamic>.from(inner ?? {});
-        
+
         // Duplication filters removed to display all database records correctly
 
         volumeNameData.value = payload;
@@ -378,15 +439,18 @@ class PitController extends GetxController {
     }
   }
 
-  Map<String, TextEditingController> getPitCtrl(String pitId,
-      {String pitName = '', double vol = 0, double density = 0, String fluid = ''}) {
+  Map<String, TextEditingController> getPitCtrl(
+    String pitId, {
+    String pitName = '',
+    double vol = 0,
+    double density = 0,
+    String fluid = '',
+  }) {
     if (!activePitControllers.containsKey(pitId)) {
       activePitControllers[pitId] = {
         'pitName': TextEditingController(text: pitName),
-        'volume': TextEditingController(
-            text: vol.toStringAsFixed(2)),
-        'density': TextEditingController(
-            text: density.toStringAsFixed(2)),
+        'volume': TextEditingController(text: vol.toStringAsFixed(2)),
+        'density': TextEditingController(text: density.toStringAsFixed(2)),
         'fluidType': TextEditingController(text: fluid),
       };
     }
@@ -405,14 +469,16 @@ class PitController extends GetxController {
 
     final draftPits = pits
         .where((pit) => pit.id == null && _isDraftFilled(pit))
-        .map((pit) => {
-              'pitName': pit.pitName.trim(),
-              'capacity': _draftCapacity(pit),
-              'initialActive': pit.initialActive.value,
-              'volume': pit.volume?.value ?? 0,
-              'density': pit.density?.value ?? 0,
-              'fluidType': pit.fluidType?.value ?? '',
-            })
+        .map(
+          (pit) => {
+            'pitName': pit.pitName.trim(),
+            'capacity': _draftCapacity(pit),
+            'initialActive': pit.initialActive.value,
+            'volume': pit.volume?.value ?? 0,
+            'density': pit.density?.value ?? 0,
+            'fluidType': pit.fluidType?.value ?? '',
+          },
+        )
         .toList();
 
     if (draftPits.isNotEmpty) {
@@ -420,6 +486,7 @@ class PitController extends GetxController {
         final result = await authRepo.bulkAddPits(
           pits: draftPits,
           wellId: currentWellId!,
+          reportId: _currentReportId,
         );
         if (result['success'] == true) {
           successCount += draftPits.length;
@@ -435,10 +502,10 @@ class PitController extends GetxController {
     if (modifiedPitIds.isEmpty && draftPits.isEmpty) {
       return {'success': true, 'message': 'No changes to save'};
     }
-    
+
     // Create a copy to iterate to avoid concurrent modification issues
     final idsToUpdate = List<String>.from(modifiedPitIds);
-    
+
     for (final pitId in idsToUpdate) {
       if (pitId.isEmpty) continue;
 
@@ -446,10 +513,11 @@ class PitController extends GetxController {
       if (ctrls == null) continue;
 
       // Find the pit model across all lists to get its name & latest config
-      final pitModel = pits.firstWhereOrNull((p) => p.id == pitId) ??
-                      selectedPits.firstWhereOrNull((p) => p.id == pitId) ??
-                      unselectedPits.firstWhereOrNull((p) => p.id == pitId);
-                      
+      final pitModel =
+          pits.firstWhereOrNull((p) => p.id == pitId) ??
+          selectedPits.firstWhereOrNull((p) => p.id == pitId) ??
+          unselectedPits.firstWhereOrNull((p) => p.id == pitId);
+
       final String pitName = pitModel?.pitName ?? 'Unknown Pit';
 
       try {
@@ -462,16 +530,24 @@ class PitController extends GetxController {
           fluidType: ctrls['fluidType']!.text,
           capacity: pitModel?.capacity.value ?? 0,
           initialActive: pitModel?.initialActive.value ?? true,
+          reportId: _currentReportId,
         );
 
         if (result['success'] == true) {
           successCount++;
           modifiedPitIds.remove(pitId);
-          
+          final savedPit = result['data'] as PitModel?;
+          if (savedPit != null && savedPit.id != null && pitModel != null) {
+            pitModel.id = savedPit.id;
+            pitModel.reportId = savedPit.reportId;
+          }
+
           // Update local model
           if (pitModel != null) {
-            pitModel.volume?.value = double.tryParse(ctrls['volume']!.text) ?? 0;
-            pitModel.density?.value = double.tryParse(ctrls['density']!.text) ?? 0;
+            pitModel.volume?.value =
+                double.tryParse(ctrls['volume']!.text) ?? 0;
+            pitModel.density?.value =
+                double.tryParse(ctrls['density']!.text) ?? 0;
             pitModel.fluidType?.value = ctrls['fluidType']!.text;
           }
         } else {
@@ -481,19 +557,22 @@ class PitController extends GetxController {
         errors.add('Pit "$pitName" update error: $e');
       }
     }
-    
+
     // Refresh both master list and calculations summary to ensure UI reflects the latest state
     await fetchAllPits();
     await fetchVolumeNameData();
     pits.refresh();
-    
+
     if (errors.isEmpty) {
-      return {'success': true, 'message': 'All $successCount pits updated successfully'};
+      return {
+        'success': true,
+        'message': 'All $successCount pits updated successfully',
+      };
     } else {
       return {
-        'success': successCount > 0, 
+        'success': successCount > 0,
         'message': 'Pits: $successCount saved, ${errors.length} failed',
-        'errors': errors
+        'errors': errors,
       };
     }
   }
@@ -510,6 +589,7 @@ class PitController extends GetxController {
       final result = await authRepo.updatePit(
         id: pit.id!,
         initialActive: newStatus,
+        reportId: _currentReportId,
       );
 
       if (result['success'] == true) {
@@ -540,8 +620,7 @@ class PitController extends GetxController {
           ),
           ElevatedButton(
             onPressed: () => Get.back(result: true),
-            style:
-                ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('Delete'),
           ),
         ],
@@ -569,10 +648,12 @@ class PitController extends GetxController {
   // ================= HELPER METHODS =================
 
   void _updateSeparatedLists() {
-    selectedPits.value =
-        pits.where((p) => p.id != null && p.initialActive.value).toList();
-    unselectedPits.value =
-        pits.where((p) => p.id != null && !p.initialActive.value).toList();
+    selectedPits.value = pits
+        .where((p) => p.id != null && p.initialActive.value)
+        .toList();
+    unselectedPits.value = pits
+        .where((p) => p.id != null && !p.initialActive.value)
+        .toList();
     _updateCapacities();
   }
 
@@ -631,19 +712,11 @@ class PitController extends GetxController {
     );
 
     if (!hasActiveDraft) {
-      pits.add(PitModel(
-        pitName: '',
-        capacity: 0.0,
-        initialActive: true,
-      ));
+      pits.add(PitModel(pitName: '', capacity: 0.0, initialActive: true));
     }
 
     if (!hasStorageDraft) {
-      pits.add(PitModel(
-        pitName: '',
-        capacity: 0.0,
-        initialActive: false,
-      ));
+      pits.add(PitModel(pitName: '', capacity: 0.0, initialActive: false));
     }
   }
 
@@ -679,14 +752,8 @@ class PitController extends GetxController {
 
   void onRowFilled(int index) {
     final pit = pits[index];
-    if (pit.id == null &&
-        pit.pitName.isNotEmpty &&
-        pit.capacity.value > 0) {
-      pits.add(PitModel(
-        pitName: '',
-        capacity: 0.0,
-        initialActive: false,
-      ));
+    if (pit.id == null && pit.pitName.isNotEmpty && pit.capacity.value > 0) {
+      pits.add(PitModel(pitName: '', capacity: 0.0, initialActive: false));
     }
   }
 
@@ -722,8 +789,10 @@ class PitController extends GetxController {
       final authRepo = AuthRepository();
       final result = await authRepo.getTransferMud(currentWellId!);
       if (result['success'] == true) {
-        final List data = result['data'] is List ? result['data'] : (result['data']['data'] ?? []);
-        
+        final List data = result['data'] is List
+            ? result['data']
+            : (result['data']['data'] ?? []);
+
         for (var r in transferRows) {
           r.volumeController.dispose();
         }
@@ -732,20 +801,24 @@ class PitController extends GetxController {
         for (var item in data) {
           final transfers = (item['transfers'] as List? ?? []);
           if (transfers.isEmpty) {
-            transferRows.add(TransferRowData(
-              pitName: '',
-              volume: '',
-              savedId: item['_id']?.toString(),
-            ));
+            transferRows.add(
+              TransferRowData(
+                pitName: '',
+                volume: '',
+                savedId: item['_id']?.toString(),
+              ),
+            );
             continue;
           }
 
           for (final transfer in transfers) {
-            transferRows.add(TransferRowData(
-              pitName: transfer['pitName']?.toString() ?? '',
-              volume: transfer['volume']?.toString() ?? '',
-              savedId: item['_id']?.toString(),
-            ));
+            transferRows.add(
+              TransferRowData(
+                pitName: transfer['pitName']?.toString() ?? '',
+                volume: transfer['volume']?.toString() ?? '',
+                savedId: item['_id']?.toString(),
+              ),
+            );
           }
         }
 
@@ -830,10 +903,15 @@ class PitController extends GetxController {
       }
       try {
         final authRepo = AuthRepository();
-        final res =
-            await authRepo.deleteTransferMud(currentWellId!, row.savedId!);
+        final res = await authRepo.deleteTransferMud(
+          currentWellId!,
+          row.savedId!,
+        );
         if (res['success'] != true) {
-          _showAlert('Failed to delete transfer: ${res['message']}', isError: true);
+          _showAlert(
+            'Failed to delete transfer: ${res['message']}',
+            isError: true,
+          );
           return;
         }
       } catch (e) {
@@ -844,7 +922,7 @@ class PitController extends GetxController {
 
     row.volumeController.dispose();
     transferRows.removeAt(index);
-    
+
     while (transferRows.length < 5) {
       transferRows.add(TransferRowData());
     }
@@ -866,6 +944,7 @@ class PitController extends GetxController {
   @override
   void onClose() {
     _wellWorker?.dispose();
+    _reportWorker?.dispose();
     _disposePitControllers();
     for (var row in transferRows) {
       row.volumeController.dispose();

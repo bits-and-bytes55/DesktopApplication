@@ -6,6 +6,11 @@ const wellGeneralSchema = new mongoose.Schema({
     required: true,
     index: true
   },
+  reportId: {
+    type: String,
+    default: "",
+    index: true
+  },
   reportNo: { type: String, default: "" },
   userReportNo: { type: String, default: "" },
   date: { type: String, default: "" },

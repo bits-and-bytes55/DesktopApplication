@@ -446,7 +446,9 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
             successMessage = message;
           }
         } else {
-          errorMessages.add(wellEditorRes['message'] ?? 'Well page save failed');
+          errorMessages.add(
+            wellEditorRes['message'] ?? 'Well page save failed',
+          );
         }
 
         // ── 1. Save Well General ──────────────────────────────────────────
@@ -605,7 +607,8 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
               if (returnLostCtrl != null) {
                 final res = await returnLostCtrl.saveReturnLostMud();
                 if (res['success'] == true) {
-                  successMessage = res['message']?.toString() ??
+                  successMessage =
+                      res['message']?.toString() ??
                       'Return / Lost Mud saved successfully';
                 } else {
                   errorMessages.add(
@@ -616,12 +619,13 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
             } else if (selectedOp == OperationType.mudLossActiveSystem) {
               final mudLossCtrl =
                   Get.isRegistered<MudLossActiveSystemController>()
-                      ? Get.find<MudLossActiveSystemController>()
-                      : null;
+                  ? Get.find<MudLossActiveSystemController>()
+                  : null;
               if (mudLossCtrl != null) {
                 final res = await mudLossCtrl.save();
                 if (res['success'] == true) {
-                  successMessage = res['message']?.toString() ??
+                  successMessage =
+                      res['message']?.toString() ??
                       'Mud Loss - Active System saved successfully';
                 } else {
                   errorMessages.add(
@@ -632,12 +636,13 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
             } else if (selectedOp == OperationType.otherVolAddition) {
               final otherVolCtrl =
                   Get.isRegistered<OtherVolAdditionController>()
-                      ? Get.find<OtherVolAdditionController>()
-                      : null;
+                  ? Get.find<OtherVolAdditionController>()
+                  : null;
               if (otherVolCtrl != null) {
                 final res = await otherVolCtrl.save();
                 if (res['success'] == true) {
-                  successMessage = res['message']?.toString() ??
+                  successMessage =
+                      res['message']?.toString() ??
                       'Other Vol Addition saved successfully';
                 } else {
                   errorMessages.add(
@@ -648,12 +653,13 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
             } else if (selectedOp == OperationType.mudLossStorage) {
               final mudLossStorageCtrl =
                   Get.isRegistered<MudLossStorageController>()
-                      ? Get.find<MudLossStorageController>()
-                      : null;
+                  ? Get.find<MudLossStorageController>()
+                  : null;
               if (mudLossStorageCtrl != null) {
                 final res = await mudLossStorageCtrl.save();
                 if (res['success'] == true) {
-                  successMessage = res['message']?.toString() ??
+                  successMessage =
+                      res['message']?.toString() ??
                       'Mud Loss - Storage saved successfully';
                 } else {
                   errorMessages.add(
@@ -2076,9 +2082,61 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
             child: const Text("Cancel"),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
-              _showDesktopAlert(context, "Data carried over successfully");
+
+              final selectedReport = reportC.selectedReport;
+              if (selectedReport == null) {
+                _showDesktopAlert(
+                  context,
+                  "Select a report before carry-over",
+                  isSuccess: false,
+                );
+                return;
+              }
+
+              final nextReportNo = reportC.nextSuggestedReportNo;
+              final nextReportDate = _buildCarryOverDate();
+
+              try {
+                final result = await reportC.createReport({
+                  'reportNo': nextReportNo,
+                  'userReportNo': nextReportNo,
+                  'reportDate': nextReportDate,
+                  'title': 'Report $nextReportNo',
+                  'carryOverFromReportId': selectedReport.id,
+                });
+
+                final createdReportId = _dialogEntityId(result['data']);
+                if (createdReportId.isNotEmpty) {
+                  reportC.selectReport(createdReportId);
+                  controller.navigate('report:$createdReportId');
+                }
+
+                _dateController.text = nextReportDate;
+
+                if (Get.isRegistered<WellGeneralController>()) {
+                  await Get.find<WellGeneralController>().fetchLatest();
+                }
+
+                if (Get.isRegistered<PitController>()) {
+                  final pitController = Get.find<PitController>();
+                  await pitController.fetchAllPits();
+                  await pitController.fetchVolumeNameData();
+                }
+
+                _showDesktopAlert(
+                  context,
+                  result['message']?.toString() ??
+                      "Data carried over successfully",
+                );
+              } catch (e) {
+                _showDesktopAlert(
+                  context,
+                  e.toString().replaceFirst(RegExp(r'^Exception:\s*'), ''),
+                  isSuccess: false,
+                );
+              }
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.warningColor,
@@ -2180,6 +2238,16 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
     } catch (_) {
       return null;
     }
+  }
+
+  String _buildCarryOverDate() {
+    final selectedDate =
+        _parseReportDate(reportC.selectedReportDate) ??
+        _parseReportDate(_dateController.text) ??
+        DateTime.now();
+    return DateFormat(
+      'MM/dd/yyyy',
+    ).format(selectedDate.add(const Duration(days: 1)));
   }
 }
 

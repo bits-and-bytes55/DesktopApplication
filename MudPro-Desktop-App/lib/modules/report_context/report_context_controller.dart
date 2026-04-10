@@ -67,6 +67,7 @@ class ReportContextController extends GetxController {
   Future<void> loadForSelectedWell() async {
     final wellId = currentBackendWellId;
     errorMessage.value = '';
+    final previousSelectedId = selectedReportId.value;
 
     if (wellId.isEmpty) {
       reports.clear();
@@ -75,14 +76,22 @@ class ReportContextController extends GetxController {
     }
 
     isLoading.value = true;
-    selectedReportId.value = '';
 
     try {
       final fetched = await _api.fetchReports(wellId);
       reports.assignAll(fetched);
 
-      if (fetched.isNotEmpty) {
+      final preserved = _firstWhereOrNull(
+        fetched,
+        (item) => item.id == previousSelectedId,
+      );
+
+      if (preserved != null) {
+        selectedReportId.value = preserved.id;
+      } else if (fetched.isNotEmpty) {
         selectedReportId.value = fetched.first.id;
+      } else {
+        selectedReportId.value = '';
       }
     } catch (e) {
       reports.clear();

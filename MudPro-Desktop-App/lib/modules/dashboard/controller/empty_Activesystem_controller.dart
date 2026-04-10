@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/pit_model.dart';
+import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
 class EmptyActiveSystemController extends GetxController {
@@ -15,12 +16,22 @@ class EmptyActiveSystemController extends GetxController {
   final volValues = List<String>.generate(5, (_) => "").obs;
 
   String? currentWellId;
+  Worker? _reportWorker;
 
   @override
   void onInit() {
     super.onInit();
     currentWellId = Get.arguments?['wellId'] ?? currentBackendWellId;
+    _reportWorker = ever<String>(reportContext.selectedReportId, (_) {
+      fetchUnselectedPits();
+    });
     fetchUnselectedPits();
+  }
+
+  @override
+  void onClose() {
+    _reportWorker?.dispose();
+    super.onClose();
   }
 
   bool get isTableEnabled => !isDumpSelected.value;
@@ -31,11 +42,16 @@ class EmptyActiveSystemController extends GetxController {
 
     try {
       final authRepo = AuthRepository();
-      final result = await authRepo.getUnselectedPits(currentWellId!);
+      final result = await authRepo.getUnselectedPits(
+        currentWellId!,
+        reportId: reportContext.selectedReportId.value.trim().isEmpty
+            ? null
+            : reportContext.selectedReportId.value.trim(),
+      );
 
       if (result['success'] == true) {
         final data = result['data'];
-        
+
         if (data != null && data is List) {
           if (data.isNotEmpty && data.first is PitModel) {
             unselectedPits.value = List<PitModel>.from(data);
@@ -56,12 +72,12 @@ class EmptyActiveSystemController extends GetxController {
   // Set pit value and auto-fill capacity
   void setPit(int row, String pitName) {
     pitValues[row] = pitName;
-    
+
     // Find the selected pit and auto-fill capacity
     final selectedPit = unselectedPits.firstWhereOrNull(
       (pit) => pit.pitName == pitName,
     );
-    
+
     if (selectedPit != null) {
       volValues[row] = selectedPit.capacity.value.toStringAsFixed(2);
     }

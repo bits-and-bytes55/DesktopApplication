@@ -109,6 +109,7 @@ class AuthRepository {
     required String fluidType,
     double capacity = 0,
     bool initialActive = true,
+    String? reportId,
   }) async {
     try {
       // User specifically requested to always use the volume-name/pit API
@@ -124,6 +125,7 @@ class AuthRepository {
         'fluidType': fluidType,
         'capacity': capacity,
         'initialActive': initialActive,
+        if (reportId != null && reportId.isNotEmpty) 'reportId': reportId,
       };
 
       final response = await http.post(
@@ -147,13 +149,18 @@ class AuthRepository {
   }
 
   // ── Get Volume Name Calculation ────────────────────────────────────────────────
-  Future<Map<String, dynamic>> getVolumeNameCalculation(String wellId) async {
+  Future<Map<String, dynamic>> getVolumeNameCalculation(
+    String wellId, {
+    String? reportId,
+  }) async {
     try {
-      print('Hitting GET ${baseUrl}volume-name/$wellId');
-      final response = await http.get(
-        Uri.parse('${baseUrl}volume-name/$wellId'),
-        headers: _headers,
+      final uri = Uri.parse('${baseUrl}volume-name/$wellId').replace(
+        queryParameters: {
+          if (reportId != null && reportId.isNotEmpty) 'reportId': reportId,
+        },
       );
+      print('Hitting GET $uri');
+      final response = await http.get(uri, headers: _headers);
       print('statuscode------${response.statusCode}');
       print('response body------${response.body}');
       final data = jsonDecode(response.body);
@@ -1168,12 +1175,17 @@ class AuthRepository {
   Future<Map<String, dynamic>> bulkAddPits({
     required List<Map<String, dynamic>> pits,
     required String wellId,
+    String? reportId,
   }) async {
     try {
       final response = await http.post(
         Uri.parse('${baseUrl}pit/bulk-add'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'pits': pits, 'wellId': wellId}),
+        body: jsonEncode({
+          'pits': pits,
+          'wellId': wellId,
+          if (reportId != null && reportId.isNotEmpty) 'reportId': reportId,
+        }),
       );
 
       final data = jsonDecode(response.body);
@@ -1200,10 +1212,18 @@ class AuthRepository {
     }
   }
 
-  Future<Map<String, dynamic>> getAllPits(String wellId) async {
+  Future<Map<String, dynamic>> getAllPits(
+    String wellId, {
+    String? reportId,
+  }) async {
     try {
+      final uri = Uri.parse('${baseUrl}pit/well/$wellId').replace(
+        queryParameters: {
+          if (reportId != null && reportId.isNotEmpty) 'reportId': reportId,
+        },
+      );
       final response = await http.get(
-        Uri.parse('${baseUrl}pit/well/$wellId'),
+        uri,
         headers: {'Content-Type': 'application/json'},
       );
 
@@ -1234,10 +1254,18 @@ class AuthRepository {
     }
   }
 
-  Future<Map<String, dynamic>> getSelectedPits(String wellId) async {
+  Future<Map<String, dynamic>> getSelectedPits(
+    String wellId, {
+    String? reportId,
+  }) async {
     try {
+      final uri = Uri.parse('${baseUrl}pit/well/$wellId/selected').replace(
+        queryParameters: {
+          if (reportId != null && reportId.isNotEmpty) 'reportId': reportId,
+        },
+      );
       final response = await http.get(
-        Uri.parse('${baseUrl}pit/well/$wellId/selected'),
+        uri,
         headers: {'Content-Type': 'application/json'},
       );
 
@@ -1265,10 +1293,18 @@ class AuthRepository {
     }
   }
 
-  Future<Map<String, dynamic>> getUnselectedPits(String wellId) async {
+  Future<Map<String, dynamic>> getUnselectedPits(
+    String wellId, {
+    String? reportId,
+  }) async {
     try {
+      final uri = Uri.parse('${baseUrl}pit/well/$wellId/unselected').replace(
+        queryParameters: {
+          if (reportId != null && reportId.isNotEmpty) 'reportId': reportId,
+        },
+      );
       final response = await http.get(
-        Uri.parse('${baseUrl}pit/well/$wellId/unselected'),
+        uri,
         headers: {'Content-Type': 'application/json'},
       );
 
@@ -1304,6 +1340,7 @@ class AuthRepository {
     double? volume,
     double? density,
     String? fluidType,
+    String? reportId,
   }) async {
     try {
       final response = await http.put(
@@ -1316,6 +1353,7 @@ class AuthRepository {
           if (volume != null) 'volume': volume,
           if (density != null) 'density': density,
           if (fluidType != null) 'fluidType': fluidType,
+          if (reportId != null && reportId.isNotEmpty) 'reportId': reportId,
         }),
       );
 

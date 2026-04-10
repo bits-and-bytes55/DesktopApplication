@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
+import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
 class VolumeSnapshotController extends GetxController {
@@ -13,17 +14,20 @@ class VolumeSnapshotController extends GetxController {
   final errorMessage = ''.obs;
 
   Worker? _wellWorker;
+  Worker? _reportWorker;
 
   @override
   void onInit() {
     super.onInit();
     load();
     _wellWorker = ever<String>(padWellContext.selectedWellId, (_) => load());
+    _reportWorker = ever<String>(reportContext.selectedReportId, (_) => load());
   }
 
   @override
   void onClose() {
     _wellWorker?.dispose();
+    _reportWorker?.dispose();
     super.onClose();
   }
 
@@ -44,7 +48,12 @@ class VolumeSnapshotController extends GetxController {
     errorMessage.value = '';
 
     try {
-      final result = await _repo.getVolumeNameCalculation(wellId);
+      final result = await _repo.getVolumeNameCalculation(
+        wellId,
+        reportId: reportContext.selectedReportId.value.trim().isEmpty
+            ? null
+            : reportContext.selectedReportId.value.trim(),
+      );
       if (result['success'] != true) {
         throw Exception(result['message'] ?? 'Failed to load volume snapshot');
       }
@@ -101,9 +110,7 @@ class VolumeSnapshotController extends GetxController {
   }
 
   Map<String, double> _normalizeSnapshot(Map<String, dynamic> snapshot) {
-    return {
-      for (final key in _snapshotKeys) key: _number(snapshot[key]),
-    };
+    return {for (final key in _snapshotKeys) key: _number(snapshot[key])};
   }
 
   Map<String, double> _normalizeVolumeName(Map<String, dynamic> volumeName) {
@@ -113,14 +120,10 @@ class VolumeSnapshotController extends GetxController {
       'activePits': _number(volumeName['activePits']),
       'activeSystem': _number(volumeName['activeSystem']),
       'endVol': _number(volumeName['endVol']),
-      'endVolMinusActiveSystem': _number(
-        volumeName['endVolMinusActiveSystem'],
-      ),
+      'endVolMinusActiveSystem': _number(volumeName['endVolMinusActiveSystem']),
       'totalStorage': _number(volumeName['totalStorage']),
       'totalOnLocation': _number(volumeName['totalOnLocation']),
-      'previousTotalOnLocation': _number(
-        volumeName['previousTotalOnLocation'],
-      ),
+      'previousTotalOnLocation': _number(volumeName['previousTotalOnLocation']),
     };
   }
 
@@ -132,9 +135,7 @@ class VolumeSnapshotController extends GetxController {
       'activePits': _number(volumeName['activePits']),
       'activeSystem': _number(volumeName['activeSystem']),
       'endVol': _number(volumeName['endVol']),
-      'endVolMinusActiveSystem': _number(
-        volumeName['endVolMinusActiveSystem'],
-      ),
+      'endVolMinusActiveSystem': _number(volumeName['endVolMinusActiveSystem']),
       'totalStorage': _number(volumeName['totalStorage']),
       'totalOnLocation': _number(volumeName['totalOnLocation']),
       'previousTotalOnLocation': 0,
@@ -261,8 +262,9 @@ class VolumeSnapshotController extends GetxController {
           leftBehindCasing +
           tripping,
     );
-    final storageLossTotal =
-        _round2(storageDump + storageEvaporation + storagePitCleaning);
+    final storageLossTotal = _round2(
+      storageDump + storageEvaporation + storagePitCleaning,
+    );
 
     final endVol = _number(volumeName['endVol']);
     final transferNet = _round2(
@@ -277,8 +279,10 @@ class VolumeSnapshotController extends GetxController {
     final ledgerTotalOnLocation = _number(volumeName['totalOnLocation']);
     final measuredTotalOnLocation = _round2(activeSystem + totalStorage);
     final cumLeased = _round2(
-      (leasedMudReceived - leasedMudReturned - leasedMudLost)
-          .clamp(0, double.infinity),
+      (leasedMudReceived - leasedMudReturned - leasedMudLost).clamp(
+        0,
+        double.infinity,
+      ),
     );
     final volumeDifference = _round2(
       ledgerTotalOnLocation - measuredTotalOnLocation,
@@ -374,10 +378,9 @@ class VolumeSnapshotController extends GetxController {
     bool Function(Map<String, dynamic> item) predicate,
   ) {
     return _round2(
-      items.where(predicate).fold<double>(
-            0,
-            (sum, item) => sum + _number(item[key]),
-          ),
+      items
+          .where(predicate)
+          .fold<double>(0, (sum, item) => sum + _number(item[key])),
     );
   }
 
@@ -394,8 +397,7 @@ class VolumeSnapshotController extends GetxController {
     return parsed ?? 0;
   }
 
-  static double _round2(double value) =>
-      double.parse(value.toStringAsFixed(2));
+  static double _round2(double value) => double.parse(value.toStringAsFixed(2));
 
   String _format(double value) {
     final normalized = value.abs() < 0.000001 ? 0 : value;
@@ -541,7 +543,8 @@ class VolumeSnapshotPage extends StatelessWidget {
   }
 
   Widget _buildLeftTable(VolumeSnapshotController controller) {
-    final transferTotal = controller.raw('fromStorage') -
+    final transferTotal =
+        controller.raw('fromStorage') -
         controller.raw('toStorage') +
         controller.raw('returnVol');
 
@@ -786,7 +789,10 @@ class VolumeSnapshotPage extends StatelessWidget {
                         'Non-leased Mud Returned',
                         controller.display('nonLeasedMudReturned'),
                       ),
-                      _twoColumnRow('Cum. Leased', controller.display('cumLeased')),
+                      _twoColumnRow(
+                        'Cum. Leased',
+                        controller.display('cumLeased'),
+                      ),
                     ],
                   ),
                 ),
@@ -833,7 +839,10 @@ class VolumeSnapshotPage extends StatelessWidget {
                             'Total on Location',
                             controller.displayVolumeName('totalOnLocation'),
                           ),
-                          _twoColumnRow('Cum. Leased', controller.display('cumLeased')),
+                          _twoColumnRow(
+                            'Cum. Leased',
+                            controller.display('cumLeased'),
+                          ),
                           _twoColumnRow(
                             'Volume Difference*',
                             controller.display('volumeDifference'),
@@ -921,11 +930,7 @@ class VolumeSnapshotPage extends StatelessWidget {
   }) {
     return TableRow(
       children: [
-        _bodyCell(
-          group,
-          emphasize: emphasizeGroup,
-          textColor: groupTextColor,
-        ),
+        _bodyCell(group, emphasize: emphasizeGroup, textColor: groupTextColor),
         _bodyCell(label),
         _valueCell(value, valueColor: valueColor),
         _valueCell(total),
@@ -934,12 +939,7 @@ class VolumeSnapshotPage extends StatelessWidget {
   }
 
   TableRow _twoColumnRow(String label, String value) {
-    return TableRow(
-      children: [
-        _bodyCell(label),
-        _valueCell(value),
-      ],
-    );
+    return TableRow(children: [_bodyCell(label), _valueCell(value)]);
   }
 
   Widget _headerCell(String text) {
@@ -959,11 +959,7 @@ class VolumeSnapshotPage extends StatelessWidget {
     );
   }
 
-  Widget _bodyCell(
-    String text, {
-    bool emphasize = false,
-    Color? textColor,
-  }) {
+  Widget _bodyCell(String text, {bool emphasize = false, Color? textColor}) {
     return Container(
       height: 26,
       alignment: Alignment.centerLeft,
