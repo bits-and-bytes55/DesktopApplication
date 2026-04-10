@@ -1,69 +1,133 @@
 import ConsumeProduct from "../../modules/Consumeproduct/ConsumeProduct.js";
 
+const toNumber = (value, fallback = 0) => {
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? numericValue : fallback;
+};
+
+const round = (value, digits = 3) => {
+  if (!Number.isFinite(value)) return 0;
+  return Number(value.toFixed(digits));
+};
+
+const parseUnitValue = (unitValue = "") => {
+  if (unitValue && typeof unitValue === "object") {
+    const num = unitValue.Num ?? unitValue.num ?? "";
+    const unitClass = unitValue.Class ?? unitValue.class ?? "";
+    unitValue = `${num} ${unitClass}`.trim();
+  }
+
+  const rawValue = String(unitValue ?? "").trim();
+  const match = rawValue.match(/^([0-9]*\.?[0-9]+)\s*([a-zA-Z]+)/);
+
+  return {
+    amount: match ? Math.max(toNumber(match[1], 1), 1) : 1,
+    unitClass: (match?.[2] ?? rawValue).trim().toLowerCase(),
+  };
+};
+
+const calculateVolumeBbl = ({ used = 0, unit = "", sg = 0 }) => {
+  const quantity = toNumber(used);
+  const density = toNumber(sg);
+
+  if (quantity <= 0) return 0;
+
+  const { amount, unitClass } = parseUnitValue(unit);
+  const totalUnits = quantity * amount;
+
+  if (unitClass.includes("gal")) {
+    return totalUnits / 42;
+  }
+
+  if (unitClass.includes("bbl")) {
+    return totalUnits;
+  }
+
+  if (unitClass.includes("kg")) {
+    return density > 0 ? totalUnits / (density * 158.987) : 0;
+  }
+
+  if (
+    unitClass === "lb" ||
+    unitClass === "lbs" ||
+    unitClass === "lbm" ||
+    unitClass.includes("pound")
+  ) {
+    return density > 0 ? totalUnits / (density * 350) : 0;
+  }
+
+  if (
+    unitClass === "ton" ||
+    unitClass === "tons" ||
+    unitClass === "tonne" ||
+    unitClass === "tonnes" ||
+    unitClass === "mt"
+  ) {
+    return density > 0 ? (totalUnits * 2000) / (density * 350) : 0;
+  }
+
+  if (
+    unitClass === "l" ||
+    unitClass === "ltr" ||
+    unitClass === "liter" ||
+    unitClass === "liters" ||
+    unitClass === "litre" ||
+    unitClass === "litres"
+  ) {
+    return totalUnits / 158.987;
+  }
+
+  if (unitClass === "ml") {
+    return totalUnits / 158987;
+  }
+
+  if (unitClass === "m3" || unitClass === "m^3") {
+    return totalUnits * 6.28981;
+  }
+
+  return density > 0 ? totalUnits / (density * 158.987) : 0;
+};
+
+const buildConsumeProductPayload = (payload = {}, existing = {}) => {
+  const unit = payload.unit ?? payload.productUnit ?? existing.unit ?? "";
+  const initial = toNumber(payload.initial ?? existing.initial);
+  const adjust = toNumber(payload.adjust ?? existing.adjust);
+  const used = toNumber(payload.used ?? existing.used);
+  const price = toNumber(payload.price ?? existing.price);
+  const sg = toNumber(payload.sg ?? existing.sg, 1);
+
+  return {
+    wellId: String(payload.wellId ?? existing.wellId ?? "").trim(),
+    product: String(payload.product ?? existing.product ?? "").trim(),
+    code: String(payload.code ?? existing.code ?? "").trim(),
+    sg,
+    unit: String(unit ?? "").trim(),
+    price,
+    initial,
+    adjust,
+    used,
+    final: round(initial - adjust - used),
+    cost: round(used * price),
+    volumeBbl: round(calculateVolumeBbl({ used, unit, sg })),
+  };
+};
+
 /**
  * @desc    Create Consume Product (With Auto Calculation)
  */
 export const createConsumeProduct = async (req, res) => {
   try {
+    const consumeProductPayload = buildConsumeProductPayload(req.body);
 
-    let {
-      initial = 0,
-      adjust = 0,
-      used = 0,
-      price = 0,
-      numberOfBags = 0,
-      weightPerBag = 0,
-      sg = 1,
-      productUnit = "KG" // KG | LB | GAL
-    } = req.body;
-
-    // 🔥 Basic Calculations
-    const final = Number(initial) - Number(adjust) - Number(used);
-    const cost = Number(used) * Number(price);
-
-    let volumeBbl = 0;
-
-    // =========================
-    // VOLUME CALCULATION
-    // =========================
-
-    if (productUnit === "KG") {
-
-      // Formula: (N × Wb) / (SG × 158.987)
-
-      const totalWeight = Number(numberOfBags) * Number(weightPerBag)*6.2898;
-
-      if (Number(sg) > 0) {
-        volumeBbl = totalWeight / (Number(sg) * 1000);
-      }
-
-    }
-
-    else if (productUnit === "LB") {
-
-      // Formula: (N × Wb) / (SG × 350)
-
-      const totalWeight = Number(numberOfBags) * Number(weightPerBag)*0.002854;
-
-      if (Number(sg) > 0) {
-        volumeBbl = totalWeight / (Number(sg));
-      }
-
-    }
-
-    else if (productUnit === "GAL") {
-
-      // Formula: N × (Wb / 42)
-
-      volumeBbl = Number(numberOfBags) * (Number(weightPerBag) / 42);
-
+    if (!consumeProductPayload.wellId) {
+      return res.status(400).json({
+        success: false,
+        message: "wellId is required",
+      });
     }
 
     const consumeProduct = await ConsumeProduct.create({
-      ...req.body,
-      final,
-      cost,
-      volumeBbl: +volumeBbl.toFixed(3)
+      ...consumeProductPayload,
     });
 
     res.status(201).json({
@@ -87,7 +151,17 @@ export const createConsumeProduct = async (req, res) => {
  */
 export const getAllConsumeProducts = async (req, res) => {
   try {
-    const products = await ConsumeProduct.find();
+    const filter = {};
+    const wellId = String(req.query.wellId ?? "").trim();
+
+    if (wellId) {
+      filter.wellId = wellId;
+    }
+
+    const products = await ConsumeProduct.find(filter).sort({
+      createdAt: 1,
+      _id: 1,
+    });
 
     res.status(200).json({
       success: true,
@@ -129,31 +203,16 @@ export const updateConsumeProduct = async (req, res) => {
       return res.status(404).json({ success: false, message: "Consume Product not found" });
     }
 
-    const initial = Number(req.body.initial ?? existing.initial ?? 0);
-    const adjust  = Number(req.body.adjust  ?? existing.adjust  ?? 0);
-    const used    = Number(req.body.used    ?? existing.used    ?? 0);
-    const price   = Number(req.body.price   ?? existing.price   ?? 0);
+    const updatedPayload = buildConsumeProductPayload(req.body, existing);
 
-    const numberOfBags = Number(req.body.numberOfBags ?? existing.numberOfBags ?? 0);
-    const weightPerBag = Number(req.body.weightPerBag ?? existing.weightPerBag ?? 0);
-    const sg           = Number(req.body.sg ?? existing.sg ?? 1);
-
-    const finalVal = initial - adjust - used;
-    const cost     = used * price;
-
-    const totalWeight = numberOfBags * weightPerBag;
-    let volumeBbl = 0;
-    if (sg > 0) {
-      volumeBbl = totalWeight / (sg * 158.987);
+    if (!updatedPayload.wellId) {
+      updatedPayload.wellId = String(existing.wellId ?? "").trim();
     }
 
     const updatedProduct = await ConsumeProduct.findByIdAndUpdate(
       req.params.id,
       {
-        ...req.body,
-        final:     finalVal,
-        cost,
-        volumeBbl: +volumeBbl.toFixed(3),
+        ...updatedPayload,
       },
       { new: true }
     );

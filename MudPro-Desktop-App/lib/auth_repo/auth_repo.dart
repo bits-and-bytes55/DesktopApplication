@@ -24,7 +24,8 @@ class AuthRepository {
 
   // ── Save Well General ────────────────────────────────────────────────────────
   Future<Map<String, dynamic>> saveWellGeneral(
-      Map<String, dynamic> body) async {
+    Map<String, dynamic> body,
+  ) async {
     try {
       final wellId = body['wellId'] ?? '';
       print('Hitting POST ${baseUrl}volume-name/$wellId/well-general');
@@ -48,8 +49,7 @@ class AuthRepository {
   }
 
   // ── Save Casing ───────────────────────────────────────────────────────────────
-  Future<Map<String, dynamic>> saveCasing(
-      Map<String, dynamic> body) async {
+  Future<Map<String, dynamic>> saveCasing(Map<String, dynamic> body) async {
     try {
       final wellId = body['wellId'] ?? '';
       print('Hitting POST ${baseUrl}volume-name/$wellId/casing');
@@ -74,7 +74,8 @@ class AuthRepository {
 
   // ── Save Consume Product (add water / pitvolumename route) ────────────────────
   Future<Map<String, dynamic>> saveConsumeProductVolumeName(
-      Map<String, dynamic> body) async {
+    Map<String, dynamic> body,
+  ) async {
     try {
       final wellId = body['wellId'] ?? '';
       print('Hitting POST ${baseUrl}volume-name/$wellId/consume-product');
@@ -112,7 +113,7 @@ class AuthRepository {
     try {
       // User specifically requested to always use the volume-name/pit API
       final endpoint = '${baseUrl}volume-name/$wellId/pit';
-      
+
       print('Hitting POST $endpoint');
 
       final bodyData = {
@@ -126,9 +127,9 @@ class AuthRepository {
       };
 
       final response = await http.post(
-        Uri.parse(endpoint), 
-        headers: _headers, 
-        body: jsonEncode(bodyData)
+        Uri.parse(endpoint),
+        headers: _headers,
+        body: jsonEncode(bodyData),
       );
 
       print('statuscode------${response.statusCode}');
@@ -190,7 +191,10 @@ class AuthRepository {
   }
 
   // ── Create Transfer Mud ─────────────────────────────────────────────────────
-  Future<Map<String, dynamic>> createTransferMud(String wellId, Map<String, dynamic> body) async {
+  Future<Map<String, dynamic>> createTransferMud(
+    String wellId,
+    Map<String, dynamic> body,
+  ) async {
     try {
       print('Hitting POST ${baseUrl}transfer-mud/$wellId');
       final response = await http.post(
@@ -239,7 +243,10 @@ class AuthRepository {
   }
 
   // ── Create Add Water ─────────────────────────────────────────────────────────
-  Future<Map<String, dynamic>> createAddWater(String wellId, Map<String, dynamic> body) async {
+  Future<Map<String, dynamic>> createAddWater(
+    String wellId,
+    Map<String, dynamic> body,
+  ) async {
     try {
       print('Hitting POST ${baseUrl}add-water/$wellId');
       final response = await http.post(
@@ -320,7 +327,10 @@ class AuthRepository {
   }
 
   // ── Create Receive Mud ─────────────────────────────────────────────────────
-  Future<Map<String, dynamic>> createReceiveMud(String wellId, Map<String, dynamic> body) async {
+  Future<Map<String, dynamic>> createReceiveMud(
+    String wellId,
+    Map<String, dynamic> body,
+  ) async {
     try {
       print('Hitting POST ${baseUrl}receive-mud/$wellId');
       final response = await http.post(
@@ -362,7 +372,11 @@ class AuthRepository {
   }
 
   // ── Update Receive Mud ─────────────────────────────────────────────────────
-  Future<Map<String, dynamic>> updateReceiveMud(String wellId, String id, Map<String, dynamic> body) async {
+  Future<Map<String, dynamic>> updateReceiveMud(
+    String wellId,
+    String id,
+    Map<String, dynamic> body,
+  ) async {
     try {
       final response = await http.put(
         Uri.parse('${baseUrl}receive-mud/$wellId/$id'),
@@ -382,7 +396,10 @@ class AuthRepository {
   }
 
   // ── Delete Receive Mud ─────────────────────────────────────────────────────
-  Future<Map<String, dynamic>> deleteReceiveMud(String wellId, String id) async {
+  Future<Map<String, dynamic>> deleteReceiveMud(
+    String wellId,
+    String id,
+  ) async {
     try {
       final response = await http.delete(
         Uri.parse('${baseUrl}receive-mud/$wellId/$id'),
@@ -399,7 +416,10 @@ class AuthRepository {
     }
   }
 
-  Future<Map<String, dynamic>> deleteTransferMud(String wellId, String id) async {
+  Future<Map<String, dynamic>> deleteTransferMud(
+    String wellId,
+    String id,
+  ) async {
     try {
       print('Hitting DELETE ${baseUrl}transfer-mud/$wellId/$id');
       final response = await http.delete(
@@ -448,12 +468,10 @@ class AuthRepository {
   Future<Map<String, dynamic>> addEngineer(Engineer engineer) async {
     try {
       final url = Uri.parse('$baseUrl${ApiEndpoint.addEngineersData}');
-      
+
       final response = await http.post(
         url,
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: {'Content-Type': 'application/json'},
         body: jsonEncode(engineer.toJson()),
       );
 
@@ -474,10 +492,7 @@ class AuthRepository {
         };
       }
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Error: ${e.toString()}',
-      };
+      return {'success': false, 'message': 'Error: ${e.toString()}'};
     }
   }
 
@@ -485,12 +500,10 @@ class AuthRepository {
   Future<Map<String, dynamic>> getEngineers() async {
     try {
       final url = Uri.parse('$baseUrl${ApiEndpoint.getEngineersData}');
-      
+
       final response = await http.get(
         url,
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: {'Content-Type': 'application/json'},
       );
 
       final data = jsonDecode(response.body);
@@ -528,15 +541,18 @@ class AuthRepository {
   }
 
   // Update Engineer
-  Future<Map<String, dynamic>> updateEngineer(String engineerId, Engineer engineer) async {
+  Future<Map<String, dynamic>> updateEngineer(
+    String engineerId,
+    Engineer engineer,
+  ) async {
     try {
       print('$baseUrl${ApiEndpoint.updateEngineer}/$engineerId');
-      final url = Uri.parse('$baseUrl${ApiEndpoint.updateEngineer}/$engineerId');
+      final url = Uri.parse(
+        '$baseUrl${ApiEndpoint.updateEngineer}/$engineerId',
+      );
       final response = await http.put(
         url,
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: {'Content-Type': 'application/json'},
         body: jsonEncode(engineer.toJson()),
       );
 
@@ -557,10 +573,7 @@ class AuthRepository {
         };
       }
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Error: ${e.toString()}',
-      };
+      return {'success': false, 'message': 'Error: ${e.toString()}'};
     }
   }
 
@@ -568,12 +581,12 @@ class AuthRepository {
   Future<Map<String, dynamic>> deleteEngineer(String engineerId) async {
     try {
       print('$baseUrl${ApiEndpoint.deleteEngineer}/$engineerId');
-      final url = Uri.parse('$baseUrl${ApiEndpoint.deleteEngineer}/$engineerId');
+      final url = Uri.parse(
+        '$baseUrl${ApiEndpoint.deleteEngineer}/$engineerId',
+      );
       final response = await http.delete(
         url,
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: {'Content-Type': 'application/json'},
       );
 
       final data = jsonDecode(response.body);
@@ -592,23 +605,22 @@ class AuthRepository {
         };
       }
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Error: ${e.toString()}',
-      };
+      return {'success': false, 'message': 'Error: ${e.toString()}'};
     }
   }
 
   // Add Company Details with Image
-  Future<Map<String, dynamic>> addCompanyDetails(Map<String, dynamic> payload) async {
+  Future<Map<String, dynamic>> addCompanyDetails(
+    Map<String, dynamic> payload,
+  ) async {
     try {
-      final url = Uri.parse(ApiEndpoint.baseUrl + ApiEndpoint.addCompanyDetails);
+      final url = Uri.parse(
+        ApiEndpoint.baseUrl + ApiEndpoint.addCompanyDetails,
+      );
 
       final response = await http.post(
         url,
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: {"Content-Type": "application/json"},
         body: jsonEncode(payload),
       );
 
@@ -630,19 +642,18 @@ class AuthRepository {
         };
       }
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Error: ${e.toString()}',
-      };
+      return {'success': false, 'message': 'Error: ${e.toString()}'};
     }
   }
 
   // Update Company Details with Image
   Future<Map<String, dynamic>> updateCompanyDetails(
-      Map<String, dynamic> payload) async {
+    Map<String, dynamic> payload,
+  ) async {
     try {
-      final url =
-          Uri.parse(ApiEndpoint.baseUrl + ApiEndpoint.updateCompanyDetails);
+      final url = Uri.parse(
+        ApiEndpoint.baseUrl + ApiEndpoint.updateCompanyDetails,
+      );
 
       print('🔄 API Call: updateCompanyDetails');
       print('🌐 URL: $url');
@@ -651,18 +662,16 @@ class AuthRepository {
       final response = await http
           .put(
             url,
-            headers: {
-              "Content-Type": "application/json",
-            },
+            headers: {"Content-Type": "application/json"},
             body: jsonEncode(payload),
           )
           .timeout(
-        const Duration(seconds: 30),
-        onTimeout: () {
-          print('⏰ Request timed out after 30 seconds');
-          throw Exception('Request timed out');
-        },
-      );
+            const Duration(seconds: 30),
+            onTimeout: () {
+              print('⏰ Request timed out after 30 seconds');
+              throw Exception('Request timed out');
+            },
+          );
 
       print("statuscode------${response.statusCode}");
       print("response body------${response.body}");
@@ -672,43 +681,36 @@ class AuthRepository {
       if (response.statusCode == 200) {
         return {
           'success': true,
-          'data': data['data'] != null
-              ? Company.fromJson(data['data'])
-              : null,
-          'message':
-              data['message'] ?? 'Company details updated successfully',
+          'data': data['data'] != null ? Company.fromJson(data['data']) : null,
+          'message': data['message'] ?? 'Company details updated successfully',
         };
       } else {
         return {
           'success': false,
-          'message':
-              data['message'] ?? 'Failed to update company details',
+          'message': data['message'] ?? 'Failed to update company details',
         };
       }
     } catch (e) {
       print('❌ Error in updateCompanyDetails: ${e.toString()}');
 
-      return {
-        'success': false,
-        'message': 'Error: ${e.toString()}',
-      };
+      return {'success': false, 'message': 'Error: ${e.toString()}'};
     }
   }
 
   // Get Company Details
   Future<Map<String, dynamic>> getCompanyDetails() async {
     try {
-      final url = Uri.parse(ApiEndpoint.baseUrl + ApiEndpoint.getCompanyDetails);
-      
+      final url = Uri.parse(
+        ApiEndpoint.baseUrl + ApiEndpoint.getCompanyDetails,
+      );
+
       final response = await http.get(
         url,
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: {'Content-Type': 'application/json'},
       );
 
       final data = jsonDecode(response.body);
-      
+
       print("statuscode------${response.statusCode}");
       print("response body------${response.body}");
 
@@ -749,16 +751,14 @@ class AuthRepository {
 
       return jsonDecode(response.body);
     } catch (e) {
-      return {
-        "success": false,
-        "message": e.toString(),
-      };
+      return {"success": false, "message": e.toString()};
     }
   }
 
   // SAVE OPERATORS (BULK)
   Future<Map<String, dynamic>> saveOperators(
-      List<Map<String, dynamic>> body) async {
+    List<Map<String, dynamic>> body,
+  ) async {
     try {
       final response = await http.post(
         Uri.parse(ApiEndpoint.baseUrl + ApiEndpoint.saveOperators),
@@ -768,16 +768,15 @@ class AuthRepository {
 
       return jsonDecode(response.body);
     } catch (e) {
-      return {
-        "success": false,
-        "message": e.toString(),
-      };
+      return {"success": false, "message": e.toString()};
     }
   }
 
   // UPDATE OPERATOR
   Future<Map<String, dynamic>> updateOperator(
-      String id, Map<String, dynamic> operatorData) async {
+    String id,
+    Map<String, dynamic> operatorData,
+  ) async {
     try {
       final response = await http.put(
         Uri.parse('${ApiEndpoint.baseUrl}${ApiEndpoint.updateOperator}/$id'),
@@ -805,10 +804,7 @@ class AuthRepository {
         };
       }
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Error: $e',
-      };
+      return {'success': false, 'message': 'Error: $e'};
     }
   }
 
@@ -839,10 +835,7 @@ class AuthRepository {
         };
       }
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Error: $e',
-      };
+      return {'success': false, 'message': 'Error: $e'};
     }
   }
 
@@ -859,7 +852,7 @@ class AuthRepository {
       print("statuscode------${response.statusCode}");
       print("response body------${response.body}");
 
-      if (response.statusCode == 201 ) {
+      if (response.statusCode == 201) {
         return {
           'success': true,
           'message': 'Product added successfully',
@@ -872,25 +865,18 @@ class AuthRepository {
         };
       }
     } on SocketException {
-      return {
-        'success': false,
-        'message': 'No internet connection',
-      };
+      return {'success': false, 'message': 'No internet connection'};
     } on FormatException {
-      return {
-        'success': false,
-        'message': 'Invalid response format',
-      };
+      return {'success': false, 'message': 'Invalid response format'};
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'An unexpected error occurred: $e',
-      };
+      return {'success': false, 'message': 'An unexpected error occurred: $e'};
     }
   }
 
   // Bulk add products
-  Future<Map<String, dynamic>> bulkAddProducts(List<ProductModel> products) async {
+  Future<Map<String, dynamic>> bulkAddProducts(
+    List<ProductModel> products,
+  ) async {
     try {
       final validProducts = products
           .where((p) => p.isValid())
@@ -898,10 +884,7 @@ class AuthRepository {
           .toList();
 
       if (validProducts.isEmpty) {
-        return {
-          'success': false,
-          'message': 'No valid products to save',
-        };
+        return {'success': false, 'message': 'No valid products to save'};
       }
 
       final response = await http.post(
@@ -915,7 +898,7 @@ class AuthRepository {
       print("statuscode------${response.statusCode}");
       print("response body------${response.body}");
 
-      if (response.statusCode == 201  || response.statusCode == 200) {
+      if (response.statusCode == 201 || response.statusCode == 200) {
         return {
           'success': true,
           'message': '${responseData['saved']} products saved successfully',
@@ -928,20 +911,11 @@ class AuthRepository {
         };
       }
     } on SocketException {
-      return {
-        'success': false,
-        'message': 'No internet connection',
-      };
+      return {'success': false, 'message': 'No internet connection'};
     } on FormatException {
-      return {
-        'success': false,
-        'message': 'Invalid response format',
-      };
+      return {'success': false, 'message': 'Invalid response format'};
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'An unexpected error occurred: $e',
-      };
+      return {'success': false, 'message': 'An unexpected error occurred: $e'};
     }
   }
 
@@ -957,15 +931,18 @@ class AuthRepository {
       var file = await http.MultipartFile.fromPath(
         'file',
         filePath,
-        contentType: MediaType('application', 'vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
+        contentType: MediaType(
+          'application',
+          'vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ),
       );
-      
+
       request.files.add(file);
 
       // Send request
       var streamedResponse = await request.send();
       var response = await http.Response.fromStream(streamedResponse);
-      
+
       final responseData = jsonDecode(response.body);
       print("statuscode------${response.statusCode}");
       print("response body------${response.body}");
@@ -973,7 +950,8 @@ class AuthRepository {
       if (response.statusCode == 200 || response.statusCode == 201) {
         return {
           'success': true,
-          'message': '${responseData['inserted']} products imported successfully',
+          'message':
+              '${responseData['inserted']} products imported successfully',
           'inserted': responseData['inserted'],
           'errors': responseData['errors'] ?? [],
         };
@@ -984,20 +962,11 @@ class AuthRepository {
         };
       }
     } on SocketException {
-      return {
-        'success': false,
-        'message': 'No internet connection',
-      };
+      return {'success': false, 'message': 'No internet connection'};
     } on FormatException {
-      return {
-        'success': false,
-        'message': 'Invalid response format',
-      };
+      return {'success': false, 'message': 'Invalid response format'};
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'An unexpected error occurred: $e',
-      };
+      return {'success': false, 'message': 'An unexpected error occurred: $e'};
     }
   }
 
@@ -1016,9 +985,9 @@ class AuthRepository {
         if (group != null && group.isNotEmpty) 'Group': group,
       };
 
-      final uri = Uri.parse(ApiEndpoint.baseUrl + ApiEndpoint.getProducts).replace(
-        queryParameters: queryParams,
-      );
+      final uri = Uri.parse(
+        ApiEndpoint.baseUrl + ApiEndpoint.getProducts,
+      ).replace(queryParameters: queryParams);
 
       final response = await http.get(uri, headers: _headers);
       final responseData = jsonDecode(response.body);
@@ -1044,25 +1013,19 @@ class AuthRepository {
         };
       }
     } on SocketException {
-      return {
-        'success': false,
-        'message': 'No internet connection',
-      };
+      return {'success': false, 'message': 'No internet connection'};
     } on FormatException {
-      return {
-        'success': false,
-        'message': 'Invalid response format',
-      };
+      return {'success': false, 'message': 'Invalid response format'};
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'An unexpected error occurred: $e',
-      };
+      return {'success': false, 'message': 'An unexpected error occurred: $e'};
     }
   }
 
   // Update Product
-  Future<Map<String, dynamic>> updateProduct(String productId, ProductModel product) async {
+  Future<Map<String, dynamic>> updateProduct(
+    String productId,
+    ProductModel product,
+  ) async {
     try {
       print('${baseUrl}v1/products/$productId');
       final response = await http.put(
@@ -1089,20 +1052,11 @@ class AuthRepository {
         };
       }
     } on SocketException {
-      return {
-        'success': false,
-        'message': 'No internet connection',
-      };
+      return {'success': false, 'message': 'No internet connection'};
     } on FormatException {
-      return {
-        'success': false,
-        'message': 'Invalid response format',
-      };
+      return {'success': false, 'message': 'Invalid response format'};
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'An unexpected error occurred: $e',
-      };
+      return {'success': false, 'message': 'An unexpected error occurred: $e'};
     }
   }
 
@@ -1133,20 +1087,11 @@ class AuthRepository {
         };
       }
     } on SocketException {
-      return {
-        'success': false,
-        'message': 'No internet connection',
-      };
+      return {'success': false, 'message': 'No internet connection'};
     } on FormatException {
-      return {
-        'success': false,
-        'message': 'Invalid response format',
-      };
+      return {'success': false, 'message': 'Invalid response format'};
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'An unexpected error occurred: $e',
-      };
+      return {'success': false, 'message': 'An unexpected error occurred: $e'};
     }
   }
 
@@ -1164,10 +1109,7 @@ class AuthRepository {
       print("response body------${response.body}");
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        return {
-          'success': true,
-          'message': 'Product restored successfully',
-        };
+        return {'success': true, 'message': 'Product restored successfully'};
       } else {
         return {
           'success': false,
@@ -1175,20 +1117,11 @@ class AuthRepository {
         };
       }
     } on SocketException {
-      return {
-        'success': false,
-        'message': 'No internet connection',
-      };
+      return {'success': false, 'message': 'No internet connection'};
     } on FormatException {
-      return {
-        'success': false,
-        'message': 'Invalid response format',
-      };
+      return {'success': false, 'message': 'Invalid response format'};
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'An unexpected error occurred: $e',
-      };
+      return {'success': false, 'message': 'An unexpected error occurred: $e'};
     }
   }
 
@@ -1214,7 +1147,7 @@ class AuthRepository {
       );
 
       final data = jsonDecode(response.body);
-      
+
       if (response.statusCode == 201) {
         return {
           'success': true,
@@ -1228,10 +1161,7 @@ class AuthRepository {
         };
       }
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Error: $e',
-      };
+      return {'success': false, 'message': 'Error: $e'};
     }
   }
 
@@ -1243,19 +1173,16 @@ class AuthRepository {
       final response = await http.post(
         Uri.parse('${baseUrl}pit/bulk-add'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'pits': pits,
-          'wellId': wellId,
-        }),
+        body: jsonEncode({'pits': pits, 'wellId': wellId}),
       );
 
       final data = jsonDecode(response.body);
-      
+
       if (response.statusCode == 201) {
         final List<PitModel> insertedPits = (data['data'] as List)
             .map((pit) => PitModel.fromJson(pit))
             .toList();
-        
+
         return {
           'success': true,
           'data': insertedPits,
@@ -1269,10 +1196,7 @@ class AuthRepository {
         };
       }
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Error: $e',
-      };
+      return {'success': false, 'message': 'Error: $e'};
     }
   }
 
@@ -1287,12 +1211,12 @@ class AuthRepository {
 
       print("statuscode------${response.statusCode}");
       print("response body------${response.body}");
-      
+
       if (response.statusCode == 200) {
         final List<PitModel> pits = (data['data'] as List)
             .map((pit) => PitModel.fromJson(pit))
             .toList();
-        
+
         return {
           'success': true,
           'data': pits,
@@ -1306,10 +1230,7 @@ class AuthRepository {
         };
       }
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Error: $e',
-      };
+      return {'success': false, 'message': 'Error: $e'};
     }
   }
 
@@ -1321,12 +1242,12 @@ class AuthRepository {
       );
 
       final data = jsonDecode(response.body);
-      
+
       if (response.statusCode == 200) {
         final List<PitModel> pits = (data['data'] as List)
             .map((pit) => PitModel.fromJson(pit))
             .toList();
-        
+
         return {
           'success': true,
           'data': pits,
@@ -1340,10 +1261,7 @@ class AuthRepository {
         };
       }
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Error: $e',
-      };
+      return {'success': false, 'message': 'Error: $e'};
     }
   }
 
@@ -1355,12 +1273,12 @@ class AuthRepository {
       );
 
       final data = jsonDecode(response.body);
-      
+
       if (response.statusCode == 200) {
         final List<PitModel> pits = (data['data'] as List)
             .map((pit) => PitModel.fromJson(pit))
             .toList();
-        
+
         return {
           'success': true,
           'data': pits,
@@ -1374,10 +1292,7 @@ class AuthRepository {
         };
       }
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Error: $e',
-      };
+      return {'success': false, 'message': 'Error: $e'};
     }
   }
 
@@ -1405,7 +1320,7 @@ class AuthRepository {
       );
 
       final data = jsonDecode(response.body);
-      
+
       if (response.statusCode == 200) {
         return {
           'success': true,
@@ -1419,10 +1334,7 @@ class AuthRepository {
         };
       }
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Error: $e',
-      };
+      return {'success': false, 'message': 'Error: $e'};
     }
   }
 
@@ -1434,12 +1346,9 @@ class AuthRepository {
       );
 
       final data = jsonDecode(response.body);
-      
+
       if (response.statusCode == 200) {
-        return {
-          'success': true,
-          'message': data['message'],
-        };
+        return {'success': true, 'message': data['message']};
       } else {
         return {
           'success': false,
@@ -1447,10 +1356,7 @@ class AuthRepository {
         };
       }
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Error: $e',
-      };
+      return {'success': false, 'message': 'Error: $e'};
     }
   }
 
@@ -1484,7 +1390,10 @@ class AuthRepository {
     }
   }
 
-  Future<PremixModel> createPremixed(String wellId, PremixModel premixed) async {
+  Future<PremixModel> createPremixed(
+    String wellId,
+    PremixModel premixed,
+  ) async {
     try {
       final response = await http.post(
         Uri.parse('${baseUrl}${ApiEndpoint.addPremixed}/$wellId'),
@@ -1583,12 +1492,12 @@ class AuthRepository {
         final List<ObmModel> obmList = (data['data'] as List)
             .map((item) => ObmModel.fromJson(item))
             .toList();
-        return {
-          'success': true,
-          'data': obmList,
-        };
+        return {'success': true, 'data': obmList};
       }
-      return {'success': false, 'message': data['message'] ?? 'Failed to fetch OBM'};
+      return {
+        'success': false,
+        'message': data['message'] ?? 'Failed to fetch OBM',
+      };
     } catch (e) {
       return {'success': false, 'message': e.toString()};
     }
@@ -1656,26 +1565,26 @@ class AuthRepository {
       );
       final data = jsonDecode(response.body);
       if (response.statusCode == 200) {
-        return {
-          'success': true,
-          'data': (data['data'] as List? ?? []),
-        };
+        return {'success': true, 'data': (data['data'] as List? ?? [])};
       }
-      return {'success': false, 'message': data['message'] ?? 'Failed to fetch pumps'};
+      return {
+        'success': false,
+        'message': data['message'] ?? 'Failed to fetch pumps',
+      };
     } catch (e) {
       return {'success': false, 'message': e.toString()};
     }
   }
 
-  Future<Map<String, dynamic>> createPump(String wellId, Map<String, dynamic> pumpData) async {
+  Future<Map<String, dynamic>> createPump(
+    String wellId,
+    Map<String, dynamic> pumpData,
+  ) async {
     try {
       final response = await http.post(
         Uri.parse('${baseUrl}pump'),
         headers: _headers,
-        body: jsonEncode({
-          ...pumpData,
-          'wellId': wellId,
-        }),
+        body: jsonEncode({...pumpData, 'wellId': wellId}),
       );
       final data = jsonDecode(response.body);
       if (response.statusCode == 201 || response.statusCode == 200) {
@@ -1691,7 +1600,10 @@ class AuthRepository {
     }
   }
 
-  Future<Map<String, dynamic>> updatePump(String id, Map<String, dynamic> pumpData) async {
+  Future<Map<String, dynamic>> updatePump(
+    String id,
+    Map<String, dynamic> pumpData,
+  ) async {
     try {
       final response = await http.put(
         Uri.parse('${baseUrl}pump/$id'),
@@ -1740,18 +1652,21 @@ class AuthRepository {
       );
       final data = jsonDecode(response.body);
       if (response.statusCode == 200) {
-        return {
-          'success': true,
-          'data': (data['data'] as List? ?? []),
-        };
+        return {'success': true, 'data': (data['data'] as List? ?? [])};
       }
-      return {'success': false, 'message': data['message'] ?? 'Failed to fetch shakers'};
+      return {
+        'success': false,
+        'message': data['message'] ?? 'Failed to fetch shakers',
+      };
     } catch (e) {
       return {'success': false, 'message': e.toString()};
     }
   }
 
-  Future<Map<String, dynamic>> createShaker(String wellId, Map<String, dynamic> shakerData) async {
+  Future<Map<String, dynamic>> createShaker(
+    String wellId,
+    Map<String, dynamic> shakerData,
+  ) async {
     try {
       final response = await http.post(
         Uri.parse('${baseUrl}sce/shakers/$wellId'),
@@ -1772,7 +1687,10 @@ class AuthRepository {
     }
   }
 
-  Future<Map<String, dynamic>> updateShaker(String id, Map<String, dynamic> shakerData) async {
+  Future<Map<String, dynamic>> updateShaker(
+    String id,
+    Map<String, dynamic> shakerData,
+  ) async {
     try {
       final response = await http.put(
         Uri.parse('${baseUrl}sce/shakers/$id'),
@@ -1821,18 +1739,21 @@ class AuthRepository {
       );
       final data = jsonDecode(response.body);
       if (response.statusCode == 200) {
-        return {
-          'success': true,
-          'data': (data['data'] as List? ?? []),
-        };
+        return {'success': true, 'data': (data['data'] as List? ?? [])};
       }
-      return {'success': false, 'message': data['message'] ?? 'Failed to fetch other SCE'};
+      return {
+        'success': false,
+        'message': data['message'] ?? 'Failed to fetch other SCE',
+      };
     } catch (e) {
       return {'success': false, 'message': e.toString()};
     }
   }
 
-  Future<Map<String, dynamic>> createOtherSce(String wellId, Map<String, dynamic> sceData) async {
+  Future<Map<String, dynamic>> createOtherSce(
+    String wellId,
+    Map<String, dynamic> sceData,
+  ) async {
     try {
       final response = await http.post(
         Uri.parse('${baseUrl}sce/other-sce/$wellId'),
@@ -1853,7 +1774,10 @@ class AuthRepository {
     }
   }
 
-  Future<Map<String, dynamic>> updateOtherSce(String id, Map<String, dynamic> sceData) async {
+  Future<Map<String, dynamic>> updateOtherSce(
+    String id,
+    Map<String, dynamic> sceData,
+  ) async {
     try {
       final response = await http.put(
         Uri.parse('${baseUrl}sce/other-sce/$id'),
@@ -2098,8 +2022,7 @@ class AuthRepository {
       return {
         'success': response.statusCode == 200,
         'data': data['data'],
-        'message':
-            data['message'] ?? 'Other Vol Addition updated successfully',
+        'message': data['message'] ?? 'Other Vol Addition updated successfully',
       };
     } catch (e) {
       return {'success': false, 'message': e.toString()};
@@ -2178,8 +2101,7 @@ class AuthRepository {
       return {
         'success': response.statusCode == 200,
         'data': data['data'],
-        'message':
-            data['message'] ?? 'Mud Loss - Storage updated successfully',
+        'message': data['message'] ?? 'Mud Loss - Storage updated successfully',
       };
     } catch (e) {
       return {'success': false, 'message': e.toString()};
@@ -2214,16 +2136,41 @@ class AuthRepository {
     required int numberOfBags,
     required double weightPerBag,
     required double sg,
+    String unit = '',
   }) {
-    final double finalValue = initial + adjust - used;
+    final double finalValue = initial - adjust - used;
     final double cost = used * price;
-    final double totalWeight = numberOfBags * weightPerBag;
     double volumeBbl = 0.0;
-    
-    if (sg > 0) {
-      volumeBbl = totalWeight / (sg * 158.987);
+
+    final unitMatch = RegExp(
+      r'^([0-9]*\.?[0-9]+)\s*([a-zA-Z]+)',
+    ).firstMatch(unit.trim());
+    final double unitAmount = double.tryParse(unitMatch?.group(1) ?? '') ?? 1.0;
+    final String unitClass = (unitMatch?.group(2) ?? unit).trim().toLowerCase();
+    final double totalUnits = used * (unitAmount > 0 ? unitAmount : 1.0);
+
+    if (unitClass.contains('gal')) {
+      volumeBbl = totalUnits / 42;
+    } else if (unitClass.contains('bbl')) {
+      volumeBbl = totalUnits;
+    } else if (unitClass.contains('kg')) {
+      volumeBbl = sg > 0 ? totalUnits / (sg * 158.987) : 0.0;
+    } else if (unitClass == 'lb' ||
+        unitClass == 'lbs' ||
+        unitClass == 'lbm' ||
+        unitClass.contains('pound')) {
+      volumeBbl = sg > 0 ? totalUnits / (sg * 350) : 0.0;
+    } else if (unitClass == 'ton' ||
+        unitClass == 'tons' ||
+        unitClass == 'tonne' ||
+        unitClass == 'tonnes' ||
+        unitClass == 'mt') {
+      volumeBbl = sg > 0 ? (totalUnits * 2000) / (sg * 350) : 0.0;
+    } else {
+      final double totalWeight = numberOfBags * weightPerBag;
+      volumeBbl = sg > 0 ? totalWeight / (sg * 158.987) : 0.0;
     }
-    
+
     return {
       'final': finalValue,
       'cost': cost,
@@ -2231,5 +2178,3 @@ class AuthRepository {
     };
   }
 }
-
-

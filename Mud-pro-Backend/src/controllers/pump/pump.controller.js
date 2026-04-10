@@ -312,7 +312,13 @@ class PumpController {
 
       const operations = pumps.map((pump, index) => {
         // Calculate displacement and rate for each pump
-        const displacement = calculateDisplacement(pump.type, pump.linerId, pump.strokeLength, pump.rodOd );
+        const displacement = calculateDisplacement(
+          pump.type,
+          pump.linerId,
+          pump.strokeLength,
+          pump.efficiency,
+          pump.rodOd
+        );
         const rate = calculateRate(displacement, pump.spm, pump.efficiency);
 
         const pumpData = {
@@ -363,8 +369,14 @@ class PumpController {
   // CALCULATE DISPLACEMENT (utility endpoint for frontend)
   async calculateDisplacementEndpoint(req, res) {
     try {
-      const { type, linerId, strokeLength } = req.body;
-      const displacement = calculateDisplacement(type, linerId, strokeLength);
+      const { type, linerId, strokeLength, efficiency, rodOd } = req.body;
+      const displacement = calculateDisplacement(
+        type,
+        linerId,
+        strokeLength,
+        efficiency,
+        rodOd
+      );
 
       return res.status(200).json({
         success: true,

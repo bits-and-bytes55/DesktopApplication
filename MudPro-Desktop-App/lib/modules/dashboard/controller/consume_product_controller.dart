@@ -14,7 +14,8 @@ class ConsumeProductController {
   //  CREATE CONSUME PRODUCT
   // ═══════════════════════════════════════════
   Future<Map<String, dynamic>> createConsumeProduct({
-    required String productName,   // ✅ FIX: productId → productName
+    required String wellId,
+    required String productName, // ✅ FIX: productId → productName
     required String code,
     required double sg,
     required String unit,
@@ -27,14 +28,15 @@ class ConsumeProductController {
   }) async {
     try {
       final body = jsonEncode({
-        'product':      productName,   // ✅ FIX: name send ho raha hai
-        'code':         code,
-        'sg':           sg,
-        'unit':         unit,
-        'price':        price,
-        'initial':      initial,
-        'adjust':       adjust,
-        'used':         used,
+        'wellId': wellId,
+        'product': productName, // ✅ FIX: name send ho raha hai
+        'code': code,
+        'sg': sg,
+        'unit': unit,
+        'price': price,
+        'initial': initial,
+        'adjust': adjust,
+        'used': used,
         'numberOfBags': numberOfBags,
         'weightPerBag': weightPerBag,
       });
@@ -48,7 +50,9 @@ class ConsumeProductController {
         body: body,
       );
 
-      print('🟢 [API] Create ConsumeProduct - statusCode: ${response.statusCode}');
+      print(
+        '🟢 [API] Create ConsumeProduct - statusCode: ${response.statusCode}',
+      );
       print('🟢 [API] Create ConsumeProduct - responseBody: ${response.body}');
 
       final responseData = jsonDecode(response.body);
@@ -75,7 +79,8 @@ class ConsumeProductController {
   // ═══════════════════════════════════════════
   Future<Map<String, dynamic>> updateConsumeProduct({
     required String id,
-    required String productName,   // ✅ FIX: productId → productName
+    required String wellId,
+    required String productName, // ✅ FIX: productId → productName
     required String code,
     required double sg,
     required String unit,
@@ -88,14 +93,15 @@ class ConsumeProductController {
   }) async {
     try {
       final body = jsonEncode({
-        'product':      productName,   // ✅ FIX: name send ho raha hai
-        'code':         code,
-        'sg':           sg,
-        'unit':         unit,
-        'price':        price,
-        'initial':      initial,
-        'adjust':       adjust,
-        'used':         used,
+        'wellId': wellId,
+        'product': productName, // ✅ FIX: name send ho raha hai
+        'code': code,
+        'sg': sg,
+        'unit': unit,
+        'price': price,
+        'initial': initial,
+        'adjust': adjust,
+        'used': used,
         'numberOfBags': numberOfBags,
         'weightPerBag': weightPerBag,
       });
@@ -109,7 +115,9 @@ class ConsumeProductController {
         body: body,
       );
 
-      print('🟢 [API] Update ConsumeProduct - statusCode: ${response.statusCode}');
+      print(
+        '🟢 [API] Update ConsumeProduct - statusCode: ${response.statusCode}',
+      );
       print('🟢 [API] Update ConsumeProduct - responseBody: ${response.body}');
 
       final responseData = jsonDecode(response.body);
@@ -143,7 +151,9 @@ class ConsumeProductController {
         headers: _headers,
       );
 
-      print('🟢 [API] Delete ConsumeProduct - statusCode: ${response.statusCode}');
+      print(
+        '🟢 [API] Delete ConsumeProduct - statusCode: ${response.statusCode}',
+      );
       print('🟢 [API] Delete ConsumeProduct - responseBody: ${response.body}');
 
       final responseData = jsonDecode(response.body);
@@ -167,17 +177,23 @@ class ConsumeProductController {
   // ═══════════════════════════════════════════
   //  GET ALL CONSUME PRODUCTS
   // ═══════════════════════════════════════════
-  Future<List<Map<String, dynamic>>> getAllConsumeProducts() async {
+  Future<List<Map<String, dynamic>>> getAllConsumeProducts({
+    required String wellId,
+  }) async {
     try {
-      print('🔵 [API] GET ${baseUrl}consume-product');
+      print('🔵 [API] GET ${baseUrl}consume-product?wellId=$wellId');
 
       final response = await http.get(
-        Uri.parse('${baseUrl}consume-product'),
+        Uri.parse('${baseUrl}consume-product?wellId=$wellId'),
         headers: _headers,
       );
 
-      print('🟢 [API] Get All ConsumeProducts - statusCode: ${response.statusCode}');
-      print('🟢 [API] Get All ConsumeProducts - responseBody: ${response.body}');
+      print(
+        '🟢 [API] Get All ConsumeProducts - statusCode: ${response.statusCode}',
+      );
+      print(
+        '🟢 [API] Get All ConsumeProducts - responseBody: ${response.body}',
+      );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final responseData = jsonDecode(response.body);
