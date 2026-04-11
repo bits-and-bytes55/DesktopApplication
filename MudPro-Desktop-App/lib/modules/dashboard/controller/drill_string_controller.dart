@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:mudpro_desktop_app/api_endpoint/api_endpoint.dart';
+import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
+import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
 class DrillStringEntry {
   final String? id;
@@ -21,12 +23,12 @@ class DrillStringEntry {
     String idVal = '',
     String gr = '',
     String len = '',
-  })  : description = TextEditingController(text: desc),
-        od = TextEditingController(text: odVal),
-        weightPpf = TextEditingController(text: wt),
-        idCtrl = TextEditingController(text: idVal),
-        grade = TextEditingController(text: gr),
-        length = TextEditingController(text: len);
+  }) : description = TextEditingController(text: desc),
+       od = TextEditingController(text: odVal),
+       weightPpf = TextEditingController(text: wt),
+       idCtrl = TextEditingController(text: idVal),
+       grade = TextEditingController(text: gr),
+       length = TextEditingController(text: len);
 
   void dispose() {
     description.dispose();
@@ -38,13 +40,13 @@ class DrillStringEntry {
   }
 
   Map<String, dynamic> toJson() => {
-        'description': description.text,
-        'od': double.tryParse(od.text) ?? 0,
-        'weightPpf': double.tryParse(weightPpf.text) ?? 0,
-        'id': double.tryParse(idCtrl.text) ?? 0,
-        'grade': grade.text,
-        'length': double.tryParse(length.text) ?? 0,
-      };
+    'description': description.text,
+    'od': double.tryParse(od.text) ?? 0,
+    'weightPpf': double.tryParse(weightPpf.text) ?? 0,
+    'id': double.tryParse(idCtrl.text) ?? 0,
+    'grade': grade.text,
+    'length': double.tryParse(length.text) ?? 0,
+  };
 }
 
 class DrillStringController extends GetxController {
@@ -54,16 +56,37 @@ class DrillStringController extends GetxController {
   var isLoading = false.obs;
   var isSaving = false.obs;
   var totalLength = 0.0.obs;
+  String currentWellId = currentBackendWellId;
+  Worker? _wellWorker;
+  Worker? _reportWorker;
 
   Map<String, String> get _headers => {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      };
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+  };
+
+  String? get _currentReportId {
+    final reportId = reportContext.selectedReportId.value.trim();
+    return reportId.isEmpty ? null : reportId;
+  }
+
+  String? get _currentReportNo {
+    final reportNo = reportContext.selectedReportNumber.trim();
+    return reportNo.isEmpty ? null : reportNo;
+  }
 
   @override
   void onInit() {
     super.onInit();
     _initEmptyRows();
+    _wellWorker = ever<String>(padWellContext.selectedWellId, (wellId) {
+      currentWellId = wellId.trim();
+      fetchDrillStrings();
+    });
+    _reportWorker = ever<String>(reportContext.selectedReportId, (_) {
+      fetchDrillStrings();
+    });
+    currentWellId = currentBackendWellId;
     fetchDrillStrings();
   }
 
@@ -91,7 +114,8 @@ class DrillStringController extends GetxController {
   void onCellChanged(int rowIndex) {
     if (rowIndex == entries.length - 1) {
       final last = entries[rowIndex];
-      final hasContent = last.description.text.isNotEmpty ||
+      final hasContent =
+          last.description.text.isNotEmpty ||
           last.od.text.isNotEmpty ||
           last.weightPpf.text.isNotEmpty ||
           last.idCtrl.text.isNotEmpty ||
@@ -112,12 +136,20 @@ class DrillStringController extends GetxController {
 
   // ─── API: FETCH ───────────────────────────────
   Future<void> fetchDrillStrings() async {
+    if (currentWellId.isEmpty) {
+      _resetRows();
+      return;
+    }
+
     isLoading.value = true;
     try {
-      final response = await http.get(
-        Uri.parse('${baseUrl}drill-string'),
-        headers: _headers,
+      final uri = Uri.parse('${baseUrl}drill-string').replace(
+        queryParameters: {
+          'wellId': currentWellId,
+          if (_currentReportId != null) 'reportId': _currentReportId!,
+        },
       );
+      final response = await http.get(uri, headers: _headers);
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body);
         final List items = json['data'] ?? [];
@@ -160,6 +192,7 @@ class DrillStringController extends GetxController {
       }
     } catch (e) {
       print('DrillString fetch error: $e');
+      _resetRows();
     } finally {
       isLoading.value = false;
     }
@@ -169,12 +202,13 @@ class DrillStringController extends GetxController {
   Future<void> saveRow(int rowIndex) async {
     final entry = entries[rowIndex];
     if (entry.description.text.isEmpty) return;
+    if (currentWellId.isEmpty) return;
     isSaving.value = true;
     try {
       final response = await http.post(
         Uri.parse('${baseUrl}drill-string'),
         headers: _headers,
-        body: jsonEncode(entry.toJson()),
+        body: jsonEncode(_payloadFor(entry)),
       );
       if (response.statusCode == 201) {
         final json = jsonDecode(response.body);
@@ -203,9 +237,16 @@ class DrillStringController extends GetxController {
 
   // ─── API: SAVE ALL unsaved rows ───────────────
   Future<Map<String, dynamic>> saveAll() async {
-    final unsaved = entries.asMap().entries.where((e) => e.value.id == null && e.value.description.text.isNotEmpty).toList();
+    final unsaved = entries
+        .asMap()
+        .entries
+        .where((e) => e.value.id == null && e.value.description.text.isNotEmpty)
+        .toList();
     if (unsaved.isEmpty) {
       return {'success': true, 'message': 'No new Drill String rows to save'};
+    }
+    if (currentWellId.isEmpty) {
+      return {'success': false, 'message': 'No backend well selected'};
     }
     isSaving.value = true;
     int successCount = 0;
@@ -216,7 +257,7 @@ class DrillStringController extends GetxController {
         final response = await http.post(
           Uri.parse('${baseUrl}drill-string'),
           headers: _headers,
-          body: jsonEncode(e.toJson()),
+          body: jsonEncode(_payloadFor(e)),
         );
         if (response.statusCode == 201) {
           successCount++;
@@ -238,7 +279,10 @@ class DrillStringController extends GetxController {
       }
       entries.refresh();
       _recalcTotal();
-      return {'success': true, 'message': '$successCount Drill String rows saved successfully'};
+      return {
+        'success': true,
+        'message': '$successCount Drill String rows saved successfully',
+      };
     } catch (e) {
       print('DrillString saveAll error: $e');
       return {'success': false, 'message': 'Error saving Drill String: $e'};
@@ -268,9 +312,28 @@ class DrillStringController extends GetxController {
 
   @override
   void onClose() {
+    _wellWorker?.dispose();
+    _reportWorker?.dispose();
     for (final e in entries) {
       e.dispose();
     }
     super.onClose();
   }
+
+  void _resetRows() {
+    for (final e in entries) {
+      e.dispose();
+    }
+    entries.clear();
+    _initEmptyRows();
+    totalLength.value = 0;
+    entries.refresh();
+  }
+
+  Map<String, dynamic> _payloadFor(DrillStringEntry entry) => {
+    ...entry.toJson(),
+    'wellId': currentWellId,
+    if (_currentReportId != null) 'reportId': _currentReportId,
+    if (_currentReportNo != null) 'reportNo': _currentReportNo,
+  };
 }

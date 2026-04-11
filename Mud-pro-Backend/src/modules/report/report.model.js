@@ -1,5 +1,17 @@
 import mongoose from "mongoose";
 
+const pumpRateAndPressureSchema = new mongoose.Schema(
+  {
+    pumpRate: { type: Number, default: 0 },
+    pumpPressure: { type: Number, default: 0 },
+    boostPumpRate: { type: Number, default: 0 },
+    returnRate: { type: Number, default: 0 },
+    dhToolsPressureLoss: { type: Number, default: 0 },
+    motorPressureLoss: { type: Number, default: 0 },
+  },
+  { _id: false }
+);
+
 const reportSchema = new mongoose.Schema(
   {
     wellId: {
@@ -32,6 +44,10 @@ const reportSchema = new mongoose.Schema(
       type: String,
       default: "",
       trim: true,
+    },
+    pumpRateAndPressure: {
+      type: pumpRateAndPressureSchema,
+      default: () => ({}),
     },
   },
   { timestamps: true }

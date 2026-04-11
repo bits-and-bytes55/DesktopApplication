@@ -2,6 +2,28 @@ import mongoose from "mongoose";
 
 const drillStringSchema = new mongoose.Schema(
   {
+    wellId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Well",
+      required: false,
+      index: true,
+      default: null,
+    },
+
+    reportId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Report",
+      required: false,
+      index: true,
+      default: null,
+    },
+
+    reportNo: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
     description: {
       type: String,
       required: true
@@ -34,5 +56,7 @@ const drillStringSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+drillStringSchema.index({ wellId: 1, reportId: 1, createdAt: 1 });
 
 export default mongoose.model("DrillString", drillStringSchema);

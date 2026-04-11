@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/options_controller.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
+import 'package:mudpro_desktop_app/modules/utility/utils/bit_hydraulics_calculator.dart'
+    as bit_hydraulics;
 
 class BitHydraulicsController extends GetxController {
   final OptionsController _options = AppUnits.controller;
@@ -142,43 +144,54 @@ class BitHydraulicsController extends GetxController {
       return;
     }
 
-    final nozzleVelocityBase = (0.408 * gpm) / totalJetArea;
-    final bitPressureDropBase = spp * 0.65;
-    final hydraulicHpBase = (bitPressureDropBase * gpm) / 1714;
-    final bitArea = 0.785 * bitIn * bitIn;
-    final hhpPerAreaBase = hydraulicHpBase / bitArea;
-    final pressureDropPct = (bitPressureDropBase / spp) * 100;
-    final jetImpactBase = 0.01823 * mwPpg * gpm * nozzleVelocityBase;
+    final snapshot = bit_hydraulics.calculateBitHydraulics(
+      bit_hydraulics.BitHydraulicsInputs(
+        mudWeightPpg: mwPpg,
+        flowRateGpm: gpm,
+        standpipePressurePsi: spp,
+        totalFlowAreaIn2: totalJetArea,
+        bitSizeIn: bitIn,
+      ),
+    );
+
+    if (snapshot == null) {
+      resetBitHydraulics();
+      return;
+    }
 
     nozzleArea.value =
         AppUnits.convertValue(totalJetArea, '(in2)', AppUnits.crossSection) ??
         totalJetArea;
     nozzleVelocity.value =
         AppUnits.convertValue(
-          nozzleVelocityBase,
+          snapshot.nozzleVelocityFtPerSec,
           '(ft/s)',
           AppUnits.nozzleVelocity,
         ) ??
-        nozzleVelocityBase;
+        snapshot.nozzleVelocityFtPerSec;
     bitPressureDrop.value =
         AppUnits.convertValue(
-          bitPressureDropBase,
+          snapshot.bitPressureDropPsi,
           '(psi)',
           AppUnits.pressure,
         ) ??
-        bitPressureDropBase;
+        snapshot.bitPressureDropPsi;
     hydraulicHP.value =
-        AppUnits.convertValue(hydraulicHpBase, '(HP)', AppUnits.power) ??
-        hydraulicHpBase;
+        AppUnits.convertValue(snapshot.hydraulicHp, '(HP)', AppUnits.power) ??
+        snapshot.hydraulicHp;
     hhpPerArea.value = _convertPowerPerArea(
-      hhpPerAreaBase,
+      snapshot.hydraulicHpPerArea ?? 0,
       AppUnits.power,
       AppUnits.crossSection,
     );
-    pressureDropPercent.value = pressureDropPct;
+    pressureDropPercent.value = snapshot.pressureDropPercent;
     jetImpactForce.value =
-        AppUnits.convertValue(jetImpactBase, '(lbf)', AppUnits.force) ??
-        jetImpactBase;
+        AppUnits.convertValue(
+          snapshot.jetImpactForceLbf ?? 0,
+          '(lbf)',
+          AppUnits.force,
+        ) ??
+        (snapshot.jetImpactForceLbf ?? 0);
   }
 
   void resetBitHydraulics() {

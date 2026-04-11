@@ -11,8 +11,10 @@ import MudLossStorage from "../../modules/mudlossstorage/MudLossStorage.js";
 import Report from "../../modules/report/report.model.js";
 
 const getWellId = (req) => String(req.params.wellId || "").trim();
-const getReportId = (req) => String(req.query.reportId ?? req.body.reportId ?? "").trim();
-const getReportNo = (req) => String(req.query.reportNo ?? req.body.reportNo ?? "").trim();
+const getReportId = (req) =>
+  String(req.query.reportId ?? req.body?.reportId ?? "").trim();
+const getReportNo = (req) =>
+  String(req.query.reportNo ?? req.body?.reportNo ?? "").trim();
 
 const toNumber = (value) => {
   if (value === null || value === undefined || value === "") return 0;

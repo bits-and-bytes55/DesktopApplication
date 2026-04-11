@@ -1,11 +1,27 @@
 import mongoose from "mongoose";
 
 const nozzleSchema = new mongoose.Schema({
-//   wellId: {
-//     type: mongoose.Schema.Types.ObjectId,
-//     ref: "Well",
-//     required: true
-//   },
+  wellId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Well",
+    required: false,
+    index: true,
+    default: null,
+  },
+
+  reportId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Report",
+    required: false,
+    index: true,
+    default: null,
+  },
+
+  reportNo: {
+    type: String,
+    trim: true,
+    default: "",
+  },
 
   nozzles: [
     {
@@ -22,5 +38,7 @@ const nozzleSchema = new mongoose.Schema({
   }
 
 }, { timestamps: true });
+
+nozzleSchema.index({ wellId: 1, reportId: 1 });
 
 export default mongoose.model("Nozzle", nozzleSchema);

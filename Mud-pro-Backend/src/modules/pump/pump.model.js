@@ -8,6 +8,20 @@ const pumpSchema = new mongoose.Schema({
     index: true
   },
 
+  reportId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Report',
+    required: false,
+    index: true,
+    default: null,
+  },
+
+  reportNo: {
+    type: String,
+    trim: true,
+    default: '',
+  },
+
   type: {
     type: String,
     enum: ['Triplex', 'Duplex', 'Quintuplex', 'Hydraulic', 'Quadplex', ''],
@@ -95,5 +109,6 @@ const pumpSchema = new mongoose.Schema({
 
 // Remove unique constraint on wellId+rowNumber since wellId is now optional
 pumpSchema.index({ rowNumber: 1 });
+pumpSchema.index({ wellId: 1, reportId: 1, rowNumber: 1 });
 
 export default mongoose.model('Pump', pumpSchema);

@@ -3,8 +3,33 @@ import Report from "../../modules/report/report.model.js";
 import Well from "../../modules/well/well.model.js";
 import WellGeneral from "../../modules/wellGeneral/wellGeneralModel.js";
 import Pit from "../../modules/pit/pit.model.js";
+import Pump from "../../modules/pump/pump.model.js";
+import Nozzle from "../../modules/nozzle/nozzle.model.js";
+import { Shaker, OtherSce } from "../../modules/sce/sce.model.js";
 
 const toText = (value) => String(value ?? "").trim();
+
+const toNumber = (value, fallback = 0) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const sanitizePumpRateAndPressure = (value = {}) => {
+  const source =
+    value && typeof value === "object" && !Array.isArray(value) ? value : {};
+
+  return {
+    pumpRate: toNumber(source.pumpRate),
+    pumpPressure: toNumber(source.pumpPressure),
+    boostPumpRate: toNumber(source.boostPumpRate),
+    returnRate: toNumber(source.returnRate),
+    dhToolsPressureLoss: toNumber(source.dhToolsPressureLoss),
+    motorPressureLoss: toNumber(source.motorPressureLoss),
+  };
+};
+
+const hasPumpRateAndPressureInput = (value) =>
+  value && typeof value === "object" && !Array.isArray(value);
 
 const escapeRegex = (value) =>
   String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -49,6 +74,11 @@ const cleanClone = (doc = {}) => {
 const legacyPitScopeFilter = (wellId) => ({
   wellId,
   $or: [{ reportId: { $exists: false } }, { reportId: null }, { reportId: "" }],
+});
+
+const legacyScopedFilter = (wellId) => ({
+  wellId,
+  $or: [{ reportId: { $exists: false } }, { reportId: null }],
 });
 
 const sortByCreatedAtAsc = (items = []) =>
@@ -133,6 +163,90 @@ const loadSourcePits = async ({ wellId, sourceReport }) => {
   return dedupeLatestPits(legacyPits);
 };
 
+const loadSourcePumps = async ({ wellId, sourceReport }) => {
+  const sourceReportId = toText(sourceReport?._id);
+
+  if (sourceReportId) {
+    const scopedPumps = await Pump.find({
+      wellId,
+      reportId: sourceReportId,
+    })
+      .sort({ rowNumber: 1, createdAt: 1, _id: 1 })
+      .lean();
+
+    if (scopedPumps.length > 0) {
+      return scopedPumps;
+    }
+  }
+
+  return Pump.find(legacyScopedFilter(wellId))
+    .sort({ rowNumber: 1, createdAt: 1, _id: 1 })
+    .lean();
+};
+
+const loadSourceNozzle = async ({ wellId, sourceReport }) => {
+  const sourceReportId = toText(sourceReport?._id);
+
+  if (sourceReportId) {
+    const scopedNozzle = await Nozzle.findOne({
+      wellId,
+      reportId: sourceReportId,
+    })
+      .sort({ createdAt: -1, _id: -1 })
+      .lean();
+
+    if (scopedNozzle) {
+      return scopedNozzle;
+    }
+  }
+
+  return Nozzle.findOne(legacyScopedFilter(wellId))
+    .sort({ createdAt: -1, _id: -1 })
+    .lean();
+};
+
+const loadSourceShakers = async ({ wellId, sourceReport }) => {
+  const sourceReportId = toText(sourceReport?._id);
+
+  if (sourceReportId) {
+    const scopedShakers = await Shaker.find({
+      wellId,
+      reportId: sourceReportId,
+    })
+      .sort({ createdAt: 1, _id: 1 })
+      .lean();
+
+    if (scopedShakers.length > 0) {
+      return scopedShakers;
+    }
+  }
+
+  return Shaker.find(legacyScopedFilter(wellId))
+    .sort({ createdAt: 1, _id: 1 })
+    .lean();
+};
+
+const loadSourceOtherSce = async ({ wellId, sourceReport }) => {
+  const sourceReportId = toText(sourceReport?._id);
+
+  if (sourceReportId) {
+    const scopedOtherSce = await OtherSce.find({
+      wellId,
+      reportId: sourceReportId,
+    })
+      .sort({ createdAt: 1, _id: 1 })
+      .lean();
+
+    if (scopedOtherSce.length > 0) {
+      return scopedOtherSce;
+    }
+  }
+
+  return OtherSce.find(legacyScopedFilter(wellId))
+    .sort({ createdAt: 1, _id: 1 })
+    .lean();
+};
+
 const cloneReportSnapshots = async ({ sourceReport, targetReport }) => {
   const wellId = toText(targetReport?.wellId);
   const targetReportId = toText(targetReport?._id);
@@ -141,9 +255,21 @@ const cloneReportSnapshots = async ({ sourceReport, targetReport }) => {
     return;
   }
 
-  const [sourceWellGeneral, sourcePits] = await Promise.all([
+  const [
+    sourceWellGeneral,
+    sourcePits,
+    sourcePumps,
+    sourceNozzle,
+    sourceShakers,
+    sourceOtherSce,
+  ] =
+    await Promise.all([
     loadSourceWellGeneral({ wellId, sourceReport }),
     loadSourcePits({ wellId, sourceReport }),
+    loadSourcePumps({ wellId, sourceReport }),
+    loadSourceNozzle({ wellId, sourceReport }),
+    loadSourceShakers({ wellId, sourceReport }),
+    loadSourceOtherSce({ wellId, sourceReport }),
   ]);
 
   if (sourceWellGeneral) {
@@ -170,6 +296,48 @@ const cloneReportSnapshots = async ({ sourceReport, targetReport }) => {
 
     await Pit.insertMany(clonedPits);
   }
+
+  if (sourcePumps.length > 0) {
+    const clonedPumps = sourcePumps.map((pump) => ({
+      ...cleanClone(pump),
+      wellId,
+      reportId: targetReportId,
+      reportNo: toText(targetReport.reportNo),
+    }));
+
+    await Pump.insertMany(clonedPumps);
+  }
+
+  if (sourceNozzle) {
+    await Nozzle.create({
+      ...cleanClone(sourceNozzle),
+      wellId,
+      reportId: targetReportId,
+      reportNo: toText(targetReport.reportNo),
+    });
+  }
+
+  if (sourceShakers.length > 0) {
+    await Shaker.insertMany(
+      sourceShakers.map((shaker) => ({
+        ...cleanClone(shaker),
+        wellId,
+        reportId: targetReportId,
+        reportNo: toText(targetReport.reportNo),
+      }))
+    );
+  }
+
+  if (sourceOtherSce.length > 0) {
+    await OtherSce.insertMany(
+      sourceOtherSce.map((item) => ({
+        ...cleanClone(item),
+        wellId,
+        reportId: targetReportId,
+        reportNo: toText(targetReport.reportNo),
+      }))
+    );
+  }
 };
 
 const rollbackReportArtifacts = async (report) => {
@@ -184,6 +352,10 @@ const rollbackReportArtifacts = async (report) => {
     Report.findByIdAndDelete(reportId),
     Pit.deleteMany({ wellId, reportId }),
     WellGeneral.deleteMany({ wellId, reportId }),
+    Pump.deleteMany({ wellId, reportId }),
+    Nozzle.deleteMany({ wellId, reportId }),
+    Shaker.deleteMany({ wellId, reportId }),
+    OtherSce.deleteMany({ wellId, reportId }),
   ]);
 };
 
@@ -205,6 +377,7 @@ export const createReport = async (req, res) => {
     const title = toText(req.body.title) || `Report ${reportNo}`;
     const notes = toText(req.body.notes);
     const carryOverFromReportId = toText(req.body.carryOverFromReportId);
+    let sourceReport = null;
 
     const existing = await Report.findOne({ wellId, reportNo }).lean();
     if (existing) {
@@ -214,6 +387,23 @@ export const createReport = async (req, res) => {
       });
     }
 
+    if (carryOverFromReportId) {
+      sourceReport = await findSourceReport(wellId, carryOverFromReportId);
+
+      if (!sourceReport) {
+        return res.status(404).json({
+          success: false,
+          message: "Carry-over source report not found for this well",
+        });
+      }
+    }
+
+    const pumpRateAndPressure = hasPumpRateAndPressureInput(
+      req.body.pumpRateAndPressure
+    )
+      ? sanitizePumpRateAndPressure(req.body.pumpRateAndPressure)
+      : sanitizePumpRateAndPressure(sourceReport?.pumpRateAndPressure);
+
     const report = await Report.create({
       wellId,
       reportNo,
@@ -221,20 +411,11 @@ export const createReport = async (req, res) => {
       reportDate,
       title,
       notes,
+      pumpRateAndPressure,
     });
 
     try {
       if (carryOverFromReportId) {
-        const sourceReport = await findSourceReport(wellId, carryOverFromReportId);
-
-        if (!sourceReport) {
-          await rollbackReportArtifacts(report);
-          return res.status(404).json({
-            success: false,
-            message: "Carry-over source report not found for this well",
-          });
-        }
-
         await cloneReportSnapshots({
           sourceReport,
           targetReport: report.toObject(),
@@ -380,6 +561,11 @@ export const updateReport = async (req, res) => {
     if (req.body.notes !== undefined) {
       report.notes = toText(req.body.notes);
     }
+    if (req.body.pumpRateAndPressure !== undefined) {
+      report.pumpRateAndPressure = sanitizePumpRateAndPressure(
+        req.body.pumpRateAndPressure
+      );
+    }
 
     await report.save();
 
@@ -411,6 +597,25 @@ export const updateReport = async (req, res) => {
         },
       }
     );
+
+    await Promise.allSettled([
+      Pump.updateMany(
+        { wellId, reportId },
+        { $set: { reportNo: toText(report.reportNo) } }
+      ),
+      Nozzle.updateMany(
+        { wellId, reportId },
+        { $set: { reportNo: toText(report.reportNo) } }
+      ),
+      Shaker.updateMany(
+        { wellId, reportId },
+        { $set: { reportNo: toText(report.reportNo) } }
+      ),
+      OtherSce.updateMany(
+        { wellId, reportId },
+        { $set: { reportNo: toText(report.reportNo) } }
+      ),
+    ]);
 
     return res.status(200).json({
       success: true,
@@ -444,6 +649,10 @@ export const deleteReport = async (req, res) => {
     await Promise.allSettled([
       Pit.deleteMany({ wellId, reportId }),
       WellGeneral.deleteMany({ wellId, reportId }),
+      Pump.deleteMany({ wellId, reportId }),
+      Nozzle.deleteMany({ wellId, reportId }),
+      Shaker.deleteMany({ wellId, reportId }),
+      OtherSce.deleteMany({ wellId, reportId }),
     ]);
 
     return res.status(200).json({

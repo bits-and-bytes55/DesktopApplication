@@ -6,6 +6,18 @@ const shakerSchema = new mongoose.Schema({
     required: true,
     ref: 'Well'
   },
+  reportId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Report',
+    required: false,
+    index: true,
+    default: null,
+  },
+  reportNo: {
+    type: String,
+    trim: true,
+    default: '',
+  },
   shaker: {
     type: String,
     required: true
@@ -21,6 +33,46 @@ const shakerSchema = new mongoose.Schema({
   plot: {
     type: Boolean,
     default: false
+  },
+  screen1: {
+    type: String,
+    default: ''
+  },
+  screen2: {
+    type: String,
+    default: ''
+  },
+  screen3: {
+    type: String,
+    default: ''
+  },
+  screen4: {
+    type: String,
+    default: ''
+  },
+  screen5: {
+    type: String,
+    default: ''
+  },
+  screen6: {
+    type: String,
+    default: ''
+  },
+  screen7: {
+    type: String,
+    default: ''
+  },
+  screen8: {
+    type: String,
+    default: ''
+  },
+  time: {
+    type: String,
+    default: ''
+  },
+  oocWt: {
+    type: String,
+    default: ''
   }
 }, {
   timestamps: true
@@ -31,6 +83,18 @@ const otherSceSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     required: true,
     ref: 'Well'
+  },
+  reportId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Report',
+    required: false,
+    index: true,
+    default: null,
+  },
+  reportNo: {
+    type: String,
+    trim: true,
+    default: '',
   },
   type: {
     type: String,
@@ -51,14 +115,30 @@ const otherSceSchema = new mongoose.Schema({
   plot: {
     type: Boolean,
     default: false
+  },
+  uf: {
+    type: String,
+    default: ''
+  },
+  of: {
+    type: String,
+    default: ''
+  },
+  time: {
+    type: String,
+    default: ''
+  },
+  oocWt: {
+    type: String,
+    default: ''
   }
 }, {
   timestamps: true
 });
 
 // Indexes for faster queries
-shakerSchema.index({ wellId: 1 });
-otherSceSchema.index({ wellId: 1 });
+shakerSchema.index({ wellId: 1, reportId: 1, shaker: 1 });
+otherSceSchema.index({ wellId: 1, reportId: 1, type: 1 });
 
 export const Shaker = mongoose.model('Shaker', shakerSchema);
 export const OtherSce = mongoose.model('OtherSce', otherSceSchema);

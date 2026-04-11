@@ -1,424 +1,420 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:mudpro_desktop_app/modules/daily_report/controller/report_concentration_controller.dart';
+import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
-class ConcentrationCurrentTable extends StatefulWidget {
+class ConcentrationCurrentTable extends StatelessWidget {
   const ConcentrationCurrentTable({super.key});
 
   @override
-  State<ConcentrationCurrentTable> createState() => _ConcentrationCurrentTableState();
-}
-
-class _ConcentrationCurrentTableState extends State<ConcentrationCurrentTable> {
-  final ScrollController _horizontalController = ScrollController();
-  final ScrollController _verticalLeftController = ScrollController();
-  final ScrollController _verticalRightController = ScrollController();
-
-  @override
-  void initState() {
-    super.initState();
-    // Sync vertical scrolls
-    _verticalLeftController.addListener(() {
-      if (_verticalRightController.hasClients) {
-        _verticalRightController.jumpTo(_verticalLeftController.offset);
-      }
-    });
-    _verticalRightController.addListener(() {
-      if (_verticalLeftController.hasClients) {
-        _verticalLeftController.jumpTo(_verticalRightController.offset);
-      }
-    });
-  }
-
-  static const double rowH = 32.0;
-  static const double headerH = 64.0; // Increased header height
-  static const double groupWidth = 160.0;
-  static const double subColWidth = 80.0;
-
-  // Data for editable rows
-  List<List<String>> productData = List.generate(100, (index) => 
-    ['${index + 1}', 'Product ${index + 1}', 'lb/bbl'] + List.filled(10, '0.00')
-  );
-
-  Widget _cell(String t,
-      {double w = 80,
-      bool bold = false,
-      Alignment a = Alignment.center,
-      Color? bg,
-      bool isHeader = false}) {
-    return Container(
-      width: w,
-      height: isHeader ? headerH : rowH,
-      alignment: a,
-      padding: EdgeInsets.symmetric(horizontal: 2),
-      decoration: BoxDecoration(
-        color: bg ?? (isHeader ? Colors.transparent : null),
-        border: Border.all(
-          color: isHeader ? Colors.white.withOpacity(0.3) : Color(0xffE2E8F0),
-          width: 0.5,
-        ),
-      ),
-      child: isHeader 
-          ? Align(
-              alignment: Alignment.center,
-              child: Text(
-                t,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-              ),
-            )
-          : Text(
-              t,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: bold ? FontWeight.w600 : FontWeight.normal,
-                color: isHeader ? Colors.white : Color(0xff2D3748),
-              ),
-            ),
-    );
-  }
-
-  Widget _headerGroupTitle(String title) {
-    return Container(
-      width: groupWidth,
-      height: rowH,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Color(0xff6C9BCF),
-            Color(0xff5A8BC5),
-          ],
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
-        ),
-      ),
-      child: Center(
-        child: Text(
-          title,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _headerSubGroup() {
-    return Container(
-      width: groupWidth,
-      height: rowH,
-      child: Row(
-        children: [
-          Container(
-            width: subColWidth,
-            height: rowH,
-            decoration: BoxDecoration(
-              color: Color(0xff8BB8E8),
-            ),
-            child: Center(
-              child: Text(
-                'Start',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ),
-          Container(
-            width: subColWidth,
-            height: rowH,
-            decoration: BoxDecoration(
-              color: Color(0xff8BB8E8),
-            ),
-            child: Center(
-              child: Text(
-                'End',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _editableCell({
-    required String value,
-    required double width,
-    Alignment alignment = Alignment.center,
-    Color? bg,
-    bool isLeftTable = false,
-    int rowIndex = 0,
-    int colIndex = 0,
-  }) {
-    return Container(
-      width: width,
-      height: rowH,
-      decoration: BoxDecoration(
-        color: bg,
-        border: Border.all(color: Color(0xffE2E8F0), width: 0.5),
-      ),
-      child: TextField(
-        controller: TextEditingController(text: value),
-        style: TextStyle(
-          fontSize: 11,
-          color: Color(0xff2D3748),
-        ),
-        textAlign: alignment == Alignment.centerLeft
-            ? TextAlign.left
-            : TextAlign.right,
-        decoration: InputDecoration(
-          isDense: true,
-          contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-          border: InputBorder.none,
-          focusedBorder: InputBorder.none,
-          enabledBorder: InputBorder.none,
-          hintText: '',
-          hintStyle: TextStyle(
-            fontSize: 11,
-            color: Colors.grey.shade400,
-          ),
-        ),
-        onChanged: (val) {
-          setState(() {
-            if (isLeftTable) {
-              if (colIndex == 0) {
-                productData[rowIndex][0] = val;
-              } else if (colIndex == 1) {
-                productData[rowIndex][1] = val;
-              } else if (colIndex == 2) {
-                productData[rowIndex][2] = val;
-              }
-            } else {
-              // Right table data (columns 3-12)
-              productData[rowIndex][colIndex + 3] = val;
-            }
-          });
-        },
-      ),
-    );
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return Container(
-      color: Color(0xffF8F9FA),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ========== FIXED LEFT COLUMNS ==========
-          Container(
-            width: 340,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border(
-                right: BorderSide(color: Color(0xffE2E8F0), width: 1),
-              ),
-            ),
-            child: Column(
-              children: [
-                // Fixed Header - Increased height
-                Container(
-                  height: headerH,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Color(0xff6C9BCF),
-                        Color(0xff5A8BC5),
-                      ],
-                      begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
-                    ),
-                  ),
-                  child: Row(children: [
-                    _cell('#', w: 60, bold: true, isHeader: true),
-                    _cell('Product', w: 180, bold: true, isHeader: true),
-                    _cell('Conc. Unit', w: 99, bold: true, isHeader: true),
-                  ]),
+    final controller = Get.isRegistered<ReportConcentrationController>()
+        ? Get.find<ReportConcentrationController>()
+        : Get.put(ReportConcentrationController());
+
+    return Scaffold(
+      backgroundColor: AppTheme.backgroundColor,
+      body: Obx(() {
+        final rows = controller.currentRows.toList();
+
+        return Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _headerCard(controller),
+              if (controller.isLoading.value ||
+                  controller.errorMessage.isNotEmpty)
+                _statusBanner(
+                  isLoading: controller.isLoading.value,
+                  message: controller.isLoading.value
+                      ? 'Loading concentration snapshot...'
+                      : controller.errorMessage.value,
                 ),
-                
-                // Fixed Data Rows - Editable
-                Expanded(
-                  child: Scrollbar(
-                    controller: _verticalLeftController,
-                    thumbVisibility: true,
-                    child: ListView.builder(
-                      controller: _verticalLeftController,
-                      itemCount: productData.length,
-                      itemBuilder: (_, i) => Container(
-                        height: rowH,
-                        decoration: BoxDecoration(
-                          color: i.isOdd ? Colors.white : Color(0xffF8F9FA),
+              _summaryCards(controller),
+              const SizedBox(height: 12),
+              Expanded(
+                child: rows.isEmpty
+                    ? _emptyState()
+                    : Container(
+                        decoration: AppTheme.cardDecoration.copyWith(
+                          border: Border.all(color: Colors.grey.shade300),
                         ),
-                        child: Row(children: [
-                          // # (Editable)
-                          _editableCell(
-                            value: productData[i][0],
-                            width: 60,
-                            alignment: Alignment.center,
-                            isLeftTable: true,
-                            rowIndex: i,
-                            colIndex: 0,
-                          ),
-
-                          // Product Name (Editable)
-                          _editableCell(
-                            value: productData[i][1],
-                            width: 180,
-                            alignment: Alignment.centerLeft,
-                            isLeftTable: true,
-                            rowIndex: i,
-                            colIndex: 1,
-                          ),
-
-                          // Conc. Unit (Editable)
-                          _editableCell(
-                            value: productData[i][2],
-                            width: 99,
-                            alignment: Alignment.center,
-                            isLeftTable: true,
-                            rowIndex: i,
-                            colIndex: 2,
-                          ),
-                        ]),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // ========== SCROLLABLE RIGHT ==========
-          Expanded(
-            child: Container(
-              color: Colors.white,
-              child: Column(
-                children: [
-                  // HEADERS SECTION (2 rows)
-                  SizedBox(
-                    height: headerH,
-                    child: Scrollbar(
-                      controller: _horizontalController,
-                      thumbVisibility: true,
-                      child: SingleChildScrollView(
-                        controller: _horizontalController,
-                        scrollDirection: Axis.horizontal,
-                        child: SizedBox(
-                          width: groupWidth * 5, // Fixed width for 5 groups
-                          child: Column(
-                            children: [
-                              // Main Group Titles Row
-                              Container(
-                                height: rowH,
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    colors: [
-                                      Color(0xff6C9BCF),
-                                      Color(0xff5A8BC5),
-                                    ],
-                                    begin: Alignment.centerLeft,
-                                    end: Alignment.centerRight,
-                                  ),
-                                ),
-                                child: Row(
-                                  children: [
-                                    _headerGroupTitle('Active System'),
-                                    _headerGroupTitle('Suction 4A'),
-                                    _headerGroupTitle('Suction 4B'),
-                                    _headerGroupTitle('Reserve 5A'),
-                                    _headerGroupTitle('Reserve 5B'),
-                                  ],
-                                ),
-                              ),
-                              // Sub Headers Row
-                              Container(
-                                height: rowH,
-                                child: Row(
-                                  children: [
-                                    _headerSubGroup(),
-                                    _headerSubGroup(),
-                                    _headerSubGroup(),
-                                    _headerSubGroup(),
-                                    _headerSubGroup(),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  
-                  // DATA ROWS SECTION (Editable)
-                  Expanded(
-                    child: Scrollbar(
-                      controller: _verticalRightController,
-                      thumbVisibility: true,
-                      child: SingleChildScrollView(
-                        controller: _verticalRightController,
-                        scrollDirection: Axis.vertical,
                         child: Scrollbar(
-                          controller: _horizontalController,
                           thumbVisibility: true,
                           child: SingleChildScrollView(
-                            controller: _horizontalController,
-                            scrollDirection: Axis.horizontal,
-                            child: SizedBox(
-                              width: groupWidth * 5, // Fixed width for 5 groups
-                              child: ListView.builder(
-                                shrinkWrap: true,
-                                physics: NeverScrollableScrollPhysics(),
-                                itemCount: productData.length,
-                                itemBuilder: (_, i) => Container(
-                                  height: rowH,
-                                  decoration: BoxDecoration(
-                                    color: i.isOdd ? Colors.white : Color(0xffF8F9FA),
-                                  ),
-                                  child: Row(
-                                    children: List.generate(
-                                      10, // 5 groups × 2 columns each = 10 columns
-                                      (j) => _editableCell(
-                                        value: productData[i][j + 3],
-                                        width: subColWidth,
-                                        alignment: Alignment.centerRight,
-                                        rowIndex: i,
-                                        colIndex: j,
-                                      ),
-                                    ),
-                                  ),
+                            padding: const EdgeInsets.only(right: 4),
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: SizedBox(
+                                width: 1170,
+                                child: Column(
+                                  children: [
+                                    _tableHeader(),
+                                    ...rows.asMap().entries.map((entry) {
+                                      return _tableRow(
+                                        index: entry.key,
+                                        row: entry.value,
+                                        system: controller.selectedSystem.value,
+                                      );
+                                    }),
+                                  ],
                                 ),
                               ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                  ),
-                ],
               ),
+            ],
+          ),
+        );
+      }),
+    );
+  }
+
+  Widget _headerCard(ReportConcentrationController controller) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: AppTheme.cardDecoration,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Current Concentration Snapshot',
+                  style: AppTheme.titleMedium.copyWith(fontSize: 16),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  controller.guidanceText,
+                  style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                ),
+              ],
             ),
+          ),
+          IconButton(
+            onPressed: controller.refreshData,
+            tooltip: 'Refresh concentration',
+            icon: const Icon(Icons.refresh, color: AppTheme.primaryColor),
           ),
         ],
       ),
     );
   }
 
+  Widget _summaryCards(ReportConcentrationController controller) {
+    final cards = <_SummaryCardData>[
+      _SummaryCardData(
+        title: 'Total Rows',
+        value: controller.currentRows.length.toString(),
+        color: AppTheme.primaryColor,
+      ),
+      _SummaryCardData(
+        title: 'Premixed',
+        value: controller.premixedCount.toString(),
+        color: AppTheme.secondaryColor,
+      ),
+      _SummaryCardData(
+        title: 'OBM',
+        value: controller.obmCount.toString(),
+        color: AppTheme.warningColor,
+      ),
+      _SummaryCardData(
+        title: 'Report',
+        value: controller.selectedReportLabel.isEmpty
+            ? 'Not selected'
+            : controller.selectedReportLabel,
+        color: AppTheme.infoColor,
+      ),
+    ];
+
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      children: cards.map((card) => _summaryCard(card)).toList(),
+    );
+  }
+
+  Widget _summaryCard(_SummaryCardData card) {
+    return Container(
+      width: 220,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: card.color.withOpacity(0.18)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            card.title,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            card.value,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: card.color,
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _tableHeader() {
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppTheme.primaryColor,
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(12),
+          topRight: Radius.circular(12),
+        ),
+      ),
+      child: Row(
+        children: const [
+          _TableCell(text: 'No', width: 60, isHeader: true),
+          _TableCell(text: 'Source', width: 110, isHeader: true),
+          _TableCell(text: 'Product', width: 240, isHeader: true),
+          _TableCell(text: 'Code / Mud Type', width: 180, isHeader: true),
+          _TableCell(text: 'SG / MW', width: 110, isHeader: true),
+          _TableCell(text: 'Value Type', width: 100, isHeader: true),
+          _TableCell(text: 'Current Value', width: 120, isHeader: true),
+          _TableCell(text: 'Unit', width: 90, isHeader: true),
+          _TableCell(text: 'System', width: 160, isHeader: true),
+        ],
+      ),
+    );
+  }
+
+  Widget _tableRow({
+    required int index,
+    required ReportConcentrationRow row,
+    required String system,
+  }) {
+    final background = index.isEven
+        ? Colors.white
+        : AppTheme.backgroundColor.withOpacity(0.45);
+    final sourceColor = row.sourceType == 'Premixed'
+        ? AppTheme.secondaryColor
+        : AppTheme.warningColor;
+
+    return Container(
+      color: background,
+      child: Row(
+        children: [
+          _TableCell(text: '${index + 1}', width: 60, background: background),
+          _TableCell(
+            width: 110,
+            background: background,
+            child: Align(
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: sourceColor.withOpacity(0.14),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: sourceColor.withOpacity(0.32)),
+                ),
+                child: Text(
+                  row.sourceType,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: sourceColor,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          _TableCell(
+            text: row.product,
+            width: 240,
+            alignment: Alignment.centerLeft,
+            background: background,
+          ),
+          _TableCell(
+            text: row.descriptor,
+            width: 180,
+            alignment: Alignment.centerLeft,
+            background: background,
+          ),
+          _TableCell(
+            text: _metricText(row.secondaryMetricLabel, row.secondaryMetric),
+            width: 110,
+            background: background,
+          ),
+          _TableCell(
+            text: row.primaryMetricLabel,
+            width: 100,
+            background: background,
+          ),
+          _TableCell(
+            text: _formatNumber(row.primaryMetric),
+            width: 120,
+            background: background,
+          ),
+          _TableCell(text: row.unit, width: 90, background: background),
+          _TableCell(
+            text: system,
+            width: 160,
+            alignment: Alignment.centerLeft,
+            background: background,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _statusBanner({required bool isLoading, required String message}) {
+    final background = isLoading
+        ? const Color(0xffEAF4FF)
+        : const Color(0xffFFF4E5);
+    final textColor = isLoading
+        ? const Color(0xff1F5E9C)
+        : const Color(0xff9A5A00);
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: background.withOpacity(0.9)),
+      ),
+      child: Text(
+        message,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: textColor,
+        ),
+      ),
+    );
+  }
+
+  Widget _emptyState() {
+    return Container(
+      width: double.infinity,
+      decoration: AppTheme.cardDecoration.copyWith(
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      alignment: Alignment.center,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.scatter_plot_outlined,
+            size: 48,
+            color: AppTheme.textSecondary.withOpacity(0.55),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'No concentration snapshot available',
+            style: AppTheme.titleMedium.copyWith(fontSize: 16),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Save premixed or OBM inventory rows to populate this table.',
+            style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _metricText(String label, double? value) {
+    if (value == null || value <= 0) {
+      return '-';
+    }
+    return '$label ${_formatNumber(value)}';
+  }
+
+  String _formatNumber(double value) {
+    return value
+        .toStringAsFixed(2)
+        .replaceAll(RegExp(r'0+$'), '')
+        .replaceAll(RegExp(r'\.$'), '');
+  }
+}
+
+class _SummaryCardData {
+  const _SummaryCardData({
+    required this.title,
+    required this.value,
+    required this.color,
+  });
+
+  final String title;
+  final String value;
+  final Color color;
+}
+
+class _TableCell extends StatelessWidget {
+  const _TableCell({
+    this.text,
+    required this.width,
+    this.isHeader = false,
+    this.alignment = Alignment.center,
+    this.background,
+    this.child,
+  });
+
+  final String? text;
+  final double width;
+  final bool isHeader;
+  final Alignment alignment;
+  final Color? background;
+  final Widget? child;
+
   @override
-  void dispose() {
-    _horizontalController.dispose();
-    _verticalLeftController.dispose();
-    _verticalRightController.dispose();
-    super.dispose();
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: 44,
+      alignment: alignment,
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      decoration: BoxDecoration(
+        color: isHeader ? Colors.transparent : background,
+        border: Border.all(
+          color: isHeader
+              ? Colors.white.withOpacity(0.22)
+              : Colors.grey.shade300,
+          width: 0.5,
+        ),
+      ),
+      child:
+          child ??
+          Text(
+            text ?? '',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: alignment == Alignment.centerLeft
+                ? TextAlign.left
+                : TextAlign.center,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: isHeader ? FontWeight.w700 : FontWeight.w500,
+              color: isHeader ? Colors.white : AppTheme.textPrimary,
+            ),
+          ),
+    );
   }
 }

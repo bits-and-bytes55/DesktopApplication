@@ -1,107 +1,140 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:mudpro_desktop_app/modules/daily_report/controller/report_concentration_controller.dart';
+import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class ConcentrationGraphTab extends StatelessWidget {
   const ConcentrationGraphTab({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: Color(0xffF8F9FA),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Color(0xffE2E8F0), width: 1),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 8,
-                offset: Offset(0, 2),
+    final controller = Get.isRegistered<ReportConcentrationController>()
+        ? Get.find<ReportConcentrationController>()
+        : Get.put(ReportConcentrationController());
+
+    return Scaffold(
+      backgroundColor: AppTheme.backgroundColor,
+      body: Obx(() {
+        final chartRows = controller.chartRows
+            .map(
+              (row) => _ConcentrationChartPoint(
+                label: _shortLabel(row.product),
+                metricLabel: row.primaryMetricLabel,
+                value: row.primaryMetric,
+                color: row.sourceType == 'Premixed'
+                    ? AppTheme.secondaryColor
+                    : AppTheme.warningColor,
               ),
-            ],
-          ),
+            )
+            .toList();
+
+        return Padding(
+          padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Graph Header
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                decoration: BoxDecoration(
-                  border: Border(
-                    bottom: BorderSide(color: Color(0xffE2E8F0), width: 1),
-                  ),
+              _headerCard(controller),
+              if (controller.isLoading.value ||
+                  controller.errorMessage.isNotEmpty)
+                _statusBanner(
+                  isLoading: controller.isLoading.value,
+                  message: controller.isLoading.value
+                      ? 'Loading concentration chart...'
+                      : controller.errorMessage.value,
                 ),
-                child: Row(
-                  children: [
-                    Icon(Icons.show_chart, color: Color(0xff6C9BCF), size: 20),
-                    SizedBox(width: 10),
-                    Text(
-                      'Concentration Graph - Active System',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xff2D3748),
-                      ),
+              if (chartRows.isEmpty)
+                Expanded(child: _emptyState())
+              else
+                Expanded(
+                  child: Container(
+                    decoration: AppTheme.cardDecoration.copyWith(
+                      border: Border.all(color: Colors.grey.shade300),
                     ),
-                    Spacer(),
-                    Container(
-                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Color(0xffF8F9FA),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: Color(0xffE2E8F0), width: 1),
-                      ),
-                      child: Text(
-                        'Depth (ft) vs Concentration (lb/bbl)',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Color(0xff718096),
-                          fontWeight: FontWeight.w500,
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Top concentration rows',
+                          style: AppTheme.titleMedium.copyWith(fontSize: 15),
                         ),
-                      ),
+                        const SizedBox(height: 4),
+                        Text(
+                          controller.guidanceText,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppTheme.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Expanded(
+                          child: CustomPaint(
+                            painter: _ConcentrationBarChartPainter(
+                              dataPoints: chartRows,
+                            ),
+                            child: Container(),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 12,
+                          runSpacing: 8,
+                          children: [
+                            _legendItem(
+                              'Premixed -> MW (ppg)',
+                              AppTheme.secondaryColor,
+                            ),
+                            _legendItem(
+                              'OBM -> Conc (lb/bbl)',
+                              AppTheme.warningColor,
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-              ),
-              
-              // Graph Area
-              Expanded(
-                child: Container(
-                  padding: EdgeInsets.all(20),
-                  child: CustomPaint(
-                    painter: _GraphPainter(),
-                    size: Size(MediaQuery.of(context).size.width - 80, 400),
                   ),
                 ),
-              ),
-              
-              // Legend
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                decoration: BoxDecoration(
-                  border: Border(
-                    top: BorderSide(color: Color(0xffE2E8F0), width: 1),
-                  ),
-                ),
-                child: Wrap(
-                  spacing: 20,
-                  runSpacing: 10,
-                  children: [
-                    _legendItem('Weight Material', Color(0xff6C9BCF)),
-                    _legendItem('Viscosifier', Color(0xffA8D5BA)),
-                    _legendItem('Common Chemical', Color(0xffFFB6C1)),
-                    _legendItem('LCM', Color(0xff38B2AC)),
-                    _legendItem('Defoamer', Color(0xffED8936)),
-                    _legendItem('Filtration Control', Color(0xff4299E1)),
-                    _legendItem('Others', Color(0xff9F7AEA)),
-                  ],
-                ),
-              ),
             ],
           ),
-        ),
+        );
+      }),
+    );
+  }
+
+  Widget _headerCard(ReportConcentrationController controller) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: AppTheme.cardDecoration,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Concentration Graph',
+                  style: AppTheme.titleMedium.copyWith(fontSize: 16),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  controller.summaryText,
+                  style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            onPressed: controller.refreshData,
+            tooltip: 'Refresh graph',
+            icon: const Icon(Icons.refresh, color: AppTheme.primaryColor),
+          ),
+        ],
       ),
     );
   }
@@ -118,95 +151,270 @@ class ConcentrationGraphTab extends StatelessWidget {
             borderRadius: BorderRadius.circular(3),
           ),
         ),
-        SizedBox(width: 8),
+        const SizedBox(width: 8),
         Text(
           text,
-          style: TextStyle(
-            fontSize: 12,
-            color: Color(0xff718096),
-          ),
+          style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
         ),
       ],
     );
   }
+
+  Widget _statusBanner({required bool isLoading, required String message}) {
+    final background = isLoading
+        ? const Color(0xffEAF4FF)
+        : const Color(0xffFFF4E5);
+    final textColor = isLoading
+        ? const Color(0xff1F5E9C)
+        : const Color(0xff9A5A00);
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: background.withOpacity(0.9)),
+      ),
+      child: Text(
+        message,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: textColor,
+        ),
+      ),
+    );
+  }
+
+  Widget _emptyState() {
+    return Container(
+      width: double.infinity,
+      decoration: AppTheme.cardDecoration.copyWith(
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      alignment: Alignment.center,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.bar_chart_outlined,
+            size: 52,
+            color: AppTheme.textSecondary.withOpacity(0.55),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'No chartable concentration values found',
+            style: AppTheme.titleMedium.copyWith(fontSize: 16),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Add MW or concentration values in UG inventory to populate this graph.',
+            style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _shortLabel(String value) {
+    final trimmed = value.trim();
+    if (trimmed.length <= 12) {
+      return trimmed;
+    }
+    return '${trimmed.substring(0, 12)}...';
+  }
 }
 
-class _GraphPainter extends CustomPainter {
+class _ConcentrationChartPoint {
+  const _ConcentrationChartPoint({
+    required this.label,
+    required this.metricLabel,
+    required this.value,
+    required this.color,
+  });
+
+  final String label;
+  final String metricLabel;
+  final double value;
+  final Color color;
+}
+
+class _ConcentrationBarChartPainter extends CustomPainter {
+  const _ConcentrationBarChartPainter({required this.dataPoints});
+
+  final List<_ConcentrationChartPoint> dataPoints;
+
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint();
-    
-    // Draw background
-    paint.color = Colors.white;
-    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), paint);
-    
-    // Draw grid lines
-    paint.color = Color(0xffE2E8F0);
-    paint.strokeWidth = 0.5;
-    
-    // Vertical grid lines
-    for (double x = 60; x < size.width; x += 60) {
-      canvas.drawLine(Offset(x, 20), Offset(x, size.height - 40), paint);
-    }
-    
-    // Horizontal grid lines
-    for (double y = 20; y < size.height - 40; y += 40) {
-      canvas.drawLine(Offset(60, y), Offset(size.width - 20, y), paint);
-    }
-    
-    // Draw axes
-    paint.color = Color(0xff2D3748);
-    paint.strokeWidth = 1.5;
-    
-    // Y axis
-    canvas.drawLine(
-      Offset(60, 20),
-      Offset(60, size.height - 40),
-      paint,
+    const leftPadding = 74.0;
+    const bottomPadding = 58.0;
+    const topPadding = 28.0;
+    const rightPadding = 20.0;
+
+    final backgroundPaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
+    canvas.drawRect(
+      Rect.fromLTWH(0, 0, size.width, size.height),
+      backgroundPaint,
     );
-    
-    // X axis
-    canvas.drawLine(
-      Offset(60, size.height - 40),
-      Offset(size.width - 20, size.height - 40),
-      paint,
-    );
-    
-    // Draw sample data lines with theme colors
-    final colors = [
-      Color(0xff6C9BCF),    // Weight Material
-      Color(0xffA8D5BA),    // Viscosifier
-      Color(0xffFFB6C1),    // Common Chemical
-      Color(0xff38B2AC),    // LCM
-      Color(0xffED8936),    // Defoamer
-      Color(0xff4299E1),    // Filtration Control
-    ];
-    
-    for (int lineIndex = 0; lineIndex < colors.length; lineIndex++) {
-      paint.color = colors[lineIndex];
-      paint.strokeWidth = 2.0;
-      paint.style = PaintingStyle.stroke;
-      
-      final path = Path();
-      final startY = size.height - 40 - (100 * (lineIndex + 1) / 20) * (size.height - 60) / 1000;
-      path.moveTo(60, startY);
-      
-      for (int i = 1; i <= 6; i++) {
-        final x = 60 + (i * (size.width - 80) / 6);
-        final yVariation = (lineIndex + 1) * 20 * (i % 3 == 0 ? 1 : -1);
-        final y = startY - (yVariation / 1000) * (size.height - 60);
-        path.lineTo(x, y);
-        
-        // Draw data points
-        paint.style = PaintingStyle.fill;
-        canvas.drawCircle(Offset(x, y), 4, paint);
-        paint.style = PaintingStyle.stroke;
-      }
-      
-      canvas.drawPath(path, paint);
+
+    if (dataPoints.isEmpty) {
+      _drawText(
+        canvas,
+        'No concentration values available',
+        Offset(size.width / 2 - 92, size.height / 2 - 10),
+        TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: AppTheme.textSecondary,
+        ),
+      );
+      return;
     }
+
+    final chartWidth = size.width - leftPadding - rightPadding;
+    final chartHeight = size.height - topPadding - bottomPadding;
+    final maxValue = math.max(
+      1,
+      dataPoints.map((point) => point.value).reduce(math.max),
+    );
+
+    final axisPaint = Paint()
+      ..color = AppTheme.textPrimary
+      ..strokeWidth = 2;
+    final gridPaint = Paint()
+      ..color = Colors.grey.shade200
+      ..strokeWidth = 0.8;
+
+    for (int i = 0; i <= 5; i++) {
+      final y = topPadding + chartHeight * i / 5;
+      canvas.drawLine(
+        Offset(leftPadding, y),
+        Offset(leftPadding + chartWidth, y),
+        gridPaint,
+      );
+
+      final label = _formatNumber(maxValue * (1 - (i / 5)));
+      _drawText(
+        canvas,
+        label,
+        Offset(18, y - 6),
+        TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+      );
+    }
+
+    canvas.drawLine(
+      Offset(leftPadding, topPadding),
+      Offset(leftPadding, topPadding + chartHeight),
+      axisPaint,
+    );
+    canvas.drawLine(
+      Offset(leftPadding, topPadding + chartHeight),
+      Offset(leftPadding + chartWidth, topPadding + chartHeight),
+      axisPaint,
+    );
+
+    final step = chartWidth / dataPoints.length;
+    final barWidth = step * 0.58;
+
+    for (int i = 0; i < dataPoints.length; i++) {
+      final point = dataPoints[i];
+      final left = leftPadding + (i * step) + (step - barWidth) / 2;
+      final normalizedHeight = point.value / maxValue;
+      final barHeight = normalizedHeight * chartHeight;
+      final top = topPadding + chartHeight - barHeight;
+
+      final barRect = RRect.fromRectAndRadius(
+        Rect.fromLTWH(left, top, barWidth, barHeight),
+        const Radius.circular(6),
+      );
+
+      final barPaint = Paint()
+        ..shader = LinearGradient(
+          colors: [point.color.withOpacity(0.78), point.color],
+          begin: Alignment.bottomCenter,
+          end: Alignment.topCenter,
+        ).createShader(Rect.fromLTWH(left, top, barWidth, barHeight));
+
+      canvas.drawRRect(barRect, barPaint);
+
+      _drawText(
+        canvas,
+        point.label,
+        Offset(left - 4, size.height - 32),
+        TextStyle(fontSize: 10, color: AppTheme.textSecondary),
+      );
+      _drawText(
+        canvas,
+        '${_formatNumber(point.value)} ${point.metricLabel}',
+        Offset(left - 6, top - 18),
+        TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          color: point.color,
+        ),
+      );
+    }
+
+    _drawText(
+      canvas,
+      'Current Value',
+      Offset(16, topPadding + chartHeight / 2 - 28),
+      TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+        color: AppTheme.textPrimary,
+      ),
+      rotate: true,
+    );
+    _drawText(
+      canvas,
+      'Products',
+      Offset(leftPadding + chartWidth / 2 - 24, size.height - 12),
+      TextStyle(
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+        color: AppTheme.textPrimary,
+      ),
+    );
+  }
+
+  void _drawText(
+    Canvas canvas,
+    String text,
+    Offset position,
+    TextStyle style, {
+    bool rotate = false,
+  }) {
+    final painter = TextPainter(
+      text: TextSpan(text: text, style: style),
+      textDirection: TextDirection.ltr,
+    );
+    painter.layout();
+
+    canvas.save();
+    if (rotate) {
+      canvas.translate(position.dx, position.dy);
+      canvas.rotate(-1.5708);
+      painter.paint(canvas, Offset.zero);
+    } else {
+      painter.paint(canvas, position);
+    }
+    canvas.restore();
+  }
+
+  String _formatNumber(double value) {
+    return value
+        .toStringAsFixed(2)
+        .replaceAll(RegExp(r'0+$'), '')
+        .replaceAll(RegExp(r'\.$'), '');
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _ConcentrationBarChartPainter oldDelegate) {
+    return oldDelegate.dataPoints != dataPoints;
+  }
 }

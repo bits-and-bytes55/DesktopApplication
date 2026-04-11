@@ -1,9 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
+
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:mudpro_desktop_app/api_endpoint/api_endpoint.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/model/nozzle_model.dart';
+import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
+import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
 class NozzleController extends GetxController {
   final String baseUrl = ApiEndpoint.baseUrl;
@@ -13,41 +16,60 @@ class NozzleController extends GetxController {
   final isLoading = false.obs;
   final isSaving = false.obs;
 
-  String? _savedId; // ID of currently saved nozzle record
+  String? _savedId;
   Timer? _debounceTimer;
+  Worker? _wellWorker;
+  Worker? _reportWorker;
 
   static const int _minRows = 3;
 
   Map<String, String> get _headers => {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      };
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+  };
+
+  String get _currentWellId => padWellContext.selectedWellId.value.trim();
+
+  String? get _currentReportId {
+    final reportId = reportContext.selectedReportId.value.trim();
+    return reportId.isEmpty ? null : reportId;
+  }
+
+  String? get _currentReportNo {
+    final reportNo = reportContext.selectedReportNumber.trim();
+    return reportNo.isEmpty ? null : reportNo;
+  }
 
   @override
   void onInit() {
     super.onInit();
-    _initEmptyRows();
+    _resetState();
+    _wellWorker = ever<String>(padWellContext.selectedWellId, (_) {
+      fetchNozzle(forceReset: true);
+    });
+    _reportWorker = ever<String>(reportContext.selectedReportId, (_) {
+      fetchNozzle(forceReset: true);
+    });
     fetchNozzle();
   }
 
   @override
   void onClose() {
     _debounceTimer?.cancel();
+    _wellWorker?.dispose();
+    _reportWorker?.dispose();
     super.onClose();
   }
 
-  void _initEmptyRows() {
+  void _resetState() {
     entries.clear();
     for (int i = 0; i < _minRows; i++) {
       entries.add(NozzleEntry());
     }
+    _savedId = null;
+    tfa.value = 0;
   }
 
-  // ─── AUTO-CALCULATE TFA LOCALLY (same formula as backend) ───────
-  // diameter = size32 / 32
-  // area = (π × diameter²) / 4
-  // totalArea per row = area × count
-  // TFA = sum of all totalAreas
   void recalculateTfa() {
     double total = 0;
     for (final entry in entries) {
@@ -67,7 +89,6 @@ class NozzleController extends GetxController {
     tfa.value = double.parse(total.toStringAsFixed(4));
   }
 
-  // Called on every cell change
   void onCellChanged(int rowIndex) {
     recalculateTfa();
     _ensureExtraRow();
@@ -75,13 +96,11 @@ class NozzleController extends GetxController {
   }
 
   void _ensureExtraRow() {
-    // Add new row if last row has data
     if (entries.isNotEmpty && entries.last.hasData) {
       entries.add(NozzleEntry());
     }
   }
 
-  // ─── DEBOUNCED AUTO-SAVE (800ms after last change) ──────────────
   void _scheduleAutoSave() {
     _debounceTimer?.cancel();
     _debounceTimer = Timer(const Duration(milliseconds: 800), () async {
@@ -89,83 +108,97 @@ class NozzleController extends GetxController {
     });
   }
 
-  // ─── FETCH ──────────────────────────────────────────────────────
-  Future<void> fetchNozzle() async {
+  Future<void> fetchNozzle({bool forceReset = false}) async {
+    if (_currentWellId.isEmpty) {
+      _resetState();
+      return;
+    }
+
     try {
       isLoading.value = true;
-      final response = await http.get(
-        Uri.parse('${baseUrl}nozzle'),
-        headers: _headers,
+      if (forceReset) {
+        _savedId = null;
+      }
+
+      final uri = Uri.parse('${baseUrl}nozzle').replace(
+        queryParameters: {
+          'wellId': _currentWellId,
+          if (_currentReportId != null) 'reportId': _currentReportId!,
+          if (_currentReportNo != null) 'reportNo': _currentReportNo!,
+        },
       );
 
-      print('Nozzle fetch: ${response.statusCode} ${response.body}');
+      final response = await http.get(uri, headers: _headers);
 
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body);
         final List data = json['data'] ?? [];
-        if (data.isNotEmpty) {
-          final model = NozzleModel.fromJson(data.first);
-          _savedId = model.id;
-          tfa.value = model.tfa;
-
-          entries.clear();
-          for (final n in model.nozzles) {
-            entries.add(n);
-          }
-          // Ensure minimum rows
-          while (entries.length < _minRows) {
-            entries.add(NozzleEntry());
-          }
-          // Add trailing empty row if last has data
-          if (entries.isNotEmpty && entries.last.hasData) {
-            entries.add(NozzleEntry());
-          }
+        if (data.isEmpty) {
+          _resetState();
+          return;
         }
+
+        final raw = data.first;
+        final model = NozzleModel.fromJson(
+          raw is Map<String, dynamic>
+              ? raw
+              : Map<String, dynamic>.from(raw as Map),
+        );
+        _savedId = model.id;
+        tfa.value = model.tfa;
+
+        entries.clear();
+        entries.addAll(model.nozzles);
+        while (entries.length < _minRows) {
+          entries.add(NozzleEntry());
+        }
+        if (entries.isNotEmpty && entries.last.hasData) {
+          entries.add(NozzleEntry());
+        }
+        return;
       }
+
+      _resetState();
     } catch (e) {
       print('Nozzle fetch error: $e');
+      _resetState();
     } finally {
       isLoading.value = false;
     }
   }
 
-  // ─── SAVE (POST if new, PUT if exists) ──────────────────────────
   Future<void> _saveToServer() async {
     final nozzlesWithData = entries.where((e) => e.hasData).toList();
-    if (nozzlesWithData.isEmpty) return;
+    if (nozzlesWithData.isEmpty || _currentWellId.isEmpty) return;
 
     try {
       isSaving.value = true;
 
       final body = jsonEncode({
+        'wellId': _currentWellId,
+        if (_currentReportId != null) 'reportId': _currentReportId,
+        if (_currentReportNo != null) 'reportNo': _currentReportNo,
         'nozzles': nozzlesWithData.map((e) => e.toJson()).toList(),
       });
 
-      http.Response response;
-
-      if (_savedId != null && _savedId!.isNotEmpty) {
-        // UPDATE
-        response = await http.put(
-          Uri.parse('${baseUrl}nozzle/${_savedId}'),
-          headers: _headers,
-          body: body,
-        );
-      } else {
-        // CREATE
-        response = await http.post(
-          Uri.parse('${baseUrl}nozzle/well'),
-          headers: _headers,
-          body: body,
-        );
-      }
-
-      print('Nozzle save: ${response.statusCode} ${response.body}');
+      final response = _savedId != null && _savedId!.isNotEmpty
+          ? await http.put(
+              Uri.parse('${baseUrl}nozzle/${_savedId!}'),
+              headers: _headers,
+              body: body,
+            )
+          : await http.post(
+              Uri.parse('${baseUrl}nozzle/well'),
+              headers: _headers,
+              body: body,
+            );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final json = jsonDecode(response.body);
-        final model = NozzleModel.fromJson(json['data']);
+        final model = NozzleModel.fromJson(
+          Map<String, dynamic>.from(json['data'] as Map),
+        );
         _savedId = model.id;
-        // Update TFA from server response (authoritative)
         tfa.value = model.tfa;
       }
     } catch (e) {
@@ -175,6 +208,5 @@ class NozzleController extends GetxController {
     }
   }
 
-  // Public method to trigger manual save if needed
   Future<void> saveNow() => _saveToServer();
 }

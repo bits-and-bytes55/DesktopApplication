@@ -91,6 +91,9 @@ const formatDate = (value, fallback = "") => {
 };
 const safeFilename = (value) =>
   text(value, "report").replace(/[<>:\"/\\\\|?*\\u0000-\\u001F]+/g, "_");
+const legacyReportScope = () => ({
+  $or: [{ reportId: { $exists: false } }, { reportId: null }],
+});
 const getPitVolume = (pit) => pit.volume || pit.capacity || "";
 const getActivePitVolume = (pit) => toNumber(pit.volume || pit.capacity);
 const setCellValue = (ws, address, value = "") => {
@@ -453,6 +456,24 @@ const fillInventorySheet = (ws, { products, services, engineers, activePits, res
   );
 };
 
+const loadExportPumps = async ({ wellId, reportId }) => {
+  if (!wellId) return [];
+
+  if (reportId) {
+    const scoped = await Pump.find({ wellId, reportId })
+      .sort({ rowNumber: 1, createdAt: 1, _id: 1 })
+      .lean();
+
+    if (scoped.length > 0) {
+      return scoped;
+    }
+  }
+
+  return Pump.find({ wellId, ...legacyReportScope() })
+    .sort({ rowNumber: 1, createdAt: 1, _id: 1 })
+    .lean();
+};
+
 export const exportInventoryReport = async (req, res) => {
   try {
     const { wellId } = req.params;
@@ -471,7 +492,7 @@ export const exportInventoryReport = async (req, res) => {
       Well.findById(wellId).lean(),
       DrillString.find().sort({ createdAt: 1 }).limit(8).lean(),
       Casing.find({ wellId }).sort({ createdAt: 1 }).limit(8).lean(),
-      Pump.find({ wellId }).sort({ rowNumber: 1 }).lean(),
+      loadExportPumps({ wellId, reportId }),
       ConsumeProduct.find({ wellId }).sort({ createdAt: -1 }).lean(),
       AddWater.find({ wellId }).sort({ createdAt: -1 }).lean(),
       ReceiveMud.find({ wellId }).sort({ createdAt: -1 }).lean(),
