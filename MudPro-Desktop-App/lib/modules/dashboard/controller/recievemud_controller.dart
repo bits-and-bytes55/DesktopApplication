@@ -5,7 +5,6 @@ import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/inventory_model.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/pit_model.dart';
-import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
 class ReceiveMudController extends GetxController {
@@ -49,15 +48,9 @@ class ReceiveMudController extends GetxController {
   final recordId = RxnString(null);
   Timer? _debounceTimer;
   bool _isProgrammaticUpdate = false;
-  Worker? _wellWorker;
-  Worker? _reportWorker;
 
   // Well ID 
   String get wellId => currentBackendWellId;
-  String? get _currentReportId {
-    final reportId = reportContext.selectedReportId.value.trim();
-    return reportId.isEmpty ? null : reportId;
-  }
   
   @override
   void onInit() {
@@ -75,22 +68,12 @@ class ReceiveMudController extends GetxController {
     ever(selectedPremixedId, (_) => triggerAutoSave());
     ever(selectedToDestination, (_) => triggerAutoSave());
     ever(hasLossVolume, (_) => triggerAutoSave());
-    _wellWorker = ever<String>(padWellContext.selectedWellId, (_) {
-      _clearFormSilently();
-      _loadInitialData();
-    });
-    _reportWorker = ever<String>(reportContext.selectedReportId, (_) {
-      _clearFormSilently();
-      _loadInitialData();
-    });
     
     _loadInitialData();
   }
   
   @override
   void onClose() {
-    _wellWorker?.dispose();
-    _reportWorker?.dispose();
     _debounceTimer?.cancel();
     bolNoController.dispose();
     fromController.dispose();
@@ -123,11 +106,7 @@ class ReceiveMudController extends GetxController {
         bolNoController.text.isEmpty) {
       if (recordId.value != null) {
          try {
-           final res = await _repository.deleteReceiveMud(
-             wellId,
-             recordId.value!,
-             reportId: _currentReportId,
-           );
+           final res = await _repository.deleteReceiveMud(wellId, recordId.value!);
            if (res['success'] == true) {
              print('✅ Automatically deleted cleared Receive Mud row');
              recordId.value = null;
@@ -160,25 +139,15 @@ class ReceiveMudController extends GetxController {
             ? (double.tryParse(lossVolumeController.text) ?? 0.0)
             : 0,
         'wellId': wellId,
-        if (_currentReportId != null) 'reportId': _currentReportId,
       };
 
       if (recordId.value != null) {
-         final res = await _repository.updateReceiveMud(
-           wellId,
-           recordId.value!,
-           data,
-           reportId: _currentReportId,
-         );
+         final res = await _repository.updateReceiveMud(wellId, recordId.value!, data);
          if (res['success'] == true) {
              print('✅ Auto-updated Receive Mud');
          }
       } else {
-         final res = await _repository.createReceiveMud(
-           wellId,
-           data,
-           reportId: _currentReportId,
-         );
+         final res = await _repository.createReceiveMud(wellId, data);
          if (res['success'] == true && res['data'] != null && res['data'].isNotEmpty) {
              final item = res['data'].firstWhere((e) => true, orElse: () => null); // data is an array
              if (item != null) recordId.value = item['_id'];
@@ -213,10 +182,7 @@ class ReceiveMudController extends GetxController {
   Future<void> _loadReceiveMudData() async {
     if (wellId.isEmpty) return;
     try {
-      final res = await _repository.getReceiveMudList(
-        wellId,
-        reportId: _currentReportId,
-      );
+      final res = await _repository.getReceiveMudList(wellId);
       if (res['success'] == true && res['data'] != null) {
         final items = res['data'] as List;
         if (items.isNotEmpty) {
@@ -365,27 +331,6 @@ class ReceiveMudController extends GetxController {
     _isProgrammaticUpdate = false;
     
     triggerAutoSave(); // which evaluates deletion logic
-  }
-
-  void _clearFormSilently() {
-    _isProgrammaticUpdate = true;
-    recordId.value = null;
-    bolNoController.clear();
-    fromController.clear();
-    toController.clear();
-    volController.clear();
-    lossVolumeController.clear();
-    mwController.clear();
-    mudTypeController.clear();
-    leasingFeeController.clear();
-    selectedPremixedId.value = '';
-    selectedPitId.value = '';
-    selectedPremixed.value = null;
-    selectedPit.value = null;
-    selectedToDestination.value = '';
-    isLeased.value = true;
-    hasLossVolume.value = false;
-    _isProgrammaticUpdate = false;
   }
   
   // ================= REFRESH DATA =================

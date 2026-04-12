@@ -20,6 +20,7 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
   Map<String, List<Map<String, dynamic>>> _groupedData = {};
   bool _isLoading = true;
   String _errorMessage = '';
+  String _emptyMessage = '';
 
   double _subtotal = 0;
   double _taxRate = 0;
@@ -44,18 +45,20 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
     setState(() {
       _isLoading = true;
       _errorMessage = '';
+      _emptyMessage = '';
     });
 
     try {
       final result = await _inventoryController.getInventorySnapshot();
       if (result['success'] != true) {
-        throw Exception(result['message'] ?? 'Failed to load inventory snapshot');
+        throw Exception(
+          result['message'] ?? 'Failed to load inventory snapshot',
+        );
       }
 
-      final data =
-          (result['items'] as List<dynamic>? ?? const [])
-              .map((e) => Map<String, dynamic>.from(e as Map))
-              .toList();
+      final data = (result['items'] as List<dynamic>? ?? const [])
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
       final summary = Map<String, dynamic>.from(
         result['summary'] as Map? ?? const <String, dynamic>{},
       );
@@ -72,6 +75,10 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
           _intervalTotal = 0;
           _stockBalance = 0;
           _bulkSetupFee = 0;
+          _emptyMessage =
+              (result['message']?.toString().trim().isNotEmpty ?? false)
+              ? result['message'].toString()
+              : 'No inventory snapshot data is available for the selected well.';
           _isLoading = false;
         });
         return;
@@ -127,21 +134,21 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
   static const double rowHeight = 32;
 
   final List<double> col = [
-    60,  // 0  #
+    60, // 0  #
     120, // 1  Category
     120, // 2  Item
-    75,  // 3  Code
-    75,  // 4  Unit
-    75,  // 5  Price
-    75,  // 6  Cum Rec
-    75,  // 7  Cum Ret
-    75,  // 8  Cum Used
-    75,  // 9  Initial
-    75,  // 10 Rec
-    75,  // 11 Ret
-    75,  // 12 Adj
-    75,  // 13 Used
-    75,  // 14 Final
+    75, // 3  Code
+    75, // 4  Unit
+    75, // 5  Price
+    75, // 6  Cum Rec
+    75, // 7  Cum Ret
+    75, // 8  Cum Used
+    75, // 9  Initial
+    75, // 10 Rec
+    75, // 11 Ret
+    75, // 12 Adj
+    75, // 13 Used
+    75, // 14 Final
     90, // 15 Subtotal
     90, // 16 Cost ($)
     120, // 17 Total ($)
@@ -221,41 +228,47 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
               end: Alignment.centerRight,
             ),
           ),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-            h('#',        col[0],  isHeader: true),
-            h('Category', col[1],  isHeader: true),
-            h('Item',     col[2],  isHeader: true),
-            h('Code',     col[3],  isHeader: true),
-            h('Unit',     col[4],  isHeader: true),
-            h('Price',    col[5],  isHeader: true),
-            // Cumulative span (3 sub-cols)
-            Container(
-              width: col[6] + col[7] + col[8],
-              height: rowHeight,
-              alignment: Alignment.center,
-              padding: const EdgeInsets.symmetric(horizontal: 6),
-              decoration: BoxDecoration(
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.3),
-                  width: 0.5,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              h('#', col[0], isHeader: true),
+              h('Category', col[1], isHeader: true),
+              h('Item', col[2], isHeader: true),
+              h('Code', col[3], isHeader: true),
+              h('Unit', col[4], isHeader: true),
+              h('Price', col[5], isHeader: true),
+              // Cumulative span (3 sub-cols)
+              Container(
+                width: col[6] + col[7] + col[8],
+                height: rowHeight,
+                alignment: Alignment.center,
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.3),
+                    width: 0.5,
+                  ),
+                ),
+                child: const Text(
+                  'Cumulative',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
                 ),
               ),
-              child: const Text('Cumulative',
-                  style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white)),
-            ),
-            h('Initial',    col[9],  isHeader: true),
-            h('Rec.',       col[10], isHeader: true),
-            h('Ret.',       col[11], isHeader: true),
-            h('Adj.',       col[12], isHeader: true),
-            h('Used',       col[13], isHeader: true),
-            h('Final',      col[14], isHeader: true),
-            h('Subtotal',   col[15], isHeader: true),
-            h('Cost (\$)',  col[16], isHeader: true),
-            h('Total (\$)', col[17], isHeader: true),
-          ]),
+              h('Initial', col[9], isHeader: true),
+              h('Rec.', col[10], isHeader: true),
+              h('Ret.', col[11], isHeader: true),
+              h('Adj.', col[12], isHeader: true),
+              h('Used', col[13], isHeader: true),
+              h('Final', col[14], isHeader: true),
+              h('Subtotal', col[15], isHeader: true),
+              h('Cost (\$)', col[16], isHeader: true),
+              h('Total (\$)', col[17], isHeader: true),
+            ],
+          ),
         ),
 
         // ── Row 2: sub-labels ──
@@ -268,26 +281,28 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
               end: Alignment.centerRight,
             ),
           ),
-          child: Row(children: [
-            cell('', col[0],  isHeader: true),
-            cell('', col[1],  isHeader: true),
-            cell('', col[2],  isHeader: true),
-            cell('', col[3],  isHeader: true),
-            cell('', col[4],  isHeader: true),
-            cell('', col[5],  isHeader: true),
-            h('Rec.',  col[6],  isHeader: true),
-            h('Ret.',  col[7],  isHeader: true),
-            h('Used',  col[8],  isHeader: true),
-            cell('', col[9],  isHeader: true),
-            cell('', col[10], isHeader: true),
-            cell('', col[11], isHeader: true),
-            cell('', col[12], isHeader: true),
-            cell('', col[13], isHeader: true),
-            cell('', col[14], isHeader: true),
-            cell('', col[15], isHeader: true),
-            cell('', col[16], isHeader: true),
-            cell('', col[17], isHeader: true),
-          ]),
+          child: Row(
+            children: [
+              cell('', col[0], isHeader: true),
+              cell('', col[1], isHeader: true),
+              cell('', col[2], isHeader: true),
+              cell('', col[3], isHeader: true),
+              cell('', col[4], isHeader: true),
+              cell('', col[5], isHeader: true),
+              h('Rec.', col[6], isHeader: true),
+              h('Ret.', col[7], isHeader: true),
+              h('Used', col[8], isHeader: true),
+              cell('', col[9], isHeader: true),
+              cell('', col[10], isHeader: true),
+              cell('', col[11], isHeader: true),
+              cell('', col[12], isHeader: true),
+              cell('', col[13], isHeader: true),
+              cell('', col[14], isHeader: true),
+              cell('', col[15], isHeader: true),
+              cell('', col[16], isHeader: true),
+              cell('', col[17], isHeader: true),
+            ],
+          ),
         ),
       ],
     );
@@ -297,43 +312,50 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
   //  DATA ROW
   // ─────────────────────────────────────────────
   Widget dataRow(int rowIndex, Map<String, dynamic> item, Color bg) {
-    final code     = item['code']?.toString() ?? '';
-    final unit     = item['unit']?.toString() ?? '';
-    final price    = _fmt(item['price']);
-    final cumRec   = _fmt(item['cumulativeRec'],  decimals: 0);
-    final cumRet   = _fmt(item['cumulativeRet'],  decimals: 0);
-    final cumUsed  = _fmt(item['cumulativeUsed'], decimals: 0);
-    final initial  = _fmt(item['initial'],        decimals: 0);
-    final rec      = _fmt(item['rec'],            decimals: 0);
-    final ret      = _fmt(item['ret'],            decimals: 0);
-    final adj      = _fmt(item['adj'],            decimals: 0);
-    final used     = _fmt(item['used'],           decimals: 0);
-    final finalVal = _fmt(item['final'],          decimals: 0);
+    final code = item['code']?.toString() ?? '';
+    final unit = item['unit']?.toString() ?? '';
+    final price = _fmt(item['price']);
+    final cumRec = _fmt(item['cumulativeRec'], decimals: 0);
+    final cumRet = _fmt(item['cumulativeRet'], decimals: 0);
+    final cumUsed = _fmt(item['cumulativeUsed'], decimals: 0);
+    final initial = _fmt(item['initial'], decimals: 0);
+    final rec = _fmt(item['rec'], decimals: 0);
+    final ret = _fmt(item['ret'], decimals: 0);
+    final adj = _fmt(item['adj'], decimals: 0);
+    final used = _fmt(item['used'], decimals: 0);
+    final finalVal = _fmt(item['final'], decimals: 0);
     final subtotal = _fmt(item['subtotal']);
-    final costVal  = _fmt(item['costDollar']);
+    final costVal = _fmt(item['costDollar']);
 
     return Container(
       color: bg,
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        cell('$rowIndex',                        col[0]),
-        cell('',                                 col[1]),  // overlay handles category
-        cell(item['itemName']?.toString() ?? '', col[2],  a: Alignment.centerLeft),
-        cell(code,     col[3],  a: Alignment.centerLeft),
-        cell(unit,     col[4],  a: Alignment.center),
-        cell(price,    col[5],  a: Alignment.centerRight),
-        cell(cumRec,   col[6],  a: Alignment.centerRight),
-        cell(cumRet,   col[7],  a: Alignment.centerRight),
-        cell(cumUsed,  col[8],  a: Alignment.centerRight),
-        cell(initial,  col[9],  a: Alignment.centerRight),
-        cell(rec,      col[10], a: Alignment.centerRight),
-        cell(ret,      col[11], a: Alignment.centerRight),
-        cell(adj,      col[12], a: Alignment.centerRight),
-        cell(used,     col[13], a: Alignment.centerRight),
-        cell(finalVal, col[14], a: Alignment.centerRight),
-        cell(subtotal, col[15], a: Alignment.centerRight),
-        cell(costVal,  col[16], a: Alignment.centerRight),
-        cell('',       col[17], a: Alignment.centerRight),  // overlay handles total
-      ]),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          cell('$rowIndex', col[0]),
+          cell('', col[1]), // overlay handles category
+          cell(
+            item['itemName']?.toString() ?? '',
+            col[2],
+            a: Alignment.centerLeft,
+          ),
+          cell(code, col[3], a: Alignment.centerLeft),
+          cell(unit, col[4], a: Alignment.center),
+          cell(price, col[5], a: Alignment.centerRight),
+          cell(cumRec, col[6], a: Alignment.centerRight),
+          cell(cumRet, col[7], a: Alignment.centerRight),
+          cell(cumUsed, col[8], a: Alignment.centerRight),
+          cell(initial, col[9], a: Alignment.centerRight),
+          cell(rec, col[10], a: Alignment.centerRight),
+          cell(ret, col[11], a: Alignment.centerRight),
+          cell(adj, col[12], a: Alignment.centerRight),
+          cell(used, col[13], a: Alignment.centerRight),
+          cell(finalVal, col[14], a: Alignment.centerRight),
+          cell(subtotal, col[15], a: Alignment.centerRight),
+          cell(costVal, col[16], a: Alignment.centerRight),
+          cell('', col[17], a: Alignment.centerRight), // overlay handles total
+        ],
+      ),
     );
   }
 
@@ -341,39 +363,47 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
   //  SUMMARY ROW
   // ─────────────────────────────────────────────
   Widget summaryRow(String label, String value) {
-    return Row(children: [
-      Expanded(
-        child: Container(
+    return Row(
+      children: [
+        Expanded(
+          child: Container(
+            height: rowHeight,
+            alignment: Alignment.centerLeft,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              border: Border.all(color: Colors.grey.shade200, width: 0.5),
+            ),
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: Colors.grey.shade700,
+              ),
+            ),
+          ),
+        ),
+        Container(
+          width: col.last,
           height: rowHeight,
-          alignment: Alignment.centerLeft,
+          alignment: Alignment.centerRight,
           padding: const EdgeInsets.symmetric(horizontal: 8),
           decoration: BoxDecoration(
             color: Colors.grey.shade50,
             border: Border.all(color: Colors.grey.shade200, width: 0.5),
           ),
-          child: Text(label,
-              style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.grey.shade700)),
-        ),
-      ),
-      Container(
-        width: col.last,
-        height: rowHeight,
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        decoration: BoxDecoration(
-          color: Colors.grey.shade50,
-          border: Border.all(color: Colors.grey.shade200, width: 0.5),
-        ),
-        child: Text(value,
+          child: Text(
+            value,
             style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: Color(0xff6C9BCF))),
-      ),
-    ]);
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: Color(0xff6C9BCF),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   // ─────────────────────────────────────────────
@@ -507,8 +537,10 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
     return Scaffold(
       backgroundColor: const Color(0xffFAF9F6),
       appBar: AppBar(
-        title: Text('Inventory Snapshot',
-            style: TextStyle(color: Colors.blue[900])),
+        title: Text(
+          'Inventory Snapshot',
+          style: TextStyle(color: Colors.blue[900]),
+        ),
         backgroundColor: const Color(0xffFAF9F6),
         toolbarHeight: 40,
         leading: IconButton(
@@ -545,37 +577,64 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage.isNotEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.error_outline,
-                          color: Colors.red, size: 48),
-                      const SizedBox(height: 12),
-                      Text('Error: $_errorMessage',
-                          style: const TextStyle(color: Colors.red)),
-                      const SizedBox(height: 12),
-                      ElevatedButton(
-                        onPressed: _fetchInventoryData,
-                        child: const Text('Retry'),
-                      ),
-                    ],
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, color: Colors.red, size: 48),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Error: $_errorMessage',
+                    style: const TextStyle(color: Colors.red),
                   ),
-                )
-              : _buildTable(),
+                  const SizedBox(height: 12),
+                  ElevatedButton(
+                    onPressed: _fetchInventoryData,
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            )
+          : _buildTable(),
     );
   }
 
   Widget _buildTable() {
+    if (_groupedData.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.inventory_2_outlined,
+              color: Colors.blueGrey,
+              size: 48,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              _emptyMessage.isEmpty
+                  ? 'No inventory snapshot data is available.'
+                  : _emptyMessage,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.blueGrey),
+            ),
+            const SizedBox(height: 12),
+            ElevatedButton(
+              onPressed: _fetchInventoryData,
+              child: const Text('Refresh'),
+            ),
+          ],
+        ),
+      );
+    }
+
     final categories = _groupedData.keys.toList();
 
     int globalRowIndex = 1;
     final List<Widget> categoryBlocks = [];
     for (final cat in categories) {
       final items = _groupedData[cat]!;
-      categoryBlocks.add(
-        _buildCategoryBlock(cat, items, globalRowIndex),
-      );
+      categoryBlocks.add(_buildCategoryBlock(cat, items, globalRowIndex));
       globalRowIndex += items.length;
     }
 
@@ -615,21 +674,34 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
                         child: Column(
                           children: [
                             ...categoryBlocks,
-                            summaryRow('Subtotal (\$)',        _fmt(_subtotal)),
-                            summaryRow('Tax (${_fmt(_taxRate, decimals: 3)}%)', _fmt(_taxAmount)),
-                            summaryRow('Daily Total (\$)',      _fmt(_dailyTotal)),
-                            summaryRow('Prev. Total (\$)',      _fmt(_prevTotal)),
-                            summaryRow('Cum. Total (\$)',       _fmt(_cumTotal)),
-                            summaryRow('Interval Total (\$)',   _fmt(_intervalTotal)),
-                            summaryRow('Stock Balance (\$)',    _fmt(_stockBalance)),
+                            summaryRow('Subtotal (\$)', _fmt(_subtotal)),
+                            summaryRow(
+                              'Tax (${_fmt(_taxRate, decimals: 3)}%)',
+                              _fmt(_taxAmount),
+                            ),
+                            summaryRow('Daily Total (\$)', _fmt(_dailyTotal)),
+                            summaryRow('Prev. Total (\$)', _fmt(_prevTotal)),
+                            summaryRow('Cum. Total (\$)', _fmt(_cumTotal)),
+                            summaryRow(
+                              'Interval Total (\$)',
+                              _fmt(_intervalTotal),
+                            ),
+                            summaryRow(
+                              'Stock Balance (\$)',
+                              _fmt(_stockBalance),
+                            ),
                             Container(
                               decoration: BoxDecoration(
                                 color: const Color(0xffF8F9FA),
                                 border: Border.all(
-                                    color: Colors.grey.shade200, width: 0.5),
+                                  color: Colors.grey.shade200,
+                                  width: 0.5,
+                                ),
                               ),
                               child: summaryRow(
-                                  'Bulk Setup Fee (\$)', _fmt(_bulkSetupFee)),
+                                'Bulk Setup Fee (\$)',
+                                _fmt(_bulkSetupFee),
+                              ),
                             ),
                           ],
                         ),

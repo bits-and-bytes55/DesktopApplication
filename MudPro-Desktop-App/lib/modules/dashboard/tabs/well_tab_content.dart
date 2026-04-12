@@ -322,8 +322,8 @@ class _GeneralSectionState extends State<GeneralSection> {
 
   Future<void> _loadFromApi() async {
     await wellGenCtrl.fetchLatest();
-    if (wellGenCtrl.savedId.value.isEmpty) return;
     final w = wellGenCtrl;
+    if (!mounted) return;
     setState(() {
       fc['Report #']!.text = w.reportNo.value;
       fc['User Report #']!.text = w.userReportNo.value;
@@ -350,10 +350,12 @@ class _GeneralSectionState extends State<GeneralSection> {
       fc['FIT']!.text = w.fit.value;
       fc['Formation']!.text = w.formation.value;
 
-      if (w.date.value.isNotEmpty) _storedDate = w.date.value;
-      if (w.time.value.isNotEmpty) selectedTime = w.time.value;
-      if (w.activity.value.isNotEmpty) selectedActivity = w.activity.value;
-      if (w.interval.value.isNotEmpty) selectedInterval = w.interval.value;
+      _storedDate = w.date.value;
+      selectedTime = w.time.value.isNotEmpty ? w.time.value : '23:30';
+      selectedActivity = w.activity.value;
+      selectedInterval = w.interval.value;
+      selectedEngId = null;
+      selectedEng2Id = null;
 
       if (w.engineer.value.isNotEmpty) {
         final eng = engineerCtrl.engineers.firstWhere(
@@ -1289,21 +1291,43 @@ class _OpenHoleSectionState extends State<OpenHoleSection> {
       ? Get.find<CasedHoleUIController>()
       : Get.put(CasedHoleUIController());
   int? selectedRowIndex;
+  late final List<List<TextEditingController>> _cellControllers;
+  List<String> _lastAutoFirstRow = const ['', '', '', ''];
 
-  List<List<String>> _rowsForDisplay() {
+  @override
+  void initState() {
+    super.initState();
+    _cellControllers = List<List<TextEditingController>>.generate(
+      3,
+      (_) => List<TextEditingController>.generate(
+        4,
+        (_) => TextEditingController(),
+      ),
+    );
+    _syncAutoValues(force: true);
+  }
+
+  @override
+  void dispose() {
+    for (final row in _cellControllers) {
+      for (final controller in row) {
+        controller.dispose();
+      }
+    }
+    super.dispose();
+  }
+
+  List<String> _autoFirstRow() {
     final currentMd = wellGenCtrl.md.value.trim();
     final mdText = currentMd.isEmpty ? '' : currentMd;
 
     final validRows = casedHoleCtrl.entries.where((entry) {
       final idValue = double.tryParse(entry.idCtrl.text.trim()) ?? 0;
-      return entry.description.text.trim().isNotEmpty && idValue > 0;
+      return idValue > 0;
     }).toList();
 
     if (validRows.isEmpty) {
-      return List<List<String>>.generate(
-        3,
-        (_) => ['', '', '', ''],
-      );
+      return ['', '', mdText, ''];
     }
 
     final latest = validRows.last;
@@ -1311,62 +1335,102 @@ class _OpenHoleSectionState extends State<OpenHoleSection> {
         ? latest.description.text.trim()
         : '${latest.idCtrl.text.trim()}" Hole';
 
-    return [
-      [
-        holeDescription,
-        latest.idCtrl.text.trim(),
-        mdText,
-        '',
-      ],
-      ['', '', '', ''],
-      ['', '', '', ''],
-    ];
+    return [holeDescription, latest.idCtrl.text.trim(), mdText, ''];
   }
 
-  Widget _readOnlyOpenHoleCell(String value) {
+  void _syncAutoValues({bool force = false}) {
+    final autoRow = _autoFirstRow();
+    final firstRow = _cellControllers.first;
+
+    for (var i = 0; i < firstRow.length; i++) {
+      if (force ||
+          firstRow[i].text.isEmpty ||
+          firstRow[i].text == _lastAutoFirstRow[i]) {
+        firstRow[i].text = autoRow[i];
+      }
+    }
+
+    _lastAutoFirstRow = autoRow;
+  }
+
+  Widget _editableOpenHoleCell(
+    TextEditingController controller, {
+    required bool enabled,
+    TextInputType keyboardType = TextInputType.text,
+  }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
       child: SizedBox(
         height: _kRowH,
-        child: Center(
-          child: Text(
-            value,
-            style: TextStyle(fontSize: 9, color: AppTheme.textPrimary),
-            textAlign: TextAlign.center,
-            overflow: TextOverflow.ellipsis,
+        child: TextField(
+          controller: controller,
+          enabled: enabled,
+          keyboardType: keyboardType,
+          textAlign: TextAlign.center,
+          decoration: const InputDecoration(
+            border: InputBorder.none,
+            isDense: true,
+            contentPadding: EdgeInsets.symmetric(vertical: 6, horizontal: 2),
           ),
+          style: TextStyle(fontSize: 9, color: AppTheme.textPrimary),
         ),
       ),
     );
   }
 
+  List<Widget> _buildRowCells(
+    List<TextEditingController> controllers, {
+    required bool enabled,
+  }) {
+    return [
+      _editableOpenHoleCell(controllers[0], enabled: enabled),
+      _editableOpenHoleCell(
+        controllers[1],
+        enabled: enabled,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      ),
+      _editableOpenHoleCell(
+        controllers[2],
+        enabled: enabled,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      ),
+      _editableOpenHoleCell(
+        controllers[3],
+        enabled: enabled,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      ),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          height: _kHeaderH,
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            color: AppTheme.primaryColor.withOpacity(0.1),
-            alignment: Alignment.centerLeft,
-            child: Text(
-              "Open Hole",
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: AppTheme.primaryColor,
+    return Obx(() {
+      _syncAutoValues();
+      final isLocked = c.isLocked.value;
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            height: _kHeaderH,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              color: AppTheme.primaryColor.withOpacity(0.1),
+              alignment: Alignment.centerLeft,
+              child: Text(
+                "Open Hole",
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.primaryColor,
+                ),
               ),
             ),
           ),
-        ),
-        const SizedBox(height: 2),
-        Expanded(
-          child: Obx(() {
-            final rows = _rowsForDisplay();
-            return LayoutBuilder(
+          const SizedBox(height: 2),
+          Expanded(
+            child: LayoutBuilder(
               builder: (ctx, bc) {
                 final double avail = bc.maxWidth - 28;
                 final double cw = avail / 4;
@@ -1398,9 +1462,9 @@ class _OpenHoleSectionState extends State<OpenHoleSection> {
                           'Washout\n(%)',
                         ].map((h) => _hCell(h, AppTheme.primaryColor)).toList(),
                       ),
-                      ...rows.asMap().entries.map((entry) {
+                      ..._cellControllers.asMap().entries.map((entry) {
                         final idx = entry.key;
-                        final values = entry.value;
+                        final rowControllers = entry.value;
                         final sel = selectedRowIndex == idx;
                         return TableRow(
                           decoration: BoxDecoration(
@@ -1417,7 +1481,10 @@ class _OpenHoleSectionState extends State<OpenHoleSection> {
                               ),
                               child: _noCell(idx + 1, sel, AppTheme.primaryColor),
                             ),
-                            ...values.map(_readOnlyOpenHoleCell).toList(),
+                            ..._buildRowCells(
+                              rowControllers,
+                              enabled: !isLocked,
+                            ),
                           ],
                         );
                       }).toList(),
@@ -1425,18 +1492,18 @@ class _OpenHoleSectionState extends State<OpenHoleSection> {
                   ),
                 );
               },
-            );
-          }),
-        ),
-        SizedBox(
-          height: _kFooterH,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            color: AppTheme.primaryColor.withOpacity(0.05),
+            ),
           ),
-        ),
-      ],
-    );
+          SizedBox(
+            height: _kFooterH,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              color: AppTheme.primaryColor.withOpacity(0.05),
+            ),
+          ),
+        ],
+      );
+    });
   }
 }
 

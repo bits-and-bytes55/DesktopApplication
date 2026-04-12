@@ -323,7 +323,7 @@ class AddWaterView extends StatelessWidget {
                             ),
                             child: Row(
                               children: [
-                                // Empty Label Column (can be filled manually)
+                                // Backend does not persist a per-row label here.
                                 Container(
                                   width: 80,
                                   padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -333,19 +333,12 @@ class AddWaterView extends StatelessWidget {
                                           color: Colors.grey.shade300),
                                     ),
                                   ),
-                                  child: TextField(
-                                    enabled: !dashboardController.isLocked.value,
-                                    decoration: InputDecoration(
-                                      border: InputBorder.none,
-                                      isDense: true,
-                                      hintText: "",
-                                      contentPadding:
-                                          const EdgeInsets.symmetric(vertical: 8),
-                                    ),
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    "",
                                     style: AppTheme.bodySmall.copyWith(
                                       fontSize: 11,
-                                      color: AppTheme.textPrimary,
-                                      fontWeight: FontWeight.w500,
+                                      color: AppTheme.textSecondary,
                                     ),
                                   ),
                                 ),

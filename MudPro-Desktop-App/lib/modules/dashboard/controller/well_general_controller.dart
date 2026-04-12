@@ -190,32 +190,60 @@ class WellGeneralController extends GetxController {
     }
   }
 
+  Map<String, dynamic>? _findMatchingRecord(List<dynamic> rawItems) {
+    final items = rawItems.whereType<Map>().map(Map<String, dynamic>.from).toList();
+    if (items.isEmpty) return null;
+
+    final report = reportContext.selectedReport;
+    if (report == null) {
+      return items.first;
+    }
+
+    Map<String, dynamic>? firstMatch(bool Function(Map<String, dynamic>) test) {
+      for (final item in items) {
+        if (test(item)) return item;
+      }
+      return null;
+    }
+
+    final reportNo = report.reportNo.trim();
+    final userReportNo = report.userReportNo.trim();
+    final reportDate = report.reportDate.trim();
+
+    return firstMatch(
+          (item) => (item['reportNo']?.toString().trim() ?? '') == reportNo,
+        ) ??
+        firstMatch(
+          (item) =>
+              userReportNo.isNotEmpty &&
+              (item['userReportNo']?.toString().trim() ?? '') == userReportNo,
+        ) ??
+        firstMatch(
+          (item) =>
+              reportDate.isNotEmpty &&
+              (item['date']?.toString().trim() ?? '') == reportDate,
+        );
+  }
+
   // FETCH latest record
   Future<void> fetchLatest() async {
     if (kControllerWellId.isEmpty) {
       _clearFields();
       return;
     }
-
-    if (!reportContext.hasSelectedReport) {
-      _clearFields();
-      return;
-    }
-
     isLoading.value = true;
     try {
       _clearFields();
-      final selectedReport = reportContext.selectedReport;
-      final uri = Uri.parse('${baseUrl}well-general/$kControllerWellId')
-          .replace(
-            queryParameters: {
-              if (selectedReport != null && selectedReport.id.isNotEmpty)
-                'reportId': selectedReport.id,
-              if (selectedReport != null && selectedReport.reportNo.isNotEmpty)
-                'reportNo': selectedReport.reportNo,
-            },
-          );
-      final response = await http.get(uri, headers: _headers);
+      final uri = Uri.parse('${baseUrl}well-general/$kControllerWellId').replace(
+        queryParameters: {
+          if (reportContext.selectedReportId.value.isNotEmpty)
+            'reportId': reportContext.selectedReportId.value,
+        },
+      );
+      final response = await http.get(
+        uri,
+        headers: _headers,
+      );
 
       print(
         'WellGeneral fetch response: ${response.statusCode} ${response.body}',
@@ -224,13 +252,17 @@ class WellGeneralController extends GetxController {
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body);
         final List data = json['data'] ?? [];
-        if (data.isNotEmpty) {
-          _fromJson(data.first);
+        final matched = _findMatchingRecord(data);
+        if (matched != null) {
+          _fromJson(matched);
         } else {
           _clearFields();
         }
+        _applySelectedReportMetadata();
+      } else {
+        _clearFields();
+        _applySelectedReportMetadata();
       }
-      _applySelectedReportMetadata();
     } catch (e) {
       print('WellGeneral fetch error: $e');
       _applySelectedReportMetadata();

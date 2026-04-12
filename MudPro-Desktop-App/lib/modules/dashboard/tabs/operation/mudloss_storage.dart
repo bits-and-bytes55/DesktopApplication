@@ -13,10 +13,12 @@ class MudLossStorageView extends StatefulWidget {
 }
 
 class _MudLossStorageViewState extends State<MudLossStorageView> {
-  final DashboardController dashboardController = Get.find<DashboardController>();
+  final DashboardController dashboardController =
+      Get.find<DashboardController>();
   final PitController pitController = Get.find<PitController>();
-  final MudLossStorageController controller =
-      Get.put(MudLossStorageController());
+  final MudLossStorageController controller = Get.put(
+    MudLossStorageController(),
+  );
 
   @override
   void initState() {
@@ -200,6 +202,16 @@ class _MudLossStorageViewState extends State<MudLossStorageView> {
   }
 
   Widget _buildStorageCell(MudLossStorageEntry row) {
+    final availableStorageNames = pitController.unselectedPits
+        .map((pit) => pit.pitName)
+        .where((name) => name.trim().isNotEmpty)
+        .toList();
+    final selectedValue = row.storage.value.isEmpty
+        ? null
+        : availableStorageNames.contains(row.storage.value)
+        ? row.storage.value
+        : null;
+
     return Obx(
       () => SizedBox(
         width: 158,
@@ -211,7 +223,7 @@ class _MudLossStorageViewState extends State<MudLossStorageView> {
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               isExpanded: true,
-              value: row.storage.value.isEmpty ? null : row.storage.value,
+              value: selectedValue,
               hint: Text(
                 "",
                 style: AppTheme.bodySmall.copyWith(
@@ -234,11 +246,11 @@ class _MudLossStorageViewState extends State<MudLossStorageView> {
               dropdownColor: Colors.white,
               isDense: true,
               menuMaxHeight: 200,
-              items: pitController.unselectedPits.map((pit) {
+              items: availableStorageNames.map((pitName) {
                 return DropdownMenuItem<String>(
-                  value: pit.pitName,
+                  value: pitName,
                   child: Text(
-                    pit.pitName,
+                    pitName,
                     style: AppTheme.bodySmall.copyWith(
                       fontSize: 10,
                       color: AppTheme.textPrimary,
@@ -269,14 +281,14 @@ class _MudLossStorageViewState extends State<MudLossStorageView> {
     final textController = field == 'dump'
         ? row.dumpController
         : field == 'evaporation'
-            ? row.evaporationController
-            : row.pitCleaningController;
+        ? row.evaporationController
+        : row.pitCleaningController;
 
     final rxValue = field == 'dump'
         ? row.dump
         : field == 'evaporation'
-            ? row.evaporation
-            : row.pitCleaning;
+        ? row.evaporation
+        : row.pitCleaning;
 
     return SizedBox(
       width: 126,

@@ -1,8 +1,4 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
-import 'package:mudpro_desktop_app/modules/daily_report/controller/report_alert_prediction_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class AlertUsagePage extends StatefulWidget {
@@ -15,298 +11,181 @@ class AlertUsagePage extends StatefulWidget {
 class _AlertUsagePageState extends State<AlertUsagePage> {
   double? hoverX;
   double? hoverY;
+  List<Map<String, double>> dataPoints = [
+    {'x': 0, 'y': 0.2},
+    {'x': 1, 'y': 0.8},
+    {'x': 2, 'y': 0.4},
+    {'x': 3, 'y': 0.6},
+    {'x': 4, 'y': 0.9},
+    {'x': 5, 'y': 0.3},
+    {'x': 6, 'y': 0.7},
+  ];
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.isRegistered<ReportAlertPredictionController>()
-        ? Get.find<ReportAlertPredictionController>()
-        : Get.put(ReportAlertPredictionController());
-
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
-      body: Obx(() {
-        final points = _buildPoints(controller);
-        final maxY = points.isEmpty
-            ? 0.0
-            : points.map((point) => point.value).reduce(math.max);
-
-        return Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                margin: const EdgeInsets.only(bottom: 12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 8,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Usage Chart Analysis',
-                      style: AppTheme.titleMedium.copyWith(
-                        fontSize: 16,
-                        color: AppTheme.textPrimary,
-                      ),
-                    ),
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppTheme.primaryColor.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(
-                              color: AppTheme.primaryColor.withOpacity(0.3),
-                            ),
-                          ),
-                          child: Text(
-                            'Top Usage Snapshot',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: AppTheme.primaryColor,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        IconButton(
-                          onPressed: controller.refreshData,
-                          icon: const Icon(Icons.refresh),
-                          tooltip: 'Refresh chart',
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              if (controller.isLoading.value || controller.errorMessage.isNotEmpty)
-                _statusBanner(
-                  isLoading: controller.isLoading.value,
-                  message: controller.isLoading.value
-                      ? 'Loading usage chart...'
-                      : controller.errorMessage.value,
-                ),
-              Expanded(
-                child: Container(
-                  decoration: AppTheme.cardDecoration.copyWith(
-                    border: Border.all(color: Colors.grey.shade300),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // CHART HEADER
+            Container(
+              padding: const EdgeInsets.all(16),
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
                   ),
-                  child: MouseRegion(
-                    onHover: (event) {
-                      setState(() {
-                        hoverX = event.localPosition.dx;
-                        hoverY = event.localPosition.dy;
-                      });
-                    },
-                    onExit: (_) {
-                      setState(() {
-                        hoverX = null;
-                        hoverY = null;
-                      });
-                    },
-                    child: CustomPaint(
-                      painter: _EnhancedUsageChartPainter(
-                        hoverX: hoverX,
-                        hoverY: hoverY,
-                        dataPoints: points,
-                        maxY: maxY,
-                      ),
-                      child: Container(),
+                ],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Usage Chart Analysis',
+                    style: AppTheme.titleMedium.copyWith(
+                      fontSize: 16,
+                      color: AppTheme.textPrimary,
                     ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: AppTheme.primaryColor.withOpacity(0.3)),
+                    ),
+                    child: Text(
+                      'Daily Usage Pattern',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.primaryColor,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // CHART CONTAINER
+            Expanded(
+              child: Container(
+                decoration: AppTheme.cardDecoration.copyWith(
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+                child: MouseRegion(
+                  onHover: (event) {
+                    setState(() {
+                      hoverX = event.localPosition.dx;
+                      hoverY = event.localPosition.dy;
+                    });
+                  },
+                  onExit: (_) {
+                    setState(() {
+                      hoverX = null;
+                      hoverY = null;
+                    });
+                  },
+                  child: CustomPaint(
+                    painter: _EnhancedUsageChartPainter(
+                      hoverX: hoverX,
+                      hoverY: hoverY,
+                      dataPoints: dataPoints,
+                    ),
+                    child: Container(),
                   ),
                 ),
               ),
-              Container(
-                margin: const EdgeInsets.only(top: 12),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.grey.shade200),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        points.isEmpty
-                            ? 'No usage rows available for charting yet.'
-                            : 'Chart uses live usage rows from the alert snapshot controller.',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: AppTheme.textSecondary,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppTheme.infoColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(4),
-                        border: Border.all(
-                          color: AppTheme.infoColor.withOpacity(0.3),
-                        ),
-                      ),
-                      child: Text(
-                        '${points.length} Data Points',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.infoColor,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+            ),
+
+            // CHART INFO
+            Container(
+              margin: const EdgeInsets.only(top: 12),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey.shade200),
               ),
-            ],
-          ),
-        );
-      }),
-    );
-  }
-
-  List<_UsagePoint> _buildPoints(ReportAlertPredictionController controller) {
-    final productRows = controller.productRows
-        .where((row) => row.todayUsage > 0)
-        .take(7)
-        .toList();
-    final sourceRows = productRows.isNotEmpty
-        ? productRows
-        : controller.serviceRows.where((row) => row.todayUsage > 0).take(7).toList();
-
-    return sourceRows.asMap().entries.map((entry) {
-      return _UsagePoint(
-        x: entry.key.toDouble(),
-        value: entry.value.todayUsage,
-        label: _shortLabel(entry.value.description, entry.key),
-      );
-    }).toList();
-  }
-
-  String _shortLabel(String value, int index) {
-    final trimmed = value.trim();
-    if (trimmed.isEmpty) {
-      return 'Item ${index + 1}';
-    }
-    if (trimmed.length <= 12) {
-      return trimmed;
-    }
-    return '${trimmed.substring(0, 12)}...';
-  }
-
-  Widget _statusBanner({
-    required bool isLoading,
-    required String message,
-  }) {
-    final backgroundColor = isLoading
-        ? const Color(0xffEAF4FF)
-        : const Color(0xffFFF4E5);
-    final textColor = isLoading
-        ? const Color(0xff1F5E9C)
-        : const Color(0xff9A5A00);
-
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: backgroundColor.withOpacity(0.85)),
-      ),
-      child: Text(
-        message,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: textColor,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Hover over chart to see cursor lines • Drag to interact',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppTheme.infoColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: AppTheme.infoColor.withOpacity(0.3)),
+                    ),
+                    child: Text(
+                      '${dataPoints.length} Data Points',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.infoColor,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-class _UsagePoint {
-  const _UsagePoint({
-    required this.x,
-    required this.value,
-    required this.label,
-  });
-
-  final double x;
-  final double value;
-  final String label;
-}
-
 class _EnhancedUsageChartPainter extends CustomPainter {
-  const _EnhancedUsageChartPainter({
+  final double? hoverX;
+  final double? hoverY;
+  final List<Map<String, double>> dataPoints;
+
+  _EnhancedUsageChartPainter({
     this.hoverX,
     this.hoverY,
     required this.dataPoints,
-    required this.maxY,
   });
-
-  final double? hoverX;
-  final double? hoverY;
-  final List<_UsagePoint> dataPoints;
-  final double maxY;
 
   @override
   void paint(Canvas canvas, Size size) {
-    const double leftPadding = 70;
-    const double bottomPadding = 58;
+    const double leftPadding = 60;
+    const double bottomPadding = 50;
     const double topPadding = 30;
     const double rightPadding = 30;
 
     final chartWidth = size.width - leftPadding - rightPadding;
     final chartHeight = size.height - topPadding - bottomPadding;
 
+    // ================= BACKGROUND =================
     final backgroundPaint = Paint()
       ..color = Colors.white
       ..style = PaintingStyle.fill;
+    
     canvas.drawRect(
       Rect.fromLTWH(0, 0, size.width, size.height),
       backgroundPaint,
     );
 
-    if (dataPoints.isEmpty) {
-      _drawText(
-        canvas,
-        'No usage data available',
-        Offset(size.width / 2 - 60, size.height / 2 - 10),
-        TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
-          color: AppTheme.textSecondary,
-        ),
-      );
-      return;
-    }
-
+    // ================= GRID HORIZONTAL =================
     final gridPaint = Paint()
       ..color = Colors.grey.shade100
       ..strokeWidth = 0.8;
-    final safeMaxY = maxY <= 0 ? 1.0 : maxY;
-    final xDivisions = math.max(1, dataPoints.length - 1);
 
     for (int i = 0; i <= 5; i++) {
       final y = topPadding + chartHeight * i / 5;
@@ -316,11 +195,11 @@ class _EnhancedUsageChartPainter extends CustomPainter {
         gridPaint,
       );
 
-      final labelValue = safeMaxY * (1 - i / 5);
+      final label = '${100 - i * 20}';
       _drawText(
         canvas,
-        _formatNumber(labelValue),
-        Offset(18, y - 6),
+        label,
+        Offset(20, y - 6),
         TextStyle(
           fontSize: 11,
           color: AppTheme.textSecondary,
@@ -329,8 +208,9 @@ class _EnhancedUsageChartPainter extends CustomPainter {
       );
     }
 
-    for (int i = 0; i < dataPoints.length; i++) {
-      final x = leftPadding + (i / xDivisions) * chartWidth;
+    // ================= GRID VERTICAL =================
+    for (int i = 0; i <= 6; i++) {
+      final x = leftPadding + chartWidth * i / 6;
       canvas.drawLine(
         Offset(x, topPadding),
         Offset(x, topPadding + chartHeight),
@@ -339,34 +219,39 @@ class _EnhancedUsageChartPainter extends CustomPainter {
 
       _drawText(
         canvas,
-        dataPoints[i].label,
-        Offset(x - 18, size.height - 36),
+        i.toString(),
+        Offset(x - 4, size.height - 35),
         TextStyle(
-          fontSize: 10,
+          fontSize: 11,
           color: AppTheme.textSecondary,
           fontWeight: FontWeight.w500,
         ),
       );
     }
 
+    // ================= AXIS =================
     final axisPaint = Paint()
       ..color = AppTheme.textPrimary
       ..strokeWidth = 2;
+
     canvas.drawLine(
       Offset(leftPadding, topPadding),
       Offset(leftPadding, topPadding + chartHeight),
       axisPaint,
     );
+
     canvas.drawLine(
       Offset(leftPadding, topPadding + chartHeight),
       Offset(leftPadding + chartWidth, topPadding + chartHeight),
       axisPaint,
     );
 
+    // ================= PLOT DATA POINTS =================
     final linePaint = Paint()
       ..color = AppTheme.primaryColor
       ..strokeWidth = 2.5
       ..style = PaintingStyle.stroke;
+
     final pointPaint = Paint()
       ..color = AppTheme.primaryColor
       ..style = PaintingStyle.fill;
@@ -374,9 +259,8 @@ class _EnhancedUsageChartPainter extends CustomPainter {
     final path = Path();
     for (int i = 0; i < dataPoints.length; i++) {
       final point = dataPoints[i];
-      final normalizedY = safeMaxY <= 0 ? 0.0 : point.value / safeMaxY;
-      final x = leftPadding + (i / xDivisions) * chartWidth;
-      final y = topPadding + chartHeight - (normalizedY * chartHeight);
+      final x = leftPadding + (point['x']! / 6) * chartWidth;
+      final y = topPadding + chartHeight - (point['y']! * chartHeight);
 
       if (i == 0) {
         path.moveTo(x, y);
@@ -384,18 +268,15 @@ class _EnhancedUsageChartPainter extends CustomPainter {
         path.lineTo(x, y);
       }
 
+      // Draw point
       canvas.drawCircle(Offset(x, y), 4, pointPaint);
-      canvas.drawCircle(
-        Offset(x, y),
-        6,
-        Paint()..color = AppTheme.primaryColor.withOpacity(0.3),
-      );
+      canvas.drawCircle(Offset(x, y), 6, Paint()..color = AppTheme.primaryColor.withOpacity(0.3));
     }
 
-    if (dataPoints.length > 1) {
-      canvas.drawPath(path, linePaint);
-    }
+    // Draw line
+    canvas.drawPath(path, linePaint);
 
+    // ================= CURSOR LINES =================
     if (hoverX != null && hoverY != null) {
       final cursorX = hoverX!.clamp(leftPadding, leftPadding + chartWidth);
       final cursorY = hoverY!.clamp(topPadding, topPadding + chartHeight);
@@ -405,33 +286,37 @@ class _EnhancedUsageChartPainter extends CustomPainter {
         ..strokeWidth = 1.2
         ..style = PaintingStyle.stroke;
 
+      // Vertical cursor line
       canvas.drawLine(
         Offset(cursorX, topPadding),
         Offset(cursorX, topPadding + chartHeight),
         cursorPaint,
       );
+
+      // Horizontal cursor line
       canvas.drawLine(
         Offset(leftPadding, cursorY),
         Offset(leftPadding + chartWidth, cursorY),
         cursorPaint,
       );
+
+      // Cursor circle
       canvas.drawCircle(
         Offset(cursorX, cursorY),
         6,
         Paint()..color = AppTheme.accentColor,
       );
 
-      final xIndex = ((cursorX - leftPadding) / chartWidth * xDivisions)
-          .round()
-          .clamp(0, dataPoints.length - 1);
-      final hoveredPoint = dataPoints[xIndex];
-      final coordText =
-          '${hoveredPoint.label}: ${_formatNumber(hoveredPoint.value)}';
+      // Coordinates display
+      final xValue = ((cursorX - leftPadding) / chartWidth * 6).toStringAsFixed(1);
+      final yValue = (100 - ((cursorY - topPadding) / chartHeight * 100)).toStringAsFixed(1);
+
+      final coordText = 'X: $xValue, Y: $yValue%';
       _drawText(
         canvas,
         coordText,
         Offset(cursorX + 10, cursorY - 20),
-        const TextStyle(
+        TextStyle(
           fontSize: 10,
           color: Colors.white,
           fontWeight: FontWeight.w600,
@@ -440,10 +325,11 @@ class _EnhancedUsageChartPainter extends CustomPainter {
       );
     }
 
+    // ================= AXIS LABELS =================
     _drawText(
       canvas,
-      'Usage',
-      Offset(12, topPadding + chartHeight / 2 - 16),
+      'Usage (%)',
+      Offset(10, topPadding + chartHeight / 2 - 20),
       TextStyle(
         fontSize: 12,
         fontWeight: FontWeight.w600,
@@ -451,10 +337,11 @@ class _EnhancedUsageChartPainter extends CustomPainter {
       ),
       rotate: true,
     );
+
     _drawText(
       canvas,
-      'Items',
-      Offset(leftPadding + chartWidth / 2 - 12, size.height - 18),
+      'Day',
+      Offset(leftPadding + chartWidth / 2 - 15, size.height - 20),
       TextStyle(
         fontSize: 13,
         fontWeight: FontWeight.w600,
@@ -493,19 +380,12 @@ class _EnhancedUsageChartPainter extends CustomPainter {
     canvas.save();
     if (rotate) {
       canvas.translate(pos.dx, pos.dy);
-      canvas.rotate(-1.5708);
+      canvas.rotate(-1.5708); // -90 degrees
       painter.paint(canvas, Offset.zero);
     } else {
       painter.paint(canvas, pos);
     }
     canvas.restore();
-  }
-
-  String _formatNumber(double value) {
-    return value
-        .toStringAsFixed(2)
-        .replaceAll(RegExp(r'0+$'), '')
-        .replaceAll(RegExp(r'\.$'), '');
   }
 
   @override

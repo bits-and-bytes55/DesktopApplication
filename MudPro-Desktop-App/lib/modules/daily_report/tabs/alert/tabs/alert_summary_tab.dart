@@ -1,332 +1,107 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
-import 'package:mudpro_desktop_app/modules/daily_report/controller/report_alert_prediction_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class AlertSummaryPage extends StatelessWidget {
   const AlertSummaryPage({super.key});
 
-  @override
-  Widget build(BuildContext context) {
-    final controller = Get.isRegistered<ReportAlertPredictionController>()
-        ? Get.find<ReportAlertPredictionController>()
-        : Get.put(ReportAlertPredictionController());
+  static const double rowH = 38;
 
-    return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
-      body: Obx(() {
-        final products = controller.productRows.toList();
-        final services = controller.serviceRows.toList();
-        final summary = controller.summaryData;
-        final riskRows = products
-          ..sort((left, right) {
-            final leftValue = left.zeroInventoryDays ?? 999999;
-            final rightValue = right.zeroInventoryDays ?? 999999;
-            return leftValue.compareTo(rightValue);
-          });
-        final topUsage = [...products, ...services]
-          ..sort((left, right) => right.todayUsage.compareTo(left.todayUsage));
-
-        final criticalCount = products
-            .where((row) => (row.zeroInventoryDays ?? 999) <= 1)
-            .length;
-        final warningCount = products
-            .where((row) {
-              final days = row.zeroInventoryDays ?? 999;
-              return days > 1 && days <= 3;
-            })
-            .length;
-        final stableCount = products.length - criticalCount - warningCount;
-
-        return Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _header(controller),
-              if (controller.isLoading.value || controller.errorMessage.isNotEmpty)
-                _statusBanner(
-                  isLoading: controller.isLoading.value,
-                  message: controller.isLoading.value
-                      ? 'Loading alert summary...'
-                      : controller.errorMessage.value,
-                ),
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _metricCard(
-                              title: 'Product Rows',
-                              value: '${products.length}',
-                              subtitle: 'Product + package snapshot lines',
-                              color: AppTheme.primaryColor,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _metricCard(
-                              title: 'Service Rows',
-                              value: '${services.length}',
-                              subtitle: 'Service + engineering lines',
-                              color: AppTheme.secondaryColor,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _metricCard(
-                              title: 'Stock Balance',
-                              value: _format(summary['stockBalance']),
-                              subtitle: 'Current stock value snapshot',
-                              color: AppTheme.infoColor,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _metricCard(
-                              title: 'Daily Total',
-                              value: _format(summary['dailyTotal']),
-                              subtitle: 'Daily cost from snapshot summary',
-                              color: AppTheme.accentColor,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            flex: 2,
-                            child: _riskOverview(
-                              productsCount: products.length,
-                              criticalCount: criticalCount,
-                              warningCount: warningCount,
-                              stableCount: stableCount,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: _summaryValues(summary),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: _topRowsCard(
-                              title: 'Top Depletion Risk',
-                              emptyMessage: 'No depletion-risk rows available',
-                              rows: riskRows.take(6).toList(),
-                              valueBuilder: (row) => row.zeroInventoryDays == null
-                                  ? '-'
-                                  : '${_format(row.zeroInventoryDays)} d',
-                              colorBuilder: (row) {
-                                final days = row.zeroInventoryDays ?? 999;
-                                if (days <= 1) return AppTheme.errorColor;
-                                if (days <= 3) return AppTheme.warningColor;
-                                return AppTheme.successColor;
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: _topRowsCard(
-                              title: 'Top Usage',
-                              emptyMessage: 'No usage rows available',
-                              rows: topUsage.take(6).toList(),
-                              valueBuilder: (row) => _format(row.todayUsage),
-                              colorBuilder: (_) => AppTheme.primaryColor,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      }),
+  // ================= COMMON CELL =================
+  Widget _cell(
+    String text, {
+    double w = 100,
+    bool bold = false,
+    bool isHeader = false,
+    bool isSubHeader = false,
+    Alignment align = Alignment.center,
+    Color? bgColor,
+  }) {
+    return Container(
+      width: w,
+      height: rowH,
+      alignment: align,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        color: isHeader
+            ? AppTheme.primaryColor
+            : isSubHeader
+                ? AppTheme.primaryColor.withOpacity(0.1)
+                : bgColor ?? Colors.white,
+        border: Border.all(
+          color: isHeader ? AppTheme.primaryColor : Colors.grey.shade300,
+          width: 0.5,
+        ),
+      ),
+      child: Text(
+        text,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontSize: isHeader || isSubHeader ? 11 : 12,
+          fontWeight: bold || isHeader || isSubHeader
+              ? FontWeight.w600
+              : FontWeight.normal,
+          color: isHeader
+              ? Colors.white
+              : isSubHeader
+                  ? AppTheme.primaryColor
+                  : AppTheme.textPrimary,
+        ),
+      ),
     );
   }
 
-  Widget _header(ReportAlertPredictionController controller) {
+  // ================= PROGRESS SECTION =================
+  Widget _progressSection(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: AppTheme.cardDecoration,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Alert Summary',
+                'Progress Overview',
                 style: AppTheme.titleMedium.copyWith(
-                  fontSize: 18,
+                  fontSize: 16,
                   color: AppTheme.textPrimary,
                 ),
               ),
-              const SizedBox(height: 4),
-              Text(
-                controller.summaryText.value.isEmpty
-                    ? 'Live inventory snapshot overview'
-                    : controller.summaryText.value,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: AppTheme.textSecondary,
-                ),
-              ),
-            ],
-          ),
-          Row(
-            children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   color: AppTheme.primaryColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppTheme.primaryColor.withOpacity(0.3)),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                      color: AppTheme.primaryColor.withOpacity(0.3)),
                 ),
                 child: Text(
-                  'Risk Monitoring',
+                  'Real-time Monitoring',
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 11,
                     fontWeight: FontWeight.w600,
                     color: AppTheme.primaryColor,
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
-              IconButton(
-                onPressed: controller.refreshData,
-                icon: const Icon(Icons.refresh),
-                tooltip: 'Refresh summary',
-              ),
             ],
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _metricCard({
-    required String title,
-    required String value,
-    required String subtitle,
-    required Color color,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withOpacity(0.18)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: AppTheme.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-              color: color,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            subtitle,
-            style: TextStyle(
-              fontSize: 11,
-              color: AppTheme.textSecondary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _riskOverview({
-    required int productsCount,
-    required int criticalCount,
-    required int warningCount,
-    required int stableCount,
-  }) {
-    final total = productsCount == 0 ? 1 : productsCount;
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: AppTheme.cardDecoration,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Inventory Risk Overview',
-            style: AppTheme.titleMedium.copyWith(
-              fontSize: 15,
-              color: AppTheme.textPrimary,
-            ),
-          ),
+          const SizedBox(height: 16),
+          _progressRow('Depth', 0.65, AppTheme.primaryColor, context),
           const SizedBox(height: 12),
-          _progressRow(
-            label: 'Critical',
-            value: criticalCount / total,
-            display: '$criticalCount rows',
-            color: AppTheme.errorColor,
-          ),
-          const SizedBox(height: 10),
-          _progressRow(
-            label: 'Warning',
-            value: warningCount / total,
-            display: '$warningCount rows',
-            color: AppTheme.warningColor,
-          ),
-          const SizedBox(height: 10),
-          _progressRow(
-            label: 'Stable',
-            value: stableCount / total,
-            display: '$stableCount rows',
-            color: AppTheme.successColor,
-          ),
+          _progressRow('Day', 0.47, AppTheme.secondaryColor, context),
+          const SizedBox(height: 12),
+          _progressRow('Cost', 0.38, AppTheme.accentColor, context),
         ],
       ),
     );
   }
 
-  Widget _progressRow({
-    required String label,
-    required double value,
-    required String display,
-    required Color color,
-  }) {
+  Widget _progressRow(String label, double value, Color color, BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -336,15 +111,15 @@ class AlertSummaryPage extends StatelessWidget {
             Text(
               label,
               style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
                 color: AppTheme.textPrimary,
               ),
             ),
             Text(
-              display,
+              '${(value * 100).toStringAsFixed(0)}%',
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: color,
               ),
@@ -352,29 +127,48 @@ class AlertSummaryPage extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 6),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(5),
-          child: LinearProgressIndicator(
-            value: value.clamp(0, 1),
-            minHeight: 10,
-            backgroundColor: Colors.grey.shade200,
-            valueColor: AlwaysStoppedAnimation<Color>(color),
+        Container(
+          height: 10,
+          decoration: BoxDecoration(
+            color: Colors.grey.shade200,
+            borderRadius: BorderRadius.circular(5),
+          ),
+          child: Stack(
+            children: [
+              Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade200,
+                  borderRadius: BorderRadius.circular(5),
+                ),
+              ),
+              Container(
+                width: MediaQuery.of(context).size.width * value * 0.8,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [color, color.withOpacity(0.7)],
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                  ),
+                  borderRadius: BorderRadius.circular(5),
+                  boxShadow: [
+                    BoxShadow(
+                      color: color.withOpacity(0.3),
+                      blurRadius: 4,
+                      offset: const Offset(1, 1),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ],
     );
   }
 
-  Widget _summaryValues(Map<String, double> summary) {
-    final rows = [
-      ('Subtotal', summary['subtotal']),
-      ('Tax Rate', summary['taxRate']),
-      ('Tax Amount', summary['taxAmount']),
-      ('Previous Total', summary['prevTotal']),
-      ('Cumulative Total', summary['cumTotal']),
-      ('Bulk Tank Setup', summary['bulkTankSetupFee']),
-    ];
-
+  // ================= KPI TABLE =================
+  Widget _kpiTable() {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: AppTheme.cardDecoration,
@@ -382,56 +176,97 @@ class AlertSummaryPage extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Cost Snapshot',
+            'KPI Performance',
             style: AppTheme.titleMedium.copyWith(
               fontSize: 15,
               color: AppTheme.textPrimary,
             ),
           ),
           const SizedBox(height: 12),
-          ...rows.map((row) {
-            return Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade50,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey.shade200),
+          // Main Header Row
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(6),
+                topRight: Radius.circular(6),
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    row.$1,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppTheme.textPrimary,
-                    ),
-                  ),
-                  Text(
-                    _format(row.$2),
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: AppTheme.primaryColor,
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 2,
+                  offset: const Offset(0, 1),
+                ),
+              ],
+            ),
+            child: Row(children: [
+              _cell('KPI', w: 120, isHeader: true),
+              _cell('Target', w: 90, isHeader: true),
+              _cell('Current', w: 180, isHeader: true),
+              _cell('Pace', w: 180, isHeader: true),
+              _cell('Remaining', w: 120, isHeader: true),
+            ]),
+          ),
+          // Sub Header Row
+          Row(children: [
+            _cell('', w: 120, isSubHeader: true),
+            _cell('', w: 90, isSubHeader: true),
+            _cell('Value', w: 90, isSubHeader: true),
+            _cell('%', w: 90, isSubHeader: true),
+            _cell('Value', w: 90, isSubHeader: true),
+            _cell('%', w: 90, isSubHeader: true),
+            _cell('', w: 120, isSubHeader: true),
+          ]),
+          // Data Rows
+          _kpiRow('Depth (ft)', '9589.0', '96.0', '1.0', '2.0', '47.1',
+              '9493.0', 0),
+          _kpiRow('Day', '47', '1', '2.1', '1', '100.0', '46', 1),
+          _kpiRow('Cost (€)', '97037.72', '3655.70', '3.8', '77.78', '177.1',
+              '93382.02', 2),
         ],
       ),
     );
   }
 
-  Widget _topRowsCard({
-    required String title,
-    required String emptyMessage,
-    required List<AlertPredictionRow> rows,
-    required String Function(AlertPredictionRow row) valueBuilder,
-    required Color Function(AlertPredictionRow row) colorBuilder,
-  }) {
+  Widget _kpiRow(
+    String kpi,
+    String target,
+    String cVal,
+    String cPer,
+    String pVal,
+    String pPer,
+    String rem,
+    int index,
+  ) {
+    final colors = [
+      AppTheme.primaryColor,
+      AppTheme.secondaryColor,
+      AppTheme.accentColor,
+    ];
+    final rowColor = colors[index % colors.length];
+
+    return Container(
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: Colors.grey.shade200, width: 0.5),
+        ),
+      ),
+      child: Row(children: [
+        _cell(kpi,
+            w: 120,
+            align: Alignment.centerLeft,
+            bgColor: rowColor.withOpacity(0.05)),
+        _cell(target, w: 90),
+        _cell(cVal, w: 90, bold: true, bgColor: Colors.grey.shade50),
+        _cell(cPer, w: 90),
+        _cell(pVal, w: 90, bold: true, bgColor: Colors.grey.shade50),
+        _cell(pPer, w: 90),
+        _cell(rem, w: 120, bgColor: Colors.grey.shade50),
+      ]),
+    );
+  }
+
+  // ================= AVERAGE TABLE =================
+  Widget _averageTable() {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: AppTheme.cardDecoration,
@@ -439,109 +274,378 @@ class AlertSummaryPage extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            title,
+            'Average Values',
             style: AppTheme.titleMedium.copyWith(
               fontSize: 15,
               color: AppTheme.textPrimary,
             ),
           ),
           const SizedBox(height: 12),
-          if (rows.isEmpty)
-            Text(
-              emptyMessage,
+          _averageRow('Avg. ROP', '38.00', AppTheme.primaryColor),
+          _averageRow('Avg. Daily Cost', '3655.70', AppTheme.secondaryColor),
+          _averageRow('Daily Footage', '96.0', AppTheme.accentColor),
+          _averageRow('Current Mud Type', 'Water-based', AppTheme.successColor),
+        ],
+      ),
+    );
+  }
+
+  Widget _averageRow(String label, String value, Color color) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withOpacity(0.2)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: AppTheme.textPrimary,
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: color.withOpacity(0.3)),
+            ),
+            child: Text(
+              value,
               style: TextStyle(
                 fontSize: 12,
-                color: AppTheme.textSecondary,
+                fontWeight: FontWeight.w600,
+                color: color,
               ),
             ),
-          ...rows.map((row) {
-            final color = colorBuilder(row);
-            return Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.06),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: color.withOpacity(0.18)),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: color,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      row.description,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.textPrimary,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Text(
-                    valueBuilder(row),
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: color,
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }),
+          ),
         ],
       ),
     );
   }
 
-  Widget _statusBanner({
-    required bool isLoading,
-    required String message,
-  }) {
-    final backgroundColor = isLoading
-        ? const Color(0xffEAF4FF)
-        : const Color(0xffFFF4E5);
-    final textColor = isLoading
-        ? const Color(0xff1F5E9C)
-        : const Color(0xff9A5A00);
+  // ================= ALERT TABLE =================
+  Widget _alertTable() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: AppTheme.cardDecoration,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Alert Parameters',
+                style: AppTheme.titleMedium.copyWith(
+                  fontSize: 16,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppTheme.errorColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: AppTheme.errorColor.withOpacity(0.3)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.warning, size: 14, color: AppTheme.errorColor),
+                    const SizedBox(width: 6),
+                    Text(
+                      '3 Warnings Active',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.errorColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Scrollbar(
+            thumbVisibility: true,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: SizedBox(
+                width: 860,
+                child: Column(
+                  children: [
+                    // Header Row
+                    Container(
+                      decoration: BoxDecoration(
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(6),
+                          topRight: Radius.circular(6),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 2,
+                            offset: const Offset(0, 1),
+                          ),
+                        ],
+                      ),
+                      child: Row(children: [
+                        _cell('No', w: 40, isHeader: true),
+                        _cell('Parameter', w: 160, isHeader: true),
+                        _cell('Unit', w: 80, isHeader: true),
+                        _cell('Value', w: 90, isHeader: true),
+                        _cell('Range', w: 140, isHeader: true),
+                        _cell('Illustration', w: 260, isHeader: true),
+                        _cell('Warning', w: 90, isHeader: true),
+                      ]),
+                    ),
+                    // Data Rows
+                    _alertRow('1', 'Pump P.', 'psi', '140', 0.65, true),
+                    _alertRow('2', 'Pump HHP', 'HP', '245', 0.95, false),
+                    _alertRow('3', 'BH ECD', 'ppg', '9.65', 0.75, true),
+                    _alertRow('4', 'Viscosity', 'sec/qt', '57', 0.55, true),
+                    _alertRow('5', 'YP', 'lb/100ft²', '26', 0.85, false),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _alertRow(
+    String no,
+    String param,
+    String unit,
+    String value,
+    double level,
+    bool isWarning,
+  ) {
+    final statusColor = isWarning ? AppTheme.errorColor : AppTheme.successColor;
+    final gradientColors = isWarning
+        ? [Colors.orange, Colors.red]
+        : [Colors.green, Colors.lightGreen];
 
     return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: backgroundColor.withOpacity(0.85)),
+        border: Border(
+          bottom: BorderSide(color: Colors.grey.shade200, width: 0.5),
+        ),
       ),
-      child: Text(
-        message,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: textColor,
+      child: Row(children: [
+        _cell(no, w: 40, bgColor: Colors.grey.shade50),
+        _cell(param, w: 160, align: Alignment.centerLeft),
+        _cell(unit, w: 80),
+        _cell(value,
+            w: 90,
+            bold: true,
+            bgColor: isWarning
+                ? AppTheme.errorColor.withOpacity(0.1)
+                : AppTheme.successColor.withOpacity(0.1)),
+        _cell('', w: 140),
+        Container(
+          width: 260,
+          height: rowH,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Stack(
+            children: [
+              // Background bar
+              Container(
+                height: 14,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade200,
+                  borderRadius: BorderRadius.circular(7),
+                ),
+              ),
+              // Progress bar
+              Container(
+                height: 14,
+                width: 230 * level,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: gradientColors,
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                  ),
+                  borderRadius: BorderRadius.circular(7),
+                  boxShadow: [
+                    BoxShadow(
+                      color: gradientColors[0].withOpacity(0.3),
+                      blurRadius: 4,
+                      offset: const Offset(1, 1),
+                    ),
+                  ],
+                ),
+              ),
+              // Value indicator
+              Positioned(
+                left: 225 * level,
+                child: Container(
+                  width: 6,
+                  height: 20,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(3),
+                    border: Border.all(color: statusColor, width: 2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.2),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              // Level text
+              Positioned(
+                right: 8,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: statusColor.withOpacity(0.3)),
+                  ),
+                  child: Text(
+                    '${(level * 100).toStringAsFixed(0)}%',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: statusColor,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Container(
+          width: 90,
+          height: rowH,
+          alignment: Alignment.center,
+          color: statusColor,
+          child: Text(
+            isWarning ? 'WARNING' : 'NORMAL',
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+            ),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  // Helper to get context for progress bars
+  static BuildContext? getContext() {
+    return navigatorKey.currentContext;
+  }
+
+  static final GlobalKey<NavigatorState> navigatorKey =
+      GlobalKey<NavigatorState>();
+
+  // ================= BUILD =================
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppTheme.backgroundColor,
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _progressSection(context),
+              const SizedBox(height: 16),
+
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: _kpiTable()),
+                  const SizedBox(width: 16),
+                  SizedBox(
+                    width: 300,
+                    child: _averageTable(),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 16),
+
+              _alertTable(),
+              const SizedBox(height: 16),
+
+              // Summary Footer
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.info_outline,
+                            size: 16, color: AppTheme.textSecondary),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Last Updated: Today 14:30',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppTheme.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Container(
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            AppTheme.primaryColor.withOpacity(0.1),
+                            AppTheme.secondaryColor.withOpacity(0.1),
+                          ],
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                        ),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                            color: AppTheme.primaryColor.withOpacity(0.3)),
+                      ),
+                      child: Text(
+                        'Alert Summary Dashboard',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.primaryColor,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
-  }
-
-  String _format(double? value) {
-    if (value == null) {
-      return '-';
-    }
-    return value
-        .toStringAsFixed(2)
-        .replaceAll(RegExp(r'0+$'), '')
-        .replaceAll(RegExp(r'\.$'), '');
   }
 }

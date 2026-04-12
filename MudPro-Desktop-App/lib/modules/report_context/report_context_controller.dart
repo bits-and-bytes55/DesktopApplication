@@ -64,10 +64,12 @@ class ReportContextController extends GetxController {
 
   Future<void> reloadData() => loadForSelectedWell();
 
-  Future<void> loadForSelectedWell() async {
+  Future<void> loadForSelectedWell({String? preferredReportId}) async {
     final wellId = currentBackendWellId;
+    final retainedSelection = preferredReportId?.trim().isNotEmpty == true
+        ? preferredReportId!.trim()
+        : selectedReportId.value.trim();
     errorMessage.value = '';
-    final previousSelectedId = selectedReportId.value;
 
     if (wellId.isEmpty) {
       reports.clear();
@@ -81,15 +83,12 @@ class ReportContextController extends GetxController {
       final fetched = await _api.fetchReports(wellId);
       reports.assignAll(fetched);
 
-      final preserved = _firstWhereOrNull(
-        fetched,
-        (item) => item.id == previousSelectedId,
-      );
-
-      if (preserved != null) {
-        selectedReportId.value = preserved.id;
-      } else if (fetched.isNotEmpty) {
-        selectedReportId.value = fetched.first.id;
+      if (fetched.isNotEmpty) {
+        final preserved = _firstWhereOrNull(
+          fetched,
+          (item) => item.id == retainedSelection,
+        );
+        selectedReportId.value = preserved?.id ?? fetched.last.id;
       } else {
         selectedReportId.value = '';
       }
@@ -113,7 +112,7 @@ class ReportContextController extends GetxController {
     final result = await _api.createReport({'wellId': wellId, ...payload});
 
     final reportId = _extractEntityId(result['data']);
-    await loadForSelectedWell();
+    await loadForSelectedWell(preferredReportId: reportId);
     if (reportId.isNotEmpty) {
       selectReport(reportId);
     }
@@ -130,7 +129,7 @@ class ReportContextController extends GetxController {
     }
 
     final result = await _api.updateReport(report.id, payload);
-    await loadForSelectedWell();
+    await loadForSelectedWell(preferredReportId: report.id);
     selectReport(report.id);
     return result;
   }

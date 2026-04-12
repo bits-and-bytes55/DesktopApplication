@@ -21,10 +21,13 @@ class ReportApiService {
     final data = decoded['data'];
     if (data is! List) return const <AppReport>[];
 
-    return data
+    final reports = data
         .whereType<Map>()
         .map((item) => AppReport.fromJson(Map<String, dynamic>.from(item)))
         .toList();
+
+    reports.sort(_compareReports);
+    return reports;
   }
 
   Future<Map<String, dynamic>> createReport(Map<String, dynamic> payload) {
@@ -225,4 +228,27 @@ class ReportApiService {
   String _cleanError(Object error) {
     return error.toString().replaceFirst(RegExp(r'^Exception:\s*'), '');
   }
+}
+
+int _compareReports(AppReport a, AppReport b) {
+  final leftNo = int.tryParse(a.reportNo.trim());
+  final rightNo = int.tryParse(b.reportNo.trim());
+
+  if (leftNo != null && rightNo != null && leftNo != rightNo) {
+    return leftNo.compareTo(rightNo);
+  }
+
+  if (leftNo != null && rightNo == null) return -1;
+  if (leftNo == null && rightNo != null) return 1;
+
+  final leftCreated = DateTime.tryParse(a.createdAt);
+  final rightCreated = DateTime.tryParse(b.createdAt);
+  if (leftCreated != null && rightCreated != null) {
+    final createdCompare = leftCreated.compareTo(rightCreated);
+    if (createdCompare != 0) {
+      return createdCompare;
+    }
+  }
+
+  return a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase());
 }

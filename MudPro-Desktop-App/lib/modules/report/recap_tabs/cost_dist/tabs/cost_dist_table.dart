@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:mudpro_desktop_app/modules/daily_report/controller/inventory_snapshot_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class ReportRecapTable extends StatefulWidget {
@@ -17,8 +18,14 @@ class _ReportRecapTableState extends State<ReportRecapTable> {
   final Map<String, TextEditingController> _controllers = {};
   final Map<String, FocusNode> _focusNodes = {};
 
+  final InventorySnapshotController _inventoryController =
+      InventorySnapshotController();
+
+  bool _isLoading = true;
+  String _errorMessage = '';
+
   // Left table data - Product and Group
-  final List<Map<String, dynamic>> groupData = [
+  List<Map<String, dynamic>> groupData = [
     {'group': 'Common Chemical', 'cost': '7235.16', 'percent': '49.9', 'hasProducts': true},
     {'group': 'Filtration Control', 'cost': '2628.24', 'percent': '18.1', 'hasProducts': false},
     {'group': 'Shale Inhibitor', 'cost': '2198.00', 'percent': '15.2', 'hasProducts': false},
@@ -32,7 +39,7 @@ class _ReportRecapTableState extends State<ReportRecapTable> {
     {'group': 'Surfactant / Solvent', 'cost': '0', 'percent': '0.0', 'hasProducts': false},
   ];
 
-  final List<Map<String, String>> productData = [
+  List<Map<String, String>> productData = [
     {'name': 'SIZED CALCIUM CARBONAT...', 'cost': '3150.00', 'percent': '21.7'},
     {'name': 'SIZED CALCIUM CARBONAT...', 'cost': '2730.00', 'percent': '18.8'},
     {'name': 'SODIUM CHLORIDE POWDE...', 'cost': '850.00', 'percent': '5.9'},
@@ -57,28 +64,28 @@ class _ReportRecapTableState extends State<ReportRecapTable> {
   ];
 
   // Right side tables data with 10+ rows each
-  final List<Map<String, String>> packageData = List.generate(10, (index) => {
+  List<Map<String, String>> packageData = List.generate(10, (index) => {
     'col1': index == 0 ? '▶' : '',
     'col2': index == 0 ? 'Standard Package' : 'Package ${index + 1}',
     'col3': index == 0 ? '0.00' : '0.00',
     'col4': index == 0 ? '0.0' : '0.0',
   });
 
-  final List<Map<String, String>> serviceData = List.generate(10, (index) => {
+  List<Map<String, String>> serviceData = List.generate(10, (index) => {
     'col1': index == 0 ? '▶' : '',
     'col2': index == 0 ? 'Basic Service' : 'Service ${index + 1}',
     'col3': index == 0 ? '0.00' : '0.00',
     'col4': index == 0 ? '0.0' : '0.0',
   });
 
-  final List<Map<String, String>> engineeringData = List.generate(10, (index) => {
+  List<Map<String, String>> engineeringData = List.generate(10, (index) => {
     'col1': index == 0 ? '▶' : '',
     'col2': index == 0 ? 'Mud Supervisor - 2' : 'Engineering ${index + 1}',
     'col3': index == 0 ? '2348.36' : '0.00',
     'col4': index == 0 ? '100.0' : '0.0',
   });
 
-  final List<Map<String, String>> allCategoriesData = [
+  List<Map<String, String>> allCategoriesData = [
     {'category': 'Product', 'cost': '14499.39', 'percent': '86.1'},
     {'category': 'Engineering', 'cost': '2348.36', 'percent': '13.9'},
     {'category': 'Premixed Mud', 'cost': '0', 'percent': '0.0'},
@@ -89,11 +96,137 @@ class _ReportRecapTableState extends State<ReportRecapTable> {
   @override
   void initState() {
     super.initState();
-    // Initialize controllers for all cells
-    _initializeControllers();
+    _fetchSnapshot();
+  }
+
+  Future<void> _fetchSnapshot() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+
+    try {
+      final result = await _inventoryController.getInventorySnapshot();
+      if (result['success'] != true) {
+        throw Exception(result['message'] ?? 'Failed to load inventory snapshot');
+      }
+
+      final items = (result['items'] as List<dynamic>? ?? const [])
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+
+      final totalsByCategory = <String, double>{};
+      final totalsByProduct = <String, double>{};
+      final totalsByPackage = <String, double>{};
+      final totalsByService = <String, double>{};
+      final totalsByEngineering = <String, double>{};
+
+      double grandTotal = 0;
+
+      for (final item in items) {
+        final category = (item['category'] ?? 'Unknown').toString();
+        final name = (item['itemName'] ?? '').toString();
+        final subtotal = _toDouble(item['subtotal']);
+        grandTotal += subtotal;
+
+        totalsByCategory[category] =
+            (totalsByCategory[category] ?? 0) + subtotal;
+
+        if (category == 'Product' && name.isNotEmpty) {
+          totalsByProduct[name] = (totalsByProduct[name] ?? 0) + subtotal;
+        } else if (category == 'Package' && name.isNotEmpty) {
+          totalsByPackage[name] = (totalsByPackage[name] ?? 0) + subtotal;
+        } else if (category == 'Service' && name.isNotEmpty) {
+          totalsByService[name] = (totalsByService[name] ?? 0) + subtotal;
+        } else if (category == 'Engineering' && name.isNotEmpty) {
+          totalsByEngineering[name] =
+              (totalsByEngineering[name] ?? 0) + subtotal;
+        }
+      }
+
+      List<Map<String, String>> buildList(Map<String, double> source) {
+        final entries = source.entries.toList()
+          ..sort((a, b) => b.value.compareTo(a.value));
+        return entries.map((e) {
+          final percent =
+              grandTotal > 0 ? (e.value / grandTotal) * 100 : 0.0;
+          return {
+            'name': e.key,
+            'cost': e.value.toStringAsFixed(2),
+            'percent': percent.toStringAsFixed(1),
+          };
+        }).toList();
+      }
+
+      final products = buildList(totalsByProduct);
+      final groups = totalsByCategory.entries
+          .map((e) {
+            final percent =
+                grandTotal > 0 ? (e.value / grandTotal) * 100 : 0.0;
+            return {
+              'group': e.key,
+              'cost': e.value.toStringAsFixed(2),
+              'percent': percent.toStringAsFixed(1),
+              'hasProducts': e.key == 'Product',
+            };
+          })
+          .toList()
+        ..sort((a, b) => _toDouble(b['cost']).compareTo(_toDouble(a['cost'])));
+
+      setState(() {
+        groupData = groups;
+        productData = products;
+        packageData = buildList(totalsByPackage)
+            .map((e) => {
+                  'col1': '',
+                  'col2': e['name'] ?? '',
+                  'col3': e['cost'] ?? '0.00',
+                  'col4': e['percent'] ?? '0.0',
+                })
+            .toList();
+        serviceData = buildList(totalsByService)
+            .map((e) => {
+                  'col1': '',
+                  'col2': e['name'] ?? '',
+                  'col3': e['cost'] ?? '0.00',
+                  'col4': e['percent'] ?? '0.0',
+                })
+            .toList();
+        engineeringData = buildList(totalsByEngineering)
+            .map((e) => {
+                  'col1': '',
+                  'col2': e['name'] ?? '',
+                  'col3': e['cost'] ?? '0.00',
+                  'col4': e['percent'] ?? '0.0',
+                })
+            .toList();
+        allCategoriesData = groups
+            .map((g) => {
+                  'category': g['group']?.toString() ?? '',
+                  'cost': g['cost']?.toString() ?? '0.00',
+                  'percent': g['percent']?.toString() ?? '0.0',
+                })
+            .toList();
+        _initializeControllers();
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = e.toString();
+      });
+    }
+  }
+
+  double _toDouble(dynamic value) {
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString() ?? '') ?? 0.0;
   }
 
   void _initializeControllers() {
+    _controllers.clear();
+    _focusNodes.clear();
+
     // Initialize controllers for group data
     for (int i = 0; i < groupData.length; i++) {
       _controllers['group-$i'] = TextEditingController(text: groupData[i]['group']);
@@ -164,6 +297,12 @@ class _ReportRecapTableState extends State<ReportRecapTable> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_errorMessage.isNotEmpty) {
+      return Center(child: Text(_errorMessage));
+    }
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(

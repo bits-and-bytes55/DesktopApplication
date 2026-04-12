@@ -99,11 +99,6 @@ class MudLossActiveSystemView extends StatelessWidget {
                           final row = entry.value;
                           return _buildFixedRow(index, row['label']!, row['key']!);
                         }),
-                        ...controller.dynamicRows.asMap().entries.map((entry) {
-                          final index = entry.key;
-                          final row = entry.value;
-                          return _buildDynamicRow(index, row);
-                        }),
                       ],
                     ],
                   ),
@@ -229,103 +224,4 @@ class MudLossActiveSystemView extends StatelessWidget {
     );
   }
 
-  Widget _buildDynamicRow(int index, Map<String, String> row) {
-    final globalIndex = fixedRows.length + index;
-    return Container(
-      height: 32,
-      decoration: BoxDecoration(
-        color: globalIndex.isEven ? Colors.grey.shade50 : Colors.white,
-        border: Border(
-          bottom: index == controller.dynamicRows.length - 1
-              ? BorderSide.none
-              : BorderSide(color: Colors.grey.shade200),
-        ),
-        borderRadius: index == controller.dynamicRows.length - 1
-            ? const BorderRadius.only(
-                bottomLeft: Radius.circular(8),
-                bottomRight: Radius.circular(8),
-              )
-            : null,
-      ),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 40,
-            child: Container(
-              decoration: BoxDecoration(
-                border: Border(right: BorderSide(color: Colors.grey.shade300)),
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                "${globalIndex + 1}",
-                style: AppTheme.bodySmall.copyWith(
-                  fontSize: 10,
-                  color: AppTheme.primaryColor,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ),
-          Expanded(
-            flex: 2,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              decoration: BoxDecoration(
-                border: Border(right: BorderSide(color: Colors.grey.shade300)),
-              ),
-              child: TextField(
-                enabled: !dashboardController.isLocked.value,
-                decoration: const InputDecoration(
-                  border: InputBorder.none,
-                  isDense: true,
-                  contentPadding: EdgeInsets.symmetric(vertical: 6),
-                ),
-                style: AppTheme.bodySmall.copyWith(
-                  fontSize: 10,
-                  color: AppTheme.textPrimary,
-                  fontWeight: FontWeight.w500,
-                ),
-                onChanged: (value) {
-                  row['loss'] = value;
-                  if (index == controller.dynamicRows.length - 1 &&
-                      value.isNotEmpty &&
-                      (row['volume'] ?? '').isNotEmpty) {
-                    controller.dynamicRows.add({'loss': '', 'volume': ''});
-                  }
-                },
-              ),
-            ),
-          ),
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: TextField(
-                enabled: !dashboardController.isLocked.value,
-                decoration: const InputDecoration(
-                  border: InputBorder.none,
-                  isDense: true,
-                  contentPadding: EdgeInsets.symmetric(vertical: 6),
-                ),
-                style: AppTheme.bodySmall.copyWith(
-                  fontSize: 10,
-                  color: AppTheme.textPrimary,
-                  fontWeight: FontWeight.w500,
-                ),
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                onChanged: (value) {
-                  row['volume'] = value;
-                  if (index == controller.dynamicRows.length - 1 &&
-                      value.isNotEmpty &&
-                      (row['loss'] ?? '').isNotEmpty) {
-                    controller.dynamicRows.add({'loss': '', 'volume': ''});
-                  }
-                },
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }

@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/pit_model.dart';
-import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
 // ── Transfer Mud Row Data ────
@@ -57,13 +56,8 @@ class PitController extends GetxController {
 
   Timer? _debounceTimer;
   Worker? _wellWorker;
-  Worker? _reportWorker;
 
   bool get _hasWellId => currentWellId != null && currentWellId!.isNotEmpty;
-  String? get _currentReportId {
-    final reportId = reportContext.selectedReportId.value.trim();
-    return reportId.isEmpty ? null : reportId;
-  }
 
   List<PitModel> get activePitRows =>
       pits.where((pit) => pit.initialActive.value).toList();
@@ -71,10 +65,24 @@ class PitController extends GetxController {
   List<PitModel> get storagePitRows =>
       pits.where((pit) => !pit.initialActive.value).toList();
 
+  bool get isTransferFromActiveSystem =>
+      selectedFromPit.value.trim().toLowerCase() == 'active system';
+
+  List<String> get transferDestinationOptions {
+    if (isTransferFromActiveSystem) {
+      return unselectedPits
+          .map((pit) => pit.pitName.trim())
+          .where((name) => name.isNotEmpty)
+          .toList();
+    }
+    return const ['Active System'];
+  }
+
   @override
   void onInit() {
     super.onInit();
     currentWellId = Get.arguments?['wellId'] ?? kControllerWellId;
+    _initializeTransferRows();
     _wellWorker = ever<String>(padWellContext.selectedWellId, (wellId) {
       if (wellId.isEmpty || wellId == currentWellId) return;
       currentWellId = wellId;
@@ -82,17 +90,11 @@ class PitController extends GetxController {
       fetchVolumeNameData();
       fetchTransferMud();
     });
-    _reportWorker = ever<String>(reportContext.selectedReportId, (_) {
-      if (!_hasWellId) return;
+    if (_hasWellId) {
       fetchAllPits();
       fetchVolumeNameData();
       fetchTransferMud();
-    });
-    fetchAllPits();
-    fetchVolumeNameData();
-    // Initialize Transfer Mud
-    _initializeTransferRows();
-    fetchTransferMud();
+    }
   }
 
   void _initializeTransferRows() {
@@ -114,10 +116,7 @@ class PitController extends GetxController {
     isLoading.value = true;
     try {
       final authRepo = AuthRepository();
-      final result = await authRepo.getAllPits(
-        currentWellId!,
-        reportId: _currentReportId,
-      );
+      final result = await authRepo.getAllPits(currentWellId!);
 
       if (result['success'] == true) {
         final data = result['data'];
@@ -164,10 +163,7 @@ class PitController extends GetxController {
 
     try {
       final authRepo = AuthRepository();
-      final result = await authRepo.getSelectedPits(
-        currentWellId!,
-        reportId: _currentReportId,
-      );
+      final result = await authRepo.getSelectedPits(currentWellId!);
 
       if (result['success'] == true) {
         final data = result['data'];
@@ -195,10 +191,7 @@ class PitController extends GetxController {
 
     try {
       final authRepo = AuthRepository();
-      final result = await authRepo.getUnselectedPits(
-        currentWellId!,
-        reportId: _currentReportId,
-      );
+      final result = await authRepo.getUnselectedPits(currentWellId!);
 
       if (result['success'] == true) {
         final data = result['data'];
@@ -261,7 +254,6 @@ class PitController extends GetxController {
       final result = await authRepo.bulkAddPits(
         pits: newPits,
         wellId: currentWellId!,
-        reportId: _currentReportId,
       );
 
       if (result['success'] == true) {
@@ -331,26 +323,10 @@ class PitController extends GetxController {
         volume: volume,
         density: density,
         fluidType: fluidType,
-        reportId: _currentReportId,
       );
 
       if (result['success'] == true) {
         debugPrint('Master pit $pitId updated successfully');
-        final savedPit = result['data'] as PitModel?;
-        if (savedPit != null && savedPit.id != null && savedPit.id != pitId) {
-          if (activePitControllers.containsKey(pitId)) {
-            activePitControllers[savedPit.id!] = activePitControllers.remove(
-              pitId,
-            )!;
-          }
-          if (modifiedPitIds.remove(pitId)) {
-            modifiedPitIds.add(savedPit.id!);
-          }
-          if (pitModel != null) {
-            pitModel.id = savedPit.id;
-            pitModel.reportId = savedPit.reportId;
-          }
-        }
         // Update local model values if different
         if (pitModel != null) {
           pitModel.volume?.value = volume;
@@ -387,7 +363,6 @@ class PitController extends GetxController {
         fluidType: fluidType,
         capacity: pitModel?.capacity.value ?? 0,
         initialActive: pitModel?.initialActive.value ?? true,
-        reportId: _currentReportId,
       );
       if (result['success'] == true) {
         // Update local model
@@ -417,10 +392,7 @@ class PitController extends GetxController {
     isLoadingVolume.value = true;
     try {
       final authRepo = AuthRepository();
-      final result = await authRepo.getVolumeNameCalculation(
-        currentWellId!,
-        reportId: _currentReportId,
-      );
+      final result = await authRepo.getVolumeNameCalculation(currentWellId!);
       if (result['success'] == true) {
         final inner = result['data'];
         // auth_repo wraps the raw JSON as result['data'], so the actual
@@ -487,7 +459,6 @@ class PitController extends GetxController {
         final result = await authRepo.bulkAddPits(
           pits: draftPits,
           wellId: currentWellId!,
-          reportId: _currentReportId,
         );
         if (result['success'] == true) {
           successCount += draftPits.length;
@@ -531,17 +502,11 @@ class PitController extends GetxController {
           fluidType: ctrls['fluidType']!.text,
           capacity: pitModel?.capacity.value ?? 0,
           initialActive: pitModel?.initialActive.value ?? true,
-          reportId: _currentReportId,
         );
 
         if (result['success'] == true) {
           successCount++;
           modifiedPitIds.remove(pitId);
-          final savedPit = result['data'] as PitModel?;
-          if (savedPit != null && savedPit.id != null && pitModel != null) {
-            pitModel.id = savedPit.id;
-            pitModel.reportId = savedPit.reportId;
-          }
 
           // Update local model
           if (pitModel != null) {
@@ -590,7 +555,6 @@ class PitController extends GetxController {
       final result = await authRepo.updatePit(
         id: pit.id!,
         initialActive: newStatus,
-        reportId: _currentReportId,
       );
 
       if (result['success'] == true) {
@@ -788,14 +752,12 @@ class PitController extends GetxController {
     isLoadingTransfer.value = true;
     try {
       final authRepo = AuthRepository();
-      final result = await authRepo.getTransferMud(
-        currentWellId!,
-        reportId: _currentReportId,
-      );
+      final result = await authRepo.getTransferMud(currentWellId!);
       if (result['success'] == true) {
         final List data = result['data'] is List
             ? result['data']
             : (result['data']['data'] ?? []);
+        String? detectedSource;
 
         for (var r in transferRows) {
           r.volumeController.dispose();
@@ -803,6 +765,7 @@ class PitController extends GetxController {
         transferRows.clear();
 
         for (var item in data) {
+          detectedSource ??= item['from']?.toString().trim();
           final transfers = (item['transfers'] as List? ?? []);
           if (transfers.isEmpty) {
             transferRows.add(
@@ -829,6 +792,9 @@ class PitController extends GetxController {
         while (transferRows.length < 5) {
           transferRows.add(TransferRowData());
         }
+        if ((detectedSource ?? '').isNotEmpty) {
+          selectedFromPit.value = detectedSource!;
+        }
         transferRows.refresh();
       }
     } catch (e) {
@@ -838,21 +804,85 @@ class PitController extends GetxController {
     }
   }
 
+  void normalizeTransferRowsForSource() {
+    final allowedDestinations = transferDestinationOptions.toSet();
+    var changed = false;
+
+    for (final row in transferRows) {
+      if (row.pitName.isNotEmpty &&
+          !allowedDestinations.contains(row.pitName)) {
+        row.pitName = '';
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      transferRows.refresh();
+    }
+  }
+
+  String? _validateTransferRow(TransferRowData row) {
+    final source = selectedFromPit.value.trim();
+    final destination = row.pitName.trim();
+    final volume = double.tryParse(row.volume.trim()) ?? 0;
+
+    if (source.isEmpty) {
+      return 'Select a source pit first';
+    }
+    if (destination.isEmpty) {
+      return 'Select a destination pit';
+    }
+    if (volume <= 0) {
+      return 'Enter a volume greater than 0';
+    }
+    if (source.toLowerCase() == destination.toLowerCase()) {
+      return 'Source and destination cannot be the same';
+    }
+    if (!transferDestinationOptions.contains(destination)) {
+      return isTransferFromActiveSystem
+          ? 'Destination must be a storage pit'
+          : 'Destination must be Active System';
+    }
+
+    return null;
+  }
+
   Future<Map<String, dynamic>> saveTransferMud() async {
     if (!_hasWellId) return {'success': false, 'message': 'Well ID missing'};
 
     final authRepo = AuthRepository();
-    final filledRows = transferRows.where((r) => r.pitName.isNotEmpty).toList();
+    final candidateRows = transferRows
+        .where((r) => r.pitName.trim().isNotEmpty || r.volume.trim().isNotEmpty)
+        .toList();
 
-    if (filledRows.isEmpty) {
+    if (candidateRows.isEmpty) {
       return {'success': true, 'message': 'No transfers to save'};
     }
 
     try {
       int successCount = 0;
       final List<String> errors = [];
+      final validRows = <TransferRowData>[];
 
-      for (final row in filledRows) {
+      for (final row in candidateRows) {
+        final rowNumber = transferRows.indexOf(row) + 1;
+        final validationError = _validateTransferRow(row);
+        if (validationError != null) {
+          errors.add('Row $rowNumber: $validationError');
+          continue;
+        }
+        validRows.add(row);
+      }
+
+      if (validRows.isEmpty) {
+        return {
+          'success': false,
+          'message': errors.join(' | '),
+          'errors': errors,
+        };
+      }
+
+      for (final row in validRows) {
         final payload = {
           'wellId': currentWellId!,
           'from': selectedFromPit.value,
@@ -860,16 +890,11 @@ class PitController extends GetxController {
         };
 
         final result = row.savedId == null
-            ? await authRepo.createTransferMud(
-                currentWellId!,
-                payload,
-                reportId: _currentReportId,
-              )
+            ? await authRepo.createTransferMud(currentWellId!, payload)
             : await authRepo.updateTransferMud(
                 currentWellId!,
                 row.savedId!,
                 payload,
-                reportId: _currentReportId,
               );
 
         if (result['success'] == true) {
@@ -892,7 +917,9 @@ class PitController extends GetxController {
         'success': errors.isEmpty,
         'message': errors.isEmpty
             ? 'Saved $successCount transfers successfully'
-            : 'Saved/updated $successCount transfers, ${errors.length} failed',
+            : successCount > 0
+            ? 'Saved/updated $successCount transfers, ${errors.length} failed'
+            : errors.join(' | '),
         if (errors.isNotEmpty) 'errors': errors,
       };
     } catch (e) {
@@ -915,7 +942,6 @@ class PitController extends GetxController {
         final res = await authRepo.deleteTransferMud(
           currentWellId!,
           row.savedId!,
-          reportId: _currentReportId,
         );
         if (res['success'] != true) {
           _showAlert(
@@ -954,7 +980,6 @@ class PitController extends GetxController {
   @override
   void onClose() {
     _wellWorker?.dispose();
-    _reportWorker?.dispose();
     _disposePitControllers();
     for (var row in transferRows) {
       row.volumeController.dispose();

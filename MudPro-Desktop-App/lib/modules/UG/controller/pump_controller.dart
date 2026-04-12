@@ -1,9 +1,7 @@
 import 'dart:async';
-
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/pump_model.dart';
-import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
 class PumpController extends GetxController {
@@ -12,41 +10,19 @@ class PumpController extends GetxController {
   final pumps = <PumpModel>[].obs;
   final availablePumpModels = <String>[].obs;
   final isLoading = false.obs;
+
+  // Track which rows are currently being auto-updated
   final updatingRows = <int>{}.obs;
 
   String currentWellId = currentBackendWellId;
+
+  // Debounce timers per row index — 800ms after last keystroke
   final Map<int, Timer> _debounceTimers = {};
-  Worker? _wellWorker;
-  Worker? _reportWorker;
-
-  String? get _currentReportId {
-    final reportId = reportContext.selectedReportId.value.trim();
-    return reportId.isEmpty ? null : reportId;
-  }
-
-  String? get _currentReportNo {
-    final reportNo = reportContext.selectedReportNumber.trim();
-    return reportNo.isEmpty ? null : reportNo;
-  }
 
   @override
   void onInit() {
     super.onInit();
-    _wellWorker = ever<String>(padWellContext.selectedWellId, (wellId) {
-      if (wellId.trim().isEmpty) {
-        currentWellId = '';
-        _initializeEmptyRows();
-        availablePumpModels.clear();
-        return;
-      }
-      setWellId(wellId.trim());
-    });
-    _reportWorker = ever<String>(reportContext.selectedReportId, (_) {
-      if (currentWellId.isNotEmpty) {
-        loadPumps(currentWellId);
-      }
-    });
-
+    // ✅ FIXED: Load pumps on init so availablePumpModels gets populated
     if (currentWellId.isNotEmpty) {
       loadPumps(currentWellId);
     } else {
@@ -56,8 +32,6 @@ class PumpController extends GetxController {
 
   @override
   void onClose() {
-    _wellWorker?.dispose();
-    _reportWorker?.dispose();
     for (final timer in _debounceTimers.values) {
       timer.cancel();
     }
@@ -69,9 +43,9 @@ class PumpController extends GetxController {
     for (int i = 0; i < 10; i++) {
       pumps.add(PumpModel(rowNumber: i + 1));
     }
-    pumps.refresh();
   }
 
+  /// Called from view on every field change
   void onFieldChanged(int index) {
     checkAndAddNewRow();
 
@@ -81,13 +55,15 @@ class PumpController extends GetxController {
     }
   }
 
+  /// Debounced auto-update: waits 800ms after last change then hits PUT API
   void _scheduleAutoUpdate(int index) {
     _debounceTimers[index]?.cancel();
 
     updatingRows.add(index);
     updatingRows.refresh();
 
-    _debounceTimers[index] = Timer(const Duration(milliseconds: 800), () async {
+    _debounceTimers[index] =
+        Timer(const Duration(milliseconds: 800), () async {
       await _autoUpdatePump(index);
     });
   }
@@ -103,26 +79,19 @@ class PumpController extends GetxController {
     }
 
     try {
-      final result = await repository.updatePump(
-        pump.id!,
-        pump.toJson(),
-        wellId: currentWellId,
-        reportId: _currentReportId,
-        reportNo: _currentReportNo,
-      );
+      final pumpData = pump.toJson();
+      final result = await repository.updatePump(pump.id!, pumpData);
 
       if (result['success']) {
-        final updated = PumpModel.fromJson(
-          result['data'] as Map<String, dynamic>,
-        );
-        pumps[index] = updated;
-        pumps.refresh();
-        print('Auto-updated pump row ${index + 1}');
+        final updated = PumpModel.fromJson(result['data'] as Map<String, dynamic>);
+        pump.displacement.value = updated.displacement.value;
+        pump.rate.value = updated.rate.value;
+        print('✅ Auto-updated pump row ${index + 1}');
       } else {
-        print('Pump auto-update failed: ${result['message']}');
+        print('❌ Auto-update failed: ${result['message']}');
       }
     } catch (e) {
-      print('Pump auto-update error: $e');
+      print('❌ Auto-update error: $e');
     } finally {
       updatingRows.remove(index);
       updatingRows.refresh();
@@ -139,6 +108,7 @@ class PumpController extends GetxController {
     }
   }
 
+  /// ✅ setWellId called from parent (UG/Dashboard) when well changes
   void setWellId(String wellId) {
     currentWellId = wellId;
     loadPumps(wellId);
@@ -149,35 +119,32 @@ class PumpController extends GetxController {
       isLoading.value = true;
       currentWellId = wellId;
 
-      final result = await repository.getPumps(
-        wellId,
-        reportId: _currentReportId,
-      );
+      final result = await repository.getPumps(wellId);
 
       if (result['success']) {
         final List<dynamic> pumpData = result['data'] ?? [];
 
         pumps.clear();
-        for (final data in pumpData) {
-          if (data is Map<String, dynamic>) {
-            pumps.add(PumpModel.fromJson(data));
-          } else if (data is Map) {
-            pumps.add(PumpModel.fromJson(Map<String, dynamic>.from(data)));
-          }
+
+        for (var data in pumpData) {
+          pumps.add(PumpModel.fromJson(data));
         }
 
+        // ✅ Always ensure minimum 10 empty rows
         while (pumps.length < 10) {
           pumps.add(PumpModel(rowNumber: pumps.length + 1));
         }
 
         checkAndAddNewRow();
         pumps.refresh();
+
+        // ✅ Extract models for dropdown
         _extractAvailablePumpModels(pumpData);
       } else {
         _initializeEmptyRows();
       }
     } catch (e) {
-      print('Error loading pumps: $e');
+      print('❌ Error loading pumps: $e');
       _initializeEmptyRows();
     } finally {
       isLoading.value = false;
@@ -185,17 +152,17 @@ class PumpController extends GetxController {
   }
 
   void _extractAvailablePumpModels(List<dynamic> pumpData) {
-    final models = <String>{};
-    for (final pump in pumpData) {
-      if (pump is! Map) continue;
-      final model = pump['model']?.toString().trim() ?? '';
-      if (model.isNotEmpty) {
-        models.add(model);
+    final Set<String> models = {};
+    for (var pump in pumpData) {
+      if (pump['model'] != null && pump['model'].toString().isNotEmpty) {
+        models.add(pump['model'].toString());
       }
     }
     availablePumpModels.assignAll(models.toList()..sort());
+    print('✅ Loaded ${availablePumpModels.length} pump models for dropdown');
   }
 
+  /// Manual save — for NEW (unsaved) pumps only
   Future<void> savePump(int index) async {
     final pump = pumps[index];
     if (!pump.hasData) return;
@@ -206,33 +173,44 @@ class PumpController extends GetxController {
     try {
       isLoading.value = true;
 
-      final result = pump.id != null
-          ? await repository.updatePump(
-              pump.id!,
-              pump.toJson(),
-              wellId: currentWellId,
-              reportId: _currentReportId,
-              reportNo: _currentReportNo,
-            )
-          : await repository.createPump(
-              currentWellId,
-              pump.toJson(),
-              reportId: _currentReportId,
-              reportNo: _currentReportNo,
-            );
+      Map<String, dynamic> result;
+      final pumpData = pump.toJson();
+
+      if (pump.id != null) {
+        result = (await repository.updatePump(pump.id!, pumpData)) as Map<String, dynamic>;
+      } else {
+        result = (await repository.createPump(currentWellId, pumpData)) as Map<String, dynamic>;
+      }
 
       if (result['success']) {
-        pumps[index] = PumpModel.fromJson(
-          Map<String, dynamic>.from(result['data'] as Map),
-        );
+        final updatedPump = PumpModel.fromJson(result['data']);
+        pumps[index] = updatedPump;
         checkAndAddNewRow();
         pumps.refresh();
+
+        // ✅ After save, refresh models so new model appears in dropdown
         await loadPumps(currentWellId);
+
+        // Get.snackbar(
+        //   'Success',
+        //   'Pump saved successfully',
+        //   snackPosition: SnackPosition.BOTTOM,
+        //   backgroundColor: Colors.green,
+        //   colorText: Colors.white,
+        //   duration: const Duration(seconds: 2),
+        // );
       } else {
         throw Exception(result['message'] ?? 'Failed to save pump');
       }
     } catch (e) {
-      print('Pump save error: $e');
+      print("❌ Save error: $e");
+      // Get.snackbar(
+      //   'Error',
+      //   'Failed to save pump: $e',
+      //   snackPosition: SnackPosition.BOTTOM,
+      //   backgroundColor: Colors.red,
+      //   colorText: Colors.white,
+      // );
       rethrow;
     } finally {
       isLoading.value = false;
@@ -241,16 +219,45 @@ class PumpController extends GetxController {
 
   Future<void> saveAllPumps() async {
     final pumpsWithData = pumps.where((pump) => pump.hasData).toList();
-    if (pumpsWithData.isEmpty) return;
+
+    if (pumpsWithData.isEmpty) {
+      // Get.snackbar('Info', 'No pumps to save',
+      //     snackPosition: SnackPosition.BOTTOM,
+      //     backgroundColor: Colors.orange,
+      //     colorText: Colors.white);
+      return;
+    }
 
     try {
       isLoading.value = true;
+      int successCount = 0;
+      int failCount = 0;
+
       for (int i = 0; i < pumps.length; i++) {
         if (pumps[i].hasData) {
-          await savePump(i);
+          try {
+            await savePump(i);
+            successCount++;
+          } catch (e) {
+            failCount++;
+          }
         }
       }
+
       await loadPumps(currentWellId);
+
+      // Get.snackbar(
+      //   'Success',
+      //   'Saved $successCount pumps${failCount > 0 ? ', $failCount failed' : ''}',
+      //   snackPosition: SnackPosition.BOTTOM,
+      //   backgroundColor: failCount > 0 ? Colors.orange : Colors.green,
+      //   colorText: Colors.white,
+      // );
+    } catch (e) {
+      // Get.snackbar('Error', 'Failed to save pumps: $e',
+      //     snackPosition: SnackPosition.BOTTOM,
+      //     backgroundColor: Colors.red,
+      //     colorText: Colors.white);
     } finally {
       isLoading.value = false;
     }
@@ -265,21 +272,16 @@ class PumpController extends GetxController {
 
     if (pump.id == null) {
       pumps[index] = PumpModel(rowNumber: index + 1);
-      pumps.refresh();
       return true;
     }
 
     try {
       isLoading.value = true;
-      final result = await repository.deletePump(
-        pump.id!,
-        wellId: currentWellId,
-        reportId: _currentReportId,
-        reportNo: _currentReportNo,
-      );
+      final result = await repository.deletePump(pump.id!);
 
       if (result['success']) {
         pumps.removeAt(index);
+
         for (int i = index; i < pumps.length; i++) {
           pumps[i].rowNumber.value = i + 1;
         }
@@ -288,11 +290,24 @@ class PumpController extends GetxController {
           pumps.add(PumpModel(rowNumber: pumps.length + 1));
         }
 
+        // ✅ Refresh models after delete
         await loadPumps(currentWellId);
-        return true;
-      }
 
-      throw Exception(result['message'] ?? 'Failed to delete pump');
+        // Get.snackbar('Success', 'Pump deleted successfully',
+        //     snackPosition: SnackPosition.BOTTOM,
+        //     backgroundColor: Colors.green,
+        //     colorText: Colors.white);
+
+        return true;
+      } else {
+        throw Exception(result['message'] ?? 'Failed to delete pump');
+      }
+    } catch (e) {
+      // Get.snackbar('Error', 'Failed to delete pump: $e',
+      //     snackPosition: SnackPosition.BOTTOM,
+      //     backgroundColor: Colors.red,
+      //     colorText: Colors.white);
+      rethrow;
     } finally {
       isLoading.value = false;
     }
@@ -300,18 +315,16 @@ class PumpController extends GetxController {
 
   int get pumpCount => pumps.where((p) => p.hasData).length;
 
+  /// ✅ Fetch pump data by model for dropdown auto-fill
   Future<Map<String, dynamic>?> getPumpDataByModel(String model) async {
     try {
-      final result = await repository.getPumps(
-        currentWellId,
-        reportId: _currentReportId,
-      );
+      final result = await repository.getPumps(currentWellId);
       if (result['success']) {
         final List<dynamic> pumpData = result['data'] ?? [];
-        return pumpData
-            .cast<Map?>()
-            .firstWhereOrNull((pump) => pump?['model'] == model)
-            ?.cast<String, dynamic>();
+        return pumpData.firstWhere(
+          (pump) => pump['model'] == model,
+          orElse: () => null,
+        );
       }
       return null;
     } catch (e) {

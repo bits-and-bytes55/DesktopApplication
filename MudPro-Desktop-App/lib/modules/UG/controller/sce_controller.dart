@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
-import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 import '../model/sce_model.dart';
 import './UG_controller.dart';
@@ -27,41 +26,17 @@ class SceController extends GetxController {
   final availableOtherSceModels = <String>[].obs;
 
   final isLoading = false.obs;
-  Worker? _wellWorker;
-  Worker? _reportWorker;
 
   // ✅ FIX: maxScreenCols — driven by "No. of Screen" field from SCE data
   // Default 8 (all enabled). Updated when SCE data is loaded.
   final _maxScreenCols = 8.obs;
   int get maxScreenCols => _maxScreenCols.value;
 
-  String? currentWellId = currentBackendWellId.isEmpty
-      ? null
-      : currentBackendWellId;
-
-  String? get _currentReportId {
-    final reportId = reportContext.selectedReportId.value.trim();
-    return reportId.isEmpty ? null : reportId;
-  }
-
-  String? get _currentReportNo {
-    final reportNo = reportContext.selectedReportNumber.trim();
-    return reportNo.isEmpty ? null : reportNo;
-  }
+  String? currentWellId = currentBackendWellId.isEmpty ? null : currentBackendWellId;
 
   static const List<String> shakerLabels = [
-    '1',
-    '2',
-    '3',
-    '4',
-    '5',
-    '6',
-    '7',
-    '8',
-    '9',
-    '10',
-    'Mud Cleaner',
-    'Dryer',
+    '1', '2', '3', '4', '5', '6', '7', '8', '9', '10',
+    'Mud Cleaner', 'Dryer',
   ];
   static const List<String> otherSceLabels = [
     'Degasser',
@@ -80,44 +55,9 @@ class SceController extends GetxController {
     initializeEmptyShakers();
     initializeEmptyOtherSce();
     initializeOperationLists();
-    _wellWorker = ever<String>(padWellContext.selectedWellId, (wellId) {
-      final trimmedWellId = wellId.trim();
-      if (trimmedWellId.isEmpty) {
-        currentWellId = null;
-        initializeEmptyShakers();
-        initializeEmptyOtherSce();
-        availableShakerTypes.clear();
-        availableOtherSceTypes.clear();
-        availableShakerModels.clear();
-        availableOtherSceModels.clear();
-        _maxScreenCols.value = 8;
-        return;
-      }
-
-      currentWellId = trimmedWellId;
-      loadSceData(trimmedWellId);
-    });
-    _reportWorker = ever<String>(reportContext.selectedReportId, (_) {
-      final wellId = currentWellId?.trim() ?? '';
-      if (wellId.isNotEmpty) {
-        loadSceData(wellId);
-      }
-    });
-
-    final initialWellId = padWellContext.selectedWellId.value.trim();
-    if (initialWellId.isNotEmpty) {
-      currentWellId = initialWellId;
-      loadSceData(initialWellId);
-    } else if (currentWellId != null && currentWellId!.isNotEmpty) {
-      loadSceData(currentWellId!);
+    if (currentWellId != null && currentWellId!.isNotEmpty) {
+      loadAvailableTypes(currentWellId!);
     }
-  }
-
-  @override
-  void onClose() {
-    _wellWorker?.dispose();
-    _reportWorker?.dispose();
-    super.onClose();
   }
 
   // ================= INITIALIZATION =================
@@ -168,17 +108,13 @@ class SceController extends GetxController {
 
   Future<void> loadShakers(String wellId) async {
     try {
-      final result = await repository.getShakers(
-        wellId,
-        reportId: _currentReportId,
-        reportNo: _currentReportNo,
-      );
+      final result = await repository.getShakers(wellId);
       if (result['success']) {
         final List<dynamic> shakerData = result['data'] ?? [];
-
+        
         // Reset to empty with labels first
         initializeEmptyShakers();
-
+        
         // Populate existing ones by matching shaker label
         for (var data in shakerData) {
           final label = data['shaker']?.toString() ?? '';
@@ -211,23 +147,18 @@ class SceController extends GetxController {
     }
     // Clamp between 0 and 8
     _maxScreenCols.value = maxCols.clamp(0, 8);
-    if (_maxScreenCols.value == 0)
-      _maxScreenCols.value = 8; // default all enabled
+    if (_maxScreenCols.value == 0) _maxScreenCols.value = 8; // default all enabled
   }
 
   Future<void> loadOtherSce(String wellId) async {
     try {
-      final result = await repository.getOtherSce(
-        wellId,
-        reportId: _currentReportId,
-        reportNo: _currentReportNo,
-      );
+      final result = await repository.getOtherSce(wellId);
       if (result['success']) {
         final List<dynamic> sceData = result['data'] ?? [];
-
+        
         // Reset to empty with labels
         initializeEmptyOtherSce();
-
+        
         for (var data in sceData) {
           final label = data['type']?.toString() ?? '';
           final idx = otherSce.indexWhere((s) => s.type.value == label);
@@ -258,19 +189,10 @@ class SceController extends GetxController {
 
       Map<String, dynamic> result;
       if (shaker.id != null) {
-        result = await repository.updateShaker(
-          shaker.id!,
-          shaker.toJson(),
-          reportId: _currentReportId,
-          reportNo: _currentReportNo,
-        );
+        result = (await repository.updateShaker(shaker.id!, shaker.toJson())) as Map<String, dynamic>;
       } else {
-        result = await repository.createShaker(
-          currentWellId!,
-          shaker.toJson(),
-          reportId: _currentReportId,
-          reportNo: _currentReportNo,
-        );
+        result =
+            (await repository.createShaker(currentWellId!, shaker.toJson())) as Map<String, dynamic>;
       }
 
       if (result['success']) {
@@ -297,28 +219,24 @@ class SceController extends GetxController {
       final confirmed = await Get.dialog<bool>(
         AlertDialog(
           title: const Text('Delete Shaker'),
-          content: const Text('Are you sure you want to delete this shaker?'),
+          content:
+              const Text('Are you sure you want to delete this shaker?'),
           actions: [
             TextButton(
-              onPressed: () => Get.back(result: false),
-              child: const Text('Cancel'),
-            ),
+                onPressed: () => Get.back(result: false),
+                child: const Text('Cancel')),
             TextButton(
-              onPressed: () => Get.back(result: true),
-              style: TextButton.styleFrom(foregroundColor: Colors.red),
-              child: const Text('Delete'),
-            ),
+                onPressed: () => Get.back(result: true),
+                style:
+                    TextButton.styleFrom(foregroundColor: Colors.red),
+                child: const Text('Delete')),
           ],
         ),
       );
       if (confirmed != true) return;
 
       isLoading.value = true;
-      final result = await repository.deleteShaker(
-        shaker.id!,
-        reportId: _currentReportId,
-        reportNo: _currentReportNo,
-      );
+      final result = await repository.deleteShaker(shaker.id!);
       if (result['success']) {
         shakers[index] = ShakerModel(shaker: shaker.shaker.value);
       }
@@ -329,7 +247,8 @@ class SceController extends GetxController {
     }
   }
 
-  void enableShakerEditMode(int index) => shakers[index].isEditing.value = true;
+  void enableShakerEditMode(int index) =>
+      shakers[index].isEditing.value = true;
 
   void cancelShakerEdit(int index) {
     shakers[index].isEditing.value = false;
@@ -355,19 +274,10 @@ class SceController extends GetxController {
 
       Map<String, dynamic> result;
       if (sce.id != null) {
-        result = await repository.updateOtherSce(
-          sce.id!,
-          sce.toJson(),
-          reportId: _currentReportId,
-          reportNo: _currentReportNo,
-        );
+        result = (await repository.updateOtherSce(sce.id!, sce.toJson())) as Map<String, dynamic>;
       } else {
-        result = await repository.createOtherSce(
-          currentWellId!,
-          sce.toJson(),
-          reportId: _currentReportId,
-          reportNo: _currentReportNo,
-        );
+        result =
+            (await repository.createOtherSce(currentWellId!, sce.toJson())) as Map<String, dynamic>;
       }
 
       if (result['success']) {
@@ -395,29 +305,23 @@ class SceController extends GetxController {
         AlertDialog(
           title: const Text('Delete SCE'),
           content: const Text(
-            'Are you sure you want to delete this SCE equipment?',
-          ),
+              'Are you sure you want to delete this SCE equipment?'),
           actions: [
             TextButton(
-              onPressed: () => Get.back(result: false),
-              child: const Text('Cancel'),
-            ),
+                onPressed: () => Get.back(result: false),
+                child: const Text('Cancel')),
             TextButton(
-              onPressed: () => Get.back(result: true),
-              style: TextButton.styleFrom(foregroundColor: Colors.red),
-              child: const Text('Delete'),
-            ),
+                onPressed: () => Get.back(result: true),
+                style:
+                    TextButton.styleFrom(foregroundColor: Colors.red),
+                child: const Text('Delete')),
           ],
         ),
       );
       if (confirmed != true) return;
 
       isLoading.value = true;
-      final result = await repository.deleteOtherSce(
-        sce.id!,
-        reportId: _currentReportId,
-        reportNo: _currentReportNo,
-      );
+      final result = await repository.deleteOtherSce(sce.id!);
       if (result['success']) {
         otherSce[index] = OtherSceModel();
       }
@@ -454,11 +358,7 @@ class SceController extends GetxController {
   Future<void> loadAvailableTypes(String wellId) async {
     try {
       // Load shakers
-      final shakerResult = await repository.getShakers(
-        wellId,
-        reportId: _currentReportId,
-        reportNo: _currentReportNo,
-      );
+      final shakerResult = await repository.getShakers(wellId);
       if (shakerResult['success']) {
         final List<dynamic> shakerData = shakerResult['data'] ?? [];
 
@@ -485,11 +385,7 @@ class SceController extends GetxController {
       }
 
       // Load other SCE
-      final sceResult = await repository.getOtherSce(
-        wellId,
-        reportId: _currentReportId,
-        reportNo: _currentReportNo,
-      );
+      final sceResult = await repository.getOtherSce(wellId);
       if (sceResult['success']) {
         final List<dynamic> sceData = sceResult['data'] ?? [];
 
@@ -500,13 +396,15 @@ class SceController extends GetxController {
           if (sce['type'] != null && sce['type'].toString().isNotEmpty) {
             sceTypes.add(sce['type'].toString());
           }
-          if (sce['model1'] != null && sce['model1'].toString().isNotEmpty) {
+          if (sce['model1'] != null &&
+              sce['model1'].toString().isNotEmpty) {
             sceModels.add(sce['model1'].toString());
           }
         }
 
         if (sceTypes.isEmpty) {
-          sceTypes.addAll(['Degasser', 'Desander', 'Desilter', 'Centrifuge']);
+          sceTypes.addAll(
+              ['Degasser', 'Desander', 'Desilter', 'Centrifuge']);
         }
 
         availableOtherSceTypes.assignAll(sceTypes.toList()..sort());
@@ -514,20 +412,14 @@ class SceController extends GetxController {
       }
 
       print(
-        '✅ Loaded available types: ${availableShakerTypes.length} shakers, ${availableOtherSceTypes.length} SCE types',
-      );
+          '✅ Loaded available types: ${availableShakerTypes.length} shakers, ${availableOtherSceTypes.length} SCE types');
       print(
-        '✅ Loaded available models: ${availableShakerModels.length} shaker models, ${availableOtherSceModels.length} SCE models',
-      );
+          '✅ Loaded available models: ${availableShakerModels.length} shaker models, ${availableOtherSceModels.length} SCE models');
     } catch (e) {
       print('❌ Error loading available types: $e');
       availableShakerTypes.assignAll(['Shaker', 'Cleaner', 'Degasser']);
-      availableOtherSceTypes.assignAll([
-        'Degasser',
-        'Desander',
-        'Desilter',
-        'Centrifuge',
-      ]);
+      availableOtherSceTypes
+          .assignAll(['Degasser', 'Desander', 'Desilter', 'Centrifuge']);
     }
   }
 
@@ -535,11 +427,8 @@ class SceController extends GetxController {
 
   Future<Map<String, dynamic>?> getShakerDataByType(String type) async {
     try {
-      final result = await repository.getShakers(
-        currentWellId ?? '',
-        reportId: _currentReportId,
-        reportNo: _currentReportNo,
-      );
+      final result =
+          await repository.getShakers(currentWellId ?? '');
       if (result['success']) {
         final List<dynamic> shakerData = result['data'] ?? [];
         return shakerData.firstWhere(
@@ -556,11 +445,8 @@ class SceController extends GetxController {
 
   Future<Map<String, dynamic>?> getOtherSceDataByType(String type) async {
     try {
-      final result = await repository.getOtherSce(
-        currentWellId ?? '',
-        reportId: _currentReportId,
-        reportNo: _currentReportNo,
-      );
+      final result =
+          await repository.getOtherSce(currentWellId ?? '');
       if (result['success']) {
         final List<dynamic> sceData = result['data'] ?? [];
         return sceData.firstWhere(
@@ -579,11 +465,8 @@ class SceController extends GetxController {
 
   Future<Map<String, dynamic>?> getShakerDataByModel(String model) async {
     try {
-      final result = await repository.getShakers(
-        currentWellId ?? '',
-        reportId: _currentReportId,
-        reportNo: _currentReportNo,
-      );
+      final result =
+          await repository.getShakers(currentWellId ?? '');
       if (result['success']) {
         final List<dynamic> shakerData = result['data'] ?? [];
         return shakerData.firstWhere(
@@ -598,13 +481,11 @@ class SceController extends GetxController {
     }
   }
 
-  Future<Map<String, dynamic>?> getOtherSceDataByModel(String model) async {
+  Future<Map<String, dynamic>?> getOtherSceDataByModel(
+      String model) async {
     try {
-      final result = await repository.getOtherSce(
-        currentWellId ?? '',
-        reportId: _currentReportId,
-        reportNo: _currentReportNo,
-      );
+      final result =
+          await repository.getOtherSce(currentWellId ?? '');
       if (result['success']) {
         final List<dynamic> sceData = result['data'] ?? [];
         return sceData.firstWhere(
@@ -632,7 +513,7 @@ class SceController extends GetxController {
   // ✅ Get screens count by model from loaded shaker data
   int getScreensByModel(String model) {
     if (model.isEmpty) return 8; // Default to all 8 if no model
-
+    
     for (var shaker in shakers) {
       if (shaker.model.value == model && shaker.screens.value.isNotEmpty) {
         final screens = int.tryParse(shaker.screens.value) ?? 8;

@@ -49,38 +49,6 @@ class PumpModel {
        surfaceLen = (surfaceLen ?? '').obs,
        surfaceId = (surfaceId ?? '').obs;
 
-  static String _formatNumber(double value, {int decimals = 4}) {
-    if (value == value.truncateToDouble()) {
-      return value.truncate().toString();
-    }
-
-    return value
-        .toStringAsFixed(decimals)
-        .replaceAll(RegExp(r'0+$'), '')
-        .replaceAll(RegExp(r'\.$'), '');
-  }
-
-  static String _fromBaseValue(
-    dynamic value,
-    String fromUnit,
-    String toUnit, {
-    int decimals = 4,
-  }) {
-    if (value == null) return '';
-    final parsed = value is num
-        ? value.toDouble()
-        : double.tryParse(value.toString().trim());
-    if (parsed == null) return value.toString();
-
-    final converted = AppUnits.convertValue(parsed, fromUnit, toUnit) ?? parsed;
-    return _formatNumber(converted, decimals: decimals);
-  }
-
-  static double _toBaseValue(String rawValue, String fromUnit, String toUnit) {
-    final parsed = double.tryParse(rawValue.trim()) ?? 0;
-    return AppUnits.convertValue(parsed, fromUnit, toUnit) ?? parsed;
-  }
-
   // AFTER (correct — matches backend & original software)
   // void recalculateDisplacement() {
   //   final D = double.tryParse(linerId.value) ?? 0;
@@ -175,25 +143,17 @@ class PumpModel {
       rowNumber: json['rowNumber'] ?? 0,
       type: json['type']?.toString() ?? '',
       model: json['model']?.toString() ?? '',
-      linerId: _fromBaseValue(json['linerId'], '(in)', AppUnits.diameter),
-      rodOd: _fromBaseValue(json['rodOd'], '(in)', AppUnits.diameter),
-      strokeLength: _fromBaseValue(
-        json['strokeLength'],
-        '(in)',
-        AppUnits.length,
-      ),
+      linerId: json['linerId']?.toString() ?? '',
+      rodOd: json['rodOd']?.toString() ?? '',
+      strokeLength: json['strokeLength']?.toString() ?? '',
       efficiency: json['efficiency']?.toString() ?? '',
       spm: json['spm']?.toString() ?? '',
-      displacement: _fromBaseValue(
-        json['displacement'],
-        '(bbl/stk)',
-        AppUnits.strokeDisplacement,
-      ),
-      rate: _fromBaseValue(json['rate'], '(gpm)', AppUnits.drillingFlowRate),
-      maxPumpP: _fromBaseValue(json['maxPumpP'], '(psi)', AppUnits.pressure),
-      maxHp: _fromBaseValue(json['maxHp'], '(HP)', AppUnits.power),
-      surfaceLen: _fromBaseValue(json['surfaceLen'], '(ft)', AppUnits.length),
-      surfaceId: _fromBaseValue(json['surfaceId'], '(in)', AppUnits.diameter),
+      displacement: json['displacement']?.toString() ?? '',
+      rate: json['rate']?.toString() ?? '',
+      maxPumpP: json['maxPumpP']?.toString() ?? '',
+      maxHp: json['maxHp']?.toString() ?? '',
+      surfaceLen: json['surfaceLen']?.toString() ?? '',
+      surfaceId: json['surfaceId']?.toString() ?? '',
     );
   }
 
@@ -203,15 +163,15 @@ class PumpModel {
       'rowNumber': rowNumber.value,
       'type': type.value,
       'model': model.value,
-      'linerId': _toBaseValue(linerId.value, AppUnits.diameter, '(in)'),
-      'rodOd': _toBaseValue(rodOd.value, AppUnits.diameter, '(in)'),
-      'strokeLength': _toBaseValue(strokeLength.value, AppUnits.length, '(in)'),
+      'linerId': double.tryParse(linerId.value) ?? 0,
+      'rodOd': double.tryParse(rodOd.value) ?? 0,
+      'strokeLength': double.tryParse(strokeLength.value) ?? 0,
       'efficiency': double.tryParse(efficiency.value) ?? 0,
       'spm': double.tryParse(spm.value) ?? 0,
-      'maxPumpP': _toBaseValue(maxPumpP.value, AppUnits.pressure, '(psi)'),
-      'maxHp': _toBaseValue(maxHp.value, AppUnits.power, '(HP)'),
-      'surfaceLen': _toBaseValue(surfaceLen.value, AppUnits.length, '(ft)'),
-      'surfaceId': _toBaseValue(surfaceId.value, AppUnits.diameter, '(in)'),
+      'maxPumpP': double.tryParse(maxPumpP.value) ?? 0,
+      'maxHp': double.tryParse(maxHp.value) ?? 0,
+      'surfaceLen': double.tryParse(surfaceLen.value) ?? 0,
+      'surfaceId': double.tryParse(surfaceId.value) ?? 0,
       // displacement and rate are calculated by backend
     };
 

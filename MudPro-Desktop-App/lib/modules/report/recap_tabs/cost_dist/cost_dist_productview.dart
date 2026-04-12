@@ -1,25 +1,105 @@
 import 'package:flutter/material.dart';
+import 'package:mudpro_desktop_app/modules/daily_report/controller/inventory_snapshot_controller.dart';
 import 'package:mudpro_desktop_app/modules/daily_report/model/cost_model.dart';
 import 'package:mudpro_desktop_app/modules/daily_report/tabs/daily_cost/widget/horizontal_bar.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
-class CostDistProductview extends StatelessWidget {
+class CostDistProductview extends StatefulWidget {
   const CostDistProductview({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final productData = [
-      CostData('BARITE 4.1 - BIG BAG', 77.5),
-      CostData('BENTONITE - TON', 18.8),
-      CostData('CAUSTIC SODA', 1.9),
-      CostData('SODA ASH', 1.9),
-    ];
+  State<CostDistProductview> createState() => _CostDistProductviewState();
+}
 
-    final groupData = [
-      CostData('Weight Material', 77.5),
-      CostData('Viscosifier', 18.8),
-      CostData('Common Chemical', 3.8),
-    ];
+class _CostDistProductviewState extends State<CostDistProductview> {
+  final InventorySnapshotController _inventoryController =
+      InventorySnapshotController();
+
+  List<CostData> _productData = const [];
+  List<CostData> _groupData = const [];
+  bool _isLoading = true;
+  String _errorMessage = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchSnapshot();
+  }
+
+  Future<void> _fetchSnapshot() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+
+    try {
+      final result = await _inventoryController.getInventorySnapshot();
+      if (result['success'] != true) {
+        throw Exception(result['message'] ?? 'Failed to load inventory snapshot');
+      }
+
+      final items = (result['items'] as List<dynamic>? ?? const [])
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+
+      final totalsByCategory = <String, double>{};
+      final totalsByProduct = <String, double>{};
+
+      for (final item in items) {
+        final category = (item['category'] ?? 'Unknown').toString();
+        final name = (item['itemName'] ?? '').toString();
+        final subtotal = _toDouble(item['subtotal']);
+
+        totalsByCategory[category] =
+            (totalsByCategory[category] ?? 0) + subtotal;
+
+        if (category == 'Product' && name.isNotEmpty) {
+          totalsByProduct[name] = (totalsByProduct[name] ?? 0) + subtotal;
+        }
+      }
+
+      final productData = totalsByProduct.entries
+          .where((e) => e.value > 0)
+          .map((e) => CostData(e.key, e.value))
+          .toList()
+        ..sort((a, b) => b.value.compareTo(a.value));
+
+      final groupData = totalsByCategory.entries
+          .where((e) => e.value > 0)
+          .map((e) => CostData(e.key, e.value))
+          .toList()
+        ..sort((a, b) => b.value.compareTo(a.value));
+
+      setState(() {
+        _productData = productData;
+        _groupData = groupData;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = e.toString();
+      });
+    }
+  }
+
+  double _toDouble(dynamic value) {
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString() ?? '') ?? 0.0;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_errorMessage.isNotEmpty) {
+      return Center(child: Text(_errorMessage));
+    }
+
+    final productData = _productData;
+    final groupData = _groupData;
 
     return Container(
       decoration: BoxDecoration(
@@ -40,7 +120,7 @@ class CostDistProductview extends StatelessWidget {
               ? _buildDesktopLayout(productData, groupData, constraints)
               : _buildMobileLayout(productData, groupData, constraints);
         },
-      )
+      ),
     );
   }
 

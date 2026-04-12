@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:mudpro_desktop_app/api_endpoint/api_endpoint.dart';
+import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
 class ConsumeProductController {
   final String baseUrl = ApiEndpoint.baseUrl;
@@ -14,8 +15,6 @@ class ConsumeProductController {
   //  CREATE CONSUME PRODUCT
   // ═══════════════════════════════════════════
   Future<Map<String, dynamic>> createConsumeProduct({
-    required String wellId,
-    String? reportId,
     required String productName, // ✅ FIX: productId → productName
     required String code,
     required double sg,
@@ -28,9 +27,13 @@ class ConsumeProductController {
     required double weightPerBag,
   }) async {
     try {
+      final wellId = currentBackendWellId.trim();
+      if (wellId.isEmpty) {
+        return {'success': false, 'message': 'No backend well selected'};
+      }
+
       final body = jsonEncode({
         'wellId': wellId,
-        if (reportId != null && reportId.isNotEmpty) 'reportId': reportId,
         'product': productName, // ✅ FIX: name send ho raha hai
         'code': code,
         'sg': sg,
@@ -81,8 +84,6 @@ class ConsumeProductController {
   // ═══════════════════════════════════════════
   Future<Map<String, dynamic>> updateConsumeProduct({
     required String id,
-    required String wellId,
-    String? reportId,
     required String productName, // ✅ FIX: productId → productName
     required String code,
     required double sg,
@@ -95,9 +96,13 @@ class ConsumeProductController {
     required double weightPerBag,
   }) async {
     try {
+      final wellId = currentBackendWellId.trim();
+      if (wellId.isEmpty) {
+        return {'success': false, 'message': 'No backend well selected'};
+      }
+
       final body = jsonEncode({
         'wellId': wellId,
-        if (reportId != null && reportId.isNotEmpty) 'reportId': reportId,
         'product': productName, // ✅ FIX: name send ho raha hai
         'code': code,
         'sg': sg,
@@ -181,23 +186,20 @@ class ConsumeProductController {
   // ═══════════════════════════════════════════
   //  GET ALL CONSUME PRODUCTS
   // ═══════════════════════════════════════════
-  Future<List<Map<String, dynamic>>> getAllConsumeProducts({
-    required String wellId,
-    String? reportId,
-  }) async {
+  Future<List<Map<String, dynamic>>> getAllConsumeProducts() async {
     try {
-      final uri = Uri.parse('${baseUrl}consume-product').replace(
-        queryParameters: {
-          'wellId': wellId,
-          if (reportId != null && reportId.isNotEmpty) 'reportId': reportId,
-        },
-      );
+      final wellId = currentBackendWellId.trim();
+      if (wellId.isEmpty) {
+        return [];
+      }
+
+      final uri = Uri.parse(
+        '${baseUrl}consume-product',
+      ).replace(queryParameters: {'wellId': wellId});
+
       print('🔵 [API] GET $uri');
 
-      final response = await http.get(
-        uri,
-        headers: _headers,
-      );
+      final response = await http.get(uri, headers: _headers);
 
       print(
         '🟢 [API] Get All ConsumeProducts - statusCode: ${response.statusCode}',
@@ -209,7 +211,12 @@ class ConsumeProductController {
       if (response.statusCode == 200 || response.statusCode == 201) {
         final responseData = jsonDecode(response.body);
         final List items = responseData['data'] ?? [];
-        return items.map((e) => e as Map<String, dynamic>).toList();
+        return items
+            .map((e) => Map<String, dynamic>.from(e as Map))
+            .where(
+              (item) => (item['wellId']?.toString().trim() ?? '') == wellId,
+            )
+            .toList();
       } else {
         return [];
       }

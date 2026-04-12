@@ -101,7 +101,7 @@ class ProductsPickupController extends GetxController {
     try {
       // Find the store (don't create new one)
       final store = Get.find<InventoryProductsStore>();
-      store.setSelectedProducts(selectedProducts);
+      store.mergeSelectedProducts(selectedProducts);
       
       print('✅ Applied ${selectedProducts.length} products to inventory');
     } catch (e) {

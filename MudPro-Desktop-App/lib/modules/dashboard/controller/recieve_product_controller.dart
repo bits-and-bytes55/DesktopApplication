@@ -1,6 +1,8 @@
 import 'dart:convert';
+
 import 'package:http/http.dart' as http;
 import 'package:mudpro_desktop_app/api_endpoint/api_endpoint.dart';
+import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
 class ReceiveProductController {
   final String baseUrl = ApiEndpoint.baseUrl;
@@ -10,149 +12,118 @@ class ReceiveProductController {
     'Accept': 'application/json',
   };
 
-  Uri _buildUri(String path, {String? wellId, String? reportId}) {
-    final base = Uri.parse('${baseUrl}$path');
-    return base.replace(
-      queryParameters: {
-        ...base.queryParameters,
-        if (wellId != null && wellId.isNotEmpty) 'wellId': wellId,
-        if (reportId != null && reportId.isNotEmpty) 'reportId': reportId,
-      },
-    );
-  }
+  String get _wellId => currentBackendWellId.trim();
 
-  Map<String, dynamic> _withScope(
-    Map<String, dynamic> data, {
-    String? wellId,
-    String? reportId,
-  }) {
-    return {
-      ...data,
-      if (wellId != null && wellId.isNotEmpty) 'wellId': wellId,
-      if (reportId != null && reportId.isNotEmpty) 'reportId': reportId,
-    };
-  }
-
-  // ============ RECEIVE PRODUCT APIs ============
-
-  Future<List<Map<String, dynamic>>> getReceiveProducts({
-    String? wellId,
-    String? reportId,
-  }) async {
+  Future<List<Map<String, dynamic>>> getReceiveProducts() async {
     try {
-      final response = await http.get(
-        _buildUri('receive-product', wellId: wellId, reportId: reportId),
-        headers: _headers,
-      );
+      if (_wellId.isEmpty) {
+        return [];
+      }
 
-      print("Get Receive Products - responsebody: ${response.body}");
-      print("Get Receive Products - statusCode: ${response.statusCode}");
+      final uri = Uri.parse(
+        '${baseUrl}receive-product',
+      ).replace(queryParameters: {'wellId': _wellId});
+
+      final response = await http.get(uri, headers: _headers);
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body);
         final List items = data['data'] ?? [];
-        return items.map((e) => e as Map<String, dynamic>).toList();
-      } else {
-        throw Exception('Failed to load receive products');
+        return items.map((e) => Map<String, dynamic>.from(e as Map)).toList();
       }
-    } catch (e) {
-      print('Error fetching receive products: $e');
+
+      throw Exception('Failed to load receive products');
+    } catch (_) {
       return [];
     }
   }
 
   Future<Map<String, dynamic>> createReceiveProduct({
-    String? wellId,
-    String? reportId,
     required String productName,
     required String code,
     required String unit,
     required double amount,
   }) async {
     try {
+      if (_wellId.isEmpty) {
+        return {'success': false, 'message': 'No backend well selected'};
+      }
+
       final response = await http.post(
         Uri.parse('${baseUrl}receive-product'),
         headers: _headers,
-        body: jsonEncode(
-          _withScope(
-            {
-              'productName': productName,
-              'code': code,
-              'unit': unit,
-              'amount': amount,
-            },
-            wellId: wellId,
-            reportId: reportId,
-          ),
-        ),
+        body: jsonEncode({
+          'wellId': _wellId,
+          'productName': productName,
+          'code': code,
+          'unit': unit,
+          'amount': amount,
+        }),
       );
 
       final responseData = jsonDecode(response.body);
-      print("Create Receive Product - responsebody: ${response.body}");
-      print("Create Receive Product - statusCode: ${response.statusCode}");
-
       if (response.statusCode == 201 || response.statusCode == 200) {
         return {
           'success': true,
           'message': 'Product received successfully',
           'data': responseData['data'],
         };
-      } else {
-        return {
-          'success': false,
-          'message': responseData['message'] ?? 'Failed to receive product',
-        };
       }
+
+      return {
+        'success': false,
+        'message': responseData['message'] ?? 'Failed to receive product',
+      };
     } catch (e) {
-      return {'success': false, 'message': 'Error: $e'};
+      return {
+        'success': false,
+        'message': 'Error: $e',
+      };
     }
   }
 
   Future<Map<String, dynamic>> updateReceiveProduct({
     required String id,
-    String? wellId,
-    String? reportId,
     required String productName,
     required String code,
     required String unit,
     required double amount,
   }) async {
     try {
+      if (_wellId.isEmpty) {
+        return {'success': false, 'message': 'No backend well selected'};
+      }
+
       final response = await http.put(
         Uri.parse('${baseUrl}receive-product/$id'),
         headers: _headers,
-        body: jsonEncode(
-          _withScope(
-            {
-              'productName': productName,
-              'code': code,
-              'unit': unit,
-              'amount': amount,
-            },
-            wellId: wellId,
-            reportId: reportId,
-          ),
-        ),
+        body: jsonEncode({
+          'wellId': _wellId,
+          'productName': productName,
+          'code': code,
+          'unit': unit,
+          'amount': amount,
+        }),
       );
 
       final responseData = jsonDecode(response.body);
-      print("Update Receive Product - responsebody: ${response.body}");
-      print("Update Receive Product - statusCode: ${response.statusCode}");
-
       if (response.statusCode == 200) {
         return {
           'success': true,
           'message': 'Product updated successfully',
           'data': responseData['data'],
         };
-      } else {
-        return {
-          'success': false,
-          'message': responseData['message'] ?? 'Failed to update product',
-        };
       }
+
+      return {
+        'success': false,
+        'message': responseData['message'] ?? 'Failed to update product',
+      };
     } catch (e) {
-      return {'success': false, 'message': 'Error: $e'};
+      return {
+        'success': false,
+        'message': 'Error: $e',
+      };
     }
   }
 
@@ -164,142 +135,135 @@ class ReceiveProductController {
       );
 
       final responseData = jsonDecode(response.body);
-      print("Delete Receive Product - responsebody: ${response.body}");
-      print("Delete Receive Product - statusCode: ${response.statusCode}");
-
       if (response.statusCode == 200) {
-        return {'success': true, 'message': 'Product deleted successfully'};
-      } else {
         return {
-          'success': false,
-          'message': responseData['message'] ?? 'Failed to delete product',
+          'success': true,
+          'message': 'Product deleted successfully',
         };
       }
+
+      return {
+        'success': false,
+        'message': responseData['message'] ?? 'Failed to delete product',
+      };
     } catch (e) {
-      return {'success': false, 'message': 'Error: $e'};
+      return {
+        'success': false,
+        'message': 'Error: $e',
+      };
     }
   }
 
-  // ============ RECEIVE PACKAGE APIs ============
-
-  Future<List<Map<String, dynamic>>> getReceivePackages({
-    String? wellId,
-    String? reportId,
-  }) async {
+  Future<List<Map<String, dynamic>>> getReceivePackages() async {
     try {
-      final response = await http.get(
-        _buildUri('receive-package', wellId: wellId, reportId: reportId),
-        headers: _headers,
-      );
+      if (_wellId.isEmpty) {
+        return [];
+      }
 
-      print("Get Receive Packages - responsebody: ${response.body}");
-      print("Get Receive Packages - statusCode: ${response.statusCode}");
+      final uri = Uri.parse(
+        '${baseUrl}receive-package',
+      ).replace(queryParameters: {'wellId': _wellId});
+
+      final response = await http.get(uri, headers: _headers);
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body);
         final List items = data['data'] ?? [];
-        return items.map((e) => e as Map<String, dynamic>).toList();
-      } else {
-        throw Exception('Failed to load receive packages');
+        return items.map((e) => Map<String, dynamic>.from(e as Map)).toList();
       }
-    } catch (e) {
-      print('Error fetching receive packages: $e');
+
+      throw Exception('Failed to load receive packages');
+    } catch (_) {
       return [];
     }
   }
 
   Future<Map<String, dynamic>> createReceivePackage({
-    String? wellId,
-    String? reportId,
     required String packageName,
     required String code,
     required String unit,
     required double amount,
   }) async {
     try {
+      if (_wellId.isEmpty) {
+        return {'success': false, 'message': 'No backend well selected'};
+      }
+
       final response = await http.post(
         Uri.parse('${baseUrl}receive-package'),
         headers: _headers,
-        body: jsonEncode(
-          _withScope(
-            {
-              'packageName': packageName,
-              'code': code,
-              'unit': unit,
-              'amount': amount,
-            },
-            wellId: wellId,
-            reportId: reportId,
-          ),
-        ),
+        body: jsonEncode({
+          'wellId': _wellId,
+          'packageName': packageName,
+          'code': code,
+          'unit': unit,
+          'amount': amount,
+        }),
       );
 
       final responseData = jsonDecode(response.body);
-      print("Create Receive Package - responsebody: ${response.body}");
-      print("Create Receive Package - statusCode: ${response.statusCode}");
-
       if (response.statusCode == 201 || response.statusCode == 200) {
         return {
           'success': true,
           'message': 'Package received successfully',
           'data': responseData['data'],
         };
-      } else {
-        return {
-          'success': false,
-          'message': responseData['message'] ?? 'Failed to receive package',
-        };
       }
+
+      return {
+        'success': false,
+        'message': responseData['message'] ?? 'Failed to receive package',
+      };
     } catch (e) {
-      return {'success': false, 'message': 'Error: $e'};
+      return {
+        'success': false,
+        'message': 'Error: $e',
+      };
     }
   }
 
   Future<Map<String, dynamic>> updateReceivePackage({
     required String id,
-    String? wellId,
-    String? reportId,
     required String packageName,
     required String code,
     required String unit,
     required double amount,
   }) async {
     try {
+      if (_wellId.isEmpty) {
+        return {'success': false, 'message': 'No backend well selected'};
+      }
+
       final response = await http.put(
         Uri.parse('${baseUrl}receive-package/$id'),
         headers: _headers,
-        body: jsonEncode(
-          _withScope(
-            {
-              'packageName': packageName,
-              'code': code,
-              'unit': unit,
-              'amount': amount,
-            },
-            wellId: wellId,
-            reportId: reportId,
-          ),
-        ),
+        body: jsonEncode({
+          'wellId': _wellId,
+          'packageName': packageName,
+          'code': code,
+          'unit': unit,
+          'amount': amount,
+        }),
       );
 
       final responseData = jsonDecode(response.body);
-      print("Update Receive Package - responsebody: ${response.body}");
-      print("Update Receive Package - statusCode: ${response.statusCode}");
-
       if (response.statusCode == 200) {
         return {
           'success': true,
           'message': 'Package updated successfully',
           'data': responseData['data'],
         };
-      } else {
-        return {
-          'success': false,
-          'message': responseData['message'] ?? 'Failed to update package',
-        };
       }
+
+      return {
+        'success': false,
+        'message': responseData['message'] ?? 'Failed to update package',
+      };
     } catch (e) {
-      return {'success': false, 'message': 'Error: $e'};
+      return {
+        'success': false,
+        'message': 'Error: $e',
+      };
     }
   }
 
@@ -307,44 +271,41 @@ class ReceiveProductController {
     try {
       final response = await http.delete(
         Uri.parse('${baseUrl}receive-package/$id'),
+        headers: _headers,
       );
 
       final responseData = jsonDecode(response.body);
-      print("Delete Receive Package - responsebody: ${response.body}");
-      print("Delete Receive Package - statusCode: ${response.statusCode}");
-
       if (response.statusCode == 200) {
-        return {'success': true, 'message': 'Package deleted successfully'};
-      } else {
         return {
-          'success': false,
-          'message': responseData['message'] ?? 'Failed to delete package',
+          'success': true,
+          'message': 'Package deleted successfully',
         };
       }
+
+      return {
+        'success': false,
+        'message': responseData['message'] ?? 'Failed to delete package',
+      };
     } catch (e) {
-      return {'success': false, 'message': 'Error: $e'};
+      return {
+        'success': false,
+        'message': 'Error: $e',
+      };
     }
   }
 
-  // ============ SAVE ALL RECEIVE DATA ============
-
   Future<Map<String, dynamic>> saveAllReceiveData({
-    String? wellId,
-    String? reportId,
     required List<Map<String, dynamic>> products,
     List<Map<String, dynamic>> packages = const [],
   }) async {
     try {
-      List<Map<String, dynamic>> productResults = [];
-      List<Map<String, dynamic>> packageResults = [];
+      final productResults = <Map<String, dynamic>>[];
+      final packageResults = <Map<String, dynamic>>[];
 
-      // Save products
-      for (var product in products) {
+      for (final product in products) {
         if (product['productName'] != null &&
             product['productName'].toString().isNotEmpty) {
           final result = await createReceiveProduct(
-            wellId: wellId,
-            reportId: reportId,
             productName: product['productName'],
             code: product['code'] ?? '',
             unit: product['unit'] ?? '',
@@ -354,13 +315,10 @@ class ReceiveProductController {
         }
       }
 
-      // Save packages
-      for (var pkg in packages) {
+      for (final pkg in packages) {
         if (pkg['packageName'] != null &&
             pkg['packageName'].toString().isNotEmpty) {
           final result = await createReceivePackage(
-            wellId: wellId,
-            reportId: reportId,
             packageName: pkg['packageName'],
             code: pkg['code'] ?? '',
             unit: pkg['unit'] ?? '',
@@ -381,7 +339,10 @@ class ReceiveProductController {
         'packageResults': packageResults,
       };
     } catch (e) {
-      return {'success': false, 'message': 'Error saving data: $e'};
+      return {
+        'success': false,
+        'message': 'Error saving data: $e',
+      };
     }
   }
 }

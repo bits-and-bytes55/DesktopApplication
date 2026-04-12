@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
-import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import '../controller/ug_pit_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/pit_model.dart';
@@ -71,25 +70,26 @@ class PitView extends StatelessWidget {
           const Spacer(),
           const Text(
             "Total Capacity: ",
-            style: TextStyle(fontSize: 11, color: Colors.white),
-          ),
-          Obx(
-            () => Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(3),
-              ),
-              child: Text(
-                "${c.totalCapacity.value.toStringAsFixed(1)} bbl",
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-              ),
+            style: TextStyle(
+              fontSize: 11,
+              color: Colors.white,
             ),
           ),
+          Obx(() => Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(3),
+            ),
+            child: Text(
+              "${c.totalCapacity.value.toStringAsFixed(1)} bbl",
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+              ),
+            ),
+          )),
           const SizedBox(width: 10),
         ],
       ),
@@ -137,7 +137,9 @@ class PitView extends StatelessWidget {
   Widget _buildTableBody() {
     return Obx(() {
       if (c.isLoading.value) {
-        return const Center(child: CircularProgressIndicator());
+        return const Center(
+          child: CircularProgressIndicator(),
+        );
       }
 
       return ListView.builder(
@@ -154,7 +156,7 @@ class PitView extends StatelessWidget {
   // ================= PIT ROW =================
   Widget _buildPitRow(PitModel pit, int index) {
     final bool hasData = pit.id != null;
-
+    
     return Container(
       height: 36,
       decoration: BoxDecoration(
@@ -167,13 +169,13 @@ class PitView extends StatelessWidget {
         children: [
           // Pit/Tank Name Column
           _buildNameCell(pit, index, hasData),
-
+          
           // Capacity Column
           _buildCapacityCell(pit, index, hasData),
-
+          
           // Initial Active Column
           _buildActiveCell(pit, hasData),
-
+          
           // Actions Column
           _buildActionsCell(pit, hasData),
         ],
@@ -189,7 +191,10 @@ class PitView extends StatelessWidget {
       child: hasData
           ? Text(
               pit.pitName,
-              style: TextStyle(fontSize: 11, color: AppTheme.textPrimary),
+              style: TextStyle(
+                fontSize: 11,
+                color: AppTheme.textPrimary,
+              ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             )
@@ -202,7 +207,10 @@ class PitView extends StatelessWidget {
               ),
               child: TextFormField(
                 initialValue: pit.pitName,
-                style: TextStyle(fontSize: 11, color: AppTheme.textPrimary),
+                style: TextStyle(
+                  fontSize: 11,
+                  color: AppTheme.textPrimary,
+                ),
                 decoration: const InputDecoration(
                   isDense: true,
                   contentPadding: EdgeInsets.zero,
@@ -227,7 +235,10 @@ class PitView extends StatelessWidget {
       child: hasData
           ? Text(
               "${pit.capacity.value.toStringAsFixed(1)} bbl",
-              style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+              style: TextStyle(
+                fontSize: 11,
+                color: AppTheme.textSecondary,
+              ),
             )
           : Container(
               height: 26,
@@ -237,16 +248,20 @@ class PitView extends StatelessWidget {
                 borderRadius: BorderRadius.circular(3),
               ),
               child: TextFormField(
-                initialValue: pit.capacity.value > 0
-                    ? pit.capacity.value.toString()
-                    : '',
-                style: TextStyle(fontSize: 11, color: AppTheme.textPrimary),
+                initialValue: pit.capacity.value > 0 ? pit.capacity.value.toString() : '',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: AppTheme.textPrimary,
+                ),
                 decoration: const InputDecoration(
                   isDense: true,
                   contentPadding: EdgeInsets.zero,
                   border: InputBorder.none,
                   suffixText: 'bbl',
-                  suffixStyle: TextStyle(fontSize: 9, color: Colors.grey),
+                  suffixStyle: TextStyle(
+                    fontSize: 9,
+                    color: Colors.grey,
+                  ),
                 ),
                 keyboardType: TextInputType.number,
                 onChanged: (value) {
@@ -271,17 +286,15 @@ class PitView extends StatelessWidget {
       child: SizedBox(
         height: 24,
         width: 24,
-        child: Obx(
-          () => Checkbox(
-            value: pit.initialActive.value,
-            onChanged: hasData
-                ? (value) => c.togglePitActive(pit)
-                : (value) => pit.initialActive.value = value ?? false,
-            activeColor: AppTheme.successColor,
-            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            visualDensity: VisualDensity.compact,
-          ),
-        ),
+        child: Obx(() => Checkbox(
+          value: pit.initialActive.value,
+          onChanged: hasData
+              ? (value) => c.togglePitActive(pit)
+              : (value) => pit.initialActive.value = value ?? false,
+          activeColor: AppTheme.successColor,
+          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          visualDensity: VisualDensity.compact,
+        )),
       ),
     );
   }
@@ -306,7 +319,7 @@ class PitView extends StatelessWidget {
             color: AppTheme.primaryColor,
           ),
           const SizedBox(width: 8),
-
+          
           // Delete button
           IconButton(
             onPressed: () => c.deletePit(pit),
@@ -328,7 +341,9 @@ class PitView extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.grey.shade50,
-        border: Border(top: BorderSide(color: Colors.grey.shade300, width: 1)),
+        border: Border(
+          top: BorderSide(color: Colors.grey.shade300, width: 1),
+        ),
         borderRadius: const BorderRadius.only(
           bottomLeft: Radius.circular(8),
           bottomRight: Radius.circular(8),
@@ -337,33 +352,28 @@ class PitView extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          Obx(
-            () => ElevatedButton.icon(
-              onPressed: c.isSaving.value ? null : () => c.bulkSavePits(),
-              icon: c.isSaving.value
-                  ? const SizedBox(
-                      width: 14,
-                      height: 14,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Icon(Icons.save, size: 16),
-              label: Text(
-                c.isSaving.value ? 'Saving...' : 'Save New Pits',
-                style: const TextStyle(fontSize: 12),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryColor,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 10,
-                ),
-              ),
+          Obx(() => ElevatedButton.icon(
+            onPressed: c.isSaving.value ? null : () => c.bulkSavePits(),
+            icon: c.isSaving.value
+                ? const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Icon(Icons.save, size: 16),
+            label: Text(
+              c.isSaving.value ? 'Saving...' : 'Save New Pits',
+              style: const TextStyle(fontSize: 12),
             ),
-          ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryColor,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            ),
+          )),
         ],
       ),
     );
@@ -406,20 +416,21 @@ class PitView extends StatelessWidget {
                 keyboardType: TextInputType.number,
               ),
               const SizedBox(height: 12),
-              Obx(
-                () => CheckboxListTile(
-                  title: const Text('Active', style: TextStyle(fontSize: 12)),
-                  value: isActive.value,
-                  onChanged: (value) => isActive.value = value ?? false,
-                  contentPadding: EdgeInsets.zero,
-                  dense: true,
-                ),
-              ),
+              Obx(() => CheckboxListTile(
+                title: const Text('Active', style: TextStyle(fontSize: 12)),
+                value: isActive.value,
+                onChanged: (value) => isActive.value = value ?? false,
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+              )),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Get.back(), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Get.back(),
+            child: const Text('Cancel'),
+          ),
           ElevatedButton(
             onPressed: () async {
               final name = nameController.text.trim();
@@ -443,9 +454,6 @@ class PitView extends StatelessWidget {
                   pitName: name,
                   capacity: capacity,
                   initialActive: isActive.value,
-                  reportId: reportContext.selectedReportId.value.trim().isEmpty
-                      ? null
-                      : reportContext.selectedReportId.value.trim(),
                 );
 
                 if (result['success'] == true) {

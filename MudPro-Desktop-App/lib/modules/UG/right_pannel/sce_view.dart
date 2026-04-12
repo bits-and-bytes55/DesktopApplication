@@ -17,24 +17,15 @@ class _SceViewState extends State<SceView> {
   late final UgController ugController;
   late final SceController sceController;
   late final PadWellController padWellC;
+  Worker? _wellWorker;
 
   static const rowH = 32.0;
   static const headerH = 36.0;
 
   // ✅ Static shaker row labels (fixed, read-only) — index = row position
   static const List<String> shakerRowLabels = [
-    '1',
-    '2',
-    '3',
-    '4',
-    '5',
-    '6',
-    '7',
-    '8',
-    '9',
-    '10',
-    'Mud Cleaner',
-    'Dryer',
+    '1', '2', '3', '4', '5', '6', '7', '8', '9', '10',
+    'Mud Cleaner', 'Dryer',
   ];
 
   // ✅ Static Other SCE row labels (fixed, read-only)
@@ -54,6 +45,10 @@ class _SceViewState extends State<SceView> {
         ? Get.find<SceController>()
         : Get.put(SceController());
     padWellC = padWellContext;
+    _wellWorker = ever<String>(padWellC.selectedWellId, (wellId) {
+      if (wellId.isNotEmpty) sceController.loadSceData(wellId);
+    });
+    // ✅ Load data only once when the page is first shown — NOT on every rebuild
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final wellId = padWellC.selectedWellId.value;
       if (wellId.isNotEmpty) sceController.loadSceData(wellId);
@@ -61,7 +56,10 @@ class _SceViewState extends State<SceView> {
   }
 
   @override
-  void dispose() => super.dispose();
+  void dispose() {
+    _wellWorker?.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -84,13 +82,7 @@ class _SceViewState extends State<SceView> {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(8),
         color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 6, offset: const Offset(0, 2))],
         border: Border.all(color: Colors.grey.shade200, width: 1),
       ),
       child: Column(
@@ -109,45 +101,28 @@ class _SceViewState extends State<SceView> {
       height: headerH,
       decoration: BoxDecoration(
         gradient: AppTheme.headerGradient,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(8),
-          topRight: Radius.circular(8),
-        ),
+        borderRadius: const BorderRadius.only(topLeft: Radius.circular(8), topRight: Radius.circular(8)),
       ),
       child: Row(
         children: [
           const SizedBox(width: 12),
           const Icon(Icons.vibration, color: Colors.white, size: 16),
           const SizedBox(width: 8),
-          const Text(
-            "Shaker Equipment",
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
-            ),
-          ),
+          const Text("Shaker Equipment", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white)),
           const Spacer(),
-          Obx(
-            () => Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: Colors.white.withOpacity(0.3)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.info_outline, size: 12, color: Colors.white),
-                  const SizedBox(width: 4),
-                  Text(
-                    "${sceController.shakerCount} shakers",
-                    style: const TextStyle(fontSize: 11, color: Colors.white),
-                  ),
-                ],
-              ),
+          Obx(() => Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: Colors.white.withOpacity(0.3)),
             ),
-          ),
+            child: Row(children: [
+              const Icon(Icons.info_outline, size: 12, color: Colors.white),
+              const SizedBox(width: 4),
+              Text("${sceController.shakerCount} shakers", style: const TextStyle(fontSize: 11, color: Colors.white)),
+            ]),
+          )),
           const SizedBox(width: 12),
         ],
       ),
@@ -159,9 +134,7 @@ class _SceViewState extends State<SceView> {
       height: rowH,
       decoration: BoxDecoration(
         color: const Color(0xfff0f9ff),
-        border: Border(
-          bottom: BorderSide(color: Colors.grey.shade200, width: 1),
-        ),
+        border: Border(bottom: BorderSide(color: Colors.grey.shade200, width: 1)),
       ),
       child: Row(
         children: _addDividers([
@@ -185,18 +158,14 @@ class _SceViewState extends State<SceView> {
         itemCount: shakerRowLabels.length,
         itemBuilder: (_, i) {
           final label = shakerRowLabels[i];
-          final shaker = i < sceController.shakers.length
-              ? sceController.shakers[i]
-              : null;
+          final shaker = i < sceController.shakers.length ? sceController.shakers[i] : null;
           final shakerIndex = i;
 
           return Container(
             height: rowH,
             decoration: BoxDecoration(
               color: i.isEven ? Colors.white : const Color(0xfffafafa),
-              border: Border(
-                bottom: BorderSide(color: Colors.grey.shade100, width: 1),
-              ),
+              border: Border(bottom: BorderSide(color: Colors.grey.shade100, width: 1)),
             ),
             child: Row(
               children: _addDividers([
@@ -231,43 +200,23 @@ class _SceViewState extends State<SceView> {
       decoration: BoxDecoration(
         color: Colors.grey.shade50,
         border: Border(top: BorderSide(color: Colors.grey.shade300, width: 1)),
-        borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(8),
-          bottomRight: Radius.circular(8),
-        ),
+        borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(8), bottomRight: Radius.circular(8)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          Obx(
-            () => ElevatedButton.icon(
-              onPressed: sceController.isLoading.value
-                  ? null
-                  : () => _bulkSaveShakers(context),
-              icon: sceController.isLoading.value
-                  ? const SizedBox(
-                      width: 14,
-                      height: 14,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Icon(Icons.save, size: 16),
-              label: Text(
-                sceController.isLoading.value ? 'Saving...' : 'Save All',
-                style: const TextStyle(fontSize: 12),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryColor,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 10,
-                ),
-              ),
+          Obx(() => ElevatedButton.icon(
+            onPressed: sceController.isLoading.value ? null : () => _bulkSaveShakers(context),
+            icon: sceController.isLoading.value
+                ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                : const Icon(Icons.save, size: 16),
+            label: Text(sceController.isLoading.value ? 'Saving...' : 'Save All', style: const TextStyle(fontSize: 12)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryColor,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
             ),
-          ),
+          )),
         ],
       ),
     );
@@ -279,13 +228,7 @@ class _SceViewState extends State<SceView> {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(8),
         color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 6, offset: const Offset(0, 2))],
         border: Border.all(color: Colors.grey.shade200, width: 1),
       ),
       child: Column(
@@ -304,45 +247,28 @@ class _SceViewState extends State<SceView> {
       height: headerH,
       decoration: BoxDecoration(
         gradient: AppTheme.headerGradient,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(8),
-          topRight: Radius.circular(8),
-        ),
+        borderRadius: const BorderRadius.only(topLeft: Radius.circular(8), topRight: Radius.circular(8)),
       ),
       child: Row(
         children: [
           const SizedBox(width: 12),
           const Icon(Icons.build, color: Colors.white, size: 16),
           const SizedBox(width: 8),
-          const Text(
-            "Other SCE Equipment",
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
-            ),
-          ),
+          const Text("Other SCE Equipment", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white)),
           const Spacer(),
-          Obx(
-            () => Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: Colors.white.withOpacity(0.3)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.info_outline, size: 12, color: Colors.white),
-                  const SizedBox(width: 4),
-                  Text(
-                    "${sceController.otherSceCount} equipment",
-                    style: const TextStyle(fontSize: 11, color: Colors.white),
-                  ),
-                ],
-              ),
+          Obx(() => Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: Colors.white.withOpacity(0.3)),
             ),
-          ),
+            child: Row(children: [
+              const Icon(Icons.info_outline, size: 12, color: Colors.white),
+              const SizedBox(width: 4),
+              Text("${sceController.otherSceCount} equipment", style: const TextStyle(fontSize: 11, color: Colors.white)),
+            ]),
+          )),
           const SizedBox(width: 12),
         ],
       ),
@@ -354,9 +280,7 @@ class _SceViewState extends State<SceView> {
       height: rowH,
       decoration: BoxDecoration(
         color: const Color(0xfff0f9ff),
-        border: Border(
-          bottom: BorderSide(color: Colors.grey.shade200, width: 1),
-        ),
+        border: Border(bottom: BorderSide(color: Colors.grey.shade200, width: 1)),
       ),
       child: Row(
         children: _addDividers([
@@ -381,18 +305,14 @@ class _SceViewState extends State<SceView> {
         itemCount: otherSceRowLabels.length,
         itemBuilder: (_, i) {
           final label = otherSceRowLabels[i];
-          final sce = i < sceController.otherSce.length
-              ? sceController.otherSce[i]
-              : null;
+          final sce = i < sceController.otherSce.length ? sceController.otherSce[i] : null;
           final sceIndex = i;
 
           return Container(
             height: rowH,
             decoration: BoxDecoration(
               color: i.isEven ? Colors.white : const Color(0xfffafafa),
-              border: Border(
-                bottom: BorderSide(color: Colors.grey.shade100, width: 1),
-              ),
+              border: Border(bottom: BorderSide(color: Colors.grey.shade100, width: 1)),
             ),
             child: Row(
               children: _addDividers([
@@ -431,43 +351,23 @@ class _SceViewState extends State<SceView> {
       decoration: BoxDecoration(
         color: Colors.grey.shade50,
         border: Border(top: BorderSide(color: Colors.grey.shade300, width: 1)),
-        borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(8),
-          bottomRight: Radius.circular(8),
-        ),
+        borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(8), bottomRight: Radius.circular(8)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          Obx(
-            () => ElevatedButton.icon(
-              onPressed: sceController.isLoading.value
-                  ? null
-                  : () => _bulkSaveOtherSce(context),
-              icon: sceController.isLoading.value
-                  ? const SizedBox(
-                      width: 14,
-                      height: 14,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Icon(Icons.save, size: 16),
-              label: Text(
-                sceController.isLoading.value ? 'Saving...' : 'Save All',
-                style: const TextStyle(fontSize: 12),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryColor,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 10,
-                ),
-              ),
+          Obx(() => ElevatedButton.icon(
+            onPressed: sceController.isLoading.value ? null : () => _bulkSaveOtherSce(context),
+            icon: sceController.isLoading.value
+                ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                : const Icon(Icons.save, size: 16),
+            label: Text(sceController.isLoading.value ? 'Saving...' : 'Save All', style: const TextStyle(fontSize: 12)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryColor,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
             ),
-          ),
+          )),
         ],
       ),
     );
@@ -479,13 +379,7 @@ class _SceViewState extends State<SceView> {
     for (int i = 0; i < widgets.length; i++) {
       result.add(widgets[i]);
       if (i < widgets.length - 1) {
-        result.add(
-          Container(
-            width: 1,
-            color: Colors.grey.shade200,
-            height: double.infinity,
-          ),
-        );
+        result.add(Container(width: 1, color: Colors.grey.shade200, height: double.infinity));
       }
     }
     return result;
@@ -514,6 +408,12 @@ class _SceViewState extends State<SceView> {
     );
   }
 
+
+
+
+
+
+
   Widget _emptyCell({required int flex}) {
     return Expanded(flex: flex, child: const SizedBox.shrink());
   }
@@ -529,32 +429,19 @@ class _SceViewState extends State<SceView> {
             return Container(
               padding: const EdgeInsets.symmetric(vertical: 8),
               alignment: Alignment.center,
-              child: Text(
-                value.value,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: value.value.isEmpty
-                      ? Colors.grey.shade400
-                      : AppTheme.textSecondary,
-                ),
-              ),
+              child: Text(value.value, textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 11, color: value.value.isEmpty ? Colors.grey.shade400 : AppTheme.textSecondary)),
             );
           } else {
             return TextField(
               controller: TextEditingController(text: value.value)
-                ..selection = TextSelection.fromPosition(
-                  TextPosition(offset: value.value.length),
-                ),
+                ..selection = TextSelection.fromPosition(TextPosition(offset: value.value.length)),
               onChanged: (v) => value.value = v,
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 11, color: AppTheme.textPrimary),
               decoration: const InputDecoration(
                 isDense: true,
-                contentPadding: EdgeInsets.symmetric(
-                  vertical: 8,
-                  horizontal: 4,
-                ),
+                contentPadding: EdgeInsets.symmetric(vertical: 8, horizontal: 4),
                 border: InputBorder.none,
               ),
             );
@@ -580,9 +467,7 @@ class _SceViewState extends State<SceView> {
               checkColor: Colors.white,
               materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
               visualDensity: VisualDensity.compact,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(3),
-              ),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(3)),
             ),
           );
         }),
@@ -591,11 +476,7 @@ class _SceViewState extends State<SceView> {
   }
 
   // ✅ FIXED: Screens dropdown with click-to-show-icon behavior
-  Widget _screensDropdownCell(
-    ShakerModel? shaker, {
-    required String label,
-    required int flex,
-  }) {
+  Widget _screensDropdownCell(ShakerModel? shaker, {required String label, required int flex}) {
     return Expanded(
       flex: flex,
       child: _ScreensDropdownCell(
@@ -619,16 +500,14 @@ class _SceViewState extends State<SceView> {
             if (shaker.id != null)
               IconButton(
                 icon: const Icon(Icons.edit, size: 16, color: Colors.blue),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
+                padding: EdgeInsets.zero, constraints: const BoxConstraints(),
                 onPressed: () => shaker.isEditing.value = true,
               ),
             if (shaker.hasData) ...[
               const SizedBox(width: 4),
               IconButton(
                 icon: const Icon(Icons.delete, size: 16, color: Colors.red),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
+                padding: EdgeInsets.zero, constraints: const BoxConstraints(),
                 onPressed: () => _deleteShaker(index),
               ),
             ],
@@ -650,16 +529,14 @@ class _SceViewState extends State<SceView> {
             if (sce.id != null)
               IconButton(
                 icon: const Icon(Icons.edit, size: 16, color: Colors.blue),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
+                padding: EdgeInsets.zero, constraints: const BoxConstraints(),
                 onPressed: () => sce.isEditing.value = true,
               ),
             if (sce.hasData) ...[
               const SizedBox(width: 4),
               IconButton(
                 icon: const Icon(Icons.delete, size: 16, color: Colors.red),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
+                padding: EdgeInsets.zero, constraints: const BoxConstraints(),
                 onPressed: () => _deleteOtherSce(index),
               ),
             ],
@@ -671,46 +548,28 @@ class _SceViewState extends State<SceView> {
 
   // ================= ACTIONS =================
   Future<void> _deleteShaker(int index) async {
-    final confirmed = await Get.dialog<bool>(
-      AlertDialog(
-        title: const Text('Delete Shaker'),
-        content: const Text('Are you sure you want to delete this shaker?'),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(result: false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Get.back(result: true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
+    final confirmed = await Get.dialog<bool>(AlertDialog(
+      title: const Text('Delete Shaker'),
+      content: const Text('Are you sure you want to delete this shaker?'),
+      actions: [
+        TextButton(onPressed: () => Get.back(result: false), child: const Text('Cancel')),
+        TextButton(onPressed: () => Get.back(result: true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red), child: const Text('Delete')),
+      ],
+    ));
     if (confirmed == true) await sceController.deleteShaker(index);
   }
 
   Future<void> _deleteOtherSce(int index) async {
-    final confirmed = await Get.dialog<bool>(
-      AlertDialog(
-        title: const Text('Delete SCE'),
-        content: const Text(
-          'Are you sure you want to delete this SCE equipment?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(result: false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Get.back(result: true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
+    final confirmed = await Get.dialog<bool>(AlertDialog(
+      title: const Text('Delete SCE'),
+      content: const Text('Are you sure you want to delete this SCE equipment?'),
+      actions: [
+        TextButton(onPressed: () => Get.back(result: false), child: const Text('Cancel')),
+        TextButton(onPressed: () => Get.back(result: true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red), child: const Text('Delete')),
+      ],
+    ));
     if (confirmed == true) await sceController.deleteOtherSce(index);
   }
 
@@ -741,8 +600,7 @@ class _SceViewState extends State<SceView> {
       }
 
       if (!anySaved) {
-        if (context.mounted)
-          _showAlert(context, 'No shakers to save', isSuccess: false);
+        if (context.mounted) _showAlert(context, 'No shakers to save', isSuccess: false);
         return;
       }
 
@@ -750,11 +608,9 @@ class _SceViewState extends State<SceView> {
       if (wellId.isNotEmpty) {
         await sceController.loadSceData(wellId);
       }
-      if (context.mounted)
-        _showAlert(context, 'All shakers saved successfully', isSuccess: true);
+      if (context.mounted) _showAlert(context, 'All shakers saved successfully', isSuccess: true);
     } catch (e) {
-      if (context.mounted)
-        _showAlert(context, 'Failed to save shakers', isSuccess: false);
+      if (context.mounted) _showAlert(context, 'Failed to save shakers', isSuccess: false);
     } finally {
       sceController.isLoading.value = false;
     }
@@ -784,10 +640,10 @@ class _SceViewState extends State<SceView> {
       bool anySaved = false;
       for (int i = 0; i < otherSceRowLabels.length; i++) {
         final label = otherSceRowLabels[i];
-
+        
         dynamic sce = sceByLabel[label];
         int? idx = sceIndexByLabel[label];
-
+        
         if (sce == null && sceByPosition.containsKey(i)) {
           sce = sceByPosition[i];
           idx = sceControllerIndexByPosition[i];
@@ -802,8 +658,7 @@ class _SceViewState extends State<SceView> {
       }
 
       if (!anySaved) {
-        if (context.mounted)
-          _showAlert(context, 'No equipment to save', isSuccess: false);
+        if (context.mounted) _showAlert(context, 'No equipment to save', isSuccess: false);
         return;
       }
 
@@ -811,30 +666,19 @@ class _SceViewState extends State<SceView> {
       if (wellId.isNotEmpty) {
         await sceController.loadSceData(wellId);
       }
-      if (context.mounted)
-        _showAlert(
-          context,
-          'All equipment saved successfully',
-          isSuccess: true,
-        );
+      if (context.mounted) _showAlert(context, 'All equipment saved successfully', isSuccess: true);
     } catch (e) {
-      if (context.mounted)
-        _showAlert(context, 'Failed to save equipment', isSuccess: false);
+      if (context.mounted) _showAlert(context, 'Failed to save equipment', isSuccess: false);
     } finally {
       sceController.isLoading.value = false;
     }
   }
 
-  void _showAlert(
-    BuildContext context,
-    String message, {
-    bool isSuccess = true,
-  }) {
+  void _showAlert(BuildContext context, String message, {bool isSuccess = true}) {
     final overlay = Overlay.of(context);
     final entry = OverlayEntry(
       builder: (context) => Positioned(
-        top: 20,
-        right: 20,
+        top: 20, right: 20,
         child: Material(
           color: Colors.transparent,
           child: Container(
@@ -842,31 +686,14 @@ class _SceViewState extends State<SceView> {
             decoration: BoxDecoration(
               color: isSuccess ? Colors.green : Colors.red,
               borderRadius: BorderRadius.circular(8),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 6,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 6, offset: const Offset(0, 2))],
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  isSuccess ? Icons.check_circle : Icons.error,
-                  color: Colors.white,
-                  size: 20,
-                ),
+                Icon(isSuccess ? Icons.check_circle : Icons.error, color: Colors.white, size: 20),
                 const SizedBox(width: 8),
-                Text(
-                  message,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
+                Text(message, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500)),
               ],
             ),
           ),
@@ -897,17 +724,7 @@ class _ScreensDropdownCell extends StatefulWidget {
 }
 
 class _ScreensDropdownCellState extends State<_ScreensDropdownCell> {
-  static const List<String> _opts = [
-    '',
-    '1',
-    '2',
-    '3',
-    '4',
-    '5',
-    '6',
-    '7',
-    '8',
-  ];
+  static const List<String> _opts = ['', '1', '2', '3', '4', '5', '6', '7', '8'];
 
   String? _localValue;
   bool _isLocked = false;
@@ -933,9 +750,7 @@ class _ScreensDropdownCellState extends State<_ScreensDropdownCell> {
   }
 
   void _updateLocalStates() {
-    _localValue = (widget.shaker?.screens.value.isEmpty ?? true)
-        ? null
-        : widget.shaker?.screens.value;
+    _localValue = (widget.shaker?.screens.value.isEmpty ?? true) ? null : widget.shaker?.screens.value;
     _isLocked = widget.ugController.isLocked.value;
   }
 
@@ -969,9 +784,7 @@ class _ScreensDropdownCellState extends State<_ScreensDropdownCell> {
           _localValue ?? '',
           style: TextStyle(
             fontSize: 11,
-            color: _localValue == null
-                ? Colors.grey.shade400
-                : AppTheme.textSecondary,
+            color: _localValue == null ? Colors.grey.shade400 : AppTheme.textSecondary,
           ),
         ),
       );
@@ -1015,16 +828,12 @@ class _ScreensDropdownCellState extends State<_ScreensDropdownCell> {
   }
 
   void _showDropdownMenu(BuildContext context) {
-    final RenderBox overlay =
-        Overlay.of(context).context.findRenderObject() as RenderBox;
+    final RenderBox overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
     final RenderBox button = context.findRenderObject() as RenderBox;
     final RelativeRect position = RelativeRect.fromRect(
       Rect.fromPoints(
         button.localToGlobal(Offset.zero, ancestor: overlay),
-        button.localToGlobal(
-          button.size.bottomRight(Offset.zero),
-          ancestor: overlay,
-        ),
+        button.localToGlobal(button.size.bottomRight(Offset.zero), ancestor: overlay),
       ),
       Offset.zero & overlay.size,
     );
@@ -1033,19 +842,15 @@ class _ScreensDropdownCellState extends State<_ScreensDropdownCell> {
       context: context,
       position: position,
       constraints: const BoxConstraints(maxWidth: 80),
-      items: _opts
-          .map(
-            (v) => PopupMenuItem<String>(
-              value: v,
-              height: 30, // ✅ Compact height
-              child: Container(
-                width: double.infinity,
-                alignment: Alignment.center,
-                child: Text(v, style: const TextStyle(fontSize: 11)),
-              ),
-            ),
-          )
-          .toList(),
+      items: _opts.map((v) => PopupMenuItem<String>(
+        value: v,
+        height: 30, // ✅ Compact height
+        child: Container(
+          width: double.infinity,
+          alignment: Alignment.center,
+          child: Text(v, style: const TextStyle(fontSize: 11)),
+        ),
+      )).toList(),
     ).then((val) {
       if (val != null) {
         _handleValueSelected(val);
@@ -1061,6 +866,7 @@ class _ScreensDropdownCellState extends State<_ScreensDropdownCell> {
   }
 }
 
+
 class _HCell extends StatelessWidget {
   final String text;
   final int flex;
@@ -1072,15 +878,8 @@ class _HCell extends StatelessWidget {
       flex: flex,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8),
-        child: Text(
-          text,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            color: AppTheme.textPrimary,
-          ),
-        ),
+        child: Text(text, textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
       ),
     );
   }

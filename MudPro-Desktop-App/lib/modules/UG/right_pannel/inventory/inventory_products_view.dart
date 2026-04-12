@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/UG_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/inventory_model.dart';
+import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/controller/ug_inventory_product_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/inventory_store/inventory_store.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/model/products_model.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
@@ -87,6 +88,17 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
     }
     setState(() => _isLoading = true);
     try {
+      final store = Get.find<InventoryProductsStore>();
+
+      if (store.selectedProducts.isEmpty) {
+        final savedProducts = await InventoryProductsService.fetchProducts(
+          wellId,
+        );
+        if (savedProducts.isNotEmpty) {
+          store.setSelectedProducts(savedProducts.map(_toProductModel).toList());
+        }
+      }
+
       // Load Premixed
       final premixedList = await _repository.getPremixed(wellId);
       c.premixed.value = premixedList;
@@ -112,6 +124,25 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  ProductModel _toProductModel(dynamic product) {
+    return ProductModel(
+      id: product.id,
+      product: product.product,
+      code: product.code,
+      sg: product.sg,
+      unitNum: product.unit,
+      unitClass: '',
+      group: product.group,
+      a: product.price,
+      price: product.price,
+      initial: product.initial,
+      volAdd: product.volAdd,
+      calculate: product.calculate,
+      plot: product.plot ?? false,
+      tax: product.tax,
+    );
   }
 
   void _showToast(String message, {bool isError = false}) {

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart';
-import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
 class OtherVolAdditionController extends GetxController {
@@ -18,26 +17,19 @@ class OtherVolAdditionController extends GetxController {
   ].obs;
 
   Worker? _wellWorker;
-  Worker? _reportWorker;
 
   String get wellId => currentBackendWellId.trim();
-  String? get _currentReportId {
-    final reportId = reportContext.selectedReportId.value.trim();
-    return reportId.isEmpty ? null : reportId;
-  }
 
   @override
   void onInit() {
     super.onInit();
     load();
     _wellWorker = ever<String>(padWellContext.selectedWellId, (_) => load(force: true));
-    _reportWorker = ever<String>(reportContext.selectedReportId, (_) => load(force: true));
   }
 
   @override
   void onClose() {
     _wellWorker?.dispose();
-    _reportWorker?.dispose();
     formationController.dispose();
     cuttingsController.dispose();
     volumeNotFluidController.dispose();
@@ -72,10 +64,7 @@ class OtherVolAdditionController extends GetxController {
 
     isLoading.value = true;
     try {
-      final result = await _repository.getOtherVolAdditionList(
-        wellId,
-        reportId: _currentReportId,
-      );
+      final result = await _repository.getOtherVolAdditionList(wellId);
       if (result['success'] != true) {
         throw Exception(result['message'] ?? 'Failed to load Other Vol Addition');
       }
@@ -126,7 +115,6 @@ class OtherVolAdditionController extends GetxController {
       final deleteRes = await _repository.deleteOtherVolAddition(
         wellId,
         recordId.value!,
-        reportId: _currentReportId,
       );
       if (deleteRes['success'] == true) {
         _clearFields();
@@ -136,17 +124,8 @@ class OtherVolAdditionController extends GetxController {
     }
 
     final result = recordId.value != null && recordId.value!.isNotEmpty
-        ? await _repository.updateOtherVolAddition(
-            wellId,
-            recordId.value!,
-            body,
-            reportId: _currentReportId,
-          )
-        : await _repository.createOtherVolAddition(
-            wellId,
-            body,
-            reportId: _currentReportId,
-          );
+        ? await _repository.updateOtherVolAddition(wellId, recordId.value!, body)
+        : await _repository.createOtherVolAddition(wellId, body);
 
     if (result['success'] == true) {
       await load(force: true);

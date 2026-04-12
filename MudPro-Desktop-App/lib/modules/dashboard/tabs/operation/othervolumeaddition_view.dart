@@ -94,10 +94,6 @@ class OtherVolAdditionActiveSystemView extends StatelessWidget {
                           'Volume Not Fluid',
                           controller.volumeNotFluidController,
                         ),
-                        ...controller.dynamicRows.asMap().entries.map((entry) {
-                          final index = entry.key;
-                          return _dynamicRow(index, entry.value);
-                        }),
                       ],
                     ],
                   ),
@@ -204,86 +200,4 @@ class OtherVolAdditionActiveSystemView extends StatelessWidget {
     );
   }
 
-  Widget _dynamicRow(int index, Map<String, String> row) {
-    final globalIndex = index + 3;
-    return Container(
-      height: 36,
-      decoration: BoxDecoration(
-        color: globalIndex.isEven ? Colors.grey.shade50 : Colors.white,
-        border: Border(
-          bottom: index == controller.dynamicRows.length - 1
-              ? BorderSide.none
-              : BorderSide(color: Colors.grey.shade200),
-        ),
-        borderRadius: index == controller.dynamicRows.length - 1
-            ? const BorderRadius.only(
-                bottomLeft: Radius.circular(8),
-                bottomRight: Radius.circular(8),
-              )
-            : null,
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 2,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              decoration: BoxDecoration(
-                border: Border(right: BorderSide(color: Colors.grey.shade300)),
-              ),
-              child: TextField(
-                enabled: !dashboardController.isLocked.value,
-                decoration: const InputDecoration(
-                  border: InputBorder.none,
-                  isDense: true,
-                  contentPadding: EdgeInsets.symmetric(vertical: 8),
-                ),
-                style: AppTheme.bodySmall.copyWith(
-                  fontSize: 11,
-                  color: AppTheme.textPrimary,
-                  fontWeight: FontWeight.w500,
-                ),
-                onChanged: (value) {
-                  row['label'] = value;
-                  if (index == controller.dynamicRows.length - 1 &&
-                      value.isNotEmpty &&
-                      (row['volume'] ?? '').isNotEmpty) {
-                    controller.dynamicRows.add({'label': '', 'volume': ''});
-                  }
-                },
-              ),
-            ),
-          ),
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: TextField(
-                enabled: !dashboardController.isLocked.value,
-                decoration: const InputDecoration(
-                  border: InputBorder.none,
-                  isDense: true,
-                  contentPadding: EdgeInsets.symmetric(vertical: 8),
-                ),
-                style: AppTheme.bodySmall.copyWith(
-                  fontSize: 11,
-                  color: AppTheme.textPrimary,
-                  fontWeight: FontWeight.w500,
-                ),
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                onChanged: (value) {
-                  row['volume'] = value;
-                  if (index == controller.dynamicRows.length - 1 &&
-                      value.isNotEmpty &&
-                      (row['label'] ?? '').isNotEmpty) {
-                    controller.dynamicRows.add({'label': '', 'volume': ''});
-                  }
-                },
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }

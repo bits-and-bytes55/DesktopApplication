@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
-import 'package:mudpro_desktop_app/modules/daily_report/controller/report_concentration_controller.dart';
 import 'package:mudpro_desktop_app/modules/daily_report/tabs/concentration_tab/tabs/concentration_current_table.dart';
 import 'package:mudpro_desktop_app/modules/daily_report/tabs/concentration_tab/tabs/concentration_graph.dart';
 import 'package:mudpro_desktop_app/modules/daily_report/tabs/concentration_tab/tabs/concentration_table_history.dart';
-import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class ConcentrationPage extends StatefulWidget {
   const ConcentrationPage({super.key});
@@ -15,16 +12,33 @@ class ConcentrationPage extends StatefulWidget {
 
 class _ConcentrationPageState extends State<ConcentrationPage>
     with SingleTickerProviderStateMixin {
-  late final TabController _tabController;
-  late final ReportConcentrationController _controller;
+  late TabController _tabController;
+  String selectedSystem = 'Active System';
+
+  final systems = [
+    'Active System',
+    'Sand Trap',
+    'Desander 1A',
+    'Desilter 1B',
+    'Intermediate 2A',
+    'Intermediate 2B',
+    'Intermediate 2C',
+    'Suction 4A',
+    'Suction 4B',
+    'Reserve 5A',
+    'Reserve 5B',
+    'Reserve 6A',
+    'Reserve 6B',
+    'Pill 3A',
+    'Pill 3B',
+    'Slug 3C',
+    'Trip Tank',
+  ];
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    _controller = Get.isRegistered<ReportConcentrationController>()
-        ? Get.find<ReportConcentrationController>()
-        : Get.put(ReportConcentrationController());
   }
 
   @override
@@ -36,98 +50,72 @@ class _ConcentrationPageState extends State<ConcentrationPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
+      backgroundColor: Color(0xffFAF9F6),
       body: Column(
         children: [
+          // ================= TOP BAR =================
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             decoration: BoxDecoration(
               color: Colors.white,
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.05),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
+                  blurRadius: 4,
+                  offset: Offset(0, 2),
                 ),
               ],
             ),
-            child: Obx(() {
-              return Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Concentration',
-                          style: AppTheme.titleMedium.copyWith(
-                            fontSize: 20,
-                            color: AppTheme.textPrimary,
+            child: Row(
+              children: [
+                Text(
+                  'Concentration',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xff2D3748),
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const Spacer(),
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Color(0xffF8F9FA),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: Color(0xffE2E8F0), width: 1),
+                  ),
+                  child: DropdownButton<String>(
+                    value: selectedSystem,
+                    underline: SizedBox(),
+                    icon: Icon(Icons.arrow_drop_down, color: Color(0xff6C9BCF)),
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Color(0xff2D3748),
+                      fontWeight: FontWeight.w500,
+                    ),
+                    items: systems
+                        .map(
+                          (e) => DropdownMenuItem(
+                            value: e,
+                            child: Text(
+                              e,
+                              style: TextStyle(color: Color(0xff2D3748)),
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          _controller.summaryText,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppTheme.textSecondary,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
+                        )
+                        .toList(),
+                    onChanged: (v) => setState(() => selectedSystem = v!),
                   ),
-                  const SizedBox(width: 12),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppTheme.cardColor,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: const Color(0xffE2E8F0)),
-                    ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: _controller.selectedSystem.value,
-                        icon: const Icon(
-                          Icons.arrow_drop_down,
-                          color: AppTheme.primaryColor,
-                        ),
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: AppTheme.textPrimary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        items: _controller.systems
-                            .map(
-                              (system) => DropdownMenuItem<String>(
-                                value: system,
-                                child: Text(system),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: _controller.updateSelectedSystem,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    onPressed: _controller.refreshData,
-                    tooltip: 'Refresh concentration snapshot',
-                    icon: const Icon(
-                      Icons.refresh,
-                      color: AppTheme.primaryColor,
-                    ),
-                  ),
-                ],
-              );
-            }),
+                ),
+              ],
+            ),
           ),
+
+          // ================= TABS =================
           Container(
-            height: 50,
-            decoration: const BoxDecoration(
+            height: 50, // Decreased height from default
+            decoration: BoxDecoration(
               color: Colors.white,
               border: Border(
                 bottom: BorderSide(color: Color(0xffE2E8F0), width: 0.5),
@@ -135,36 +123,44 @@ class _ConcentrationPageState extends State<ConcentrationPage>
             ),
             child: TabBar(
               controller: _tabController,
-              labelColor: AppTheme.primaryColor,
-              unselectedLabelColor: AppTheme.textSecondary,
-              indicatorColor: AppTheme.primaryColor,
+              labelColor: Color(0xff6C9BCF),
+              unselectedLabelColor: Color(0xff718096),
+              indicatorColor: Color(0xff6C9BCF),
               indicatorWeight: 3,
               indicatorSize: TabBarIndicatorSize.label,
-              labelStyle: const TextStyle(
+              labelStyle: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 0.3,
               ),
-              unselectedLabelStyle: const TextStyle(
+              unselectedLabelStyle: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
               ),
               tabs: const [
-                Tab(icon: Icon(Icons.show_chart, size: 16), text: 'Graph View'),
                 Tab(
-                  icon: Icon(Icons.table_chart, size: 16),
+                  icon: Icon(Icons.show_chart, size: 16), // Slightly smaller icon
+                  text: 'Graph View',
+                ),
+                Tab(
+                  icon: Icon(Icons.table_chart, size: 16), // Slightly smaller icon
                   text: 'Current Table',
                 ),
-                Tab(icon: Icon(Icons.history, size: 16), text: 'History Table'),
+                Tab(
+                  icon: Icon(Icons.history, size: 16), // Slightly smaller icon
+                  text: 'History Table',
+                ),
               ],
             ),
           ),
+
+          // ================= CONTENT =================
           Expanded(
             child: Container(
-              color: AppTheme.backgroundColor,
+              color: Color(0xffF8F9FA),
               child: TabBarView(
                 controller: _tabController,
-                children: const [
+                children: [
                   ConcentrationGraphTab(),
                   ConcentrationCurrentTable(),
                   ConcentrationTableHistory(),

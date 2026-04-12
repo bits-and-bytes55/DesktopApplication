@@ -1,7 +1,6 @@
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart';
-import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
 enum OperationType {
@@ -24,7 +23,6 @@ enum OperationType {
 class OperationController extends GetxController {
   final AuthRepository _repository = AuthRepository();
   Worker? _wellWorker;
-  Worker? _reportWorker;
 
   RxBool isLocked = true.obs;
   RxInt selectedRowIndex = 0.obs;
@@ -40,12 +38,6 @@ class OperationController extends GetxController {
   final RxList<String> addWaterRecordIds = <String>[].obs;
   final isAddWaterLoading = false.obs;
   String _loadedAddWaterWellId = '';
-  String _loadedAddWaterReportId = '';
-
-  String? get _currentReportId {
-    final reportId = reportContext.selectedReportId.value.trim();
-    return reportId.isEmpty ? null : reportId;
-  }
 
   void _resetAddWaterState() {
     addWaterTo.value = "Active System";
@@ -83,23 +75,16 @@ class OperationController extends GetxController {
     final wellId = currentBackendWellId.trim();
     if (wellId.isEmpty) {
       _loadedAddWaterWellId = '';
-      _loadedAddWaterReportId = '';
       _resetAddWaterState();
       return;
     }
-    if (!force &&
-        _loadedAddWaterWellId == wellId &&
-        _loadedAddWaterReportId == (_currentReportId ?? '') &&
-        !isAddWaterLoading.value) {
+    if (!force && _loadedAddWaterWellId == wellId && !isAddWaterLoading.value) {
       return;
     }
 
     isAddWaterLoading.value = true;
     try {
-      final result = await _repository.getAddWaterList(
-        wellId,
-        reportId: _currentReportId,
-      );
+      final result = await _repository.getAddWaterList(wellId);
       if (result['success'] != true) {
         throw Exception(result['message'] ?? 'Failed to load Add Water');
       }
@@ -116,7 +101,6 @@ class OperationController extends GetxController {
       if (chronologicalItems.isEmpty) {
         _resetAddWaterState();
         _loadedAddWaterWellId = wellId;
-        _loadedAddWaterReportId = _currentReportId ?? '';
         return;
       }
 
@@ -146,7 +130,6 @@ class OperationController extends GetxController {
       addWaterExtraRows.assignAll(extras);
       addWaterRecordIds.assignAll(recordIds);
       _loadedAddWaterWellId = wellId;
-      _loadedAddWaterReportId = _currentReportId ?? '';
     } catch (_) {
       _resetAddWaterState();
     } finally {
@@ -172,11 +155,7 @@ class OperationController extends GetxController {
         return {'success': true, 'message': 'No Add Water data to save'};
       }
       for (final id in addWaterRecordIds) {
-        final deleteRes = await _repository.deleteAddWater(
-          wellId,
-          id,
-          reportId: _currentReportId,
-        );
+        final deleteRes = await _repository.deleteAddWater(wellId, id);
         if (deleteRes['success'] == true) {
           successCount++;
         } else {
@@ -203,17 +182,8 @@ class OperationController extends GetxController {
       };
       final existingId = index < currentIds.length ? currentIds[index] : '';
       final result = existingId.isNotEmpty
-          ? await _repository.updateAddWater(
-              wellId,
-              existingId,
-              body,
-              reportId: _currentReportId,
-            )
-          : await _repository.createAddWater(
-              wellId,
-              body,
-              reportId: _currentReportId,
-            );
+          ? await _repository.updateAddWater(wellId, existingId, body)
+          : await _repository.createAddWater(wellId, body);
       if (result['success'] == true) {
         successCount++;
       } else {
@@ -222,11 +192,7 @@ class OperationController extends GetxController {
     }
 
     for (var index = volumes.length; index < currentIds.length; index++) {
-      final deleteRes = await _repository.deleteAddWater(
-        wellId,
-        currentIds[index],
-        reportId: _currentReportId,
-      );
+      final deleteRes = await _repository.deleteAddWater(wellId, currentIds[index]);
       if (deleteRes['success'] == true) {
         successCount++;
       } else {
@@ -477,11 +443,6 @@ final RxList<String> returnLostDropdownValue =
     loadAddWater();
     _wellWorker = ever<String>(padWellContext.selectedWellId, (_) {
       _loadedAddWaterWellId = '';
-      _loadedAddWaterReportId = '';
-      loadAddWater(force: true);
-    });
-    _reportWorker = ever<String>(reportContext.selectedReportId, (_) {
-      _loadedAddWaterReportId = '';
       loadAddWater(force: true);
     });
   }
@@ -489,7 +450,6 @@ final RxList<String> returnLostDropdownValue =
   @override
   void onClose() {
     _wellWorker?.dispose();
-    _reportWorker?.dispose();
     super.onClose();
   }
 }

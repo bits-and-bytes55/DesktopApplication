@@ -1,23 +1,13 @@
-import 'dart:async';
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/pump_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/sce_controller.dart';
-import 'package:mudpro_desktop_app/modules/UG/model/pump_model.dart';
-import 'package:mudpro_desktop_app/modules/UG/model/sce_model.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
-import 'package:mudpro_desktop_app/modules/report_context/report_api_service.dart';
-import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
-import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 // ─── Local row model for Pump page ────────────────────────────────────────────
 class _PumpRow {
-  String? id;
-  int rowNumber;
   final RxString model = ''.obs;
   final RxString type = ''.obs;
   final RxString linerId = ''.obs;
@@ -27,63 +17,8 @@ class _PumpRow {
   final RxString displacement = ''.obs;
   final RxString spm = ''.obs;
   final RxString rate = ''.obs;
-  final RxString maxPumpP = ''.obs;
-  final RxString maxHp = ''.obs;
-  final RxString surfaceLen = ''.obs;
-  final RxString surfaceId = ''.obs;
 
-  _PumpRow({this.id, this.rowNumber = 0});
-
-  factory _PumpRow.fromPumpModel(PumpModel model) {
-    final row = _PumpRow(id: model.id, rowNumber: model.rowNumber.value);
-    row.model.value = model.model.value;
-    row.type.value = model.type.value;
-    row.linerId.value = model.linerId.value;
-    row.rodOd.value = model.rodOd.value;
-    row.strokeLength.value = model.strokeLength.value;
-    row.efficiency.value = model.efficiency.value;
-    row.displacement.value = model.displacement.value;
-    row.spm.value = model.spm.value;
-    row.rate.value = model.rate.value;
-    row.maxPumpP.value = model.maxPumpP.value;
-    row.maxHp.value = model.maxHp.value;
-    row.surfaceLen.value = model.surfaceLen.value;
-    row.surfaceId.value = model.surfaceId.value;
-    return row;
-  }
-
-  PumpModel toPumpModel(int index) {
-    return PumpModel(
-      id: id,
-      rowNumber: rowNumber > 0 ? rowNumber : index + 1,
-      type: type.value,
-      model: model.value,
-      linerId: linerId.value,
-      rodOd: rodOd.value,
-      strokeLength: strokeLength.value,
-      efficiency: efficiency.value,
-      spm: spm.value,
-      displacement: displacement.value,
-      rate: rate.value,
-      maxPumpP: maxPumpP.value,
-      maxHp: maxHp.value,
-      surfaceLen: surfaceLen.value,
-      surfaceId: surfaceId.value,
-    );
-  }
-
-  bool get hasData =>
-      model.value.isNotEmpty ||
-      type.value.isNotEmpty ||
-      linerId.value.isNotEmpty ||
-      rodOd.value.isNotEmpty ||
-      strokeLength.value.isNotEmpty ||
-      efficiency.value.isNotEmpty ||
-      spm.value.isNotEmpty ||
-      maxPumpP.value.isNotEmpty ||
-      maxHp.value.isNotEmpty ||
-      surfaceLen.value.isNotEmpty ||
-      surfaceId.value.isNotEmpty;
+  bool get hasData => model.value.isNotEmpty;
 
   void clear() {
     model.value = '';
@@ -95,10 +30,6 @@ class _PumpRow {
     displacement.value = '';
     spm.value = '';
     rate.value = '';
-    maxPumpP.value = '';
-    maxHp.value = '';
-    surfaceLen.value = '';
-    surfaceId.value = '';
   }
 
   void recalculateRate() {
@@ -125,8 +56,6 @@ class _PumpRow {
 
 // ─── Local row models for SCE ─────────────────────────────────────────────────
 class _ShakerRow {
-  String? id;
-  bool plot;
   final RxString shakerType = ''.obs;
   final RxString model = ''.obs;
   final RxString screen1 = ''.obs;
@@ -141,90 +70,10 @@ class _ShakerRow {
   final RxString oocWt = ''.obs;
   final RxInt enabledScreens = 0.obs;
 
-  _ShakerRow({this.id, this.plot = false});
-
-  static int _resolveEnabledScreens(ShakerModel shaker) {
-    final parsed = int.tryParse(shaker.screens.value) ?? 0;
-    if (parsed > 0) {
-      return parsed;
-    }
-
-    final values = [
-      shaker.screen1.value,
-      shaker.screen2.value,
-      shaker.screen3.value,
-      shaker.screen4.value,
-      shaker.screen5.value,
-      shaker.screen6.value,
-      shaker.screen7.value,
-      shaker.screen8.value,
-    ];
-
-    var maxIndex = 0;
-    for (int i = 0; i < values.length; i++) {
-      if (values[i].trim().isNotEmpty) {
-        maxIndex = i + 1;
-      }
-    }
-    return maxIndex;
-  }
-
-  factory _ShakerRow.fromModel(ShakerModel shaker) {
-    final row = _ShakerRow(id: shaker.id, plot: shaker.plot.value);
-    row.shakerType.value = shaker.shaker.value;
-    row.model.value = shaker.model.value;
-    row.screen1.value = shaker.screen1.value;
-    row.screen2.value = shaker.screen2.value;
-    row.screen3.value = shaker.screen3.value;
-    row.screen4.value = shaker.screen4.value;
-    row.screen5.value = shaker.screen5.value;
-    row.screen6.value = shaker.screen6.value;
-    row.screen7.value = shaker.screen7.value;
-    row.screen8.value = shaker.screen8.value;
-    row.time.value = shaker.time.value;
-    row.oocWt.value = shaker.oocWt.value;
-    row.enabledScreens.value = _resolveEnabledScreens(shaker);
-    return row;
-  }
-
-  ShakerModel toModel() {
-    return ShakerModel(
-      id: id,
-      shaker: shakerType.value,
-      model: model.value,
-      screens: enabledScreens.value > 0 ? enabledScreens.value.toString() : '',
-      plot: plot,
-      screen1: screen1.value,
-      screen2: screen2.value,
-      screen3: screen3.value,
-      screen4: screen4.value,
-      screen5: screen5.value,
-      screen6: screen6.value,
-      screen7: screen7.value,
-      screen8: screen8.value,
-      time: time.value,
-      oocWt: oocWt.value,
-    );
-  }
-
-  bool get hasData =>
-      shakerType.value.isNotEmpty ||
-      model.value.isNotEmpty ||
-      time.value.isNotEmpty ||
-      oocWt.value.isNotEmpty ||
-      screen1.value.isNotEmpty ||
-      screen2.value.isNotEmpty ||
-      screen3.value.isNotEmpty ||
-      screen4.value.isNotEmpty ||
-      screen5.value.isNotEmpty ||
-      screen6.value.isNotEmpty ||
-      screen7.value.isNotEmpty ||
-      screen8.value.isNotEmpty;
+  bool get hasData => model.value.isNotEmpty || shakerType.value.isNotEmpty;
 }
 
 class _OtherSceRow {
-  String? id;
-  bool plot;
   final RxString type = ''.obs;
   final RxString model = ''.obs;
   final RxString uf = ''.obs;
@@ -232,39 +81,7 @@ class _OtherSceRow {
   final RxString time = ''.obs;
   final RxString oocWt = ''.obs;
 
-  _OtherSceRow({this.id, this.plot = false});
-
-  factory _OtherSceRow.fromModel(OtherSceModel sce) {
-    final row = _OtherSceRow(id: sce.id, plot: sce.plot.value);
-    row.type.value = sce.type.value;
-    row.model.value = sce.model1.value;
-    row.uf.value = sce.uf.value;
-    row.of_.value = sce.of.value;
-    row.time.value = sce.time.value;
-    row.oocWt.value = sce.oocWt.value;
-    return row;
-  }
-
-  OtherSceModel toModel() {
-    return OtherSceModel(
-      id: id,
-      type: type.value,
-      model1: model.value,
-      plot: plot,
-      uf: uf.value,
-      of: of_.value,
-      time: time.value,
-      oocWt: oocWt.value,
-    );
-  }
-
-  bool get hasData =>
-      type.value.isNotEmpty ||
-      model.value.isNotEmpty ||
-      uf.value.isNotEmpty ||
-      of_.value.isNotEmpty ||
-      time.value.isNotEmpty ||
-      oocWt.value.isNotEmpty;
+  bool get hasData => type.value.isNotEmpty || model.value.isNotEmpty;
 }
 
 // ─── PumpPage ─────────────────────────────────────────────────────────────────
@@ -280,9 +97,6 @@ class _PumpPageState extends State<PumpPage> {
   late final SceController sceController;
   late final DashboardController dashboard;
   final List<Worker> _unitWorkers = <Worker>[];
-  Worker? _wellWorker;
-  Worker? _reportWorker;
-  final RxBool _isSyncing = false.obs;
   late String _diameterUnit;
   late String _lengthUnit;
   late String _displacementUnit;
@@ -300,20 +114,9 @@ class _PumpPageState extends State<PumpPage> {
   final RxList<_OtherSceRow> _sceRows = <_OtherSceRow>[].obs;
 
   final RxString _screenFillSelected = ''.obs;
-  final ReportApiService _reportApi = ReportApiService();
-  Timer? _summarySaveDebounce;
-  final RxBool _isSavingSummary = false.obs;
-  bool _hydratingSummary = false;
 
-  final RxString _summaryPumpRate = ''.obs;
-  final RxString _summaryPumpPressure = ''.obs;
-  final RxString _summaryBoostPumpRate = ''.obs;
-  final RxString _summaryReturnRate = ''.obs;
-  final RxString _summaryDhToolsPressureLoss = ''.obs;
-  final RxString _summaryMotorPressureLoss = ''.obs;
-
-  static const List<String> _legacyShakerTypes = ['Shaker', 'Cleaner', 'Dryer'];
-  static const List<String> _legacyOtherSceTypes = [
+  static const List<String> _shakerTypes = ['Shaker', 'Cleaner', 'Dryer'];
+  static const List<String> _otherSceTypes = [
     'Degasser',
     'Desander',
     'Desilter',
@@ -338,32 +141,6 @@ class _PumpPageState extends State<PumpPage> {
   static const int _initialPumpRows = 4;
   static const int _initialShakerRows = 4;
   static const int _initialSceRows = 4;
-  static const double _topSectionMinWidth = 1110;
-  static const double _leftSectionViewportWidth = 820;
-  static const double _shakerTableMinWidth = 770;
-  static const double _otherSceTableMinWidth = 520;
-
-  String get _currentWellId => padWellContext.selectedWellId.value.trim();
-
-  String? get _currentReportId {
-    final reportId = reportContext.selectedReportId.value.trim();
-    return reportId.isEmpty ? null : reportId;
-  }
-
-  String? get _currentReportNo {
-    final reportNo = reportContext.selectedReportNumber.trim();
-    return reportNo.isEmpty ? null : reportNo;
-  }
-
-  List<String> get _shakerTypes => _mergeOptions([
-    ...SceController.shakerLabels,
-    ..._legacyShakerTypes,
-  ], sceController.availableShakerTypes);
-
-  List<String> get _otherSceTypes => _mergeOptions([
-    ...SceController.otherSceLabels,
-    ..._legacyOtherSceTypes,
-  ], sceController.availableOtherSceTypes);
 
   @override
   void initState() {
@@ -395,45 +172,13 @@ class _PumpPageState extends State<PumpPage> {
     _pumpRows.addAll(List.generate(_initialPumpRows, (_) => _PumpRow()));
     _shakerRows.addAll(List.generate(_initialShakerRows, (_) => _ShakerRow()));
     _sceRows.addAll(List.generate(_initialSceRows, (_) => _OtherSceRow()));
-
-    _wellWorker = ever<String>(
-      padWellContext.selectedWellId,
-      (_) => _reloadPageData(),
-    );
-    _reportWorker = ever<String>(
-      reportContext.selectedReportId,
-      (_) => _reloadPageData(),
-    );
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _reloadPageData();
-    });
-  }
-
-  Widget _horizontalViewport({
-    required double viewportWidth,
-    required double minContentWidth,
-    required Widget child,
-  }) {
-    return ClipRect(
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: SizedBox(
-          width: math.max(viewportWidth, minContentWidth),
-          child: child,
-        ),
-      ),
-    );
   }
 
   @override
   void dispose() {
-    _summarySaveDebounce?.cancel();
     for (final worker in _unitWorkers) {
       worker.dispose();
     }
-    _wellWorker?.dispose();
-    _reportWorker?.dispose();
     shakerScrollController.dispose();
     sceScrollController.dispose();
     super.dispose();
@@ -494,37 +239,6 @@ class _PumpPageState extends State<PumpPage> {
       );
     }
 
-    _summaryPumpRate.value = _convertText(
-      _summaryPumpRate.value,
-      _flowUnit,
-      nextFlowUnit,
-    );
-    _summaryBoostPumpRate.value = _convertText(
-      _summaryBoostPumpRate.value,
-      _flowUnit,
-      nextFlowUnit,
-    );
-    _summaryReturnRate.value = _convertText(
-      _summaryReturnRate.value,
-      _flowUnit,
-      nextFlowUnit,
-    );
-    _summaryPumpPressure.value = _convertText(
-      _summaryPumpPressure.value,
-      _pressureUnit,
-      nextPressureUnit,
-    );
-    _summaryDhToolsPressureLoss.value = _convertText(
-      _summaryDhToolsPressureLoss.value,
-      _pressureUnit,
-      nextPressureUnit,
-    );
-    _summaryMotorPressureLoss.value = _convertText(
-      _summaryMotorPressureLoss.value,
-      _pressureUnit,
-      nextPressureUnit,
-    );
-
     _diameterUnit = nextDiameterUnit;
     _lengthUnit = nextLengthUnit;
     _displacementUnit = nextDisplacementUnit;
@@ -534,7 +248,6 @@ class _PumpPageState extends State<PumpPage> {
     _mudWeightUnit = nextMudWeightUnit;
     _pumpRows.refresh();
     _sceRows.refresh();
-    _syncComputedSummaryFields();
   }
 
   String _convertText(String rawValue, String fromUnit, String toUnit) {
@@ -553,487 +266,6 @@ class _PumpPageState extends State<PumpPage> {
         .toStringAsFixed(4)
         .replaceAll(RegExp(r'0+$'), '')
         .replaceAll(RegExp(r'\.$'), '');
-  }
-
-  String _formatNumber(double value, {int decimals = 2}) {
-    if (!value.isFinite) {
-      return '';
-    }
-    return value
-        .toStringAsFixed(decimals)
-        .replaceAll(RegExp(r'0+$'), '')
-        .replaceAll(RegExp(r'\.$'), '');
-  }
-
-  String _formatFromBase(double value, String baseUnit, String displayUnit) {
-    final converted =
-        AppUnits.convertValue(value, baseUnit, displayUnit) ?? value;
-    return _formatNumber(converted);
-  }
-
-  double _parseToBase(String rawValue, String displayUnit, String baseUnit) {
-    final parsed = double.tryParse(rawValue.trim()) ?? 0;
-    return AppUnits.convertValue(parsed, displayUnit, baseUnit) ?? parsed;
-  }
-
-  void _loadSummaryFromSelectedReport() {
-    final summary = reportContext.selectedReport?.pumpRateAndPressure;
-    _hydratingSummary = true;
-    _summaryBoostPumpRate.value = _formatFromBase(
-      summary?.boostPumpRate ?? 0,
-      '(gpm)',
-      _flowUnit,
-    );
-    _summaryPumpPressure.value = _formatFromBase(
-      summary?.pumpPressure ?? 0,
-      '(psi)',
-      _pressureUnit,
-    );
-    _summaryDhToolsPressureLoss.value = _formatFromBase(
-      summary?.dhToolsPressureLoss ?? 0,
-      '(psi)',
-      _pressureUnit,
-    );
-    _summaryMotorPressureLoss.value = _formatFromBase(
-      summary?.motorPressureLoss ?? 0,
-      '(psi)',
-      _pressureUnit,
-    );
-    _hydratingSummary = false;
-    _syncComputedSummaryFields();
-  }
-
-  void _syncComputedSummaryFields() {
-    double pumpRateBase = 0;
-    for (final row in _pumpRows) {
-      final rowRate = double.tryParse(row.rate.value.trim());
-      if (rowRate == null || rowRate <= 0) {
-        continue;
-      }
-      pumpRateBase +=
-          AppUnits.convertValue(rowRate, _flowUnit, '(gpm)') ?? rowRate;
-    }
-
-    final boostPumpRateBase = _parseToBase(
-      _summaryBoostPumpRate.value,
-      _flowUnit,
-      '(gpm)',
-    );
-    final returnRateBase = pumpRateBase + boostPumpRateBase;
-
-    _summaryPumpRate.value = _formatFromBase(pumpRateBase, '(gpm)', _flowUnit);
-    _summaryReturnRate.value = _formatFromBase(
-      returnRateBase,
-      '(gpm)',
-      _flowUnit,
-    );
-  }
-
-  void _onSummaryValueChanged(RxString target, String value) {
-    target.value = value;
-    _syncComputedSummaryFields();
-    if (_hydratingSummary) {
-      return;
-    }
-    _scheduleSummarySave();
-  }
-
-  void _scheduleSummarySave() {
-    if (_currentReportId == null) {
-      return;
-    }
-    _summarySaveDebounce?.cancel();
-    _summarySaveDebounce = Timer(
-      const Duration(milliseconds: 700),
-      () => _persistSummaryValues(),
-    );
-  }
-
-  Future<void> _persistSummaryValues() async {
-    final reportId = _currentReportId;
-    if (reportId == null) {
-      return;
-    }
-
-    final payload = {
-      'pumpRateAndPressure': {
-        'pumpRate': _parseToBase(_summaryPumpRate.value, _flowUnit, '(gpm)'),
-        'pumpPressure': _parseToBase(
-          _summaryPumpPressure.value,
-          _pressureUnit,
-          '(psi)',
-        ),
-        'boostPumpRate': _parseToBase(
-          _summaryBoostPumpRate.value,
-          _flowUnit,
-          '(gpm)',
-        ),
-        'returnRate': _parseToBase(
-          _summaryReturnRate.value,
-          _flowUnit,
-          '(gpm)',
-        ),
-        'dhToolsPressureLoss': _parseToBase(
-          _summaryDhToolsPressureLoss.value,
-          _pressureUnit,
-          '(psi)',
-        ),
-        'motorPressureLoss': _parseToBase(
-          _summaryMotorPressureLoss.value,
-          _pressureUnit,
-          '(psi)',
-        ),
-      },
-    };
-
-    try {
-      _isSavingSummary.value = true;
-      await _reportApi.updateReport(reportId, payload);
-      await reportContext.reloadData();
-      reportContext.selectReport(reportId);
-    } catch (e) {
-      _showMessage(
-        'Failed to save summary: ${_friendlyMessage(e)}',
-        isSuccess: false,
-      );
-    } finally {
-      _isSavingSummary.value = false;
-    }
-  }
-
-  List<String> _mergeOptions(List<String> preferred, Iterable<String> extra) {
-    final ordered = <String>[];
-    final seen = <String>{};
-
-    for (final value in [...preferred, ...extra]) {
-      final trimmed = value.trim();
-      if (trimmed.isEmpty || !seen.add(trimmed)) {
-        continue;
-      }
-      ordered.add(trimmed);
-    }
-
-    return ordered;
-  }
-
-  void _resetLocalRows() {
-    _pumpRows.assignAll(
-      List.generate(
-        _initialPumpRows,
-        (index) => _PumpRow(rowNumber: index + 1),
-      ),
-    );
-    _shakerRows.assignAll(
-      List.generate(_initialShakerRows, (_) => _ShakerRow()),
-    );
-    _sceRows.assignAll(List.generate(_initialSceRows, (_) => _OtherSceRow()));
-    _hydratingSummary = true;
-    _summaryPumpRate.value = '';
-    _summaryPumpPressure.value = '';
-    _summaryBoostPumpRate.value = '';
-    _summaryReturnRate.value = '';
-    _summaryDhToolsPressureLoss.value = '';
-    _summaryMotorPressureLoss.value = '';
-    _hydratingSummary = false;
-  }
-
-  void _syncPumpRowsFromController() {
-    final rows = pumpController.pumps
-        .where((pump) => pump.hasData)
-        .map(_PumpRow.fromPumpModel)
-        .toList();
-
-    if (rows.isEmpty) {
-      rows.addAll(
-        List.generate(
-          _initialPumpRows,
-          (index) => _PumpRow(rowNumber: index + 1),
-        ),
-      );
-    } else {
-      while (rows.length < _initialPumpRows) {
-        rows.add(_PumpRow(rowNumber: rows.length + 1));
-      }
-      if (rows.last.hasData) {
-        rows.add(_PumpRow(rowNumber: rows.length + 1));
-      }
-    }
-
-    _pumpRows.assignAll(rows);
-  }
-
-  void _syncShakerRowsFromController() {
-    final rows = sceController.shakers
-        .where((shaker) => shaker.hasData)
-        .map(_ShakerRow.fromModel)
-        .toList();
-
-    if (rows.isEmpty) {
-      rows.addAll(List.generate(_initialShakerRows, (_) => _ShakerRow()));
-    } else {
-      while (rows.length < _initialShakerRows) {
-        rows.add(_ShakerRow());
-      }
-      if (rows.last.hasData) {
-        rows.add(_ShakerRow());
-      }
-    }
-
-    _shakerRows.assignAll(rows);
-  }
-
-  void _syncOtherSceRowsFromController() {
-    final rows = sceController.otherSce
-        .where((sce) => sce.hasData)
-        .map(_OtherSceRow.fromModel)
-        .toList();
-
-    if (rows.isEmpty) {
-      rows.addAll(List.generate(_initialSceRows, (_) => _OtherSceRow()));
-    } else {
-      while (rows.length < _initialSceRows) {
-        rows.add(_OtherSceRow());
-      }
-      if (rows.last.hasData) {
-        rows.add(_OtherSceRow());
-      }
-    }
-
-    _sceRows.assignAll(rows);
-  }
-
-  Future<void> _reloadPageData({bool showError = true}) async {
-    _summarySaveDebounce?.cancel();
-    final wellId = _currentWellId;
-    if (wellId.isEmpty) {
-      _resetLocalRows();
-      return;
-    }
-
-    try {
-      _isSyncing.value = true;
-      await Future.wait([
-        pumpController.loadPumps(wellId),
-        sceController.loadSceData(wellId),
-      ]);
-      _syncPumpRowsFromController();
-      _syncShakerRowsFromController();
-      _syncOtherSceRowsFromController();
-      _loadSummaryFromSelectedReport();
-    } catch (e) {
-      if (showError) {
-        _showMessage(
-          'Failed to load pump page data: ${_friendlyMessage(e)}',
-          isSuccess: false,
-        );
-      }
-    } finally {
-      _isSyncing.value = false;
-    }
-  }
-
-  Future<void> _savePumpRows() async {
-    final wellId = _currentWellId;
-    if (wellId.isEmpty) {
-      _showMessage('Select a well before saving pumps', isSuccess: false);
-      return;
-    }
-
-    final rowsToProcess = _pumpRows
-        .where((row) => row.hasData || row.id != null)
-        .toList();
-    if (rowsToProcess.isEmpty) {
-      _showMessage('No pumps to save', isSuccess: false);
-      return;
-    }
-
-    try {
-      _isSyncing.value = true;
-
-      for (int index = 0; index < _pumpRows.length; index++) {
-        final row = _pumpRows[index];
-        if (!row.hasData && row.id == null) {
-          continue;
-        }
-
-        if (!row.hasData && row.id != null) {
-          await pumpController.repository.deletePump(
-            row.id!,
-            wellId: wellId,
-            reportId: _currentReportId,
-            reportNo: _currentReportNo,
-          );
-          continue;
-        }
-
-        final payload = row.toPumpModel(index).toJson();
-        if (row.id != null) {
-          await pumpController.repository.updatePump(
-            row.id!,
-            payload,
-            wellId: wellId,
-            reportId: _currentReportId,
-            reportNo: _currentReportNo,
-          );
-        } else {
-          await pumpController.repository.createPump(
-            wellId,
-            payload,
-            reportId: _currentReportId,
-            reportNo: _currentReportNo,
-          );
-        }
-      }
-
-      await _reloadPageData(showError: false);
-      await _persistSummaryValues();
-      _showMessage('Pump rows saved successfully');
-    } catch (e) {
-      _showMessage(
-        'Failed to save pumps: ${_friendlyMessage(e)}',
-        isSuccess: false,
-      );
-    } finally {
-      _isSyncing.value = false;
-    }
-  }
-
-  Future<void> _saveShakerRows() async {
-    final wellId = _currentWellId;
-    if (wellId.isEmpty) {
-      _showMessage('Select a well before saving shakers', isSuccess: false);
-      return;
-    }
-
-    final rowsToProcess = _shakerRows
-        .where((row) => row.hasData || row.id != null)
-        .toList();
-    if (rowsToProcess.isEmpty) {
-      _showMessage('No shakers to save', isSuccess: false);
-      return;
-    }
-
-    try {
-      _isSyncing.value = true;
-
-      for (final row in _shakerRows) {
-        if (!row.hasData && row.id == null) {
-          continue;
-        }
-
-        if (!row.hasData && row.id != null) {
-          await sceController.repository.deleteShaker(
-            row.id!,
-            reportId: _currentReportId,
-            reportNo: _currentReportNo,
-          );
-          continue;
-        }
-
-        final payload = row.toModel().toJson();
-        if (row.id != null) {
-          await sceController.repository.updateShaker(
-            row.id!,
-            payload,
-            reportId: _currentReportId,
-            reportNo: _currentReportNo,
-          );
-        } else {
-          await sceController.repository.createShaker(
-            wellId,
-            payload,
-            reportId: _currentReportId,
-            reportNo: _currentReportNo,
-          );
-        }
-      }
-
-      await _reloadPageData(showError: false);
-      _showMessage('Shaker rows saved successfully');
-    } catch (e) {
-      _showMessage(
-        'Failed to save shakers: ${_friendlyMessage(e)}',
-        isSuccess: false,
-      );
-    } finally {
-      _isSyncing.value = false;
-    }
-  }
-
-  Future<void> _saveOtherSceRows() async {
-    final wellId = _currentWellId;
-    if (wellId.isEmpty) {
-      _showMessage('Select a well before saving equipment', isSuccess: false);
-      return;
-    }
-
-    final rowsToProcess = _sceRows
-        .where((row) => row.hasData || row.id != null)
-        .toList();
-    if (rowsToProcess.isEmpty) {
-      _showMessage('No equipment rows to save', isSuccess: false);
-      return;
-    }
-
-    try {
-      _isSyncing.value = true;
-
-      for (final row in _sceRows) {
-        if (!row.hasData && row.id == null) {
-          continue;
-        }
-
-        if (!row.hasData && row.id != null) {
-          await sceController.repository.deleteOtherSce(
-            row.id!,
-            reportId: _currentReportId,
-            reportNo: _currentReportNo,
-          );
-          continue;
-        }
-
-        final payload = row.toModel().toJson();
-        if (row.id != null) {
-          await sceController.repository.updateOtherSce(
-            row.id!,
-            payload,
-            reportId: _currentReportId,
-            reportNo: _currentReportNo,
-          );
-        } else {
-          await sceController.repository.createOtherSce(
-            wellId,
-            payload,
-            reportId: _currentReportId,
-            reportNo: _currentReportNo,
-          );
-        }
-      }
-
-      await _reloadPageData(showError: false);
-      _showMessage('Other SCE rows saved successfully');
-    } catch (e) {
-      _showMessage(
-        'Failed to save equipment: ${_friendlyMessage(e)}',
-        isSuccess: false,
-      );
-    } finally {
-      _isSyncing.value = false;
-    }
-  }
-
-  String _friendlyMessage(Object error) {
-    return error.toString().replaceFirst(RegExp(r'^Exception:\s*'), '');
-  }
-
-  void _showMessage(String message, {bool isSuccess = true}) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: isSuccess ? Colors.green : Colors.red,
-      ),
-    );
   }
 
   // ── Auto-row helpers ─────────────────────────────────────────────
@@ -1070,85 +302,63 @@ class _PumpPageState extends State<PumpPage> {
       AppUnits.signature;
       return Scaffold(
         backgroundColor: const Color(0xffF4F6FA),
-        body: LayoutBuilder(
-          builder: (context, constraints) {
-            final pageWidth = constraints.maxWidth;
-            final leftViewportWidth = math.min(
-              pageWidth,
-              _leftSectionViewportWidth,
-            );
-
-            return Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                children: [
-                  Flexible(
-                    flex: 3,
-                    child: _horizontalViewport(
-                      viewportWidth: pageWidth,
-                      minContentWidth: _topSectionMinWidth,
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Pump table — fixed max width, narrower
-                          Expanded(
-                            child: ConstrainedBox(
-                              constraints: const BoxConstraints(maxWidth: 780),
-                              child: _pumpTable(),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          // Summary box — wider fixed width
-                          SizedBox(width: 310, child: _summaryBox()),
-                        ],
+        body: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            children: [
+              Flexible(
+                flex: 3,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Pump table — fixed max width, narrower
+                    Expanded(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 780),
+                        child: _pumpTable(),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: SizedBox(
-                      width: leftViewportWidth,
-                      child: Align(
-                        alignment: Alignment.centerRight,
-                        child: _screenAutoFillBar(),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Flexible(
-                    flex: 3,
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: SizedBox(
-                        width: leftViewportWidth,
-                        child: _horizontalViewport(
-                          viewportWidth: leftViewportWidth,
-                          minContentWidth: _shakerTableMinWidth,
-                          child: _shakerTable(),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Flexible(
-                    flex: 3,
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: SizedBox(
-                        width: leftViewportWidth,
-                        child: _horizontalViewport(
-                          viewportWidth: leftViewportWidth,
-                          minContentWidth: _otherSceTableMinWidth,
-                          child: _otherSCETable(),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+                    const SizedBox(width: 12),
+                    // Summary box — wider fixed width
+                    SizedBox(width: 310, child: _summaryBox()),
+                  ],
+                ),
               ),
-            );
-          },
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: SizedBox(
+                  width: MediaQuery.of(context).size.width / 2,
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: _screenAutoFillBar(),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Flexible(
+                flex: 3,
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: SizedBox(
+                    width: MediaQuery.of(context).size.width / 2,
+                    child: _shakerTable(),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Flexible(
+                flex: 3,
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: SizedBox(
+                    width: MediaQuery.of(context).size.width / 2,
+                    child: _otherSCETable(),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       );
     });
@@ -1297,11 +507,6 @@ class _PumpPageState extends State<PumpPage> {
               );
             }),
           ),
-          _sectionActions(
-            saveLabel: 'Save Pumps',
-            onRefresh: _reloadPageData,
-            onSave: _savePumpRows,
-          ),
         ],
       ),
     );
@@ -1325,7 +530,6 @@ class _PumpPageState extends State<PumpPage> {
           row.recalculateRate();
           // ✅ Auto-add row when last row has data
           _checkAddPumpRow(rowIndex);
-          _syncComputedSummaryFields();
         },
         textAlign: TextAlign.center,
         style: TextStyle(
@@ -1365,7 +569,6 @@ class _PumpPageState extends State<PumpPage> {
               : (selected) {
                   if (selected == null || selected.isEmpty) {
                     row.clear();
-                    _syncComputedSummaryFields();
                     return;
                   }
 
@@ -1387,7 +590,6 @@ class _PumpPageState extends State<PumpPage> {
                   }
                   // ✅ Auto-add row when last row's model is selected
                   _checkAddPumpRow(rowIndex);
-                  _syncComputedSummaryFields();
                 },
           items: [
             const DropdownMenuItem<String?>(
@@ -1513,11 +715,6 @@ class _PumpPageState extends State<PumpPage> {
                 ),
               );
             }),
-          ),
-          _sectionActions(
-            saveLabel: 'Save Shakers',
-            onRefresh: _reloadPageData,
-            onSave: _saveShakerRows,
           ),
         ],
       ),
@@ -1689,7 +886,7 @@ class _PumpPageState extends State<PumpPage> {
             border: Border.all(color: Colors.grey.shade300, width: 0.5),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
+                color: Colors.black.withOpacity(0.04),
                 blurRadius: 2,
                 offset: const Offset(0, 1),
               ),
@@ -1924,11 +1121,6 @@ class _PumpPageState extends State<PumpPage> {
               );
             }),
           ),
-          _sectionActions(
-            saveLabel: 'Save Equipment',
-            onRefresh: _reloadPageData,
-            onSave: _saveOtherSceRows,
-          ),
         ],
       ),
     );
@@ -1990,19 +1182,8 @@ class _PumpPageState extends State<PumpPage> {
           style: const TextStyle(fontSize: 9, color: Colors.black87),
           onChanged: isLocked
               ? null
-              : (sel) async {
+              : (sel) {
                   row.model.value = sel ?? '';
-                  if (sel != null &&
-                      sel.isNotEmpty &&
-                      row.type.value.trim().isEmpty) {
-                    final data = await sceController.getOtherSceDataByModel(
-                      sel,
-                    );
-                    final apiType = data?['type']?.toString().trim() ?? '';
-                    if (apiType.isNotEmpty) {
-                      row.type.value = apiType;
-                    }
-                  }
                   // ✅ Auto-add row when last row's model is selected
                   _checkAddSceRow(rowIndex);
                 },
@@ -2041,55 +1222,17 @@ class _PumpPageState extends State<PumpPage> {
               padding: const EdgeInsets.all(10),
               child: Column(
                 children: [
-                  _summaryItem(
-                    label: "Pump Rate",
-                    unit: _flowUnit,
-                    value: _summaryPumpRate,
-                    readOnly: true,
-                  ),
+                  _summaryItem("Pump Rate", "gpm"),
                   const SizedBox(height: 8),
-                  _summaryItem(
-                    label: "Pump Pressure",
-                    unit: _pressureUnit,
-                    value: _summaryPumpPressure,
-                    onChanged: (value) =>
-                        _onSummaryValueChanged(_summaryPumpPressure, value),
-                  ),
+                  _summaryItem("Pump Pressure", "psi"),
                   const SizedBox(height: 8),
-                  _summaryItem(
-                    label: "Boost Pump Rate",
-                    unit: _flowUnit,
-                    value: _summaryBoostPumpRate,
-                    onChanged: (value) =>
-                        _onSummaryValueChanged(_summaryBoostPumpRate, value),
-                  ),
+                  _summaryItem("Boost Pump Rate", "gpm"),
                   const SizedBox(height: 8),
-                  _summaryItem(
-                    label: "Return Rate",
-                    unit: _flowUnit,
-                    value: _summaryReturnRate,
-                    readOnly: true,
-                  ),
+                  _summaryItem("Return Rate", "gpm"),
                   const SizedBox(height: 8),
-                  _summaryItem(
-                    label: "DH Tools P. Loss",
-                    unit: _pressureUnit,
-                    value: _summaryDhToolsPressureLoss,
-                    onChanged: (value) => _onSummaryValueChanged(
-                      _summaryDhToolsPressureLoss,
-                      value,
-                    ),
-                  ),
+                  _summaryItem("DH Tools P. Loss", "psi"),
                   const SizedBox(height: 8),
-                  _summaryItem(
-                    label: "Motor P. Loss",
-                    unit: _pressureUnit,
-                    value: _summaryMotorPressureLoss,
-                    onChanged: (value) => _onSummaryValueChanged(
-                      _summaryMotorPressureLoss,
-                      value,
-                    ),
-                  ),
+                  _summaryItem("Motor P. Loss", "psi"),
                 ],
               ),
             ),
@@ -2099,86 +1242,7 @@ class _PumpPageState extends State<PumpPage> {
     );
   }
 
-  Widget _sectionActions({
-    required String saveLabel,
-    required Future<void> Function({bool showError}) onRefresh,
-    required Future<void> Function() onSave,
-  }) {
-    return Obx(() {
-      final isLocked = dashboard.isLocked.value;
-      final isBusy =
-          _isSyncing.value ||
-          _isSavingSummary.value ||
-          pumpController.isLoading.value ||
-          sceController.isLoading.value;
-
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        decoration: BoxDecoration(
-          color: Colors.grey.shade50,
-          border: Border(
-            top: BorderSide(color: Colors.grey.shade300, width: 1),
-          ),
-          borderRadius: const BorderRadius.only(
-            bottomLeft: Radius.circular(4),
-            bottomRight: Radius.circular(4),
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            TextButton.icon(
-              onPressed: isBusy ? null : () => onRefresh(showError: true),
-              icon: const Icon(Icons.refresh, size: 14),
-              label: const Text(
-                'Refresh',
-                style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600),
-              ),
-            ),
-            const SizedBox(width: 8),
-            ElevatedButton.icon(
-              onPressed: isLocked || isBusy ? null : onSave,
-              icon: isBusy
-                  ? const SizedBox(
-                      width: 12,
-                      height: 12,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Icon(Icons.save, size: 14),
-              label: Text(
-                isBusy ? 'Working...' : saveLabel,
-                style: const TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryColor,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-            ),
-          ],
-        ),
-      );
-    });
-  }
-
-  Widget _summaryItem({
-    required String label,
-    required String unit,
-    required RxString value,
-    bool readOnly = false,
-    ValueChanged<String>? onChanged,
-  }) {
+  Widget _summaryItem(String label, String unit) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
@@ -2192,25 +1256,11 @@ class _PumpPageState extends State<PumpPage> {
           SizedBox(
             width: 95,
             height: 24,
-            child: Obx(() {
-              final text = value.value;
-              final controller = TextEditingController(text: text)
-                ..selection = TextSelection.collapsed(offset: text.length);
-              final locked = dashboard.isLocked.value;
-
-              return TextField(
-                enabled: !locked,
-                readOnly: readOnly,
-                controller: controller,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                onChanged: readOnly ? null : onChanged,
+            child: Obx(
+              () => TextField(
+                enabled: !dashboard.isLocked.value,
                 textAlign: TextAlign.right,
-                style: TextStyle(
-                  fontSize: 9,
-                  color: locked ? Colors.grey.shade400 : Colors.black87,
-                ),
+                style: const TextStyle(fontSize: 9),
                 decoration: InputDecoration(
                   hintText: "0.0",
                   hintStyle: TextStyle(
@@ -2226,9 +1276,7 @@ class _PumpPageState extends State<PumpPage> {
                     vertical: 4,
                   ),
                   filled: true,
-                  fillColor: readOnly
-                      ? const Color(0xffF2F7FC)
-                      : Colors.grey.shade50,
+                  fillColor: Colors.grey.shade50,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(3),
                     borderSide: BorderSide(
@@ -2251,8 +1299,8 @@ class _PumpPageState extends State<PumpPage> {
                     ),
                   ),
                 ),
-              );
-            }),
+              ),
+            ),
           ),
         ],
       ),
@@ -2390,7 +1438,7 @@ class _PumpPageState extends State<PumpPage> {
     borderRadius: BorderRadius.circular(4),
     boxShadow: [
       BoxShadow(
-        color: Colors.black.withValues(alpha: 0.06),
+        color: Colors.black.withOpacity(0.06),
         blurRadius: 3,
         offset: const Offset(0, 1),
       ),
