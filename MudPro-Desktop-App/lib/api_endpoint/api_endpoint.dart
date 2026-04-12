@@ -4,9 +4,7 @@ class ApiEndpoint {
   static const String _hostedBaseUrl =
       "https://desktopapplication.onrender.com/api/";
   static const String _localDevBaseUrl = "http://localhost:3000/api/";
-  static const String baseUrl = kReleaseMode
-      ? _hostedBaseUrl
-      : _localDevBaseUrl;
+  static const String baseUrl = _hostedBaseUrl;
 
   static final String addEngineersData = "engineers/add-engineers";
   static final String getEngineersData = "engineers/get-engineers";
