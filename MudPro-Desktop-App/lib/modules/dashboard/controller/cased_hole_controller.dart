@@ -7,6 +7,7 @@ import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/model/UG_ST_model.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart' show kControllerWellId;
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 
 class CasedHoleEntry {
   final String? id;
@@ -74,6 +75,9 @@ class CasedHoleUIController extends GetxController {
   var isLoading = false.obs;
   var isSaving = false.obs;
   Worker? _wellWorker;
+  final List<Worker> _unitWorkers = <Worker>[];
+  late String _lengthUnit;
+  late String _diameterUnit;
 
   Map<String, String> get _headers => {
         'Content-Type': 'application/json',
@@ -84,9 +88,70 @@ class CasedHoleUIController extends GetxController {
   void onInit() {
     super.onInit();
     _initEmptyRows();
+    _lengthUnit = AppUnits.length;
+    _diameterUnit = AppUnits.diameter;
+    _unitWorkers.addAll([
+      ever(AppUnits.controller.unitSystem, (_) => _handleUnitChange()),
+      ever(
+        AppUnits.controller.selectedCustomSystemId,
+        (_) => _handleUnitChange(),
+      ),
+      ever(AppUnits.controller.customUnits, (_) => _handleUnitChange()),
+    ]);
     _wellWorker = ever<String>(padWellContext.selectedWellId, (_) {
       fetchTableCasings();
     });
+  }
+
+  @override
+  void onClose() {
+    _wellWorker?.dispose();
+    for (final worker in _unitWorkers) {
+      worker.dispose();
+    }
+    for (final e in entries) {
+      e.dispose();
+    }
+    super.onClose();
+  }
+
+  void _handleUnitChange() {
+    final nextLengthUnit = AppUnits.length;
+    final nextDiameterUnit = AppUnits.diameter;
+    if (_lengthUnit == nextLengthUnit && _diameterUnit == nextDiameterUnit) {
+      return;
+    }
+
+    for (final entry in entries) {
+      entry.od.text = _convertText(entry.od.text, _diameterUnit, nextDiameterUnit);
+      entry.idCtrl.text =
+          _convertText(entry.idCtrl.text, _diameterUnit, nextDiameterUnit);
+      entry.top.text = _convertText(entry.top.text, _lengthUnit, nextLengthUnit);
+      entry.shoe.text = _convertText(entry.shoe.text, _lengthUnit, nextLengthUnit);
+      recalcLength(entry);
+    }
+    entries.refresh();
+
+    _lengthUnit = nextLengthUnit;
+    _diameterUnit = nextDiameterUnit;
+  }
+
+  String _convertText(String rawValue, String fromUnit, String toUnit) {
+    if (rawValue.trim().isEmpty || fromUnit == toUnit) {
+      return rawValue;
+    }
+    final parsed = double.tryParse(rawValue.replaceAll(',', ''));
+    if (parsed == null) {
+      return rawValue;
+    }
+    final result = AppUnits.convertValue(parsed, fromUnit, toUnit);
+    if (result == null) {
+      return rawValue;
+    }
+    return result
+        .toStringAsFixed(4)
+        .replaceAll(RegExp(r'0+$'), '')
+        .replaceAll(RegExp(r'\.$'), '');
   }
 
   void _initEmptyRows() {
@@ -291,10 +356,4 @@ class CasedHoleUIController extends GetxController {
     }
   }
 
-  @override
-  void onClose() {
-    _wellWorker?.dispose();
-    for (final e in entries) e.dispose();
-    super.onClose();
-  }
 }

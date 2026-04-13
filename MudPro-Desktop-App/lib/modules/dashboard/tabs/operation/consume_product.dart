@@ -5,6 +5,7 @@ import 'package:mudpro_desktop_app/modules/company_setup/model/products_model.da
 import 'package:mudpro_desktop_app/modules/daily_report/controller/inventory_snapshot_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/consume_product_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/inventory_store/inventory_store.dart';
+import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import '../../controller/operation_controller.dart';
 import '../../controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
@@ -63,6 +64,19 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     waterVolumeController.addListener(_recalculateTotalVolume);
     waterVolumeController.addListener(() {
       operationController.addWaterVolume.value = waterVolumeController.text;
+    });
+
+    final lastWater = operationController.addWaterVolume.value.trim();
+    if (lastWater.isNotEmpty && (double.tryParse(lastWater) ?? 0) > 0) {
+      addWater.value = true;
+      waterVolumeController.text = lastWater;
+    }
+    addWater.listen((enabled) {
+      if (!enabled) {
+        waterVolumeController.text = '';
+        operationController.addWaterVolume.value = '';
+        _recalculateTotalVolume();
+      }
     });
 
     // Automatically rebalance distribution whenever total volume changes
@@ -434,6 +448,25 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
             productRows[i].savedId == null &&
             _isCostCalculated(productRows[i])) {
           await _saveRow(i);
+        }
+      }
+
+      if (addWater.value) {
+        final waterVol = double.tryParse(waterVolumeController.text) ?? 0.0;
+        if (waterVol > 0) {
+          final wellId = kControllerWellId;
+          if (wellId.isEmpty) {
+            _showToast('No backend well selected for Add Water', isError: true);
+          } else {
+            final repo = AuthRepository();
+            final res = await repo.createAddWater(wellId, {
+              'to': 'Active System',
+              'volume': waterVol,
+            });
+            if (res['success'] != true) {
+              _showToast('Add Water failed: ${res['message']}', isError: true);
+            }
+          }
         }
       }
       final snapResult = await inventorySnapshotController.generateInventorySnapshot();

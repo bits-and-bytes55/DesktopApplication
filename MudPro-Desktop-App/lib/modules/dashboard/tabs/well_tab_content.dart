@@ -214,6 +214,13 @@ class _GeneralSectionState extends State<GeneralSection> {
       ? Get.find<WellGeneralController>()
       : Get.put(WellGeneralController());
   Worker? _wellWorker;
+  final List<Worker> _unitWorkers = <Worker>[];
+  late String _lengthUnit;
+  late String _forceUnit;
+  late String _torqueUnit;
+  late String _tempUnit;
+  late String _mudWeightUnit;
+  late String _ropUnit;
 
   List<String> activityOptions = [
     'Rig-up/Service',
@@ -260,6 +267,20 @@ class _GeneralSectionState extends State<GeneralSection> {
     engineerCtrl = Get.isRegistered<EngineerController>()
         ? Get.find<EngineerController>()
         : Get.put(EngineerController());
+    _lengthUnit = AppUnits.length;
+    _forceUnit = AppUnits.force;
+    _torqueUnit = AppUnits.torque;
+    _tempUnit = AppUnits.temperature;
+    _mudWeightUnit = AppUnits.mudWeight;
+    _ropUnit = AppUnits.rop;
+    _unitWorkers.addAll([
+      ever(AppUnits.controller.unitSystem, (_) => _handleUnitChange()),
+      ever(
+        AppUnits.controller.selectedCustomSystemId,
+        (_) => _handleUnitChange(),
+      ),
+      ever(AppUnits.controller.customUnits, (_) => _handleUnitChange()),
+    ]);
 
     fc = {
       'Report #': TextEditingController(),
@@ -294,6 +315,70 @@ class _GeneralSectionState extends State<GeneralSection> {
       padWellContext.selectedWellId,
       (_) => _loadFromApi(),
     );
+  }
+
+  void _handleUnitChange() {
+    final nextLengthUnit = AppUnits.length;
+    final nextForceUnit = AppUnits.force;
+    final nextTorqueUnit = AppUnits.torque;
+    final nextTempUnit = AppUnits.temperature;
+    final nextMudWeightUnit = AppUnits.mudWeight;
+    final nextRopUnit = AppUnits.rop;
+    if (_lengthUnit == nextLengthUnit &&
+        _forceUnit == nextForceUnit &&
+        _torqueUnit == nextTorqueUnit &&
+        _tempUnit == nextTempUnit &&
+        _mudWeightUnit == nextMudWeightUnit &&
+        _ropUnit == nextRopUnit) {
+      return;
+    }
+
+    _convertField('MD', _lengthUnit, nextLengthUnit);
+    _convertField('TVD', _lengthUnit, nextLengthUnit);
+    _convertField('Additional Footage', _lengthUnit, nextLengthUnit);
+    _convertField('Depth Drilled', _lengthUnit, nextLengthUnit);
+
+    _convertField('WOB', _forceUnit, nextForceUnit);
+    _convertField('Rot. Wt.', _forceUnit, nextForceUnit);
+    _convertField('S/O Wt.', _forceUnit, nextForceUnit);
+    _convertField('P/U Wt.', _forceUnit, nextForceUnit);
+
+    _convertField('Off-bottom TQ', _torqueUnit, nextTorqueUnit);
+    _convertField('On-bottom TQ', _torqueUnit, nextTorqueUnit);
+
+    _convertField('Suction T.', _tempUnit, nextTempUnit);
+    _convertField('Bottom T.', _tempUnit, nextTempUnit);
+
+    _convertField('FIT', _mudWeightUnit, nextMudWeightUnit);
+    _convertField('ROP', _ropUnit, nextRopUnit);
+
+    _lengthUnit = nextLengthUnit;
+    _forceUnit = nextForceUnit;
+    _torqueUnit = nextTorqueUnit;
+    _tempUnit = nextTempUnit;
+    _mudWeightUnit = nextMudWeightUnit;
+    _ropUnit = nextRopUnit;
+    _sync();
+  }
+
+  void _convertField(String key, String fromUnit, String toUnit) {
+    if (fromUnit == toUnit) return;
+    final controller = fc[key];
+    if (controller == null) return;
+    final raw = controller.text.trim();
+    if (raw.isEmpty) return;
+    final parsed = double.tryParse(raw.replaceAll(',', ''));
+    if (parsed == null) return;
+    final converted = AppUnits.convertValue(parsed, fromUnit, toUnit);
+    if (converted == null) return;
+    controller.text = _formatNumber(converted);
+  }
+
+  String _formatNumber(double value) {
+    return value
+        .toStringAsFixed(4)
+        .replaceAll(RegExp(r'0+$'), '')
+        .replaceAll(RegExp(r'\.$'), '');
   }
 
   Future<void> _fetchActivities() async {
@@ -423,6 +508,9 @@ class _GeneralSectionState extends State<GeneralSection> {
   @override
   void dispose() {
     _wellWorker?.dispose();
+    for (final worker in _unitWorkers) {
+      worker.dispose();
+    }
     fc.values.forEach((c) => c.dispose());
     super.dispose();
   }
@@ -902,12 +990,66 @@ class _MiddlePortionState extends State<MiddlePortion> {
   bool cementPlug = false;
   final _cemCtrl = TextEditingController();
   final _plugCtrl = TextEditingController();
+  final List<Worker> _unitWorkers = <Worker>[];
+  late String _lengthUnit;
+  late String _volumeUnit;
+
+  @override
+  void initState() {
+    super.initState();
+    _lengthUnit = AppUnits.length;
+    _volumeUnit = AppUnits.fluidVolume;
+    _unitWorkers.addAll([
+      ever(AppUnits.controller.unitSystem, (_) => _handleUnitChange()),
+      ever(
+        AppUnits.controller.selectedCustomSystemId,
+        (_) => _handleUnitChange(),
+      ),
+      ever(AppUnits.controller.customUnits, (_) => _handleUnitChange()),
+    ]);
+  }
 
   @override
   void dispose() {
     _cemCtrl.dispose();
     _plugCtrl.dispose();
+    for (final worker in _unitWorkers) {
+      worker.dispose();
+    }
     super.dispose();
+  }
+
+  void _handleUnitChange() {
+    final nextLengthUnit = AppUnits.length;
+    final nextVolumeUnit = AppUnits.fluidVolume;
+    if (_lengthUnit == nextLengthUnit && _volumeUnit == nextVolumeUnit) {
+      return;
+    }
+
+    _cemCtrl.text = _convertText(_cemCtrl.text, _volumeUnit, nextVolumeUnit);
+    _plugCtrl.text = _convertText(_plugCtrl.text, _lengthUnit, nextLengthUnit);
+
+    _lengthUnit = nextLengthUnit;
+    _volumeUnit = nextVolumeUnit;
+    if (mounted) setState(() {});
+  }
+
+  String _convertText(String rawValue, String fromUnit, String toUnit) {
+    if (rawValue.trim().isEmpty || fromUnit == toUnit) {
+      return rawValue;
+    }
+    final parsed = double.tryParse(rawValue.replaceAll(',', ''));
+    if (parsed == null) {
+      return rawValue;
+    }
+    final result = AppUnits.convertValue(parsed, fromUnit, toUnit);
+    if (result == null) {
+      return rawValue;
+    }
+    return result
+        .toStringAsFixed(4)
+        .replaceAll(RegExp(r'0+$'), '')
+        .replaceAll(RegExp(r'\.$'), '');
   }
 
   @override
@@ -1189,12 +1331,12 @@ class _CasedHoleSectionState extends State<CasedHoleSection> {
                         children: [
                           'No.',
                           'Description',
-                          'OD\n(in)',
+                          'OD\n${AppUnits.unitText('in')}',
                           'Wt.\n(lb/ft)',
-                          'ID\n(in)',
-                          'Top\n(ft)',
-                          'Shoe\n(ft)',
-                          'Len.\n(ft)',
+                          'ID\n${AppUnits.unitText('in')}',
+                          'Top\n${AppUnits.unitText('ft')}',
+                          'Shoe\n${AppUnits.unitText('ft')}',
+                          'Len.\n${AppUnits.unitText('ft')}',
                         ].map((h) => _hCell(h, AppTheme.primaryColor)).toList(),
                       ),
                       ...uiCtrl.entries.asMap().entries.map((entry) {
@@ -1293,6 +1435,9 @@ class _OpenHoleSectionState extends State<OpenHoleSection> {
   int? selectedRowIndex;
   late final List<List<TextEditingController>> _cellControllers;
   List<String> _lastAutoFirstRow = const ['', '', '', ''];
+  final List<Worker> _unitWorkers = <Worker>[];
+  late String _lengthUnit;
+  late String _diameterUnit;
 
   @override
   void initState() {
@@ -1304,6 +1449,16 @@ class _OpenHoleSectionState extends State<OpenHoleSection> {
         (_) => TextEditingController(),
       ),
     );
+    _lengthUnit = AppUnits.length;
+    _diameterUnit = AppUnits.diameter;
+    _unitWorkers.addAll([
+      ever(AppUnits.controller.unitSystem, (_) => _handleUnitChange()),
+      ever(
+        AppUnits.controller.selectedCustomSystemId,
+        (_) => _handleUnitChange(),
+      ),
+      ever(AppUnits.controller.customUnits, (_) => _handleUnitChange()),
+    ]);
     _syncAutoValues(force: true);
   }
 
@@ -1314,7 +1469,49 @@ class _OpenHoleSectionState extends State<OpenHoleSection> {
         controller.dispose();
       }
     }
+    for (final worker in _unitWorkers) {
+      worker.dispose();
+    }
     super.dispose();
+  }
+
+  void _handleUnitChange() {
+    final nextLengthUnit = AppUnits.length;
+    final nextDiameterUnit = AppUnits.diameter;
+    if (_lengthUnit == nextLengthUnit && _diameterUnit == nextDiameterUnit) {
+      return;
+    }
+
+    for (final row in _cellControllers) {
+      if (row.length >= 3) {
+        row[1].text = _convertText(row[1].text, _diameterUnit, nextDiameterUnit);
+        row[2].text = _convertText(row[2].text, _lengthUnit, nextLengthUnit);
+      }
+    }
+
+    _lengthUnit = nextLengthUnit;
+    _diameterUnit = nextDiameterUnit;
+    _lastAutoFirstRow = const ['', '', '', ''];
+    _syncAutoValues(force: true);
+    if (mounted) setState(() {});
+  }
+
+  String _convertText(String rawValue, String fromUnit, String toUnit) {
+    if (rawValue.trim().isEmpty || fromUnit == toUnit) {
+      return rawValue;
+    }
+    final parsed = double.tryParse(rawValue.replaceAll(',', ''));
+    if (parsed == null) {
+      return rawValue;
+    }
+    final result = AppUnits.convertValue(parsed, fromUnit, toUnit);
+    if (result == null) {
+      return rawValue;
+    }
+    return result
+        .toStringAsFixed(4)
+        .replaceAll(RegExp(r'0+$'), '')
+        .replaceAll(RegExp(r'\.$'), '');
   }
 
   List<String> _autoFirstRow() {
@@ -1457,8 +1654,8 @@ class _OpenHoleSectionState extends State<OpenHoleSection> {
                         children: [
                           'No.',
                           'Description',
-                          'ID\n(in)',
-                          'MD\n(ft)',
+                          'ID\n${AppUnits.unitText('in')}',
+                          'MD\n${AppUnits.unitText('ft')}',
                           'Washout\n(%)',
                         ].map((h) => _hCell(h, AppTheme.primaryColor)).toList(),
                       ),

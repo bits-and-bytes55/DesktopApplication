@@ -248,7 +248,12 @@ class PadWellApiService {
 
   Iterable<String> get _candidateBaseUrls sync* {
     final seen = <String>{};
-    for (final baseUrl in [ApiEndpoint.baseUrl, _localDevBaseUrl]) {
+    final primary = ApiEndpoint.baseUrl;
+    final isPrimaryLocal = primary.contains('localhost') || primary.contains('127.0.0.1');
+    final sources = isPrimaryLocal
+        ? [primary, _localDevBaseUrl]
+        : [primary];
+    for (final baseUrl in sources) {
       final normalized = baseUrl.endsWith('/') ? baseUrl : '$baseUrl/';
       if (seen.add(normalized)) {
         yield normalized;

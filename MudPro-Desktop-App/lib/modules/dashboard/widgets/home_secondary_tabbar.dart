@@ -524,6 +524,13 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
               : null;
           if (opCtrl != null) {
             final selectedOpIndex = opCtrl.selectedRowIndex.value;
+            if (opCtrl.dropdownValues.isEmpty ||
+                selectedOpIndex < 0 ||
+                selectedOpIndex >= opCtrl.dropdownValues.length ||
+                opCtrl.dropdownValues[selectedOpIndex] == null) {
+              errorMessages.add('Select an operation first');
+              return;
+            }
             final selectedOp = opCtrl.dropdownValues[selectedOpIndex];
             final authRepo = AuthRepository();
 

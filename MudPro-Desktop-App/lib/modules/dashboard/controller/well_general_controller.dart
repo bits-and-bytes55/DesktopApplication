@@ -77,8 +77,12 @@ class WellGeneralController extends GetxController {
     if (savedId.value.isNotEmpty) 'recordId': savedId.value,
     if (reportContext.selectedReportId.value.isNotEmpty)
       'reportId': reportContext.selectedReportId.value,
-    'reportNo': reportNo.value,
-    'userReportNo': userReportNo.value,
+    'reportNo': reportNo.value.isNotEmpty
+        ? reportNo.value
+        : reportContext.selectedReportNumber,
+    'userReportNo': userReportNo.value.isNotEmpty
+        ? userReportNo.value
+        : reportContext.selectedReportNumber,
     'date': date.value,
     'time': time.value,
     'engineer': engineer.value,
@@ -234,14 +238,14 @@ class WellGeneralController extends GetxController {
     isLoading.value = true;
     try {
       _clearFields();
-      final uri = Uri.parse('${baseUrl}well-general/$kControllerWellId').replace(
+      final primaryUri = Uri.parse('${baseUrl}well-general/$kControllerWellId').replace(
         queryParameters: {
           if (reportContext.selectedReportId.value.isNotEmpty)
             'reportId': reportContext.selectedReportId.value,
         },
       );
       final response = await http.get(
-        uri,
+        primaryUri,
         headers: _headers,
       );
 
@@ -252,7 +256,25 @@ class WellGeneralController extends GetxController {
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body);
         final List data = json['data'] ?? [];
-        final matched = _findMatchingRecord(data);
+        var matched = _findMatchingRecord(data);
+
+        if (matched == null) {
+          final reportNo = reportContext.selectedReportNumber.trim();
+          if (reportNo.isNotEmpty) {
+            final fallbackUri = Uri.parse('${baseUrl}well-general/$kControllerWellId')
+                .replace(queryParameters: {'reportNo': reportNo});
+            final fallbackResponse = await http.get(
+              fallbackUri,
+              headers: _headers,
+            );
+            if (fallbackResponse.statusCode == 200) {
+              final fallbackJson = jsonDecode(fallbackResponse.body);
+              final List fallbackData = fallbackJson['data'] ?? [];
+              matched = _findMatchingRecord(fallbackData);
+            }
+          }
+        }
+
         if (matched != null) {
           _fromJson(matched);
         } else {
