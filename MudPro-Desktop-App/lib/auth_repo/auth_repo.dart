@@ -8,6 +8,7 @@ import 'package:mudpro_desktop_app/modules/company_setup/model/company_model.dar
 import 'package:mudpro_desktop_app/modules/company_setup/model/products_model.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/pit_model.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/inventory_model.dart';
+import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 
 class AuthRepository {
   final String baseUrl = ApiEndpoint.baseUrl;
@@ -282,11 +283,16 @@ class AuthRepository {
     Map<String, dynamic> body,
   ) async {
     try {
+      final reportId = reportContext.selectedReportId.value.trim();
+      final payload = Map<String, dynamic>.from(body);
+      if (reportId.isNotEmpty) {
+        payload['reportId'] = reportId;
+      }
       print('Hitting POST ${baseUrl}add-water/$wellId');
       final response = await http.post(
         Uri.parse('${baseUrl}add-water/$wellId'),
         headers: _headers,
-        body: jsonEncode(body),
+        body: jsonEncode(payload),
       );
       print('statuscode------${response.statusCode}');
       print('response body------${response.body}');
@@ -304,8 +310,13 @@ class AuthRepository {
 
   Future<Map<String, dynamic>> getAddWaterList(String wellId) async {
     try {
+      final reportId = reportContext.selectedReportId.value.trim();
+      final uri = reportId.isNotEmpty
+          ? Uri.parse('${baseUrl}add-water/$wellId')
+              .replace(queryParameters: {'reportId': reportId})
+          : Uri.parse('${baseUrl}add-water/$wellId');
       final response = await http.get(
-        Uri.parse('${baseUrl}add-water/$wellId'),
+        uri,
         headers: _headers,
       );
       final data = jsonDecode(response.body);
@@ -326,10 +337,15 @@ class AuthRepository {
     Map<String, dynamic> body,
   ) async {
     try {
+      final reportId = reportContext.selectedReportId.value.trim();
+      final payload = Map<String, dynamic>.from(body);
+      if (reportId.isNotEmpty) {
+        payload['reportId'] = reportId;
+      }
       final response = await http.put(
         Uri.parse('${baseUrl}add-water/$wellId/$id'),
         headers: _headers,
-        body: jsonEncode(body),
+        body: jsonEncode(payload),
       );
       final data = jsonDecode(response.body);
       return {
@@ -345,8 +361,13 @@ class AuthRepository {
 
   Future<Map<String, dynamic>> deleteAddWater(String wellId, String id) async {
     try {
+      final reportId = reportContext.selectedReportId.value.trim();
+      final uri = reportId.isNotEmpty
+          ? Uri.parse('${baseUrl}add-water/$wellId/$id')
+              .replace(queryParameters: {'reportId': reportId})
+          : Uri.parse('${baseUrl}add-water/$wellId/$id');
       final response = await http.delete(
-        Uri.parse('${baseUrl}add-water/$wellId/$id'),
+        uri,
         headers: _headers,
       );
       final data = jsonDecode(response.body);
