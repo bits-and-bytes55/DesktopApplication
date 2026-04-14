@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 
 class SurveyDataTab extends StatelessWidget {
   SurveyDataTab({super.key});
@@ -36,6 +37,7 @@ class SurveyDataTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    AppUnits.signature;
     return LayoutBuilder(
       builder: (context, constraints) {
         if (constraints.maxWidth < 800) {
@@ -226,7 +228,7 @@ class SurveyDataTab extends StatelessWidget {
       width: 100,
       alignment: Alignment.center,
       child: Text(
-        t,
+        AppUnits.label(t),
         textAlign: TextAlign.center,
         style: AppTheme.caption.copyWith(
           fontWeight: FontWeight.w600,
@@ -237,13 +239,14 @@ class SurveyDataTab extends StatelessWidget {
   }
 
   Widget _cell(String value, {required int index}) {
+    final displayValue = _displayValueForIndex(value, index);
     return Container(
       width: index == 0 ? 60 : 100,
       alignment: Alignment.center,
       child: Obx(
         () => isLocked.value
             ? Text(
-                value,
+                displayValue,
                 style: AppTheme.caption.copyWith(
                   color: AppTheme.textPrimary,
                 ),
@@ -255,7 +258,7 @@ class SurveyDataTab extends StatelessWidget {
                 ),
                 margin: const EdgeInsets.symmetric(horizontal: 4),
                 child: TextField(
-                  controller: TextEditingController(text: value),
+                  controller: TextEditingController(text: displayValue),
                   textAlign: TextAlign.center,
                   style: AppTheme.caption.copyWith(
                     color: AppTheme.textPrimary,
@@ -269,6 +272,19 @@ class SurveyDataTab extends StatelessWidget {
               ),
       ),
     );
+  }
+
+  String _displayValueForIndex(String value, int index) {
+    switch (index) {
+      case 1:
+      case 4:
+      case 5:
+      case 6:
+      case 7:
+        return AppUnits.formatValue(value, '(ft)');
+      default:
+        return value;
+    }
   }
 
   // ================= TOOL BUTTONS =================

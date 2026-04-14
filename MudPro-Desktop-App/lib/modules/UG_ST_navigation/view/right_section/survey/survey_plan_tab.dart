@@ -2,6 +2,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/model/UG_ST_model.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 
 class PlanViewChart extends StatelessWidget {
   final List<PlanPoint> points;
@@ -27,6 +28,7 @@ class PlanViewChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    AppUnits.signature;
     return LayoutBuilder(
       builder: (context, constraints) {
         final isSmallScreen = constraints.maxWidth < 800;
@@ -257,7 +259,7 @@ class PlanViewChart extends StatelessWidget {
           axisNameWidget: Padding(
             padding: const EdgeInsets.only(bottom: 4),
             child: Text(
-              "N+/S- (ft)",
+              AppUnits.label("N+/S- (ft)"),
               style: AppTheme.caption.copyWith(
                 fontWeight: FontWeight.w600,
                 color: AppTheme.textPrimary,
@@ -286,7 +288,7 @@ class PlanViewChart extends StatelessWidget {
           axisNameWidget: Padding(
             padding: const EdgeInsets.only(top: 4),
             child: Text(
-              "E+/W- (ft)",
+              AppUnits.label("E+/W- (ft)"),
               style: AppTheme.caption.copyWith(
                 fontWeight: FontWeight.w600,
                 color: AppTheme.textPrimary,

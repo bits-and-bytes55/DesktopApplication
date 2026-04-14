@@ -17,8 +17,10 @@ class ExportController {
     }
 
     final reportId = reportContext.selectedReportId.value.trim();
-    final query = reportId.isEmpty ? '' : '?reportId=$reportId';
-    final uri = Uri.parse('${baseUrl}export/inventory-export/$wellId$query');
+    final baseUri = Uri.parse('${baseUrl}export/inventory-export/$wellId');
+    final uri = reportId.isEmpty
+        ? baseUri
+        : baseUri.replace(queryParameters: {'reportId': reportId});
 
     final response = await http.get(
       uri,
@@ -36,28 +38,42 @@ class ExportController {
             : 'Server error: ${response.statusCode} $body',
       );
     }
+    final contentType = response.headers['content-type'] ?? '';
+    if (!contentType.contains('spreadsheetml') &&
+        !contentType.contains('application/octet-stream')) {
+      final body = response.body.trim();
+      throw Exception(
+        body.isEmpty
+            ? 'Invalid report response'
+            : 'Invalid report response: $body',
+      );
+    }
 
-    final Directory tempDir = await getTemporaryDirectory();
-    final String filePath = await _resolveOutputPath(tempDir, response);
+    if (!_looksLikeXlsx(response.bodyBytes)) {
+      final contentType = response.headers['content-type'] ?? 'unknown';
+      final body = response.body.trim();
+      throw Exception(
+        body.isEmpty
+            ? 'Server did not return an Excel file ($contentType)'
+            : 'Server did not return an Excel file ($contentType): $body',
+      );
+    }
 
+    final Directory reportDir = await _resolveReportDirectory();
+    final String filePath = await _resolveOutputPath(reportDir, response);
     final String finalPath =
         await _writeBytesWithRetry(filePath, response.bodyBytes);
-    final openResult = await OpenFilex.open(finalPath);
-    if (openResult.type != ResultType.done) {
-      if (await _openWithExcel(finalPath)) return;
-      final docsDir = await getApplicationDocumentsDirectory();
-      final docsPath =
-          '${docsDir.path}/${_fallbackBaseName}_${DateTime.now().millisecondsSinceEpoch}.xlsx';
-      final docsFile = File(docsPath);
-      await docsFile.writeAsBytes(response.bodyBytes, flush: true);
-      final docsResult = await OpenFilex.open(docsPath);
-      if (docsResult.type != ResultType.done) {
-        if (!await _openWithExcel(docsPath)) {
-          throw Exception(docsResult.message);
-        }
-      }
+
+    if (!await _openReportFile(finalPath)) {
+      await _openContainingFolder(finalPath);
+      throw Exception(
+        'Report saved at $finalPath, but no application could open .xlsx files automatically.',
+      );
     }
   }
+
+  static bool _looksLikeXlsx(List<int> bytes) =>
+      bytes.length >= 2 && bytes[0] == 0x50 && bytes[1] == 0x4B;
 
   static String? _filenameFromHeaders(http.Response response) {
     final disposition = response.headers['content-disposition'];
@@ -68,7 +84,22 @@ class ExportController {
       caseSensitive: false,
     ).firstMatch(disposition);
 
-    return match?.group(1)?.trim();
+    final raw = match?.group(1)?.trim();
+    if (raw == null || raw.isEmpty) return raw;
+    try {
+      return Uri.decodeComponent(raw);
+    } catch (_) {
+      return raw;
+    }
+  }
+
+  static Future<Directory> _resolveReportDirectory() async {
+    final docsDir = await getApplicationDocumentsDirectory();
+    final reportDir = Directory('${docsDir.path}/MudPro Reports');
+    if (!await reportDir.exists()) {
+      await reportDir.create(recursive: true);
+    }
+    return reportDir;
   }
 
   static Future<String> _resolveOutputPath(
@@ -78,15 +109,17 @@ class ExportController {
     final headerName = _filenameFromHeaders(response);
     final baseName = (headerName ?? _fallbackBaseName).trim();
     final cleanedBase = baseName.isEmpty ? _fallbackBaseName : baseName;
-    final String ext = cleanedBase.toLowerCase().endsWith('.xlsx')
-        ? ''
-        : '.xlsx';
-    final String safeBase = cleanedBase.replaceAll(RegExp(r'[<>:"/\\|?*]'), '_');
+    final hasXlsxExtension = cleanedBase.toLowerCase().endsWith('.xlsx');
+    final nameWithoutExtension = hasXlsxExtension
+        ? cleanedBase.substring(0, cleanedBase.length - '.xlsx'.length)
+        : cleanedBase;
+    final String safeBase =
+        nameWithoutExtension.replaceAll(RegExp(r'[<>:"/\\|?*]'), '_');
     final String stamp = DateTime.now().millisecondsSinceEpoch.toString();
-    final String candidate = '${tempDir.path}/$safeBase$ext';
+    final String candidate = '${tempDir.path}/$safeBase.xlsx';
     final File file = File(candidate);
     if (await file.exists()) {
-      return '${tempDir.path}/${safeBase}_$stamp$ext';
+      return '${tempDir.path}/${safeBase}_$stamp.xlsx';
     }
     return candidate;
   }
@@ -100,11 +133,49 @@ class ExportController {
       await file.writeAsBytes(bytes, flush: true);
       return filePath;
     } on FileSystemException {
-      final fallbackPath =
-          '${filePath.replaceAll('.xlsx', '')}_${DateTime.now().millisecondsSinceEpoch}.xlsx';
+      final fallbackPath = _pathWithTimestamp(filePath);
       final fallbackFile = File(fallbackPath);
       await fallbackFile.writeAsBytes(bytes, flush: true);
       return fallbackPath;
+    }
+  }
+
+  static String _pathWithTimestamp(String filePath) {
+    final stamp = DateTime.now().millisecondsSinceEpoch.toString();
+    if (filePath.toLowerCase().endsWith('.xlsx')) {
+      return '${filePath.substring(0, filePath.length - '.xlsx'.length)}_$stamp.xlsx';
+    }
+    return '${filePath}_$stamp.xlsx';
+  }
+
+  static Future<bool> _openReportFile(String filePath) async {
+    if (Platform.isWindows) {
+      if (await _openWithWindowsAssociation(filePath)) return true;
+      if (await _openWithExcel(filePath)) return true;
+      if (await _openWithExplorer(filePath)) return true;
+    }
+
+    final openResult = await OpenFilex.open(filePath);
+    return openResult.type == ResultType.done;
+  }
+
+  static Future<bool> _openWithWindowsAssociation(String filePath) async {
+    try {
+      final result = await Process.run(
+        'powershell.exe',
+        [
+          '-NoProfile',
+          '-NonInteractive',
+          '-ExecutionPolicy',
+          'Bypass',
+          '-Command',
+          r'Invoke-Item -LiteralPath $args[0]',
+          filePath,
+        ],
+      ).timeout(const Duration(seconds: 10));
+      return result.exitCode == 0;
+    } catch (_) {
+      return false;
     }
   }
 
@@ -119,14 +190,46 @@ class ExportController {
       final exe = File(path);
       if (await exe.exists()) {
         try {
-          final process = await Process.start(path, [filePath]);
-          final exitCode = await process.exitCode;
-          return exitCode == 0;
+          await Process.start(
+            path,
+            [filePath],
+            mode: ProcessStartMode.detached,
+          );
+          return true;
         } catch (_) {
           return false;
         }
       }
     }
     return false;
+  }
+
+  static Future<bool> _openWithExplorer(String filePath) async {
+    try {
+      await Process.start(
+        'explorer.exe',
+        [filePath],
+        mode: ProcessStartMode.detached,
+      );
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static Future<void> _openContainingFolder(String filePath) async {
+    final file = File(filePath);
+    final folderPath = file.parent.path;
+    if (Platform.isWindows) {
+      try {
+        await Process.start(
+          'explorer.exe',
+          ['/select,$filePath'],
+          mode: ProcessStartMode.detached,
+        );
+        return;
+      } catch (_) {}
+    }
+    await OpenFilex.open(folderPath);
   }
 }

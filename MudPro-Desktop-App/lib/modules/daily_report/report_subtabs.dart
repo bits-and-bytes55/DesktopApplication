@@ -16,6 +16,7 @@ import 'package:mudpro_desktop_app/theme/app_theme.dart';
 class SubTabContent extends StatefulWidget {
   final int mainTabIndex;
   final int? subTabIndex;
+  final int wbmRequestId;
   final int? selectedSideTab;
   final Function(int)? onSideTabSelected;
   final bool? isSidebarVisible;
@@ -25,6 +26,7 @@ class SubTabContent extends StatefulWidget {
     super.key,
     required this.mainTabIndex,
     this.subTabIndex,
+    this.wbmRequestId = 0,
     this.selectedSideTab,
     this.onSideTabSelected,
     this.isSidebarVisible,
@@ -47,10 +49,11 @@ class _SubTabContentState extends State<SubTabContent> {
   @override
   void didUpdateWidget(SubTabContent oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Trigger only when WBM tab is freshly selected
+    // Trigger when WBM tab is selected or clicked again.
     if (widget.mainTabIndex == 1 &&
         widget.subTabIndex == 5 &&
-        !(oldWidget.mainTabIndex == 1 && oldWidget.subTabIndex == 5)) {
+        (!(oldWidget.mainTabIndex == 1 && oldWidget.subTabIndex == 5) ||
+            oldWidget.wbmRequestId != widget.wbmRequestId)) {
       _triggerWbmIfNeeded(widget.mainTabIndex, widget.subTabIndex);
     }
   }

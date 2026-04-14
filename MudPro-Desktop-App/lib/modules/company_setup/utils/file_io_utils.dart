@@ -18,15 +18,22 @@ class FileIoUtils {
       excel.delete('Sheet1');
 
       // 1. Engineers
-      final engineerController = Get.find<EngineerController>();
+      final engineerController =
+          _ensureController<EngineerController>(() => EngineerController());
+      await engineerController.fetchEngineers();
       _addSheet(excel, 'Engineers', engineerController.getExportData());
 
       // 2. Products
-      final productsController = Get.find<ProductsController>();
+      final productsController =
+          _ensureController<ProductsController>(() => ProductsController());
+      await productsController.loadProducts();
       _addSheet(excel, 'Products', productsController.getExportData());
 
       // 3. Services (Multiple tables)
-      final servicesController = Get.find<ServicesGetxController>();
+      final servicesController = _ensureController<ServicesGetxController>(
+        () => ServicesGetxController(),
+      );
+      await servicesController.loadAllData();
       final servicesData = servicesController.getExportData();
       final List<List<String>> combinedServices = [];
       servicesData.forEach((key, value) {
@@ -37,11 +44,15 @@ class FileIoUtils {
       _addSheet(excel, 'Services', combinedServices);
 
       // 4. Operators
-      final operatorsController = Get.find<OperatorController>();
+      final operatorsController =
+          _ensureController<OperatorController>(() => OperatorController());
+      await operatorsController.fetchOperators();
       _addSheet(excel, 'Operators', operatorsController.getExportData());
 
       // 5. Others (Multiple tables)
-      final othersController = Get.find<OthersGetxController>();
+      final othersController =
+          _ensureController<OthersGetxController>(() => OthersGetxController());
+      await othersController.fetchAllData();
       final othersData = othersController.getExportData();
       final List<List<String>> combinedOthers = [];
       othersData.forEach((key, value) {
@@ -71,6 +82,11 @@ class FileIoUtils {
     } catch (e) {
       Get.snackbar('Error', 'Export failed: $e');
     }
+  }
+
+  static T _ensureController<T>(T Function() create) {
+    if (Get.isRegistered<T>()) return Get.find<T>();
+    return Get.put<T>(create());
   }
 
   static void _addSheet(Excel excel, String name, List<List<String>> data) {

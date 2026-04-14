@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 
 class SurveyTablePlanned extends StatelessWidget {
   const SurveyTablePlanned({super.key});
@@ -49,6 +50,7 @@ class SurveyTablePlanned extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    AppUnits.signature;
     return Container(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -150,10 +152,10 @@ class SurveyTablePlanned extends StatelessWidget {
                           ),
                           child: Row(children: [
                             cell('No', 60, bold: true, isHeader: true),
-                            cell('MD (ft)', 90, bold: true, isHeader: true),
+                            cell(AppUnits.label('MD (ft)'), 90, bold: true, isHeader: true),
                             cell('Inc (°)', 90, bold: true, isHeader: true),
                             cell('Azi (°)', 90, bold: true, isHeader: true),
-                            cell('TVD (ft)', 90, bold: true, isHeader: true),
+                            cell(AppUnits.label('TVD (ft)'), 90, bold: true, isHeader: true),
                             cell('Vsec', 90, bold: true, isHeader: true),
                             cell('N+/S-', 90, bold: true, isHeader: true),
                             cell('E+/W-', 90, bold: true, isHeader: true),

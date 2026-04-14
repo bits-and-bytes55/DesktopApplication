@@ -255,4 +255,26 @@ class AppUnits {
     }
     return output;
   }
+
+  static String formatValue(
+    dynamic value,
+    String fromUnit, {
+    int? fractionDigits,
+  }) {
+    if (value == null) return '';
+    final raw = value.toString().trim();
+    if (raw.isEmpty) return '';
+    final parsed = double.tryParse(raw.replaceAll(',', ''));
+    if (parsed == null) return raw;
+
+    final toUnit = unitText(fromUnit);
+    final converted = convertValue(parsed, fromUnit, toUnit) ?? parsed;
+    if (fractionDigits == null) {
+      return converted
+          .toStringAsFixed(4)
+          .replaceAll(RegExp(r'0+$'), '')
+          .replaceAll(RegExp(r'\.$'), '');
+    }
+    return converted.toStringAsFixed(fractionDigits);
+  }
 }

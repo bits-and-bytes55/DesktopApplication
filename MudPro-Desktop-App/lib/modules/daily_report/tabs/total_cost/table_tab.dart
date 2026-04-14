@@ -1,6 +1,7 @@
 // ======================== FILE 2: table_tab.dart ========================
 
 import 'package:flutter/material.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 
 class DailyTotalCostTableTab extends StatelessWidget {
   const DailyTotalCostTableTab({super.key});
@@ -27,6 +28,7 @@ class DailyTotalCostTableTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    AppUnits.signature;
     return Padding(
       padding: const EdgeInsets.all(12),
       child: Container(
@@ -77,7 +79,7 @@ class DailyTotalCostTableTab extends StatelessWidget {
       'No',
       'Date',
       'Rpt',
-      'MD (ft)',
+      AppUnits.label('MD (ft)'),
       'Product',
       'Premixed Mud',
       'Package',

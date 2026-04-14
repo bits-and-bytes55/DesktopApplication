@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'dart:math' as math;
 import 'package:mudpro_desktop_app/modules/daily_report/widgets/wellbore_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 
 class WellboreDashboard extends StatelessWidget {
   const WellboreDashboard({Key? key}) : super(key: key);
@@ -10,6 +11,7 @@ class WellboreDashboard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(WellboreController());
+    AppUnits.signature;
     
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
@@ -137,7 +139,7 @@ class WellboreDashboard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'MD/TVD (ft)',
+                  AppUnits.label('MD/TVD (ft)'),
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
@@ -145,7 +147,7 @@ class WellboreDashboard extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  'Shoe (ft)',
+                  AppUnits.label('Shoe (ft)'),
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
@@ -244,7 +246,7 @@ class WellboreDashboard extends StatelessWidget {
                     'Depth',
                     controller.depthKPI.value,
                     controller.maxDepthKPI.value,
-                    '${controller.depthKPI.value.toStringAsFixed(2)} ft',
+                    '${AppUnits.formatValue(controller.depthKPI.value, '(ft)', fractionDigits: 2)} ${AppUnits.strip(AppUnits.length)}',
                     AppTheme.primaryColor,
                     (controller.depthKPI.value / controller.maxDepthKPI.value * 100).toStringAsFixed(1),
                   )),
@@ -590,7 +592,7 @@ class WellboreDashboard extends StatelessWidget {
                   child: _buildLineChart(
                     'Depth Progress',
                     [0, 20, 45, 70, 100],
-                    '(ft)',
+                    AppUnits.length,
                     AppTheme.primaryColor,
                   ),
                 ),

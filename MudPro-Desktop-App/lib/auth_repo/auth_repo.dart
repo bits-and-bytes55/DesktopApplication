@@ -56,8 +56,12 @@ class AuthRepository {
       );
       print('Hitting ${isUpdate ? 'PUT' : 'POST'} $uri');
       final response = isUpdate
-          ? await http.put(uri, headers: _headers, body: jsonEncode(payload))
-          : await http.post(uri, headers: _headers, body: jsonEncode(payload));
+          ? await http
+              .put(uri, headers: _headers, body: jsonEncode(payload))
+              .timeout(const Duration(seconds: 12))
+          : await http
+              .post(uri, headers: _headers, body: jsonEncode(payload))
+              .timeout(const Duration(seconds: 12));
       print('statuscode------${response.statusCode}');
       print('response body------${response.body}');
       final data = jsonDecode(response.body);
@@ -83,8 +87,12 @@ class AuthRepository {
       );
       print('Hitting ${isUpdate ? 'PUT' : 'POST'} $uri');
       final response = isUpdate
-          ? await http.put(uri, headers: _headers, body: jsonEncode(payload))
-          : await http.post(uri, headers: _headers, body: jsonEncode(payload));
+          ? await http
+              .put(uri, headers: _headers, body: jsonEncode(payload))
+              .timeout(const Duration(seconds: 12))
+          : await http
+              .post(uri, headers: _headers, body: jsonEncode(payload))
+              .timeout(const Duration(seconds: 12));
       print('statuscode------${response.statusCode}');
       print('response body------${response.body}');
       final data = jsonDecode(response.body);

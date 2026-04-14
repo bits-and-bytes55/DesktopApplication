@@ -35,6 +35,7 @@ class _DailyReportBodyState extends State<DailyReportBody> {
   int _lastSelectedSideTab = 0; // Remembers sidebar selection when switching main tabs
   int _selectedSubTab = 0; // For sub-tabs under main tabs
   bool _hasExplicitlySelectedSubTab = false; // Track if user explicitly selected a sub-tab for non-Home tabs
+  int _wbmRequestId = 0;
 
   // Sub-tabs configuration for each main tab
   final Map<int, List<Map<String, dynamic>>> _mainTabSubTabs = {
@@ -77,6 +78,9 @@ class _DailyReportBodyState extends State<DailyReportBody> {
     } else {
       setState(() {
         _selectedSubTab = index;
+        if (widget.selectedMainTab == 1 && index == 5) {
+          _wbmRequestId++;
+        }
         // Mark that user has explicitly selected a sub-tab for non-Home tabs
         if (widget.selectedMainTab != 0) {
           _hasExplicitlySelectedSubTab = true;
@@ -110,6 +114,7 @@ class _DailyReportBodyState extends State<DailyReportBody> {
     return SubTabContent(
       mainTabIndex: widget.selectedMainTab,
       subTabIndex: _selectedSubTab,
+      wbmRequestId: _wbmRequestId,
       selectedSideTab: _selectedSideTab,
       onSideTabSelected: _onSideTabSelected,
       isSidebarVisible: widget.isSidebarVisible,

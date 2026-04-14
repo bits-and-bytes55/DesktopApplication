@@ -2,6 +2,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/model/UG_ST_model.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 
 class DoglegChart extends StatelessWidget {
   final List<DoglegPoint> points;
@@ -13,6 +14,7 @@ class DoglegChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    AppUnits.signature;
     return LayoutBuilder(
       builder: (context, constraints) {
         final isSmallScreen = constraints.maxWidth < 800;
@@ -88,7 +90,9 @@ class DoglegChart extends StatelessWidget {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          "Dogleg Severity (°/100ft) vs Measured Depth (ft) - Shows directional wellbore curvature",
+                          AppUnits.label(
+                            "Dogleg Severity (°/100ft) vs Measured Depth (ft) - Shows directional wellbore curvature",
+                          ),
                           style: AppTheme.caption.copyWith(
                             color: AppTheme.textSecondary,
                           ),
@@ -354,7 +358,7 @@ class DoglegChart extends StatelessWidget {
                 Expanded(
                   flex: 2,
                   child: Text(
-                    "Measured Depth (ft)",
+                    AppUnits.label("Measured Depth (ft)"),
                     style: AppTheme.caption.copyWith(
                       fontWeight: FontWeight.w700,
                       color: AppTheme.primaryColor,
@@ -556,7 +560,7 @@ class DoglegChart extends StatelessWidget {
           axisNameWidget: Padding(
             padding: const EdgeInsets.only(bottom: 4),
             child: Text(
-              "Measured Depth (ft)",
+              AppUnits.label("Measured Depth (ft)"),
               style: AppTheme.caption.copyWith(
                 fontSize: axisTitleFontSize.toDouble(),
                 fontWeight: FontWeight.w600,

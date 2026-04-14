@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 
 class DepthCostProductTable extends StatefulWidget {
   const DepthCostProductTable({super.key});
@@ -125,7 +126,7 @@ class _DepthCostProductTableState extends State<DepthCostProductTable> {
         color: isTotal ? const Color(0xffE6F7FF) : (isHeader ? Colors.transparent : null),
       ),
       child: Text(
-        t,
+        isHeader ? AppUnits.label(t) : t,
         textAlign: TextAlign.center,
         style: TextStyle(
           fontSize: 11,
@@ -574,6 +575,7 @@ class _DepthCostProductTableState extends State<DepthCostProductTable> {
 
   @override
   Widget build(BuildContext context) {
+    AppUnits.signature;
     return Container(
       color: const Color(0xffF8F9FA),
       padding: const EdgeInsets.all(16.0),

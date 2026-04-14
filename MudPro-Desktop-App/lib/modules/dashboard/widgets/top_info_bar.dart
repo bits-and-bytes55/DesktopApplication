@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 
 class TopInfoBar extends StatelessWidget {
   final padWellC = padWellContext;
 
   @override
   Widget build(BuildContext context) {
+    AppUnits.signature;
     return Container(
       height: 32,
       color: Colors.white,
@@ -24,7 +26,7 @@ class TopInfoBar extends StatelessWidget {
           const SizedBox(width: 20),
           _buildInfoField("Report #", "12"),
           const Spacer(),
-          _buildInfoField("MD (ft)", "9055.0"),
+          _buildInfoField("MD ${AppUnits.length}", AppUnits.formatValue('9055.0', '(ft)')),
         ],
       ),
     );

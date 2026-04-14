@@ -439,7 +439,13 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
     try {
       if (activeTab == 0) {
         // Well Tab
-        final wellEditorRes = await WellView.saveActiveWell();
+        final wellEditorRes = await WellView.saveActiveWell()
+            .timeout(const Duration(seconds: 12), onTimeout: () {
+          return {
+            'success': false,
+            'message': 'Well save timed out (12s)',
+          };
+        });
         if (wellEditorRes['success'] == true) {
           final message = wellEditorRes['message']?.toString() ?? '';
           if (shouldUseSectionSuccessMessage(message)) {
@@ -454,7 +460,14 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
             ? Get.find<WellGeneralController>()
             : null;
         if (wellGenCtrl != null) {
-          final res = await wellGenCtrl.save();
+          final res = await wellGenCtrl
+              .save()
+              .timeout(const Duration(seconds: 12), onTimeout: () {
+            return {
+              'success': false,
+              'message': 'Well General save timed out (12s)',
+            };
+          });
           if (res['success'] == true) {
             final message = res['message']?.toString() ?? '';
             if (shouldUseSectionSuccessMessage(message)) {
@@ -470,7 +483,14 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
             ? Get.find<CasedHoleUIController>()
             : null;
         if (casedCtrl != null) {
-          final res = await casedCtrl.saveAll();
+          final res = await casedCtrl
+              .saveAll()
+              .timeout(const Duration(seconds: 12), onTimeout: () {
+            return {
+              'success': false,
+              'message': 'Casing save timed out (12s)',
+            };
+          });
           if (res['success'] == true) {
             final message = res['message']?.toString() ?? '';
             if (shouldUseSectionSuccessMessage(message)) {
@@ -486,7 +506,14 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
             ? Get.find<DrillStringController>()
             : null;
         if (drillStrCtrl != null) {
-          final res = await drillStrCtrl.saveAll();
+          final res = await drillStrCtrl
+              .saveAll()
+              .timeout(const Duration(seconds: 12), onTimeout: () {
+            return {
+              'success': false,
+              'message': 'Drill String save timed out (12s)',
+            };
+          });
           if (res['success'] == true) {
             final message = res['message']?.toString() ?? '';
             if (shouldUseSectionSuccessMessage(message)) {
@@ -501,7 +528,11 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
             ? Get.find<PitController>()
             : null;
         if (pitCtrl != null) {
-          await pitCtrl.fetchVolumeNameData();
+          try {
+            await pitCtrl
+                .fetchVolumeNameData()
+                .timeout(const Duration(seconds: 12));
+          } catch (_) {}
         }
       } else if (activeTab == 1) {
         // Inventory Tab

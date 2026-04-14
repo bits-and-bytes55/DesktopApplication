@@ -119,21 +119,32 @@ class _WellViewState extends State<WellView> {
     };
 
     try {
-      final result = await padWellC.updateSelectedWell(payload);
+      final result = await padWellC
+          .updateSelectedWell(payload)
+          .timeout(const Duration(seconds: 12), onTimeout: () {
+        return {
+          'success': false,
+          'message': 'Well save timed out (12s)',
+        };
+      });
       _loadSelectedWell();
       final wellId = _extractEntityId(result['data']);
       if (wellId.isNotEmpty) {
         padWellC.selectWell(wellId);
         dashboardC?.navigate('well:$wellId');
       }
+      final isSuccess = result['success'] == true;
       if (showFeedback) {
         _showFeedback(
-          result['message']?.toString() ?? 'Well saved successfully',
+          result['message']?.toString() ??
+              (isSuccess ? 'Well saved successfully' : 'Well save failed'),
+          isSuccess: isSuccess,
         );
       }
       return {
-        'success': true,
-        'message': result['message']?.toString() ?? 'Well saved successfully',
+        'success': isSuccess,
+        'message': result['message']?.toString() ??
+            (isSuccess ? 'Well saved successfully' : 'Well save failed'),
         'data': result['data'],
       };
     } catch (e) {

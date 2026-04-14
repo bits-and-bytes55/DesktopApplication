@@ -2,6 +2,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/model/UG_ST_model.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 
 class SectionViewChart extends StatelessWidget {
   final List<SectionPoint> points;
@@ -28,6 +29,7 @@ class SectionViewChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    AppUnits.signature;
     return LayoutBuilder(
       builder: (context, constraints) {
         final isSmallScreen = constraints.maxWidth < 600;
@@ -223,7 +225,7 @@ class SectionViewChart extends StatelessWidget {
           axisNameWidget: Padding(
             padding: const EdgeInsets.only(bottom: 4),
             child: Text(
-              "TVD (ft)",
+              AppUnits.label("TVD (ft)"),
               style: AppTheme.caption.copyWith(
                 fontWeight: FontWeight.w600,
                 color: AppTheme.textPrimary,
@@ -252,7 +254,7 @@ class SectionViewChart extends StatelessWidget {
           axisNameWidget: Padding(
             padding: const EdgeInsets.only(top: 4),
             child: Text(
-              "Horizontal Displacement (ft)",
+              AppUnits.label("Horizontal Displacement (ft)"),
               style: AppTheme.caption.copyWith(
                 fontWeight: FontWeight.w600,
                 color: AppTheme.textPrimary,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 
 class CumCostEngineeringTable extends StatefulWidget {
   const CumCostEngineeringTable({super.key});
@@ -67,7 +68,7 @@ class _CumCostEngineeringTableState extends State<CumCostEngineeringTable> {
         color: isTotal ? const Color(0xffE6F7FF) : (isHeader ? Colors.transparent : null),
       ),
       child: Text(
-        t,
+        isHeader ? AppUnits.label(t) : t,
         textAlign: TextAlign.center,
         style: TextStyle(
           fontSize: 11,
@@ -281,6 +282,7 @@ class _CumCostEngineeringTableState extends State<CumCostEngineeringTable> {
 
   @override
   Widget build(BuildContext context) {
+    AppUnits.signature;
     _initializeData();
     
     return Container(
