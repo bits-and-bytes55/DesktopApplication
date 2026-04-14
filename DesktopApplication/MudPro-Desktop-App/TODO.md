@@ -1,0 +1,3 @@
+- Add 'No' column as first column in Products Inventory table with row numbers
+- Reduce vertical padding in all table cells to decrease row heights
+- Modify editing cells to remove border boxes when unlocked, enable simple editing
