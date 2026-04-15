@@ -6,6 +6,11 @@ const casingSchema = new mongoose.Schema({
       required: true,
       index: true,
     },
+  reportId: {
+      type: String,
+      default: '',
+      index: true,
+    },
   description: { type: String, default: '' },
   type: { type: String, default: '' },
   od: { type: String, default: '' },

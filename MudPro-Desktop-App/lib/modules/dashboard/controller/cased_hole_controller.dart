@@ -6,6 +6,7 @@ import 'package:mudpro_desktop_app/api_endpoint/api_endpoint.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/model/UG_ST_model.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart' show kControllerWellId;
+import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 
@@ -70,6 +71,7 @@ class CasedHoleEntry {
 
 class CasedHoleUIController extends GetxController {
   final String baseUrl = ApiEndpoint.baseUrl;
+  final reportContext = Get.find<ReportContextController>();
 
   var entries = <CasedHoleEntry>[].obs;
   var isLoading = false.obs;
@@ -241,43 +243,49 @@ class CasedHoleUIController extends GetxController {
     if (kControllerWellId.isEmpty) return;
     isLoading.value = true;
     try {
-      final response = await http.get(Uri.parse('${baseUrl}casing'), headers: _headers);
+      final response = await http.get(
+        Uri.parse('${baseUrl}casing/$kControllerWellId').replace(
+          queryParameters: {
+            if (reportContext.selectedReportId.value.isNotEmpty)
+              'reportId': reportContext.selectedReportId.value,
+          },
+        ),
+        headers: _headers,
+      );
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body);
         final List data = json['data'] ?? [];
 
-        if (data.isNotEmpty) {
-          for (final e in entries) {
-            e.dispose();
-          }
-          entries.clear();
-          for (final item in data) {
-            if (item['wellId'] != kControllerWellId) continue;
+        for (final e in entries) {
+          e.dispose();
+        }
+        entries.clear();
+        for (final item in data) {
+          if (item['wellId'] != kControllerWellId) continue;
 
-            final entry = CasedHoleEntry(
-              id: item['_id'],
-              desc: item['description']?.toString() ?? '',
-              odVal: item['od']?.toString() ?? '',
-              wtVal: item['wt']?.toString() ?? '',
-              idVal: item['id']?.toString() ?? '',
-              topVal: item['top']?.toString() ?? '',
-              shoeVal: item['shoe']?.toString() ?? '',
-            );
-            final t = double.tryParse(entry.top.text);
-            final s = double.tryParse(entry.shoe.text);
-            if (t != null && s != null) {
-              entry.length.text = (s - t).toStringAsFixed(1);
-            }
+          final entry = CasedHoleEntry(
+            id: item['_id'],
+            desc: item['description']?.toString() ?? '',
+            odVal: item['od']?.toString() ?? '',
+            wtVal: item['wt']?.toString() ?? '',
+            idVal: item['id']?.toString() ?? '',
+            topVal: item['top']?.toString() ?? '',
+            shoeVal: item['shoe']?.toString() ?? '',
+          );
+          final t = double.tryParse(entry.top.text);
+          final s = double.tryParse(entry.shoe.text);
+          if (t != null && s != null) {
+            entry.length.text = (s - t).toStringAsFixed(1);
+          }
 
-            _attachListeners(entry);
-            entries.add(entry);
-          }
-          if (entries.isEmpty) _initEmptyRows();
-          if (entries.last.hasContent) {
-            final e = CasedHoleEntry();
-            _attachListeners(e);
-            entries.add(e);
-          }
+          _attachListeners(entry);
+          entries.add(entry);
+        }
+        if (entries.isEmpty) _initEmptyRows();
+        if (entries.last.hasContent) {
+          final e = CasedHoleEntry();
+          _attachListeners(e);
+          entries.add(e);
         }
       }
     } catch (e) {
@@ -302,6 +310,9 @@ class CasedHoleUIController extends GetxController {
       for (final entry in allRows) {
         final payload = entry.toJson();
         payload['wellId'] = kControllerWellId;
+        if (reportContext.selectedReportId.value.isNotEmpty) {
+          payload['reportId'] = reportContext.selectedReportId.value;
+        }
 
         final result = await authRepo.saveCasing(payload);
 

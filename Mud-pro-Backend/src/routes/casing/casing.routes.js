@@ -8,9 +8,9 @@ import {
 
 const router = express.Router();
 
-router.get('/', getAllCasings);
+router.get('/:wellId', getAllCasings);
 router.post('/', addCasing);
-router.put('/:id', updateCasing);
-router.delete('/:id', deleteCasing);
+router.put('/:wellId/:id', updateCasing);
+router.delete('/:wellId/:id', deleteCasing);
 
 export default router;

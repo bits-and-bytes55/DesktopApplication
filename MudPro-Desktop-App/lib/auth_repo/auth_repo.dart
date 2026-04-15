@@ -79,11 +79,12 @@ class AuthRepository {
   // ── Save Casing ───────────────────────────────────────────────────────────────
   Future<Map<String, dynamic>> saveCasing(Map<String, dynamic> body) async {
     try {
+      final wellId = body['wellId'] ?? '';
       final recordId = (body['recordId'] ?? '').toString().trim();
       final payload = Map<String, dynamic>.from(body)..remove('recordId');
       final isUpdate = recordId.isNotEmpty;
       final uri = Uri.parse(
-        isUpdate ? '${baseUrl}casing/$recordId' : '${baseUrl}casing',
+        isUpdate ? '${baseUrl}casing/$wellId/$recordId' : '${baseUrl}casing',
       );
       print('Hitting ${isUpdate ? 'PUT' : 'POST'} $uri');
       final response = isUpdate

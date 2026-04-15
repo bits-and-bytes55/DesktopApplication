@@ -209,10 +209,10 @@ class _GeneralSectionState extends State<GeneralSection> {
   late final EngineerController engineerCtrl;
   final activityCtrl = Get.isRegistered<OthersController>()
       ? Get.find<OthersController>()
-      : Get.put(OthersController());
+      : Get.put(OthersController(), permanent: true);
   final wellGenCtrl = Get.isRegistered<WellGeneralController>()
       ? Get.find<WellGeneralController>()
-      : Get.put(WellGeneralController());
+      : Get.put(WellGeneralController(), permanent: true);
   Worker? _wellWorker;
   final List<Worker> _unitWorkers = <Worker>[];
   late String _lengthUnit;
@@ -1158,7 +1158,7 @@ class _CasedHoleSectionState extends State<CasedHoleSection> {
   late final UgStController _casingCtrl;
   final CasedHoleUIController uiCtrl = Get.isRegistered<CasedHoleUIController>()
       ? Get.find<CasedHoleUIController>()
-      : Get.put(CasedHoleUIController());
+      : Get.put(CasedHoleUIController(), permanent: true);
 
   // Currently selected casing from dropdown (null = nothing selected)
   CasingRow? _selectedCasing;
@@ -1428,10 +1428,10 @@ class _OpenHoleSectionState extends State<OpenHoleSection> {
   final c = Get.find<DashboardController>();
   final wellGenCtrl = Get.isRegistered<WellGeneralController>()
       ? Get.find<WellGeneralController>()
-      : Get.put(WellGeneralController());
+      : Get.put(WellGeneralController(), permanent: true);
   final casedHoleCtrl = Get.isRegistered<CasedHoleUIController>()
       ? Get.find<CasedHoleUIController>()
-      : Get.put(CasedHoleUIController());
+      : Get.put(CasedHoleUIController(), permanent: true);
   int? selectedRowIndex;
   late final List<List<TextEditingController>> _cellControllers;
   List<String> _lastAutoFirstRow = const ['', '', '', ''];
@@ -1985,7 +1985,7 @@ class RightPortion extends StatelessWidget {
   Widget build(BuildContext context) {
     final ac = Get.isRegistered<OthersController>()
         ? Get.find<OthersController>()
-        : Get.put(OthersController());
+        : Get.put(OthersController(), permanent: true);
     return LayoutBuilder(
       builder: (ctx, bc) {
         const double cementRowH = 28.0;

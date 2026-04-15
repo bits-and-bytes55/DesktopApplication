@@ -118,6 +118,21 @@ const findScopedWellGeneral = async ({ wellId, reportId, reportNo }) => {
   return null;
 };
 
+const findScopedCasings = async ({ wellId, reportId }) => {
+  if (reportId) {
+    const scopedCasings = await Casing.find({ wellId, reportId }).sort({
+      createdAt: 1,
+      _id: 1,
+    });
+
+    if (scopedCasings.length > 0) {
+      return scopedCasings;
+    }
+  }
+
+  return Casing.find({ wellId }).sort({ createdAt: 1, _id: 1 });
+};
+
 const findScopedPits = async ({ wellId, reportId }) => {
   if (reportId) {
     const scopedPits = await Pit.find({ wellId, reportId }).sort({
@@ -249,6 +264,7 @@ export const createWellGeneral = async (req, res) => {
 export const createCasing = async (req, res) => {
   try {
     const wellId = getWellId(req);
+    const reportId = getReportId(req);
 
     const {
       description,
@@ -271,6 +287,7 @@ export const createCasing = async (req, res) => {
 
     const item = await Casing.create({
       wellId,
+      reportId,
       description: description || "",
       type: type || "",
       od: od || "",
@@ -452,7 +469,7 @@ export const getVolumeNameCalculation = async (req, res) => {
           reportId: reportMeta.reportId,
           reportNo: reportMeta.reportNo,
         }),
-        Casing.find({ wellId }).sort({ createdAt: 1 }),
+        findScopedCasings({ wellId, reportId: reportMeta.reportId }),
         findScopedPits({ wellId, reportId: reportMeta.reportId }),
         ConsumeProduct.find({ wellId }).sort({ createdAt: 1 }),
         ReceiveMud.find({ wellId }).sort({ createdAt: 1 }),

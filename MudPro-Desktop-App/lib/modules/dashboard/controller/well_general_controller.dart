@@ -237,7 +237,6 @@ class WellGeneralController extends GetxController {
     }
     isLoading.value = true;
     try {
-      _clearFields();
       final primaryUri = Uri.parse('${baseUrl}well-general/$kControllerWellId').replace(
         queryParameters: {
           if (reportContext.selectedReportId.value.isNotEmpty)
@@ -275,9 +274,22 @@ class WellGeneralController extends GetxController {
           }
         }
 
+        if (matched == null &&
+            reportContext.selectedReportId.value.isNotEmpty) {
+          final fallbackResponse = await http.get(
+            Uri.parse('${baseUrl}well-general/$kControllerWellId'),
+            headers: _headers,
+          );
+          if (fallbackResponse.statusCode == 200) {
+            final fallbackJson = jsonDecode(fallbackResponse.body);
+            final List fallbackData = fallbackJson['data'] ?? [];
+            matched = _findMatchingRecord(fallbackData);
+          }
+        }
+
         if (matched != null) {
           _fromJson(matched);
-        } else {
+        } else if (savedId.value.isEmpty) {
           _clearFields();
         }
         _applySelectedReportMetadata();

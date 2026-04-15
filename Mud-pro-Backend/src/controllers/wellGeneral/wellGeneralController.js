@@ -1,8 +1,10 @@
 import WellGeneral from "../../modules/wellGeneral/wellGeneralModel.js";
 
 const getWellId = (req) => String(req.params.wellId || "").trim();
-const getReportId = (req) => String(req.query.reportId ?? req.body.reportId ?? "").trim();
-const getReportNo = (req) => String(req.query.reportNo ?? req.body.reportNo ?? "").trim();
+const getReportId = (req) =>
+  String(req.query.reportId ?? req.body?.reportId ?? "").trim();
+const getReportNo = (req) =>
+  String(req.query.reportNo ?? req.body?.reportNo ?? "").trim();
 
 const toText = (value) => String(value ?? "").trim();
 
