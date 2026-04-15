@@ -18,6 +18,7 @@ import TransferMud from "../../modules/transfermud/TransferMud.js";
 import OtherVolAddition from "../../modules/othervol/OtherVolAddition.js";
 import MudLoss from "../../modules/mudloss/MudLoss.js";
 import MudLossStorage from "../../modules/mudlossstorage/MudLossStorage.js";
+import { loadMergedPits } from "../../utils/pitReportState.js";
 
 const TEMPLATE_PATH = fileURLToPath(
   new URL("../../../assets/template.xlsx", import.meta.url)
@@ -97,6 +98,12 @@ const legacyReportScope = () => ({
 const legacyReportScopeWithEmpty = () => ({
   $or: [{ reportId: { $exists: false } }, { reportId: null }, { reportId: "" }],
 });
+const legacyReportScopeForModel = (Model) => {
+  const reportIdPath = Model?.schema?.path?.("reportId");
+  return reportIdPath?.instance === "String"
+    ? legacyReportScopeWithEmpty()
+    : legacyReportScope();
+};
 const getPitVolume = (pit) => pit.volume || pit.capacity || "";
 const getActivePitVolume = (pit) => toNumber(pit.volume || pit.capacity);
 const setCellValue = (ws, address, value = "") => {
@@ -473,7 +480,7 @@ const loadReportScopedList = async (
     if (scoped.length > 0) return scoped;
   }
 
-  return Model.find({ wellId, ...legacyReportScopeWithEmpty() })
+  return Model.find({ wellId, ...legacyReportScopeForModel(Model) })
     .sort(sort)
     .limit(limit || 0)
     .lean();
@@ -515,8 +522,39 @@ const loadExportPumps = async ({ wellId, reportId }) => {
     }
   }
 
-  return Pump.find({ wellId, ...legacyReportScope() })
+  return Pump.find({ wellId, ...legacyReportScopeForModel(Pump) })
     .sort({ rowNumber: 1, createdAt: 1, _id: 1 })
+    .lean();
+};
+
+const loadExportWellGeneral = async ({ wellId, reportId, report }) => {
+  if (!wellId) return null;
+
+  if (reportId) {
+    const byReportId = await WellGeneral.findOne({ wellId, reportId })
+      .sort({ createdAt: -1, _id: -1 })
+      .lean();
+    if (byReportId) return byReportId;
+  }
+
+  const reportNo = text(report?.reportNo);
+  if (reportNo) {
+    const byReportNo = await WellGeneral.findOne({ wellId, reportNo })
+      .sort({ createdAt: -1, _id: -1 })
+      .lean();
+    if (byReportNo) return byReportNo;
+  }
+
+  const legacy = await WellGeneral.findOne({
+    wellId,
+    ...legacyReportScopeWithEmpty(),
+  })
+    .sort({ createdAt: -1, _id: -1 })
+    .lean();
+  if (legacy) return legacy;
+
+  return WellGeneral.findOne({ wellId })
+    .sort({ createdAt: -1, _id: -1 })
     .lean();
 };
 
@@ -567,18 +605,14 @@ export const exportInventoryReport = async (req, res) => {
       return res.status(404).json({ success: false, message: "Well not found" });
     }
 
-    const [pad, wellGeneralByReport, latestWellGeneral, reportScopedPits, wellPits] = await Promise.all([
+    const [pad, wellGeneral, pits] = await Promise.all([
       well?.padId ? Pad.findById(well.padId).lean() : null,
-      report?.reportNo
-        ? WellGeneral.findOne({ wellId, reportNo: report.reportNo }).sort({ createdAt: -1 }).lean()
-        : null,
-      WellGeneral.findOne({ wellId }).sort({ createdAt: -1 }).lean(),
-      reportId ? Pit.find({ wellId, reportId }).sort({ createdAt: 1 }).lean() : Promise.resolve([]),
-      Pit.find({ wellId }).sort({ createdAt: 1 }).lean(),
+      loadExportWellGeneral({ wellId, reportId, report }),
+      reportId
+        ? loadMergedPits({ wellId, reportId })
+        : Pit.find({ wellId }).sort({ createdAt: 1, _id: 1 }).lean(),
     ]);
 
-    const wellGeneral = wellGeneralByReport || latestWellGeneral || null;
-    const pits = reportScopedPits.length > 0 ? reportScopedPits : wellPits;
     const activePits = pits.filter((pit) => pit.initialActive === true);
     const reservePits = pits.filter((pit) => pit.initialActive === false);
     const fluidName =

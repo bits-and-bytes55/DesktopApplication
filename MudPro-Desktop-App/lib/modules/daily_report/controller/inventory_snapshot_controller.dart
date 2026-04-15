@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:mudpro_desktop_app/api_endpoint/api_endpoint.dart';
+import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
 class InventorySnapshotController {
@@ -15,11 +16,17 @@ class InventorySnapshotController {
   Uri _buildUri(String path, {String? wellId}) {
     final activeWellId = (wellId ?? currentBackendWellId).trim();
     final base = Uri.parse('$baseUrl$path');
-    if (activeWellId.isEmpty) return base;
+    final queryParameters = Map<String, String>.from(base.queryParameters);
 
-    return base.replace(
-      queryParameters: {...base.queryParameters, 'wellId': activeWellId},
-    );
+    if (activeWellId.isNotEmpty) {
+      queryParameters['wellId'] = activeWellId;
+    }
+    final reportId = reportContext.selectedReportId.value.trim();
+    if (reportId.isNotEmpty) {
+      queryParameters['reportId'] = reportId;
+    }
+
+    return base.replace(queryParameters: queryParameters);
   }
 
   Future<Map<String, dynamic>> getInventorySnapshot({String? wellId}) async {
