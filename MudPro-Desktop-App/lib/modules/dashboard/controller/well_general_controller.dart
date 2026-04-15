@@ -232,7 +232,9 @@ class WellGeneralController extends GetxController {
   // FETCH latest record
   Future<void> fetchLatest() async {
     if (kControllerWellId.isEmpty) {
-      _clearFields();
+      if (savedId.value.isEmpty && md.value.isEmpty) {
+        _clearFields();
+      }
       return;
     }
     isLoading.value = true;
@@ -289,12 +291,14 @@ class WellGeneralController extends GetxController {
 
         if (matched != null) {
           _fromJson(matched);
-        } else if (savedId.value.isEmpty) {
+        } else if (savedId.value.isEmpty && md.value.isEmpty) {
           _clearFields();
         }
         _applySelectedReportMetadata();
       } else {
-        _clearFields();
+        if (savedId.value.isEmpty && md.value.isEmpty) {
+          _clearFields();
+        }
         _applySelectedReportMetadata();
       }
     } catch (e) {

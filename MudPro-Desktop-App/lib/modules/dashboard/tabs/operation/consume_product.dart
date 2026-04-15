@@ -5,7 +5,6 @@ import 'package:mudpro_desktop_app/modules/company_setup/model/products_model.da
 import 'package:mudpro_desktop_app/modules/daily_report/controller/inventory_snapshot_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/consume_product_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/inventory_store/inventory_store.dart';
-import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import '../../controller/operation_controller.dart';
 import '../../controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
@@ -20,7 +19,9 @@ class ConsumeProductView extends StatefulWidget {
 class _ConsumeProductViewState extends State<ConsumeProductView> {
   final OperationController operationController = Get.find<OperationController>();
   final DashboardController dashboardController = Get.find<DashboardController>();
-  final PitController pitController = Get.put(PitController());
+  final PitController pitController = Get.isRegistered<PitController>()
+      ? Get.find<PitController>()
+      : Get.put(PitController());
   final ConsumeProductController consumeProductController = ConsumeProductController();
   final InventorySnapshotController inventorySnapshotController = InventorySnapshotController();
 
@@ -64,9 +65,14 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     waterVolumeController.addListener(_recalculateTotalVolume);
     waterVolumeController.addListener(() {
       operationController.addWaterVolume.value = waterVolumeController.text;
+      operationController.addWaterMainVol.value = waterVolumeController.text;
     });
 
-    final lastWater = operationController.addWaterVolume.value.trim();
+    Future.microtask(_loadSavedAddWater);
+
+    final lastWater = operationController.addWaterMainVol.value.trim().isNotEmpty
+        ? operationController.addWaterMainVol.value.trim()
+        : operationController.addWaterVolume.value.trim();
     if (lastWater.isNotEmpty && (double.tryParse(lastWater) ?? 0) > 0) {
       addWater.value = true;
       waterVolumeController.text = lastWater;
@@ -75,12 +81,29 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       if (!enabled) {
         waterVolumeController.text = '';
         operationController.addWaterVolume.value = '';
+        operationController.addWaterMainVol.value = '';
         _recalculateTotalVolume();
       }
     });
 
     // Automatically rebalance distribution whenever total volume changes
     ever(operationController.totalVolume, (_) => _rebalanceDistributeVolumes());
+  }
+
+  Future<void> _loadSavedAddWater() async {
+    await operationController.loadAddWater(force: true);
+    if (!mounted) return;
+
+    final savedWater = operationController.addWaterMainVol.value.trim();
+    final savedWaterValue = double.tryParse(savedWater) ?? 0.0;
+    if (savedWaterValue <= 0 || waterVolumeController.text.trim().isNotEmpty) {
+      return;
+    }
+
+    addWater.value = true;
+    waterVolumeController.text = savedWater;
+    operationController.addWaterVolume.value = savedWater;
+    _recalculateTotalVolume();
   }
 
   @override
@@ -451,23 +474,9 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
         }
       }
 
-      if (addWater.value) {
-        final waterVol = double.tryParse(waterVolumeController.text) ?? 0.0;
-        if (waterVol > 0) {
-          final wellId = kControllerWellId;
-          if (wellId.isEmpty) {
-            _showToast('No backend well selected for Add Water', isError: true);
-          } else {
-            final repo = AuthRepository();
-            final res = await repo.createAddWater(wellId, {
-              'to': 'Active System',
-              'volume': waterVol,
-            });
-            if (res['success'] != true) {
-              _showToast('Add Water failed: ${res['message']}', isError: true);
-            }
-          }
-        }
+      final waterResult = await _saveAddWaterIfNeeded();
+      if (waterResult != null && waterResult['success'] != true) {
+        _showToast('Add Water failed: ${waterResult['message']}', isError: true);
       }
       final snapResult = await inventorySnapshotController.generateInventorySnapshot();
       if (snapResult['success'] == true) {
@@ -480,6 +489,21 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     } finally {
       isSavingAll.value = false;
     }
+  }
+
+  Future<Map<String, dynamic>?> _saveAddWaterIfNeeded() async {
+    if (!addWater.value) return null;
+
+    final waterText = waterVolumeController.text.trim();
+    final waterVol = double.tryParse(waterText) ?? 0.0;
+    if (waterVol <= 0) return null;
+
+    await operationController.loadAddWater(force: true);
+    operationController.addWaterTo.value = kActiveSystem;
+    operationController.addWaterMainVol.value = waterText;
+    operationController.addWaterVolume.value = waterText;
+
+    return operationController.saveAddWater();
   }
 
   void _showToast(String msg, {bool isError = false}) {

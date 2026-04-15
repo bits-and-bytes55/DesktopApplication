@@ -185,9 +185,15 @@ class AuthRepository {
   // ── Get Volume Name Calculation ────────────────────────────────────────────────
   Future<Map<String, dynamic>> getVolumeNameCalculation(String wellId) async {
     try {
-      print('Hitting GET ${baseUrl}volume-name/$wellId');
+      final reportId = reportContext.selectedReportId.value.trim();
+      final uri = Uri.parse('${baseUrl}volume-name/$wellId').replace(
+        queryParameters: {
+          if (reportId.isNotEmpty) 'reportId': reportId,
+        },
+      );
+      print('Hitting GET $uri');
       final response = await http.get(
-        Uri.parse('${baseUrl}volume-name/$wellId'),
+        uri,
         headers: _headers,
       );
       print('statuscode------${response.statusCode}');

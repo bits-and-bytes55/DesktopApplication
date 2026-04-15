@@ -34,7 +34,6 @@ import 'package:mudpro_desktop_app/modules/report_context/report_context_control
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_models.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
-import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 
 // Static well ID — change as needed
 class HomeSecondaryTabbar extends StatefulWidget {
@@ -563,7 +562,6 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
               return;
             }
             final selectedOp = opCtrl.dropdownValues[selectedOpIndex];
-            final authRepo = AuthRepository();
 
             if (selectedOp == OperationType.consumeProduct) {
               // ── Inventory Snapshot + Product Save ────────────────────────
@@ -575,24 +573,20 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
                 );
               }
 
-              if (opCtrl.totalVolume.value > 0) {
-                final tVol = opCtrl.totalVolume.value;
-                final activeWellId = padWellC.selectedWellId.value;
-                if (activeWellId.isEmpty) {
-                  errorMessages.add('Operations API: no backend well selected');
+              final waterText = opCtrl.addWaterMainVol.value.trim();
+              final waterVolume = double.tryParse(waterText) ?? 0.0;
+              if (waterVolume > 0) {
+                await opCtrl.loadAddWater(force: true);
+                opCtrl.addWaterTo.value = 'Active System';
+                opCtrl.addWaterMainVol.value = waterText;
+                opCtrl.addWaterVolume.value = waterText;
+                final waterRes = await opCtrl.saveAddWater();
+                if (waterRes['success'] == true) {
+                  successMessage = waterRes['message'];
                 } else {
-                  final res = await authRepo.saveConsumeProductVolumeName({
-                    'wellId': activeWellId,
-                    'product': 'Water',
-                    'volumeBbl': tVol,
-                  });
-                  if (res['success'] == true) {
-                    successMessage = "Operations volume data saved";
-                  } else {
-                    errorMessages.add(
-                      'Operations API: ${res['message'] ?? 'Failed'}',
-                    );
-                  }
+                  errorMessages.add(
+                    'Add Water: ${waterRes['message'] ?? 'Failed'}',
+                  );
                 }
               }
             } else if (selectedOp == OperationType.addWater) {
