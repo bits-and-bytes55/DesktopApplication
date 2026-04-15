@@ -94,12 +94,9 @@ const safeFilename = (value) =>
 const legacyReportScope = () => ({
   $or: [{ reportId: { $exists: false } }, { reportId: null }],
 });
-<<<<<<< HEAD
 const legacyReportScopeWithEmpty = () => ({
   $or: [{ reportId: { $exists: false } }, { reportId: null }, { reportId: "" }],
 });
-=======
->>>>>>> 156e11016ad8a518644bbd487eb6563485da6f1b
 const getPitVolume = (pit) => pit.volume || pit.capacity || "";
 const getActivePitVolume = (pit) => toNumber(pit.volume || pit.capacity);
 const setCellValue = (ws, address, value = "") => {
@@ -462,7 +459,6 @@ const fillInventorySheet = (ws, { products, services, engineers, activePits, res
   );
 };
 
-<<<<<<< HEAD
 const loadReportScopedList = async (
   Model,
   { wellId, reportId, sort = { createdAt: -1 }, limit }
@@ -506,8 +502,6 @@ const loadInventorySnapshot = async ({ wellId, reportId }) => {
     .lean();
 };
 
-=======
->>>>>>> 156e11016ad8a518644bbd487eb6563485da6f1b
 const loadExportPumps = async ({ wellId, reportId }) => {
   if (!wellId) return [];
 
@@ -539,7 +533,6 @@ export const exportInventoryReport = async (req, res) => {
       inventoryData, activities, well, drillStrings, casings, pumps, consumeProducts,
       addWaterRows, receiveMudRows, returnLostRows, transferRows, otherVolRows, mudLossRows, mudLossStorageRows,
     ] = await Promise.all([
-<<<<<<< HEAD
       loadInventorySnapshot({ wellId, reportId }),
       loadReportScopedList(Activity, {
         wellId,
@@ -569,22 +562,6 @@ export const exportInventoryReport = async (req, res) => {
       loadReportScopedList(OtherVolAddition, { wellId, reportId }),
       loadReportScopedList(MudLoss, { wellId, reportId }),
       loadReportScopedList(MudLossStorage, { wellId, reportId }),
-=======
-      InventorySnapshot.find().sort({ category: 1, itemName: 1 }).lean(),
-      Activity.find().sort({ createdAt: -1 }).limit(10).lean(),
-      Well.findById(wellId).lean(),
-      DrillString.find().sort({ createdAt: 1 }).limit(8).lean(),
-      Casing.find({ wellId }).sort({ createdAt: 1 }).limit(8).lean(),
-      loadExportPumps({ wellId, reportId }),
-      ConsumeProduct.find({ wellId }).sort({ createdAt: -1 }).lean(),
-      AddWater.find({ wellId }).sort({ createdAt: -1 }).lean(),
-      ReceiveMud.find({ wellId }).sort({ createdAt: -1 }).lean(),
-      ReturnLostMud.find({ wellId }).sort({ createdAt: -1 }).lean(),
-      TransferMud.find({ wellId }).sort({ createdAt: -1 }).lean(),
-      OtherVolAddition.find({ wellId }).sort({ createdAt: -1 }).lean(),
-      MudLoss.find({ wellId }).sort({ createdAt: -1 }).lean(),
-      MudLossStorage.find({ wellId }).sort({ createdAt: -1 }).lean(),
->>>>>>> 156e11016ad8a518644bbd487eb6563485da6f1b
     ]);
     if (!well) {
       return res.status(404).json({ success: false, message: "Well not found" });
