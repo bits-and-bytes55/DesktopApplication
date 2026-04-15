@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:mudpro_desktop_app/api_endpoint/api_endpoint.dart';
+import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
 class ConsumeProductController {
@@ -10,6 +11,12 @@ class ConsumeProductController {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
   };
+
+  Map<String, dynamic> _withReportScope(Map<String, dynamic> payload) {
+    final reportId = reportContext.selectedReportId.value.trim();
+    if (reportId.isNotEmpty) payload['reportId'] = reportId;
+    return payload;
+  }
 
   // ═══════════════════════════════════════════
   //  CREATE CONSUME PRODUCT
@@ -32,7 +39,7 @@ class ConsumeProductController {
         return {'success': false, 'message': 'No backend well selected'};
       }
 
-      final body = jsonEncode({
+      final body = jsonEncode(_withReportScope({
         'wellId': wellId,
         'product': productName, // ✅ FIX: name send ho raha hai
         'code': code,
@@ -44,7 +51,7 @@ class ConsumeProductController {
         'used': used,
         'numberOfBags': numberOfBags,
         'weightPerBag': weightPerBag,
-      });
+      }));
 
       print('🔵 [API] POST ${baseUrl}consume-product');
       print('🔵 [API] Body: $body');
@@ -101,7 +108,7 @@ class ConsumeProductController {
         return {'success': false, 'message': 'No backend well selected'};
       }
 
-      final body = jsonEncode({
+      final body = jsonEncode(_withReportScope({
         'wellId': wellId,
         'product': productName, // ✅ FIX: name send ho raha hai
         'code': code,
@@ -113,7 +120,7 @@ class ConsumeProductController {
         'used': used,
         'numberOfBags': numberOfBags,
         'weightPerBag': weightPerBag,
-      });
+      }));
 
       print('🔵 [API] PUT ${baseUrl}consume-product/$id');
       print('🔵 [API] Body: $body');

@@ -15,6 +15,11 @@ class UnitConversionService {
         .replaceAll('²', '2')
         .replaceAll('³', '3')
         .replaceAll('°', 'deg')
+        .replaceAll('Â', '')
+        .replaceAll('²', '2')
+        .replaceAll('³', '3')
+        .replaceAll('°', 'deg')
+        .replaceAll(RegExp(r'[()]'), '')
         .replaceAll(' ', '')
         .toLowerCase();
   }
@@ -355,6 +360,8 @@ class UnitConversionService {
       '(kg)': 1.0,
       '(lb)': 0.453592,
     },
+
+    'lineDensity': {'(lb/ft)': 1.48816, '(kg/m)': 1.0},
 
     // ── ADDITIVE PER SK (base: kg/sk) ─────────────────────────────────────
     'perSk': {'(lb/sk)': 0.453592, '(kg/bag)': 1.0, '(kg/sk)': 1.0},

@@ -222,6 +222,7 @@ class IntervalController extends GetxController {
   Future<void> fetchAll() async {
     isLoading.value = true;
     try {
+      final previousSelectedId = selected.value?.id;
       final res = await http.get(
         Uri.parse('${baseUrl}intervals/${wellId.value}'),
         headers: _headers,
@@ -248,9 +249,22 @@ class IntervalController extends GetxController {
         if (intervals.isEmpty && groups.isEmpty) {
           await _createDefaultInterval();
         } else {
-          // Select first interval if nothing selected
-          if (selected.value == null && intervals.isNotEmpty) {
+          IntervalItem? restored;
+          if (previousSelectedId != null) {
+            for (final interval in intervals) {
+              if (interval.id == previousSelectedId) {
+                restored = interval;
+                break;
+              }
+            }
+          }
+
+          if (restored != null) {
+            selectInterval(restored);
+          } else if (intervals.isNotEmpty) {
             selectInterval(intervals.first);
+          } else {
+            selected.value = null;
           }
         }
       }
@@ -336,18 +350,29 @@ class IntervalController extends GetxController {
   //  RENAME
   // ════════════════════════════════════════════════════════════════
   Future<void> renameInterval(IntervalItem iv, String newName) async {
+    final trimmedName = newName.trim();
+    if (trimmedName.isEmpty) return;
+    isSaving.value = true;
     try {
       final res = await http.put(
         Uri.parse('${baseUrl}intervals/${iv.id}'),
         headers: _headers,
-        body: jsonEncode({'name': newName}),
+        body: jsonEncode({'name': trimmedName}),
       );
       if (res.statusCode == 200) {
-        iv.name = newName;
-        intervals.refresh();
+        await fetchAll();
+      } else {
+        Get.snackbar(
+          'Rename Failed',
+          'Interval name could not be updated',
+          duration: const Duration(seconds: 2),
+          snackPosition: SnackPosition.BOTTOM,
+        );
       }
     } catch (e) {
       debugPrint('IntervalController rename error: $e');
+    } finally {
+      isSaving.value = false;
     }
   }
 
@@ -402,7 +427,7 @@ class IntervalController extends GetxController {
         body: jsonEncode(iv.toJson()),
       );
       if (res.statusCode == 200) {
-        intervals.refresh();
+        await fetchAll();
         Get.snackbar('Saved', 'Interval data saved',
             duration: const Duration(seconds: 1),
             snackPosition: SnackPosition.BOTTOM);

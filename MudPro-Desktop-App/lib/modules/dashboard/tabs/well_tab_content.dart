@@ -10,6 +10,7 @@ import 'package:mudpro_desktop_app/modules/dashboard/controller/well_general_con
 import 'package:mudpro_desktop_app/modules/dashboard/widgets/tabular_database.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/controller/UG_ST_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/model/UG_ST_model.dart';
+import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/interval/controller/interval_controller.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
@@ -213,7 +214,11 @@ class _GeneralSectionState extends State<GeneralSection> {
   final wellGenCtrl = Get.isRegistered<WellGeneralController>()
       ? Get.find<WellGeneralController>()
       : Get.put(WellGeneralController(), permanent: true);
+  final intervalCtrl = Get.isRegistered<IntervalController>()
+      ? Get.find<IntervalController>()
+      : Get.put(IntervalController(), permanent: true);
   Worker? _wellWorker;
+  Worker? _intervalWorker;
   final List<Worker> _unitWorkers = <Worker>[];
   late String _lengthUnit;
   late String _forceUnit;
@@ -237,15 +242,6 @@ class _GeneralSectionState extends State<GeneralSection> {
   bool _isLoadingActivities = true;
   bool _isLoadingEngineers = true;
 
-  final List<String> intervalOptions = [
-    '22° Hole',
-    '16° Hole',
-    '12 1/4° Hole',
-    '8 1/2° Hole',
-    '6 1/8° Hole',
-    'Completion',
-  ];
-
   late final Map<String, TextEditingController> fc;
 
   String _storedDate = '';
@@ -254,6 +250,82 @@ class _GeneralSectionState extends State<GeneralSection> {
   String? selectedEng2Id;
   String selectedActivity = '';
   String selectedInterval = '';
+
+  List<IntervalItem> _sortedIntervals() {
+    final items = intervalCtrl.intervals.toList();
+    items.sort((a, b) => a.order.compareTo(b.order));
+    return items;
+  }
+
+  List<String> get dynamicIntervalOptions => _intervalNames();
+
+  List<String> _intervalNames() {
+    final rawNames = _sortedIntervals()
+        .map((interval) => interval.name.trim())
+        .where((name) => name.isNotEmpty)
+        .toList();
+    final counts = <String, int>{};
+    for (final name in rawNames) {
+      counts[name] = (counts[name] ?? 0) + 1;
+    }
+    final output = <String>[];
+    for (var i = 0; i < rawNames.length; i++) {
+      final name = rawNames[i];
+      output.add((counts[name] ?? 0) > 1 ? '${i + 1}. $name' : name);
+    }
+    return output;
+  }
+
+  String? _displayLabelForIntervalId(
+    String? intervalId, {
+    List<IntervalItem>? sorted,
+  }) {
+    if (intervalId == null || intervalId.trim().isEmpty) return null;
+    final items = sorted ?? _sortedIntervals();
+    final names = items.map((interval) => interval.name.trim()).toList();
+    final counts = <String, int>{};
+    for (final name in names) {
+      counts[name] = (counts[name] ?? 0) + 1;
+    }
+    for (var i = 0; i < items.length; i++) {
+      if (items[i].id != intervalId) continue;
+      final name = items[i].name.trim();
+      if (name.isEmpty) return null;
+      return (counts[name] ?? 0) > 1 ? '${i + 1}. $name' : name;
+    }
+    return null;
+  }
+
+  String _resolveIntervalSelection(String value) {
+    final names = _intervalNames();
+    if (names.isEmpty) return value.trim();
+    final cleanValue = value.trim();
+    if (names.contains(cleanValue)) return cleanValue;
+
+    final sorted = _sortedIntervals();
+    for (final interval in sorted) {
+      if (interval.name.trim() == cleanValue && cleanValue.isNotEmpty) {
+        return _displayLabelForIntervalId(interval.id, sorted: sorted) ??
+            cleanValue;
+      }
+    }
+
+    final selectedLabel = _displayLabelForIntervalId(
+      intervalCtrl.selected.value?.id,
+      sorted: sorted,
+    );
+    return selectedLabel ?? names.first;
+  }
+
+  void _handleIntervalListChange() {
+    final nextInterval = _resolveIntervalSelection(selectedInterval);
+    if (nextInterval != selectedInterval) {
+      setState(() => selectedInterval = nextInterval);
+      _sync();
+    } else {
+      setState(() {});
+    }
+  }
 
   String get _displayDate {
     if (_storedDate.isEmpty) return '';
@@ -281,6 +353,9 @@ class _GeneralSectionState extends State<GeneralSection> {
       ),
       ever(AppUnits.controller.customUnits, (_) => _handleUnitChange()),
     ]);
+    _intervalWorker = ever(intervalCtrl.intervals, (_) {
+      if (mounted) _handleIntervalListChange();
+    });
 
     fc = {
       'Report #': TextEditingController(),
@@ -310,11 +385,35 @@ class _GeneralSectionState extends State<GeneralSection> {
     };
     _fetchActivities();
     _fetchEngineers();
+    _loadIntervals();
     _loadFromApi();
     _wellWorker = ever<String>(
       padWellContext.selectedWellId,
-      (_) => _loadFromApi(),
+      (_) {
+        _loadIntervals();
+        _loadFromApi();
+      },
     );
+  }
+
+  Future<void> _loadIntervals() async {
+    final wellId = padWellContext.selectedWellId.value.trim();
+    if (wellId.isEmpty) {
+      intervalCtrl.intervals.clear();
+      intervalCtrl.groups.clear();
+      intervalCtrl.selected.value = null;
+      return;
+    }
+    intervalCtrl.wellId.value = wellId;
+    await intervalCtrl.fetchAll();
+    if (!mounted) return;
+    final nextInterval = _resolveIntervalSelection(selectedInterval);
+    if (nextInterval != selectedInterval) {
+      setState(() => selectedInterval = nextInterval);
+      _sync();
+    } else {
+      setState(() {});
+    }
   }
 
   void _handleUnitChange() {
@@ -438,7 +537,9 @@ class _GeneralSectionState extends State<GeneralSection> {
       _storedDate = w.date.value;
       selectedTime = w.time.value.isNotEmpty ? w.time.value : '23:30';
       selectedActivity = w.activity.value;
-      selectedInterval = w.interval.value;
+      selectedInterval = intervalCtrl.intervals.isEmpty
+          ? w.interval.value
+          : _resolveIntervalSelection(w.interval.value);
       selectedEngId = null;
       selectedEng2Id = null;
 
@@ -508,6 +609,7 @@ class _GeneralSectionState extends State<GeneralSection> {
   @override
   void dispose() {
     _wellWorker?.dispose();
+    _intervalWorker?.dispose();
     for (final worker in _unitWorkers) {
       worker.dispose();
     }
@@ -580,7 +682,7 @@ class _GeneralSectionState extends State<GeneralSection> {
                 _tfRow("On-bottom TQ", "On-bottom TQ", "ft-lb"),
                 _tfRow("Suction T.", "Suction T.", "°F"),
                 _tfRow("Bottom T.", "Bottom T.", "°F"),
-                _ddRow("Interval", selectedInterval, intervalOptions, (v) {
+                _ddRow("Interval", selectedInterval, dynamicIntervalOptions, (v) {
                   setState(() => selectedInterval = v!);
                   _sync();
                 }),
@@ -1332,7 +1434,7 @@ class _CasedHoleSectionState extends State<CasedHoleSection> {
                           'No.',
                           'Description',
                           'OD\n${AppUnits.unitText('in')}',
-                          'Wt.\n(lb/ft)',
+                          'Wt.\n${AppUnits.unitText('lb/ft')}',
                           'ID\n${AppUnits.unitText('in')}',
                           'Top\n${AppUnits.unitText('ft')}',
                           'Shoe\n${AppUnits.unitText('ft')}',
@@ -1843,11 +1945,11 @@ class _DrillStringSectionState extends State<DrillStringSection> {
                               [
                                     'No.',
                                     'Description',
-                                    'OD\n(in)',
-                                    'Wt.\n(lb/ft)',
-                                    'ID\n(in)',
+                                    'OD\n${AppUnits.unitText('in')}',
+                                    'Wt.\n${AppUnits.unitText('lb/ft')}',
+                                    'ID\n${AppUnits.unitText('in')}',
                                     'Grade',
-                                    'Len.\n(ft)',
+                                    'Len.\n${AppUnits.unitText('ft')}',
                                   ]
                                   .map((h) => _hCell(h, AppTheme.primaryColor))
                                   .toList(),
@@ -2041,6 +2143,72 @@ class _BitSectionState extends State<BitSection> {
     'Depth-in': TextEditingController(),
     'Depth': TextEditingController(text: '8982.0'),
   };
+  final List<Worker> _unitWorkers = <Worker>[];
+  late String _lengthUnit;
+  late String _diameterUnit;
+
+  @override
+  void initState() {
+    super.initState();
+    _lengthUnit = AppUnits.length;
+    _diameterUnit = AppUnits.diameter;
+    _unitWorkers.addAll([
+      ever(AppUnits.controller.unitSystem, (_) => _handleUnitChange()),
+      ever(
+        AppUnits.controller.selectedCustomSystemId,
+        (_) => _handleUnitChange(),
+      ),
+      ever(AppUnits.controller.customUnits, (_) => _handleUnitChange()),
+    ]);
+  }
+
+  @override
+  void dispose() {
+    for (final worker in _unitWorkers) {
+      worker.dispose();
+    }
+    for (final controller in bc.values) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  void _handleUnitChange() {
+    final nextLengthUnit = AppUnits.length;
+    final nextDiameterUnit = AppUnits.diameter;
+    if (_lengthUnit == nextLengthUnit && _diameterUnit == nextDiameterUnit) {
+      return;
+    }
+
+    bc['Size']!.text =
+        _convertText(bc['Size']!.text, _diameterUnit, nextDiameterUnit);
+    bc['Depth-in']!.text =
+        _convertText(bc['Depth-in']!.text, _lengthUnit, nextLengthUnit);
+    bc['Depth']!.text =
+        _convertText(bc['Depth']!.text, _lengthUnit, nextLengthUnit);
+
+    _lengthUnit = nextLengthUnit;
+    _diameterUnit = nextDiameterUnit;
+    if (mounted) setState(() {});
+  }
+
+  String _convertText(String rawValue, String fromUnit, String toUnit) {
+    if (rawValue.trim().isEmpty || fromUnit == toUnit) {
+      return rawValue;
+    }
+    final parsed = double.tryParse(rawValue.replaceAll(',', ''));
+    if (parsed == null) {
+      return rawValue;
+    }
+    final result = AppUnits.convertValue(parsed, fromUnit, toUnit);
+    if (result == null) {
+      return rawValue;
+    }
+    return result
+        .toStringAsFixed(4)
+        .replaceAll(RegExp(r'0+$'), '')
+        .replaceAll(RegExp(r'\.$'), '');
+  }
 
   @override
   Widget build(BuildContext context) {

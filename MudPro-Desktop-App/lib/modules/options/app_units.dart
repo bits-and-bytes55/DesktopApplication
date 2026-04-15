@@ -15,13 +15,26 @@ class AppUnits {
 
   static String clean(String unit) => unit.replaceAll('Â', '');
 
+  static String _canonicalUnit(String unit) {
+    final normalized = clean(unit)
+        .replaceAll('Â', '')
+        .replaceAll('²', '2')
+        .replaceAll('³', '3')
+        .trim();
+    if (normalized.isEmpty || normalized == '-') return normalized;
+    if (normalized.startsWith('(') && normalized.endsWith(')')) {
+      return normalized;
+    }
+    return '($normalized)';
+  }
+
   static String strip(String unit) =>
       clean(unit).replaceAll(RegExp(r'[()]'), '');
 
   static String rawUnit(String paramNumber) =>
       controller.unitForNumber(paramNumber);
 
-  static String unit(String paramNumber) => clean(rawUnit(paramNumber));
+  static String unit(String paramNumber) => _canonicalUnit(rawUnit(paramNumber));
 
   static String get signature => controller.activeUnitSignature;
 
@@ -43,6 +56,7 @@ class AppUnits {
   static String get pressure => unit('22');
   static String get power => unit('26');
   static String get weight => unit('29');
+  static String get lineDensity => unit('31');
   static String get mudWeight => unit('33');
   static String get temperature => unit('34');
 
@@ -174,6 +188,11 @@ class AppUnits {
       case '(kg)':
       case '(g)':
         return weight;
+      case 'lb/ft':
+      case 'kg/m':
+      case '(lb/ft)':
+      case '(kg/m)':
+        return lineDensity;
       case '°F':
       case '°C':
       case 'K':
@@ -228,6 +247,8 @@ class AppUnits {
       '(KW)': power,
       '(lbm)': weight,
       '(kg)': weight,
+      '(lb/ft)': lineDensity,
+      '(kg/m)': lineDensity,
       '(ft2)': crossSection,
       '(m2)': crossSection,
       '(in2)': crossSection,

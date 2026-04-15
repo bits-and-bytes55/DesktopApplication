@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:mudpro_desktop_app/api_endpoint/api_endpoint.dart';
 import 'package:mudpro_desktop_app/modules/daily_report/controller/inventory_snapshot_controller.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 import 'package:open_filex/open_filex.dart';
@@ -27,9 +28,14 @@ class ExportController {
     }
 
     final baseUri = Uri.parse('${baseUrl}export/inventory-export/$wellId');
-    final uri = reportId.isEmpty
-        ? baseUri
-        : baseUri.replace(queryParameters: {'reportId': reportId});
+    final queryParameters = <String, String>{
+      'lengthUnit': AppUnits.length,
+      'diameterUnit': AppUnits.diameter,
+      'fluidVolumeUnit': AppUnits.fluidVolume,
+      'decimals': '2',
+      if (reportId.isNotEmpty) 'reportId': reportId,
+    };
+    final uri = baseUri.replace(queryParameters: queryParameters);
 
     final response = await http.get(
       uri,

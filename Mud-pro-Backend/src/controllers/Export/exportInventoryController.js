@@ -18,6 +18,7 @@ import TransferMud from "../../modules/transfermud/TransferMud.js";
 import OtherVolAddition from "../../modules/othervol/OtherVolAddition.js";
 import MudLoss from "../../modules/mudloss/MudLoss.js";
 import MudLossStorage from "../../modules/mudlossstorage/MudLossStorage.js";
+import { Interval } from "../../modules/wellInterval/intervalModel.js";
 import { loadMergedPits } from "../../utils/pitReportState.js";
 
 const TEMPLATE_PATH = fileURLToPath(
@@ -60,9 +61,9 @@ const SUMMARY_VALUE_CELLS = [
 ];
 const COST_SUMMARY_VALUE_CELLS = [
   "G94","G95","G96","G97","G98","G99","G100","G101",
-  "AE94","AE95","AE96","AE97","AE98","AE99","AE100","AE101",
 ];
 const DMR_COST_VALUE_CELLS = ["P108","P109","P110","P111","P112","P113","P114","P115"];
+const CUTTINGS_ANALYSIS_VALUE_CELLS = ["AE94","AE95","AE96","AE97"];
 
 const toNumber = (value, fallback = 0) => {
   const parsed = Number(value);
@@ -77,6 +78,7 @@ const text = (value, fallback = "") => {
 const displayText = (value, fallback = "-") => text(value, fallback);
 const sumBy = (items, selector) =>
   items.reduce((sum, item) => sum + toNumber(selector(item)), 0);
+const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 const getReportDate = () =>
   new Date().toLocaleDateString("en-US", {
     month: "2-digit",
@@ -109,6 +111,113 @@ const getActivePitVolume = (pit) => toNumber(pit.volume || pit.capacity);
 const setCellValue = (ws, address, value = "") => {
   ws.getCell(address).value = value ?? "";
 };
+const normalizeUnit = (value, fallback = "") =>
+  text(value, fallback)
+    .replace(/Ã‚|Â/g, "")
+    .replace(/[()]/g, "")
+    .trim();
+const unitSuffix = (value, fallback) => normalizeUnit(value, fallback) || fallback;
+const parseFraction = (value) => {
+  const clean = text(value).replace(/["']/g, "").trim();
+  if (!clean) return null;
+  const mixed = clean.match(/^(-?\d+)\s+(\d+)\/(\d+)$/);
+  if (mixed) {
+    const whole = Number(mixed[1]);
+    const num = Number(mixed[2]);
+    const den = Number(mixed[3]);
+    if (Number.isFinite(whole) && Number.isFinite(num) && Number.isFinite(den) && den !== 0) {
+      return whole + num / den;
+    }
+  }
+
+  const simpleFraction = clean.match(/^(-?\d+)\/(\d+)$/);
+  if (simpleFraction) {
+    const num = Number(simpleFraction[1]);
+    const den = Number(simpleFraction[2]);
+    if (Number.isFinite(num) && Number.isFinite(den) && den !== 0) {
+      return num / den;
+    }
+  }
+
+  const numeric = clean.match(/-?\d+(?:\.\d+)?/);
+  if (!numeric) return null;
+  const parsed = Number(numeric[0]);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+const convertLength = (value, fromUnit, toUnit) => {
+  const metersByUnit = {
+    ft: 0.3048,
+    m: 1,
+    in: 0.0254,
+    mm: 0.001,
+    cm: 0.01,
+    dm: 0.1,
+  };
+  const from = normalizeUnit(fromUnit).toLowerCase();
+  const to = normalizeUnit(toUnit).toLowerCase();
+  if (!from || !to || from === to) return toNumber(value);
+  if (!(from in metersByUnit) || !(to in metersByUnit)) return toNumber(value);
+  return (toNumber(value) * metersByUnit[from]) / metersByUnit[to];
+};
+const convertVolume = (value, fromUnit, toUnit) => {
+  const cubicMetersByUnit = {
+    bbl: 0.158987294928,
+    m3: 1,
+    l: 0.001,
+    gal: 0.003785411784,
+  };
+  const from = normalizeUnit(fromUnit).toLowerCase();
+  const to = normalizeUnit(toUnit).toLowerCase();
+  if (!from || !to || from === to) return toNumber(value);
+  if (!(from in cubicMetersByUnit) || !(to in cubicMetersByUnit)) {
+    return toNumber(value);
+  }
+  return (toNumber(value) * cubicMetersByUnit[from]) / cubicMetersByUnit[to];
+};
+const normalizeIntervalKey = (value) =>
+  text(value)
+    .replace(/^\d+\.\s*/, "")
+    .trim()
+    .toLowerCase();
+const resolveIntervalBitSize = (intervals, intervalName) => {
+  const normalizedTarget = normalizeIntervalKey(intervalName);
+  if (!intervals.length) return null;
+
+  if (normalizedTarget) {
+    const exact = intervals.find(
+      (interval) => normalizeIntervalKey(interval.name) === normalizedTarget
+    );
+    const parsedExact = parseFraction(exact?.bitSize);
+    if (parsedExact !== null) return parsedExact;
+  }
+
+  for (const interval of intervals) {
+    const parsed = parseFraction(interval.bitSize);
+    if (parsed !== null) return parsed;
+  }
+
+  return null;
+};
+const computeDrilledVolume = ({
+  depthDrilled,
+  lengthUnit,
+  bitSize,
+  diameterUnit,
+  fluidVolumeUnit,
+}) => {
+  const depthFt = convertLength(depthDrilled, lengthUnit, "ft");
+  const bitSizeIn = convertLength(bitSize, diameterUnit, "in");
+  if (depthFt <= 0 || bitSizeIn <= 0) return 0;
+  const volumeBbl =
+    (depthFt * Math.PI * Math.pow(bitSizeIn / 12, 2)) / 4 / 5.614583333333333;
+  return convertVolume(volumeBbl, "bbl", fluidVolumeUnit);
+};
+const buildReportFormat = (req) => ({
+  lengthUnit: text(req.query.lengthUnit, "(ft)"),
+  diameterUnit: text(req.query.diameterUnit, "(in)"),
+  fluidVolumeUnit: text(req.query.fluidVolumeUnit, "(bbl)"),
+  digits: clamp(toNumber(req.query.decimals, 2), 0, 4),
+});
 const clearCells = (ws, addresses) => addresses.forEach((a) => setCellValue(ws, a, ""));
 const columnToNumber = (letters) =>
   letters.toUpperCase().split("").reduce((sum, ch) => sum * 26 + ch.charCodeAt(0) - 64, 0);
@@ -151,7 +260,7 @@ const clearDmrDynamicAreas = (ws) => {
     ["AJ36", "BS51"], ["AJ53", "BS86"], ["L92", "Q96"], ["AC92", "AI94"],
     ["AT93", "AY94"], ["BM93", "BS94"], ["AC96", "AI98"], ["AR96", "AX97"],
     ["BF97", "BS99"],
-    ["L100", "AI105"], ["AR99", "AX101"],
+    ["L100", "AI105"], ["AR99", "AX101"], ["AT108", "AX111"],
   ].forEach(([start, end]) => clearRange(ws, start, end));
 };
 
@@ -162,6 +271,7 @@ const clearInventoryDynamicAreas = (ws) => {
   ].forEach((address) => setCellValue(ws, address, ""));
   clearCells(ws, SUMMARY_VALUE_CELLS);
   clearCells(ws, COST_SUMMARY_VALUE_CELLS);
+  clearCells(ws, CUTTINGS_ANALYSIS_VALUE_CELLS);
 };
 
 const computeVolumeSummary = ({
@@ -321,7 +431,18 @@ const fillDmrTopSections = (ws, { drillStrings, casings, summary, activePits, fl
   }
 };
 
-const fillDmrBottomSections = (ws, { report, wellGeneral, pad, well, summary, pumps, productDailyCost, engineeringDailyCost }) => {
+const fillDmrBottomSections = (ws, {
+  report,
+  wellGeneral,
+  pad,
+  well,
+  summary,
+  pumps,
+  productDailyCost,
+  engineeringDailyCost,
+  cuttingsAnalysis,
+  reportFormat,
+}) => {
   const notes = [
     text(report?.notes),
     text(wellGeneral?.activity) ? `Activity: ${wellGeneral.activity}` : "",
@@ -344,6 +465,19 @@ const fillDmrBottomSections = (ws, { report, wellGeneral, pad, well, summary, pu
     ws.getRow(104).getCell(baseColumn).value = round(pump.spm, 2);
     ws.getRow(105).getCell(baseColumn).value = round(pump.displacement, 4);
   });
+
+  setCellValue(
+    ws,
+    "AJ104",
+    `Depth Drilled Last 24 hrs (${unitSuffix(reportFormat.lengthUnit, "ft")})`
+  );
+  setCellValue(
+    ws,
+    "AJ105",
+    `Vol. Drilled Last 24 hrs (${unitSuffix(reportFormat.fluidVolumeUnit, "bbl")})`
+  );
+  setCellValue(ws, "AT104", round(cuttingsAnalysis.depthDrilled, reportFormat.digits));
+  setCellValue(ws, "AT105", round(cuttingsAnalysis.volumeDrilled, reportFormat.digits));
 
   if (wellGeneral?.depthDrilled) setCellValue(ws, "AE94", round(wellGeneral.depthDrilled, 2));
   if (wellGeneral?.wob) setCellValue(ws, "AT93", round(wellGeneral.wob, 2));
@@ -394,7 +528,19 @@ const fillInventoryHeader = (ws, { well, pad, report, wellGeneral }) => {
   setCellValue(ws, "AC11", displayText(wellGeneral?.depthDrilled, "0"));
 };
 
-const fillInventorySheet = (ws, { products, services, engineers, activePits, reservePits, activities, productDailyCost, engineeringDailyCost, summary }) => {
+const fillInventorySheet = (ws, {
+  products,
+  services,
+  engineers,
+  activePits,
+  reservePits,
+  activities,
+  productDailyCost,
+  engineeringDailyCost,
+  summary,
+  cuttingsAnalysis,
+  reportFormat,
+}) => {
   writeRows(ws, PRODUCT_ROWS, PRODUCT_COLUMNS, products, (item) => ({
     A: item.itemName || "",
     F: item.unit || "",
@@ -459,11 +605,38 @@ const fillInventorySheet = (ws, { products, services, engineers, activePits, res
   const totalDailyCost = round(productDailyCost + engineeringDailyCost, 3);
   clearCells(ws, COST_SUMMARY_VALUE_CELLS);
   [["G94", productDailyCost],["G95", productDailyCost],["G96", engineeringDailyCost],["G97", engineeringDailyCost],
-   ["G98", productDailyCost],["G99", engineeringDailyCost],["G100", totalDailyCost],["G101", totalDailyCost],
-   ["AE94", productDailyCost],["AE95", productDailyCost],["AE96", engineeringDailyCost],["AE97", engineeringDailyCost],
-   ["AE98", productDailyCost],["AE99", engineeringDailyCost],["AE100", totalDailyCost],["AE101", totalDailyCost]].forEach(
+   ["G98", productDailyCost],["G99", engineeringDailyCost],["G100", totalDailyCost],["G101", totalDailyCost]].forEach(
     ([address, value]) => setCellValue(ws, address, round(value, 3))
   );
+
+  setCellValue(
+    ws,
+    "AA94",
+    `Depth Drilled Last 24 hrs (${unitSuffix(reportFormat.lengthUnit, "ft")})`
+  );
+  setCellValue(
+    ws,
+    "AA95",
+    `Vol. Drilled Last 24 hrs (${unitSuffix(reportFormat.fluidVolumeUnit, "bbl")})`
+  );
+  setCellValue(
+    ws,
+    "AA96",
+    `Interval Cum. Cuttings (${unitSuffix(reportFormat.fluidVolumeUnit, "bbl")})`
+  );
+  setCellValue(
+    ws,
+    "AA97",
+    `Well Cum. Cuttings (${unitSuffix(reportFormat.fluidVolumeUnit, "bbl")})`
+  );
+  setCellValue(ws, "AE94", round(cuttingsAnalysis.depthDrilled, reportFormat.digits));
+  setCellValue(ws, "AE95", round(cuttingsAnalysis.volumeDrilled, reportFormat.digits));
+  setCellValue(
+    ws,
+    "AE96",
+    round(cuttingsAnalysis.intervalCumCuttings, reportFormat.digits)
+  );
+  setCellValue(ws, "AE97", round(cuttingsAnalysis.wellCumCuttings, reportFormat.digits));
 };
 
 const loadReportScopedList = async (
@@ -562,6 +735,7 @@ export const exportInventoryReport = async (req, res) => {
   try {
     const { wellId } = req.params;
     const reportId = text(req.query.reportId);
+    const reportFormat = buildReportFormat(req);
     if (!wellId) {
       return res.status(400).json({ success: false, message: "wellId is required" });
     }
@@ -570,6 +744,7 @@ export const exportInventoryReport = async (req, res) => {
     const [
       inventoryData, activities, well, drillStrings, casings, pumps, consumeProducts,
       addWaterRows, receiveMudRows, returnLostRows, transferRows, otherVolRows, mudLossRows, mudLossStorageRows,
+      allOtherVolRows, intervals,
     ] = await Promise.all([
       loadInventorySnapshot({ wellId, reportId }),
       loadReportScopedList(Activity, {
@@ -600,6 +775,8 @@ export const exportInventoryReport = async (req, res) => {
       loadReportScopedList(OtherVolAddition, { wellId, reportId }),
       loadReportScopedList(MudLoss, { wellId, reportId }),
       loadReportScopedList(MudLossStorage, { wellId, reportId }),
+      OtherVolAddition.find({ wellId }).sort({ createdAt: 1, _id: 1 }).lean(),
+      Interval.find({ wellId }).sort({ order: 1, createdAt: 1, _id: 1 }).lean(),
     ]);
     if (!well) {
       return res.status(404).json({ success: false, message: "Well not found" });
@@ -636,6 +813,19 @@ export const exportInventoryReport = async (req, res) => {
     });
     const productDailyCost = sumBy(products, (item) => item.costDollar);
     const engineeringDailyCost = sumBy(engineers, (item) => item.costDollar);
+    const intervalBitSize = resolveIntervalBitSize(intervals, wellGeneral?.interval);
+    const cuttingsAnalysis = {
+      depthDrilled: toNumber(wellGeneral?.depthDrilled),
+      volumeDrilled: computeDrilledVolume({
+        depthDrilled: wellGeneral?.depthDrilled,
+        lengthUnit: reportFormat.lengthUnit,
+        bitSize: intervalBitSize,
+        diameterUnit: reportFormat.diameterUnit,
+        fluidVolumeUnit: reportFormat.fluidVolumeUnit,
+      }),
+      intervalCumCuttings: sumBy(otherVolRows, (item) => item.cuttings),
+      wellCumCuttings: sumBy(allOtherVolRows, (item) => item.cuttings),
+    };
 
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.readFile(TEMPLATE_PATH);
@@ -649,10 +839,31 @@ export const exportInventoryReport = async (req, res) => {
 
     fillDmrHeader(dmrSheet, { well, pad, report, wellGeneral, fluidName });
     fillDmrTopSections(dmrSheet, { drillStrings, casings, summary, activePits, fluidName, wellGeneral, consumeProducts });
-    fillDmrBottomSections(dmrSheet, { report, wellGeneral, pad, well, summary, pumps, productDailyCost, engineeringDailyCost });
+    fillDmrBottomSections(dmrSheet, {
+      report,
+      wellGeneral,
+      pad,
+      well,
+      summary,
+      pumps,
+      productDailyCost,
+      engineeringDailyCost,
+      cuttingsAnalysis,
+      reportFormat,
+    });
     fillInventoryHeader(inventorySheet, { well, pad, report, wellGeneral });
     fillInventorySheet(inventorySheet, {
-      products, services, engineers, activePits, reservePits, activities, productDailyCost, engineeringDailyCost, summary,
+      products,
+      services,
+      engineers,
+      activePits,
+      reservePits,
+      activities,
+      productDailyCost,
+      engineeringDailyCost,
+      summary,
+      cuttingsAnalysis,
+      reportFormat,
     });
 
     const reportNumber = text(report?.userReportNo || report?.reportNo || wellGeneral?.reportNo, "1");

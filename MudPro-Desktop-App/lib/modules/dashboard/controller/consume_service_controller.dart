@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 import 'package:mudpro_desktop_app/api_endpoint/api_endpoint.dart';
+import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
 class ConsumeServiceController {
@@ -13,6 +14,12 @@ class ConsumeServiceController {
   };
 
   String get _wellId => currentBackendWellId.trim();
+
+  Map<String, dynamic> _withReportScope(Map<String, dynamic> payload) {
+    final reportId = reportContext.selectedReportId.value.trim();
+    if (reportId.isNotEmpty) payload['reportId'] = reportId;
+    return payload;
+  }
 
   Future<Map<String, dynamic>> createConsumePackage({
     required String packageName,
@@ -27,7 +34,7 @@ class ConsumeServiceController {
         return {'success': false, 'message': 'No backend well selected'};
       }
 
-      final body = jsonEncode({
+      final body = jsonEncode(_withReportScope({
         'wellId': _wellId,
         'packageName': packageName,
         'code': code,
@@ -35,7 +42,7 @@ class ConsumeServiceController {
         'price': price,
         'initial': initial,
         'used': used,
-      });
+      }));
 
       final response = await http.post(
         Uri.parse('${baseUrl}cs/package'),
@@ -75,7 +82,7 @@ class ConsumeServiceController {
         return {'success': false, 'message': 'No backend well selected'};
       }
 
-      final body = jsonEncode({
+      final body = jsonEncode(_withReportScope({
         'wellId': _wellId,
         'packageName': packageName,
         'code': code,
@@ -83,7 +90,7 @@ class ConsumeServiceController {
         'price': price,
         'initial': initial,
         'used': used,
-      });
+      }));
 
       final response = await http.put(
         Uri.parse('${baseUrl}cs/package/$id'),
@@ -169,14 +176,14 @@ class ConsumeServiceController {
         return {'success': false, 'message': 'No backend well selected'};
       }
 
-      final body = jsonEncode({
+      final body = jsonEncode(_withReportScope({
         'wellId': _wellId,
         'serviceName': serviceName,
         'code': code,
         'unit': unit,
         'price': price,
         'usage': usage,
-      });
+      }));
 
       final response = await http.post(
         Uri.parse('${baseUrl}cs/service'),
@@ -215,14 +222,14 @@ class ConsumeServiceController {
         return {'success': false, 'message': 'No backend well selected'};
       }
 
-      final body = jsonEncode({
+      final body = jsonEncode(_withReportScope({
         'wellId': _wellId,
         'serviceName': serviceName,
         'code': code,
         'unit': unit,
         'price': price,
         'usage': usage,
-      });
+      }));
 
       final response = await http.put(
         Uri.parse('${baseUrl}cs/service/$id'),
@@ -308,14 +315,14 @@ class ConsumeServiceController {
         return {'success': false, 'message': 'No backend well selected'};
       }
 
-      final body = jsonEncode({
+      final body = jsonEncode(_withReportScope({
         'wellId': _wellId,
         'engineeringName': engineeringName,
         'code': code,
         'unit': unit,
         'price': price,
         'usage': usage,
-      });
+      }));
 
       final response = await http.post(
         Uri.parse('${baseUrl}cs/engineering'),
@@ -354,14 +361,14 @@ class ConsumeServiceController {
         return {'success': false, 'message': 'No backend well selected'};
       }
 
-      final body = jsonEncode({
+      final body = jsonEncode(_withReportScope({
         'wellId': _wellId,
         'engineeringName': engineeringName,
         'code': code,
         'unit': unit,
         'price': price,
         'usage': usage,
-      });
+      }));
 
       final response = await http.put(
         Uri.parse('${baseUrl}cs/engineering/$id'),

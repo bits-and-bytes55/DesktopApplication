@@ -19,21 +19,30 @@ class _IntervalViewState extends State<IntervalView>
 
   late TabController _tabController;
   late IntervalController _ivCtrl;
+  Worker? _wellWorker;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
 
-    // Initialise (or find) the IntervalController and load data
-    _ivCtrl = Get.put(IntervalController());
+    // Share the same interval data source with the Well > General dropdown.
+    _ivCtrl = Get.isRegistered<IntervalController>()
+        ? Get.find<IntervalController>()
+        : Get.put(IntervalController(), permanent: true);
     final ugSt = Get.find<UgStController>();
-    // Pass the wellId from your UgStController (adjust field name as needed)
-    _ivCtrl.init(ugSt.selectedWellId.value ?? '');
+    final initialWellId = ugSt.selectedWellId.value ?? '';
+    _ivCtrl.init(initialWellId);
+    _wellWorker = ever<String?>(ugSt.selectedWellId, (wellId) {
+      final nextWellId = wellId ?? '';
+      if (nextWellId == _ivCtrl.wellId.value) return;
+      _ivCtrl.init(nextWellId);
+    });
   }
 
   @override
   void dispose() {
+    _wellWorker?.dispose();
     _tabController.dispose();
     super.dispose();
   }

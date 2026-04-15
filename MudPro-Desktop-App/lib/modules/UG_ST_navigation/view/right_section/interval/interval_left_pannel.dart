@@ -377,8 +377,23 @@ class _IntervalTileState extends State<_IntervalTile> {
                         overflow: TextOverflow.ellipsis,
                       ),
               ),
-              if (isSelected && !_editing)
-                Icon(Icons.check_circle, size: 13, color: AppTheme.primaryColor),
+              if (_editing)
+                InkWell(
+                  onTap: _submit,
+                  child: Icon(Icons.check, size: 14, color: AppTheme.primaryColor),
+                )
+              else ...[
+                if (isSelected)
+                  Icon(Icons.check_circle, size: 13, color: AppTheme.primaryColor),
+                const SizedBox(width: 6),
+                InkWell(
+                  onTap: () => setState(() {
+                    _editing = true;
+                    _nameCtrl.text = iv.name;
+                  }),
+                  child: Icon(Icons.edit, size: 13, color: Colors.grey.shade600),
+                ),
+              ],
             ],
           ),
         ),

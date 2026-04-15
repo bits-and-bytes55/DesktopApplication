@@ -80,6 +80,7 @@ class CasedHoleUIController extends GetxController {
   final List<Worker> _unitWorkers = <Worker>[];
   late String _lengthUnit;
   late String _diameterUnit;
+  late String _lineDensityUnit;
 
   Map<String, String> get _headers => {
         'Content-Type': 'application/json',
@@ -92,6 +93,7 @@ class CasedHoleUIController extends GetxController {
     _initEmptyRows();
     _lengthUnit = AppUnits.length;
     _diameterUnit = AppUnits.diameter;
+    _lineDensityUnit = AppUnits.lineDensity;
     _unitWorkers.addAll([
       ever(AppUnits.controller.unitSystem, (_) => _handleUnitChange()),
       ever(
@@ -120,12 +122,17 @@ class CasedHoleUIController extends GetxController {
   void _handleUnitChange() {
     final nextLengthUnit = AppUnits.length;
     final nextDiameterUnit = AppUnits.diameter;
-    if (_lengthUnit == nextLengthUnit && _diameterUnit == nextDiameterUnit) {
+    final nextLineDensityUnit = AppUnits.lineDensity;
+    if (_lengthUnit == nextLengthUnit &&
+        _diameterUnit == nextDiameterUnit &&
+        _lineDensityUnit == nextLineDensityUnit) {
       return;
     }
 
     for (final entry in entries) {
       entry.od.text = _convertText(entry.od.text, _diameterUnit, nextDiameterUnit);
+      entry.wt.text =
+          _convertText(entry.wt.text, _lineDensityUnit, nextLineDensityUnit);
       entry.idCtrl.text =
           _convertText(entry.idCtrl.text, _diameterUnit, nextDiameterUnit);
       entry.top.text = _convertText(entry.top.text, _lengthUnit, nextLengthUnit);
@@ -136,6 +143,7 @@ class CasedHoleUIController extends GetxController {
 
     _lengthUnit = nextLengthUnit;
     _diameterUnit = nextDiameterUnit;
+    _lineDensityUnit = nextLineDensityUnit;
   }
 
   String _convertText(String rawValue, String fromUnit, String toUnit) {
@@ -206,11 +214,11 @@ class CasedHoleUIController extends GetxController {
   void addRowFromCasing(CasingRow casing) {
     final entry = CasedHoleEntry(
       desc: casing.description.value,
-      odVal: casing.od.value,
-      wtVal: casing.wt.value,
-      idVal: casing.id.value,
-      topVal: casing.top.value,
-      shoeVal: '',
+      odVal: _convertText(casing.od.value, '(in)', _diameterUnit),
+      wtVal: _convertText(casing.wt.value, '(lb/ft)', _lineDensityUnit),
+      idVal: _convertText(casing.id.value, '(in)', _diameterUnit),
+      topVal: _convertText(casing.top.value, '(ft)', _lengthUnit),
+      shoeVal: _convertText(casing.shoe.value, '(ft)', _lengthUnit),
     );
 
     final emptyIndex = entries.indexWhere((e) =>

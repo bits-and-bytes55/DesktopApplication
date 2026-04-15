@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:mudpro_desktop_app/api_endpoint/api_endpoint.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 
 class DrillStringEntry {
   final String? id;
@@ -54,6 +55,10 @@ class DrillStringController extends GetxController {
   var isLoading = false.obs;
   var isSaving = false.obs;
   var totalLength = 0.0.obs;
+  final List<Worker> _unitWorkers = <Worker>[];
+  late String _lengthUnit;
+  late String _diameterUnit;
+  late String _lineDensityUnit;
 
   Map<String, String> get _headers => {
         'Content-Type': 'application/json',
@@ -64,7 +69,67 @@ class DrillStringController extends GetxController {
   void onInit() {
     super.onInit();
     _initEmptyRows();
+    _lengthUnit = AppUnits.length;
+    _diameterUnit = AppUnits.diameter;
+    _lineDensityUnit = AppUnits.lineDensity;
+    _unitWorkers.addAll([
+      ever(AppUnits.controller.unitSystem, (_) => _handleUnitChange()),
+      ever(
+        AppUnits.controller.selectedCustomSystemId,
+        (_) => _handleUnitChange(),
+      ),
+      ever(AppUnits.controller.customUnits, (_) => _handleUnitChange()),
+    ]);
     fetchDrillStrings();
+  }
+
+  void _handleUnitChange() {
+    final nextLengthUnit = AppUnits.length;
+    final nextDiameterUnit = AppUnits.diameter;
+    final nextLineDensityUnit = AppUnits.lineDensity;
+    if (_lengthUnit == nextLengthUnit &&
+        _diameterUnit == nextDiameterUnit &&
+        _lineDensityUnit == nextLineDensityUnit) {
+      return;
+    }
+
+    for (final entry in entries) {
+      entry.od.text =
+          _convertText(entry.od.text, _diameterUnit, nextDiameterUnit);
+      entry.idCtrl.text =
+          _convertText(entry.idCtrl.text, _diameterUnit, nextDiameterUnit);
+      entry.weightPpf.text = _convertText(
+        entry.weightPpf.text,
+        _lineDensityUnit,
+        nextLineDensityUnit,
+      );
+      entry.length.text =
+          _convertText(entry.length.text, _lengthUnit, nextLengthUnit);
+    }
+
+    _lengthUnit = nextLengthUnit;
+    _diameterUnit = nextDiameterUnit;
+    _lineDensityUnit = nextLineDensityUnit;
+    entries.refresh();
+    _recalcTotal();
+  }
+
+  String _convertText(String rawValue, String fromUnit, String toUnit) {
+    if (rawValue.trim().isEmpty || fromUnit == toUnit) {
+      return rawValue;
+    }
+    final parsed = double.tryParse(rawValue.replaceAll(',', ''));
+    if (parsed == null) {
+      return rawValue;
+    }
+    final result = AppUnits.convertValue(parsed, fromUnit, toUnit);
+    if (result == null) {
+      return rawValue;
+    }
+    return result
+        .toStringAsFixed(4)
+        .replaceAll(RegExp(r'0+$'), '')
+        .replaceAll(RegExp(r'\.$'), '');
   }
 
   void _initEmptyRows() {
@@ -268,6 +333,9 @@ class DrillStringController extends GetxController {
 
   @override
   void onClose() {
+    for (final worker in _unitWorkers) {
+      worker.dispose();
+    }
     for (final e in entries) {
       e.dispose();
     }
