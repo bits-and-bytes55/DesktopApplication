@@ -607,8 +607,10 @@ export const getVolumeNameCalculation = async (req, res) => {
         .toFixed(2)
     );
     const derivedActiveSystem = Number((activePits + hole).toFixed(2));
-    const activeSystem =
-      activeSystemVolume > 0 ? activeSystemVolume : derivedActiveSystem;
+    // The distribution's "Active System" row belongs to consume-product flow.
+    // Volume Name should keep using measured Active Pits + Hole for Active System,
+    // while storage distribution rows drive End Vol. calculations.
+    const activeSystem = derivedActiveSystem;
     const endVol = calculatedStorageTotal;
     const endVolMinusActiveSystem = Number(
       (endVol - activeSystem).toFixed(2)
