@@ -598,12 +598,21 @@ export const getVolumeNameCalculation = async (req, res) => {
       storagePitsList.reduce((sum, pit) => sum + toNumber(pit.volume), 0).toFixed(2)
     );
 
-    const activeSystem = Number((activePits + hole).toFixed(2));
-    const endVol = activeSystem;
-    const endVolMinusActiveSystem = 0;
     const distributionRows = cleanDistributionRows(distributionState?.distributions ?? []);
     const { activeSystemVolume, calculatedVolumeByPit } =
       buildCalculatedVolumeMap(distributionRows);
+    const calculatedStorageTotal = Number(
+      Array.from(calculatedVolumeByPit.values())
+        .reduce((sum, value) => sum + toNumber(value), 0)
+        .toFixed(2)
+    );
+    const derivedActiveSystem = Number((activePits + hole).toFixed(2));
+    const activeSystem =
+      activeSystemVolume > 0 ? activeSystemVolume : derivedActiveSystem;
+    const endVol = calculatedStorageTotal;
+    const endVolMinusActiveSystem = Number(
+      (endVol - activeSystem).toFixed(2)
+    );
 
     const consumeProductTotal = Number(
       consumeProducts.reduce((sum, item) => sum + toNumber(item.volumeBbl), 0).toFixed(2)
@@ -633,7 +642,7 @@ export const getVolumeNameCalculation = async (req, res) => {
       otherVolAdditions.reduce((sum, item) => sum + toNumber(item.totalVolume), 0).toFixed(2)
     );
 
-    const totalOnLocation = Number(
+    const ledgerTotalOnLocation = Number(
       (
         consumeProductTotal +
         receivedMudTotal +
@@ -644,6 +653,7 @@ export const getVolumeNameCalculation = async (req, res) => {
         mudLossStorageTotal
       ).toFixed(2)
     );
+    const totalOnLocation = Number((activeSystem + totalStorage).toFixed(2));
 
     const heldVolDifference = hole;
 
@@ -670,6 +680,7 @@ export const getVolumeNameCalculation = async (req, res) => {
           endVolMinusActiveSystem,
           totalStorage,
           totalOnLocation,
+          ledgerTotalOnLocation,
           previousTotalOnLocation: 0,
         },
         totalsBreakdown: {

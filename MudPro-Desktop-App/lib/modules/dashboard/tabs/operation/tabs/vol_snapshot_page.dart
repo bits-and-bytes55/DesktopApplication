@@ -122,6 +122,7 @@ class VolumeSnapshotController extends GetxController {
       ),
       'totalStorage': _number(volumeName['totalStorage']),
       'totalOnLocation': _number(volumeName['totalOnLocation']),
+      'ledgerTotalOnLocation': _number(volumeName['ledgerTotalOnLocation']),
       'previousTotalOnLocation': _number(
         volumeName['previousTotalOnLocation'],
       ),
@@ -141,6 +142,7 @@ class VolumeSnapshotController extends GetxController {
       ),
       'totalStorage': _number(volumeName['totalStorage']),
       'totalOnLocation': _number(volumeName['totalOnLocation']),
+      'ledgerTotalOnLocation': _number(volumeName['ledgerTotalOnLocation']),
       'previousTotalOnLocation': 0,
     };
   }
@@ -278,7 +280,9 @@ class VolumeSnapshotController extends GetxController {
     final activePits = _number(volumeName['activePits']);
     final activeSystem = _number(volumeName['activeSystem']);
     final totalStorage = _number(volumeName['totalStorage']);
-    final ledgerTotalOnLocation = _number(volumeName['totalOnLocation']);
+    final ledgerTotalOnLocation = _number(
+      volumeName['ledgerTotalOnLocation'] ?? volumeName['totalOnLocation'],
+    );
     final measuredTotalOnLocation = _round2(activeSystem + totalStorage);
     final cumLeased = _round2(
       (leasedMudReceived - leasedMudReturned - leasedMudLost)

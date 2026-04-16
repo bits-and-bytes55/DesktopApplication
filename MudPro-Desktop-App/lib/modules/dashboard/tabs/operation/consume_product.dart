@@ -385,7 +385,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
   void _addDistributeRow({String initialPit = kEmpty}) {
     final newRow = DistributeRowData(pit: initialPit);
     distributeRows.add(newRow);
-    // Rebalance volumes to ensure first row is correct
+    // Keep the Active System row aligned with Total Vol.
     _rebalanceDistributeVolumes();
   }
 
@@ -423,7 +423,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     }
 
     if (index == 0) {
-      // First row always gets total volume (minus other assigned rows)
+      // First row always mirrors Total Vol. like the legacy desktop flow.
       _rebalanceDistributeVolumes();
     }
     distributeRows.refresh();
@@ -438,28 +438,20 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     // Rebalance will happen when user clicks Calculate or on lose focus/submit.
   }
 
-  /// Calculate button: recalculate first row as the remainder of Total Vol.
+  /// Calculate button: refresh the Active System row from Total Vol.
   void _calculateDistribution() {
     _rebalanceDistributeVolumes();
   }
 
-  /// Rebalance: update row 0 volume = totalVol - sum of other rows
+  /// Legacy behavior: row 0 mirrors Total Vol.; storage rows stay manual.
   void _rebalanceDistributeVolumes() {
     if (distributeRows.isEmpty) return;
 
     final totalVol = operationController.totalVolume.value;
-    
-    // Sum volumes allocated to all rows except the first one
-    double otherVolumes = 0.0;
-    for (int i = 1; i < distributeRows.length; i++) {
-      otherVolumes += double.tryParse(distributeRows[i].volume) ?? 0.0;
-    }
 
-    // First row automatically adjusts to take the remainder of Total Volume
     if (distributeRows[0].pit.isNotEmpty) {
-      final remaining = totalVol - otherVolumes;
-      final formattedVol = remaining >= 0 ? remaining.toStringAsFixed(3) : '0.000';
-      
+      final formattedVol = totalVol > 0 ? totalVol.toStringAsFixed(3) : '0.000';
+
       distributeRows[0].volume = formattedVol;
       distributeRows[0].volumeController.text = formattedVol;
       distributeRows.refresh();
@@ -645,12 +637,14 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       final pitName = row.pit.trim();
       final volume = double.tryParse(row.volume.trim()) ?? 0.0;
 
+      if (pitName.isEmpty && volume <= 0) {
+        continue;
+      }
       if (pitName.isEmpty) {
         errors.add('Distribute row ${i + 1}: pit is required');
         continue;
       }
       if (volume <= 0) {
-        errors.add('Distribute row ${i + 1}: volume must be greater than 0');
         continue;
       }
 
@@ -662,19 +656,6 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
 
     if (errors.isNotEmpty) {
       return {'success': false, 'message': errors.join(' | ')};
-    }
-
-    final distributedTotal = distributions.fold<double>(
-      0,
-      (sum, item) => sum + ((item['volume'] as num?)?.toDouble() ?? 0.0),
-    );
-
-    if (totalVolume > 0 && (distributedTotal - totalVolume).abs() > 0.02) {
-      return {
-        'success': false,
-        'message':
-            'Distribute total (${distributedTotal.toStringAsFixed(3)}) must match Total Vol. (${totalVolume.toStringAsFixed(3)})',
-      };
     }
 
     final reportId = reportContext.selectedReportId.value.trim();
@@ -1644,7 +1625,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
             Icon(Icons.info_outline, size: 13, color: Colors.amber.shade700),
             const SizedBox(width: 6),
             Expanded(child: Text(
-              "If the total volume is 0 and multiple pits are selected, the consumed products will be evenly distributed.",
+              "Active System follows Total Vol. Storage pit rows are saved separately for Volume Name End Vol. calculations.",
               style: AppTheme.bodySmall.copyWith(fontSize: 9, color: Colors.amber.shade900),
             )),
           ]),

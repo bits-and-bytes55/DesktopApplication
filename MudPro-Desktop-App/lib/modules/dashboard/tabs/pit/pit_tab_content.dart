@@ -529,7 +529,7 @@ class _PitPageState extends State<PitPage> {
       ['End Vol. - Active System', formatValue(getValue('endVolMinusActiveSystem'))],
       ['Total Storage', formatValue(getValue('totalStorage'))],
       ['Total on Location', formatValue(getValue('totalOnLocation'))],
-      ['Previous Total on Location', '0.00'],
+      ['Previous Total on Location', formatValue(getValue('previousTotalOnLocation'))],
     ];
 
     return Table(
