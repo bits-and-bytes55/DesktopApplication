@@ -322,6 +322,36 @@ class OthersPage extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
+          ElevatedButton.icon(
+            onPressed: setupController.isLocked.value
+                ? null
+                : () => setupController.handleImport(),
+            icon: const Icon(Icons.file_upload, size: 16),
+            label: const Text('Import'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: AppTheme.primaryColor,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(6),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          ElevatedButton.icon(
+            onPressed: () => setupController.handleExport(),
+            icon: const Icon(Icons.file_download, size: 16),
+            label: const Text('Export'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: AppTheme.primaryColor,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(6),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
           IgnorePointer(
             ignoring: setupController.isLocked.value,
             child: Opacity(

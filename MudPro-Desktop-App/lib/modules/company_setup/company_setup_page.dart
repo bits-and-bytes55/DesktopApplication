@@ -195,7 +195,29 @@ class _CompanySetupPageState extends State<CompanySetupPage>
             ),
             icon: const Icon(Icons.file_download, size: 18),
             label: const Text(
-              'Export',
+              'Export Tab',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+            ),
+          ),
+          const SizedBox(width: 8),
+          ElevatedButton.icon(
+            onPressed: () => companySetupController.handleExportAll(),
+            style: AppTheme.secondaryButtonStyle.copyWith(
+              backgroundColor:
+                  MaterialStateProperty.all(Colors.white.withOpacity(0.9)),
+              foregroundColor:
+                  MaterialStateProperty.all(AppTheme.primaryColor),
+              padding: MaterialStateProperty.all(
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              ),
+            ),
+            icon: Icon(
+              Icons.library_books,
+              color: AppTheme.primaryColor,
+              size: 18,
+            ),
+            label: Text(
+              'Export All',
               style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
             ),
           ),

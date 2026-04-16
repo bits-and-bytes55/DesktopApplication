@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/model/products_model.dart';
 import 'package:mudpro_desktop_app/modules/daily_report/controller/inventory_snapshot_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/consume_product_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/consume_product_save_bridge.dart';
+import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/controller/ug_inventory_product_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/inventory_store/inventory_store.dart';
+import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
+import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 import '../../controller/operation_controller.dart';
 import '../../controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
@@ -22,10 +27,12 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
   final PitController pitController = Get.isRegistered<PitController>()
       ? Get.find<PitController>()
       : Get.put(PitController());
+  final AuthRepository _authRepository = AuthRepository();
   final ConsumeProductController consumeProductController = ConsumeProductController();
   final InventorySnapshotController inventorySnapshotController = InventorySnapshotController();
 
   late final InventoryProductsStore _inventoryStore;
+  late final ConsumeProductSaveBridge _saveBridge;
 
   final RxString selectedMethod = "Used".obs;
   final RxBool addWater = false.obs;
@@ -56,11 +63,18 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
   void initState() {
     super.initState();
     _inventoryStore = Get.find<InventoryProductsStore>();
+    _saveBridge = Get.isRegistered<ConsumeProductSaveBridge>()
+        ? Get.find<ConsumeProductSaveBridge>()
+        : Get.put(ConsumeProductSaveBridge(), permanent: true);
+    _saveBridge.register(_saveAll);
     pitController.fetchAllPits();
     pitController.fetchUnselectedPits();
-    _fetchAllConsumeProducts();
+    Future.microtask(() async {
+      await _loadProductsIfNeeded();
+      await _fetchAllConsumeProducts();
+    });
     // Start with 1 row in distribute table
-    _addDistributeRow();
+    _addDistributeRow(initialPit: kActiveSystem);
     
     waterVolumeController.addListener(_recalculateTotalVolume);
     waterVolumeController.addListener(() {
@@ -69,6 +83,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     });
 
     Future.microtask(_loadSavedAddWater);
+    Future.microtask(_loadSavedDistributionState);
 
     final lastWater = operationController.addWaterMainVol.value.trim().isNotEmpty
         ? operationController.addWaterMainVol.value.trim()
@@ -106,10 +121,83 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     _recalculateTotalVolume();
   }
 
+  Future<void> _loadSavedDistributionState() async {
+    await pitController.fetchVolumeNameData();
+    if (!mounted) return;
+    _hydrateDistributionStateFromPitData();
+  }
+
+  void _hydrateDistributionStateFromPitData() {
+    final raw = pitController.volumeNameData['consumeProductDistribution'];
+    if (raw is! Map) {
+      _ensureDefaultDistributionRow();
+      return;
+    }
+
+    final state = Map<String, dynamic>.from(raw);
+    final savedMethod = (state['inputMethod'] ?? '').toString().trim();
+    if (savedMethod == 'Used' || savedMethod == 'Final') {
+      selectedMethod.value = savedMethod;
+    }
+
+    final rawRows = state['distributions'];
+    if (rawRows is! List) {
+      _ensureDefaultDistributionRow();
+      return;
+    }
+
+    final restoredRows = <DistributeRowData>[];
+    for (final item in rawRows) {
+      if (item is! Map) continue;
+      final map = Map<String, dynamic>.from(item);
+      final pitName = (map['pitName'] ?? '').toString().trim();
+      final volume = _toDouble(map['volume']);
+      if (pitName.isEmpty || volume <= 0) continue;
+      restoredRows.add(
+        DistributeRowData(
+          pit: pitName,
+          volume: volume.toStringAsFixed(3),
+        ),
+      );
+    }
+
+    if (restoredRows.isEmpty) {
+      _ensureDefaultDistributionRow();
+      return;
+    }
+
+    _replaceDistributeRows(restoredRows);
+  }
+
+  void _replaceDistributeRows(List<DistributeRowData> rows) {
+    for (final row in distributeRows) {
+      row.volumeController.dispose();
+    }
+    distributeRows.assignAll(rows);
+    if (selectedDistributeRow.value >= distributeRows.length) {
+      selectedDistributeRow.value = distributeRows.isEmpty ? -1 : 0;
+    }
+    distributeRows.refresh();
+  }
+
+  void _ensureDefaultDistributionRow() {
+    if (distributeRows.isEmpty) {
+      _addDistributeRow(initialPit: kActiveSystem);
+      return;
+    }
+
+    if (distributeRows.length == 1 &&
+        distributeRows.first.pit.trim().isEmpty &&
+        distributeRows.first.volume.trim().isEmpty) {
+      _onDistributePitSelected(0, kActiveSystem);
+    }
+  }
+
   @override
   void dispose() {
     waterVolumeController.removeListener(_recalculateTotalVolume);
     waterVolumeController.dispose();
+    _saveBridge.unregister();
     
     // Dispose all distribution row controllers
     for (var row in distributeRows) {
@@ -180,6 +268,56 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
         (p) => p.product.trim().toLowerCase() == name.trim().toLowerCase(),
       );
 
+  Future<void> _loadProductsIfNeeded() async {
+    try {
+      if (_inventoryStore.selectedProducts.isNotEmpty) {
+        _syncProductSelectionsWithInventory();
+        return;
+      }
+
+      final wellId = currentBackendWellId.trim();
+      if (wellId.isEmpty) return;
+
+      final savedProducts = await InventoryProductsService.fetchProducts(wellId);
+      if (savedProducts.isEmpty) return;
+
+      _inventoryStore.setSelectedProducts(
+        savedProducts.map(_toProductModel).toList(),
+      );
+      _syncProductSelectionsWithInventory();
+    } catch (e) {
+      debugPrint('🔴 [PRODUCTS] Error loading inventory products: $e');
+    }
+  }
+
+  void _syncProductSelectionsWithInventory() {
+    for (final row in productRows) {
+      if (row.selectedProduct.value != null) continue;
+      if (row.productName.trim().isEmpty) continue;
+      row.selectedProduct.value = _findByName(row.productName);
+    }
+    productRows.refresh();
+  }
+
+  ProductModel _toProductModel(dynamic product) {
+    return ProductModel(
+      id: product.id,
+      product: product.product,
+      code: product.code,
+      sg: product.sg,
+      unitNum: product.unit,
+      unitClass: '',
+      group: product.group,
+      a: product.price,
+      price: product.price,
+      initial: product.initial,
+      volAdd: product.volAdd,
+      calculate: product.calculate,
+      plot: product.plot ?? false,
+      tax: product.tax,
+    );
+  }
+
   double _toDouble(dynamic v) =>
       v is num ? v.toDouble() : double.tryParse(v?.toString() ?? '') ?? 0.0;
 
@@ -244,8 +382,8 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
   // ─────────────────────────────────────────────
 
   /// Add a new distribute row
-  void _addDistributeRow() {
-    final newRow = DistributeRowData();
+  void _addDistributeRow({String initialPit = kEmpty}) {
+    final newRow = DistributeRowData(pit: initialPit);
     distributeRows.add(newRow);
     // Rebalance volumes to ensure first row is correct
     _rebalanceDistributeVolumes();
@@ -331,21 +469,32 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
   // ─────────────────────────────────────────────
   //  SAVE ROW
   // ─────────────────────────────────────────────
-  Future<void> _saveRow(int index) async {
-    if (dashboardController.isLocked.value) return;
-    if (index >= productRows.length) return;
+  Future<Map<String, dynamic>> _saveRow(int index) async {
+    if (dashboardController.isLocked.value) {
+      return {'success': false, 'message': 'Report is locked'};
+    }
+    if (index >= productRows.length) {
+      return {'success': false, 'message': 'Invalid product row'};
+    }
     final row = productRows[index];
 
     final productName = row.selectedProduct.value?.product.isNotEmpty == true
         ? row.selectedProduct.value!.product
         : row.productName;
 
-    if (productName.isEmpty) return;
-    if (!_isCostCalculated(row)) return;
+    if (productName.isEmpty) {
+      return {'success': false, 'message': 'Product is required'};
+    }
+    if (!_isCostCalculated(row)) {
+      return {
+        'success': false,
+        'message': 'Used quantity and price are required',
+      };
+    }
 
     if (_savingInProgress.contains(index)) {
       debugPrint('⏳ [SAVE] Row $index already saving — skip');
-      return;
+      return {'success': true, 'message': 'Save already in progress'};
     }
 
     _savingInProgress.add(index);
@@ -380,6 +529,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
           row.savedId     = result['data']?['_id']?.toString();
           row.productName = productName;
           productRows.refresh();
+          await pitController.fetchVolumeNameData();
           debugPrint('✅ [CREATE] Done — savedId=${row.savedId}');
         } else {
           _showToast(result['message'] ?? 'Save failed', isError: true);
@@ -406,8 +556,11 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
           _showToast(result['message'] ?? 'Update failed', isError: true);
         }
       }
+      await pitController.fetchVolumeNameData();
+      return result;
     } catch (e) {
       _showToast('Save error: $e', isError: true);
+      return {'success': false, 'message': 'Save error: $e'};
     } finally {
       _savingInProgress.remove(index);
       if (index < productRowSaving.length) {
@@ -445,6 +598,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       if (result['success'] == true) {
         _savingInProgress.remove(index);
         await _fetchAllConsumeProducts();
+        await pitController.fetchVolumeNameData();
         _showToast('Deleted');
       } else {
         _showToast(result['message'] ?? 'Delete failed', isError: true);
@@ -462,37 +616,154 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     }
   }
 
-  Future<void> _saveAll() async {
-    if (dashboardController.isLocked.value || isSavingAll.value) return;
+  Future<void> _refreshPitStateAfterConsumeProductSave() async {
+    await pitController.fetchAllPits();
+    await pitController.fetchSelectedPits();
+    await pitController.fetchUnselectedPits();
+    await pitController.fetchVolumeNameData();
+    _hydrateDistributionStateFromPitData();
+  }
+
+  Future<Map<String, dynamic>> _saveDistributionState() async {
+    final wellId = currentBackendWellId.trim();
+    if (wellId.isEmpty) {
+      return {'success': false, 'message': 'No backend well selected'};
+    }
+
+    final totalVolume = double.tryParse(totalVolumeDisplay.value) ?? 0.0;
+    final candidateRows = distributeRows
+        .where(
+          (row) => row.pit.trim().isNotEmpty || row.volume.trim().isNotEmpty,
+        )
+        .toList();
+
+    final errors = <String>[];
+    final distributions = <Map<String, dynamic>>[];
+
+    for (var i = 0; i < candidateRows.length; i++) {
+      final row = candidateRows[i];
+      final pitName = row.pit.trim();
+      final volume = double.tryParse(row.volume.trim()) ?? 0.0;
+
+      if (pitName.isEmpty) {
+        errors.add('Distribute row ${i + 1}: pit is required');
+        continue;
+      }
+      if (volume <= 0) {
+        errors.add('Distribute row ${i + 1}: volume must be greater than 0');
+        continue;
+      }
+
+      distributions.add({
+        'pitName': pitName,
+        'volume': double.parse(volume.toStringAsFixed(3)),
+      });
+    }
+
+    if (errors.isNotEmpty) {
+      return {'success': false, 'message': errors.join(' | ')};
+    }
+
+    final distributedTotal = distributions.fold<double>(
+      0,
+      (sum, item) => sum + ((item['volume'] as num?)?.toDouble() ?? 0.0),
+    );
+
+    if (totalVolume > 0 && (distributedTotal - totalVolume).abs() > 0.02) {
+      return {
+        'success': false,
+        'message':
+            'Distribute total (${distributedTotal.toStringAsFixed(3)}) must match Total Vol. (${totalVolume.toStringAsFixed(3)})',
+      };
+    }
+
+    final reportId = reportContext.selectedReportId.value.trim();
+    return _authRepository.saveConsumeProductVolumeName({
+      'wellId': wellId,
+      if (reportId.isNotEmpty) 'reportId': reportId,
+      'inputMethod': selectedMethod.value,
+      'addWater': addWater.value,
+      'addWaterVolume': double.tryParse(waterVolumeController.text.trim()) ?? 0.0,
+      'totalVolume': totalVolume,
+      'distributions': distributions,
+    });
+  }
+
+  Future<Map<String, dynamic>> _saveAll() async {
+    if (dashboardController.isLocked.value) {
+      return {'success': false, 'message': 'Report is locked'};
+    }
+    if (isSavingAll.value) {
+      return {'success': false, 'message': 'Save is already in progress'};
+    }
+
     isSavingAll.value = true;
+    final errors = <String>[];
+    var savedRows = 0;
+
     try {
       for (int i = 0; i < productRows.length; i++) {
-        if (productRows[i].productName.isNotEmpty &&
-            productRows[i].savedId == null &&
-            _isCostCalculated(productRows[i])) {
-          await _saveRow(i);
+        final row = productRows[i];
+        final productName = row.selectedProduct.value?.product.isNotEmpty == true
+            ? row.selectedProduct.value!.product
+            : row.productName;
+
+        if (productName.isNotEmpty && _isCostCalculated(row)) {
+          final saveResult = await _saveRow(i);
+          if (saveResult['success'] == true) {
+            savedRows++;
+          } else {
+            errors.add(
+              'Product "${productName.trim()}": ${saveResult['message'] ?? 'Save failed'}',
+            );
+          }
         }
       }
 
       final waterResult = await _saveAddWaterIfNeeded();
       if (waterResult != null && waterResult['success'] != true) {
-        _showToast('Add Water failed: ${waterResult['message']}', isError: true);
+        errors.add('Add Water: ${waterResult['message'] ?? 'Save failed'}');
       }
+
+      final distributionResult = await _saveDistributionState();
+      if (distributionResult['success'] != true) {
+        errors.add(
+          'Distribute to: ${distributionResult['message'] ?? 'Save failed'}',
+        );
+      }
+
+      await _refreshPitStateAfterConsumeProductSave();
+
       final snapResult = await inventorySnapshotController.generateInventorySnapshot();
-      if (snapResult['success'] == true) {
-        _showToast('Saved! Snapshot: ${snapResult['count']} items');
-      } else {
-        _showToast('Snapshot failed: ${snapResult['message']}', isError: true);
+      if (snapResult['success'] != true) {
+        errors.add('Snapshot: ${snapResult['message'] ?? 'Failed'}');
       }
+
+      if (errors.isEmpty) {
+        return {
+          'success': true,
+          'message': savedRows > 0
+              ? 'Consume Product saved successfully'
+              : 'Consume Product state saved successfully',
+        };
+      }
+
+      return {'success': false, 'message': errors.join(' | ')};
     } catch (e) {
-      _showToast('Save All failed: $e', isError: true);
+      return {'success': false, 'message': 'Save All failed: $e'};
     } finally {
       isSavingAll.value = false;
     }
   }
 
   Future<Map<String, dynamic>?> _saveAddWaterIfNeeded() async {
-    if (!addWater.value) return null;
+    if (!addWater.value) {
+      await operationController.loadAddWater(force: true);
+      operationController.addWaterTo.value = kActiveSystem;
+      operationController.addWaterMainVol.value = '';
+      operationController.addWaterVolume.value = '';
+      return operationController.saveAddWater();
+    }
 
     final waterText = waterVolumeController.text.trim();
     final waterVol = double.tryParse(waterText) ?? 0.0;
@@ -1146,7 +1417,29 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
 
   Widget _buildDistributePitDropdown(
       DistributeRowData dr, int index, List unselectedPits) {
-    // Build items: empty option + Active System + unselected pits
+    final currentPit = dr.pit.trim();
+    final normalizedNames = <String>{};
+    final dropdownPitNames = <String>[];
+
+    for (final pit in unselectedPits) {
+      final pitName = pit.pitName.toString().trim();
+      final normalized = pitName.toLowerCase();
+      if (pitName.isEmpty ||
+          normalized == kEmpty ||
+          normalized == kActiveSystem.toLowerCase() ||
+          !normalizedNames.add(normalized)) {
+        continue;
+      }
+      dropdownPitNames.add(pitName);
+    }
+
+    if (currentPit.isNotEmpty &&
+        currentPit.toLowerCase() != kActiveSystem.toLowerCase() &&
+        normalizedNames.add(currentPit.toLowerCase())) {
+      dropdownPitNames.insert(0, currentPit);
+    }
+
+    // Build items: empty option + Active System + unique storage pits
     final items = <DropdownMenuItem<String>>[
       // Empty option to clear selection
       DropdownMenuItem<String>(
@@ -1169,17 +1462,17 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
         ]),
       ),
       // Unselected pits from API
-      ...unselectedPits.map((p) => DropdownMenuItem<String>(
-        value: p.pitName,
-        child: Text(p.pitName,
+      ...dropdownPitNames.map((pitName) => DropdownMenuItem<String>(
+        value: pitName,
+        child: Text(pitName,
             style: AppTheme.bodySmall.copyWith(fontSize: 10),
             overflow: TextOverflow.ellipsis),
       )),
     ];
 
     // Validate current value
-    final validValues = {kEmpty, kActiveSystem, ...unselectedPits.map((p) => p.pitName)};
-    final currentValue = validValues.contains(dr.pit) ? dr.pit : kEmpty;
+    final validValues = {kEmpty, kActiveSystem, ...dropdownPitNames};
+    final currentValue = validValues.contains(currentPit) ? currentPit : kEmpty;
 
     return DropdownButtonHideUnderline(
       child: DropdownButton<String>(
@@ -1430,7 +1723,11 @@ class ProductRowData {
 }
 
 class DistributeRowData {
-  String pit = '';
-  String volume = '';
+  String pit;
+  String volume;
   final TextEditingController volumeController = TextEditingController();
+
+  DistributeRowData({this.pit = '', this.volume = ''}) {
+    volumeController.text = volume;
+  }
 }

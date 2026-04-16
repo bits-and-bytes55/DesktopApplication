@@ -813,6 +813,46 @@ class _MudCompanyPageState extends State<MudCompanyPage> {
                   Row(
                     children: [
                       ElevatedButton.icon(
+                        onPressed: companySetupController.isLocked.value
+                            ? null
+                            : () => companySetupController.handleImport(),
+                        style: AppTheme.secondaryButtonStyle.copyWith(
+                          padding: MaterialStateProperty.all(
+                            const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                          ),
+                          minimumSize:
+                              MaterialStateProperty.all(const Size(0, 32)),
+                        ),
+                        icon: const Icon(Icons.file_upload, size: 14),
+                        label: const Text(
+                          'Import',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton.icon(
+                        onPressed: () => companySetupController.handleExport(),
+                        style: AppTheme.secondaryButtonStyle.copyWith(
+                          padding: MaterialStateProperty.all(
+                            const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                          ),
+                          minimumSize:
+                              MaterialStateProperty.all(const Size(0, 32)),
+                        ),
+                        icon: const Icon(Icons.file_download, size: 14),
+                        label: const Text(
+                          'Export',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton.icon(
                         onPressed: (engineerController.isSaving.value || companySetupController.isLocked.value)
                             ? null
                             : () => engineerController.saveAllRows(),

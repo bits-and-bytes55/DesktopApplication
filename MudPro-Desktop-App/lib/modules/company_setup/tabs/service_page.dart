@@ -90,7 +90,7 @@ class ServicesPage extends StatelessWidget {
                     ),
                   ),
                 ),
-                _footerButtons(),
+                _footerButtons(setupController),
               ],
             ),
           ),
@@ -311,12 +311,28 @@ class ServicesPage extends StatelessWidget {
     );
   }
 
-  Widget _footerButtons() {
+  Widget _footerButtons(CompanySetupController setupController) {
     return Padding(
       padding: const EdgeInsets.only(top: 12),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
+          ElevatedButton.icon(
+            onPressed: setupController.isLocked.value
+                ? null
+                : () => setupController.handleImport(),
+            style: AppTheme.secondaryButtonStyle,
+            icon: const Icon(Icons.file_upload, size: 16),
+            label: const Text('Import'),
+          ),
+          const SizedBox(width: 8),
+          ElevatedButton.icon(
+            onPressed: () => setupController.handleExport(),
+            style: AppTheme.secondaryButtonStyle,
+            icon: const Icon(Icons.file_download, size: 16),
+            label: const Text('Export'),
+          ),
+          const SizedBox(width: 8),
           ElevatedButton(
             onPressed: () => Get.back(),
             style: AppTheme.secondaryButtonStyle,

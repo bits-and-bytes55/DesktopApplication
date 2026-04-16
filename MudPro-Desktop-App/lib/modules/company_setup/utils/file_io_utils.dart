@@ -9,6 +9,8 @@ import 'package:mudpro_desktop_app/modules/company_setup/controller/operators_co
 import 'package:mudpro_desktop_app/modules/company_setup/controller/others_getx_controller.dart';
 
 class FileIoUtils {
+  static const String _productsTag = 'products_controller';
+
   /// Exports all data from all tabs into a single Excel file
   static Future<void> exportAllData() async {
     try {
@@ -24,8 +26,7 @@ class FileIoUtils {
       _addSheet(excel, 'Engineers', engineerController.getExportData());
 
       // 2. Products
-      final productsController =
-          _ensureController<ProductsController>(() => ProductsController());
+      final productsController = _getProductsController();
       await productsController.loadProducts();
       _addSheet(excel, 'Products', productsController.getExportData());
 
@@ -84,9 +85,100 @@ class FileIoUtils {
     }
   }
 
+  static Future<void> exportTabData(int activeTabIndex) async {
+    try {
+      final excel = Excel.createExcel();
+      excel.delete('Sheet1');
+
+      final sheetName = _sheetAliases(activeTabIndex).firstOrNull;
+      if (sheetName == null) {
+        Get.snackbar('Error', 'Unsupported tab selected for export');
+        return;
+      }
+
+      switch (activeTabIndex) {
+        case 0:
+          final controller =
+              _ensureController<EngineerController>(() => EngineerController());
+          await controller.fetchEngineers();
+          _addSheet(excel, 'Engineers', controller.getExportData());
+          break;
+        case 1:
+          final controller = _getProductsController();
+          await controller.loadProducts();
+          _addSheet(excel, 'Products', controller.getExportData());
+          break;
+        case 2:
+          final controller = _ensureController<ServicesGetxController>(
+            () => ServicesGetxController(),
+          );
+          await controller.loadAllData();
+          _addSheet(
+            excel,
+            'Services',
+            _combineSectionRows(controller.getExportData()),
+          );
+          break;
+        case 3:
+          final controller =
+              _ensureController<OperatorController>(() => OperatorController());
+          await controller.fetchOperators();
+          _addSheet(excel, 'Operators', controller.getExportData());
+          break;
+        case 4:
+          final controller = _ensureController<OthersGetxController>(
+            () => OthersGetxController(),
+          );
+          await controller.fetchAllData();
+          _addSheet(
+            excel,
+            'Others',
+            _combineSectionRows(controller.getExportData()),
+          );
+          break;
+        default:
+          Get.snackbar('Error', 'Unsupported tab selected for export');
+          return;
+      }
+
+      final outputFile = await FilePicker.platform.saveFile(
+        dialogTitle: 'Export Current Tab',
+        fileName:
+            '${sheetName}_export_${DateTime.now().millisecondsSinceEpoch}.xlsx',
+        type: FileType.custom,
+        allowedExtensions: ['xlsx'],
+      );
+
+      if (outputFile != null) {
+        final fileBytes = excel.save();
+        if (fileBytes != null) {
+          File(outputFile)
+            ..createSync(recursive: true)
+            ..writeAsBytesSync(fileBytes);
+          Get.snackbar('Success', '$sheetName exported successfully');
+        }
+      }
+    } catch (e) {
+      Get.snackbar('Error', 'Export failed: $e');
+    }
+  }
+
   static T _ensureController<T>(T Function() create) {
     if (Get.isRegistered<T>()) return Get.find<T>();
     return Get.put<T>(create());
+  }
+
+  static ProductsController _getProductsController() {
+    if (Get.isRegistered<ProductsController>(tag: _productsTag)) {
+      return Get.find<ProductsController>(tag: _productsTag);
+    }
+    if (Get.isRegistered<ProductsController>()) {
+      return Get.find<ProductsController>();
+    }
+    return Get.put<ProductsController>(
+      ProductsController(),
+      tag: _productsTag,
+    );
   }
 
   static void _addSheet(Excel excel, String name, List<List<String>> data) {
@@ -94,6 +186,18 @@ class FileIoUtils {
     for (var row in data) {
       sheetObject.appendRow(row.cast<dynamic>());
     }
+  }
+
+  static List<List<String>> _combineSectionRows(
+    Map<String, List<List<String>>> sections,
+  ) {
+    final combinedRows = <List<String>>[];
+    sections.forEach((key, value) {
+      combinedRows.add([key]);
+      combinedRows.addAll(value);
+      combinedRows.add([]);
+    });
+    return combinedRows;
   }
 
   /// Imports data for the active tab from an Excel or Notepad file
@@ -111,9 +215,20 @@ class FileIoUtils {
         if (path.endsWith('.xlsx')) {
           var bytes = File(path).readAsBytesSync();
           var excel = Excel.decodeBytes(bytes);
-          // Just take the first sheet or relevant sheet for simplicity
-          String sheetName = excel.tables.keys.first;
-          var table = excel.tables[sheetName]!;
+          final sheetName = _resolveSheetName(excel, activeTabIndex);
+          if (sheetName == null) {
+            Get.snackbar(
+              'Error',
+              'Matching sheet not found for the selected tab',
+            );
+            return;
+          }
+
+          final table = excel.tables[sheetName];
+          if (table == null) {
+            Get.snackbar('Error', 'Selected sheet is empty');
+            return;
+          }
           for (var row in table.rows) {
             data.add(row.map((cell) => cell?.value?.toString() ?? '').toList());
           }
@@ -126,30 +241,90 @@ class FileIoUtils {
 
         if (data.isEmpty) return;
 
-        // Strip headers if they exist (optional, but good for UX)
-        // For now, let the controllers handle it as they might need headers.
+        Map<String, dynamic>? importResult;
 
         switch (activeTabIndex) {
           case 0: // Engineer
-            Get.find<EngineerController>().importFromData(data);
+            importResult =
+                await _ensureController<EngineerController>(
+                  () => EngineerController(),
+                ).importFromData(data);
             break;
           case 1: // Products
-            Get.find<ProductsController>().importFromData(data);
+            importResult = await _getProductsController().importFromData(data);
             break;
           case 2: // Services
-            Get.find<ServicesGetxController>().importFromData(data);
+            importResult = await _ensureController<ServicesGetxController>(
+              () => ServicesGetxController(),
+            ).importFromData(data);
             break;
           case 3: // Operator
-            Get.find<OperatorController>().importFromData(data);
+            importResult = await _ensureController<OperatorController>(
+              () => OperatorController(),
+            ).importFromData(data);
             break;
           case 4: // Others
-            Get.find<OthersGetxController>().importFromData(data);
+            importResult = await _ensureController<OthersGetxController>(
+              () => OthersGetxController(),
+            ).importFromData(data);
             break;
         }
-        Get.snackbar('Success', 'Data imported into the active tab');
+
+        if (importResult == null) {
+          Get.snackbar('Error', 'Import handler not found for active tab');
+          return;
+        }
+
+        final isSuccess = importResult['success'] == true;
+        final message = importResult['message']?.toString().trim();
+        final fallbackMessage = isSuccess
+            ? 'Data imported into the active tab'
+            : 'Import finished with issues';
+
+        Get.snackbar(
+          isSuccess ? 'Success' : 'Warning',
+          message != null && message.isNotEmpty ? message : fallbackMessage,
+        );
       }
     } catch (e) {
       Get.snackbar('Error', 'Import failed: $e');
+    }
+  }
+
+  static String? _resolveSheetName(Excel excel, int activeTabIndex) {
+    final sheetNames = excel.tables.keys.toList();
+    if (sheetNames.isEmpty) return null;
+
+    final preferredNames = _sheetAliases(activeTabIndex);
+    for (final candidate in preferredNames) {
+      for (final name in sheetNames) {
+        if (name.trim().toLowerCase() == candidate) {
+          return name;
+        }
+      }
+    }
+
+    if (sheetNames.length == 1) {
+      return sheetNames.first;
+    }
+
+    return null;
+  }
+
+  static List<String> _sheetAliases(int activeTabIndex) {
+    switch (activeTabIndex) {
+      case 0:
+        return ['engineers', 'engineer'];
+      case 1:
+        return ['products', 'product'];
+      case 2:
+        return ['services', 'service'];
+      case 3:
+        return ['operators', 'operator'];
+      case 4:
+        return ['others', 'other'];
+      default:
+        return const [];
     }
   }
 }

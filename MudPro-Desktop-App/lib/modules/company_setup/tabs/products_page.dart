@@ -10,7 +10,13 @@ class ProductsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ProductsController controller = Get.find<ProductsController>(tag: 'products_controller');
+    final ProductsController controller =
+        Get.isRegistered<ProductsController>(tag: 'products_controller')
+            ? Get.find<ProductsController>(tag: 'products_controller')
+            : Get.put(
+                ProductsController(),
+                tag: 'products_controller',
+              );
     final CompanySetupController setupController = Get.find<CompanySetupController>();
 
     return Scaffold(
@@ -121,6 +127,22 @@ class ProductsPage extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
+                  ElevatedButton.icon(
+                    onPressed: setupController.isLocked.value
+                        ? null
+                        : () => setupController.handleImport(),
+                    style: AppTheme.secondaryButtonStyle,
+                    icon: const Icon(Icons.file_upload, size: 16),
+                    label: const Text('Import'),
+                  ),
+                  SizedBox(width: 12),
+                  ElevatedButton.icon(
+                    onPressed: () => setupController.handleExport(),
+                    style: AppTheme.secondaryButtonStyle,
+                    icon: const Icon(Icons.file_download, size: 16),
+                    label: const Text('Export'),
+                  ),
+                  SizedBox(width: 12),
                   ElevatedButton(
                     onPressed: () => Get.back(),
                     style: AppTheme.secondaryButtonStyle,

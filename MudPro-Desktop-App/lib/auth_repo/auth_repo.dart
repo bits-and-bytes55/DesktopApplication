@@ -1272,8 +1272,13 @@ class AuthRepository {
 
   Future<Map<String, dynamic>> getAllPits(String wellId) async {
     try {
+      final reportId = reportContext.selectedReportId.value.trim();
       final response = await http.get(
-        Uri.parse('${baseUrl}pit/well/$wellId'),
+        Uri.parse('${baseUrl}pit/well/$wellId').replace(
+          queryParameters: {
+            if (reportId.isNotEmpty) 'reportId': reportId,
+          },
+        ),
         headers: {'Content-Type': 'application/json'},
       );
 
@@ -1306,8 +1311,13 @@ class AuthRepository {
 
   Future<Map<String, dynamic>> getSelectedPits(String wellId) async {
     try {
+      final reportId = reportContext.selectedReportId.value.trim();
       final response = await http.get(
-        Uri.parse('${baseUrl}pit/well/$wellId/selected'),
+        Uri.parse('${baseUrl}pit/well/$wellId/selected').replace(
+          queryParameters: {
+            if (reportId.isNotEmpty) 'reportId': reportId,
+          },
+        ),
         headers: {'Content-Type': 'application/json'},
       );
 
@@ -1337,8 +1347,13 @@ class AuthRepository {
 
   Future<Map<String, dynamic>> getUnselectedPits(String wellId) async {
     try {
+      final reportId = reportContext.selectedReportId.value.trim();
       final response = await http.get(
-        Uri.parse('${baseUrl}pit/well/$wellId/unselected'),
+        Uri.parse('${baseUrl}pit/well/$wellId/unselected').replace(
+          queryParameters: {
+            if (reportId.isNotEmpty) 'reportId': reportId,
+          },
+        ),
         headers: {'Content-Type': 'application/json'},
       );
 

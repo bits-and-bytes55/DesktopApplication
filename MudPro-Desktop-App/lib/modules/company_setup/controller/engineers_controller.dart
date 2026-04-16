@@ -301,9 +301,17 @@ class EngineerController extends GetxController {
   // ─── Export/Import Helpers ────────────────────────────────────────────────
 
   List<List<String>> getExportData() {
-    List<List<String>> data = [['First Name', 'Last Name', 'Cell', 'Office', 'E-mail']];
+    List<List<String>> data = [[
+      'Record ID',
+      'First Name',
+      'Last Name',
+      'Cell',
+      'Office',
+      'E-mail',
+    ]];
     for (var eng in engineers) {
       data.add([
+        eng.id ?? '',
         eng.firstName,
         eng.lastName,
         eng.cell,
@@ -314,46 +322,207 @@ class EngineerController extends GetxController {
     return data;
   }
 
-  void importFromData(List<List<String>> rows) {
-    // We will reuse existing unsaved rows instead of deleting and recreating them
-    var unsavedRows = rowControllers.where((r) => r.engineerId == null).toList();
-    int currentUnsavedIndex = 0;
+  Future<Map<String, dynamic>> importFromData(List<List<String>> rows) async {
+    final importedRows = _parseImportedRows(rows);
+    if (importedRows.isEmpty) {
+      return {
+        'success': false,
+        'message': 'No valid engineer rows found in the selected file',
+      };
+    }
 
-    // Map rows to row controllers
-    for (var row in rows) {
-      if (row.length < 5) continue;
-      EngineerRowControllers targetRow;
-      if (currentUnsavedIndex < unsavedRows.length) {
-         targetRow = unsavedRows[currentUnsavedIndex];
-         currentUnsavedIndex++;
-      } else {
-         targetRow = EngineerRowControllers();
-         rowControllers.add(targetRow);
+    int updated = 0;
+    int inserted = 0;
+    final errors = <String>[];
+
+    final byId = <String, Engineer>{};
+    final byEmail = <String, Engineer>{};
+    final byName = <String, Engineer>{};
+    for (final engineer in engineers) {
+      final id = engineer.id?.trim();
+      if (id != null && id.isNotEmpty) {
+        byId[id] = engineer;
       }
-      
-      targetRow.firstNameController.text = row[0];
-      targetRow.lastNameController.text  = row[1];
-      targetRow.cellController.text      = row[2];
-      targetRow.officeController.text    = row[3];
-      targetRow.emailController.text     = row[4];
+      final emailKey = _normalizeKey(engineer.email);
+      if (emailKey.isNotEmpty) {
+        byEmail[emailKey] = engineer;
+      }
+      final nameKey = _engineerFallbackKey(
+        firstName: engineer.firstName,
+        lastName: engineer.lastName,
+        cell: engineer.cell,
+      );
+      if (nameKey.isNotEmpty) {
+        byName[nameKey] = engineer;
+      }
     }
 
-    // Clear any remaining unsaved rows we didn't use!
-    while (currentUnsavedIndex < unsavedRows.length) {
-      var unused = unsavedRows[currentUnsavedIndex];
-      unused.firstNameController.text = '';
-      unused.lastNameController.text = '';
-      unused.cellController.text = '';
-      unused.officeController.text = '';
-      unused.emailController.text = '';
-      currentUnsavedIndex++;
+    for (final row in importedRows) {
+      final matchedEngineer = _findExistingEngineer(
+        row: row,
+        byId: byId,
+        byEmail: byEmail,
+        byName: byName,
+      );
+      final importedEngineer = Engineer(
+        id: matchedEngineer?.id,
+        firstName: row.firstName,
+        lastName: row.lastName,
+        cell: row.cell,
+        office: row.office,
+        email: row.email,
+        photo: matchedEngineer?.photo,
+      );
+
+      if (matchedEngineer?.id != null) {
+        if (!_sameEngineerData(matchedEngineer!, importedEngineer)) {
+          final updatePayload = Engineer(
+            firstName: importedEngineer.firstName,
+            lastName: importedEngineer.lastName,
+            cell: importedEngineer.cell,
+            office: importedEngineer.office,
+            email: importedEngineer.email,
+            photo: importedEngineer.photo,
+          );
+          final result = await _repository.updateEngineer(
+            matchedEngineer.id!,
+            updatePayload,
+          );
+          if (result['success'] == true) {
+            updated += 1;
+          } else {
+            errors.add(
+              'Engineer ${row.email.isNotEmpty ? row.email : '${row.firstName} ${row.lastName}'}: ${result['message'] ?? 'Update failed'}',
+            );
+          }
+        }
+      } else {
+        final result = await _repository.addEngineer(importedEngineer);
+        if (result['success'] == true) {
+          inserted += 1;
+        } else {
+          errors.add(
+            'Engineer ${row.email.isNotEmpty ? row.email : '${row.firstName} ${row.lastName}'}: ${result['message'] ?? 'Add failed'}',
+          );
+        }
+      }
     }
 
-    // Add empty spacer rows if needed
-    if (rowControllers.length < 10) {
-      _initializeRows(2);
+    await fetchEngineers();
+
+    if (errors.isNotEmpty) {
+      return {
+        'success': false,
+        'message':
+            'Engineer import finished with issues. Updated: $updated, Added: $inserted',
+        'updated': updated,
+        'inserted': inserted,
+        'errors': errors,
+      };
     }
-    update(); // Notify UI
+
+    return {
+      'success': true,
+      'message': 'Engineers imported successfully. Updated: $updated, Added: $inserted',
+      'updated': updated,
+      'inserted': inserted,
+    };
+  }
+
+  Engineer? _findExistingEngineer({
+    required _ImportedEngineerRow row,
+    required Map<String, Engineer> byId,
+    required Map<String, Engineer> byEmail,
+    required Map<String, Engineer> byName,
+  }) {
+    final recordId = row.recordId.trim();
+    if (recordId.isNotEmpty && byId.containsKey(recordId)) {
+      return byId[recordId];
+    }
+
+    final emailKey = _normalizeKey(row.email);
+    if (emailKey.isNotEmpty && byEmail.containsKey(emailKey)) {
+      return byEmail[emailKey];
+    }
+
+    final nameKey = _engineerFallbackKey(
+      firstName: row.firstName,
+      lastName: row.lastName,
+      cell: row.cell,
+    );
+    if (nameKey.isNotEmpty && byName.containsKey(nameKey)) {
+      return byName[nameKey];
+    }
+
+    return null;
+  }
+
+  bool _sameEngineerData(Engineer existing, Engineer imported) {
+    return existing.firstName.trim() == imported.firstName.trim() &&
+        existing.lastName.trim() == imported.lastName.trim() &&
+        existing.cell.trim() == imported.cell.trim() &&
+        existing.office.trim() == imported.office.trim() &&
+        existing.email.trim() == imported.email.trim();
+  }
+
+  List<_ImportedEngineerRow> _parseImportedRows(List<List<String>> rows) {
+    if (rows.isEmpty) return const [];
+
+    final header = rows.first.map((cell) => cell.trim().toLowerCase()).toList();
+    final hasRecordId = header.isNotEmpty && header.first == 'record id';
+    final startIndex = _looksLikeEngineerHeader(rows.first) ? 1 : 0;
+    final parsed = <_ImportedEngineerRow>[];
+
+    for (int i = startIndex; i < rows.length; i += 1) {
+      final row = List<String>.from(rows[i]);
+      final minimumLength = hasRecordId ? 6 : 5;
+      while (row.length < minimumLength) {
+        row.add('');
+      }
+
+      if (_looksLikeEngineerHeader(row)) {
+        continue;
+      }
+
+      final offset = hasRecordId ? 1 : 0;
+      final values = row.skip(offset).take(5).map((value) => value.trim()).toList();
+      if (values.every((value) => value.isEmpty)) {
+        continue;
+      }
+
+      parsed.add(
+        _ImportedEngineerRow(
+          recordId: hasRecordId ? row[0].trim() : '',
+          firstName: values[0],
+          lastName: values[1],
+          cell: values[2],
+          office: values[3],
+          email: values[4],
+        ),
+      );
+    }
+
+    return parsed;
+  }
+
+  bool _looksLikeEngineerHeader(List<String> row) {
+    final normalized = row.map((cell) => cell.trim().toLowerCase()).toList();
+    return normalized.contains('first name') &&
+        normalized.contains('last name') &&
+        normalized.contains('e-mail');
+  }
+
+  String _normalizeKey(String value) => value.trim().toLowerCase();
+
+  String _engineerFallbackKey({
+    required String firstName,
+    required String lastName,
+    required String cell,
+  }) {
+    final first = _normalizeKey(firstName);
+    final last = _normalizeKey(lastName);
+    final phone = _normalizeKey(cell);
+    return '$first|$last|$phone';
   }
 
   void showDeleteConfirmation(BuildContext context, String engineerId, String engineerName) {
@@ -409,4 +578,22 @@ class EngineerRowControllers {
     emailController.dispose();
     photoController.dispose();
   }
+}
+
+class _ImportedEngineerRow {
+  final String recordId;
+  final String firstName;
+  final String lastName;
+  final String cell;
+  final String office;
+  final String email;
+
+  const _ImportedEngineerRow({
+    required this.recordId,
+    required this.firstName,
+    required this.lastName,
+    required this.cell,
+    required this.office,
+    required this.email,
+  });
 }

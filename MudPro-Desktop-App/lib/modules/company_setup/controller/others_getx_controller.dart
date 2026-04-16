@@ -282,47 +282,372 @@ class OthersGetxController extends GetxController {
 
   Map<String, List<List<String>>> getExportData() {
     return {
-      'Activities': [['Description'], ...activities.map((e) => [e.description])],
-      'Additions': [['Description'], ...additions.map((e) => [e.name])],
-      'Losses': [['Description'], ...losses.map((e) => [e.name])],
-      'WaterBased': [['Description'], ...waterBased.map((e) => [e.name])],
-      'OilBased': [['Description'], ...oilBased.map((e) => [e.name])],
-      'Synthetic': [['Description'], ...synthetic.map((e) => [e.name])],
+      'Activities': [
+        ['Record ID', 'Description'],
+        ...activities.map((e) => [e.id ?? '', e.description]),
+      ],
+      'Additions': [
+        ['Record ID', 'Description'],
+        ...additions.map((e) => [e.id ?? '', e.name]),
+      ],
+      'Losses': [
+        ['Record ID', 'Description'],
+        ...losses.map((e) => [e.id ?? '', e.name]),
+      ],
+      'WaterBased': [
+        ['Record ID', 'Description'],
+        ...waterBased.map((e) => [e.id ?? '', e.name]),
+      ],
+      'OilBased': [
+        ['Record ID', 'Description'],
+        ...oilBased.map((e) => [e.id ?? '', e.name]),
+      ],
+      'Synthetic': [
+        ['Record ID', 'Description'],
+        ...synthetic.map((e) => [e.id ?? '', e.name]),
+      ],
     };
   }
 
-  void importFromData(List<List<String>> rows) {
-    _emptyNewRows();
-    int targetTable = 0; // 0:Activity, 1:Addition, 2:Loss, 3:Water, 4:Oil, 5:Synthetic
-    for (var row in rows) {
-      if (row.isEmpty) continue;
-      String first = row[0].toLowerCase();
-      if (first.contains('activity')) { targetTable = 0; continue; }
-      if (first.contains('addition')) { targetTable = 1; continue; }
-      if (first.contains('loss')) { targetTable = 2; continue; }
-      if (first.contains('water')) { targetTable = 3; continue; }
-      if (first.contains('oil')) { targetTable = 4; continue; }
-      if (first.contains('synthetic')) { targetTable = 5; continue; }
-      if (first.contains('description') || first.contains('name')) continue;
+  Future<Map<String, dynamic>> importFromData(List<List<String>> rows) async {
+    final importedRows = _parseImportedRows(rows);
+    if (importedRows.isEmpty) {
+      return {
+        'success': false,
+        'message': 'No valid other rows found in the selected file',
+      };
+    }
 
-      RxList<TextEditingController> currentList;
-      switch(targetTable) {
-        case 0: currentList = newActivityRows; break;
-        case 1: currentList = newAdditionRows; break;
-        case 2: currentList = newLossRows; break;
-        case 3: currentList = newWaterRows; break;
-        case 4: currentList = newOilRows; break;
-        default: currentList = newSyntheticRows; break;
-      }
+    int updated = 0;
+    int inserted = 0;
+    final errors = <String>[];
 
-      int emptyIdx = currentList.indexWhere((c) => c.text.isEmpty);
-      if (emptyIdx != -1) {
-        currentList[emptyIdx].text = row[0];
-      } else {
-        currentList.add(TextEditingController(text: row[0]));
+    final activityContext = _OthersContext<ActivityItem>(
+      items: activities,
+      idOf: (item) => item.id,
+      labelOf: (item) => item.description,
+    );
+    final additionContext = _OthersContext<AdditionItem>(
+      items: additions,
+      idOf: (item) => item.id,
+      labelOf: (item) => item.name,
+    );
+    final lossContext = _OthersContext<LossItem>(
+      items: losses,
+      idOf: (item) => item.id,
+      labelOf: (item) => item.name,
+    );
+    final waterContext = _OthersContext<WaterBasedItem>(
+      items: waterBased,
+      idOf: (item) => item.id,
+      labelOf: (item) => item.name,
+    );
+    final oilContext = _OthersContext<OilBasedItem>(
+      items: oilBased,
+      idOf: (item) => item.id,
+      labelOf: (item) => item.name,
+    );
+    final syntheticContext = _OthersContext<SyntheticItem>(
+      items: synthetic,
+      idOf: (item) => item.id,
+      labelOf: (item) => item.name,
+    );
+
+    final newActivities = <ActivityItem>[];
+    final newAdditions = <AdditionItem>[];
+    final newLosses = <LossItem>[];
+    final newWaterBased = <WaterBasedItem>[];
+    final newOilBased = <OilBasedItem>[];
+    final newSynthetic = <SyntheticItem>[];
+
+    for (final row in importedRows) {
+      switch (row.section) {
+        case _OthersSection.activity:
+          final existing = _matchOtherItem(row, activityContext);
+          if (existing?.id != null) {
+            if (existing!.description.trim() != row.value.trim()) {
+              final result = await _apiController.updateActivity(
+                existing.id!,
+                ActivityItem(id: existing.id, description: row.value),
+              );
+              if (result['success'] == true) {
+                updated += 1;
+              } else {
+                errors.add(
+                  'Activity ${row.value}: ${result['message'] ?? 'Update failed'}',
+                );
+              }
+            }
+          } else {
+            newActivities.add(ActivityItem(description: row.value));
+          }
+          break;
+        case _OthersSection.addition:
+          final existing = _matchOtherItem(row, additionContext);
+          if (existing?.id != null) {
+            if (existing!.name.trim() != row.value.trim()) {
+              final result = await _apiController.updateAddition(
+                existing.id!,
+                AdditionItem(id: existing.id, name: row.value),
+              );
+              if (result['success'] == true) {
+                updated += 1;
+              } else {
+                errors.add(
+                  'Addition ${row.value}: ${result['message'] ?? 'Update failed'}',
+                );
+              }
+            }
+          } else {
+            newAdditions.add(AdditionItem(name: row.value));
+          }
+          break;
+        case _OthersSection.loss:
+          final existing = _matchOtherItem(row, lossContext);
+          if (existing?.id != null) {
+            if (existing!.name.trim() != row.value.trim()) {
+              final result = await _apiController.updateLoss(
+                existing.id!,
+                LossItem(id: existing.id, name: row.value),
+              );
+              if (result['success'] == true) {
+                updated += 1;
+              } else {
+                errors.add(
+                  'Loss ${row.value}: ${result['message'] ?? 'Update failed'}',
+                );
+              }
+            }
+          } else {
+            newLosses.add(LossItem(name: row.value));
+          }
+          break;
+        case _OthersSection.water:
+          final existing = _matchOtherItem(row, waterContext);
+          if (existing?.id != null) {
+            if (existing!.name.trim() != row.value.trim()) {
+              final result = await _apiController.updateWaterBased(
+                existing.id!,
+                WaterBasedItem(id: existing.id, name: row.value),
+              );
+              if (result['success'] == true) {
+                updated += 1;
+              } else {
+                errors.add(
+                  'Water Based ${row.value}: ${result['message'] ?? 'Update failed'}',
+                );
+              }
+            }
+          } else {
+            newWaterBased.add(WaterBasedItem(name: row.value));
+          }
+          break;
+        case _OthersSection.oil:
+          final existing = _matchOtherItem(row, oilContext);
+          if (existing?.id != null) {
+            if (existing!.name.trim() != row.value.trim()) {
+              final result = await _apiController.updateOilBased(
+                existing.id!,
+                OilBasedItem(id: existing.id, name: row.value),
+              );
+              if (result['success'] == true) {
+                updated += 1;
+              } else {
+                errors.add(
+                  'Oil Based ${row.value}: ${result['message'] ?? 'Update failed'}',
+                );
+              }
+            }
+          } else {
+            newOilBased.add(OilBasedItem(name: row.value));
+          }
+          break;
+        case _OthersSection.synthetic:
+          final existing = _matchOtherItem(row, syntheticContext);
+          if (existing?.id != null) {
+            if (existing!.name.trim() != row.value.trim()) {
+              final result = await _apiController.updateSynthetic(
+                existing.id!,
+                SyntheticItem(id: existing.id, name: row.value),
+              );
+              if (result['success'] == true) {
+                updated += 1;
+              } else {
+                errors.add(
+                  'Synthetic ${row.value}: ${result['message'] ?? 'Update failed'}',
+                );
+              }
+            }
+          } else {
+            newSynthetic.add(SyntheticItem(name: row.value));
+          }
+          break;
       }
     }
+
+    if (newActivities.isNotEmpty) {
+      final result = await _apiController.addActivities(newActivities);
+      if (result['success'] == true) {
+        inserted += newActivities.length;
+      } else {
+        errors.add(result['message'] ?? 'Failed to add imported activities');
+      }
+    }
+
+    if (newAdditions.isNotEmpty) {
+      final result = await _apiController.addAdditions(newAdditions);
+      if (result['success'] == true) {
+        inserted += newAdditions.length;
+      } else {
+        errors.add(result['message'] ?? 'Failed to add imported additions');
+      }
+    }
+
+    if (newLosses.isNotEmpty) {
+      final result = await _apiController.addLosses(newLosses);
+      if (result['success'] == true) {
+        inserted += newLosses.length;
+      } else {
+        errors.add(result['message'] ?? 'Failed to add imported losses');
+      }
+    }
+
+    if (newWaterBased.isNotEmpty) {
+      final result = await _apiController.addWaterBased(newWaterBased);
+      if (result['success'] == true) {
+        inserted += newWaterBased.length;
+      } else {
+        errors.add(
+          result['message'] ?? 'Failed to add imported water-based rows',
+        );
+      }
+    }
+
+    if (newOilBased.isNotEmpty) {
+      final result = await _apiController.addOilBased(newOilBased);
+      if (result['success'] == true) {
+        inserted += newOilBased.length;
+      } else {
+        errors.add(
+          result['message'] ?? 'Failed to add imported oil-based rows',
+        );
+      }
+    }
+
+    if (newSynthetic.isNotEmpty) {
+      final result = await _apiController.addSynthetic(newSynthetic);
+      if (result['success'] == true) {
+        inserted += newSynthetic.length;
+      } else {
+        errors.add(
+          result['message'] ?? 'Failed to add imported synthetic rows',
+        );
+      }
+    }
+
+    await fetchAllData();
+
+    if (errors.isNotEmpty) {
+      return {
+        'success': false,
+        'message':
+            'Others import finished with issues. Updated: $updated, Added: $inserted',
+        'updated': updated,
+        'inserted': inserted,
+        'errors': errors,
+      };
+    }
+
+    return {
+      'success': true,
+      'message': 'Others imported successfully. Updated: $updated, Added: $inserted',
+      'updated': updated,
+      'inserted': inserted,
+    };
   }
+
+  T? _matchOtherItem<T>(
+    _ImportedOtherRow row,
+    _OthersContext<T> context,
+  ) {
+    final recordId = row.recordId.trim();
+    if (recordId.isNotEmpty && context.byId.containsKey(recordId)) {
+      return context.byId[recordId];
+    }
+
+    final labelKey = _normalizeKey(row.value);
+    if (labelKey.isNotEmpty && context.byLabel.containsKey(labelKey)) {
+      return context.byLabel[labelKey];
+    }
+
+    return null;
+  }
+
+  List<_ImportedOtherRow> _parseImportedRows(List<List<String>> rows) {
+    final parsed = <_ImportedOtherRow>[];
+    var section = _OthersSection.activity;
+
+    for (final sourceRow in rows) {
+      final row = List<String>.from(sourceRow);
+      if (row.isEmpty || row.every((cell) => cell.trim().isEmpty)) {
+        continue;
+      }
+
+      final first = row.first.trim().toLowerCase();
+      if (first.contains('activity')) {
+        section = _OthersSection.activity;
+        continue;
+      }
+      if (first.contains('addition')) {
+        section = _OthersSection.addition;
+        continue;
+      }
+      if (first.contains('loss')) {
+        section = _OthersSection.loss;
+        continue;
+      }
+      if (first.contains('water')) {
+        section = _OthersSection.water;
+        continue;
+      }
+      if (first.contains('oil')) {
+        section = _OthersSection.oil;
+        continue;
+      }
+      if (first.contains('synthetic')) {
+        section = _OthersSection.synthetic;
+        continue;
+      }
+
+      final header = row.map((cell) => cell.trim().toLowerCase()).toList();
+      final hasRecordId = header.isNotEmpty && header.first == 'record id';
+      if (header.contains('description') || header.contains('name')) {
+        continue;
+      }
+
+      final minimumLength = hasRecordId ? 2 : 1;
+      while (row.length < minimumLength) {
+        row.add('');
+      }
+
+      final value = row[hasRecordId ? 1 : 0].trim();
+      if (value.isEmpty) {
+        continue;
+      }
+
+      parsed.add(
+        _ImportedOtherRow(
+          section: section,
+          recordId: hasRecordId ? row[0].trim() : '',
+          value: value,
+        ),
+      );
+    }
+
+    return parsed;
+  }
+
+  String _normalizeKey(String value) => value.trim().toLowerCase();
 
   @override
   void onClose() {
@@ -333,5 +658,42 @@ class OthersGetxController extends GetxController {
     _clearList(newOilRows);
     _clearList(newSyntheticRows);
     super.onClose();
+  }
+}
+
+enum _OthersSection { activity, addition, loss, water, oil, synthetic }
+
+class _ImportedOtherRow {
+  final _OthersSection section;
+  final String recordId;
+  final String value;
+
+  const _ImportedOtherRow({
+    required this.section,
+    required this.recordId,
+    required this.value,
+  });
+}
+
+class _OthersContext<T> {
+  final Map<String, T> byId = <String, T>{};
+  final Map<String, T> byLabel = <String, T>{};
+
+  _OthersContext({
+    required Iterable<T> items,
+    required String? Function(T item) idOf,
+    required String Function(T item) labelOf,
+  }) {
+    for (final item in items) {
+      final id = idOf(item)?.trim();
+      if (id != null && id.isNotEmpty) {
+        byId[id] = item;
+      }
+
+      final label = labelOf(item).trim().toLowerCase();
+      if (label.isNotEmpty) {
+        byLabel[label] = item;
+      }
+    }
   }
 }

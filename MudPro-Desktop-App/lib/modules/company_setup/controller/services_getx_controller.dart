@@ -287,50 +287,319 @@ class ServicesGetxController extends GetxController {
   Map<String, List<List<String>>> getExportData() {
     return {
       'Packages': [
-        ['Name', 'Code', 'Unit', 'Price'],
-        ...packages.map((e) => [e.name, e.code, e.unit, e.price.toString()])
+        ['Record ID', 'Name', 'Code', 'Unit', 'Price'],
+        ...packages.map((e) => [
+              e.id ?? '',
+              e.name,
+              e.code,
+              e.unit,
+              e.price.toString(),
+            ])
       ],
       'Services': [
-        ['Name', 'Code', 'Unit', 'Price'],
-        ...services.map((e) => [e.name, e.code, e.unit, e.price.toString()])
+        ['Record ID', 'Name', 'Code', 'Unit', 'Price'],
+        ...services.map((e) => [
+              e.id ?? '',
+              e.name,
+              e.code,
+              e.unit,
+              e.price.toString(),
+            ])
       ],
       'Engineering': [
-        ['Name', 'Code', 'Unit', 'Price'],
-        ...engineering.map((e) => [e.name, e.code, e.unit, e.price.toString()])
+        ['Record ID', 'Name', 'Code', 'Unit', 'Price'],
+        ...engineering.map((e) => [
+              e.id ?? '',
+              e.name,
+              e.code,
+              e.unit,
+              e.price.toString(),
+            ])
       ],
     };
   }
 
-  void importFromData(List<List<String>> rows) {
-    _emptyNewRows();
-    int targetTable = 0; // 0: Package, 1: Service, 2: Engineering
-    for (var row in rows) {
-      if (row.isEmpty) continue;
-      String firstCell = row[0].toLowerCase();
-      if (firstCell.contains('package')) { targetTable = 0; continue; }
-      if (firstCell.contains('service')) { targetTable = 1; continue; }
-      if (firstCell.contains('engineering')) { targetTable = 2; continue; }
-      if (firstCell.contains('name')) continue;
+  Future<Map<String, dynamic>> importFromData(List<List<String>> rows) async {
+    final importedRows = _parseImportedRows(rows);
+    if (importedRows.isEmpty) {
+      return {
+        'success': false,
+        'message': 'No valid service rows found in the selected file',
+      };
+    }
 
-      RxList<List<TextEditingController>> currentTable;
-      if (targetTable == 0) currentTable = newPackageRows;
-      else if (targetTable == 1) currentTable = newServiceRows;
-      else currentTable = newEngineeringRows;
+    int updated = 0;
+    int inserted = 0;
+    final errors = <String>[];
 
-      int emptyRowIdx = currentTable.indexWhere((r) => r[0].text.isEmpty);
-      if (emptyRowIdx != -1) {
-        for (int i = 0; i < row.length && i < 4; i++) {
-          currentTable[emptyRowIdx][i].text = row[i];
-        }
-      } else {
-        final newRow = _genRow(4);
-        for (int i = 0; i < row.length && i < 4; i++) {
-          newRow[i].text = row[i];
-        }
-        currentTable.add(newRow);
+    final packageContext = _ServiceSectionContext<PackageItem>(
+      items: packages,
+      idOf: (item) => item.id,
+      codeOf: (item) => item.code,
+      nameOf: (item) => item.name,
+    );
+    final serviceContext = _ServiceSectionContext<ServiceItem>(
+      items: services,
+      idOf: (item) => item.id,
+      codeOf: (item) => item.code,
+      nameOf: (item) => item.name,
+    );
+    final engineeringContext = _ServiceSectionContext<EngineeringItem>(
+      items: engineering,
+      idOf: (item) => item.id,
+      codeOf: (item) => item.code,
+      nameOf: (item) => item.name,
+    );
+
+    final newPackages = <PackageItem>[];
+    final newServices = <ServiceItem>[];
+    final newEngineeringItems = <EngineeringItem>[];
+
+    for (final row in importedRows) {
+      switch (row.section) {
+        case _ServiceSection.package:
+          final existing = _matchServiceItem(row, packageContext);
+          final imported = PackageItem(
+            id: existing?.id,
+            name: row.name,
+            code: row.code,
+            unit: row.unit,
+            price: row.price,
+          );
+          if (existing?.id != null) {
+            if (!_sameServiceFields(
+              name: existing!.name,
+              code: existing.code,
+              unit: existing.unit,
+              price: existing.price,
+              imported: row,
+            )) {
+              final result =
+                  await _apiController.updatePackage(existing.id!, imported);
+              if (result['success'] == true) {
+                updated += 1;
+              } else {
+                errors.add(
+                  'Package ${row.code.isEmpty ? row.name : row.code}: ${result['message'] ?? 'Update failed'}',
+                );
+              }
+            }
+          } else {
+            newPackages.add(imported);
+          }
+          break;
+        case _ServiceSection.service:
+          final existing = _matchServiceItem(row, serviceContext);
+          final imported = ServiceItem(
+            id: existing?.id,
+            name: row.name,
+            code: row.code,
+            unit: row.unit,
+            price: row.price,
+          );
+          if (existing?.id != null) {
+            if (!_sameServiceFields(
+              name: existing!.name,
+              code: existing.code,
+              unit: existing.unit,
+              price: existing.price,
+              imported: row,
+            )) {
+              final result =
+                  await _apiController.updateService(existing.id!, imported);
+              if (result['success'] == true) {
+                updated += 1;
+              } else {
+                errors.add(
+                  'Service ${row.code.isEmpty ? row.name : row.code}: ${result['message'] ?? 'Update failed'}',
+                );
+              }
+            }
+          } else {
+            newServices.add(imported);
+          }
+          break;
+        case _ServiceSection.engineering:
+          final existing = _matchServiceItem(row, engineeringContext);
+          final imported = EngineeringItem(
+            id: existing?.id,
+            name: row.name,
+            code: row.code,
+            unit: row.unit,
+            price: row.price,
+          );
+          if (existing?.id != null) {
+            if (!_sameServiceFields(
+              name: existing!.name,
+              code: existing.code,
+              unit: existing.unit,
+              price: existing.price,
+              imported: row,
+            )) {
+              final result = await _apiController.updateEngineering(
+                existing.id!,
+                imported,
+              );
+              if (result['success'] == true) {
+                updated += 1;
+              } else {
+                errors.add(
+                  'Engineering ${row.code.isEmpty ? row.name : row.code}: ${result['message'] ?? 'Update failed'}',
+                );
+              }
+            }
+          } else {
+            newEngineeringItems.add(imported);
+          }
+          break;
       }
     }
+
+    if (newPackages.isNotEmpty) {
+      final result = await _apiController.addPackages(newPackages);
+      if (result['success'] == true) {
+        inserted += newPackages.length;
+      } else {
+        errors.add(result['message'] ?? 'Failed to add imported packages');
+      }
+    }
+
+    if (newServices.isNotEmpty) {
+      final result = await _apiController.addServices(newServices);
+      if (result['success'] == true) {
+        inserted += newServices.length;
+      } else {
+        errors.add(result['message'] ?? 'Failed to add imported services');
+      }
+    }
+
+    if (newEngineeringItems.isNotEmpty) {
+      final result = await _apiController.addEngineering(newEngineeringItems);
+      if (result['success'] == true) {
+        inserted += newEngineeringItems.length;
+      } else {
+        errors.add(
+          result['message'] ?? 'Failed to add imported engineering items',
+        );
+      }
+    }
+
+    await loadAllData();
+
+    if (errors.isNotEmpty) {
+      return {
+        'success': false,
+        'message':
+            'Services import finished with issues. Updated: $updated, Added: $inserted',
+        'updated': updated,
+        'inserted': inserted,
+        'errors': errors,
+      };
+    }
+
+    return {
+      'success': true,
+      'message': 'Services imported successfully. Updated: $updated, Added: $inserted',
+      'updated': updated,
+      'inserted': inserted,
+    };
   }
+
+  T? _matchServiceItem<T>(
+    _ImportedServiceRow row,
+    _ServiceSectionContext<T> context,
+  ) {
+    final recordId = row.recordId.trim();
+    if (recordId.isNotEmpty && context.byId.containsKey(recordId)) {
+      return context.byId[recordId];
+    }
+
+    final codeKey = _normalizeKey(row.code);
+    if (codeKey.isNotEmpty && context.byCode.containsKey(codeKey)) {
+      return context.byCode[codeKey];
+    }
+
+    final nameKey = _normalizeKey(row.name);
+    if (nameKey.isNotEmpty && context.byName.containsKey(nameKey)) {
+      return context.byName[nameKey];
+    }
+
+    return null;
+  }
+
+  bool _sameServiceFields({
+    required String name,
+    required String code,
+    required String unit,
+    required double price,
+    required _ImportedServiceRow imported,
+  }) {
+    return name.trim() == imported.name.trim() &&
+        code.trim() == imported.code.trim() &&
+        unit.trim() == imported.unit.trim() &&
+        price == imported.price;
+  }
+
+  List<_ImportedServiceRow> _parseImportedRows(List<List<String>> rows) {
+    final parsed = <_ImportedServiceRow>[];
+    var section = _ServiceSection.package;
+
+    for (final sourceRow in rows) {
+      final row = List<String>.from(sourceRow);
+      if (row.isEmpty || row.every((cell) => cell.trim().isEmpty)) {
+        continue;
+      }
+
+      final first = row.first.trim().toLowerCase();
+      if (first.contains('package')) {
+        section = _ServiceSection.package;
+        continue;
+      }
+      if (first.contains('service')) {
+        section = _ServiceSection.service;
+        continue;
+      }
+      if (first.contains('engineering')) {
+        section = _ServiceSection.engineering;
+        continue;
+      }
+
+      final header = row.map((cell) => cell.trim().toLowerCase()).toList();
+      final hasRecordId = header.isNotEmpty && header.first == 'record id';
+      if (header.contains('name') && header.contains('code')) {
+        continue;
+      }
+
+      final minimumLength = hasRecordId ? 5 : 4;
+      while (row.length < minimumLength) {
+        row.add('');
+      }
+
+      final offset = hasRecordId ? 1 : 0;
+      final name = row[offset].trim();
+      final code = row[offset + 1].trim();
+      final unit = row[offset + 2].trim();
+      final priceText = row[offset + 3].trim();
+      if ([name, code, unit, priceText].every((value) => value.isEmpty)) {
+        continue;
+      }
+
+      parsed.add(
+        _ImportedServiceRow(
+          section: section,
+          recordId: hasRecordId ? row[0].trim() : '',
+          name: name,
+          code: code,
+          unit: unit,
+          price: double.tryParse(priceText) ?? 0,
+        ),
+      );
+    }
+
+    return parsed;
+  }
+
+  String _normalizeKey(String value) => value.trim().toLowerCase();
 
   @override
   void onClose() {
@@ -338,5 +607,55 @@ class ServicesGetxController extends GetxController {
     _clearList(newServiceRows);
     _clearList(newEngineeringRows);
     super.onClose();
+  }
+}
+
+enum _ServiceSection { package, service, engineering }
+
+class _ImportedServiceRow {
+  final _ServiceSection section;
+  final String recordId;
+  final String name;
+  final String code;
+  final String unit;
+  final double price;
+
+  const _ImportedServiceRow({
+    required this.section,
+    required this.recordId,
+    required this.name,
+    required this.code,
+    required this.unit,
+    required this.price,
+  });
+}
+
+class _ServiceSectionContext<T> {
+  final Map<String, T> byId = <String, T>{};
+  final Map<String, T> byCode = <String, T>{};
+  final Map<String, T> byName = <String, T>{};
+
+  _ServiceSectionContext({
+    required Iterable<T> items,
+    required String? Function(T item) idOf,
+    required String Function(T item) codeOf,
+    required String Function(T item) nameOf,
+  }) {
+    for (final item in items) {
+      final id = idOf(item)?.trim();
+      if (id != null && id.isNotEmpty) {
+        byId[id] = item;
+      }
+
+      final code = codeOf(item).trim().toLowerCase();
+      if (code.isNotEmpty) {
+        byCode[code] = item;
+      }
+
+      final name = nameOf(item).trim().toLowerCase();
+      if (name.isNotEmpty) {
+        byName[name] = item;
+      }
+    }
   }
 }

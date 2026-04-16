@@ -196,13 +196,19 @@ class ConsumeProductController {
   Future<List<Map<String, dynamic>>> getAllConsumeProducts() async {
     try {
       final wellId = currentBackendWellId.trim();
+      final reportId = reportContext.selectedReportId.value.trim();
       if (wellId.isEmpty) {
         return [];
       }
 
       final uri = Uri.parse(
         '${baseUrl}consume-product',
-      ).replace(queryParameters: {'wellId': wellId});
+      ).replace(
+        queryParameters: {
+          'wellId': wellId,
+          if (reportId.isNotEmpty) 'reportId': reportId,
+        },
+      );
 
       print('🔵 [API] GET $uri');
 
@@ -221,7 +227,8 @@ class ConsumeProductController {
         return items
             .map((e) => Map<String, dynamic>.from(e as Map))
             .where(
-              (item) => (item['wellId']?.toString().trim() ?? '') == wellId,
+              (item) =>
+                  (item['wellId']?.toString().trim() ?? '') == wellId,
             )
             .toList();
       } else {

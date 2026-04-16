@@ -48,18 +48,14 @@ class CompanySetupController extends GetxController {
   }
 
   void _performImport() async {
-    // For OperatorTab, we might need special handling if we want to fill ITS controllers.
-    // However, since it's a generic Import button at the top, we'll try to find the controller.
-    // FileIoUtils.importTabData will handle finding the right GetX controller.
-    
-    // Note: OperatorTab uses local controllers in its State, which is NOT ideal for global import.
-    // I should probably have moved OperatorTab's newEntryControllers to OperatorController.
-    // Let me quickly check if I can do that or if I should just use the GetX controller's import.
-    
     await FileIoUtils.importTabData(currentTabIndex.value);
   }
 
   void handleExport() async {
+    await FileIoUtils.exportTabData(currentTabIndex.value);
+  }
+
+  void handleExportAll() async {
     await FileIoUtils.exportAllData();
   }
 }

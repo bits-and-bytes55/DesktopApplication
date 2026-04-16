@@ -1,5 +1,5 @@
 import ConsumeProduct from "../../modules/Consumeproduct/ConsumeProduct.js";
-import { readReportId } from "../../utils/reportScope.js";
+import { legacyReportScope, readReportId } from "../../utils/reportScope.js";
 
 const toNumber = (value, fallback = 0) => {
   const numericValue = Number(value);
@@ -167,10 +167,29 @@ export const getAllConsumeProducts = async (req, res) => {
       filter.reportId = reportId;
     }
 
-    const products = await ConsumeProduct.find(filter).sort({
-      createdAt: 1,
-      _id: 1,
-    });
+    let products;
+
+    if (wellId && reportId) {
+      products = await ConsumeProduct.find({ wellId, reportId }).sort({
+        createdAt: 1,
+        _id: 1,
+      });
+
+      if (products.length === 0) {
+        products = await ConsumeProduct.find({
+          wellId,
+          ...legacyReportScope(),
+        }).sort({
+          createdAt: 1,
+          _id: 1,
+        });
+      }
+    } else {
+      products = await ConsumeProduct.find(filter).sort({
+        createdAt: 1,
+        _id: 1,
+      });
+    }
 
     res.status(200).json({
       success: true,

@@ -2,6 +2,7 @@ import WellGeneral from "../../modules/wellGeneral/wellGeneralModel.js";
 import Casing from "../../modules/casing/casing.model.js";
 import Pit from "../../modules/pit/pit.model.js";
 import ConsumeProduct from "../../modules/Consumeproduct/ConsumeProduct.js";
+import ConsumeProductDistributionState from "../../modules/Consumeproduct/ConsumeProductDistributionState.js";
 import ReceiveMud from "../../modules/receivemud/ReceiveMud.js";
 import ReturnLostMud from "../../modules/returnlostmud/ReturnLostMud.js";
 import AddWater from "../../modules/addwater/AddWater.js";
@@ -154,6 +155,69 @@ const findScopedPits = async ({ wellId, reportId }) => {
 
   return Pit.find({ wellId }).sort({ createdAt: 1, _id: 1 });
 };
+
+const findScopedConsumeProductDistributionState = async ({
+  wellId,
+  reportId,
+}) => {
+  if (reportId) {
+    const scopedState = await ConsumeProductDistributionState.findOne({
+      wellId,
+      reportId,
+    }).sort({ updatedAt: -1, createdAt: -1 });
+
+    if (scopedState) {
+      return scopedState;
+    }
+
+    return ConsumeProductDistributionState.findOne(legacyScopeFilter(wellId)).sort({
+      updatedAt: -1,
+      createdAt: -1,
+    });
+  }
+
+  return ConsumeProductDistributionState.findOne({ wellId }).sort({
+    updatedAt: -1,
+    createdAt: -1,
+  });
+};
+
+const cleanDistributionRows = (items = []) =>
+  items
+    .map((item) => ({
+      pitName: toText(item?.pitName),
+      volume: Number(toNumber(item?.volume).toFixed(2)),
+    }))
+    .filter((item) => item.pitName && item.volume > 0);
+
+const buildCalculatedVolumeMap = (distributionRows = []) => {
+  const calculatedVolumeByPit = new Map();
+  let activeSystemVolume = 0;
+
+  for (const row of distributionRows) {
+    const key = toText(row.pitName).toLowerCase();
+    if (!key) continue;
+
+    if (key === "active system") {
+      activeSystemVolume = Number((activeSystemVolume + toNumber(row.volume)).toFixed(2));
+      continue;
+    }
+
+    const current = calculatedVolumeByPit.get(key) ?? 0;
+    calculatedVolumeByPit.set(
+      key,
+      Number((current + toNumber(row.volume)).toFixed(2))
+    );
+  }
+
+  return {
+    activeSystemVolume,
+    calculatedVolumeByPit,
+  };
+};
+
+const scopedOperationFilter = ({ wellId, reportId }) =>
+  reportId ? { wellId, reportId } : legacyScopeFilter(wellId);
 
 const buildWellGeneralPayload = ({ wellId, body, reportMeta, existing }) => ({
   wellId,
@@ -316,20 +380,12 @@ export const createCasing = async (req, res) => {
 export const createConsumeProduct = async (req, res) => {
   try {
     const wellId = getWellId(req);
-
-    const {
-      product,
-      code,
-      sg,
-      unit,
-      price,
-      initial,
-      adjust,
-      used,
-      final,
-      cost,
-      volumeBbl,
-    } = req.body;
+    const reportId = getReportId(req);
+    const inputMethod = toText(req.body.inputMethod) || "Used";
+    const addWaterEnabled = Boolean(req.body.addWater);
+    const addWaterVolume = Number(toNumber(req.body.addWaterVolume).toFixed(2));
+    const totalVolume = Number(toNumber(req.body.totalVolume).toFixed(2));
+    const distributions = cleanDistributionRows(req.body.distributions);
 
     if (!wellId) {
       return res.status(400).json({
@@ -338,24 +394,47 @@ export const createConsumeProduct = async (req, res) => {
       });
     }
 
-    const item = await ConsumeProduct.create({
-      wellId,
-      product: product || "",
-      code: code || "",
-      sg: sg === null || sg === undefined || sg === "" ? null : Number(sg),
-      unit: unit || "",
-      price: Number(price) || 0,
-      initial: Number(initial) || 0,
-      adjust: Number(adjust) || 0,
-      used: Number(used) || 0,
-      final: Number(final) || 0,
-      cost: Number(cost) || 0,
-      volumeBbl: Number(volumeBbl) || 0,
-    });
+    const hasMeaningfulState = totalVolume > 0 || distributions.length > 0 || addWaterEnabled;
 
-    return res.status(201).json({
+    if (!hasMeaningfulState) {
+      await ConsumeProductDistributionState.deleteMany(scopedOperationFilter({ wellId, reportId }));
+
+      return res.status(200).json({
+        success: true,
+        message: "Consume product distribution cleared successfully",
+        data: {
+          wellId,
+          reportId,
+          inputMethod,
+          addWaterEnabled: false,
+          addWaterVolume: 0,
+          totalVolume: 0,
+          distributions: [],
+        },
+      });
+    }
+
+    const item = await ConsumeProductDistributionState.findOneAndUpdate(
+      scopedOperationFilter({ wellId, reportId }),
+      {
+        wellId,
+        reportId,
+        inputMethod,
+        addWaterEnabled,
+        addWaterVolume,
+        totalVolume,
+        distributions,
+      },
+      {
+        new: true,
+        upsert: true,
+        setDefaultsOnInsert: true,
+      }
+    );
+
+    return res.status(200).json({
       success: true,
-      message: "Consume product saved successfully",
+      message: "Consume product distribution saved successfully",
       data: item,
     });
   } catch (error) {
@@ -462,7 +541,7 @@ export const getVolumeNameCalculation = async (req, res) => {
 
     const reportMeta = await resolveReportMeta({ wellId, reportId, reportNo });
 
-    const [wellGeneral, casings, pits, consumeProducts, receivedMud, returnLostMud, addWaterEntries, otherVolAdditions, mudLossEntries, mudLossStorageEntries] =
+    const [wellGeneral, casings, pits, distributionState, consumeProducts, receivedMud, returnLostMud, addWaterEntries, otherVolAdditions, mudLossEntries, mudLossStorageEntries] =
       await Promise.all([
         findScopedWellGeneral({
           wellId,
@@ -471,13 +550,31 @@ export const getVolumeNameCalculation = async (req, res) => {
         }),
         findScopedCasings({ wellId, reportId: reportMeta.reportId }),
         findScopedPits({ wellId, reportId: reportMeta.reportId }),
-        ConsumeProduct.find({ wellId }).sort({ createdAt: 1 }),
-        ReceiveMud.find({ wellId }).sort({ createdAt: 1 }),
-        ReturnLostMud.find({ wellId }).sort({ createdAt: 1 }),
-        AddWater.find({ wellId }).sort({ createdAt: 1 }),
-        OtherVolAddition.find({ wellId }).sort({ createdAt: 1 }),
-        MudLoss.find({ wellId }).sort({ createdAt: 1 }),
-        MudLossStorage.find({ wellId }).sort({ createdAt: 1 }),
+        findScopedConsumeProductDistributionState({
+          wellId,
+          reportId: reportMeta.reportId,
+        }),
+        ConsumeProduct.find(
+          scopedOperationFilter({ wellId, reportId: reportMeta.reportId })
+        ).sort({ createdAt: 1, _id: 1 }),
+        ReceiveMud.find(
+          scopedOperationFilter({ wellId, reportId: reportMeta.reportId })
+        ).sort({ createdAt: 1, _id: 1 }),
+        ReturnLostMud.find(
+          scopedOperationFilter({ wellId, reportId: reportMeta.reportId })
+        ).sort({ createdAt: 1, _id: 1 }),
+        AddWater.find(
+          scopedOperationFilter({ wellId, reportId: reportMeta.reportId })
+        ).sort({ createdAt: 1, _id: 1 }),
+        OtherVolAddition.find(
+          scopedOperationFilter({ wellId, reportId: reportMeta.reportId })
+        ).sort({ createdAt: 1, _id: 1 }),
+        MudLoss.find(
+          scopedOperationFilter({ wellId, reportId: reportMeta.reportId })
+        ).sort({ createdAt: 1, _id: 1 }),
+        MudLossStorage.find(
+          scopedOperationFilter({ wellId, reportId: reportMeta.reportId })
+        ).sort({ createdAt: 1, _id: 1 }),
       ]);
 
     const md = toNumber(wellGeneral?.md);
@@ -504,6 +601,9 @@ export const getVolumeNameCalculation = async (req, res) => {
     const activeSystem = Number((activePits + hole).toFixed(2));
     const endVol = activeSystem;
     const endVolMinusActiveSystem = 0;
+    const distributionRows = cleanDistributionRows(distributionState?.distributions ?? []);
+    const { activeSystemVolume, calculatedVolumeByPit } =
+      buildCalculatedVolumeMap(distributionRows);
 
     const consumeProductTotal = Number(
       consumeProducts.reduce((sum, item) => sum + toNumber(item.volumeBbl), 0).toFixed(2)
@@ -570,6 +670,7 @@ export const getVolumeNameCalculation = async (req, res) => {
           endVolMinusActiveSystem,
           totalStorage,
           totalOnLocation,
+          previousTotalOnLocation: 0,
         },
         totalsBreakdown: {
           consumeProductTotal,
@@ -579,6 +680,16 @@ export const getVolumeNameCalculation = async (req, res) => {
           lostMudTotal,
           mudLossTotal,
           mudLossStorageTotal,
+        },
+        consumeProductDistribution: {
+          inputMethod: toText(distributionState?.inputMethod) || "Used",
+          addWaterEnabled: Boolean(distributionState?.addWaterEnabled),
+          addWaterVolume: Number(
+            toNumber(distributionState?.addWaterVolume).toFixed(2)
+          ),
+          totalVolume: Number(toNumber(distributionState?.totalVolume).toFixed(2)),
+          activeSystemVolume,
+          distributions: distributionRows,
         },
         activePitsTable: activePitsList.map((pit) => ({
           _id: pit._id,
@@ -591,7 +702,7 @@ export const getVolumeNameCalculation = async (req, res) => {
         storageTable: storagePitsList.map((pit) => ({
           _id: pit._id,
           pitName: pit.pitName,
-          calculatedVol: 0,
+          calculatedVol: calculatedVolumeByPit.get(toText(pit.pitName).toLowerCase()) ?? 0,
           measuredVol: toNumber(pit.volume),
           mw: toNumber(pit.density),
           fluidType: pit.fluidType || "",

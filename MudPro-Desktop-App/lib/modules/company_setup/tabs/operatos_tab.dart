@@ -254,6 +254,50 @@ class _OperatorTabState extends State<OperatorTab> {
                 ),
                 Row(
                   children: [
+                    Obx(() => IgnorePointer(
+                      ignoring: setupController.isLocked.value,
+                      child: Opacity(
+                        opacity: setupController.isLocked.value ? 0.6 : 1.0,
+                        child: ElevatedButton.icon(
+                          onPressed: () => setupController.handleImport(),
+                          style: AppTheme.secondaryButtonStyle.copyWith(
+                            padding: MaterialStateProperty.all(
+                              const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                            ),
+                            minimumSize:
+                                MaterialStateProperty.all(const Size(0, 32)),
+                          ),
+                          icon: const Icon(Icons.file_upload, size: 14),
+                          label: const Text(
+                            'Import',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                        ),
+                      ),
+                    )),
+                    const SizedBox(width: 8),
+                    ElevatedButton.icon(
+                      onPressed: () => setupController.handleExport(),
+                      style: AppTheme.secondaryButtonStyle.copyWith(
+                        padding: MaterialStateProperty.all(
+                          const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                        ),
+                        minimumSize:
+                            MaterialStateProperty.all(const Size(0, 32)),
+                      ),
+                      icon: const Icon(Icons.file_download, size: 14),
+                      label: const Text(
+                        'Export',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
                     OutlinedButton.icon(onPressed: () => Navigator.of(context).pop(), style: OutlinedButton.styleFrom(side: BorderSide(color: AppTheme.errorColor), foregroundColor: AppTheme.errorColor, padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), minimumSize: const Size(0, 32)), icon: const Icon(Icons.close, size: 14), label: const Text('Close', style: TextStyle(fontSize: 12))),
                     const SizedBox(width: 8),
                     Obx(() => IgnorePointer(

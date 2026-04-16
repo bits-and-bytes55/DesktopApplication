@@ -84,28 +84,222 @@ class OperatorController extends GetxController {
   }
 
   List<List<String>> getExportData() {
-    List<List<String>> data = [['Company', 'Contact', 'Address', 'Phone', 'E-mail', 'Logo URL']];
-    for (var op in operators) data.add([op.company, op.contact, op.address, op.phone, op.email, op.logoUrl]);
+    List<List<String>> data = [[
+      'Record ID',
+      'Company',
+      'Contact',
+      'Address',
+      'Phone',
+      'E-mail',
+      'Logo URL',
+    ]];
+    for (var op in operators) {
+      data.add([
+        op.id ?? '',
+        op.company,
+        op.contact,
+        op.address,
+        op.phone,
+        op.email,
+        op.logoUrl,
+      ]);
+    }
     return data;
   }
 
-  void importFromData(List<List<String>> rows) {
-    _resetNewEntries();
-    newEntryControllers.clear();
-    for (int i = 0; i < rows.length; i++) {
-      if (rows[i].length < 5) continue;
-      final controllers = List.generate(6, (_) => TextEditingController());
-      controllers[0].text = rows[i][0];
-      controllers[1].text = rows[i][1];
-      controllers[2].text = rows[i][2];
-      controllers[3].text = rows[i][3];
-      controllers[4].text = rows[i][4];
-      if (rows[i].length > 5 && rows[i][5].startsWith('data:image')) selectedLogos[i] = rows[i][5];
-      newEntryControllers.add(controllers);
+  Future<Map<String, dynamic>> importFromData(List<List<String>> rows) async {
+    final importedRows = _parseImportedRows(rows);
+    if (importedRows.isEmpty) {
+      return {
+        'success': false,
+        'message': 'No valid operator rows found in the selected file',
+      };
     }
-    if (newEntryControllers.isEmpty) newEntryControllers.add(List.generate(6, (_) => TextEditingController()));
-    selectedLogos.refresh();
+
+    int updated = 0;
+    int inserted = 0;
+    final errors = <String>[];
+
+    final byId = <String, OperatorModel>{};
+    final byEmail = <String, OperatorModel>{};
+    final byCompany = <String, OperatorModel>{};
+    for (final operator in operators) {
+      final id = operator.id?.trim();
+      if (id != null && id.isNotEmpty) {
+        byId[id] = operator;
+      }
+      final emailKey = _normalizeKey(operator.email);
+      if (emailKey.isNotEmpty) {
+        byEmail[emailKey] = operator;
+      }
+      final companyKey = _normalizeKey(operator.company);
+      if (companyKey.isNotEmpty) {
+        byCompany[companyKey] = operator;
+      }
+    }
+
+    final newOperators = <OperatorModel>[];
+
+    for (final row in importedRows) {
+      final matchedOperator = _findExistingOperator(
+        row: row,
+        byId: byId,
+        byEmail: byEmail,
+        byCompany: byCompany,
+      );
+
+      final importedOperator = OperatorModel(
+        id: matchedOperator?.id,
+        company: row.company,
+        contact: row.contact,
+        address: row.address,
+        phone: row.phone,
+        email: row.email,
+        logoUrl:
+            row.logoUrl.isEmpty ? (matchedOperator?.logoUrl ?? '') : row.logoUrl,
+      );
+
+      if (matchedOperator?.id != null) {
+        if (!_sameOperatorData(matchedOperator!, importedOperator)) {
+          final updatePayload = {
+            'company': importedOperator.company,
+            'contact': importedOperator.contact,
+            'address': importedOperator.address,
+            'phone': importedOperator.phone,
+            'email': importedOperator.email,
+            'logoUrl': importedOperator.logoUrl,
+          };
+          final result = await _repo.updateOperator(
+            matchedOperator.id!,
+            updatePayload,
+          );
+          if (result['success'] == true) {
+            updated += 1;
+          } else {
+            errors.add(
+              'Operator ${row.company}: ${result['message'] ?? 'Update failed'}',
+            );
+          }
+        }
+      } else {
+        newOperators.add(importedOperator);
+      }
+    }
+
+    if (newOperators.isNotEmpty) {
+      final result = await _repo.saveOperators(
+        newOperators.map((item) => item.toJson()).toList(),
+      );
+      if (result['success'] == true) {
+        inserted += newOperators.length;
+      } else {
+        errors.add(result['message'] ?? 'Failed to add imported operators');
+      }
+    }
+
+    await fetchOperators();
+
+    if (errors.isNotEmpty) {
+      return {
+        'success': false,
+        'message':
+            'Operator import finished with issues. Updated: $updated, Added: $inserted',
+        'updated': updated,
+        'inserted': inserted,
+        'errors': errors,
+      };
+    }
+
+    return {
+      'success': true,
+      'message': 'Operators imported successfully. Updated: $updated, Added: $inserted',
+      'updated': updated,
+      'inserted': inserted,
+    };
   }
+
+  OperatorModel? _findExistingOperator({
+    required _ImportedOperatorRow row,
+    required Map<String, OperatorModel> byId,
+    required Map<String, OperatorModel> byEmail,
+    required Map<String, OperatorModel> byCompany,
+  }) {
+    final recordId = row.recordId.trim();
+    if (recordId.isNotEmpty && byId.containsKey(recordId)) {
+      return byId[recordId];
+    }
+
+    final emailKey = _normalizeKey(row.email);
+    if (emailKey.isNotEmpty && byEmail.containsKey(emailKey)) {
+      return byEmail[emailKey];
+    }
+
+    final companyKey = _normalizeKey(row.company);
+    if (companyKey.isNotEmpty && byCompany.containsKey(companyKey)) {
+      return byCompany[companyKey];
+    }
+
+    return null;
+  }
+
+  bool _sameOperatorData(OperatorModel existing, OperatorModel imported) {
+    return existing.company.trim() == imported.company.trim() &&
+        existing.contact.trim() == imported.contact.trim() &&
+        existing.address.trim() == imported.address.trim() &&
+        existing.phone.trim() == imported.phone.trim() &&
+        existing.email.trim() == imported.email.trim() &&
+        existing.logoUrl.trim() == imported.logoUrl.trim();
+  }
+
+  List<_ImportedOperatorRow> _parseImportedRows(List<List<String>> rows) {
+    if (rows.isEmpty) return const [];
+
+    final header = rows.first.map((cell) => cell.trim().toLowerCase()).toList();
+    final hasRecordId = header.isNotEmpty && header.first == 'record id';
+    final startIndex = _looksLikeOperatorHeader(rows.first) ? 1 : 0;
+    final parsed = <_ImportedOperatorRow>[];
+
+    for (int i = startIndex; i < rows.length; i += 1) {
+      final row = List<String>.from(rows[i]);
+      final minimumLength = hasRecordId ? 7 : 6;
+      while (row.length < minimumLength) {
+        row.add('');
+      }
+
+      if (_looksLikeOperatorHeader(row)) {
+        continue;
+      }
+
+      final offset = hasRecordId ? 1 : 0;
+      final values = row.skip(offset).take(6).map((value) => value.trim()).toList();
+      if (values.every((value) => value.isEmpty)) {
+        continue;
+      }
+
+      parsed.add(
+        _ImportedOperatorRow(
+          recordId: hasRecordId ? row[0].trim() : '',
+          company: values[0],
+          contact: values[1],
+          address: values[2],
+          phone: values[3],
+          email: values[4],
+          logoUrl: values[5],
+        ),
+      );
+    }
+
+    return parsed;
+  }
+
+  bool _looksLikeOperatorHeader(List<String> row) {
+    final normalized = row.map((cell) => cell.trim().toLowerCase()).toList();
+    return normalized.contains('company') &&
+        normalized.contains('contact') &&
+        normalized.contains('e-mail');
+  }
+
+  String _normalizeKey(String value) => value.trim().toLowerCase();
 
   Future<void> fetchOperators() async {
     isLoading.value = true;
@@ -135,4 +329,24 @@ class OperatorController extends GetxController {
     for (var row in newEntryControllers) { for (var ctrl in row) ctrl.dispose(); }
     super.onClose();
   }
+}
+
+class _ImportedOperatorRow {
+  final String recordId;
+  final String company;
+  final String contact;
+  final String address;
+  final String phone;
+  final String email;
+  final String logoUrl;
+
+  const _ImportedOperatorRow({
+    required this.recordId,
+    required this.company,
+    required this.contact,
+    required this.address,
+    required this.phone,
+    required this.email,
+    required this.logoUrl,
+  });
 }

@@ -6,7 +6,6 @@ import 'package:mudpro_desktop_app/modules/company_setup/company_setup_page.dart
 import 'package:mudpro_desktop_app/modules/company_setup/controller/company_controller.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/controller/products_controller.dart';
 import 'package:mudpro_desktop_app/modules/daily_report/dailyreport_home_page.dart';
-import 'package:mudpro_desktop_app/modules/daily_report/controller/inventory_snapshot_controller.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path/path.dart' as path;
 import 'dart:io';
@@ -22,6 +21,7 @@ import 'package:mudpro_desktop_app/modules/dashboard/controller/well_general_con
 import 'package:mudpro_desktop_app/modules/dashboard/controller/operation_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/recievemud_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/cased_hole_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/consume_product_save_bridge.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/drill_string_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/return_lostmud_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/mud_loss_active_system_controller.dart';
@@ -51,10 +51,12 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
     ProductsController(),
     tag: 'products_controller',
   );
-  final InventorySnapshotController _snapshotController =
-      InventorySnapshotController();
   final PadWellController padWellC = padWellContext;
   final ReportContextController reportC = reportContext;
+  final WellGeneralController wellGenCtrl =
+      Get.isRegistered<WellGeneralController>()
+      ? Get.find<WellGeneralController>()
+      : Get.put(WellGeneralController(), permanent: true);
 
   late AnimationController _animationController;
   int _hoveredIndex = -1;
@@ -146,6 +148,10 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
         return 'Create and select a report first.';
     }
   }
+
+  String get _currentMdRaw => wellGenCtrl.md.value.trim();
+
+  String get _currentMdDisplay => _currentMdRaw.isEmpty ? '-' : _currentMdRaw;
 
   @override
   Widget build(BuildContext context) {
@@ -338,7 +344,7 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
                   AppUnits.signature;
                   return _buildInfoField(
                     "MD ${AppUnits.length}",
-                    "9055.0",
+                    _currentMdDisplay,
                     Icons.vertical_align_bottom,
                   );
                 }),
@@ -565,27 +571,20 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
 
             if (selectedOp == OperationType.consumeProduct) {
               // ── Inventory Snapshot + Product Save ────────────────────────
-              final snapResult = await _snapshotController
-                  .generateInventorySnapshot();
-              if (snapResult['success'] != true) {
-                errorMessages.add(
-                  'Consume Product snapshot: ${snapResult['message'] ?? 'Failed'}',
-                );
-              }
-
-              final waterText = opCtrl.addWaterMainVol.value.trim();
-              final waterVolume = double.tryParse(waterText) ?? 0.0;
-              if (waterVolume > 0) {
-                await opCtrl.loadAddWater(force: true);
-                opCtrl.addWaterTo.value = 'Active System';
-                opCtrl.addWaterMainVol.value = waterText;
-                opCtrl.addWaterVolume.value = waterText;
-                final waterRes = await opCtrl.saveAddWater();
-                if (waterRes['success'] == true) {
-                  successMessage = waterRes['message'];
+              final consumeProductBridge =
+                  Get.isRegistered<ConsumeProductSaveBridge>()
+                  ? Get.find<ConsumeProductSaveBridge>()
+                  : null;
+              if (consumeProductBridge == null) {
+                errorMessages.add('Consume Product view is not ready');
+              } else {
+                final res = await consumeProductBridge.saveAll();
+                if (res['success'] == true) {
+                  successMessage = res['message']?.toString() ??
+                      'Consume Product saved successfully';
                 } else {
                   errorMessages.add(
-                    'Add Water: ${waterRes['message'] ?? 'Failed'}',
+                    'Consume Product: ${res['message'] ?? 'Failed'}',
                   );
                 }
               }
@@ -1983,7 +1982,7 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
           'wellId': padWellC.selectedWellId.value,
           'date': _dateController.text,
           'reportNumber': '12',
-          'md': '9055.0',
+          'md': _currentMdRaw,
           'timestamp': DateTime.now().toIso8601String(),
         };
         final file = File(filePath);

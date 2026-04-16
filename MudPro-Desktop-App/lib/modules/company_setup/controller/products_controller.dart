@@ -249,10 +249,22 @@ class ProductsController extends GetxController {
   // ─── Export/Import Helpers ────────────────────────────────────────────────
 
   List<List<String>> getExportData() {
-    List<List<String>> data = [['Product', 'Code', 'SG', 'Unit Num', 'Unit Class', 'Group', 'Retail', 'Sales Price', 'COGS']];
+    List<List<String>> data = [[
+      'Record ID',
+      'Product',
+      'Code',
+      'SG',
+      'Unit Num',
+      'Unit Class',
+      'Group',
+      'Retail',
+      'Sales Price',
+      'COGS',
+    ]];
     for (var p in products) {
       if (p.id != null || p.hasData()) {
         data.add([
+          p.id ?? '',
           p.product.toString(),
           p.code.toString(),
           p.sg.toString(),
@@ -268,30 +280,189 @@ class ProductsController extends GetxController {
     return data;
   }
 
-  void importFromData(List<List<String>> rows) {
-    // Clear unsaved products
-    products.removeWhere((p) => p.id == null || !existingProductIds.contains(p.id));
-
-    for (var row in rows) {
-      if (row.length < 9) continue;
-      final product = ProductModel(
-        product: row[0],
-        code: row[1],
-        sg: row[2],
-        unitNum: row[3],
-        unitClass: row[4],
-        group: row[5],
-        retail: row[6],
-        a: row[7],
-        b: row[8],
-      );
-      products.add(product);
+  Future<Map<String, dynamic>> importFromData(List<List<String>> rows) async {
+    final parsedRows = _parseImportedRows(rows);
+    if (parsedRows.isEmpty) {
+      return {
+        'success': false,
+        'message': 'No valid product rows found in the selected file',
+      };
     }
-    
-    // Add empty row for new input
-    addProduct();
-    products.refresh();
+
+    int updated = 0;
+    int inserted = 0;
+    final errors = <String>[];
+
+    final byId = <String, ProductModel>{};
+    final byCode = <String, ProductModel>{};
+    for (final product in products) {
+      final id = product.id?.trim();
+      if (id != null && id.isNotEmpty) {
+        byId[id] = product;
+      }
+      final codeKey = _normalizeKey(product.code);
+      if (codeKey.isNotEmpty) {
+        byCode[codeKey] = product;
+      }
+    }
+
+    final newProducts = <ProductModel>[];
+
+    for (final row in parsedRows) {
+      final importedProduct = ProductModel(
+        product: row.product,
+        code: row.code,
+        sg: row.sg,
+        unitNum: row.unitNum,
+        unitClass: row.unitClass,
+        group: row.group,
+        retail: row.retail,
+        a: row.a,
+        b: row.b,
+      );
+
+      final matchedProduct = _findExistingProduct(
+        recordId: row.recordId,
+        code: row.code,
+        byId: byId,
+        byCode: byCode,
+      );
+
+      if (matchedProduct?.id != null) {
+        if (!_sameProductData(matchedProduct!, importedProduct)) {
+          final result = await repository.updateProduct(
+            matchedProduct.id!,
+            importedProduct.copyWith(id: matchedProduct.id),
+          );
+          if (result['success'] == true) {
+            updated += 1;
+          } else {
+            errors.add(
+              'Product ${row.code.isEmpty ? row.product : row.code}: ${result['message'] ?? 'Update failed'}',
+            );
+          }
+        }
+      } else {
+        newProducts.add(importedProduct);
+      }
+    }
+
+    if (newProducts.isNotEmpty) {
+      final result = newProducts.length == 1
+          ? await repository.addProduct(newProducts.first)
+          : await repository.bulkAddProducts(newProducts);
+
+      if (result['success'] == true) {
+        inserted += newProducts.length;
+      } else {
+        errors.add(result['message'] ?? 'Failed to add imported products');
+      }
+    }
+
+    await loadProducts();
+
+    if (errors.isNotEmpty) {
+      return {
+        'success': false,
+        'message':
+            'Products import finished with issues. Updated: $updated, Added: $inserted',
+        'updated': updated,
+        'inserted': inserted,
+        'errors': errors,
+      };
+    }
+
+    return {
+      'success': true,
+      'message': 'Products imported successfully. Updated: $updated, Added: $inserted',
+      'updated': updated,
+      'inserted': inserted,
+    };
   }
+
+  ProductModel? _findExistingProduct({
+    required String recordId,
+    required String code,
+    required Map<String, ProductModel> byId,
+    required Map<String, ProductModel> byCode,
+  }) {
+    final trimmedId = recordId.trim();
+    if (trimmedId.isNotEmpty && byId.containsKey(trimmedId)) {
+      return byId[trimmedId];
+    }
+
+    final normalizedCode = _normalizeKey(code);
+    if (normalizedCode.isNotEmpty && byCode.containsKey(normalizedCode)) {
+      return byCode[normalizedCode];
+    }
+
+    return null;
+  }
+
+  bool _sameProductData(ProductModel existing, ProductModel imported) {
+    return existing.product.trim() == imported.product.trim() &&
+        existing.code.trim() == imported.code.trim() &&
+        existing.sg.trim() == imported.sg.trim() &&
+        existing.unitNum.trim() == imported.unitNum.trim() &&
+        existing.unitClass.trim() == imported.unitClass.trim() &&
+        existing.group.trim() == imported.group.trim() &&
+        existing.retail.trim() == imported.retail.trim() &&
+        existing.a.trim() == imported.a.trim() &&
+        existing.b.trim() == imported.b.trim();
+  }
+
+  List<_ImportedProductRow> _parseImportedRows(List<List<String>> rows) {
+    if (rows.isEmpty) return const [];
+
+    final header = rows.first.map((cell) => cell.trim().toLowerCase()).toList();
+    final hasRecordId = header.isNotEmpty && header.first == 'record id';
+    final startIndex = _looksLikeProductHeader(rows.first) ? 1 : 0;
+    final parsed = <_ImportedProductRow>[];
+
+    for (int i = startIndex; i < rows.length; i += 1) {
+      final row = List<String>.from(rows[i]);
+      final minimumLength = hasRecordId ? 10 : 9;
+      while (row.length < minimumLength) {
+        row.add('');
+      }
+
+      if (_looksLikeProductHeader(row)) {
+        continue;
+      }
+
+      final offset = hasRecordId ? 1 : 0;
+      final values = row.skip(offset).take(9).map((value) => value.trim()).toList();
+      if (values.every((value) => value.isEmpty)) {
+        continue;
+      }
+
+      parsed.add(
+        _ImportedProductRow(
+          recordId: hasRecordId ? row[0].trim() : '',
+          product: values[0],
+          code: values[1],
+          sg: values[2],
+          unitNum: values[3],
+          unitClass: values[4],
+          group: values[5],
+          retail: values[6],
+          a: values[7],
+          b: values[8],
+        ),
+      );
+    }
+
+    return parsed;
+  }
+
+  bool _looksLikeProductHeader(List<String> row) {
+    final normalized = row.map((cell) => cell.trim().toLowerCase()).toList();
+    return normalized.contains('product') &&
+        normalized.contains('code') &&
+        normalized.contains('sg');
+  }
+
+  String _normalizeKey(String value) => value.trim().toLowerCase();
 
   void showSuccessAlert(String message) {
     Get.rawSnackbar(
@@ -401,4 +572,30 @@ class ProductsController extends GetxController {
     _editingOriginalProduct = null;
     super.onClose();
   }
+}
+
+class _ImportedProductRow {
+  final String recordId;
+  final String product;
+  final String code;
+  final String sg;
+  final String unitNum;
+  final String unitClass;
+  final String group;
+  final String retail;
+  final String a;
+  final String b;
+
+  const _ImportedProductRow({
+    required this.recordId,
+    required this.product,
+    required this.code,
+    required this.sg,
+    required this.unitNum,
+    required this.unitClass,
+    required this.group,
+    required this.retail,
+    required this.a,
+    required this.b,
+  });
 }
