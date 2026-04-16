@@ -601,17 +601,14 @@ export const getVolumeNameCalculation = async (req, res) => {
     const distributionRows = cleanDistributionRows(distributionState?.distributions ?? []);
     const { activeSystemVolume, calculatedVolumeByPit } =
       buildCalculatedVolumeMap(distributionRows);
-    const calculatedStorageTotal = Number(
-      Array.from(calculatedVolumeByPit.values())
-        .reduce((sum, value) => sum + toNumber(value), 0)
-        .toFixed(2)
-    );
     const derivedActiveSystem = Number((activePits + hole).toFixed(2));
-    // The distribution's "Active System" row belongs to consume-product flow.
-    // Volume Name should keep using measured Active Pits + Hole for Active System,
-    // while storage distribution rows drive End Vol. calculations.
+    // Legacy desktop behavior:
+    // Active System = measured Active Pits + Hole
+    // End Vol. = consume-product distribution's "Active System" row
+    // Storage calculated volumes come from the remaining distribution rows
     const activeSystem = derivedActiveSystem;
-    const endVol = calculatedStorageTotal;
+    const endVol =
+      activeSystemVolume > 0 ? activeSystemVolume : derivedActiveSystem;
     const endVolMinusActiveSystem = Number(
       (endVol - activeSystem).toFixed(2)
     );
