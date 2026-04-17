@@ -71,11 +71,44 @@ const toNumber = (value, fallback = 0) => {
 };
 const round = (value, digits = 2) =>
   Number(toNumber(value).toFixed(Math.max(0, digits)));
+const roundOrBlank = (value, digits = 2) => {
+  const raw = text(value);
+  if (!raw) return "";
+  const direct = Number(raw);
+  const parsed = Number.isFinite(direct) ? direct : parseFraction(raw);
+  if (parsed !== null && Number.isFinite(parsed) && Math.abs(parsed) < 0.01) return "";
+  if (parsed !== null && Number.isFinite(parsed) && parsed <= 0) return "";
+  const rounded = parsed === null || !Number.isFinite(parsed) ? null : round(parsed, digits);
+  return rounded === null ? raw : rounded || "";
+};
 const text = (value, fallback = "") => {
   const parsed = value?.toString().trim();
   return parsed ? parsed : fallback;
 };
 const displayText = (value, fallback = "-") => text(value, fallback);
+const firstText = (...values) => {
+  for (const value of values) {
+    const parsed = text(value);
+    if (parsed) return parsed;
+  }
+  return "";
+};
+const meaningfulText = (value) => {
+  const raw = text(value);
+  if (!raw) return "";
+  const direct = Number(raw);
+  const parsed = Number.isFinite(direct) ? direct : parseFraction(raw);
+  return parsed !== null && Number.isFinite(parsed) && (parsed <= 0 || Math.abs(parsed) < 0.01)
+    ? ""
+    : raw;
+};
+const firstMeaningfulText = (...values) => {
+  for (const value of values) {
+    const parsed = meaningfulText(value);
+    if (parsed) return parsed;
+  }
+  return "";
+};
 const sumBy = (items, selector) =>
   items.reduce((sum, item) => sum + toNumber(selector(item)), 0);
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
@@ -208,6 +241,97 @@ const resolveIntervalBitSize = (intervals, intervalName) => {
   }
 
   return null;
+};
+const resolveIntervalBitSizeText = (intervals, intervalName) => {
+  const normalizedTarget = normalizeIntervalKey(intervalName);
+
+  if (normalizedTarget) {
+    const exact = intervals.find(
+      (interval) => normalizeIntervalKey(interval.name) === normalizedTarget
+    );
+    const exactBitSize = text(exact?.bitSize);
+    if (exactBitSize) return exactBitSize;
+  }
+
+  const firstWithBitSize = intervals.find((interval) => text(interval.bitSize));
+  return text(firstWithBitSize?.bitSize);
+};
+const hasCasingData = (casing = {}) =>
+  firstText(casing.description, casing.type) ||
+  [casing.od, casing.id, casing.bit, casing.toc].some(
+    (value) => meaningfulText(value)
+  );
+const casingDataScore = (casing = {}) =>
+  [
+    casing.description,
+    casing.type,
+    casing.od,
+    casing.top,
+    casing.shoe,
+    casing.bit,
+    casing.toc,
+  ].filter((value) => meaningfulText(value)).length;
+const casingSignature = (casing = {}) =>
+  [
+    casing.description,
+    casing.type,
+    casing.od,
+    casing.wt,
+    casing.id,
+    casing.top,
+    casing.shoe,
+    casing.bit,
+    casing.toc,
+  ]
+    .map((value) => text(value).toLowerCase())
+    .join("|");
+const normalizeCasingRows = (casings = []) => {
+  const bySignature = new Map();
+
+  for (const casing of casings.filter(hasCasingData)) {
+    const signature = casingSignature(casing);
+    if (!signature) continue;
+    const previous = bySignature.get(signature);
+    const previousTime = new Date(previous?.updatedAt ?? previous?.createdAt ?? 0).getTime();
+    const currentTime = new Date(casing?.updatedAt ?? casing?.createdAt ?? 0).getTime();
+    if (!previous || currentTime >= previousTime) {
+      bySignature.set(signature, casing);
+    }
+  }
+
+  return Array.from(bySignature.values()).sort((left, right) => {
+    const scoreDiff = casingDataScore(right) - casingDataScore(left);
+    if (scoreDiff !== 0) return scoreDiff;
+    return new Date(left?.createdAt ?? 0).getTime() - new Date(right?.createdAt ?? 0).getTime();
+  });
+};
+const buildOpenHoleRow = ({ wellGeneral, intervals }) => {
+  const bitSize = resolveIntervalBitSizeText(intervals, wellGeneral?.interval);
+  const holeSize = firstMeaningfulText(bitSize, wellGeneral?.bitSize);
+  if (!holeSize) return null;
+
+  return {
+    description: `${holeSize}" OPEN HOLE`,
+    od: holeSize,
+    shoe: firstText(wellGeneral?.md, wellGeneral?.depthDrilled),
+    bit: holeSize,
+  };
+};
+const prepareCasingOpenHoleRows = ({ casings, wellGeneral, intervals }) => {
+  const rows = normalizeCasingRows(casings);
+  const openHoleRow = buildOpenHoleRow({ wellGeneral, intervals });
+
+  const hasOpenHole = rows.some((row) => {
+    const label = firstText(row.type, row.description).toLowerCase();
+    const size = firstText(row.bit, row.od, row.id);
+    return label.includes("open hole") || (openHoleRow && size === openHoleRow.od);
+  });
+
+  if (openHoleRow && !hasOpenHole) {
+    rows.unshift(openHoleRow);
+  }
+
+  return rows.slice(0, 8);
 };
 const computeDrilledVolume = ({
   depthDrilled,
@@ -368,11 +492,19 @@ const fillDmrTopSections = (ws, { drillStrings, casings, summary, activePits, fl
     setCellValue(ws, `Q${row}`, drill ? round(drill.od, 3) : "");
     setCellValue(ws, `W${row}`, drill ? round(drill.id, 3) : "");
     setCellValue(ws, `AC${row}`, drill ? round(drill.length, 2) : "");
-    setCellValue(ws, `AJ${row}`, text(casing?.type || casing?.description));
-    setCellValue(ws, `AS${row}`, casing ? round(casing.od, 3) : "");
-    setCellValue(ws, `AY${row}`, casing ? round(casing.shoe, 2) : "");
-    setCellValue(ws, `BE${row}`, text(casing?.bit));
-    setCellValue(ws, `BL${row}`, casing ? round(casing.toc, 2) : "");
+    const casingLabel = firstText(
+      casing?.type,
+      casing?.description,
+      meaningfulText(casing?.id) ? `${meaningfulText(casing.id)}" OPEN HOLE` : ""
+    );
+    const casingOd = firstMeaningfulText(casing?.od, casing?.id, casing?.bit);
+    const casingShoe = firstMeaningfulText(casing?.shoe, casing?.top);
+    const bitValue = firstMeaningfulText(casing?.bit, casing?.id, casing?.od);
+    setCellValue(ws, `AJ${row}`, casingLabel);
+    setCellValue(ws, `AS${row}`, roundOrBlank(casingOd, 3));
+    setCellValue(ws, `AY${row}`, roundOrBlank(casingShoe, 2));
+    setCellValue(ws, `BE${row}`, bitValue);
+    setCellValue(ws, `BL${row}`, text(casing?.toc));
   }
 
   [
@@ -701,6 +833,24 @@ const loadExportDrillStrings = async ({ wellId, reportId }) => {
     .lean();
 };
 
+const loadExportCasings = async ({ wellId, reportId }) => {
+  if (!wellId) return [];
+
+  const filter = reportId
+    ? {
+        wellId,
+        $or: [
+          { reportId },
+          { reportId: { $exists: false } },
+          { reportId: null },
+          { reportId: "" },
+        ],
+      }
+    : { wellId };
+
+  return Casing.find(filter).sort({ createdAt: 1, _id: 1 }).lean();
+};
+
 const loadInventorySnapshot = async ({ wellId, reportId }) => {
   if (!wellId) return [];
 
@@ -797,12 +947,7 @@ export const exportInventoryReport = async (req, res) => {
       }),
       Well.findById(wellId).lean(),
       loadExportDrillStrings({ wellId, reportId }),
-      loadReportScopedList(Casing, {
-        wellId,
-        reportId,
-        sort: { createdAt: 1 },
-        limit: 8,
-      }),
+      loadExportCasings({ wellId, reportId }),
       loadExportPumps({ wellId, reportId }),
       loadReportScopedList(ConsumeProduct, { wellId, reportId }),
       loadReportScopedList(AddWater, { wellId, reportId }),
@@ -856,6 +1001,11 @@ export const exportInventoryReport = async (req, res) => {
     const productDailyCost = sumBy(products, (item) => item.costDollar);
     const engineeringDailyCost = sumBy(engineers, (item) => item.costDollar);
     const intervalBitSize = resolveIntervalBitSize(intervals, wellGeneral?.interval);
+    const casingOpenHoleRows = prepareCasingOpenHoleRows({
+      casings,
+      wellGeneral,
+      intervals,
+    });
     const cuttingsAnalysis = {
       depthDrilled: toNumber(wellGeneral?.depthDrilled),
       volumeDrilled: computeDrilledVolume({
@@ -880,7 +1030,15 @@ export const exportInventoryReport = async (req, res) => {
     clearInventoryDynamicAreas(inventorySheet);
 
     fillDmrHeader(dmrSheet, { well, pad, report, wellGeneral, fluidName });
-    fillDmrTopSections(dmrSheet, { drillStrings, casings, summary, activePits, fluidName, wellGeneral, consumeProducts });
+    fillDmrTopSections(dmrSheet, {
+      drillStrings,
+      casings: casingOpenHoleRows,
+      summary,
+      activePits,
+      fluidName,
+      wellGeneral,
+      consumeProducts,
+    });
     fillDmrBottomSections(dmrSheet, {
       report,
       wellGeneral,
