@@ -10,6 +10,7 @@ import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart
 
 class WellGeneralController extends GetxController {
   final String baseUrl = ApiEndpoint.baseUrl;
+  static const int _minTimeDistributionRows = 5;
 
   var isLoading = false.obs;
   var isSaving = false.obs;
@@ -46,12 +47,15 @@ class WellGeneralController extends GetxController {
   var nptTime = ''.obs;
   var nptCost = ''.obs;
   var depthDrilled = ''.obs;
+  final timeDistributionRows = <Map<String, String>>[].obs;
+  final timeDistributionRevision = 0.obs;
   Worker? _wellWorker;
   Worker? _reportWorker;
 
   @override
   void onInit() {
     super.onInit();
+    _setTimeDistributionRows(const [], notify: false);
     _wellWorker = ever<String>(padWellContext.selectedWellId, (_) {
       fetchLatest();
     });
@@ -72,6 +76,116 @@ class WellGeneralController extends GetxController {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
   };
+
+  Map<String, String> _blankTimeDistributionRow() => {
+    'activity': '',
+    'time': '',
+  };
+
+  String _formatTimeDistributionValue(dynamic value) {
+    if (value == null) return '';
+    if (value is num) {
+      if (value == value.roundToDouble()) {
+        return value.toInt().toString();
+      }
+      return value.toString();
+    }
+    return value.toString().trim();
+  }
+
+  List<Map<String, String>> _normalizeTimeDistributionRows(dynamic rawRows) {
+    final normalized = <Map<String, String>>[];
+
+    if (rawRows is List) {
+      for (final item in rawRows) {
+        if (item is Map) {
+          final activity = (item['activity'] ?? item['description'] ?? '')
+              .toString()
+              .trim();
+          final time = _formatTimeDistributionValue(
+            item['time'] ?? item['hours'],
+          );
+          normalized.add({
+            'activity': activity,
+            'time': time,
+          });
+        }
+      }
+    }
+
+    while (normalized.length < _minTimeDistributionRows) {
+      normalized.add(_blankTimeDistributionRow());
+    }
+
+    if (normalized.isNotEmpty &&
+        normalized.last['activity']!.trim().isNotEmpty) {
+      normalized.add(_blankTimeDistributionRow());
+    }
+
+    return normalized;
+  }
+
+  void _setTimeDistributionRows(dynamic rawRows, {bool notify = true}) {
+    timeDistributionRows.assignAll(_normalizeTimeDistributionRows(rawRows));
+    if (notify) {
+      timeDistributionRevision.value++;
+    }
+  }
+
+  List<Map<String, String>> get timeDistributionRowsForUi =>
+      timeDistributionRows
+          .map(
+            (row) => {
+              'activity': row['activity'] ?? '',
+              'time': row['time'] ?? '',
+            },
+          )
+          .toList();
+
+  void hydrateTimeDistributionRows(dynamic rawRows, {bool notify = true}) {
+    _setTimeDistributionRows(rawRows, notify: notify);
+  }
+
+  void updateTimeDistributionRow(
+    int index, {
+    String? activity,
+    String? time,
+    bool notify = false,
+  }) {
+    final rows = timeDistributionRowsForUi;
+    while (rows.length <= index) {
+      rows.add(_blankTimeDistributionRow());
+    }
+
+    final current = Map<String, String>.from(rows[index]);
+    if (activity != null) {
+      current['activity'] = activity;
+    }
+    if (time != null) {
+      current['time'] = time;
+    }
+    rows[index] = current;
+    _setTimeDistributionRows(rows, notify: notify);
+  }
+
+  List<Map<String, dynamic>> _serializeTimeDistributionRows() {
+    final serialized = <Map<String, dynamic>>[];
+
+    for (final row in timeDistributionRows) {
+      final activity = (row['activity'] ?? '').trim();
+      final time = (row['time'] ?? '').trim();
+      if (activity.isEmpty && time.isEmpty) {
+        continue;
+      }
+
+      serialized.add({
+        'description': activity,
+        'hours': double.tryParse(time) ?? 0,
+      });
+    }
+
+    return serialized;
+  }
 
   Map<String, dynamic> _toJson() => {
     if (savedId.value.isNotEmpty) 'recordId': savedId.value,
@@ -111,6 +225,7 @@ class WellGeneralController extends GetxController {
     'nptTime': double.tryParse(nptTime.value) ?? 0,
     'nptCost': double.tryParse(nptCost.value) ?? 0,
     'depthDrilled': double.tryParse(depthDrilled.value) ?? 0,
+    'timeDistributionRows': _serializeTimeDistributionRows(),
   };
 
   void _fromJson(Map<String, dynamic> d) {
@@ -145,6 +260,7 @@ class WellGeneralController extends GetxController {
     nptTime.value = (d['nptTime'] ?? '').toString();
     nptCost.value = (d['nptCost'] ?? '').toString();
     depthDrilled.value = (d['depthDrilled'] ?? '').toString();
+    _setTimeDistributionRows(d['timeDistributionRows']);
   }
 
   void _clearFields() {
@@ -179,6 +295,7 @@ class WellGeneralController extends GetxController {
     nptTime.value = '';
     nptCost.value = '';
     depthDrilled.value = '';
+    _setTimeDistributionRows(const []);
   }
 
   void _applySelectedReportMetadata() {

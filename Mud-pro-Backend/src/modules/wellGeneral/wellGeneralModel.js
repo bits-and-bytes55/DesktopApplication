@@ -1,5 +1,13 @@
 import mongoose from "mongoose";
 
+const timeDistributionRowSchema = new mongoose.Schema(
+  {
+    description: { type: String, default: "" },
+    hours: { type: Number, default: 0 },
+  },
+  { _id: false }
+);
+
 const wellGeneralSchema = new mongoose.Schema({
   wellId: {
     type: String,
@@ -41,6 +49,10 @@ const wellGeneralSchema = new mongoose.Schema({
   nptTime: { type: Number, default: 0 },
   nptCost: { type: Number, default: 0 },
   depthDrilled: { type: Number, default: 0 },
+  timeDistributionRows: {
+    type: [timeDistributionRowSchema],
+    default: [],
+  },
 }, { timestamps: true });
 
 export default mongoose.model("WellGeneral", wellGeneralSchema);

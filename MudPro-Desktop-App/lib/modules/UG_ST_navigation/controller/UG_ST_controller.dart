@@ -6,6 +6,7 @@ import 'package:mudpro_desktop_app/api_endpoint/api_endpoint.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/model/UG_ST_model.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/UG_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
+import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
@@ -16,6 +17,7 @@ class UgStController extends GetxController {
   var isLoading = false.obs;
   Worker? _selectedWellWorker;
   Worker? _dashboardLockWorker;
+  Worker? _reportWorker;
 
   final casingVerticalScroll = ScrollController();
   final casingHorizontalScroll = ScrollController();
@@ -38,6 +40,10 @@ class UgStController extends GetxController {
     }
     _selectedWellWorker = ever<String>(context.selectedWellId, (wellId) {
       selectedWellId.value = wellId.isEmpty ? null : wellId;
+      fetchCasings();
+    });
+    _reportWorker = ever<String>(reportContext.selectedReportId, (_) {
+      fetchCasings();
     });
     fetchCasings();
     super.onInit();
@@ -49,6 +55,7 @@ class UgStController extends GetxController {
     casingHorizontalScroll.dispose();
     _selectedWellWorker?.dispose();
     _dashboardLockWorker?.dispose();
+    _reportWorker?.dispose();
     super.onClose();
   }
 
@@ -73,10 +80,27 @@ class UgStController extends GetxController {
 
   final casings = <CasingRow>[].obs;
 
+  String get _selectedWellId => (selectedWellId.value ?? '').trim();
+
+  Map<String, String> get _casingQueryParams => {
+    if (reportContext.selectedReportId.value.trim().isNotEmpty)
+      'reportId': reportContext.selectedReportId.value.trim(),
+  };
+
   Future<void> fetchCasings() async {
+    final wellId = _selectedWellId;
+    if (wellId.isEmpty) {
+      casings.clear();
+      return;
+    }
+
     isLoading.value = true;
     try {
-      final response = await http.get(Uri.parse('${ApiEndpoint.baseUrl}casing'));
+      final response = await http.get(
+        Uri.parse('${ApiEndpoint.baseUrl}casing/$wellId').replace(
+          queryParameters: _casingQueryParams,
+        ),
+      );
       if (response.statusCode == 200) {
         final Map<String, dynamic> body = json.decode(response.body);
         if (body['success']) {
@@ -92,11 +116,21 @@ class UgStController extends GetxController {
   }
 
   Future<void> addCasing(CasingRow casing) async {
+    final wellId = _selectedWellId;
+    if (wellId.isEmpty) return;
+
     try {
       final response = await http.post(
-        Uri.parse('${ApiEndpoint.baseUrl}casing'),
+        Uri.parse('${ApiEndpoint.baseUrl}casing').replace(
+          queryParameters: _casingQueryParams,
+        ),
         headers: {'Content-Type': 'application/json'},
-        body: json.encode(casing.toJson()),
+        body: json.encode({
+          ...casing.toJson(),
+          'wellId': wellId,
+          if (reportContext.selectedReportId.value.trim().isNotEmpty)
+            'reportId': reportContext.selectedReportId.value.trim(),
+        }),
       );
       if (response.statusCode == 201) {
         fetchCasings();
@@ -107,12 +141,20 @@ class UgStController extends GetxController {
   }
 
   Future<void> updateCasing(CasingRow casing) async {
-    if (casing.dbId == null) return;
+    final wellId = _selectedWellId;
+    if (wellId.isEmpty || casing.dbId == null) return;
     try {
       final response = await http.put(
-        Uri.parse('${ApiEndpoint.baseUrl}casing/${casing.dbId}'),
+        Uri.parse('${ApiEndpoint.baseUrl}casing/$wellId/${casing.dbId}').replace(
+          queryParameters: _casingQueryParams,
+        ),
         headers: {'Content-Type': 'application/json'},
-        body: json.encode(casing.toJson()),
+        body: json.encode({
+          ...casing.toJson(),
+          'wellId': wellId,
+          if (reportContext.selectedReportId.value.trim().isNotEmpty)
+            'reportId': reportContext.selectedReportId.value.trim(),
+        }),
       );
       if (response.statusCode == 200) {
         fetchCasings();
@@ -123,8 +165,15 @@ class UgStController extends GetxController {
   }
 
   Future<void> deleteCasing(String dbId) async {
+    final wellId = _selectedWellId;
+    if (wellId.isEmpty) return;
+
     try {
-      final response = await http.delete(Uri.parse('${ApiEndpoint.baseUrl}casing/$dbId'));
+      final response = await http.delete(
+        Uri.parse('${ApiEndpoint.baseUrl}casing/$wellId/$dbId').replace(
+          queryParameters: _casingQueryParams,
+        ),
+      );
       if (response.statusCode == 200) {
         fetchCasings();
       }

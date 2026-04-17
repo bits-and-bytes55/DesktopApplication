@@ -1282,7 +1282,22 @@ class _CasedHoleSectionState extends State<CasedHoleSection> {
   }
 
   void _addCasingRow() {
-    if (_selectedCasing == null) return;
+    if (_selectedCasing == null) {
+      final hasCasings = _casingCtrl.casings.any(
+        (casing) => casing.description.value.trim().isNotEmpty,
+      );
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            hasCasings
+                ? 'Select a casing first.'
+                : 'No saved casing found for the selected well/report.',
+          ),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
     uiCtrl.addRowFromCasing(_selectedCasing!);
 
     // Successfully added, reset selection dropdown
@@ -1322,12 +1337,21 @@ class _CasedHoleSectionState extends State<CasedHoleSection> {
                 final casings = _casingCtrl.casings;
                 final isLoading = _casingCtrl.isLoading.value;
 
-                // Keep _selectedCasing valid if casings list changes
-                if (_selectedCasing != null &&
-                    !casings.any((c) => c.dbId == _selectedCasing!.dbId)) {
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    if (mounted) setState(() => _selectedCasing = null);
-                  });
+                // Keep _selectedCasing synced with the latest casing objects.
+                if (_selectedCasing != null) {
+                  final matchingCasing = casings.cast<CasingRow?>().firstWhere(
+                    (c) => c?.dbId == _selectedCasing!.dbId,
+                    orElse: () => null,
+                  );
+                  if (matchingCasing == null) {
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (mounted) setState(() => _selectedCasing = null);
+                    });
+                  } else if (!identical(matchingCasing, _selectedCasing)) {
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (mounted) setState(() => _selectedCasing = matchingCasing);
+                    });
+                  }
                 }
 
                 return Container(
@@ -2584,28 +2608,76 @@ class TimeDistributionSection extends StatefulWidget {
 
 class _TimeDistributionSectionState extends State<TimeDistributionSection> {
   final c = Get.find<DashboardController>();
+  late final WellGeneralController wellGenCtrl;
   int? selectedRowIndex;
   List<String> activityOptions = [];
   bool _isLoadingActivities = true;
-
-  late List<Map<String, dynamic>> tableData;
+  Worker? _timeDistributionWorker;
+  List<Map<String, dynamic>> tableData = [];
 
   @override
   void initState() {
     super.initState();
-    tableData = List.generate(
-      6,
-      (_) => {'activity': '', 'time': TextEditingController()},
+    wellGenCtrl = Get.isRegistered<WellGeneralController>()
+        ? Get.find<WellGeneralController>()
+        : Get.put(WellGeneralController(), permanent: true);
+    _replaceTableData(wellGenCtrl.timeDistributionRowsForUi);
+    _timeDistributionWorker = ever<int>(
+      wellGenCtrl.timeDistributionRevision,
+      (_) {
+        if (!mounted) return;
+        setState(() {
+          _replaceTableData(wellGenCtrl.timeDistributionRowsForUi);
+        });
+      },
     );
     _fetchActivities();
   }
 
   @override
   void dispose() {
-    for (final row in tableData) {
+    _timeDistributionWorker?.dispose();
+    _disposeTableControllers(tableData);
+    super.dispose();
+  }
+
+  List<Map<String, dynamic>> _buildTableData(
+    List<Map<String, String>> sourceRows,
+  ) {
+    return sourceRows
+        .map(
+          (row) => {
+            'activity': row['activity'] ?? '',
+            'time': TextEditingController(text: row['time'] ?? ''),
+          },
+        )
+        .toList();
+  }
+
+  void _disposeTableControllers(List<Map<String, dynamic>> rows) {
+    for (final row in rows) {
       (row['time'] as TextEditingController).dispose();
     }
-    super.dispose();
+  }
+
+  void _replaceTableData(List<Map<String, String>> sourceRows) {
+    final previousRows = tableData;
+    tableData = _buildTableData(sourceRows);
+    _disposeTableControllers(previousRows);
+    if (selectedRowIndex != null && selectedRowIndex! >= tableData.length) {
+      selectedRowIndex = null;
+    }
+  }
+
+  void _syncRowToController(int idx) {
+    if (idx < 0 || idx >= tableData.length) return;
+    final row = tableData[idx];
+    final timeCtrl = row['time'] as TextEditingController;
+    wellGenCtrl.updateTimeDistributionRow(
+      idx,
+      activity: (row['activity'] ?? '').toString(),
+      time: timeCtrl.text,
+    );
   }
 
   Future<void> _fetchActivities() async {
@@ -2637,6 +2709,7 @@ class _TimeDistributionSectionState extends State<TimeDistributionSection> {
     }
     if (total > 24.0) {
       tableData[idx]['time'].clear();
+      _syncRowToController(idx);
       showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
@@ -2790,6 +2863,7 @@ class _TimeDistributionSectionState extends State<TimeDistributionSection> {
                                                           v,
                                                 );
                                                 _checkAndAddRow(idx);
+                                                _syncRowToController(idx);
                                               }
                                             },
                                             items: activityOptions
@@ -2845,7 +2919,10 @@ class _TimeDistributionSectionState extends State<TimeDistributionSection> {
                                     style: const TextStyle(fontSize: 9),
                                     textAlign: TextAlign.center,
                                     keyboardType: TextInputType.number,
-                                    onChanged: (v) => _validateTotalTime(idx),
+                                    onChanged: (v) {
+                                      _validateTotalTime(idx);
+                                      _syncRowToController(idx);
+                                    },
                                     decoration: const InputDecoration(
                                       isDense: true,
                                       contentPadding: EdgeInsets.symmetric(

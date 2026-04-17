@@ -797,6 +797,11 @@ export const exportInventoryReport = async (req, res) => {
       text(report?.title) ||
       text(wellGeneral?.activity) ||
       "-";
+    const timeDistributionRows =
+      Array.isArray(wellGeneral?.timeDistributionRows) &&
+      wellGeneral.timeDistributionRows.length > 0
+        ? wellGeneral.timeDistributionRows
+        : activities;
     const products = inventoryData.filter((item) => item.category === "Product");
     const services = inventoryData.filter((item) => item.category === "Service");
     const engineers = inventoryData.filter((item) => item.category === "Engineering");
@@ -858,7 +863,7 @@ export const exportInventoryReport = async (req, res) => {
       engineers,
       activePits,
       reservePits,
-      activities,
+      activities: timeDistributionRows,
       productDailyCost,
       engineeringDailyCost,
       summary,
