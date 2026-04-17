@@ -106,6 +106,17 @@ const legacyReportScopeForModel = (Model) => {
     ? legacyReportScopeWithEmpty()
     : legacyReportScope();
 };
+const emptyFieldFilterForModel = (Model, field) => {
+  const fieldPath = Model?.schema?.path?.(field);
+  const includeEmptyString = !fieldPath || fieldPath.instance === "String";
+  return {
+    $or: [
+      { [field]: { $exists: false } },
+      { [field]: null },
+      ...(includeEmptyString ? [{ [field]: "" }] : []),
+    ],
+  };
+};
 const getPitVolume = (pit) => pit.volume || pit.capacity || "";
 const getActivePitVolume = (pit) => toNumber(pit.volume || pit.capacity);
 const setCellValue = (ws, address, value = "") => {
@@ -659,10 +670,6 @@ const loadReportScopedList = async (
     .lean();
 };
 
-const emptyFieldFilter = (field) => ({
-  $or: [{ [field]: { $exists: false } }, { [field]: null }, { [field]: "" }],
-});
-
 const loadExportDrillStrings = async ({ wellId, reportId }) => {
   if (!wellId) return [];
 
@@ -684,7 +691,10 @@ const loadExportDrillStrings = async ({ wellId, reportId }) => {
   if (wellScopedLegacy.length > 0) return wellScopedLegacy;
 
   return DrillString.find({
-    $and: [emptyFieldFilter("wellId"), legacyReportScope()],
+    $and: [
+      emptyFieldFilterForModel(DrillString, "wellId"),
+      legacyReportScopeForModel(DrillString),
+    ],
   })
     .sort({ createdAt: 1, _id: 1 })
     .limit(8)
