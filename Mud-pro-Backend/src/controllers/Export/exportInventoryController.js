@@ -333,6 +333,61 @@ const prepareCasingOpenHoleRows = ({ casings, wellGeneral, intervals }) => {
 
   return rows.slice(0, 8);
 };
+const calculatePumpDisplacement = (pump = {}) => {
+  const linerId = toNumber(pump.linerId);
+  const strokeLength = toNumber(pump.strokeLength);
+  const efficiency = toNumber(pump.efficiency) / 100;
+  const rodOd = toNumber(pump.rodOd);
+
+  if (!linerId || !strokeLength || !efficiency) return 0;
+
+  if (pump.type === "Duplex") {
+    return rodOd > 0
+      ? 0.000162 * (2 * linerId * linerId - rodOd * rodOd) * strokeLength * efficiency
+      : 0.000324 * linerId * linerId * strokeLength * efficiency;
+  }
+
+  const constants = {
+    Triplex: 0.000243,
+    Quadplex: 0.000324,
+    Quintuplex: 0.000405,
+  };
+  const constant = constants[pump.type] || 0;
+  return constant ? constant * linerId * linerId * strokeLength * efficiency : 0;
+};
+const hasPumpData = (pump = {}) =>
+  [
+    pump.type,
+    pump.model,
+    pump.linerId,
+    pump.rodOd,
+    pump.strokeLength,
+    pump.efficiency,
+    pump.spm,
+    pump.displacement,
+    pump.rate,
+    pump.maxPumpP,
+    pump.maxHp,
+    pump.surfaceLen,
+    pump.surfaceId,
+  ].some((value) => meaningfulText(value));
+const normalizePumpRows = (pumps = []) => {
+  const latestByRow = new Map();
+
+  for (const pump of pumps.filter(hasPumpData)) {
+    const rowNumber = Number(pump.rowNumber) || latestByRow.size + 1;
+    const previous = latestByRow.get(rowNumber);
+    const previousTime = new Date(previous?.updatedAt ?? previous?.createdAt ?? 0).getTime();
+    const currentTime = new Date(pump?.updatedAt ?? pump?.createdAt ?? 0).getTime();
+    if (!previous || currentTime >= previousTime) {
+      latestByRow.set(rowNumber, { ...pump, rowNumber });
+    }
+  }
+
+  return Array.from(latestByRow.values())
+    .sort((left, right) => Number(left.rowNumber) - Number(right.rowNumber))
+    .slice(0, 4);
+};
 const computeDrilledVolume = ({
   depthDrilled,
   lengthUnit,
@@ -601,12 +656,16 @@ const fillDmrBottomSections = (ws, {
   pumps.slice(0, 4).forEach((pump, index) => {
     const startColumn = ["L", "R", "X", "AD"][index];
     const baseColumn = columnToNumber(startColumn);
+    const displacement = firstMeaningfulText(
+      pump.displacement,
+      calculatePumpDisplacement(pump)
+    );
     ws.getRow(100).getCell(baseColumn).value = index + 1;
-    ws.getRow(101).getCell(baseColumn).value = round(pump.linerId, 3);
-    ws.getRow(102).getCell(baseColumn).value = round(pump.strokeLength, 3);
-    ws.getRow(103).getCell(baseColumn).value = round(pump.efficiency, 2);
-    ws.getRow(104).getCell(baseColumn).value = round(pump.spm, 2);
-    ws.getRow(105).getCell(baseColumn).value = round(pump.displacement, 4);
+    ws.getRow(101).getCell(baseColumn).value = roundOrBlank(pump.linerId, 3);
+    ws.getRow(102).getCell(baseColumn).value = roundOrBlank(pump.strokeLength, 3);
+    ws.getRow(103).getCell(baseColumn).value = roundOrBlank(pump.efficiency, 2);
+    ws.getRow(104).getCell(baseColumn).value = roundOrBlank(pump.spm, 2);
+    ws.getRow(105).getCell(baseColumn).value = roundOrBlank(displacement, 4);
   });
 
   setCellValue(
@@ -879,17 +938,27 @@ const loadExportPumps = async ({ wellId, reportId }) => {
 
   if (reportId) {
     const scoped = await Pump.find({ wellId, reportId })
-      .sort({ rowNumber: 1, createdAt: 1, _id: 1 })
+      .sort({ rowNumber: 1, updatedAt: -1, createdAt: -1, _id: -1 })
       .lean();
 
-    if (scoped.length > 0) {
-      return scoped;
+    const normalizedScoped = normalizePumpRows(scoped);
+    if (normalizedScoped.length > 0) {
+      return normalizedScoped;
     }
   }
 
-  return Pump.find({ wellId, ...legacyReportScopeForModel(Pump) })
-    .sort({ rowNumber: 1, createdAt: 1, _id: 1 })
+  const legacy = await Pump.find({ wellId, ...legacyReportScopeForModel(Pump) })
+    .sort({ rowNumber: 1, updatedAt: -1, createdAt: -1, _id: -1 })
     .lean();
+  const normalizedLegacy = normalizePumpRows(legacy);
+  if (normalizedLegacy.length > 0) {
+    return normalizedLegacy;
+  }
+
+  const latestForWell = await Pump.find({ wellId })
+    .sort({ rowNumber: 1, updatedAt: -1, createdAt: -1, _id: -1 })
+    .lean();
+  return normalizePumpRows(latestForWell);
 };
 
 const loadExportWellGeneral = async ({ wellId, reportId, report }) => {

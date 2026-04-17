@@ -1644,8 +1644,14 @@ class AuthRepository {
 
   Future<Map<String, dynamic>> getPumps(String wellId) async {
     try {
+      final reportId = reportContext.selectedReportId.value.trim();
       final response = await http.get(
-        Uri.parse('${baseUrl}pump?wellId=$wellId'),
+        Uri.parse('${baseUrl}pump').replace(
+          queryParameters: {
+            'wellId': wellId,
+            if (reportId.isNotEmpty) 'reportId': reportId,
+          },
+        ),
         headers: _headers,
       );
       final data = jsonDecode(response.body);
@@ -1666,10 +1672,16 @@ class AuthRepository {
     Map<String, dynamic> pumpData,
   ) async {
     try {
+      final reportId = reportContext.selectedReportId.value.trim();
+      final payload = {
+        ...pumpData,
+        'wellId': wellId,
+        if (reportId.isNotEmpty) 'reportId': reportId,
+      };
       final response = await http.post(
         Uri.parse('${baseUrl}pump'),
         headers: _headers,
-        body: jsonEncode({...pumpData, 'wellId': wellId}),
+        body: jsonEncode(payload),
       );
       final data = jsonDecode(response.body);
       if (response.statusCode == 201 || response.statusCode == 200) {
@@ -1690,10 +1702,15 @@ class AuthRepository {
     Map<String, dynamic> pumpData,
   ) async {
     try {
+      final reportId = reportContext.selectedReportId.value.trim();
+      final payload = Map<String, dynamic>.from(pumpData);
+      if (reportId.isNotEmpty) {
+        payload['reportId'] = reportId;
+      }
       final response = await http.put(
         Uri.parse('${baseUrl}pump/$id'),
         headers: _headers,
-        body: jsonEncode(pumpData),
+        body: jsonEncode(payload),
       );
       final data = jsonDecode(response.body);
       if (response.statusCode == 200) {
@@ -1711,8 +1728,13 @@ class AuthRepository {
 
   Future<Map<String, dynamic>> deletePump(String id) async {
     try {
+      final reportId = reportContext.selectedReportId.value.trim();
       final response = await http.delete(
-        Uri.parse('${baseUrl}pump/$id'),
+        Uri.parse('${baseUrl}pump/$id').replace(
+          queryParameters: {
+            if (reportId.isNotEmpty) 'reportId': reportId,
+          },
+        ),
         headers: _headers,
       );
       final data = jsonDecode(response.body);

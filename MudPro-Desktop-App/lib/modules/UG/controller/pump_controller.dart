@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/pump_model.dart';
+import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
 class PumpController extends GetxController {
@@ -18,10 +19,20 @@ class PumpController extends GetxController {
 
   // Debounce timers per row index — 800ms after last keystroke
   final Map<int, Timer> _debounceTimers = {};
+  Worker? _reportWorker;
+  int _loadGeneration = 0;
 
   @override
   void onInit() {
     super.onInit();
+    _reportWorker = ever<String>(reportContext.selectedReportId, (_) {
+      _cancelPendingUpdates();
+      if (currentWellId.isNotEmpty) {
+        loadPumps(currentWellId);
+      } else {
+        _initializeEmptyRows();
+      }
+    });
     // ✅ FIXED: Load pumps on init so availablePumpModels gets populated
     if (currentWellId.isNotEmpty) {
       loadPumps(currentWellId);
@@ -32,10 +43,18 @@ class PumpController extends GetxController {
 
   @override
   void onClose() {
+    _reportWorker?.dispose();
+    _cancelPendingUpdates();
+    super.onClose();
+  }
+
+  void _cancelPendingUpdates() {
     for (final timer in _debounceTimers.values) {
       timer.cancel();
     }
-    super.onClose();
+    _debounceTimers.clear();
+    updatingRows.clear();
+    updatingRows.refresh();
   }
 
   void _initializeEmptyRows() {
@@ -110,16 +129,19 @@ class PumpController extends GetxController {
 
   /// ✅ setWellId called from parent (UG/Dashboard) when well changes
   void setWellId(String wellId) {
+    _cancelPendingUpdates();
     currentWellId = wellId;
     loadPumps(wellId);
   }
 
   Future<void> loadPumps(String wellId) async {
+    final generation = ++_loadGeneration;
     try {
       isLoading.value = true;
       currentWellId = wellId;
 
       final result = await repository.getPumps(wellId);
+      if (generation != _loadGeneration) return;
 
       if (result['success']) {
         final List<dynamic> pumpData = result['data'] ?? [];
@@ -147,7 +169,9 @@ class PumpController extends GetxController {
       print('❌ Error loading pumps: $e');
       _initializeEmptyRows();
     } finally {
-      isLoading.value = false;
+      if (generation == _loadGeneration) {
+        isLoading.value = false;
+      }
     }
   }
 
