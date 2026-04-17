@@ -11,6 +11,8 @@ import DrillString from "../../modules/DrillString/DrillString.js";
 import Casing from "../../modules/casing/casing.model.js";
 import Pump from "../../modules/pump/pump.model.js";
 import ConsumeProduct from "../../modules/Consumeproduct/ConsumeProduct.js";
+import Service from "../../modules/ConsumeServices/Services/Service.js";
+import Engineering from "../../modules/ConsumeServices/Engineers/Engineering.js";
 import AddWater from "../../modules/addwater/AddWater.js";
 import ReceiveMud from "../../modules/receivemud/ReceiveMud.js";
 import ReturnLostMud from "../../modules/returnlostmud/ReturnLostMud.js";
@@ -730,6 +732,43 @@ const fillInventoryHeader = (ws, { well, pad, report, wellGeneral }) => {
   setCellValue(ws, "AC11", displayText(wellGeneral?.depthDrilled, "0"));
 };
 
+const hasServiceCostData = (item = {}, nameField) =>
+  firstText(item[nameField], item.itemName) ||
+  [
+    item.code,
+    item.unit,
+    item.price,
+    item.usage,
+    item.used,
+    item.cumulativeUsed,
+    item.cost,
+    item.costDollar,
+    item.subtotal,
+  ].some((value) => meaningfulText(value));
+
+const normalizeServiceCostRows = (items = [], { category, nameField }) =>
+  items
+    .filter((item) => hasServiceCostData(item, nameField))
+    .map((item) => {
+      const usage = toNumber(item.usage ?? item.used ?? item.cumulativeUsed);
+      const price = toNumber(item.price);
+      const cost = toNumber(item.cost ?? item.costDollar ?? item.subtotal);
+      const subtotal = cost || usage * price;
+
+      return {
+        category,
+        itemName: firstText(item[nameField], item.itemName),
+        code: text(item.code),
+        unit: text(item.unit),
+        price: round(price, 3),
+        usage: round(usage, 3),
+        used: round(usage, 3),
+        cumulativeUsed: round(usage, 3),
+        subtotal: round(subtotal, 3),
+        costDollar: round(subtotal, 3),
+      };
+    });
+
 const fillInventorySheet = (ws, {
   products,
   services,
@@ -1004,7 +1043,7 @@ export const exportInventoryReport = async (req, res) => {
     const report = reportId ? await Report.findById(reportId).lean().catch(() => null) : null;
     const [
       inventoryData, activities, well, drillStrings, casings, pumps, consumeProducts,
-      addWaterRows, receiveMudRows, returnLostRows, transferRows, otherVolRows, mudLossRows, mudLossStorageRows,
+      liveServices, liveEngineering, addWaterRows, receiveMudRows, returnLostRows, transferRows, otherVolRows, mudLossRows, mudLossStorageRows,
       allOtherVolRows, intervals,
     ] = await Promise.all([
       loadInventorySnapshot({ wellId, reportId }),
@@ -1019,6 +1058,8 @@ export const exportInventoryReport = async (req, res) => {
       loadExportCasings({ wellId, reportId }),
       loadExportPumps({ wellId, reportId }),
       loadReportScopedList(ConsumeProduct, { wellId, reportId }),
+      loadReportScopedList(Service, { wellId, reportId, sort: { createdAt: 1, _id: 1 } }),
+      loadReportScopedList(Engineering, { wellId, reportId, sort: { createdAt: 1, _id: 1 } }),
       loadReportScopedList(AddWater, { wellId, reportId }),
       loadReportScopedList(ReceiveMud, { wellId, reportId }),
       loadReportScopedList(ReturnLostMud, { wellId, reportId }),
@@ -1054,8 +1095,18 @@ export const exportInventoryReport = async (req, res) => {
         ? wellGeneral.timeDistributionRows
         : activities;
     const products = inventoryData.filter((item) => item.category === "Product");
-    const services = inventoryData.filter((item) => item.category === "Service");
-    const engineers = inventoryData.filter((item) => item.category === "Engineering");
+    const snapshotServices = inventoryData.filter((item) => item.category === "Service");
+    const snapshotEngineering = inventoryData.filter((item) => item.category === "Engineering");
+    const serviceRows = normalizeServiceCostRows(liveServices, {
+      category: "Service",
+      nameField: "serviceName",
+    });
+    const engineeringRows = normalizeServiceCostRows(liveEngineering, {
+      category: "Engineering",
+      nameField: "engineeringName",
+    });
+    const services = serviceRows.length > 0 ? serviceRows : snapshotServices;
+    const engineers = engineeringRows.length > 0 ? engineeringRows : snapshotEngineering;
     const summary = computeVolumeSummary({
       activePits,
       productsUsed: consumeProducts,
