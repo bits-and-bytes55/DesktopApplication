@@ -575,8 +575,8 @@ const fillInventorySheet = (ws, {
 
   writeRows(ws, SERVICE_ROWS, SERVICE_COLUMNS, services, (item) => ({
     A: item.itemName || "",
-    G: round(item.qty),
-    I: round(item.cumulativeUsed),
+    G: round(item.used ?? item.cumulativeUsed ?? item.usage),
+    I: round(item.cumulativeUsed ?? item.used ?? item.usage),
     K: round(item.costDollar, 3),
   }));
   writeRows(ws, ACTIVE_PIT_ROWS, PIT_COLUMNS, activePits, (pit) => ({
@@ -591,8 +591,8 @@ const fillInventorySheet = (ws, {
   }));
   writeRows(ws, ENGINEERING_ROWS, SERVICE_COLUMNS, engineers, (item) => ({
     A: item.itemName || "",
-    G: round(item.qty),
-    I: round(item.cumulativeUsed),
+    G: round(item.used ?? item.cumulativeUsed ?? item.usage),
+    I: round(item.cumulativeUsed ?? item.used ?? item.usage),
     K: round(item.costDollar, 3),
   }));
   writeRows(ws, RESERVE_ROWS, PIT_COLUMNS, reservePits, (pit) => ({
@@ -656,6 +656,38 @@ const loadReportScopedList = async (
   return Model.find({ wellId, ...legacyReportScopeForModel(Model) })
     .sort(sort)
     .limit(limit || 0)
+    .lean();
+};
+
+const emptyFieldFilter = (field) => ({
+  $or: [{ [field]: { $exists: false } }, { [field]: null }, { [field]: "" }],
+});
+
+const loadExportDrillStrings = async ({ wellId, reportId }) => {
+  if (!wellId) return [];
+
+  if (reportId) {
+    const scoped = await DrillString.find({ wellId, reportId })
+      .sort({ createdAt: 1, _id: 1 })
+      .limit(8)
+      .lean();
+    if (scoped.length > 0) return scoped;
+  }
+
+  const wellScopedLegacy = await DrillString.find({
+    wellId,
+    ...legacyReportScope(),
+  })
+    .sort({ createdAt: 1, _id: 1 })
+    .limit(8)
+    .lean();
+  if (wellScopedLegacy.length > 0) return wellScopedLegacy;
+
+  return DrillString.find({
+    $and: [emptyFieldFilter("wellId"), legacyReportScope()],
+  })
+    .sort({ createdAt: 1, _id: 1 })
+    .limit(8)
     .lean();
 };
 
@@ -754,12 +786,7 @@ export const exportInventoryReport = async (req, res) => {
         limit: 10,
       }),
       Well.findById(wellId).lean(),
-      loadReportScopedList(DrillString, {
-        wellId,
-        reportId,
-        sort: { createdAt: 1 },
-        limit: 8,
-      }),
+      loadExportDrillStrings({ wellId, reportId }),
       loadReportScopedList(Casing, {
         wellId,
         reportId,

@@ -4,6 +4,8 @@ import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:mudpro_desktop_app/api_endpoint/api_endpoint.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
+import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
+import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
 class DrillStringEntry {
   final String? id;
@@ -65,6 +67,36 @@ class DrillStringController extends GetxController {
         'Accept': 'application/json',
       };
 
+  Uri _buildScopedUri(String path) {
+    final queryParameters = <String, String>{};
+    final wellId = currentBackendWellId.trim();
+    final reportId = reportContext.selectedReportId.value.trim();
+
+    if (wellId.isNotEmpty) {
+      queryParameters['wellId'] = wellId;
+    }
+    if (reportId.isNotEmpty) {
+      queryParameters['reportId'] = reportId;
+    }
+
+    return Uri.parse('$baseUrl$path').replace(queryParameters: queryParameters);
+  }
+
+  Map<String, dynamic> _withScope(Map<String, dynamic> payload) {
+    final body = Map<String, dynamic>.from(payload);
+    final wellId = currentBackendWellId.trim();
+    final reportId = reportContext.selectedReportId.value.trim();
+
+    if (wellId.isNotEmpty) {
+      body['wellId'] = wellId;
+    }
+    if (reportId.isNotEmpty) {
+      body['reportId'] = reportId;
+    }
+
+    return body;
+  }
+
   @override
   void onInit() {
     super.onInit();
@@ -79,6 +111,8 @@ class DrillStringController extends GetxController {
         (_) => _handleUnitChange(),
       ),
       ever(AppUnits.controller.customUnits, (_) => _handleUnitChange()),
+      ever<String>(padWellContext.selectedWellId, (_) => fetchDrillStrings()),
+      ever<String>(reportContext.selectedReportId, (_) => fetchDrillStrings()),
     ]);
     fetchDrillStrings();
   }
@@ -177,10 +211,21 @@ class DrillStringController extends GetxController {
 
   // ─── API: FETCH ───────────────────────────────
   Future<void> fetchDrillStrings() async {
+    final wellId = currentBackendWellId.trim();
+    if (wellId.isEmpty) {
+      for (final e in entries) {
+        e.dispose();
+      }
+      entries.clear();
+      _initEmptyRows();
+      totalLength.value = 0.0;
+      return;
+    }
+
     isLoading.value = true;
     try {
       final response = await http.get(
-        Uri.parse('${baseUrl}drill-string'),
+        _buildScopedUri('drill-string'),
         headers: _headers,
       );
       if (response.statusCode == 200) {
@@ -239,7 +284,7 @@ class DrillStringController extends GetxController {
       final response = await http.post(
         Uri.parse('${baseUrl}drill-string'),
         headers: _headers,
-        body: jsonEncode(entry.toJson()),
+        body: jsonEncode(_withScope(entry.toJson())),
       );
       if (response.statusCode == 201) {
         final json = jsonDecode(response.body);
@@ -281,7 +326,7 @@ class DrillStringController extends GetxController {
         final response = await http.post(
           Uri.parse('${baseUrl}drill-string'),
           headers: _headers,
-          body: jsonEncode(e.toJson()),
+          body: jsonEncode(_withScope(e.toJson())),
         );
         if (response.statusCode == 201) {
           successCount++;

@@ -146,9 +146,15 @@ class ConsumeServiceController {
         return [];
       }
 
+      final queryParameters = <String, String>{'wellId': _wellId};
+      final reportId = reportContext.selectedReportId.value.trim();
+      if (reportId.isNotEmpty) {
+        queryParameters['reportId'] = reportId;
+      }
+
       final uri = Uri.parse(
         '${baseUrl}cs/package',
-      ).replace(queryParameters: {'wellId': _wellId});
+      ).replace(queryParameters: queryParameters);
 
       final response = await http.get(uri, headers: _headers);
 
@@ -285,9 +291,15 @@ class ConsumeServiceController {
         return [];
       }
 
+      final queryParameters = <String, String>{'wellId': _wellId};
+      final reportId = reportContext.selectedReportId.value.trim();
+      if (reportId.isNotEmpty) {
+        queryParameters['reportId'] = reportId;
+      }
+
       final uri = Uri.parse(
         '${baseUrl}cs/service',
-      ).replace(queryParameters: {'wellId': _wellId});
+      ).replace(queryParameters: queryParameters);
 
       final response = await http.get(uri, headers: _headers);
 
@@ -424,9 +436,15 @@ class ConsumeServiceController {
         return [];
       }
 
+      final queryParameters = <String, String>{'wellId': _wellId};
+      final reportId = reportContext.selectedReportId.value.trim();
+      if (reportId.isNotEmpty) {
+        queryParameters['reportId'] = reportId;
+      }
+
       final uri = Uri.parse(
         '${baseUrl}cs/engineering',
-      ).replace(queryParameters: {'wellId': _wellId});
+      ).replace(queryParameters: queryParameters);
 
       final response = await http.get(uri, headers: _headers);
 
