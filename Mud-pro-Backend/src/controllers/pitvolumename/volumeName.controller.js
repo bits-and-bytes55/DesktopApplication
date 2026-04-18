@@ -25,13 +25,36 @@ const toNumber = (value) => {
 
 const toText = (value) => String(value ?? "").trim();
 
-const calculateHoleVolume = (idInInches, mdInFeet) => {
-  const id = toNumber(idInInches);
+const round2 = (value) => {
+  const n = Number(value);
+  return Number.isFinite(n) ? Number(n.toFixed(2)) : 0;
+};
+
+const calculateHoleVolume = (casing, mdInFeet) => {
+  const id = toNumber(casing?.id);
   const md = toNumber(mdInFeet);
+  const top = toNumber(casing?.top);
+  const shoe = toNumber(casing?.shoe);
 
-  if (id <= 0 || md <= 0) return 0;
+  if (id <= 0) return 0;
 
-  return Number(((id * id * md) / 1029.4).toFixed(2));
+  let length = 0;
+
+  if (md > 0 && shoe > 0) {
+    length = Math.max(0, Math.min(md, shoe) - top);
+  } else if (md > 0) {
+    length = Math.max(0, md - top);
+  } else if (shoe > 0) {
+    length = Math.max(0, shoe - top);
+  }
+
+  if (length <= 0) {
+    length = md > 0 ? md : shoe;
+  }
+
+  if (length <= 0) return 0;
+
+  return round2((id * id * length) / 1029.4);
 };
 
 const legacyScopeFilter = (wellId) => ({
@@ -129,6 +152,11 @@ const findScopedCasings = async ({ wellId, reportId }) => {
     if (scopedCasings.length > 0) {
       return scopedCasings;
     }
+
+    return Casing.find(legacyScopeFilter(wellId)).sort({
+      createdAt: 1,
+      _id: 1,
+    });
   }
 
   return Casing.find({ wellId }).sort({ createdAt: 1, _id: 1 });
@@ -585,7 +613,7 @@ export const getVolumeNameCalculation = async (req, res) => {
       : null;
 
     const casingId = toNumber(latestCasing?.id);
-    const hole = calculateHoleVolume(casingId, md);
+    const hole = calculateHoleVolume(latestCasing, md);
 
     const activePitsList = pits.filter((pit) => pit.initialActive === true);
     const storagePitsList = pits.filter((pit) => pit.initialActive === false);
@@ -604,11 +632,11 @@ export const getVolumeNameCalculation = async (req, res) => {
     const derivedActiveSystem = Number((activePits + hole).toFixed(2));
     // Legacy desktop behavior:
     // Active System = measured Active Pits + Hole
-    // End Vol. = consume-product distribution's "Active System" row
+    // End Vol. = consume-product distribution's "Active System" row when present;
+    // the legacy Pit table keeps it at zero until an end volume is supplied.
     // Storage calculated volumes come from the remaining distribution rows
     const activeSystem = derivedActiveSystem;
-    const endVol =
-      activeSystemVolume > 0 ? activeSystemVolume : derivedActiveSystem;
+    const endVol = activeSystemVolume > 0 ? activeSystemVolume : 0;
     const endVolMinusActiveSystem = Number(
       (endVol - activeSystem).toFixed(2)
     );
@@ -668,6 +696,8 @@ export const getVolumeNameCalculation = async (req, res) => {
         },
         casing: {
           id: casingId,
+          top: toNumber(latestCasing?.top),
+          shoe: toNumber(latestCasing?.shoe),
           description: latestCasing?.description || "",
         },
         volumeName: {

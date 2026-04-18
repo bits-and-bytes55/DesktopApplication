@@ -1,5 +1,6 @@
-import Pit from "../../modules/pit/pit.model.js";
 import EmptyFluidActiveSystem from "../../modules/emptyfluidactivesystem/EmptyFluidActiveSystem.js";
+import { getWritablePits } from "../../utils/pitReportState.js";
+import { buildScopedFilter, readReportId } from "../../utils/reportScope.js";
 
 const toNumber = (value) => {
   if (!value) return 0;
@@ -10,8 +11,8 @@ const toNumber = (value) => {
 const round2 = (num) => Number(num.toFixed(2));
 const getWellId = (req) => String(req.params.wellId || "").trim();
 
-const getPits = async (wellId) => {
-  const pits = await Pit.find({ wellId }).sort({ createdAt: 1 });
+const getPits = async (wellId, reportId) => {
+  const pits = await getWritablePits({ wellId, reportId });
   if (!pits.length) throw new Error("No pits found for this wellId");
   return pits;
 };
@@ -71,6 +72,7 @@ const revertToActive = async (activePits, total) => {
 export const createEmptyFluidActiveSystem = async (req, res) => {
   try {
     const wellId = getWellId(req);
+    const reportId = readReportId(req);
     const payloads = Array.isArray(req.body) ? req.body : [req.body];
 
     const created = [];
@@ -78,7 +80,7 @@ export const createEmptyFluidActiveSystem = async (req, res) => {
     for (const payload of payloads) {
       const { actionType, transfers = [], volume } = payload;
 
-      const pits = await getPits(wellId);
+      const pits = await getPits(wellId, reportId);
       const activePits = getActivePits(pits);
       const storagePits = getStoragePits(pits);
 
@@ -98,6 +100,7 @@ export const createEmptyFluidActiveSystem = async (req, res) => {
 
         const item = await EmptyFluidActiveSystem.create({
           wellId,
+          reportId,
           actionType,
           pitName: "",
           volume: dumpVol,
@@ -133,6 +136,7 @@ export const createEmptyFluidActiveSystem = async (req, res) => {
         const items = await EmptyFluidActiveSystem.insertMany(
           clean.map((t) => ({
             wellId,
+            reportId,
             actionType,
             pitName: t.pitName,
             volume: t.volume,
@@ -161,8 +165,11 @@ export const createEmptyFluidActiveSystem = async (req, res) => {
 
 export const getEmptyFluidList = async (req, res) => {
   const wellId = getWellId(req);
+  const reportId = readReportId(req);
 
-  const data = await EmptyFluidActiveSystem.find({ wellId }).sort({
+  const data = await EmptyFluidActiveSystem.find(
+    buildScopedFilter(wellId, reportId)
+  ).sort({
     createdAt: -1,
   });
 
@@ -171,9 +178,13 @@ export const getEmptyFluidList = async (req, res) => {
 
 export const getEmptyFluidById = async (req, res) => {
   const wellId = getWellId(req);
+  const reportId = readReportId(req);
   const { id } = req.params;
 
-  const item = await EmptyFluidActiveSystem.findOne({ _id: id, wellId });
+  const item = await EmptyFluidActiveSystem.findOne({
+    _id: id,
+    ...buildScopedFilter(wellId, reportId),
+  });
 
   if (!item) {
     return res.status(404).json({ success: false, message: "Not found" });
@@ -187,13 +198,17 @@ export const getEmptyFluidById = async (req, res) => {
 export const updateEmptyFluid = async (req, res) => {
   try {
     const wellId = getWellId(req);
+    const reportId = readReportId(req);
     const { id } = req.params;
 
-    const existing = await EmptyFluidActiveSystem.findOne({ _id: id, wellId });
+    const existing = await EmptyFluidActiveSystem.findOne({
+      _id: id,
+      ...buildScopedFilter(wellId, reportId),
+    });
 
     if (!existing) throw new Error("Record not found");
 
-    const pits = await getPits(wellId);
+    const pits = await getPits(wellId, reportId);
     const activePits = getActivePits(pits);
     const storagePits = getStoragePits(pits);
 
@@ -222,13 +237,17 @@ export const updateEmptyFluid = async (req, res) => {
 export const deleteEmptyFluid = async (req, res) => {
   try {
     const wellId = getWellId(req);
+    const reportId = readReportId(req);
     const { id } = req.params;
 
-    const existing = await EmptyFluidActiveSystem.findOne({ _id: id, wellId });
+    const existing = await EmptyFluidActiveSystem.findOne({
+      _id: id,
+      ...buildScopedFilter(wellId, reportId),
+    });
 
     if (!existing) throw new Error("Record not found");
 
-    const pits = await getPits(wellId);
+    const pits = await getPits(wellId, reportId);
     const activePits = getActivePits(pits);
     const storagePits = getStoragePits(pits);
 
@@ -243,7 +262,10 @@ export const deleteEmptyFluid = async (req, res) => {
       }
     }
 
-    await EmptyFluidActiveSystem.deleteOne({ _id: id });
+    await EmptyFluidActiveSystem.deleteOne({
+      _id: id,
+      ...buildScopedFilter(wellId, reportId),
+    });
 
     res.json({ success: true, message: "Deleted successfully" });
   } catch (err) {

@@ -7,6 +7,11 @@ const emptyFluidActiveSystemSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    reportId: {
+      type: String,
+      default: "",
+      index: true,
+    },
     actionType: {
       type: String,
       enum: ["Dump", "Transfer to Storage"],

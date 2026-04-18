@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/pit_model.dart';
+import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
 // ── Transfer Mud Row Data ────
@@ -56,6 +57,7 @@ class PitController extends GetxController {
 
   Timer? _debounceTimer;
   Worker? _wellWorker;
+  Worker? _reportWorker;
 
   bool get _hasWellId => currentWellId != null && currentWellId!.isNotEmpty;
 
@@ -86,6 +88,11 @@ class PitController extends GetxController {
     _wellWorker = ever<String>(padWellContext.selectedWellId, (wellId) {
       if (wellId.isEmpty || wellId == currentWellId) return;
       currentWellId = wellId;
+      fetchAllPits();
+      fetchVolumeNameData();
+      fetchTransferMud();
+    });
+    _reportWorker = ever<String>(reportContext.selectedReportId, (_) {
       fetchAllPits();
       fetchVolumeNameData();
       fetchTransferMud();
@@ -980,6 +987,7 @@ class PitController extends GetxController {
   @override
   void onClose() {
     _wellWorker?.dispose();
+    _reportWorker?.dispose();
     _disposePitControllers();
     for (var row in transferRows) {
       row.volumeController.dispose();

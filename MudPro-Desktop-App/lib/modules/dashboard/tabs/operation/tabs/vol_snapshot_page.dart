@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
+import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
 class VolumeSnapshotController extends GetxController {
@@ -13,17 +14,20 @@ class VolumeSnapshotController extends GetxController {
   final errorMessage = ''.obs;
 
   Worker? _wellWorker;
+  Worker? _reportWorker;
 
   @override
   void onInit() {
     super.onInit();
     load();
     _wellWorker = ever<String>(padWellContext.selectedWellId, (_) => load());
+    _reportWorker = ever<String>(reportContext.selectedReportId, (_) => load());
   }
 
   @override
   void onClose() {
     _wellWorker?.dispose();
+    _reportWorker?.dispose();
     super.onClose();
   }
 

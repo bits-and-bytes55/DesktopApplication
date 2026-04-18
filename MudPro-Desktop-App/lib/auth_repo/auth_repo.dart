@@ -19,6 +19,30 @@ class AuthRepository {
     'Accept': 'application/json',
   };
 
+  String get _selectedReportId => reportContext.selectedReportId.value.trim();
+
+  Map<String, dynamic> _payloadWithReportId(Map<String, dynamic> body) {
+    final payload = Map<String, dynamic>.from(body);
+    final reportId = _selectedReportId;
+    if (reportId.isNotEmpty) {
+      payload['reportId'] = reportId;
+    }
+    return payload;
+  }
+
+  Uri _uriWithReportId(String rawUrl) {
+    final reportId = _selectedReportId;
+    final uri = Uri.parse(rawUrl);
+    if (reportId.isEmpty) return uri;
+
+    return uri.replace(
+      queryParameters: {
+        ...uri.queryParameters,
+        'reportId': reportId,
+      },
+    );
+  }
+
   String _messageFromResponse(
     Map<String, dynamic> data,
     int statusCode,
@@ -114,11 +138,12 @@ class AuthRepository {
   ) async {
     try {
       final wellId = body['wellId'] ?? '';
+      final payload = _payloadWithReportId(body);
       print('Hitting POST ${baseUrl}volume-name/$wellId/consume-product');
       final response = await http.post(
         Uri.parse('${baseUrl}volume-name/$wellId/consume-product'),
         headers: _headers,
-        body: jsonEncode(body),
+        body: jsonEncode(payload),
       );
       print('statuscode------${response.statusCode}');
       print('response body------${response.body}');
@@ -154,6 +179,7 @@ class AuthRepository {
 
       final bodyData = {
         'wellId': wellId,
+        if (_selectedReportId.isNotEmpty) 'reportId': _selectedReportId,
         'pitName': pitName,
         'volume': volume,
         'density': density,
@@ -213,9 +239,10 @@ class AuthRepository {
   // ── Get Transfer Mud ─────────────────────────────────────────────────────────
   Future<Map<String, dynamic>> getTransferMud(String wellId) async {
     try {
-      print('Hitting GET ${baseUrl}transfer-mud/$wellId');
+      final uri = _uriWithReportId('${baseUrl}transfer-mud/$wellId');
+      print('Hitting GET $uri');
       final response = await http.get(
-        Uri.parse('${baseUrl}transfer-mud/$wellId'),
+        uri,
         headers: _headers,
       );
       print('statuscode------${response.statusCode}');
@@ -238,11 +265,12 @@ class AuthRepository {
     Map<String, dynamic> body,
   ) async {
     try {
+      final payload = _payloadWithReportId(body);
       print('Hitting POST ${baseUrl}transfer-mud/$wellId');
       final response = await http.post(
         Uri.parse('${baseUrl}transfer-mud/$wellId'),
         headers: _headers,
-        body: jsonEncode(body),
+        body: jsonEncode(payload),
       );
       print('statuscode------${response.statusCode}');
       print('response body------${response.body}');
@@ -268,11 +296,12 @@ class AuthRepository {
     Map<String, dynamic> body,
   ) async {
     try {
+      final payload = _payloadWithReportId(body);
       print('Hitting PUT ${baseUrl}transfer-mud/$wellId/$id');
       final response = await http.put(
         Uri.parse('${baseUrl}transfer-mud/$wellId/$id'),
         headers: _headers,
-        body: jsonEncode(body),
+        body: jsonEncode(payload),
       );
       print('statuscode------${response.statusCode}');
       print('response body------${response.body}');
@@ -402,11 +431,12 @@ class AuthRepository {
     Map<String, dynamic> body,
   ) async {
     try {
+      final payload = _payloadWithReportId(body);
       print('Hitting POST ${baseUrl}receive-mud/$wellId');
       final response = await http.post(
         Uri.parse('${baseUrl}receive-mud/$wellId'),
         headers: _headers,
-        body: jsonEncode(body),
+        body: jsonEncode(payload),
       );
       print('statuscode------${response.statusCode}');
       print('response body------${response.body}');
@@ -425,8 +455,9 @@ class AuthRepository {
   // ── Get Receive Mud ────────────────────────────────────────────────────────
   Future<Map<String, dynamic>> getReceiveMudList(String wellId) async {
     try {
+      final uri = _uriWithReportId('${baseUrl}receive-mud/$wellId');
       final response = await http.get(
-        Uri.parse('${baseUrl}receive-mud/$wellId'),
+        uri,
         headers: _headers,
       );
       final data = jsonDecode(response.body);
@@ -448,10 +479,11 @@ class AuthRepository {
     Map<String, dynamic> body,
   ) async {
     try {
+      final payload = _payloadWithReportId(body);
       final response = await http.put(
         Uri.parse('${baseUrl}receive-mud/$wellId/$id'),
         headers: _headers,
-        body: jsonEncode(body),
+        body: jsonEncode(payload),
       );
       final data = jsonDecode(response.body);
       return {
@@ -471,8 +503,9 @@ class AuthRepository {
     String id,
   ) async {
     try {
+      final uri = _uriWithReportId('${baseUrl}receive-mud/$wellId/$id');
       final response = await http.delete(
-        Uri.parse('${baseUrl}receive-mud/$wellId/$id'),
+        uri,
         headers: _headers,
       );
       final data = jsonDecode(response.body);
@@ -491,9 +524,10 @@ class AuthRepository {
     String id,
   ) async {
     try {
-      print('Hitting DELETE ${baseUrl}transfer-mud/$wellId/$id');
+      final uri = _uriWithReportId('${baseUrl}transfer-mud/$wellId/$id');
+      print('Hitting DELETE $uri');
       final response = await http.delete(
-        Uri.parse('${baseUrl}transfer-mud/$wellId/$id'),
+        uri,
         headers: _headers,
       );
       print('statuscode------${response.statusCode}');
@@ -1240,10 +1274,15 @@ class AuthRepository {
     required String wellId,
   }) async {
     try {
+      final reportId = _selectedReportId;
       final response = await http.post(
         Uri.parse('${baseUrl}pit/bulk-add'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'pits': pits, 'wellId': wellId}),
+        body: jsonEncode({
+          'pits': pits,
+          'wellId': wellId,
+          if (reportId.isNotEmpty) 'reportId': reportId,
+        }),
       );
 
       final data = jsonDecode(response.body);
@@ -1391,17 +1430,19 @@ class AuthRepository {
     String? fluidType,
   }) async {
     try {
+      final body = {
+        if (pitName != null) 'pitName': pitName,
+        if (capacity != null) 'capacity': capacity,
+        if (initialActive != null) 'initialActive': initialActive,
+        if (volume != null) 'volume': volume,
+        if (density != null) 'density': density,
+        if (fluidType != null) 'fluidType': fluidType,
+        if (_selectedReportId.isNotEmpty) 'reportId': _selectedReportId,
+      };
       final response = await http.put(
         Uri.parse('${baseUrl}pit/$id'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          if (pitName != null) 'pitName': pitName,
-          if (capacity != null) 'capacity': capacity,
-          if (initialActive != null) 'initialActive': initialActive,
-          if (volume != null) 'volume': volume,
-          if (density != null) 'density': density,
-          if (fluidType != null) 'fluidType': fluidType,
-        }),
+        body: jsonEncode(body),
       );
 
       final data = jsonDecode(response.body);
@@ -1926,10 +1967,11 @@ class AuthRepository {
     Map<String, dynamic> body,
   ) async {
     try {
+      final payload = _payloadWithReportId(body);
       final response = await http.post(
         Uri.parse('${baseUrl}return-lost-mud/$wellId'),
         headers: _headers,
-        body: jsonEncode(body),
+        body: jsonEncode(payload),
       );
       final data = jsonDecode(response.body);
       return {
@@ -1944,8 +1986,9 @@ class AuthRepository {
 
   Future<Map<String, dynamic>> getReturnLostMudList(String wellId) async {
     try {
+      final uri = _uriWithReportId('${baseUrl}return-lost-mud/$wellId');
       final response = await http.get(
-        Uri.parse('${baseUrl}return-lost-mud/$wellId'),
+        uri,
         headers: _headers,
       );
       final data = jsonDecode(response.body);
@@ -1965,10 +2008,11 @@ class AuthRepository {
     Map<String, dynamic> body,
   ) async {
     try {
+      final payload = _payloadWithReportId(body);
       final response = await http.put(
         Uri.parse('${baseUrl}return-lost-mud/$wellId/$id'),
         headers: _headers,
-        body: jsonEncode(body),
+        body: jsonEncode(payload),
       );
       final data = jsonDecode(response.body);
       return {
@@ -1986,8 +2030,9 @@ class AuthRepository {
     String id,
   ) async {
     try {
+      final uri = _uriWithReportId('${baseUrl}return-lost-mud/$wellId/$id');
       final response = await http.delete(
-        Uri.parse('${baseUrl}return-lost-mud/$wellId/$id'),
+        uri,
         headers: _headers,
       );
       final data = jsonDecode(response.body);
@@ -2005,10 +2050,11 @@ class AuthRepository {
     Map<String, dynamic> body,
   ) async {
     try {
+      final payload = _payloadWithReportId(body);
       final response = await http.post(
         Uri.parse('${baseUrl}mud-loss/$wellId'),
         headers: _headers,
-        body: jsonEncode(body),
+        body: jsonEncode(payload),
       );
       final data = jsonDecode(response.body);
       return {
@@ -2027,8 +2073,9 @@ class AuthRepository {
 
   Future<Map<String, dynamic>> getMudLossList(String wellId) async {
     try {
+      final uri = _uriWithReportId('${baseUrl}mud-loss/$wellId');
       final response = await http.get(
-        Uri.parse('${baseUrl}mud-loss/$wellId'),
+        uri,
         headers: _headers,
       );
       final data = jsonDecode(response.body);
@@ -2048,10 +2095,11 @@ class AuthRepository {
     Map<String, dynamic> body,
   ) async {
     try {
+      final payload = _payloadWithReportId(body);
       final response = await http.put(
         Uri.parse('${baseUrl}mud-loss/$wellId/$id'),
         headers: _headers,
-        body: jsonEncode(body),
+        body: jsonEncode(payload),
       );
       final data = jsonDecode(response.body);
       return {
@@ -2070,8 +2118,9 @@ class AuthRepository {
 
   Future<Map<String, dynamic>> deleteMudLoss(String wellId, String id) async {
     try {
+      final uri = _uriWithReportId('${baseUrl}mud-loss/$wellId/$id');
       final response = await http.delete(
-        Uri.parse('${baseUrl}mud-loss/$wellId/$id'),
+        uri,
         headers: _headers,
       );
       final data = jsonDecode(response.body);
@@ -2089,10 +2138,11 @@ class AuthRepository {
     Map<String, dynamic> body,
   ) async {
     try {
+      final payload = _payloadWithReportId({'wellId': wellId, ...body});
       final response = await http.post(
         Uri.parse('${baseUrl}other-vol-addition'),
         headers: _headers,
-        body: jsonEncode({'wellId': wellId, ...body}),
+        body: jsonEncode(payload),
       );
       final data = jsonDecode(response.body);
       return {
@@ -2107,8 +2157,9 @@ class AuthRepository {
 
   Future<Map<String, dynamic>> getOtherVolAdditionList(String wellId) async {
     try {
+      final uri = _uriWithReportId('${baseUrl}other-vol-addition/$wellId');
       final response = await http.get(
-        Uri.parse('${baseUrl}other-vol-addition/$wellId'),
+        uri,
         headers: _headers,
       );
       final data = jsonDecode(response.body);
@@ -2128,10 +2179,11 @@ class AuthRepository {
     Map<String, dynamic> body,
   ) async {
     try {
+      final payload = _payloadWithReportId({'wellId': wellId, ...body});
       final response = await http.put(
         Uri.parse('${baseUrl}other-vol-addition/$wellId/$id'),
         headers: _headers,
-        body: jsonEncode({'wellId': wellId, ...body}),
+        body: jsonEncode(payload),
       );
       final data = jsonDecode(response.body);
       return {
@@ -2149,8 +2201,9 @@ class AuthRepository {
     String id,
   ) async {
     try {
+      final uri = _uriWithReportId('${baseUrl}other-vol-addition/$wellId/$id');
       final response = await http.delete(
-        Uri.parse('${baseUrl}other-vol-addition/$wellId/$id'),
+        uri,
         headers: _headers,
       );
       final data = jsonDecode(response.body);
@@ -2168,10 +2221,11 @@ class AuthRepository {
     Map<String, dynamic> body,
   ) async {
     try {
+      final payload = _payloadWithReportId(body);
       final response = await http.post(
         Uri.parse('${baseUrl}mud-loss-storage/$wellId'),
         headers: _headers,
-        body: jsonEncode(body),
+        body: jsonEncode(payload),
       );
       final data = jsonDecode(response.body);
       return {
@@ -2190,8 +2244,9 @@ class AuthRepository {
 
   Future<Map<String, dynamic>> getMudLossStorageList(String wellId) async {
     try {
+      final uri = _uriWithReportId('${baseUrl}mud-loss-storage/$wellId');
       final response = await http.get(
-        Uri.parse('${baseUrl}mud-loss-storage/$wellId'),
+        uri,
         headers: _headers,
       );
       final data = jsonDecode(response.body);
@@ -2211,10 +2266,11 @@ class AuthRepository {
     Map<String, dynamic> body,
   ) async {
     try {
+      final payload = _payloadWithReportId(body);
       final response = await http.put(
         Uri.parse('${baseUrl}mud-loss-storage/$wellId/$id'),
         headers: _headers,
-        body: jsonEncode(body),
+        body: jsonEncode(payload),
       );
       final data = jsonDecode(response.body);
       return {
@@ -2236,8 +2292,9 @@ class AuthRepository {
     String id,
   ) async {
     try {
+      final uri = _uriWithReportId('${baseUrl}mud-loss-storage/$wellId/$id');
       final response = await http.delete(
-        Uri.parse('${baseUrl}mud-loss-storage/$wellId/$id'),
+        uri,
         headers: _headers,
       );
       final data = jsonDecode(response.body);
