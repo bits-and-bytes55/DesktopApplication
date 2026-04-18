@@ -645,7 +645,7 @@ const fillDmrBottomSections = (ws, {
   cuttingsAnalysis,
   reportFormat,
 }) => {
-  const notes = [
+  const generatedOperationalComments = [
     text(report?.notes),
     text(wellGeneral?.activity) ? `Activity: ${wellGeneral.activity}` : "",
     text(wellGeneral?.formation) ? `Formation: ${wellGeneral.formation}` : "",
@@ -655,7 +655,31 @@ const fillDmrBottomSections = (ws, {
     pad?.fieldBlock ? `Field/Block: ${pad.fieldBlock}` : "",
     summary?.finalActiveVolume ? `Final active volume: ${summary.finalActiveVolume} bbl` : "",
   ].filter(Boolean).join("\n");
-  setCellValue(ws, "AJ53", notes || "No additional report notes were saved for this report.");
+
+  const recommendedTreatment = firstText(
+    report?.recommendedTreatment,
+    report?.notes
+  );
+  const operationalComments = [
+    text(report?.remarks),
+    text(report?.recapRemarks)
+      ? `Recap Remarks:\n${text(report.recapRemarks)}`
+      : "",
+  ].filter(Boolean).join("\n\n");
+
+  setCellValue(
+    ws,
+    "AJ53",
+    recommendedTreatment ||
+      "No recommended tour treatments were saved for this report."
+  );
+  setCellValue(
+    ws,
+    "AJ73",
+    operationalComments ||
+      generatedOperationalComments ||
+      "No operational comments were saved for this report."
+  );
 
   pumps.slice(0, 4).forEach((pump, index) => {
     const startColumn = ["L", "R", "X", "AD"][index];

@@ -12,6 +12,30 @@ const pumpRateAndPressureSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const remarksAttachmentSchema = new mongoose.Schema(
+  {
+    fileName: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    mimeType: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    size: {
+      type: Number,
+      default: 0,
+    },
+    data: {
+      type: String,
+      default: "",
+    },
+  },
+  { _id: false }
+);
+
 const reportSchema = new mongoose.Schema(
   {
     wellId: {
@@ -44,6 +68,30 @@ const reportSchema = new mongoose.Schema(
       type: String,
       default: "",
       trim: true,
+    },
+    recommendedTreatment: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    remarks: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    recapRemarks: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    internalNotes: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    remarksAttachment: {
+      type: remarksAttachmentSchema,
+      default: null,
     },
     pumpRateAndPressure: {
       type: pumpRateAndPressureSchema,

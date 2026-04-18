@@ -28,6 +28,28 @@ const sanitizePumpRateAndPressure = (value = {}) => {
   };
 };
 
+const sanitizeRemarksAttachment = (value) => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  const fileName = toText(value.fileName || value.name);
+  const mimeType = toText(value.mimeType || value.type);
+  const data = toText(value.data || value.base64);
+  const size = toNumber(value.size);
+
+  if (!fileName && !data) {
+    return null;
+  }
+
+  return {
+    fileName,
+    mimeType,
+    size,
+    data,
+  };
+};
+
 const hasPumpRateAndPressureInput = (value) =>
   value && typeof value === "object" && !Array.isArray(value);
 
@@ -376,6 +398,11 @@ export const createReport = async (req, res) => {
     const reportDate = toText(req.body.reportDate);
     const title = toText(req.body.title) || `Report ${reportNo}`;
     const notes = toText(req.body.notes);
+    const recommendedTreatment = toText(req.body.recommendedTreatment);
+    const remarks = toText(req.body.remarks);
+    const recapRemarks = toText(req.body.recapRemarks);
+    const internalNotes = toText(req.body.internalNotes);
+    const remarksAttachment = sanitizeRemarksAttachment(req.body.remarksAttachment);
     const carryOverFromReportId = toText(req.body.carryOverFromReportId);
     let sourceReport = null;
 
@@ -411,6 +438,11 @@ export const createReport = async (req, res) => {
       reportDate,
       title,
       notes,
+      recommendedTreatment,
+      remarks,
+      recapRemarks,
+      internalNotes,
+      remarksAttachment,
       pumpRateAndPressure,
     });
 
@@ -474,6 +506,11 @@ export const getReports = async (req, res) => {
         { userReportNo: regex },
         { reportDate: regex },
         { title: regex },
+        { notes: regex },
+        { recommendedTreatment: regex },
+        { remarks: regex },
+        { recapRemarks: regex },
+        { internalNotes: regex },
       ];
     }
 
@@ -560,6 +597,23 @@ export const updateReport = async (req, res) => {
     }
     if (req.body.notes !== undefined) {
       report.notes = toText(req.body.notes);
+    }
+    if (req.body.recommendedTreatment !== undefined) {
+      report.recommendedTreatment = toText(req.body.recommendedTreatment);
+    }
+    if (req.body.remarks !== undefined) {
+      report.remarks = toText(req.body.remarks);
+    }
+    if (req.body.recapRemarks !== undefined) {
+      report.recapRemarks = toText(req.body.recapRemarks);
+    }
+    if (req.body.internalNotes !== undefined) {
+      report.internalNotes = toText(req.body.internalNotes);
+    }
+    if (req.body.remarksAttachment !== undefined) {
+      report.remarksAttachment = sanitizeRemarksAttachment(
+        req.body.remarksAttachment
+      );
     }
     if (req.body.pumpRateAndPressure !== undefined) {
       report.pumpRateAndPressure = sanitizePumpRateAndPressure(
