@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/mud_loss_active_system_controller.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class MudLossActiveSystemView extends StatelessWidget {
@@ -137,7 +138,7 @@ class MudLossActiveSystemView extends StatelessWidget {
             ),
           Flexible(
             child: Text(
-              title,
+              AppUnits.label(title),
               overflow: TextOverflow.ellipsis,
               style: AppTheme.bodySmall.copyWith(
                 fontSize: 11,

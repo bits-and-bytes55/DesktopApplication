@@ -4,11 +4,15 @@ import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/inventory_model.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/pit_model.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
 class ReturnLostMudController extends GetxController {
   final AuthRepository _repository = AuthRepository();
   Worker? _wellWorker;
+  final List<Worker> _unitWorkers = [];
+  late String _fluidVolumeUnit;
+  late String _mudWeightUnit;
   
   // Loading states
   final isLoading = false.obs;
@@ -51,6 +55,13 @@ class ReturnLostMudController extends GetxController {
   void onInit() {
     super.onInit();
     print('🚀 ReturnLostMudController initialized');
+    _fluidVolumeUnit = AppUnits.fluidVolume;
+    _mudWeightUnit = AppUnits.mudWeight;
+    _unitWorkers.addAll([
+      ever(AppUnits.controller.unitSystem, (_) => _handleUnitChange()),
+      ever(AppUnits.controller.selectedCustomSystemId, (_) => _handleUnitChange()),
+      ever(AppUnits.controller.customUnits, (_) => _handleUnitChange()),
+    ]);
     _loadInitialData();
     _wellWorker = ever<String>(padWellContext.selectedWellId, (_) {
       _clearForm();
@@ -60,6 +71,10 @@ class ReturnLostMudController extends GetxController {
   
   @override
   void onClose() {
+    for (final worker in _unitWorkers) {
+      worker.dispose();
+    }
+    _unitWorkers.clear();
     toController.dispose();
     volReturnedController.dispose();
     bolController.dispose();
@@ -69,6 +84,49 @@ class ReturnLostMudController extends GetxController {
     super.onClose();
   }
   
+  String _formatConverted(double value) {
+    return value
+        .toStringAsFixed(4)
+        .replaceAll(RegExp(r'0+$'), '')
+        .replaceAll(RegExp(r'\.$'), '');
+  }
+
+  String _convertText(String value, String fromUnit, String toUnit) {
+    if (fromUnit == toUnit) return value;
+    final parsed = double.tryParse(value.trim().replaceAll(',', ''));
+    if (parsed == null) return value;
+    final result = AppUnits.convertValue(parsed, fromUnit, toUnit);
+    return result == null ? value : _formatConverted(result);
+  }
+
+  double _numberForSave(String value, String fromUnit, String toUnit) {
+    final parsed = double.tryParse(value.trim().replaceAll(',', '')) ?? 0.0;
+    return AppUnits.convertValue(parsed, fromUnit, toUnit) ?? parsed;
+  }
+
+  void _handleUnitChange() {
+    final nextFluidVolumeUnit = AppUnits.fluidVolume;
+    final nextMudWeightUnit = AppUnits.mudWeight;
+    if (_fluidVolumeUnit == nextFluidVolumeUnit &&
+        _mudWeightUnit == nextMudWeightUnit) {
+      return;
+    }
+
+    volReturnedController.text = _convertText(
+      volReturnedController.text,
+      _fluidVolumeUnit,
+      nextFluidVolumeUnit,
+    );
+    volLostController.text = _convertText(
+      volLostController.text,
+      _fluidVolumeUnit,
+      nextFluidVolumeUnit,
+    );
+    mw.value = _convertText(mw.value, _mudWeightUnit, nextMudWeightUnit);
+    _fluidVolumeUnit = nextFluidVolumeUnit;
+    _mudWeightUnit = nextMudWeightUnit;
+  }
+
   // ================= LOAD INITIAL DATA =================
   
   Future<void> _loadInitialData() async {
@@ -147,11 +205,23 @@ class ReturnLostMudController extends GetxController {
       }
 
       toController.text = (item['to'] ?? '').toString();
-      volReturnedController.text = (item['volReturned'] ?? '').toString();
+      volReturnedController.text = _convertText(
+        (item['volReturned'] ?? '').toString(),
+        '(bbl)',
+        _fluidVolumeUnit,
+      );
       bolController.text = (item['bol'] ?? '').toString();
-      volLostController.text = (item['volLost'] ?? '').toString();
+      volLostController.text = _convertText(
+        (item['volLost'] ?? '').toString(),
+        '(bbl)',
+        _fluidVolumeUnit,
+      );
       costOfLostController.text = (item['costOfLostPreTax'] ?? '').toString();
-      mw.value = (item['mw'] ?? '').toString();
+      mw.value = _convertText(
+        (item['mw'] ?? '').toString(),
+        '(ppg)',
+        _mudWeightUnit,
+      );
       mudType.value = (item['mudType'] ?? '').toString();
       isLeased.value = item['leased'] == true;
     } catch (e) {
@@ -253,7 +323,11 @@ class ReturnLostMudController extends GetxController {
       );
       
       // Update MW and Mud Type
-      mw.value = selectedPremixed.value?.mw ?? '';
+      mw.value = _convertText(
+        selectedPremixed.value?.mw ?? '',
+        '(ppg)',
+        _mudWeightUnit,
+      );
       mudType.value = selectedPremixed.value?.mudType ?? '';
       
       print('✅ Selected premixed mud: ${selectedPremixed.value?.description}');
@@ -367,11 +441,12 @@ class ReturnLostMudController extends GetxController {
         'premixedMud': selectedPremixed.value?.description ?? '',
         'from': selectedPit.value!.pitName,
         'to': toController.text,
-        'volReturned': double.tryParse(volReturnedController.text) ?? 0.0,
-        'mw': double.tryParse(mw.value) ?? 0.0,
+        'volReturned':
+            _numberForSave(volReturnedController.text, _fluidVolumeUnit, '(bbl)'),
+        'mw': _numberForSave(mw.value, _mudWeightUnit, '(ppg)'),
         'mudType': mudType.value,
         'bol': double.tryParse(bolController.text) ?? 0.0,
-        'volLost': double.tryParse(volLostController.text) ?? 0.0,
+        'volLost': _numberForSave(volLostController.text, _fluidVolumeUnit, '(bbl)'),
         'costOfLostPreTax': double.tryParse(costOfLostController.text) ?? 0.0,
         'leased': isLeased.value,
       };

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/modules/report/controller/report_manager_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
@@ -668,11 +669,13 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
     return DataColumn(
       label: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8),
-        child: Text(
-          label,
-          style: AppTheme.caption.copyWith(
-            fontWeight: FontWeight.w600,
-            color: Colors.white, // White text on table head color
+        child: Obx(
+          () => Text(
+            AppUnits.label(label),
+            style: AppTheme.caption.copyWith(
+              fontWeight: FontWeight.w600,
+              color: Colors.white, // White text on table head color
+            ),
           ),
         ),
       ),

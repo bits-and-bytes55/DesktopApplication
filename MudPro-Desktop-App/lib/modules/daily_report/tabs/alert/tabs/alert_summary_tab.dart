@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class AlertSummaryPage extends StatelessWidget {
@@ -32,20 +34,22 @@ class AlertSummaryPage extends StatelessWidget {
           width: 0.5,
         ),
       ),
-      child: Text(
-        text,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          fontSize: isHeader || isSubHeader ? 11 : 12,
-          fontWeight: bold || isHeader || isSubHeader
-              ? FontWeight.w600
-              : FontWeight.normal,
-          color: isHeader
-              ? Colors.white
-              : isSubHeader
-                  ? AppTheme.primaryColor
-                  : AppTheme.textPrimary,
+      child: Obx(
+        () => Text(
+          AppUnits.label(text),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: isHeader || isSubHeader ? 11 : 12,
+            fontWeight: bold || isHeader || isSubHeader
+                ? FontWeight.w600
+                : FontWeight.normal,
+            color: isHeader
+                ? Colors.white
+                : isSubHeader
+                    ? AppTheme.primaryColor
+                    : AppTheme.textPrimary,
+          ),
         ),
       ),
     );

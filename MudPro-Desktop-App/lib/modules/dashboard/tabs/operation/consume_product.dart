@@ -10,6 +10,7 @@ import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/controller/
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/inventory_store/inventory_store.dart';
 import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import '../../controller/operation_controller.dart';
 import '../../controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
@@ -973,7 +974,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                         ? const Color(0xFFD6EAF8)
                         : null,
                   ),
-                  child: Text(h),
+                  child: Text(AppUnits.label(h)),
                 ))).toList(),
                 rows: List.generate(productRows.length, (i) => DataRow(
                   color: MaterialStateProperty.all(
@@ -1516,13 +1517,15 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     return Container(
       width: width,
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-      child: Text(
-        text,
-        textAlign: right ? TextAlign.right : TextAlign.left,
-        style: AppTheme.bodySmall.copyWith(
-            fontSize: 10,
-            fontWeight: FontWeight.w600,
-            color: AppTheme.successColor),
+      child: Obx(
+        () => Text(
+          AppUnits.label(text),
+          textAlign: right ? TextAlign.right : TextAlign.left,
+          style: AppTheme.bodySmall.copyWith(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.successColor),
+        ),
       ),
     );
   }

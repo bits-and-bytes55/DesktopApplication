@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 import '../../controller/dashboard_controller.dart';
 
@@ -404,14 +405,17 @@ class _SwitchPitViewState extends State<SwitchPitView> {
   Widget _buildHeaderCell(String text) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6), // Reduced padding
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: 11, // Reduced font size
-          fontWeight: FontWeight.w600,
-          color: AppTheme.primaryColor,
+      child: Obx(
+        () => Text(
+          AppUnits.label(text),
+          style: TextStyle(
+            fontSize: 11, // Reduced font size
+            fontWeight: FontWeight.w600,
+            color: AppTheme.primaryColor,
+          ),
+          textAlign:
+              text == "#" || text == "Checked" ? TextAlign.center : TextAlign.left,
         ),
-        textAlign: text == "#" || text == "Checked" ? TextAlign.center : TextAlign.left,
       ),
     );
   }

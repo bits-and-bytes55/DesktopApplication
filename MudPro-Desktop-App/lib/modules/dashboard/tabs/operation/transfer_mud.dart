@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class TransferMudView extends StatefulWidget {
@@ -328,12 +329,14 @@ class _TransferMudViewState extends State<TransferMudView> {
           right: BorderSide(color: Colors.grey.shade300, width: 0.5),
         ),
       ),
-      child: Text(
-        text,
-        style: AppTheme.bodySmall.copyWith(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: Colors.white,
+      child: Obx(
+        () => Text(
+          AppUnits.label(text),
+          style: AppTheme.bodySmall.copyWith(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
+          ),
         ),
       ),
     );

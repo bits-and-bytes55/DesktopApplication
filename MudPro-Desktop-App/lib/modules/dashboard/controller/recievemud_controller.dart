@@ -5,6 +5,7 @@ import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/inventory_model.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/pit_model.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
 class ReceiveMudController extends GetxController {
@@ -48,6 +49,9 @@ class ReceiveMudController extends GetxController {
   final recordId = RxnString(null);
   Timer? _debounceTimer;
   bool _isProgrammaticUpdate = false;
+  final List<Worker> _unitWorkers = [];
+  late String _fluidVolumeUnit;
+  late String _mudWeightUnit;
 
   // Well ID 
   String get wellId => currentBackendWellId;
@@ -55,6 +59,13 @@ class ReceiveMudController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    _fluidVolumeUnit = AppUnits.fluidVolume;
+    _mudWeightUnit = AppUnits.mudWeight;
+    _unitWorkers.addAll([
+      ever(AppUnits.controller.unitSystem, (_) => _handleUnitChange()),
+      ever(AppUnits.controller.selectedCustomSystemId, (_) => _handleUnitChange()),
+      ever(AppUnits.controller.customUnits, (_) => _handleUnitChange()),
+    ]);
     
     // Attach autosave listeners
     bolNoController.addListener(triggerAutoSave);
@@ -75,6 +86,10 @@ class ReceiveMudController extends GetxController {
   @override
   void onClose() {
     _debounceTimer?.cancel();
+    for (final worker in _unitWorkers) {
+      worker.dispose();
+    }
+    _unitWorkers.clear();
     bolNoController.dispose();
     fromController.dispose();
     toController.dispose();
@@ -84,6 +99,49 @@ class ReceiveMudController extends GetxController {
     mudTypeController.dispose();
     leasingFeeController.dispose();
     super.onClose();
+  }
+
+  String _formatConverted(double value) {
+    return value
+        .toStringAsFixed(4)
+        .replaceAll(RegExp(r'0+$'), '')
+        .replaceAll(RegExp(r'\.$'), '');
+  }
+
+  String _convertText(String value, String fromUnit, String toUnit) {
+    if (fromUnit == toUnit) return value;
+    final parsed = double.tryParse(value.trim().replaceAll(',', ''));
+    if (parsed == null) return value;
+    final result = AppUnits.convertValue(parsed, fromUnit, toUnit);
+    return result == null ? value : _formatConverted(result);
+  }
+
+  double _numberForSave(String value, String fromUnit, String toUnit) {
+    final parsed = double.tryParse(value.trim().replaceAll(',', '')) ?? 0.0;
+    return AppUnits.convertValue(parsed, fromUnit, toUnit) ?? parsed;
+  }
+
+  void _handleUnitChange() {
+    final nextFluidVolumeUnit = AppUnits.fluidVolume;
+    final nextMudWeightUnit = AppUnits.mudWeight;
+    if (_fluidVolumeUnit == nextFluidVolumeUnit &&
+        _mudWeightUnit == nextMudWeightUnit) {
+      return;
+    }
+
+    _isProgrammaticUpdate = true;
+    volController.text =
+        _convertText(volController.text, _fluidVolumeUnit, nextFluidVolumeUnit);
+    lossVolumeController.text = _convertText(
+      lossVolumeController.text,
+      _fluidVolumeUnit,
+      nextFluidVolumeUnit,
+    );
+    mwController.text =
+        _convertText(mwController.text, _mudWeightUnit, nextMudWeightUnit);
+    _fluidVolumeUnit = nextFluidVolumeUnit;
+    _mudWeightUnit = nextMudWeightUnit;
+    _isProgrammaticUpdate = false;
   }
   
   // ================= DEBOUNCED AUTO SAVE =================
@@ -128,15 +186,15 @@ class ReceiveMudController extends GetxController {
       final data = {
         'bolNo': bolNoController.text,
         'premixedMud': selectedPremixed.value!.description,
-        'mw': mwController.text,
+        'mw': _numberForSave(mwController.text, _mudWeightUnit, '(ppg)'),
         'mudType': mudTypeController.text,
         'leasingFee': leasingFeeController.text,
         'from': fromController.text,
         'to': selectedToDestination.value,
-        'volume': double.tryParse(volController.text) ?? 0.0,
+        'volume': _numberForSave(volController.text, _fluidVolumeUnit, '(bbl)'),
         'leased': true,
         'lossVolume': hasLossVolume.value 
-            ? (double.tryParse(lossVolumeController.text) ?? 0.0)
+            ? _numberForSave(lossVolumeController.text, _fluidVolumeUnit, '(bbl)')
             : 0,
         'wellId': wellId,
       };
@@ -200,15 +258,27 @@ class ReceiveMudController extends GetxController {
              } catch(_) {}
            }
            
-           mwController.text = item['mw']?.toString() ?? '';
+           mwController.text = _convertText(
+             item['mw']?.toString() ?? '',
+             '(ppg)',
+             _mudWeightUnit,
+           );
            mudTypeController.text = item['mudType'] ?? '';
            leasingFeeController.text = item['leasingFee']?.toString() ?? '';
            fromController.text = item['from'] ?? '';
            selectedToDestination.value = item['to'] ?? '';
-           volController.text = item['volume']?.toString() ?? '';
+           volController.text = _convertText(
+             item['volume']?.toString() ?? '',
+             '(bbl)',
+             _fluidVolumeUnit,
+           );
            isLeased.value = item['leased'] == true;
            hasLossVolume.value = (item['lossVolume'] ?? 0) > 0;
-           lossVolumeController.text = item['lossVolume']?.toString() ?? '';
+           lossVolumeController.text = _convertText(
+             item['lossVolume']?.toString() ?? '',
+             '(bbl)',
+             _fluidVolumeUnit,
+           );
            
            _isProgrammaticUpdate = false;
            print('✅ Restored Receive Mud data into UI');
@@ -252,7 +322,7 @@ class ReceiveMudController extends GetxController {
          selectedPremixed.value = premixed;
          
          // Auto-populate MW, Mud Type, Leasing Fee
-         mwController.text = premixed.mw;
+         mwController.text = _convertText(premixed.mw, '(ppg)', _mudWeightUnit);
          mudTypeController.text = premixed.mudType;
          leasingFeeController.text = premixed.leasingFee;
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
 class MudLossStorageEntry {
@@ -48,12 +49,38 @@ class MudLossStorageEntry {
         (dumpValue > 0 || evaporationValue > 0 || pitCleaningValue > 0);
   }
 
-  Map<String, dynamic> toBody() => {
+  Map<String, dynamic> toBody(String fromUnit) => {
     'storage': storage.value.trim(),
-    'dump': double.tryParse(dump.value.trim()) ?? 0,
-    'evaporation': double.tryParse(evaporation.value.trim()) ?? 0,
-    'pitCleaning': double.tryParse(pitCleaning.value.trim()) ?? 0,
+    'dump': _toBaseVolume(dump.value, fromUnit),
+    'evaporation': _toBaseVolume(evaporation.value, fromUnit),
+    'pitCleaning': _toBaseVolume(pitCleaning.value, fromUnit),
   };
+
+  static double _toBaseVolume(String value, String fromUnit) {
+    final parsed = double.tryParse(value.trim().replaceAll(',', '')) ?? 0;
+    return AppUnits.convertValue(parsed, fromUnit, '(bbl)') ?? parsed;
+  }
+
+  void convertVolumes(String fromUnit, String toUnit) {
+    dump.value = _convertText(dump.value, fromUnit, toUnit);
+    evaporation.value = _convertText(evaporation.value, fromUnit, toUnit);
+    pitCleaning.value = _convertText(pitCleaning.value, fromUnit, toUnit);
+    dumpController.text = dump.value;
+    evaporationController.text = evaporation.value;
+    pitCleaningController.text = pitCleaning.value;
+  }
+
+  static String _convertText(String value, String fromUnit, String toUnit) {
+    if (fromUnit == toUnit) return value;
+    final parsed = double.tryParse(value.trim().replaceAll(',', ''));
+    if (parsed == null) return value;
+    final result = AppUnits.convertValue(parsed, fromUnit, toUnit);
+    if (result == null) return value;
+    return result
+        .toStringAsFixed(4)
+        .replaceAll(RegExp(r'0+$'), '')
+        .replaceAll(RegExp(r'\.$'), '');
+  }
 
   void dispose() {
     dumpController.dispose();
@@ -68,12 +95,20 @@ class MudLossStorageController extends GetxController {
   final isLoading = false.obs;
 
   Worker? _wellWorker;
+  final List<Worker> _unitWorkers = [];
+  late String _fluidVolumeUnit;
 
   String get wellId => currentBackendWellId.trim();
 
   @override
   void onInit() {
     super.onInit();
+    _fluidVolumeUnit = AppUnits.fluidVolume;
+    _unitWorkers.addAll([
+      ever(AppUnits.controller.unitSystem, (_) => _handleUnitChange()),
+      ever(AppUnits.controller.selectedCustomSystemId, (_) => _handleUnitChange()),
+      ever(AppUnits.controller.customUnits, (_) => _handleUnitChange()),
+    ]);
     _ensureMinimumRows();
     load();
     _wellWorker = ever<String>(
@@ -85,10 +120,31 @@ class MudLossStorageController extends GetxController {
   @override
   void onClose() {
     _wellWorker?.dispose();
+    for (final worker in _unitWorkers) {
+      worker.dispose();
+    }
+    _unitWorkers.clear();
     for (final row in rows) {
       row.dispose();
     }
     super.onClose();
+  }
+
+  void _handleUnitChange() {
+    final nextFluidVolumeUnit = AppUnits.fluidVolume;
+    if (_fluidVolumeUnit == nextFluidVolumeUnit) return;
+    for (final row in rows) {
+      row.convertVolumes(_fluidVolumeUnit, nextFluidVolumeUnit);
+    }
+    _fluidVolumeUnit = nextFluidVolumeUnit;
+  }
+
+  String _formatVolume(dynamic value) {
+    return MudLossStorageEntry._convertText(
+      value?.toString() ?? '',
+      '(bbl)',
+      _fluidVolumeUnit,
+    );
   }
 
   void _ensureMinimumRows() {
@@ -154,9 +210,9 @@ class MudLossStorageController extends GetxController {
           MudLossStorageEntry(
             id: (item['_id'] ?? item['id'] ?? '').toString(),
             storage: (item['storage'] ?? '').toString(),
-            dump: (item['dump'] ?? '').toString(),
-            evaporation: (item['evaporation'] ?? '').toString(),
-            pitCleaning: (item['pitCleaning'] ?? '').toString(),
+            dump: _formatVolume(item['dump']),
+            evaporation: _formatVolume(item['evaporation']),
+            pitCleaning: _formatVolume(item['pitCleaning']),
           ),
         );
       }
@@ -227,7 +283,7 @@ class MudLossStorageController extends GetxController {
     final currentIds = existingRows.map((row) => row.id.value).toList();
     for (var index = 0; index < filledRows.length; index++) {
       final row = filledRows[index];
-      final body = row.toBody();
+      final body = row.toBody(_fluidVolumeUnit);
       final result = row.id.value.isNotEmpty
           ? await _repository.updateMudLossStorage(wellId, row.id.value, body)
           : await _repository.createMudLossStorage(wellId, body);

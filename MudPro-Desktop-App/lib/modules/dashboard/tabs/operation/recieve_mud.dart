@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/recievemud_controller.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class ReceiveMudView extends StatelessWidget {
@@ -488,11 +489,13 @@ class ReceiveMudView extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       color: Colors.grey.shade50,
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: 10,
-          color: AppTheme.textSecondary,
+      child: Obx(
+        () => Text(
+          AppUnits.unitText(text),
+          style: TextStyle(
+            fontSize: 10,
+            color: AppTheme.textSecondary,
+          ),
         ),
       ),
     );
@@ -561,7 +564,7 @@ class ReceiveMudView extends StatelessWidget {
                 fillColor: !controller.hasLossVolume.value || dashboardController.isLocked.value
                     ? Colors.grey.shade100 
                     : Colors.white,
-                suffixText: '(bbl)',
+                suffixText: AppUnits.unitText('(bbl)'),
                 suffixStyle: TextStyle(
                   fontSize: 10,
                   color: AppTheme.textSecondary,

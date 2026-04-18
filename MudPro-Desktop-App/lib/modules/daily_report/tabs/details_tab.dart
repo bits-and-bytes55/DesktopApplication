@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class DetailsTabView extends StatelessWidget {
@@ -348,16 +349,18 @@ Widget _buildStaticCell({
       color: backgroundColor ?? Colors.white,
     ),
     child: Center(
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: isHeader ? FontWeight.w600 : FontWeight.normal,
-          color: isHeader ? AppTheme.tableHeadColor : AppTheme.textPrimary,
+      child: Obx(
+        () => Text(
+          AppUnits.label(text),
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: isHeader ? FontWeight.w600 : FontWeight.normal,
+            color: isHeader ? AppTheme.tableHeadColor : AppTheme.textPrimary,
+          ),
+          textAlign: center ? TextAlign.center : TextAlign.left,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
-        textAlign: center ? TextAlign.center : TextAlign.left,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
       ),
     ),
   );
@@ -406,12 +409,14 @@ Widget _detailsCard(String title, Widget child, {int flex = 1}) {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
+                    Obx(
+                      () => Text(
+                        AppUnits.label(title),
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
                   ],

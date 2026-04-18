@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class SurveyTableActual extends StatefulWidget {
@@ -86,21 +88,23 @@ class _SurveyActualTablePageState extends State<SurveyTableActual> {
                 ),
               ),
             )
-          : Text(
-              text ?? '',
-              textAlign: align,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: isHeader || isSubHeader ? 11 : 12,
-                fontWeight: bold || isHeader || isSubHeader
-                    ? FontWeight.w600
-                    : FontWeight.normal,
-                color: isHeader
-                    ? Colors.white
-                    : isSubHeader
-                        ? AppTheme.primaryColor
-                        : AppTheme.textPrimary,
+          : Obx(
+              () => Text(
+                AppUnits.label(text ?? ''),
+                textAlign: align,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: isHeader || isSubHeader ? 11 : 12,
+                  fontWeight: bold || isHeader || isSubHeader
+                      ? FontWeight.w600
+                      : FontWeight.normal,
+                  color: isHeader
+                      ? Colors.white
+                      : isSubHeader
+                          ? AppTheme.primaryColor
+                          : AppTheme.textPrimary,
+                ),
               ),
             ),
     );

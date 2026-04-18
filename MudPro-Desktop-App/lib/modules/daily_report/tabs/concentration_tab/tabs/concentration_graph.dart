@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 
 class ConcentrationGraphTab extends StatelessWidget {
   const ConcentrationGraphTab({super.key});
@@ -53,12 +55,16 @@ class ConcentrationGraphTab extends StatelessWidget {
                         borderRadius: BorderRadius.circular(6),
                         border: Border.all(color: Color(0xffE2E8F0), width: 1),
                       ),
-                      child: Text(
-                        'Depth (ft) vs Concentration (lb/bbl)',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Color(0xff718096),
-                          fontWeight: FontWeight.w500,
+                      child: Obx(
+                        () => Text(
+                          AppUnits.label(
+                            'Depth (ft) vs Concentration (lb/bbl)',
+                          ),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Color(0xff718096),
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ),
                     ),

@@ -19,6 +19,9 @@ class UnitConversionService {
         .replaceAll('²', '2')
         .replaceAll('³', '3')
         .replaceAll('°', 'deg')
+        .replaceAll('²', '2')
+        .replaceAll('³', '3')
+        .replaceAll('°', 'deg')
         .replaceAll(RegExp(r'[()]'), '')
         .replaceAll(' ', '')
         .toLowerCase();

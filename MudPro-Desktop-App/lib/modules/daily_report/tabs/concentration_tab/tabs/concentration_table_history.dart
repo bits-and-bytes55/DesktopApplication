@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 
 class ConcentrationTableHistory extends StatefulWidget {
   const ConcentrationTableHistory({super.key});
@@ -126,13 +128,15 @@ class _ConcentrationTableHistoryState extends State<ConcentrationTableHistory> {
         ),
         color: isHeader ? Colors.transparent : null,
       ),
-      child: Text(
-        t,
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: bold ? FontWeight.w600 : FontWeight.normal,
-          color: isHeader ? Colors.white : Color(0xff2D3748),
+      child: Obx(
+        () => Text(
+          AppUnits.label(t),
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: bold ? FontWeight.w600 : FontWeight.normal,
+            color: isHeader ? Colors.white : Color(0xff2D3748),
+          ),
         ),
       ),
     );

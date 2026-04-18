@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/mud_loss_storage_controller.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class MudLossStorageView extends StatefulWidget {
@@ -144,14 +145,16 @@ class _MudLossStorageViewState extends State<MudLossStorageView> {
           ),
         ),
         child: Center(
-          child: Text(
-            title,
-            textAlign: TextAlign.center,
-            style: AppTheme.bodySmall.copyWith(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
-              height: 1.2,
+          child: Obx(
+            () => Text(
+              AppUnits.label(title),
+              textAlign: TextAlign.center,
+              style: AppTheme.bodySmall.copyWith(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+                height: 1.2,
+              ),
             ),
           ),
         ),

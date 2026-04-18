@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/other_vol_addition_controller.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class OtherVolAdditionActiveSystemView extends StatelessWidget {
@@ -130,7 +131,7 @@ class OtherVolAdditionActiveSystemView extends StatelessWidget {
               ),
             ),
             Text(
-              text,
+              AppUnits.label(text),
               style: AppTheme.bodySmall.copyWith(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,

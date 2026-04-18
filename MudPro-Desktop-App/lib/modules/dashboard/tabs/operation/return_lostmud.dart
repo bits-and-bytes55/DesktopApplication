@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/return_lostmud_controller.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class ReturnLostMudView extends StatelessWidget {
@@ -440,11 +441,13 @@ class ReturnLostMudView extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       color: Colors.grey.shade50,
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: 10,
-          color: AppTheme.textSecondary,
+      child: Obx(
+        () => Text(
+          AppUnits.unitText(text),
+          style: TextStyle(
+            fontSize: 10,
+            color: AppTheme.textSecondary,
+          ),
         ),
       ),
     );

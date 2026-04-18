@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 
 class ConcentrationCurrentTable extends StatefulWidget {
   const ConcentrationCurrentTable({super.key});
@@ -59,21 +61,25 @@ class _ConcentrationCurrentTableState extends State<ConcentrationCurrentTable> {
       child: isHeader 
           ? Align(
               alignment: Alignment.center,
-              child: Text(
-                t,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
+              child: Obx(
+                () => Text(
+                  AppUnits.label(t),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
                 ),
               ),
             )
-          : Text(
-              t,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: bold ? FontWeight.w600 : FontWeight.normal,
-                color: isHeader ? Colors.white : Color(0xff2D3748),
+          : Obx(
+              () => Text(
+                AppUnits.label(t),
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: bold ? FontWeight.w600 : FontWeight.normal,
+                  color: isHeader ? Colors.white : Color(0xff2D3748),
+                ),
               ),
             ),
     );

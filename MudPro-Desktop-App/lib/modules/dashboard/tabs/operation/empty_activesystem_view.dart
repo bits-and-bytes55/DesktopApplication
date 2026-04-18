@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/empty_Activesystem_controller.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class EmptyActiveSystemView extends StatelessWidget {
@@ -200,7 +201,7 @@ class EmptyActiveSystemView extends StatelessWidget {
                                   child: Padding(
                                     padding: const EdgeInsets.only(left: 8),
                                     child: Text(
-                                      "Vol. (bbl)",
+                                      AppUnits.label("Vol. (bbl)"),
                                       style: AppTheme.bodySmall.copyWith(
                                         fontSize: 11,
                                         fontWeight: FontWeight.w600,
