@@ -513,9 +513,11 @@ const computeVolumeSummary = ({
 };
 
 const fillDmrHeader = (ws, { well, pad, report, wellGeneral, fluidName }) => {
+  const reportNumber = text(report?.userReportNo || report?.reportNo || wellGeneral?.userReportNo || wellGeneral?.reportNo, "1");
   setCellValue(ws, "AC7", text(report?._id || well?._id || well?.apiWellNo));
   setCellValue(ws, "AT7", formatDate(report?.reportDate || wellGeneral?.date, getReportDate()));
-  setCellValue(ws, "BL7", text(report?.userReportNo || report?.reportNo || wellGeneral?.userReportNo || wellGeneral?.reportNo, "1"));
+  setCellValue(ws, "BB2", reportNumber);
+  setCellValue(ws, "BL7", reportNumber);
   setCellValue(ws, "H8", displayText(well?.wellNameNo));
   setCellValue(ws, "T8", displayText(pad?.rig));
   setCellValue(ws, "AB8", displayText(pad?.fieldBlock));
