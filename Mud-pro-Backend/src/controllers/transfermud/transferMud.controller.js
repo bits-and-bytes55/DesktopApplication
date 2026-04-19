@@ -22,158 +22,15 @@ const normalizeTransfers = (transfers = []) => {
 };
 
 const addBackToActivePits = async ({ wellId, reportId, totalVolume }) => {
-  if (totalVolume <= 0) return;
-
-  const activePits = await getWritablePits({
-    wellId,
-    reportId,
-    initialActive: true,
-  });
-
-  if (!activePits.length) {
-    throw new Error("No active pits found");
-  }
-
-  let remaining = round2(totalVolume);
-
-  for (let i = 0; i < activePits.length; i++) {
-    const pit = activePits[i];
-    const pitsLeft = activePits.length - i;
-    const add = round2(remaining / pitsLeft);
-
-    pit.volume = round2(toNumber(pit.volume) + add);
-    remaining = round2(remaining - add);
-    await pit.save();
-  }
+  return;
 };
 
 const deductFromActivePits = async ({ wellId, reportId, totalVolume }) => {
-  if (totalVolume <= 0) return;
-
-  const activePits = await getWritablePits({
-    wellId,
-    reportId,
-    initialActive: true,
-  });
-
-  if (!activePits.length) {
-    throw new Error("No active pits found");
-  }
-
-  const totalActiveVol = round2(
-    activePits.reduce((sum, pit) => sum + toNumber(pit.volume), 0)
-  );
-
-  if (totalVolume > totalActiveVol) {
-    throw new Error(
-      `Transfer volume (${totalVolume}) exceeds active pits volume (${totalActiveVol})`
-    );
-  }
-
-  let remaining = round2(totalVolume);
-
-  for (let i = 0; i < activePits.length; i++) {
-    const pit = activePits[i];
-    if (remaining <= 0) break;
-
-    const pitsLeft = activePits.length - i;
-    let deduct = round2(remaining / pitsLeft);
-    const currentVol = toNumber(pit.volume);
-
-    if (deduct > currentVol) {
-      deduct = round2(currentVol);
-    }
-
-    pit.volume = round2(currentVol - deduct);
-    remaining = round2(remaining - deduct);
-    await pit.save();
-  }
-
-  if (remaining > 0) {
-    for (const pit of activePits) {
-      if (remaining <= 0) break;
-
-      const currentVol = toNumber(pit.volume);
-      if (currentVol <= 0) continue;
-
-      const deduct = Math.min(currentVol, remaining);
-      pit.volume = round2(currentVol - deduct);
-      remaining = round2(remaining - deduct);
-      await pit.save();
-    }
-  }
-
-  if (remaining > 0) {
-    throw new Error("Unable to deduct full transfer volume from active pits");
-  }
+  return;
 };
 
 const revertTransferOnPits = async ({ wellId, reportId, from, transfers }) => {
-  const cleanTransfers = normalizeTransfers(transfers);
-  if (!wellId || !from || cleanTransfers.length === 0) return;
-
-  const totalTransferVol = round2(
-    cleanTransfers.reduce((sum, item) => sum + item.volume, 0)
-  );
-
-  const allPits = await getWritablePits({ wellId, reportId });
-  if (!allPits.length) {
-    throw new Error("No pits found for this wellId");
-  }
-
-  const activePits = allPits.filter((pit) => pit.initialActive === true);
-  const storagePits = allPits.filter((pit) => pit.initialActive === false);
-
-  if (String(from).trim() === "Active System") {
-    for (const item of cleanTransfers) {
-      const targetPit = storagePits.find((pit) => pit.pitName === item.pitName);
-      if (!targetPit) {
-        throw new Error(`Storage pit '${item.pitName}' not found`);
-      }
-
-      const currentVol = toNumber(targetPit.volume);
-      if (item.volume > currentVol) {
-        throw new Error(
-          `Cannot revert transfer. Storage pit '${item.pitName}' volume (${currentVol}) is less than transfer volume (${item.volume})`
-        );
-      }
-
-      targetPit.volume = round2(currentVol - item.volume);
-      await targetPit.save();
-    }
-
-    if (!activePits.length) {
-      throw new Error("No active pits found");
-    }
-
-    await addBackToActivePits({
-      wellId,
-      reportId,
-      totalVolume: totalTransferVol,
-    });
-
-    return;
-  }
-
-  const sourceStoragePit = storagePits.find((pit) => pit.pitName === String(from).trim());
-  if (!sourceStoragePit) {
-    throw new Error(`Source storage pit '${from}' not found`);
-  }
-
-  if (!activePits.length) {
-    throw new Error("No active pits found");
-  }
-
-    await deductFromActivePits({
-      wellId,
-      reportId,
-      totalVolume: totalTransferVol,
-    });
-
-  sourceStoragePit.volume = round2(
-    toNumber(sourceStoragePit.volume) + totalTransferVol
-  );
-  await sourceStoragePit.save();
+  return;
 };
 
 const applyTransferToPits = async ({ wellId, reportId, from, transfers }) => {
@@ -187,77 +44,7 @@ const applyTransferToPits = async ({ wellId, reportId, from, transfers }) => {
     cleanTransfers.reduce((sum, item) => sum + item.volume, 0)
   );
 
-  const allPits = await getWritablePits({ wellId, reportId });
-
-  if (!allPits.length) {
-    throw new Error("No pits found for this wellId");
-  }
-
-  const activePits = allPits.filter((pit) => pit.initialActive === true);
-  const storagePits = allPits.filter((pit) => pit.initialActive === false);
-
-  const totalActiveVol = round2(
-    activePits.reduce((sum, pit) => sum + toNumber(pit.volume), 0)
-  );
-
   if (from === "Active System") {
-    if (!activePits.length) {
-      throw new Error("No active pits found");
-    }
-
-    if (totalTransferVol > totalActiveVol) {
-      throw new Error(
-        `Transfer volume (${totalTransferVol}) exceeds active pits volume (${totalActiveVol})`
-      );
-    }
-
-    for (const item of cleanTransfers) {
-      const targetPit = storagePits.find((pit) => pit.pitName === item.pitName);
-
-      if (!targetPit) {
-        throw new Error(`Storage pit '${item.pitName}' not found`);
-      }
-
-      targetPit.volume = round2(toNumber(targetPit.volume) + item.volume);
-      await targetPit.save();
-    }
-
-    let remainingToDeduct = totalTransferVol;
-
-    for (let i = 0; i < activePits.length; i++) {
-      const pit = activePits[i];
-      if (remainingToDeduct <= 0) break;
-
-      const pitsLeft = activePits.length - i;
-      let deduct = round2(remainingToDeduct / pitsLeft);
-
-      if (deduct > toNumber(pit.volume)) {
-        deduct = round2(toNumber(pit.volume));
-      }
-
-      pit.volume = round2(toNumber(pit.volume) - deduct);
-      remainingToDeduct = round2(remainingToDeduct - deduct);
-      await pit.save();
-    }
-
-    if (remainingToDeduct > 0) {
-      for (const pit of activePits) {
-        if (remainingToDeduct <= 0) break;
-
-        const available = toNumber(pit.volume);
-        if (available <= 0) continue;
-
-        const deduct = Math.min(available, remainingToDeduct);
-        pit.volume = round2(available - deduct);
-        remainingToDeduct = round2(remainingToDeduct - deduct);
-        await pit.save();
-      }
-    }
-
-    if (remainingToDeduct > 0) {
-      throw new Error("Unable to deduct full transfer volume from active pits");
-    }
-
     return {
       cleanTransfers,
       totalTransferVol,
@@ -265,41 +52,10 @@ const applyTransferToPits = async ({ wellId, reportId, from, transfers }) => {
     };
   }
 
-  const sourceStoragePit = storagePits.find((pit) => pit.pitName === from);
-
-  if (!sourceStoragePit) {
-    throw new Error(`Source storage pit '${from}' not found`);
-  }
-
-  if (totalTransferVol > toNumber(sourceStoragePit.volume)) {
-    throw new Error(
-      `Transfer volume (${totalTransferVol}) exceeds source pit volume (${toNumber(sourceStoragePit.volume)})`
-    );
-  }
-
   for (const item of cleanTransfers) {
     if (item.pitName !== "Active System") {
       throw new Error("When source is storage, destination must be 'Active System'");
     }
-  }
-
-  if (!activePits.length) {
-    throw new Error("No active pits found");
-  }
-
-  sourceStoragePit.volume = round2(toNumber(sourceStoragePit.volume) - totalTransferVol);
-  await sourceStoragePit.save();
-
-  let remainingToAdd = totalTransferVol;
-
-  for (let i = 0; i < activePits.length; i++) {
-    const pit = activePits[i];
-    const pitsLeft = activePits.length - i;
-    const add = round2(remainingToAdd / pitsLeft);
-
-    pit.volume = round2(toNumber(pit.volume) + add);
-    remainingToAdd = round2(remainingToAdd - add);
-    await pit.save();
   }
 
   return {

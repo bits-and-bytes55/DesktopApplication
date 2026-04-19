@@ -62,39 +62,11 @@ const prepareOtherVolAdditionData = (
 };
 
 const addToActivePits = async ({ wellId, reportId, totalVolume }) => {
-  const activePits = await getActivePits(wellId, reportId);
-
-  let remaining = round2(totalVolume);
-
-  for (let i = 0; i < activePits.length; i++) {
-    const pit = activePits[i];
-    const pitsLeft = activePits.length - i;
-    const add = round2(remaining / pitsLeft);
-
-    pit.volume = round2(toNumber(pit.volume) + add);
-    remaining = round2(remaining - add);
-
-    await pit.save();
-  }
+  return;
 };
 
 const revertFromActivePits = async ({ wellId, reportId, totalVolume }) => {
-  if (totalVolume <= 0) return;
-
-  const activePits = await getActivePits(wellId, reportId);
-
-  let remaining = round2(totalVolume);
-
-  for (let i = 0; i < activePits.length; i++) {
-    const pit = activePits[i];
-    const pitsLeft = activePits.length - i;
-    const deduct = round2(remaining / pitsLeft);
-
-    pit.volume = round2(Math.max(0, toNumber(pit.volume) - deduct));
-    remaining = round2(remaining - deduct);
-
-    await pit.save();
-  }
+  return;
 };
 
 export const createOtherVolAddition = async (req, res) => {

@@ -13,73 +13,11 @@ const round2 = (num) => Number(num.toFixed(2));
 const getWellId = (req) => String(req.params.wellId || "").trim();
 
 const deductFromActivePits = async ({ wellId, reportId, totalLoss }) => {
-  const activePits = await getWritablePits({
-    wellId,
-    reportId,
-    initialActive: true,
-  });
-
-  if (!activePits.length) {
-    throw new Error("No active pits found for this wellId");
-  }
-
-  const totalActiveVol = activePits.reduce((sum, pit) => sum + toNumber(pit.volume), 0);
-  if (totalLoss > totalActiveVol) {
-    throw new Error(`Mud loss (${totalLoss}) exceeds active pits volume (${totalActiveVol})`);
-  }
-
-  let remaining = round2(totalLoss);
-
-  for (let i = 0; i < activePits.length; i++) {
-    const pit = activePits[i];
-    const pitsLeft = activePits.length - i;
-    const deduct = round2(remaining / pitsLeft);
-
-    const currentPitVol = toNumber(pit.volume);
-    const actualDeduct = Math.min(currentPitVol, deduct);
-
-    pit.volume = round2(Math.max(0, currentPitVol - actualDeduct));
-    
-    remaining = round2(remaining - actualDeduct);
-    await pit.save();
-  }
-
-  // If there's still remaining due to rounding or Math.min, deduct from first available active pit
-  if (remaining > 0) {
-      for (const pit of activePits) {
-          if (remaining <= 0) break;
-          const vol = toNumber(pit.volume);
-          if (vol > 0) {
-              const take = Math.min(vol, remaining);
-              pit.volume = round2(vol - take);
-              remaining = round2(remaining - take);
-              await pit.save();
-          }
-      }
-  }
+  return;
 };
 
 const revertToActivePits = async ({ wellId, reportId, totalLoss }) => {
-  if (totalLoss <= 0) return;
-
-  const activePits = await getWritablePits({
-    wellId,
-    reportId,
-    initialActive: true,
-  });
-
-  if (!activePits.length) return;
-
-  let remaining = round2(totalLoss);
-  for (let i = 0; i < activePits.length; i++) {
-    const pit = activePits[i];
-    const pitsLeft = activePits.length - i;
-    const add = round2(remaining / pitsLeft);
-
-    pit.volume = round2(toNumber(pit.volume) + add);
-    remaining = round2(remaining - add);
-    await pit.save();
-  }
+  return;
 };
 
 export const createMudLoss = async (req, res) => {

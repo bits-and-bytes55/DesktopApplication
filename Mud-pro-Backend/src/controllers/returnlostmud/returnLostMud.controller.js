@@ -38,106 +38,11 @@ const getActivePits = (allPits) => {
 };
 
 const deductFromLocation = async ({ wellId, reportId, from, totalDeduct }) => {
-  const allPits = await getAllPits(wellId, reportId);
-  const safeFrom = String(from).trim();
-
-  if (safeFrom === "Active System") {
-    const activePits = getActivePits(allPits);
-
-    const totalActiveVol = round2(
-      activePits.reduce((sum, pit) => sum + toNumber(pit.volume), 0)
-    );
-
-    if (totalDeduct > totalActiveVol) {
-      throw new Error(
-        `Total deduct volume (${totalDeduct}) exceeds Active System volume (${totalActiveVol})`
-      );
-    }
-
-    let remaining = round2(totalDeduct);
-
-    for (let i = 0; i < activePits.length; i++) {
-      const pit = activePits[i];
-      if (remaining <= 0) break;
-
-      const pitsLeft = activePits.length - i;
-      let deduct = round2(remaining / pitsLeft);
-
-      if (deduct > toNumber(pit.volume)) {
-        deduct = round2(toNumber(pit.volume));
-      }
-
-      pit.volume = round2(toNumber(pit.volume) - deduct);
-      remaining = round2(remaining - deduct);
-
-      await pit.save();
-    }
-
-    if (remaining > 0) {
-      throw new Error("Unable to deduct full volume from Active System");
-    }
-  } else {
-    const sourcePit = await findWritablePitByName({
-      wellId,
-      reportId,
-      pitName: safeFrom,
-    });
-
-    if (!sourcePit) {
-      throw new Error(`Source pit '${from}' not found`);
-    }
-
-    if (totalDeduct > toNumber(sourcePit.volume)) {
-      throw new Error(
-        `Total deduct volume (${totalDeduct}) exceeds source pit volume (${toNumber(sourcePit.volume)})`
-      );
-    }
-
-    sourcePit.volume = round2(toNumber(sourcePit.volume) - totalDeduct);
-    await sourcePit.save();
-  }
+  return;
 };
 
 const addToLocation = async ({ wellId, reportId, to, returned, mw, mudType }) => {
-  if (returned <= 0) return;
-
-  const safeTo = String(to).trim();
-  const allPits = await getAllPits(wellId, reportId);
-
-  if (safeTo === "Active System") {
-    const activePits = getActivePits(allPits);
-
-    let remaining = round2(returned);
-
-    for (let i = 0; i < activePits.length; i++) {
-      const pit = activePits[i];
-      const pitsLeft = activePits.length - i;
-      const add = round2(remaining / pitsLeft);
-
-      pit.volume = round2(toNumber(pit.volume) + add);
-      pit.density = mw;
-      pit.fluidType = mudType;
-
-      remaining = round2(remaining - add);
-      await pit.save();
-    }
-  } else if (safeTo !== "Imp") {
-    const targetPit = await findWritablePitByName({
-      wellId,
-      reportId,
-      pitName: safeTo,
-    });
-
-    if (!targetPit) {
-      throw new Error(`Target pit '${to}' not found`);
-    }
-
-    targetPit.volume = round2(toNumber(targetPit.volume) + returned);
-    targetPit.density = mw;
-    targetPit.fluidType = mudType;
-
-    await targetPit.save();
-  }
+  return;
 };
 
 const revertDeduction = async ({
@@ -148,81 +53,11 @@ const revertDeduction = async ({
   mw,
   mudType,
 }) => {
-  if (totalDeduct <= 0) return;
-
-  const allPits = await getAllPits(wellId, reportId);
-  const safeFrom = String(from).trim();
-
-  if (safeFrom === "Active System") {
-    const activePits = getActivePits(allPits);
-
-    let remaining = round2(totalDeduct);
-
-    for (let i = 0; i < activePits.length; i++) {
-      const pit = activePits[i];
-      const pitsLeft = activePits.length - i;
-      const add = round2(remaining / pitsLeft);
-
-      pit.volume = round2(toNumber(pit.volume) + add);
-      pit.density = mw;
-      pit.fluidType = mudType;
-
-      remaining = round2(remaining - add);
-      await pit.save();
-    }
-  } else {
-    const sourcePit = await findWritablePitByName({
-      wellId,
-      reportId,
-      pitName: safeFrom,
-    });
-
-    if (!sourcePit) {
-      throw new Error(`Source pit '${from}' not found`);
-    }
-
-    sourcePit.volume = round2(toNumber(sourcePit.volume) + totalDeduct);
-    sourcePit.density = mw;
-    sourcePit.fluidType = mudType;
-
-    await sourcePit.save();
-  }
+  return;
 };
 
 const revertAddition = async ({ wellId, reportId, to, returned }) => {
-  if (returned <= 0) return;
-
-  const allPits = await getAllPits(wellId, reportId);
-  const safeTo = String(to).trim();
-
-  if (safeTo === "Active System") {
-    const activePits = getActivePits(allPits);
-
-    let remaining = round2(returned);
-
-    for (let i = 0; i < activePits.length; i++) {
-      const pit = activePits[i];
-      const pitsLeft = activePits.length - i;
-      const deduct = round2(remaining / pitsLeft);
-
-      pit.volume = round2(Math.max(0, toNumber(pit.volume) - deduct));
-      remaining = round2(remaining - deduct);
-      await pit.save();
-    }
-  } else if (safeTo !== "Imp") {
-    const targetPit = await findWritablePitByName({
-      wellId,
-      reportId,
-      pitName: safeTo,
-    });
-
-    if (!targetPit) {
-      throw new Error(`Target pit '${to}' not found`);
-    }
-
-    targetPit.volume = round2(Math.max(0, toNumber(targetPit.volume) - returned));
-    await targetPit.save();
-  }
+  return;
 };
 
 const prepareReturnLostMudData = async (wellId, reportId, payload) => {

@@ -33,73 +33,13 @@ const getActivePits = (allPits) => {
 };
 
 const addWaterToPit = async ({ wellId, reportId, to, volume }) => {
-  const safeTo = String(to).trim();
-  const waterVol = round2(toNumber(volume));
-  const allPits = await getAllPits(wellId, reportId);
-
-  if (safeTo === "Active System") {
-    const activePits = getActivePits(allPits);
-
-    let remaining = waterVol;
-
-    for (let i = 0; i < activePits.length; i++) {
-      const pit = activePits[i];
-      const pitsLeft = activePits.length - i;
-      const add = round2(remaining / pitsLeft);
-
-      pit.volume = round2(toNumber(pit.volume) + add);
-      remaining = round2(remaining - add);
-      await pit.save();
-    }
-  } else {
-    const targetPit = await findWritablePitByName({
-      wellId,
-      reportId,
-      pitName: safeTo,
-    });
-
-    if (!targetPit) {
-      throw new Error(`Target pit '${to}' not found`);
-    }
-
-    targetPit.volume = round2(toNumber(targetPit.volume) + waterVol);
-    await targetPit.save();
-  }
+  // Operation rows feed Volume Name / Volume Snapshot calculations.
+  // Pit measured volumes stay manual, matching the legacy desktop flow.
+  return;
 };
 
 const revertWaterFromPit = async ({ wellId, reportId, to, volume }) => {
-  const safeTo = String(to).trim();
-  const waterVol = round2(toNumber(volume));
-  const allPits = await getAllPits(wellId, reportId);
-
-  if (safeTo === "Active System") {
-    const activePits = getActivePits(allPits);
-
-    let remaining = waterVol;
-
-    for (let i = 0; i < activePits.length; i++) {
-      const pit = activePits[i];
-      const pitsLeft = activePits.length - i;
-      const deduct = round2(remaining / pitsLeft);
-
-      pit.volume = round2(Math.max(0, toNumber(pit.volume) - deduct));
-      remaining = round2(remaining - deduct);
-      await pit.save();
-    }
-  } else {
-    const targetPit = await findWritablePitByName({
-      wellId,
-      reportId,
-      pitName: safeTo,
-    });
-
-    if (!targetPit) {
-      throw new Error(`Target pit '${to}' not found`);
-    }
-
-    targetPit.volume = round2(Math.max(0, toNumber(targetPit.volume) - waterVol));
-    await targetPit.save();
-  }
+  return;
 };
 
 const prepareAddWaterData = (wellId, reportId, payload) => {

@@ -28,95 +28,11 @@ const applyVolumeToPit = async ({
   mw,
   mudType,
 }) => {
-  const allPits = await getWritablePits({ wellId, reportId });
-
-  if (!allPits.length) {
-    throw new Error("No pits found for this wellId");
-  }
-
-  if (String(to).trim() === "Active System") {
-    const activePits = allPits.filter((pit) => pit.initialActive === true);
-
-    if (!activePits.length) {
-      throw new Error("No active pits found");
-    }
-
-    let remaining = round2(netVolume);
-
-    for (let i = 0; i < activePits.length; i++) {
-      const pit = activePits[i];
-      const pitsLeft = activePits.length - i;
-      const add = round2(remaining / pitsLeft);
-
-      pit.volume = round2(toNumber(pit.volume) + add);
-      pit.density = mw;
-      pit.fluidType = mudType;
-
-      remaining = round2(remaining - add);
-      await pit.save();
-    }
-  } else {
-    const targetPit = await findWritablePitByName({
-      wellId,
-      reportId,
-      pitName: String(to).trim(),
-    });
-
-    if (!targetPit) {
-      throw new Error(`Target pit '${to}' not found`);
-    }
-
-    targetPit.volume = round2(toNumber(targetPit.volume) + netVolume);
-    targetPit.density = mw;
-    targetPit.fluidType = mudType;
-
-    await targetPit.save();
-  }
+  return;
 };
 
 const revertVolumeFromPit = async ({ wellId, reportId, to, netVolume }) => {
-  const allPits = await getWritablePits({ wellId, reportId });
-
-  if (!allPits.length) {
-    throw new Error("No pits found for this wellId");
-  }
-
-  if (String(to).trim() === "Active System") {
-    const activePits = allPits.filter((pit) => pit.initialActive === true);
-
-    if (!activePits.length) {
-      throw new Error("No active pits found");
-    }
-
-    let remaining = round2(netVolume);
-
-    for (let i = 0; i < activePits.length; i++) {
-      const pit = activePits[i];
-      const pitsLeft = activePits.length - i;
-      const minus = round2(remaining / pitsLeft);
-
-      const currentVolume = toNumber(pit.volume);
-      pit.volume = round2(Math.max(0, currentVolume - minus));
-
-      remaining = round2(remaining - minus);
-      await pit.save();
-    }
-  } else {
-    const targetPit = await findWritablePitByName({
-      wellId,
-      reportId,
-      pitName: String(to).trim(),
-    });
-
-    if (!targetPit) {
-      throw new Error(`Target pit '${to}' not found`);
-    }
-
-    const currentVolume = toNumber(targetPit.volume);
-    targetPit.volume = round2(Math.max(0, currentVolume - netVolume));
-
-    await targetPit.save();
-  }
+  return;
 };
 
 const prepareReceiveMudData = async (wellId, reportId, payload) => {

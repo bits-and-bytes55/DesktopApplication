@@ -9,6 +9,8 @@ import AddWater from "../../modules/addwater/AddWater.js";
 import OtherVolAddition from "../../modules/othervol/OtherVolAddition.js";
 import MudLoss from "../../modules/mudloss/MudLoss.js";
 import MudLossStorage from "../../modules/mudlossstorage/MudLossStorage.js";
+import TransferMud from "../../modules/transfermud/TransferMud.js";
+import EmptyFluidActiveSystem from "../../modules/emptyfluidactivesystem/EmptyFluidActiveSystem.js";
 import Report from "../../modules/report/report.model.js";
 
 const getWellId = (req) => String(req.params.wellId || "").trim();
@@ -241,6 +243,116 @@ const buildCalculatedVolumeMap = (distributionRows = []) => {
   return {
     activeSystemVolume,
     calculatedVolumeByPit,
+  };
+};
+
+const isActiveSystemName = (value) =>
+  toText(value).toLowerCase() === "active system";
+
+const isIgnoredDestination = (value) => {
+  const key = toText(value).toLowerCase();
+  return !key || key === "imp";
+};
+
+const addPitDelta = (map, pitName, volume) => {
+  const key = toText(pitName).toLowerCase();
+  const amount = toNumber(volume);
+  if (!key || Math.abs(amount) < 0.005) return;
+
+  map.set(key, round2((map.get(key) ?? 0) + amount));
+};
+
+const buildOperationVolumeEffects = ({
+  receivedMud = [],
+  returnLostMud = [],
+  addWaterEntries = [],
+  otherVolAdditions = [],
+  mudLossEntries = [],
+  mudLossStorageEntries = [],
+  transferMudEntries = [],
+  emptyFluidEntries = [],
+}) => {
+  let activeSystemDelta = 0;
+  const storageDeltaByPit = new Map();
+
+  for (const item of addWaterEntries) {
+    const volume = toNumber(item.volume);
+    if (isActiveSystemName(item.to)) {
+      activeSystemDelta += volume;
+    } else {
+      addPitDelta(storageDeltaByPit, item.to, volume);
+    }
+  }
+
+  for (const item of receivedMud) {
+    const volume = toNumber(item.netVolume);
+    if (isActiveSystemName(item.to)) {
+      activeSystemDelta += volume;
+    } else {
+      addPitDelta(storageDeltaByPit, item.to, volume);
+    }
+  }
+
+  for (const item of returnLostMud) {
+    const returned = toNumber(item.volReturned);
+    const lost = toNumber(item.volLost);
+    const totalDeduct = round2(returned + lost);
+
+    if (isActiveSystemName(item.from)) {
+      activeSystemDelta -= totalDeduct;
+    } else {
+      addPitDelta(storageDeltaByPit, item.from, -totalDeduct);
+    }
+
+    if (isActiveSystemName(item.to)) {
+      activeSystemDelta += returned;
+    } else if (!isIgnoredDestination(item.to)) {
+      addPitDelta(storageDeltaByPit, item.to, returned);
+    }
+  }
+
+  for (const item of otherVolAdditions) {
+    activeSystemDelta += toNumber(item.totalVolume);
+  }
+
+  for (const item of mudLossEntries) {
+    activeSystemDelta -= toNumber(item.totalLoss);
+  }
+
+  for (const item of mudLossStorageEntries) {
+    addPitDelta(storageDeltaByPit, item.storage, -toNumber(item.totalLoss));
+  }
+
+  for (const item of transferMudEntries) {
+    const transfers = Array.isArray(item.transfers) ? item.transfers : [];
+    const totalTransferVol =
+      toNumber(item.totalTransferVol) ||
+      transfers.reduce((sum, row) => sum + toNumber(row?.volume), 0);
+
+    if (isActiveSystemName(item.from)) {
+      activeSystemDelta -= totalTransferVol;
+      for (const row of transfers) {
+        addPitDelta(storageDeltaByPit, row?.pitName, toNumber(row?.volume));
+      }
+    } else {
+      addPitDelta(storageDeltaByPit, item.from, -totalTransferVol);
+      activeSystemDelta += totalTransferVol;
+    }
+  }
+
+  for (const item of emptyFluidEntries) {
+    const volume = toNumber(item.volume || item.totalVolume);
+    if (item.actionType === "Dump") {
+      activeSystemDelta -= volume;
+    } else if (item.actionType === "Transfer to Storage") {
+      activeSystemDelta -= volume;
+      addPitDelta(storageDeltaByPit, item.pitName, volume);
+    }
+  }
+
+  return {
+    activeSystemDelta: round2(activeSystemDelta),
+    storageDeltaByPit,
   };
 };
 
@@ -569,7 +681,7 @@ export const getVolumeNameCalculation = async (req, res) => {
 
     const reportMeta = await resolveReportMeta({ wellId, reportId, reportNo });
 
-    const [wellGeneral, casings, pits, distributionState, consumeProducts, receivedMud, returnLostMud, addWaterEntries, otherVolAdditions, mudLossEntries, mudLossStorageEntries] =
+    const [wellGeneral, casings, pits, distributionState, consumeProducts, receivedMud, returnLostMud, addWaterEntries, otherVolAdditions, mudLossEntries, mudLossStorageEntries, transferMudEntries, emptyFluidEntries] =
       await Promise.all([
         findScopedWellGeneral({
           wellId,
@@ -603,6 +715,12 @@ export const getVolumeNameCalculation = async (req, res) => {
         MudLossStorage.find(
           scopedOperationFilter({ wellId, reportId: reportMeta.reportId })
         ).sort({ createdAt: 1, _id: 1 }),
+        TransferMud.find(
+          scopedOperationFilter({ wellId, reportId: reportMeta.reportId })
+        ).sort({ createdAt: 1, _id: 1 }),
+        EmptyFluidActiveSystem.find(
+          scopedOperationFilter({ wellId, reportId: reportMeta.reportId })
+        ).sort({ createdAt: 1, _id: 1 }),
       ]);
 
     const md = toNumber(wellGeneral?.md);
@@ -629,6 +747,19 @@ export const getVolumeNameCalculation = async (req, res) => {
     const distributionRows = cleanDistributionRows(distributionState?.distributions ?? []);
     const { activeSystemVolume, calculatedVolumeByPit } =
       buildCalculatedVolumeMap(distributionRows);
+    const operationVolumeEffects = buildOperationVolumeEffects({
+      receivedMud,
+      returnLostMud,
+      addWaterEntries,
+      otherVolAdditions,
+      mudLossEntries,
+      mudLossStorageEntries,
+      transferMudEntries,
+      emptyFluidEntries,
+    });
+    for (const [pitName, volume] of operationVolumeEffects.storageDeltaByPit) {
+      addPitDelta(calculatedVolumeByPit, pitName, volume);
+    }
     const derivedActiveSystem = Number((activePits + hole).toFixed(2));
     // Legacy desktop behavior:
     // Active System = measured Active Pits + Hole
@@ -636,7 +767,15 @@ export const getVolumeNameCalculation = async (req, res) => {
     // the legacy Pit table keeps it at zero until an end volume is supplied.
     // Storage calculated volumes come from the remaining distribution rows
     const activeSystem = derivedActiveSystem;
-    const endVol = activeSystemVolume > 0 ? activeSystemVolume : 0;
+    const operationEndVol = round2(
+      activeSystem + operationVolumeEffects.activeSystemDelta
+    );
+    const endVol =
+      activeSystemVolume > 0
+        ? activeSystemVolume
+        : Math.abs(operationVolumeEffects.activeSystemDelta) >= 0.005
+          ? operationEndVol
+          : 0;
     const endVolMinusActiveSystem = Number(
       (endVol - activeSystem).toFixed(2)
     );
@@ -720,6 +859,18 @@ export const getVolumeNameCalculation = async (req, res) => {
           lostMudTotal,
           mudLossTotal,
           mudLossStorageTotal,
+          transferMudTotal: Number(
+            transferMudEntries
+              .reduce((sum, item) => sum + toNumber(item.totalTransferVol), 0)
+              .toFixed(2)
+          ),
+          emptyFluidTotal: Number(
+            emptyFluidEntries
+              .reduce((sum, item) => sum + toNumber(item.volume || item.totalVolume), 0)
+              .toFixed(2)
+          ),
+          operationActiveSystemDelta: operationVolumeEffects.activeSystemDelta,
+          operationEndVol,
         },
         consumeProductDistribution: {
           inputMethod: toText(distributionState?.inputMethod) || "Used",

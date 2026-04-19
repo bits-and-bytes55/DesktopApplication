@@ -43,45 +43,11 @@ const prepareMudLossStorageData = (wellId, reportId, payload = {}) => {
 };
 
 const deductFromStoragePit = async ({ wellId, reportId, storage, totalLoss }) => {
-  const sourcePit = await findWritablePitByName({
-    wellId,
-    reportId,
-    pitName: String(storage).trim(),
-    initialActive: false,
-  });
-
-  if (!sourcePit) {
-    throw new Error(`Storage pit '${storage}' not found`);
-  }
-
-  const currentVol = round2(toNumber(sourcePit.volume));
-
-  if (totalLoss > currentVol) {
-    throw new Error(
-      `Mud loss (${totalLoss}) exceeds storage pit volume (${currentVol})`
-    );
-  }
-
-  sourcePit.volume = round2(currentVol - totalLoss);
-  await sourcePit.save();
+  return;
 };
 
 const revertToStoragePit = async ({ wellId, reportId, storage, totalLoss }) => {
-  if (totalLoss <= 0) return;
-
-  const sourcePit = await findWritablePitByName({
-    wellId,
-    reportId,
-    pitName: String(storage).trim(),
-    initialActive: false,
-  });
-
-  if (!sourcePit) {
-    throw new Error(`Storage pit '${storage}' not found`);
-  }
-
-  sourcePit.volume = round2(toNumber(sourcePit.volume) + totalLoss);
-  await sourcePit.save();
+  return;
 };
 
 export const createMudLossStorage = async (req, res) => {
