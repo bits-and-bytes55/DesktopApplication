@@ -12,6 +12,13 @@ class OtherVolAdditionController extends GetxController {
   final formationController = TextEditingController();
   final cuttingsController = TextEditingController();
   final volumeNotFluidController = TextEditingController();
+  final selectedDropdownAddition = ''.obs;
+
+  static const List<String> additionOptions = [
+    'Formation',
+    'Cuttings',
+    'Volume Not Fluid',
+  ];
 
   Worker? _wellWorker;
   Worker? _reportWorker;
@@ -55,7 +62,21 @@ class OtherVolAdditionController extends GetxController {
     formationController.clear();
     cuttingsController.clear();
     volumeNotFluidController.clear();
+    selectedDropdownAddition.value = '';
     recordId.value = null;
+  }
+
+  TextEditingController controllerForAddition(String label) {
+    switch (label) {
+      case 'Formation':
+        return formationController;
+      case 'Cuttings':
+        return cuttingsController;
+      case 'Volume Not Fluid':
+        return volumeNotFluidController;
+      default:
+        return formationController;
+    }
   }
 
   Future<void> _reloadForContext() async {
