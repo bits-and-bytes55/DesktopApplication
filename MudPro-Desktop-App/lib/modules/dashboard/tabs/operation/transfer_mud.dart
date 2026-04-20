@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
-import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class TransferMudView extends StatefulWidget {
@@ -241,7 +240,7 @@ class _TransferMudViewState extends State<TransferMudView> {
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Container(
-                width: 500, // Fixed width for 4 columns (added action cell)
+                width: 380,
                 child: Column(
                   children: [
                     // Table Header - Fixed
@@ -254,10 +253,8 @@ class _TransferMudViewState extends State<TransferMudView> {
                       ),
                       child: Row(
                         children: [
-                          _buildHeaderCell("No", 50),
-                          _buildHeaderCell("Pit", 260),
+                          _buildHeaderCell("Pit", 240),
                           _buildHeaderCell("Vol. (bbl)", 140),
-                          _buildHeaderCell("", 50),
                         ],
                       ),
                     ),
@@ -287,19 +284,15 @@ class _TransferMudViewState extends State<TransferMudView> {
                                   ),
                                   child: Row(
                                     children: [
-                                      // Number cell
-                                      _buildNumberCell(index + 1, 50),
                                       // Pit dropdown cell
                                       _buildPitDropdownCell(
                                         row,
                                         index,
                                         isSelected,
-                                        260,
+                                        240,
                                       ),
                                       // Volume cell
                                       _buildVolumeCell(row, 140),
-                                      // Action cell
-                                      _buildActionCell(index, 50),
                                     ],
                                   ),
                                 );
@@ -329,14 +322,12 @@ class _TransferMudViewState extends State<TransferMudView> {
           right: BorderSide(color: Colors.grey.shade300, width: 0.5),
         ),
       ),
-      child: Obx(
-        () => Text(
-          AppUnits.label(text),
-          style: AppTheme.bodySmall.copyWith(
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
-          ),
+      child: Text(
+        text,
+        style: AppTheme.bodySmall.copyWith(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: Colors.white,
         ),
       ),
     );
@@ -436,24 +427,6 @@ class _TransferMudViewState extends State<TransferMudView> {
     );
   }
 
-  Widget _buildNumberCell(int number, double width) {
-    return Container(
-      width: width,
-      height: 32,
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: BoxDecoration(
-        border: Border(
-          right: BorderSide(color: Colors.grey.shade300, width: 0.5),
-        ),
-      ),
-      alignment: Alignment.center,
-      child: Text(
-        number.toString(),
-        style: AppTheme.bodySmall.copyWith(fontSize: 10),
-      ),
-    );
-  }
-
   Widget _buildVolumeCell(TransferRowData row, double width) {
     return Container(
       width: width,
@@ -478,23 +451,6 @@ class _TransferMudViewState extends State<TransferMudView> {
         onChanged: (val) {
           row.volume = val;
         },
-      ),
-    );
-  }
-
-  Widget _buildActionCell(int index, double width) {
-    return Container(
-      width: width,
-      height: 32,
-      alignment: Alignment.center,
-      child: IconButton(
-        icon: Icon(Icons.delete_outline, size: 16, color: Colors.red.shade400),
-        onPressed: dashboardController.isLocked.value
-            ? null
-            : () => pitController.deleteTransferRow(index),
-        padding: EdgeInsets.zero,
-        constraints: const BoxConstraints(),
-        tooltip: 'Delete row',
       ),
     );
   }

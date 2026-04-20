@@ -339,15 +339,11 @@ const buildOperationVolumeEffects = ({
       transfers.reduce((sum, row) => sum + toNumber(row?.volume), 0);
 
     if (isActiveSystemName(item.from)) {
-      activeSystemDelta -= totalTransferVol;
-      endVolDelta -= totalTransferVol;
       for (const row of transfers) {
         addPitDelta(storageDeltaByPit, row?.pitName, toNumber(row?.volume));
       }
     } else {
       addPitDelta(storageDeltaByPit, item.from, -totalTransferVol);
-      activeSystemDelta += totalTransferVol;
-      endVolDelta += totalTransferVol;
     }
   }
 

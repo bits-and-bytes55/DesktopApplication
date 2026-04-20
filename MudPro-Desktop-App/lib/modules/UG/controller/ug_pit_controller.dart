@@ -19,8 +19,8 @@ class TransferRowData {
 
   Map<String, dynamic> toTransferMap(bool notTreated) {
     return {
-      'pitName': pitName,
-      'volume': double.tryParse(volume) ?? 0.0,
+      'pitName': pitName.trim(),
+      'volume': double.tryParse(volume.trim().replaceAll(',', '')) ?? 0.0,
       'notTreatedMud': notTreated,
     };
   }
@@ -858,11 +858,17 @@ class PitController extends GetxController {
     if (!_hasWellId) return {'success': false, 'message': 'Well ID missing'};
 
     final authRepo = AuthRepository();
+    final clearedSavedRows = transferRows
+        .where((r) =>
+            r.savedId != null &&
+            r.pitName.trim().isEmpty &&
+            r.volume.trim().isEmpty)
+        .toList();
     final candidateRows = transferRows
         .where((r) => r.pitName.trim().isNotEmpty || r.volume.trim().isNotEmpty)
         .toList();
 
-    if (candidateRows.isEmpty) {
+    if (candidateRows.isEmpty && clearedSavedRows.isEmpty) {
       return {'success': true, 'message': 'No transfers to save'};
     }
 
@@ -870,6 +876,19 @@ class PitController extends GetxController {
       int successCount = 0;
       final List<String> errors = [];
       final validRows = <TransferRowData>[];
+
+      for (final row in clearedSavedRows) {
+        final deleteRes = await authRepo.deleteTransferMud(
+          currentWellId!,
+          row.savedId!,
+        );
+        if (deleteRes['success'] == true) {
+          successCount++;
+          row.savedId = null;
+        } else {
+          errors.add(deleteRes['message']?.toString() ?? 'Delete failed');
+        }
+      }
 
       for (final row in candidateRows) {
         final rowNumber = transferRows.indexOf(row) + 1;

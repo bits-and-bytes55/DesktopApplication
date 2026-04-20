@@ -1,6 +1,4 @@
-import Pit from "../../modules/pit/pit.model.js";
 import TransferMud from "../../modules/transfermud/TransferMud.js";
-import { getWritablePits } from "../../utils/pitReportState.js";
 import { buildScopedFilter, readReportId } from "../../utils/reportScope.js";
 
 const toNumber = (value) => {
@@ -72,6 +70,13 @@ export const createTransferMud = async (req, res) => {
     const reportId = readReportId(req);
     const { from, transfers } = req.body;
 
+    if (!reportId) {
+      return res.status(400).json({
+        success: false,
+        message: "reportId is required for Transfer Mud",
+      });
+    }
+
     if (!wellId || !from || !Array.isArray(transfers) || transfers.length === 0) {
       return res.status(400).json({
         success: false,
@@ -114,6 +119,13 @@ export const createManyTransferMud = async (req, res) => {
     const wellId = getWellId(req);
     const reportId = readReportId(req);
     const { entries } = req.body;
+
+    if (!reportId) {
+      return res.status(400).json({
+        success: false,
+        message: "reportId is required for Transfer Mud",
+      });
+    }
 
     if (!wellId || !Array.isArray(entries) || entries.length === 0) {
       return res.status(400).json({
@@ -167,6 +179,14 @@ export const getTransferMudByWell = async (req, res) => {
     const wellId = getWellId(req);
     const reportId = readReportId(req);
 
+    if (!reportId) {
+      return res.status(200).json({
+        success: true,
+        count: 0,
+        data: [],
+      });
+    }
+
     const data = await TransferMud.find(
       buildScopedFilter(wellId, reportId)
     ).sort({ createdAt: -1 });
@@ -191,6 +211,13 @@ export const getTransferMudById = async (req, res) => {
     const wellId = getWellId(req);
     const reportId = readReportId(req);
     const { id } = req.params;
+
+    if (!reportId) {
+      return res.status(400).json({
+        success: false,
+        message: "reportId is required for Transfer Mud",
+      });
+    }
 
     const data = await TransferMud.findOne({
       _id: id,
@@ -223,6 +250,14 @@ export const updateTransferMud = async (req, res) => {
     const wellId = getWellId(req);
     const reportId = readReportId(req);
     const { id } = req.params;
+
+    if (!reportId) {
+      return res.status(400).json({
+        success: false,
+        message: "reportId is required for Transfer Mud",
+      });
+    }
+
     const existing = await TransferMud.findOne({
       _id: id,
       ...buildScopedFilter(wellId, reportId),
@@ -297,6 +332,13 @@ export const deleteTransferMud = async (req, res) => {
     const wellId = getWellId(req);
     const reportId = readReportId(req);
     const { id } = req.params;
+
+    if (!reportId) {
+      return res.status(400).json({
+        success: false,
+        message: "reportId is required for Transfer Mud",
+      });
+    }
 
     const data = await TransferMud.findOne({
       _id: id,
