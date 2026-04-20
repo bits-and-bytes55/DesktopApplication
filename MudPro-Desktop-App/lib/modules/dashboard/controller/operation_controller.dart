@@ -116,7 +116,7 @@ class OperationController extends GetxController {
   Future<void> loadAddWater({bool force = false}) async {
     final wellId = currentBackendWellId.trim();
     final reportId = reportContext.selectedReportId.value.trim();
-    if (wellId.isEmpty) {
+    if (wellId.isEmpty || reportId.isEmpty) {
       _loadedAddWaterWellId = '';
       _loadedAddWaterReportId = '';
       _resetAddWaterState();
@@ -196,6 +196,9 @@ class OperationController extends GetxController {
       return {'success': false, 'message': 'No backend well selected'};
     }
     final reportId = reportContext.selectedReportId.value.trim();
+    if (reportId.isEmpty) {
+      return {'success': false, 'message': 'No report selected'};
+    }
     if (_loadedAddWaterWellId != wellId ||
         _loadedAddWaterReportId != reportId) {
       await loadAddWater(force: true);

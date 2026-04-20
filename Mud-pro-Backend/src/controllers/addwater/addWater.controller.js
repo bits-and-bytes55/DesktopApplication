@@ -68,6 +68,12 @@ export const createAddWater = async (req, res) => {
   try {
     const wellId = getWellId(req);
     const reportId = readReportId(req);
+    if (!reportId) {
+      return res.status(400).json({
+        success: false,
+        message: "reportId is required for Add Water",
+      });
+    }
     const payloads = Array.isArray(req.body) ? req.body : [req.body];
 
     if (!payloads.length) {
@@ -115,6 +121,13 @@ export const getAddWaterList = async (req, res) => {
   try {
     const wellId = getWellId(req);
     const reportId = readReportId(req);
+    if (!reportId) {
+      return res.status(200).json({
+        success: true,
+        count: 0,
+        data: [],
+      });
+    }
 
     const items = await AddWater.find(
       buildScopedFilter(wellId, reportId)
@@ -138,6 +151,12 @@ export const getAddWaterById = async (req, res) => {
   try {
     const wellId = getWellId(req);
     const reportId = readReportId(req);
+    if (!reportId) {
+      return res.status(400).json({
+        success: false,
+        message: "reportId is required for Add Water",
+      });
+    }
     const { id } = req.params;
 
     const item = await AddWater.findOne({
@@ -169,6 +188,12 @@ export const updateAddWater = async (req, res) => {
   try {
     const wellId = getWellId(req);
     const reportId = readReportId(req);
+    if (!reportId) {
+      return res.status(400).json({
+        success: false,
+        message: "reportId is required for Add Water",
+      });
+    }
     const { id } = req.params;
 
     const existing = await AddWater.findOne({
@@ -228,6 +253,12 @@ export const deleteAddWater = async (req, res) => {
   try {
     const wellId = getWellId(req);
     const reportId = readReportId(req);
+    if (!reportId) {
+      return res.status(400).json({
+        success: false,
+        message: "reportId is required for Add Water",
+      });
+    }
     const { id } = req.params;
 
     const existing = await AddWater.findOne({
