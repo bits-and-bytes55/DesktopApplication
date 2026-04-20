@@ -242,12 +242,6 @@ export const updateNozzle = async (req, res) => {
 
     const scope = resolveScope(req, existing);
     const { processedNozzles, totalTFA } = processNozzles(req.body.nozzles);
-    if (processedNozzles.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Nozzle data is required",
-      });
-    }
 
     if (scope.reportId && toText(existing.reportId) !== scope.reportId) {
       const scopedCopy = await ensureReportNozzleCopy(scope);

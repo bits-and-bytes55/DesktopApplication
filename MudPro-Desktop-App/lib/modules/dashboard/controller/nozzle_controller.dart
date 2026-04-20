@@ -4,6 +4,8 @@ import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:mudpro_desktop_app/api_endpoint/api_endpoint.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/model/nozzle_model.dart';
+import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
+import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
 class NozzleController extends GetxController {
   final String baseUrl = ApiEndpoint.baseUrl;
@@ -15,6 +17,9 @@ class NozzleController extends GetxController {
 
   String? _savedId; // ID of currently saved nozzle record
   Timer? _debounceTimer;
+  Worker? _wellWorker;
+  Worker? _reportWorker;
+  int _loadGeneration = 0;
 
   static const int _minRows = 3;
 
@@ -23,20 +28,64 @@ class NozzleController extends GetxController {
         'Accept': 'application/json',
       };
 
+  Uri _buildScopedUri(String path) {
+    final queryParameters = <String, String>{};
+    final wellId = currentBackendWellId.trim();
+    final reportId = reportContext.selectedReportId.value.trim();
+
+    if (wellId.isNotEmpty) {
+      queryParameters['wellId'] = wellId;
+    }
+    if (reportId.isNotEmpty) {
+      queryParameters['reportId'] = reportId;
+    }
+
+    return Uri.parse('$baseUrl$path').replace(queryParameters: queryParameters);
+  }
+
+  Map<String, dynamic> _withScope(Map<String, dynamic> payload) {
+    final body = Map<String, dynamic>.from(payload);
+    final wellId = currentBackendWellId.trim();
+    final reportId = reportContext.selectedReportId.value.trim();
+
+    if (wellId.isNotEmpty) {
+      body['wellId'] = wellId;
+    }
+    if (reportId.isNotEmpty) {
+      body['reportId'] = reportId;
+    }
+
+    return body;
+  }
+
   @override
   void onInit() {
     super.onInit();
     _initEmptyRows();
+    _wellWorker = ever<String>(
+      padWellContext.selectedWellId,
+      (_) => fetchNozzle(resetBeforeLoad: true),
+    );
+    _reportWorker = ever<String>(
+      reportContext.selectedReportId,
+      (_) => fetchNozzle(resetBeforeLoad: true),
+    );
     fetchNozzle();
   }
 
   @override
   void onClose() {
     _debounceTimer?.cancel();
+    _wellWorker?.dispose();
+    _reportWorker?.dispose();
     super.onClose();
   }
 
-  void _initEmptyRows() {
+  void _initEmptyRows({bool clearSavedId = true}) {
+    if (clearSavedId) {
+      _savedId = null;
+    }
+    tfa.value = 0;
     entries.clear();
     for (int i = 0; i < _minRows; i++) {
       entries.add(NozzleEntry());
@@ -90,13 +139,21 @@ class NozzleController extends GetxController {
   }
 
   // ─── FETCH ──────────────────────────────────────────────────────
-  Future<void> fetchNozzle() async {
+  Future<void> fetchNozzle({bool resetBeforeLoad = false}) async {
+    final generation = ++_loadGeneration;
+    if (resetBeforeLoad) {
+      _debounceTimer?.cancel();
+      _initEmptyRows();
+    }
+
     try {
       isLoading.value = true;
       final response = await http.get(
-        Uri.parse('${baseUrl}nozzle'),
+        _buildScopedUri('nozzle'),
         headers: _headers,
       );
+
+      if (generation != _loadGeneration) return;
 
       print('Nozzle fetch: ${response.statusCode} ${response.body}');
 
@@ -120,40 +177,47 @@ class NozzleController extends GetxController {
           if (entries.isNotEmpty && entries.last.hasData) {
             entries.add(NozzleEntry());
           }
+        } else {
+          _initEmptyRows();
         }
       }
     } catch (e) {
       print('Nozzle fetch error: $e');
     } finally {
-      isLoading.value = false;
+      if (generation == _loadGeneration) {
+        isLoading.value = false;
+      }
     }
   }
 
   // ─── SAVE (POST if new, PUT if exists) ──────────────────────────
   Future<void> _saveToServer() async {
     final nozzlesWithData = entries.where((e) => e.hasData).toList();
-    if (nozzlesWithData.isEmpty) return;
+    if (nozzlesWithData.isEmpty && (_savedId == null || _savedId!.isEmpty)) {
+      tfa.value = 0;
+      return;
+    }
 
     try {
       isSaving.value = true;
 
-      final body = jsonEncode({
+      final body = jsonEncode(_withScope({
         'nozzles': nozzlesWithData.map((e) => e.toJson()).toList(),
-      });
+      }));
 
       http.Response response;
 
       if (_savedId != null && _savedId!.isNotEmpty) {
         // UPDATE
         response = await http.put(
-          Uri.parse('${baseUrl}nozzle/${_savedId}'),
+          _buildScopedUri('nozzle/${_savedId}'),
           headers: _headers,
           body: body,
         );
       } else {
         // CREATE
         response = await http.post(
-          Uri.parse('${baseUrl}nozzle/well'),
+          _buildScopedUri('nozzle/well'),
           headers: _headers,
           body: body,
         );

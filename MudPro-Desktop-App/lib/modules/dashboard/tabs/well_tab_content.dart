@@ -2378,6 +2378,8 @@ class _NozzleSectionState extends State<NozzleSection> {
 
   final Map<int, TextEditingController> _countCtrls = {};
   final Map<int, TextEditingController> _sizeCtrls = {};
+  final Map<int, FocusNode> _countFocusNodes = {};
+  final Map<int, FocusNode> _sizeFocusNodes = {};
 
   TextEditingController _countCtrl(int idx) {
     _countCtrls[idx] ??= TextEditingController(
@@ -2395,10 +2397,31 @@ class _NozzleSectionState extends State<NozzleSection> {
     return _sizeCtrls[idx]!;
   }
 
+  FocusNode _countFocusNode(int idx) {
+    _countFocusNodes[idx] ??= FocusNode();
+    return _countFocusNodes[idx]!;
+  }
+
+  FocusNode _sizeFocusNode(int idx) {
+    _sizeFocusNodes[idx] ??= FocusNode();
+    return _sizeFocusNodes[idx]!;
+  }
+
+  void _syncCtrl(
+    TextEditingController ctrl,
+    FocusNode focusNode,
+    String text,
+  ) {
+    if (focusNode.hasFocus || ctrl.text == text) return;
+    ctrl.text = text;
+  }
+
   @override
   void dispose() {
     for (final c in _countCtrls.values) c.dispose();
     for (final c in _sizeCtrls.values) c.dispose();
+    for (final n in _countFocusNodes.values) n.dispose();
+    for (final n in _sizeFocusNodes.values) n.dispose();
     super.dispose();
   }
 
@@ -2429,17 +2452,24 @@ class _NozzleSectionState extends State<NozzleSection> {
           child: Obx(() {
             final entries = nc.entries;
             for (int i = 0; i < entries.length; i++) {
+              final countText = entries[i].count.value.toString();
+              final sizeText = entries[i].size32.value == 0
+                  ? ''
+                  : entries[i].size32.value.toString();
+
               if (!_countCtrls.containsKey(i)) {
                 _countCtrls[i] = TextEditingController(
-                  text: entries[i].count.value.toString(),
+                  text: countText,
                 );
+              } else {
+                _syncCtrl(_countCtrls[i]!, _countFocusNode(i), countText);
               }
               if (!_sizeCtrls.containsKey(i)) {
                 _sizeCtrls[i] = TextEditingController(
-                  text: entries[i].size32.value == 0
-                      ? ''
-                      : entries[i].size32.value.toString(),
+                  text: sizeText,
                 );
+              } else {
+                _syncCtrl(_sizeCtrls[i]!, _sizeFocusNode(i), sizeText);
               }
             }
 
@@ -2483,14 +2513,22 @@ class _NozzleSectionState extends State<NozzleSection> {
                           ),
                           child: _noCell(idx + 1, sel, AppTheme.primaryColor),
                         ),
-                        _nzEditCell(_countCtrl(idx), (val) {
-                          nozzle.count.value = int.tryParse(val) ?? 1;
-                          nc.onCellChanged(idx);
-                        }),
-                        _nzEditCell(_sizeCtrl(idx), (val) {
-                          nozzle.size32.value = int.tryParse(val) ?? 0;
-                          nc.onCellChanged(idx);
-                        }),
+                        _nzEditCell(
+                          _countCtrl(idx),
+                          _countFocusNode(idx),
+                          (val) {
+                            nozzle.count.value = int.tryParse(val) ?? 1;
+                            nc.onCellChanged(idx);
+                          },
+                        ),
+                        _nzEditCell(
+                          _sizeCtrl(idx),
+                          _sizeFocusNode(idx),
+                          (val) {
+                            nozzle.size32.value = int.tryParse(val) ?? 0;
+                            nc.onCellChanged(idx);
+                          },
+                        ),
                       ],
                     );
                   }).toList(),
@@ -2551,7 +2589,11 @@ class _NozzleSectionState extends State<NozzleSection> {
     );
   }
 
-  Widget _nzEditCell(TextEditingController ctrl, Function(String) onChanged) =>
+  Widget _nzEditCell(
+    TextEditingController ctrl,
+    FocusNode focusNode,
+    Function(String) onChanged,
+  ) =>
       Container(
         padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
         child: Obx(
@@ -2573,6 +2615,7 @@ class _NozzleSectionState extends State<NozzleSection> {
                   height: _kRowH,
                   child: TextField(
                     controller: ctrl,
+                    focusNode: focusNode,
                     style: const TextStyle(fontSize: 9),
                     textAlign: TextAlign.center,
                     keyboardType: TextInputType.number,
