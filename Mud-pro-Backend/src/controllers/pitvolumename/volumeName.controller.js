@@ -741,7 +741,7 @@ export const getVolumeNameCalculation = async (req, res) => {
     const activePitsList = pits.filter((pit) => pit.initialActive === true);
     const storagePitsList = pits.filter((pit) => pit.initialActive === false);
 
-    const activePits = Number(
+    const measuredActivePits = Number(
       activePitsList.reduce((sum, pit) => sum + toNumber(pit.volume), 0).toFixed(2)
     );
 
@@ -765,15 +765,17 @@ export const getVolumeNameCalculation = async (req, res) => {
     for (const [pitName, volume] of operationVolumeEffects.storageDeltaByPit) {
       addPitDelta(calculatedVolumeByPit, pitName, volume);
     }
-    const derivedActiveSystem = Number((activePits + hole).toFixed(2));
-    // Legacy desktop behavior:
-    // Active System = measured Active Pits + Hole
-    // End Vol. = consume-product distribution's "Active System" row when present;
-    // the legacy Pit table keeps it at zero until an end volume is supplied.
-    // Storage calculated volumes come from the remaining distribution rows
+    const activePits = round2(
+      measuredActivePits + operationVolumeEffects.activeSystemDelta
+    );
+    const baseActiveSystem = round2(measuredActivePits + hole);
+    const derivedActiveSystem = round2(activePits + hole);
+    // Active-system operation rows update the calculated active system total.
+    // End Vol. is still calculated from the measured base plus operation deltas
+    // so the same loss/addition is not applied twice.
     const activeSystem = derivedActiveSystem;
     const operationEndVol = round2(
-      activeSystem + operationVolumeEffects.endVolDelta
+      baseActiveSystem + operationVolumeEffects.endVolDelta
     );
     const endVol =
       activeSystemVolume > 0
