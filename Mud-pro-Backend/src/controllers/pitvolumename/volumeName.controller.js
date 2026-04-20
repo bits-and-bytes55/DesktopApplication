@@ -752,6 +752,11 @@ export const getVolumeNameCalculation = async (req, res) => {
     const distributionRows = cleanDistributionRows(distributionState?.distributions ?? []);
     const { activeSystemVolume, calculatedVolumeByPit } =
       buildCalculatedVolumeMap(distributionRows);
+    for (const pit of storagePitsList) {
+      const key = toText(pit.pitName).toLowerCase();
+      if (!key || calculatedVolumeByPit.has(key)) continue;
+      calculatedVolumeByPit.set(key, toNumber(pit.volume));
+    }
     const operationVolumeEffects = buildOperationVolumeEffects({
       receivedMud,
       returnLostMud,
