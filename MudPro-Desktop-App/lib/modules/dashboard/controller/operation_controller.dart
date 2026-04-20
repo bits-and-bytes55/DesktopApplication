@@ -199,20 +199,25 @@ class OperationController extends GetxController {
     if (reportId.isEmpty) {
       return {'success': false, 'message': 'No report selected'};
     }
+    final enteredTo = addWaterTo.value.trim().isEmpty
+        ? 'Active System'
+        : addWaterTo.value.trim();
+    final enteredVolumes = _collectAddWaterVolumes();
+
     if (_loadedAddWaterWellId != wellId ||
         _loadedAddWaterReportId != reportId) {
       await loadAddWater(force: true);
     }
 
-    final volumes = _collectAddWaterVolumes();
+    final currentIds = addWaterRecordIds.toList();
     final errors = <String>[];
     var successCount = 0;
 
-    if (volumes.isEmpty) {
-      if (addWaterRecordIds.isEmpty) {
+    if (enteredVolumes.isEmpty) {
+      if (currentIds.isEmpty) {
         return {'success': true, 'message': 'No Add Water data to save'};
       }
-      for (final id in addWaterRecordIds) {
+      for (final id in currentIds) {
         final deleteRes = await _repository.deleteAddWater(wellId, id);
         if (deleteRes['success'] == true) {
           successCount++;
@@ -232,11 +237,11 @@ class OperationController extends GetxController {
       };
     }
 
-    final currentIds = addWaterRecordIds.toList();
-    for (var index = 0; index < volumes.length; index++) {
+    for (var index = 0; index < enteredVolumes.length; index++) {
       final body = {
-        'to': addWaterTo.value,
-        'volume': _convertNumberForSave(volumes[index], _fluidVolumeUnit, '(bbl)'),
+        'to': enteredTo,
+        'volume':
+            _convertNumberForSave(enteredVolumes[index], _fluidVolumeUnit, '(bbl)'),
       };
       final existingId = index < currentIds.length ? currentIds[index] : '';
       final result = existingId.isNotEmpty
@@ -249,7 +254,7 @@ class OperationController extends GetxController {
       }
     }
 
-    for (var index = volumes.length; index < currentIds.length; index++) {
+    for (var index = enteredVolumes.length; index < currentIds.length; index++) {
       final deleteRes = await _repository.deleteAddWater(wellId, currentIds[index]);
       if (deleteRes['success'] == true) {
         successCount++;

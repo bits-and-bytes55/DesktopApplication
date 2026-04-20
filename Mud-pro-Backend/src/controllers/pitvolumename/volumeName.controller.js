@@ -772,7 +772,7 @@ export const getVolumeNameCalculation = async (req, res) => {
     );
     const endVol =
       activeSystemVolume > 0
-        ? activeSystemVolume
+        ? round2(activeSystemVolume + operationVolumeEffects.activeSystemDelta)
         : Math.abs(operationVolumeEffects.activeSystemDelta) >= 0.005
           ? operationEndVol
           : 0;
