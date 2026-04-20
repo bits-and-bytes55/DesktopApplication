@@ -273,10 +273,12 @@ const buildOperationVolumeEffects = ({
   emptyFluidEntries = [],
 }) => {
   let activeSystemDelta = 0;
+  let endVolDelta = 0;
   const storageDeltaByPit = new Map();
 
   for (const item of addWaterEntries) {
     const volume = toNumber(item.volume);
+    endVolDelta += volume;
     if (isActiveSystemName(item.to)) {
       activeSystemDelta += volume;
     } else {
@@ -288,6 +290,7 @@ const buildOperationVolumeEffects = ({
     const volume = toNumber(item.netVolume);
     if (isActiveSystemName(item.to)) {
       activeSystemDelta += volume;
+      endVolDelta += volume;
     } else {
       addPitDelta(storageDeltaByPit, item.to, volume);
     }
@@ -300,23 +303,29 @@ const buildOperationVolumeEffects = ({
 
     if (isActiveSystemName(item.from)) {
       activeSystemDelta -= totalDeduct;
+      endVolDelta -= totalDeduct;
     } else {
       addPitDelta(storageDeltaByPit, item.from, -totalDeduct);
     }
 
     if (isActiveSystemName(item.to)) {
       activeSystemDelta += returned;
+      endVolDelta += returned;
     } else if (!isIgnoredDestination(item.to)) {
       addPitDelta(storageDeltaByPit, item.to, returned);
     }
   }
 
   for (const item of otherVolAdditions) {
-    activeSystemDelta += toNumber(item.totalVolume);
+    const volume = toNumber(item.totalVolume);
+    activeSystemDelta += volume;
+    endVolDelta += volume;
   }
 
   for (const item of mudLossEntries) {
-    activeSystemDelta -= toNumber(item.totalLoss);
+    const volume = toNumber(item.totalLoss);
+    activeSystemDelta -= volume;
+    endVolDelta -= volume;
   }
 
   for (const item of mudLossStorageEntries) {
@@ -331,12 +340,14 @@ const buildOperationVolumeEffects = ({
 
     if (isActiveSystemName(item.from)) {
       activeSystemDelta -= totalTransferVol;
+      endVolDelta -= totalTransferVol;
       for (const row of transfers) {
         addPitDelta(storageDeltaByPit, row?.pitName, toNumber(row?.volume));
       }
     } else {
       addPitDelta(storageDeltaByPit, item.from, -totalTransferVol);
       activeSystemDelta += totalTransferVol;
+      endVolDelta += totalTransferVol;
     }
   }
 
@@ -344,14 +355,17 @@ const buildOperationVolumeEffects = ({
     const volume = toNumber(item.volume || item.totalVolume);
     if (item.actionType === "Dump") {
       activeSystemDelta -= volume;
+      endVolDelta -= volume;
     } else if (item.actionType === "Transfer to Storage") {
       activeSystemDelta -= volume;
+      endVolDelta -= volume;
       addPitDelta(storageDeltaByPit, item.pitName, volume);
     }
   }
 
   return {
     activeSystemDelta: round2(activeSystemDelta),
+    endVolDelta: round2(endVolDelta),
     storageDeltaByPit,
   };
 };
@@ -768,12 +782,12 @@ export const getVolumeNameCalculation = async (req, res) => {
     // Storage calculated volumes come from the remaining distribution rows
     const activeSystem = derivedActiveSystem;
     const operationEndVol = round2(
-      activeSystem + operationVolumeEffects.activeSystemDelta
+      activeSystem + operationVolumeEffects.endVolDelta
     );
     const endVol =
       activeSystemVolume > 0
-        ? round2(activeSystemVolume + operationVolumeEffects.activeSystemDelta)
-        : Math.abs(operationVolumeEffects.activeSystemDelta) >= 0.005
+        ? round2(activeSystemVolume + operationVolumeEffects.endVolDelta)
+        : Math.abs(operationVolumeEffects.endVolDelta) >= 0.005
           ? operationEndVol
           : 0;
     const endVolMinusActiveSystem = Number(
@@ -870,6 +884,7 @@ export const getVolumeNameCalculation = async (req, res) => {
               .toFixed(2)
           ),
           operationActiveSystemDelta: operationVolumeEffects.activeSystemDelta,
+          operationEndVolDelta: operationVolumeEffects.endVolDelta,
           operationEndVol,
         },
         consumeProductDistribution: {

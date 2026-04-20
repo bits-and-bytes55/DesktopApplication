@@ -1,7 +1,6 @@
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart';
-import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
@@ -26,8 +25,6 @@ class OperationController extends GetxController {
   final AuthRepository _repository = AuthRepository();
   Worker? _wellWorker;
   Worker? _reportWorker;
-  final List<Worker> _unitWorkers = [];
-  late String _fluidVolumeUnit;
 
   RxBool isLocked = true.obs;
   RxInt selectedRowIndex = 0.obs;
@@ -45,41 +42,15 @@ class OperationController extends GetxController {
   String _loadedAddWaterWellId = '';
   String _loadedAddWaterReportId = '';
 
-  String _formatConverted(double value) {
+  String _formatVolume(double value) {
     return value
         .toStringAsFixed(4)
         .replaceAll(RegExp(r'0+$'), '')
         .replaceAll(RegExp(r'\.$'), '');
   }
 
-  String _convertText(String value, String fromUnit, String toUnit) {
-    if (fromUnit == toUnit) return value;
-    final parsed = double.tryParse(value.trim().replaceAll(',', ''));
-    if (parsed == null) return value;
-    final result = AppUnits.convertValue(parsed, fromUnit, toUnit);
-    return result == null ? value : _formatConverted(result);
-  }
-
-  double _convertNumberForSave(String value, String fromUnit, String toUnit) {
-    final parsed = double.tryParse(value.trim().replaceAll(',', '')) ?? 0.0;
-    return AppUnits.convertValue(parsed, fromUnit, toUnit) ?? parsed;
-  }
-
-  void _handleUnitChange() {
-    final nextFluidVolumeUnit = AppUnits.fluidVolume;
-    if (_fluidVolumeUnit == nextFluidVolumeUnit) return;
-
-    addWaterVolume.value =
-        _convertText(addWaterVolume.value, _fluidVolumeUnit, nextFluidVolumeUnit);
-    addWaterMainVol.value =
-        _convertText(addWaterMainVol.value, _fluidVolumeUnit, nextFluidVolumeUnit);
-    addWaterExtraRows.assignAll(
-      addWaterExtraRows.map(
-        (value) => _convertText(value, _fluidVolumeUnit, nextFluidVolumeUnit),
-      ),
-    );
-    _fluidVolumeUnit = nextFluidVolumeUnit;
-  }
+  double _parseVolume(String value) =>
+      double.tryParse(value.trim().replaceAll(',', '')) ?? 0.0;
 
   void _resetAddWaterState() {
     addWaterTo.value = "Active System";
@@ -153,11 +124,11 @@ class OperationController extends GetxController {
       }
 
       final volumes = chronologicalItems
-          .map((item) => _convertText(
-                (item['volume'] ?? '').toString(),
-                '(bbl)',
-                _fluidVolumeUnit,
-              ))
+          .map(
+            (item) => _formatVolume(
+              _parseVolume((item['volume'] ?? '').toString()),
+            ),
+          )
           .toList();
       final recordIds = chronologicalItems
           .map((item) => (item['_id'] ?? item['id'] ?? '').toString())
@@ -240,8 +211,7 @@ class OperationController extends GetxController {
     for (var index = 0; index < enteredVolumes.length; index++) {
       final body = {
         'to': enteredTo,
-        'volume':
-            _convertNumberForSave(enteredVolumes[index], _fluidVolumeUnit, '(bbl)'),
+        'volume': _parseVolume(enteredVolumes[index]),
       };
       final existingId = index < currentIds.length ? currentIds[index] : '';
       final result = existingId.isNotEmpty
@@ -501,12 +471,6 @@ final RxList<String> returnLostDropdownValue =
   @override
   void onInit() {
     super.onInit();
-    _fluidVolumeUnit = AppUnits.fluidVolume;
-    _unitWorkers.addAll([
-      ever(AppUnits.controller.unitSystem, (_) => _handleUnitChange()),
-      ever(AppUnits.controller.selectedCustomSystemId, (_) => _handleUnitChange()),
-      ever(AppUnits.controller.customUnits, (_) => _handleUnitChange()),
-    ]);
     _applyAvailableOperations(_fallbackOperations);
     fetchOperationsMenu();
     loadAddWater();
@@ -526,10 +490,6 @@ final RxList<String> returnLostDropdownValue =
   void onClose() {
     _wellWorker?.dispose();
     _reportWorker?.dispose();
-    for (final worker in _unitWorkers) {
-      worker.dispose();
-    }
-    _unitWorkers.clear();
     super.onClose();
   }
 }
