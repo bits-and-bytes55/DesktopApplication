@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/mud_loss_active_system_controller.dart';
-import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class MudLossActiveSystemView extends StatelessWidget {
@@ -170,18 +169,15 @@ class MudLossActiveSystemView extends StatelessWidget {
     return Container(
       height: 48,
       alignment: Alignment.center,
-      child: Obx(() {
-        AppUnits.signature;
-        return Text(
-          'Vol.\n${AppUnits.fluidVolume}',
-          textAlign: TextAlign.center,
-          style: AppTheme.bodySmall.copyWith(
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            color: AppTheme.textPrimary,
-          ),
-        );
-      }),
+      child: Text(
+        'Vol.\n(bbl)',
+        textAlign: TextAlign.center,
+        style: AppTheme.bodySmall.copyWith(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: AppTheme.textPrimary,
+        ),
+      ),
     );
   }
 
