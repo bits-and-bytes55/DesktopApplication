@@ -2,6 +2,7 @@ import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
+import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
 enum OperationType {
@@ -24,6 +25,7 @@ enum OperationType {
 class OperationController extends GetxController {
   final AuthRepository _repository = AuthRepository();
   Worker? _wellWorker;
+  Worker? _reportWorker;
   final List<Worker> _unitWorkers = [];
   late String _fluidVolumeUnit;
 
@@ -41,6 +43,7 @@ class OperationController extends GetxController {
   final RxList<String> addWaterRecordIds = <String>[].obs;
   final isAddWaterLoading = false.obs;
   String _loadedAddWaterWellId = '';
+  String _loadedAddWaterReportId = '';
 
   String _formatConverted(double value) {
     return value
@@ -112,12 +115,17 @@ class OperationController extends GetxController {
 
   Future<void> loadAddWater({bool force = false}) async {
     final wellId = currentBackendWellId.trim();
+    final reportId = reportContext.selectedReportId.value.trim();
     if (wellId.isEmpty) {
       _loadedAddWaterWellId = '';
+      _loadedAddWaterReportId = '';
       _resetAddWaterState();
       return;
     }
-    if (!force && _loadedAddWaterWellId == wellId && !isAddWaterLoading.value) {
+    if (!force &&
+        _loadedAddWaterWellId == wellId &&
+        _loadedAddWaterReportId == reportId &&
+        !isAddWaterLoading.value) {
       return;
     }
 
@@ -140,6 +148,7 @@ class OperationController extends GetxController {
       if (chronologicalItems.isEmpty) {
         _resetAddWaterState();
         _loadedAddWaterWellId = wellId;
+        _loadedAddWaterReportId = reportId;
         return;
       }
 
@@ -173,6 +182,7 @@ class OperationController extends GetxController {
       addWaterExtraRows.assignAll(extras);
       addWaterRecordIds.assignAll(recordIds);
       _loadedAddWaterWellId = wellId;
+      _loadedAddWaterReportId = reportId;
     } catch (_) {
       _resetAddWaterState();
     } finally {
@@ -185,7 +195,9 @@ class OperationController extends GetxController {
     if (wellId.isEmpty) {
       return {'success': false, 'message': 'No backend well selected'};
     }
-    if (_loadedAddWaterWellId != wellId) {
+    final reportId = reportContext.selectedReportId.value.trim();
+    if (_loadedAddWaterWellId != wellId ||
+        _loadedAddWaterReportId != reportId) {
       await loadAddWater(force: true);
     }
 
@@ -492,6 +504,12 @@ final RxList<String> returnLostDropdownValue =
     loadAddWater();
     _wellWorker = ever<String>(padWellContext.selectedWellId, (_) {
       _loadedAddWaterWellId = '';
+      _loadedAddWaterReportId = '';
+      loadAddWater(force: true);
+    });
+    _reportWorker = ever<String>(reportContext.selectedReportId, (_) {
+      _loadedAddWaterWellId = '';
+      _loadedAddWaterReportId = '';
       loadAddWater(force: true);
     });
   }
@@ -499,6 +517,7 @@ final RxList<String> returnLostDropdownValue =
   @override
   void onClose() {
     _wellWorker?.dispose();
+    _reportWorker?.dispose();
     for (final worker in _unitWorkers) {
       worker.dispose();
     }

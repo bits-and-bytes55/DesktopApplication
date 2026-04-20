@@ -78,48 +78,17 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     _addDistributeRow(initialPit: kActiveSystem);
     
     waterVolumeController.addListener(_recalculateTotalVolume);
-    waterVolumeController.addListener(() {
-      operationController.addWaterVolume.value = waterVolumeController.text;
-      operationController.addWaterMainVol.value = waterVolumeController.text;
-    });
 
-    Future.microtask(_loadSavedAddWater);
     Future.microtask(_loadSavedDistributionState);
-
-    final lastWater = operationController.addWaterMainVol.value.trim().isNotEmpty
-        ? operationController.addWaterMainVol.value.trim()
-        : operationController.addWaterVolume.value.trim();
-    if (lastWater.isNotEmpty && (double.tryParse(lastWater) ?? 0) > 0) {
-      addWater.value = true;
-      waterVolumeController.text = lastWater;
-    }
     addWater.listen((enabled) {
       if (!enabled) {
         waterVolumeController.text = '';
-        operationController.addWaterVolume.value = '';
-        operationController.addWaterMainVol.value = '';
         _recalculateTotalVolume();
       }
     });
 
     // Automatically rebalance distribution whenever total volume changes
     ever(operationController.totalVolume, (_) => _rebalanceDistributeVolumes());
-  }
-
-  Future<void> _loadSavedAddWater() async {
-    await operationController.loadAddWater(force: true);
-    if (!mounted) return;
-
-    final savedWater = operationController.addWaterMainVol.value.trim();
-    final savedWaterValue = double.tryParse(savedWater) ?? 0.0;
-    if (savedWaterValue <= 0 || waterVolumeController.text.trim().isNotEmpty) {
-      return;
-    }
-
-    addWater.value = true;
-    waterVolumeController.text = savedWater;
-    operationController.addWaterVolume.value = savedWater;
-    _recalculateTotalVolume();
   }
 
   Future<void> _loadSavedDistributionState() async {
@@ -131,6 +100,9 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
   void _hydrateDistributionStateFromPitData() {
     final raw = pitController.volumeNameData['consumeProductDistribution'];
     if (raw is! Map) {
+      addWater.value = false;
+      waterVolumeController.text = '';
+      _recalculateTotalVolume();
       _ensureDefaultDistributionRow();
       return;
     }
@@ -140,6 +112,14 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     if (savedMethod == 'Used' || savedMethod == 'Final') {
       selectedMethod.value = savedMethod;
     }
+
+    final savedAddWaterEnabled = state['addWaterEnabled'] == true;
+    final savedAddWaterVolume = _toDouble(state['addWaterVolume']);
+    addWater.value = savedAddWaterEnabled && savedAddWaterVolume > 0;
+    waterVolumeController.text = addWater.value
+        ? savedAddWaterVolume.toStringAsFixed(3)
+        : '';
+    _recalculateTotalVolume();
 
     final rawRows = state['distributions'];
     if (rawRows is! List) {
@@ -702,11 +682,6 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
         }
       }
 
-      final waterResult = await _saveAddWaterIfNeeded();
-      if (waterResult != null && waterResult['success'] != true) {
-        errors.add('Add Water: ${waterResult['message'] ?? 'Save failed'}');
-      }
-
       final distributionResult = await _saveDistributionState();
       if (distributionResult['success'] != true) {
         errors.add(
@@ -736,27 +711,6 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     } finally {
       isSavingAll.value = false;
     }
-  }
-
-  Future<Map<String, dynamic>?> _saveAddWaterIfNeeded() async {
-    if (!addWater.value) {
-      await operationController.loadAddWater(force: true);
-      operationController.addWaterTo.value = kActiveSystem;
-      operationController.addWaterMainVol.value = '';
-      operationController.addWaterVolume.value = '';
-      return operationController.saveAddWater();
-    }
-
-    final waterText = waterVolumeController.text.trim();
-    final waterVol = double.tryParse(waterText) ?? 0.0;
-    if (waterVol <= 0) return null;
-
-    await operationController.loadAddWater(force: true);
-    operationController.addWaterTo.value = kActiveSystem;
-    operationController.addWaterMainVol.value = waterText;
-    operationController.addWaterVolume.value = waterText;
-
-    return operationController.saveAddWater();
   }
 
   void _showToast(String msg, {bool isError = false}) {
