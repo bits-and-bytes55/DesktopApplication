@@ -1,7 +1,5 @@
-import Pit from "../../modules/pit/pit.model.js";
 import Premixed from "../../modules/inventory/premixed.model.js";
 import ReturnLostMud from "../../modules/returnlostmud/ReturnLostMud.js";
-import { findWritablePitByName, getWritablePits } from "../../utils/pitReportState.js";
 import { buildScopedFilter, readReportId } from "../../utils/reportScope.js";
 
 const getWellId = (req) => String(req.params.wellId || "").trim();
@@ -19,22 +17,6 @@ const findPremixedMud = async (wellId, premixedMud) => {
     wellId,
     description: { $regex: `^${String(premixedMud).trim()}$`, $options: "i" },
   });
-};
-
-const getAllPits = async (wellId, reportId) => {
-  const pits = await getWritablePits({ wellId, reportId });
-  if (!pits.length) {
-    throw new Error("No pits found for this wellId");
-  }
-  return pits;
-};
-
-const getActivePits = (allPits) => {
-  const activePits = allPits.filter((pit) => pit.initialActive === true);
-  if (!activePits.length) {
-    throw new Error("No active pits found");
-  }
-  return activePits;
 };
 
 const deductFromLocation = async ({ wellId, reportId, from, totalDeduct }) => {
@@ -141,6 +123,12 @@ export const createReturnLostMud = async (req, res) => {
   try {
     const wellId = getWellId(req);
     const reportId = readReportId(req);
+    if (!reportId) {
+      return res.status(400).json({
+        success: false,
+        message: "reportId is required for Return / Lost Mud",
+      });
+    }
     const payloads = Array.isArray(req.body) ? req.body : [req.body];
 
     if (!payloads.length) {
@@ -211,6 +199,13 @@ export const getReturnLostMudList = async (req, res) => {
   try {
     const wellId = getWellId(req);
     const reportId = readReportId(req);
+    if (!reportId) {
+      return res.status(200).json({
+        success: true,
+        count: 0,
+        data: [],
+      });
+    }
 
     const items = await ReturnLostMud.find(
       buildScopedFilter(wellId, reportId)
@@ -234,6 +229,12 @@ export const getReturnLostMudById = async (req, res) => {
   try {
     const wellId = getWellId(req);
     const reportId = readReportId(req);
+    if (!reportId) {
+      return res.status(400).json({
+        success: false,
+        message: "reportId is required for Return / Lost Mud",
+      });
+    }
     const { id } = req.params;
 
     const item = await ReturnLostMud.findOne({
@@ -265,6 +266,12 @@ export const updateReturnLostMud = async (req, res) => {
   try {
     const wellId = getWellId(req);
     const reportId = readReportId(req);
+    if (!reportId) {
+      return res.status(400).json({
+        success: false,
+        message: "reportId is required for Return / Lost Mud",
+      });
+    }
     const { id } = req.params;
 
     const existing = await ReturnLostMud.findOne({
@@ -362,6 +369,12 @@ export const deleteReturnLostMud = async (req, res) => {
   try {
     const wellId = getWellId(req);
     const reportId = readReportId(req);
+    if (!reportId) {
+      return res.status(400).json({
+        success: false,
+        message: "reportId is required for Return / Lost Mud",
+      });
+    }
     const { id } = req.params;
 
     const existing = await ReturnLostMud.findOne({
