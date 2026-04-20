@@ -3,16 +3,23 @@ import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
+import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
 class MudLossActiveSystemController extends GetxController {
   final AuthRepository _repository = AuthRepository();
   final isLoading = false.obs;
   final recordId = RxnString();
-  final dynamicRows = <Map<String, String>>[
-    {'loss': '', 'volume': ''},
-    {'loss': '', 'volume': ''},
-  ].obs;
+  final selectedExtraLoss = ''.obs;
+  final extraLossVolumeController = TextEditingController();
+
+  static const List<String> extraLossOptions = [
+    'Trip Loss',
+    'Displacement',
+    'Left in hole',
+    'Spilled',
+    'Isolated contaminated Vol',
+  ];
 
   final Map<String, TextEditingController> fields = {
     'cuttingsRetention': TextEditingController(),
@@ -29,6 +36,7 @@ class MudLossActiveSystemController extends GetxController {
   };
 
   Worker? _wellWorker;
+  Worker? _reportWorker;
   final List<Worker> _unitWorkers = [];
   late String _fluidVolumeUnit;
 
@@ -45,11 +53,16 @@ class MudLossActiveSystemController extends GetxController {
     ]);
     load();
     _wellWorker = ever<String>(padWellContext.selectedWellId, (_) => load(force: true));
+    _reportWorker = ever<String>(
+      reportContext.selectedReportId,
+      (_) => load(force: true),
+    );
   }
 
   @override
   void onClose() {
     _wellWorker?.dispose();
+    _reportWorker?.dispose();
     for (final worker in _unitWorkers) {
       worker.dispose();
     }
@@ -57,6 +70,7 @@ class MudLossActiveSystemController extends GetxController {
     for (final controller in fields.values) {
       controller.dispose();
     }
+    extraLossVolumeController.dispose();
     super.onClose();
   }
 
@@ -73,6 +87,8 @@ class MudLossActiveSystemController extends GetxController {
     for (final controller in fields.values) {
       controller.clear();
     }
+    selectedExtraLoss.value = '';
+    extraLossVolumeController.clear();
     recordId.value = null;
   }
 
@@ -98,12 +114,23 @@ class MudLossActiveSystemController extends GetxController {
       controller.text =
           _convertText(controller.text, _fluidVolumeUnit, nextFluidVolumeUnit);
     }
+    extraLossVolumeController.text = _convertText(
+      extraLossVolumeController.text,
+      _fluidVolumeUnit,
+      nextFluidVolumeUnit,
+    );
     _fluidVolumeUnit = nextFluidVolumeUnit;
   }
 
   double _number(String key) {
     final parsed =
         double.tryParse(fields[key]!.text.trim().replaceAll(',', '')) ?? 0;
+    return AppUnits.convertValue(parsed, _fluidVolumeUnit, '(bbl)') ?? parsed;
+  }
+
+  double _extraLossNumber() {
+    final parsed =
+        double.tryParse(extraLossVolumeController.text.trim().replaceAll(',', '')) ?? 0;
     return AppUnits.convertValue(parsed, _fluidVolumeUnit, '(bbl)') ?? parsed;
   }
 
@@ -140,6 +167,13 @@ class MudLossActiveSystemController extends GetxController {
             ? ''
             : _convertText(value.toString(), '(bbl)', _fluidVolumeUnit);
       }
+      final extraLossLabel = (item['extraLossLabel'] ?? '').toString();
+      selectedExtraLoss.value =
+          extraLossOptions.contains(extraLossLabel) ? extraLossLabel : '';
+      final extraLossVolume = item['extraLossVolume'];
+      extraLossVolumeController.text = extraLossVolume == null
+          ? ''
+          : _convertText(extraLossVolume.toString(), '(bbl)', _fluidVolumeUnit);
     } catch (_) {
       _clearFields();
     } finally {
@@ -164,6 +198,8 @@ class MudLossActiveSystemController extends GetxController {
       'abandonInHole': _number('abandonInHole'),
       'leftBehindCasing': _number('leftBehindCasing'),
       'tripping': _number('tripping'),
+      'extraLossLabel': selectedExtraLoss.value.trim(),
+      'extraLossVolume': _extraLossNumber(),
     };
 
     final total = body.values

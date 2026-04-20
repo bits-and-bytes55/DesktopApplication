@@ -214,6 +214,7 @@ class VolumeSnapshotController extends GetxController {
     final abandonInHole = _sum(mudLossItems, 'abandonInHole');
     final leftBehindCasing = _sum(mudLossItems, 'leftBehindCasing');
     final tripping = _sum(mudLossItems, 'tripping');
+    final extraLossVolume = _sum(mudLossItems, 'extraLossVolume');
 
     final storageDump = _sum(mudLossStorageItems, 'dump');
     final storageEvaporation = _sum(mudLossStorageItems, 'evaporation');
@@ -269,7 +270,8 @@ class VolumeSnapshotController extends GetxController {
           seepage +
           abandonInHole +
           leftBehindCasing +
-          tripping,
+          tripping +
+          extraLossVolume,
     );
     final storageLossTotal =
         _round2(storageDump + storageEvaporation + storagePitCleaning);

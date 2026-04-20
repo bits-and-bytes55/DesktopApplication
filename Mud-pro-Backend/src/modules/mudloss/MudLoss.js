@@ -56,6 +56,14 @@ const mudLossSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    extraLossLabel: {
+      type: String,
+      default: "",
+    },
+    extraLossVolume: {
+      type: Number,
+      default: 0,
+    },
     totalLoss: {
       type: Number,
       default: 0,

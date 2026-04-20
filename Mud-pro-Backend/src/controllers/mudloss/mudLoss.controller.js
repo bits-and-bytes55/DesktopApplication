@@ -36,8 +36,11 @@ export const createMudLoss = async (req, res) => {
       abandonInHole,
       leftBehindCasing,
       tripping,
+      extraLossLabel,
+      extraLossVolume,
     } = req.body;
 
+    const extraLossVol = toNumber(extraLossVolume);
     const totalLoss = round2(
       toNumber(cuttingsRetention) +
         toNumber(seepage) +
@@ -49,7 +52,8 @@ export const createMudLoss = async (req, res) => {
         toNumber(formation) +
         toNumber(abandonInHole) +
         toNumber(leftBehindCasing) +
-        toNumber(tripping)
+        toNumber(tripping) +
+        extraLossVol
     );
 
     if (totalLoss <= 0) {
@@ -75,6 +79,8 @@ export const createMudLoss = async (req, res) => {
       abandonInHole: toNumber(abandonInHole),
       leftBehindCasing: toNumber(leftBehindCasing),
       tripping: toNumber(tripping),
+      extraLossLabel: String(extraLossLabel || "").trim(),
+      extraLossVolume: extraLossVol,
       totalLoss,
     });
 
@@ -182,8 +188,11 @@ export const updateMudLoss = async (req, res) => {
       abandonInHole: req.body.abandonInHole ?? existing.abandonInHole,
       leftBehindCasing: req.body.leftBehindCasing ?? existing.leftBehindCasing,
       tripping: req.body.tripping ?? existing.tripping,
+      extraLossLabel: req.body.extraLossLabel ?? existing.extraLossLabel,
+      extraLossVolume: req.body.extraLossVolume ?? existing.extraLossVolume,
     };
 
+    const extraLossVol = toNumber(updatedData.extraLossVolume);
     const totalLoss = round2(
       toNumber(updatedData.cuttingsRetention) +
         toNumber(updatedData.seepage) +
@@ -195,8 +204,12 @@ export const updateMudLoss = async (req, res) => {
         toNumber(updatedData.formation) +
         toNumber(updatedData.abandonInHole) +
         toNumber(updatedData.leftBehindCasing) +
-        toNumber(updatedData.tripping)
+        toNumber(updatedData.tripping) +
+        extraLossVol
     );
+
+    updatedData.extraLossLabel = String(updatedData.extraLossLabel || "").trim();
+    updatedData.extraLossVolume = extraLossVol;
 
     await deductFromActivePits({ wellId, reportId, totalLoss });
 

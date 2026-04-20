@@ -28,196 +28,181 @@ class MudLossActiveSystemView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(12),
+    return Container(
+      color: Colors.grey.shade100,
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            "Mud Loss - Active System",
-            style: AppTheme.titleMedium.copyWith(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
+            'Mud Loss - Active System',
+            style: AppTheme.bodySmall.copyWith(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
               color: AppTheme.textPrimary,
             ),
           ),
-          const SizedBox(height: 12),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: SizedBox(
-              width: 350,
-              child: Container(
+          const SizedBox(height: 10),
+          Obx(() {
+            if (controller.isLoading.value) {
+              return Container(
+                width: 438,
+                height: 452,
+                alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.grey.shade300),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
+                  border: Border.all(color: Colors.grey.shade400),
                 ),
-                child: Obx(
-                  () => Column(
-                    mainAxisSize: MainAxisSize.min,
+                child: SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: AppTheme.primaryColor,
+                  ),
+                ),
+              );
+            }
+
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  width: 438,
+                  child: Table(
+                    border: TableBorder.all(
+                      color: Colors.grey.shade400,
+                      width: 1,
+                    ),
+                    columnWidths: const {
+                      0: FixedColumnWidth(60),
+                      1: FixedColumnWidth(224),
+                      2: FixedColumnWidth(152),
+                    },
+                    defaultVerticalAlignment: TableCellVerticalAlignment.middle,
                     children: [
-                      Container(
-                        height: 36,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              AppTheme.primaryColor.withOpacity(0.95),
-                              AppTheme.primaryColor,
-                            ],
-                          ),
-                          borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(8),
-                            topRight: Radius.circular(8),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            _headerCell("#", width: 40),
-                            _headerCell("Loss", flex: 2),
-                            _headerCell("Vol. (bbl)", flex: 1, isLast: true),
-                          ],
-                        ),
-                      ),
-                      if (controller.isLoading.value)
-                        Container(
-                          height: 96,
-                          alignment: Alignment.center,
-                          child: CircularProgressIndicator(
-                            color: AppTheme.primaryColor,
-                            strokeWidth: 2,
-                          ),
-                        )
-                      else ...[
-                        ...fixedRows.asMap().entries.map((entry) {
-                          final index = entry.key;
-                          final row = entry.value;
-                          return _buildFixedRow(index, row['label']!, row['key']!);
-                        }),
-                      ],
+                      _headerRow(),
+                      ...fixedRows.asMap().entries.map((entry) {
+                        final index = entry.key;
+                        final row = entry.value;
+                        return _fixedRow(
+                          index + 1,
+                          row['label']!,
+                          row['key']!,
+                        );
+                      }),
+                      _extraLossRow(),
+                      _blankRow(13),
                     ],
                   ),
                 ),
-              ),
-            ),
-          ),
+                const SizedBox(width: 6),
+                _sideActions(context),
+              ],
+            );
+          }),
         ],
       ),
     );
   }
 
-  Widget _headerCell(String title, {double? width, int? flex, bool isLast = false}) {
-    final cell = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: BoxDecoration(
-        border: Border(
-          right: isLast
-              ? BorderSide.none
-              : BorderSide(color: Colors.white.withOpacity(0.3)),
+  TableRow _headerRow() {
+    return TableRow(
+      decoration: BoxDecoration(color: Colors.grey.shade100),
+      children: [
+        _headerCell(''),
+        _headerCell('Loss'),
+        _volumeHeaderCell(),
+      ],
+    );
+  }
+
+  TableRow _fixedRow(int number, String label, String fieldKey) {
+    return TableRow(
+      decoration: BoxDecoration(color: Colors.grey.shade50),
+      children: [
+        _numberCell(number),
+        _labelCell(label),
+        _volumeCell(fieldKey),
+      ],
+    );
+  }
+
+  TableRow _extraLossRow() {
+    return TableRow(
+      decoration: const BoxDecoration(color: Color(0xFFC8D8EF)),
+      children: [
+        _numberCell(12, editable: true),
+        _extraDropdownCell(),
+        _extraVolumeCell(),
+      ],
+    );
+  }
+
+  TableRow _blankRow(int number) {
+    return TableRow(
+      decoration: BoxDecoration(color: Colors.grey.shade50),
+      children: [
+        _numberCell(number),
+        const SizedBox(height: 32),
+        Container(height: 32, color: Colors.grey.shade50),
+      ],
+    );
+  }
+
+  Widget _headerCell(String text) {
+    return Container(
+      height: 48,
+      alignment: Alignment.center,
+      child: Text(
+        text,
+        textAlign: TextAlign.center,
+        style: AppTheme.bodySmall.copyWith(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: AppTheme.textPrimary,
         ),
       ),
-      child: Row(
-        mainAxisAlignment:
-            title == "#" ? MainAxisAlignment.center : MainAxisAlignment.start,
-        children: [
-          if (title != "#")
-            Container(
-              width: 6,
-              height: 6,
-              margin: const EdgeInsets.only(right: 6),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withOpacity(0.8),
-              ),
-            ),
-          Flexible(
-            child: Text(
-              AppUnits.label(title),
-              overflow: TextOverflow.ellipsis,
-              style: AppTheme.bodySmall.copyWith(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-              ),
-            ),
-          ),
-        ],
-      ),
     );
-
-    if (width != null) return SizedBox(width: width, child: cell);
-    return Expanded(flex: flex ?? 1, child: cell);
   }
 
-  Widget _buildFixedRow(int index, String label, String fieldKey) {
+  Widget _volumeHeaderCell() {
+    return Container(
+      height: 48,
+      alignment: Alignment.center,
+      child: Obx(() {
+        AppUnits.signature;
+        return Text(
+          'Vol.\n${AppUnits.fluidVolume}',
+          textAlign: TextAlign.center,
+          style: AppTheme.bodySmall.copyWith(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: AppTheme.textPrimary,
+          ),
+        );
+      }),
+    );
+  }
+
+  Widget _numberCell(int number, {bool editable = false}) {
     return Container(
       height: 32,
-      decoration: BoxDecoration(
-        color: index.isEven ? Colors.grey.shade50 : Colors.white,
-        border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
-      ),
+      alignment: Alignment.center,
+      color: Colors.grey.shade50,
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          SizedBox(
-            width: 40,
-            child: Container(
-              decoration: BoxDecoration(
-                border: Border(right: BorderSide(color: Colors.grey.shade300)),
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                "${index + 1}",
-                style: AppTheme.bodySmall.copyWith(
-                  fontSize: 10,
-                  color: AppTheme.primaryColor,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ),
-          Expanded(
-            flex: 2,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              decoration: BoxDecoration(
-                border: Border(right: BorderSide(color: Colors.grey.shade300)),
-              ),
-              alignment: Alignment.centerLeft,
-              child: Text(
-                label,
-                style: AppTheme.bodySmall.copyWith(
-                  fontSize: 10,
-                  color: AppTheme.textPrimary,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-          ),
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: TextField(
-                controller: controller.fields[fieldKey],
-                enabled: !dashboardController.isLocked.value,
-                decoration: const InputDecoration(
-                  border: InputBorder.none,
-                  isDense: true,
-                  contentPadding: EdgeInsets.symmetric(vertical: 6),
-                ),
-                style: AppTheme.bodySmall.copyWith(
-                  fontSize: 10,
-                  color: AppTheme.textPrimary,
-                  fontWeight: FontWeight.w500,
-                ),
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-              ),
+          if (editable) ...[
+            Icon(Icons.edit_outlined, size: 13, color: Colors.grey.shade600),
+            const SizedBox(width: 5),
+          ],
+          Text(
+            '$number',
+            style: AppTheme.bodySmall.copyWith(
+              fontSize: 11,
+              color: Colors.grey.shade700,
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],
@@ -225,4 +210,218 @@ class MudLossActiveSystemView extends StatelessWidget {
     );
   }
 
+  Widget _labelCell(String label) {
+    return Container(
+      height: 32,
+      alignment: Alignment.centerLeft,
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      child: Text(
+        label,
+        style: AppTheme.bodySmall.copyWith(
+          fontSize: 11,
+          color: AppTheme.textPrimary,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
+  }
+
+  Widget _volumeCell(String fieldKey) {
+    return SizedBox(
+      height: 32,
+      child: TextField(
+        controller: controller.fields[fieldKey],
+        enabled: !dashboardController.isLocked.value,
+        textAlign: TextAlign.right,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        style: AppTheme.bodySmall.copyWith(
+          fontSize: 11,
+          color: AppTheme.textPrimary,
+          fontWeight: FontWeight.w500,
+        ),
+        decoration: InputDecoration(
+          border: InputBorder.none,
+          isDense: true,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 6,
+            vertical: 8,
+          ),
+          filled: true,
+          fillColor: dashboardController.isLocked.value
+              ? Colors.grey.shade100
+              : Colors.white,
+        ),
+      ),
+    );
+  }
+
+  Widget _extraDropdownCell() {
+    return SizedBox(
+      height: 32,
+      child: Obx(
+        () => DropdownButtonHideUnderline(
+          child: DropdownButton<String>(
+            value: controller.selectedExtraLoss.value.isEmpty
+                ? null
+                : controller.selectedExtraLoss.value,
+            isExpanded: true,
+            isDense: true,
+            hint: const SizedBox.shrink(),
+            icon: Container(
+              width: 25,
+              height: 31,
+              alignment: Alignment.center,
+              color: Colors.grey.shade300,
+              child: Icon(
+                Icons.arrow_drop_down,
+                size: 18,
+                color: dashboardController.isLocked.value
+                    ? Colors.grey.shade500
+                    : Colors.grey.shade800,
+              ),
+            ),
+            style: AppTheme.bodySmall.copyWith(
+              fontSize: 11,
+              color: AppTheme.textPrimary,
+              fontWeight: FontWeight.w500,
+            ),
+            dropdownColor: Colors.white,
+            menuMaxHeight: 190,
+            items: MudLossActiveSystemController.extraLossOptions.map((label) {
+              return DropdownMenuItem<String>(
+                value: label,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  child: Text(
+                    label,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTheme.bodySmall.copyWith(fontSize: 11),
+                  ),
+                ),
+              );
+            }).toList(),
+            onChanged: dashboardController.isLocked.value
+                ? null
+                : (value) {
+                    if (value != null) {
+                      controller.selectedExtraLoss.value = value;
+                    }
+                  },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _extraVolumeCell() {
+    return Obx(() {
+      final hasSelection = controller.selectedExtraLoss.value.isNotEmpty;
+      if (!hasSelection) {
+        return Container(height: 32, color: Colors.grey.shade50);
+      }
+
+      return SizedBox(
+        height: 32,
+        child: TextField(
+          controller: controller.extraLossVolumeController,
+          enabled: !dashboardController.isLocked.value,
+          textAlign: TextAlign.right,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          style: AppTheme.bodySmall.copyWith(
+            fontSize: 11,
+            color: AppTheme.textPrimary,
+            fontWeight: FontWeight.w500,
+          ),
+          decoration: InputDecoration(
+            border: InputBorder.none,
+            isDense: true,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 6,
+              vertical: 8,
+            ),
+            filled: true,
+            fillColor: dashboardController.isLocked.value
+                ? Colors.grey.shade100
+                : Colors.white,
+          ),
+        ),
+      );
+    });
+  }
+
+  Widget _sideActions(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 49),
+      child: Column(
+        children: [
+          _sideButton(
+            icon: Icons.question_mark,
+            color: AppTheme.primaryColor,
+            onPressed: () => _showInfoDialog(
+              context,
+              'Cuttings/Retention',
+              'Cuttings/Retention removes volume from the active system.',
+            ),
+          ),
+          const SizedBox(height: 124),
+          _sideButton(
+            icon: Icons.question_mark,
+            color: AppTheme.primaryColor,
+            onPressed: () => _showInfoDialog(
+              context,
+              'Evaporation',
+              'Evaporation removes volume from the active system.',
+            ),
+          ),
+          const SizedBox(height: 34),
+          _sideButton(
+            icon: Icons.flash_on,
+            color: Colors.deepOrange,
+            onPressed: () => _showInfoDialog(
+              context,
+              'Formation Loss',
+              'Use this row for formation-related active system losses.',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _sideButton({
+    required IconData icon,
+    required Color color,
+    required VoidCallback onPressed,
+  }) {
+    return SizedBox(
+      width: 30,
+      height: 30,
+      child: OutlinedButton(
+        onPressed: onPressed,
+        style: OutlinedButton.styleFrom(
+          padding: EdgeInsets.zero,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(2)),
+          side: BorderSide(color: Colors.grey.shade500),
+          backgroundColor: Colors.grey.shade100,
+        ),
+        child: Icon(icon, size: 16, color: color),
+      ),
+    );
+  }
+
+  void _showInfoDialog(BuildContext context, String title, String message) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
 }
