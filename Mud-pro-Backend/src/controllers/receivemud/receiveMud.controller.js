@@ -1,7 +1,5 @@
-import Pit from "../../modules/pit/pit.model.js";
 import Premixed from "../../modules/inventory/premixed.model.js";
 import ReceiveMud from "../../modules/receivemud/ReceiveMud.js";
-import { findWritablePitByName, getWritablePits } from "../../utils/pitReportState.js";
 import { buildScopedFilter, readReportId } from "../../utils/reportScope.js";
 
 const toNumber = (value) => {
@@ -107,6 +105,12 @@ export const createReceiveMud = async (req, res) => {
   try {
     const wellId = getWellId(req);
     const reportId = readReportId(req);
+    if (!reportId) {
+      return res.status(400).json({
+        success: false,
+        message: "reportId is required for Receive Mud",
+      });
+    }
     const payloads = Array.isArray(req.body) ? req.body : [req.body];
 
     if (!payloads.length) {
@@ -156,6 +160,13 @@ export const getReceiveMudList = async (req, res) => {
   try {
     const wellId = getWellId(req);
     const reportId = readReportId(req);
+    if (!reportId) {
+      return res.status(200).json({
+        success: true,
+        count: 0,
+        data: [],
+      });
+    }
 
     const items = await ReceiveMud.find(
       buildScopedFilter(wellId, reportId)
@@ -179,6 +190,12 @@ export const getReceiveMudById = async (req, res) => {
   try {
     const wellId = getWellId(req);
     const reportId = readReportId(req);
+    if (!reportId) {
+      return res.status(400).json({
+        success: false,
+        message: "reportId is required for Receive Mud",
+      });
+    }
     const { id } = req.params;
 
     const item = await ReceiveMud.findOne({
@@ -210,6 +227,12 @@ export const updateReceiveMud = async (req, res) => {
   try {
     const wellId = getWellId(req);
     const reportId = readReportId(req);
+    if (!reportId) {
+      return res.status(400).json({
+        success: false,
+        message: "reportId is required for Receive Mud",
+      });
+    }
     const { id } = req.params;
 
     const existing = await ReceiveMud.findOne({
@@ -288,6 +311,12 @@ export const deleteReceiveMud = async (req, res) => {
   try {
     const wellId = getWellId(req);
     const reportId = readReportId(req);
+    if (!reportId) {
+      return res.status(400).json({
+        success: false,
+        message: "reportId is required for Receive Mud",
+      });
+    }
     const { id } = req.params;
 
     const existing = await ReceiveMud.findOne({

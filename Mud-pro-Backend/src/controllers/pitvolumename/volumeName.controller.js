@@ -288,9 +288,9 @@ const buildOperationVolumeEffects = ({
 
   for (const item of receivedMud) {
     const volume = toNumber(item.netVolume);
+    endVolDelta += volume;
     if (isActiveSystemName(item.to)) {
       activeSystemDelta += volume;
-      endVolDelta += volume;
     } else {
       addPitDelta(storageDeltaByPit, item.to, volume);
     }
