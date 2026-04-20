@@ -741,7 +741,7 @@ export const getVolumeNameCalculation = async (req, res) => {
     const activePitsList = pits.filter((pit) => pit.initialActive === true);
     const storagePitsList = pits.filter((pit) => pit.initialActive === false);
 
-    const measuredActivePits = Number(
+    const activePits = Number(
       activePitsList.reduce((sum, pit) => sum + toNumber(pit.volume), 0).toFixed(2)
     );
 
@@ -765,17 +765,12 @@ export const getVolumeNameCalculation = async (req, res) => {
     for (const [pitName, volume] of operationVolumeEffects.storageDeltaByPit) {
       addPitDelta(calculatedVolumeByPit, pitName, volume);
     }
-    const activePits = round2(
-      measuredActivePits + operationVolumeEffects.activeSystemDelta
-    );
-    const baseActiveSystem = round2(measuredActivePits + hole);
     const derivedActiveSystem = round2(activePits + hole);
-    // Active-system operation rows update the calculated active system total.
-    // End Vol. is still calculated from the measured base plus operation deltas
-    // so the same loss/addition is not applied twice.
+    // Active Pits is the measured pit total. Operation rows affect End Vol.,
+    // not the measured pit rows, unless a specific storage pit is selected.
     const activeSystem = derivedActiveSystem;
     const operationEndVol = round2(
-      baseActiveSystem + operationVolumeEffects.endVolDelta
+      activeSystem + operationVolumeEffects.endVolDelta
     );
     const endVol =
       activeSystemVolume > 0
