@@ -1,6 +1,4 @@
-import Pit from "../../modules/pit/pit.model.js";
 import OtherVolAddition from "../../modules/othervol/OtherVolAddition.js";
-import { getWritablePits } from "../../utils/pitReportState.js";
 import { buildScopedFilter, readReportId } from "../../utils/reportScope.js";
 
 const toNumber = (value) => {
@@ -13,20 +11,6 @@ const round2 = (num) => Number(num.toFixed(2));
 
 const getWellId = (req) =>
   String(req.params.wellId || req.body.wellId || "").trim();
-
-const getActivePits = async (wellId, reportId) => {
-  const activePits = await getWritablePits({
-    wellId,
-    reportId,
-    initialActive: true,
-  });
-
-  if (!activePits.length) {
-    throw new Error("No active pits found for this wellId");
-  }
-
-  return activePits;
-};
 
 const prepareOtherVolAdditionData = (
   payload = {},
@@ -46,6 +30,10 @@ const prepareOtherVolAdditionData = (
   const totalVolume = round2(
     formationVol + cuttingsVol + volumeNotFluidVol
   );
+
+  if (formationVol < 0 || cuttingsVol < 0 || volumeNotFluidVol < 0) {
+    throw new Error("Volumes cannot be negative");
+  }
 
   if (totalVolume <= 0) {
     throw new Error("At least one volume must be greater than 0");
@@ -73,6 +61,12 @@ export const createOtherVolAddition = async (req, res) => {
   try {
     const fallbackWellId = getWellId(req);
     const fallbackReportId = readReportId(req);
+    if (!fallbackReportId) {
+      return res.status(400).json({
+        success: false,
+        message: "reportId is required for Other Vol Addition",
+      });
+    }
     const payloads = Array.isArray(req.body) ? req.body : [req.body];
 
     if (!payloads.length) {
@@ -131,6 +125,14 @@ export const getOtherVolAdditionList = async (req, res) => {
       });
     }
 
+    if (!reportId) {
+      return res.status(200).json({
+        success: true,
+        count: 0,
+        data: [],
+      });
+    }
+
     const items = await OtherVolAddition.find(
       buildScopedFilter(wellId, reportId)
     ).sort({ createdAt: -1 });
@@ -153,6 +155,12 @@ export const getOtherVolAdditionById = async (req, res) => {
   try {
     const wellId = getWellId(req);
     const reportId = readReportId(req);
+    if (!reportId) {
+      return res.status(400).json({
+        success: false,
+        message: "reportId is required for Other Vol Addition",
+      });
+    }
     const { id } = req.params;
 
     const item = await OtherVolAddition.findOne({
@@ -184,6 +192,12 @@ export const updateOtherVolAddition = async (req, res) => {
   try {
     const wellId = getWellId(req);
     const reportId = readReportId(req);
+    if (!reportId) {
+      return res.status(400).json({
+        success: false,
+        message: "reportId is required for Other Vol Addition",
+      });
+    }
     const { id } = req.params;
 
     const existing = await OtherVolAddition.findOne({
@@ -247,6 +261,12 @@ export const deleteOtherVolAddition = async (req, res) => {
   try {
     const wellId = getWellId(req);
     const reportId = readReportId(req);
+    if (!reportId) {
+      return res.status(400).json({
+        success: false,
+        message: "reportId is required for Other Vol Addition",
+      });
+    }
     const { id } = req.params;
 
     const existing = await OtherVolAddition.findOne({

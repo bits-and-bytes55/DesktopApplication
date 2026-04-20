@@ -498,69 +498,23 @@ class ReturnLostMudController extends GetxController {
   // ================= TOAST NOTIFICATIONS =================
   
   void _showToast(String message, {required bool isError}) {
-    final overlay = Get.overlayContext;
-    if (overlay == null) return;
-    
-    final overlayState = Overlay.of(overlay);
-    final overlayEntry = OverlayEntry(
-      builder: (context) => Positioned(
-        top: 80,
-        right: 20,
-        child: Material(
-          color: Colors.transparent,
-          child: TweenAnimationBuilder<double>(
-            tween: Tween(begin: 0.0, end: 1.0),
-            duration: const Duration(milliseconds: 300),
-            builder: (context, value, child) {
-              return Transform.translate(
-                offset: Offset(0, -20 * (1 - value)),
-                child: Opacity(
-                  opacity: value,
-                  child: child,
-                ),
-              );
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: isError ? Colors.red.shade600 : Colors.green.shade600,
-                borderRadius: BorderRadius.circular(8),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    isError ? Icons.error_outline : Icons.check_circle_outline,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    message,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+    try {
+      Get.snackbar(
+        isError ? 'Error' : 'Success',
+        message,
+        backgroundColor: isError ? Colors.red.shade600 : Colors.green.shade600,
+        colorText: Colors.white,
+        snackPosition: SnackPosition.TOP,
+        margin: const EdgeInsets.only(top: 16, right: 16, left: 200),
+        duration: const Duration(seconds: 3),
+        icon: Icon(
+          isError ? Icons.error_outline : Icons.check_circle_outline,
+          color: Colors.white,
+          size: 20,
         ),
-      ),
-    );
-    
-    overlayState.insert(overlayEntry);
-    Future.delayed(const Duration(seconds: 3), () {
-      overlayEntry.remove();
-    });
+      );
+    } catch (e) {
+      debugPrint('Return / Lost Mud toast skipped: $message ($e)');
+    }
   }
 }

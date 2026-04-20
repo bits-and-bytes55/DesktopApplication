@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/other_vol_addition_controller.dart';
-import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class OtherVolAdditionActiveSystemView extends StatelessWidget {
@@ -14,191 +13,212 @@ class OtherVolAdditionActiveSystemView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    return Container(
+      color: Colors.grey.shade100,
       padding: const EdgeInsets.all(12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            "Other Vol. Addition - Active System",
-            style: AppTheme.titleMedium.copyWith(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
+            'Other Vol. Addition - Active System',
+            style: AppTheme.bodyMedium.copyWith(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
               color: AppTheme.textPrimary,
             ),
           ),
-          const SizedBox(height: 12),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: SizedBox(
-              width: 400,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.grey.shade300),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Obx(
-                  () => Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        height: 36,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              AppTheme.primaryColor.withOpacity(0.95),
-                              AppTheme.primaryColor,
-                            ],
-                          ),
-                          borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(8),
-                            topRight: Radius.circular(8),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            _headerCell("Addition", flex: 2),
-                            _headerCell("Vol. (bbl)", flex: 1, isLast: true),
-                          ],
+          const SizedBox(height: 8),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: 380,
+                child: Obx(() {
+                  if (controller.isLoading.value) {
+                    return Container(
+                      height: 216,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        border: Border.all(color: Colors.grey.shade400),
+                      ),
+                      child: SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppTheme.primaryColor,
                         ),
                       ),
-                      if (controller.isLoading.value)
-                        Container(
-                          height: 96,
-                          alignment: Alignment.center,
-                          child: CircularProgressIndicator(
-                            color: AppTheme.primaryColor,
-                            strokeWidth: 2,
-                          ),
-                        )
-                      else ...[
-                        _fixedRow(
-                          0,
-                          'Formation',
-                          controller.formationController,
-                        ),
-                        _fixedRow(
-                          1,
-                          'Cuttings',
-                          controller.cuttingsController,
-                        ),
-                        _fixedRow(
-                          2,
-                          'Volume Not Fluid',
-                          controller.volumeNotFluidController,
-                        ),
-                      ],
+                    );
+                  }
+
+                  return Table(
+                    border: TableBorder.all(
+                      color: Colors.grey.shade400,
+                      width: 1,
+                    ),
+                    columnWidths: const {
+                      0: FixedColumnWidth(226),
+                      1: FixedColumnWidth(152),
+                    },
+                    defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+                    children: [
+                      _headerRow(),
+                      _inputRow(
+                        'Formation',
+                        controller.formationController,
+                      ),
+                      _inputRow(
+                        'Cuttings',
+                        controller.cuttingsController,
+                      ),
+                      _inputRow(
+                        'Volume Not Fluid',
+                        controller.volumeNotFluidController,
+                      ),
+                      _blankRow(),
+                      _blankRow(),
                     ],
-                  ),
-                ),
+                  );
+                }),
               ),
-            ),
+              const SizedBox(width: 8),
+              _helpButton(context),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _headerCell(String text, {required int flex, bool isLast = false}) {
-    return Expanded(
-      flex: flex,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        decoration: BoxDecoration(
-          border: Border(
-            right: isLast
-                ? BorderSide.none
-                : BorderSide(color: Colors.white.withOpacity(0.3)),
+  TableRow _headerRow() {
+    return TableRow(
+      decoration: BoxDecoration(color: Colors.grey.shade100),
+      children: const [
+        _HeaderCell('Addition'),
+        _HeaderCell('Vol.\n(bbl)'),
+      ],
+    );
+  }
+
+  TableRow _inputRow(String label, TextEditingController textController) {
+    return TableRow(
+      decoration: BoxDecoration(color: Colors.grey.shade50),
+      children: [
+        Container(
+          height: 32,
+          padding: const EdgeInsets.symmetric(horizontal: 6),
+          alignment: Alignment.centerLeft,
+          child: Text(
+            label,
+            style: AppTheme.bodySmall.copyWith(
+              fontSize: 11,
+              color: AppTheme.textPrimary,
+            ),
           ),
         ),
-        child: Row(
-          children: [
-            Container(
-              width: 6,
-              height: 6,
-              margin: const EdgeInsets.only(right: 6),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withOpacity(0.8),
+        SizedBox(
+          height: 32,
+          child: Obx(
+            () => TextField(
+              controller: textController,
+              enabled: !dashboardController.isLocked.value,
+              textAlign: TextAlign.right,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
               ),
-            ),
-            Text(
-              AppUnits.label(text),
               style: AppTheme.bodySmall.copyWith(
                 fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
+                color: AppTheme.textPrimary,
+              ),
+              decoration: InputDecoration(
+                border: InputBorder.none,
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 6,
+                  vertical: 8,
+                ),
+                filled: true,
+                fillColor: dashboardController.isLocked.value
+                    ? Colors.grey.shade100
+                    : Colors.white,
               ),
             ),
-          ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  TableRow _blankRow() {
+    return TableRow(
+      decoration: BoxDecoration(color: Colors.grey.shade50),
+      children: [
+        const SizedBox(height: 32),
+        Container(height: 32, color: Colors.white),
+      ],
+    );
+  }
+
+  Widget _helpButton(BuildContext context) {
+    return SizedBox(
+      width: 30,
+      height: 30,
+      child: OutlinedButton(
+        style: OutlinedButton.styleFrom(
+          padding: EdgeInsets.zero,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(2)),
+          side: BorderSide(color: Colors.grey.shade400),
+          backgroundColor: Colors.grey.shade100,
+        ),
+        onPressed: () {
+          showDialog<void>(
+            context: context,
+            builder: (dialogContext) => AlertDialog(
+              title: const Text('Other Vol. Addition'),
+              content: const Text(
+                'Formation, Cuttings, and Volume Not Fluid are added to Active System end volume in bbl.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('OK'),
+                ),
+              ],
+            ),
+          );
+        },
+        child: Icon(
+          Icons.question_mark,
+          size: 16,
+          color: AppTheme.primaryColor,
         ),
       ),
     );
   }
+}
 
-  Widget _fixedRow(
-    int index,
-    String label,
-    TextEditingController textController,
-  ) {
+class _HeaderCell extends StatelessWidget {
+  const _HeaderCell(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      height: 36,
-      decoration: BoxDecoration(
-        color: index.isEven ? Colors.grey.shade50 : Colors.white,
-        border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 2,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              decoration: BoxDecoration(
-                border: Border(right: BorderSide(color: Colors.grey.shade300)),
-              ),
-              alignment: Alignment.centerLeft,
-              child: Text(
-                label,
-                style: AppTheme.bodySmall.copyWith(
-                  fontSize: 11,
-                  color: AppTheme.textPrimary,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-          ),
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: TextField(
-                controller: textController,
-                enabled: !dashboardController.isLocked.value,
-                decoration: const InputDecoration(
-                  border: InputBorder.none,
-                  isDense: true,
-                  contentPadding: EdgeInsets.symmetric(vertical: 8),
-                ),
-                style: AppTheme.bodySmall.copyWith(
-                  fontSize: 11,
-                  color: AppTheme.textPrimary,
-                  fontWeight: FontWeight.w500,
-                ),
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-              ),
-            ),
-          ),
-        ],
+      height: 48,
+      alignment: Alignment.center,
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      child: Text(
+        text,
+        textAlign: TextAlign.center,
+        style: AppTheme.bodySmall.copyWith(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: AppTheme.textPrimary,
+        ),
       ),
     );
   }
-
 }
