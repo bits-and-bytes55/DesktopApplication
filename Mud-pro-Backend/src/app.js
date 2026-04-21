@@ -31,6 +31,7 @@ import returnPackageRoutes from "./routes/ReturnProduct/Package/returnPackageRou
 import drillStringRoutes from "./routes/DrillString/drillString.routes.js";
 
 import mudPropertiesRoute from "./routes/mudProperties/mudProperetiesRoutes.js";
+import mudReportStateRoutes from "./routes/mudReport/mudReportState.routes.js";
 
 import servicesRoutes from "./routes/service/service.routes.js";
 import engineeringRoutes from "./routes/service/engineering.routes.js";
@@ -183,6 +184,7 @@ app.use("/api/unit-systems", unitSystemRoutes);
 
 //mud properties
 app.use('/api/mud-properties', mudPropertiesRoute);
+app.use('/api/mud-report', mudReportStateRoutes);
 
 app.use('/api/solids',solidanalysisroute);
 app.use('/api/casing', casingRoutes);

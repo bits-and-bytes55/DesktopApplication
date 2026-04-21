@@ -22,6 +22,7 @@ import MudLoss from "../../modules/mudloss/MudLoss.js";
 import MudLossStorage from "../../modules/mudlossstorage/MudLossStorage.js";
 import { Interval } from "../../modules/wellInterval/intervalModel.js";
 import { loadMergedPits } from "../../utils/pitReportState.js";
+import MudReportState from "../../modules/mudReport/MudReportState.js";
 
 const TEMPLATE_PATH = fileURLToPath(
   new URL("../../../assets/template.xlsx", import.meta.url)
@@ -542,7 +543,163 @@ const fillDmrHeader = (ws, { well, pad, report, wellGeneral, fluidName }) => {
   setCellValue(ws, "BL11", displayText(wellGeneral?.depthDrilled, "0"));
 };
 
-const fillDmrTopSections = (ws, { drillStrings, casings, summary, activePits, fluidName, wellGeneral, consumeProducts }) => {
+const normalizeMudKey = (value) =>
+  text(value)
+    .toLowerCase()
+    .replace(/\*/g, "")
+    .replace(/[()]/g, " ")
+    .replace(/[._-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+const mudTableEntries = (mudReportState = {}) =>
+  Object.entries(
+    mudReportState?.propertyTable && typeof mudReportState.propertyTable === "object"
+      ? mudReportState.propertyTable
+      : {}
+  );
+const findMudRow = (mudReportState, ...tests) => {
+  for (const [key, value] of mudTableEntries(mudReportState)) {
+    const normalized = normalizeMudKey(key);
+    if (tests.some((test) => test(normalized))) {
+      return Array.isArray(value) ? value.map((item) => text(item)) : [];
+    }
+  }
+  return [];
+};
+const mudValueAt = (row, index) => text(row?.[index]);
+const mudPlanValue = (row) => {
+  const low = mudValueAt(row, 3);
+  const high = mudValueAt(row, 4);
+  if (low && high && low !== high) return `${low} - ${high}`;
+  return low || high;
+};
+const buildMudGroups = (row, fallbacks = []) => [
+  mudValueAt(row, 0) || text(fallbacks[0]),
+  mudValueAt(row, 1) || text(fallbacks[1]),
+  mudValueAt(row, 2) || text(fallbacks[2]),
+  mudPlanValue(row) || text(fallbacks[3]),
+];
+const combineMudRows = (left, right, index) => {
+  const leftValue = mudValueAt(left, index);
+  const rightValue = mudValueAt(right, index);
+  if (leftValue && rightValue) return `${leftValue}/${rightValue}`;
+  return leftValue || rightValue;
+};
+const buildMudRatioGroups = (direct, left, right) => {
+  if (direct.some((value) => text(value))) return buildMudGroups(direct);
+  const planLeft = mudPlanValue(left);
+  const planRight = mudPlanValue(right);
+  return [
+    combineMudRows(left, right, 0),
+    combineMudRows(left, right, 1),
+    combineMudRows(left, right, 2),
+    planLeft && planRight ? `${planLeft}/${planRight}` : planLeft || planRight,
+  ];
+};
+const fillMudPropertyRows = (ws, { mudReportState, activePits, fluidName, wellGeneral }) => {
+  const savedFluidName = firstText(mudReportState?.fluidName, fluidName);
+  const description = findMudRow(mudReportState, (key) => key === "description");
+  const sampleFrom = findMudRow(mudReportState, (key) => key === "sample from");
+  const timeSample = findMudRow(mudReportState, (key) => key.includes("time sample"));
+  const flowlineTemp = findMudRow(
+    mudReportState,
+    (key) => key.includes("flowline"),
+    (key) => key.includes("suction")
+  );
+  const depth = findMudRow(
+    mudReportState,
+    (key) => key === "depth",
+    (key) => key === "md",
+    (key) => key.includes("measured depth")
+  );
+  const mw = findMudRow(
+    mudReportState,
+    (key) => key === "mw" || key.startsWith("mw ") || key.includes("mud weight")
+  );
+  const funnel = findMudRow(mudReportState, (key) => key.includes("funnel"));
+  const tempForPv = findMudRow(
+    mudReportState,
+    (key) => key.includes("t for pv"),
+    (key) => key.includes("temp") && key.includes("pv")
+  );
+  const pv = findMudRow(
+    mudReportState,
+    (key) => (key === "pv" || key.startsWith("pv ")) && !key.includes("for")
+  );
+  const yp = findMudRow(mudReportState, (key) => key === "yp" || key.startsWith("yp "));
+  const r600r300 = findMudRow(
+    mudReportState,
+    (key) => key.includes("r600") && key.includes("r300")
+  );
+  const r200r100 = findMudRow(
+    mudReportState,
+    (key) => key.includes("r200") && key.includes("r100")
+  );
+  const r6r3 = findMudRow(mudReportState, (key) => key.includes("r6") && key.includes("r3"));
+  const r600 = findMudRow(mudReportState, (key) => key === "r600" || key.startsWith("r600 "));
+  const r300 = findMudRow(mudReportState, (key) => key === "r300" || key.startsWith("r300 "));
+  const r200 = findMudRow(mudReportState, (key) => key === "r200" || key.startsWith("r200 "));
+  const r100 = findMudRow(mudReportState, (key) => key === "r100" || key.startsWith("r100 "));
+  const r6 = findMudRow(mudReportState, (key) => key === "r6" || key.startsWith("r6 "));
+  const r3 = findMudRow(mudReportState, (key) => key === "r3" || key.startsWith("r3 "));
+  const gel = findMudRow(
+    mudReportState,
+    (key) => key.includes("gel") && (key.includes("10") || key.includes("sec"))
+  );
+  const apiFiltrate = findMudRow(
+    mudReportState,
+    (key) => key.includes("api filtrate") && !key.includes("cake")
+  );
+  const apiCake = findMudRow(
+    mudReportState,
+    (key) => key.includes("api") && key.includes("cake")
+  );
+  const hthpTemp = findMudRow(
+    mudReportState,
+    (key) => key.includes("t for hthp"),
+    (key) => key.includes("temp") && key.includes("hthp")
+  );
+  const hthpFiltrate = findMudRow(
+    mudReportState,
+    (key) => key.includes("hthp") && key.includes("filtrate") && !key.includes("cake")
+  );
+  const hthpCake = findMudRow(
+    mudReportState,
+    (key) => key.includes("hthp") && key.includes("cake")
+  );
+
+  const activeDensity = firstMeaningfulText(activePits[0]?.density, activePits[1]?.density);
+  const rowValues = {
+    36: buildMudGroups(description, [savedFluidName, savedFluidName, savedFluidName, savedFluidName]),
+    37: buildMudGroups(sampleFrom, [activePits[0]?.pitName, activePits[1]?.pitName]),
+    38: buildMudGroups(timeSample, [wellGeneral?.time, wellGeneral?.time]),
+    39: buildMudGroups(flowlineTemp, [wellGeneral?.suctionT, wellGeneral?.suctionT]),
+    40: buildMudGroups(depth, [wellGeneral?.md, wellGeneral?.md]),
+    41: buildMudGroups(mw, [activeDensity, activeDensity]),
+    42: buildMudGroups(funnel),
+    43: buildMudGroups(tempForPv),
+    44: buildMudGroups(pv),
+    45: buildMudGroups(yp),
+    46: buildMudRatioGroups(r600r300, r600, r300),
+    47: buildMudRatioGroups(r200r100, r200, r100),
+    48: buildMudRatioGroups(r6r3, r6, r3),
+    49: buildMudGroups(gel),
+    50: buildMudGroups(apiFiltrate),
+    51: buildMudGroups(apiCake),
+    52: buildMudGroups(hthpTemp),
+    53: buildMudGroups(hthpFiltrate),
+    54: buildMudGroups(hthpCake),
+  };
+
+  const columns = [["P", "T"], ["U", "Y"], ["Z", "AD"], ["AE", "AI"]];
+  Object.entries(rowValues).forEach(([row, values]) => {
+    columns.forEach(([start, end], index) => {
+      fillRowRange(ws, Number(row), start, end, values[index] ?? "");
+    });
+  });
+};
+
+const fillDmrTopSections = (ws, { drillStrings, casings, summary, activePits, fluidName, wellGeneral, consumeProducts, mudReportState }) => {
   for (let index = 0; index < 8; index += 1) {
     const row = 14 + index;
     const drill = drillStrings[index];
@@ -598,28 +755,7 @@ const fillDmrTopSections = (ws, { drillStrings, casings, summary, activePits, fl
     setCellValue(ws, `BN${row}`, pit ? round(getActivePitVolume(pit)) : "");
   }
 
-  const primaryFluid = fluidName || activePits[0]?.fluidType || "";
-  const reserveFluid = activePits[1]?.fluidType || primaryFluid;
-  const primaryPit = activePits[0]?.pitName || "";
-  const reservePit = activePits[1]?.pitName || "";
-  [["P","T",primaryFluid],["U","Y",reserveFluid],["AE","AI",reserveFluid],["Z","AD",primaryFluid]].forEach(
-    ([start, end, value]) => fillRowRange(ws, 36, start, end, value)
-  );
-  [["P","T",primaryPit],["U","Y",reservePit],["Z","AD",primaryPit],["AE","AI",reservePit]].forEach(
-    ([start, end, value]) => fillRowRange(ws, 37, start, end, value)
-  );
-  [["P","T",text(wellGeneral?.time)],["U","Y",text(wellGeneral?.time)]].forEach(
-    ([start, end, value]) => fillRowRange(ws, 38, start, end, value)
-  );
-  [["P","T",round(wellGeneral?.suctionT) || ""],["U","Y",round(wellGeneral?.suctionT) || ""]].forEach(
-    ([start, end, value]) => fillRowRange(ws, 39, start, end, value)
-  );
-  [["P","T",round(wellGeneral?.md) || ""],["U","Y",round(wellGeneral?.md) || ""]].forEach(
-    ([start, end, value]) => fillRowRange(ws, 40, start, end, value)
-  );
-  [["P","T",round(activePits[0]?.density) || ""],["U","Y",round(activePits[0]?.density) || ""]].forEach(
-    ([start, end, value]) => fillRowRange(ws, 41, start, end, value)
-  );
+  fillMudPropertyRows(ws, { mudReportState, activePits, fluidName, wellGeneral });
 
   for (let index = 0; index < 16; index += 1) {
     const row = 37 + index;
@@ -1057,6 +1193,29 @@ const loadExportWellGeneral = async ({ wellId, reportId, report }) => {
     .lean();
 };
 
+const loadExportMudReportState = async ({ wellId, reportId }) => {
+  if (!wellId) return null;
+
+  if (reportId) {
+    const scoped = await MudReportState.findOne({ wellId, reportId })
+      .sort({ updatedAt: -1, _id: -1 })
+      .lean();
+    if (scoped) return scoped;
+  }
+
+  const legacy = await MudReportState.findOne({
+    wellId,
+    $or: [{ reportId: "" }, { reportId: null }, { reportId: { $exists: false } }],
+  })
+    .sort({ updatedAt: -1, _id: -1 })
+    .lean();
+  if (legacy) return legacy;
+
+  return MudReportState.findOne({ wellId })
+    .sort({ updatedAt: -1, _id: -1 })
+    .lean();
+};
+
 export const exportInventoryReport = async (req, res) => {
   try {
     const { wellId } = req.params;
@@ -1070,7 +1229,7 @@ export const exportInventoryReport = async (req, res) => {
     const [
       inventoryData, activities, well, drillStrings, casings, pumps, consumeProducts,
       liveServices, liveEngineering, addWaterRows, receiveMudRows, returnLostRows, transferRows, otherVolRows, mudLossRows, mudLossStorageRows,
-      allOtherVolRows, intervals,
+      allOtherVolRows, intervals, mudReportState,
     ] = await Promise.all([
       loadInventorySnapshot({ wellId, reportId }),
       loadReportScopedList(Activity, {
@@ -1095,6 +1254,7 @@ export const exportInventoryReport = async (req, res) => {
       loadReportScopedList(MudLossStorage, { wellId, reportId }),
       OtherVolAddition.find({ wellId }).sort({ createdAt: 1, _id: 1 }).lean(),
       Interval.find({ wellId }).sort({ order: 1, createdAt: 1, _id: 1 }).lean(),
+      loadExportMudReportState({ wellId, reportId }),
     ]);
     if (!well) {
       return res.status(404).json({ success: false, message: "Well not found" });
@@ -1111,6 +1271,8 @@ export const exportInventoryReport = async (req, res) => {
     const activePits = pits.filter((pit) => pit.initialActive === true);
     const reservePits = pits.filter((pit) => pit.initialActive === false);
     const fluidName =
+      text(mudReportState?.fluidName) ||
+      text(mudReportState?.fluidType) ||
       text(activePits[0]?.fluidType) ||
       text(report?.title) ||
       text(wellGeneral?.activity) ||
@@ -1184,6 +1346,7 @@ export const exportInventoryReport = async (req, res) => {
       fluidName,
       wellGeneral,
       consumeProducts,
+      mudReportState,
     });
     fillDmrBottomSections(dmrSheet, {
       report,

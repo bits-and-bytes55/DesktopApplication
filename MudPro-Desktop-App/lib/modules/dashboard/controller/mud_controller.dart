@@ -7,6 +7,8 @@ import 'package:mudpro_desktop_app/modules/company_setup/controller/others_contr
 import 'package:mudpro_desktop_app/modules/company_setup/controller/mud_properties_controller.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/model/mud_properties_model.dart';
 import 'package:mudpro_desktop_app/api_endpoint/api_endpoint.dart';
+import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
+import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
 const String _kBaseUrl = ApiEndpoint.baseUrl;
 const Duration _kSaveDebounce = Duration(milliseconds: 800);
@@ -45,6 +47,11 @@ class MudController extends GetxController {
 
   final _solidAnalysisIds = <int, String?>{0: null, 1: null, 2: null};
   final _debounceTimers   = <int, Timer?>{};
+  final _stateWorkers     = <Worker>[];
+  Timer? _mudStateSaveTimer;
+  Worker? _wellWorker;
+  Worker? _reportWorker;
+  bool _isApplyingSavedState = false;
 
   final solidSaveStatus = <String, RxString>{
     '0': 'idle'.obs,
@@ -205,6 +212,15 @@ class MudController extends GetxController {
   @override
   void onInit() {
     _initRheologyTable();
+    _attachTextControllerListeners();
+    _wellWorker = ever<String>(
+      padWellContext.selectedWellId,
+      (_) => loadFluidTypeData(applySavedState: true),
+    );
+    _reportWorker = ever<String>(
+      reportContext.selectedReportId,
+      (_) => loadFluidTypeData(applySavedState: true),
+    );
     loadFluidTypeData();
     super.onInit();
   }
@@ -213,9 +229,18 @@ class MudController extends GetxController {
   // LOAD
   // ═══════════════════════════════════════════════════════════════════════════
 
-  Future<void> loadFluidTypeData() async {
+  Future<void> loadFluidTypeData({bool applySavedState = true}) async {
     isLoading.value = true;
+    _isApplyingSavedState = true;
     try {
+      final savedState =
+          applySavedState ? await _fetchMudReportState() : null;
+      final savedFluidType =
+          (savedState?['fluidType'] ?? '').toString().trim();
+      if (savedFluidType.isNotEmpty) {
+        selectedFluidType.value = savedFluidType;
+      }
+
       propertyTable.clear();
       availableProperties.clear();
       solidAnalysisResult.clear();
@@ -228,9 +253,14 @@ class MudController extends GetxController {
 
       _setupAutoCalculations();
       _setupSolidAnalysisWatchers();
+      if (savedState != null) {
+        _applyMudReportState(savedState);
+      }
+      _setupMudStateWatchers();
     } catch (e) {
       debugPrint('[MudController] loadFluidTypeData error: $e');
     } finally {
+      _isApplyingSavedState = false;
       isLoading.value = false;
     }
   }
@@ -279,6 +309,191 @@ class MudController extends GetxController {
     for (final field in ['Description', 'Sample from', 'Time Sample Taken (hh:mm)']) {
       propertyTable[field] = List.generate(samples.length, (_) => ''.obs);
       propertyUnits[field] = '';
+    }
+  }
+
+  String get _wellId => currentBackendWellId.trim();
+  String get _reportId => reportContext.selectedReportId.value.trim();
+
+  Uri _mudReportUri() {
+    final base = Uri.parse('${_kBaseUrl}mud-report/$_wellId');
+    return _reportId.isEmpty
+        ? base
+        : base.replace(queryParameters: {'reportId': _reportId});
+  }
+
+  Future<Map<String, dynamic>?> _fetchMudReportState() async {
+    if (_wellId.isEmpty) return null;
+    try {
+      final response = await http.get(_mudReportUri());
+      if (response.statusCode != 200) return null;
+      final decoded = jsonDecode(response.body);
+      final data = decoded is Map ? decoded['data'] : null;
+      if (data is Map<String, dynamic>) return data;
+      if (data is Map) return Map<String, dynamic>.from(data);
+    } catch (e) {
+      debugPrint('[MudController] mud report load error: $e');
+    }
+    return null;
+  }
+
+  void _applyMudReportState(Map<String, dynamic> data) {
+    fluidnameController.text = (data['fluidName'] ?? '').toString();
+    isCompletionFluid.value = data['isCompletionFluid'] == true;
+    isWeightedMud.value = data['isWeightedMud'] == true;
+
+    final savedModel = (data['rheologyModel'] ?? '').toString().trim();
+    if (savedModel.isNotEmpty) rheologyModel.value = savedModel;
+    final savedCalculation =
+        (data['rheologyCalculation'] ?? '').toString().trim();
+    if (savedCalculation.isNotEmpty) {
+      rheologyCalculation.value = savedCalculation;
+    }
+    final savedSample = (data['sampleForCalculation'] ?? '').toString().trim();
+    if (savedSample.isNotEmpty) sampleForCalculation.value = savedSample;
+
+    oilSgController.text = (data['oilSg'] ?? oilSgController.text).toString();
+    hgsSgController.text = (data['hgsSg'] ?? hgsSgController.text).toString();
+    lgsSgController.text = (data['lgsSg'] ?? lgsSgController.text).toString();
+    shaleCecController.text =
+        (data['shaleCec'] ?? shaleCecController.text).toString();
+    bentCecController.text =
+        (data['bentCec'] ?? bentCecController.text).toString();
+
+    final units = _mapFromDynamic(data['propertyUnits']);
+    units.forEach((key, value) => propertyUnits[key] = value.toString());
+
+    final savedProperties = _mapFromDynamic(data['propertyTable']);
+    savedProperties.forEach((key, value) {
+      propertyTable.putIfAbsent(
+        key,
+        () => List.generate(samples.length, (_) => ''.obs),
+      );
+      final values = _listFromDynamic(value);
+      final row = propertyTable[key]!;
+      for (int i = 0; i < row.length && i < values.length; i++) {
+        row[i].value = values[i];
+      }
+    });
+
+    final savedRheology = _mapFromDynamic(data['rheologyTable']);
+    if (savedRheology.isNotEmpty) {
+      rheologyTable.clear();
+      savedRheology.forEach((key, value) {
+        final values = _listFromDynamic(value);
+        rheologyTable[key] = List.generate(
+          samples.length,
+          (index) => (index < values.length ? values[index] : '').obs,
+        );
+      });
+    }
+  }
+
+  Map<String, dynamic> _mapFromDynamic(dynamic value) {
+    if (value is Map<String, dynamic>) return value;
+    if (value is Map) return Map<String, dynamic>.from(value);
+    return <String, dynamic>{};
+  }
+
+  List<String> _listFromDynamic(dynamic value) {
+    if (value is List) {
+      return value.map((item) => item?.toString() ?? '').toList();
+    }
+    return <String>[];
+  }
+
+  Map<String, List<String>> _stringTable(Map<String, List<RxString>> table) {
+    return table.map(
+      (key, value) => MapEntry(
+        key,
+        value.map((cell) => cell.value).toList(growable: false),
+      ),
+    );
+  }
+
+  Map<String, dynamic> _buildMudReportPayload() => {
+        'wellId': _wellId,
+        if (_reportId.isNotEmpty) 'reportId': _reportId,
+        'fluidName': fluidnameController.text.trim(),
+        'fluidType': selectedFluidType.value,
+        'isCompletionFluid': isCompletionFluid.value,
+        'isWeightedMud': isWeightedMud.value,
+        'samples': samples,
+        'propertyTable': _stringTable(propertyTable),
+        'propertyUnits': Map<String, String>.from(propertyUnits),
+        'rheologyModel': rheologyModel.value,
+        'rheologyCalculation': rheologyCalculation.value,
+        'rheologyTable': _stringTable(rheologyTable),
+        'sampleForCalculation': sampleForCalculation.value,
+        'oilSg': oilSgController.text.trim(),
+        'hgsSg': hgsSgController.text.trim(),
+        'lgsSg': lgsSgController.text.trim(),
+        'shaleCec': shaleCecController.text.trim(),
+        'bentCec': bentCecController.text.trim(),
+      };
+
+  void _scheduleMudReportSave() {
+    if (_isApplyingSavedState || _wellId.isEmpty) return;
+    _mudStateSaveTimer?.cancel();
+    _mudStateSaveTimer = Timer(
+      _kSaveDebounce,
+      () => saveMudReportState(force: true),
+    );
+  }
+
+  Future<void> saveMudReportState({bool force = false}) async {
+    if (_wellId.isEmpty) return;
+    if (!force && _isApplyingSavedState) return;
+    _mudStateSaveTimer?.cancel();
+    try {
+      await http.put(
+        _mudReportUri(),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(_buildMudReportPayload()),
+      );
+    } catch (e) {
+      debugPrint('[MudController] mud report save error: $e');
+    }
+  }
+
+  void _setupMudStateWatchers() {
+    for (final worker in _stateWorkers) {
+      worker.dispose();
+    }
+    _stateWorkers.clear();
+
+    void watch(RxInterface rx) {
+      _stateWorkers.add(ever(rx, (_) => _scheduleMudReportSave()));
+    }
+
+    watch(selectedFluidType);
+    watch(rheologyModel);
+    watch(rheologyCalculation);
+    watch(isCompletionFluid);
+    watch(isWeightedMud);
+    watch(sampleForCalculation);
+    for (final row in propertyTable.values) {
+      for (final cell in row) {
+        watch(cell);
+      }
+    }
+    for (final row in rheologyTable.values) {
+      for (final cell in row) {
+        watch(cell);
+      }
+    }
+  }
+
+  void _attachTextControllerListeners() {
+    for (final controller in [
+      fluidnameController,
+      oilSgController,
+      hgsSgController,
+      lgsSgController,
+      shaleCecController,
+      bentCecController,
+    ]) {
+      controller.addListener(_scheduleMudReportSave);
     }
   }
 
@@ -656,6 +871,8 @@ class MudController extends GetxController {
         'lgsSG':         vals['lgsSG'],         // L57 LGS density
         'sampleIndex':   sampleIdx,
         'fluidType':     selectedFluidType.value,
+        'wellId':        _wellId,
+        if (_reportId.isNotEmpty) 'reportId': _reportId,
       });
 
       final existingId = _solidAnalysisIds[sampleIdx];
@@ -781,16 +998,20 @@ class MudController extends GetxController {
     propertyTable[name] = List.generate(samples.length, (_) => ''.obs);
     _setupAutoCalculations();
     _setupSolidAnalysisWatchers();
+    _setupMudStateWatchers();
+    _scheduleMudReportSave();
   }
 
   void removeAddedPropertyRow(String name) {
     if (name.isEmpty) return;
     propertyTable.remove(name);
+    _setupMudStateWatchers();
+    _scheduleMudReportSave();
   }
 
   void changeFluidType(String type) {
     selectedFluidType.value = type;
-    loadFluidTypeData();
+    loadFluidTypeData(applySavedState: false);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -802,6 +1023,8 @@ class MudController extends GetxController {
   void changeModel(String model) {
     rheologyModel.value = model;
     _updateRheologyRows();
+    _setupMudStateWatchers();
+    _scheduleMudReportSave();
   }
 
   void _updateRheologyRows() {
@@ -814,6 +1037,7 @@ class MudController extends GetxController {
     for (var r in rows) {
       rheologyTable[r] = List.generate(samples.length, (_) => ''.obs);
     }
+    _setupMudStateWatchers();
   }
 
   void calculateRheology() {
@@ -936,6 +1160,12 @@ class MudController extends GetxController {
   @override
   void onClose() {
     for (final t in _debounceTimers.values) { t?.cancel(); }
+    _mudStateSaveTimer?.cancel();
+    _wellWorker?.dispose();
+    _reportWorker?.dispose();
+    for (final worker in _stateWorkers) {
+      worker.dispose();
+    }
     fluidnameController.dispose();
     oilSgController.dispose();
     hgsSgController.dispose();
