@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 import 'package:mudpro_desktop_app/api_endpoint/api_endpoint.dart';
+import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
 class ReturnProductController {
@@ -14,6 +15,20 @@ class ReturnProductController {
 
   String get _wellId => currentBackendWellId.trim();
 
+  Map<String, String> get _queryScope {
+    final reportId = reportContext.selectedReportId.value.trim();
+    return {
+      'wellId': _wellId,
+      if (reportId.isNotEmpty) 'reportId': reportId,
+    };
+  }
+
+  Map<String, dynamic> _withReportScope(Map<String, dynamic> payload) {
+    final reportId = reportContext.selectedReportId.value.trim();
+    if (reportId.isNotEmpty) payload['reportId'] = reportId;
+    return payload;
+  }
+
   Future<List<Map<String, dynamic>>> getReturnProducts() async {
     try {
       if (_wellId.isEmpty) {
@@ -22,7 +37,7 @@ class ReturnProductController {
 
       final uri = Uri.parse(
         '${baseUrl}return-product',
-      ).replace(queryParameters: {'wellId': _wellId});
+      ).replace(queryParameters: _queryScope);
 
       final response = await http.get(uri, headers: _headers);
 
@@ -52,13 +67,13 @@ class ReturnProductController {
       final response = await http.post(
         Uri.parse('${baseUrl}return-product'),
         headers: _headers,
-        body: jsonEncode({
+        body: jsonEncode(_withReportScope({
           'wellId': _wellId,
           'productName': productName,
           'code': code,
           'unit': unit,
           'amount': amount,
-        }),
+        })),
       );
 
       final responseData = jsonDecode(response.body);
@@ -97,13 +112,13 @@ class ReturnProductController {
       final response = await http.put(
         Uri.parse('${baseUrl}return-product/$id'),
         headers: _headers,
-        body: jsonEncode({
+        body: jsonEncode(_withReportScope({
           'wellId': _wellId,
           'productName': productName,
           'code': code,
           'unit': unit,
           'amount': amount,
-        }),
+        })),
       );
 
       final responseData = jsonDecode(response.body);
@@ -162,7 +177,7 @@ class ReturnProductController {
 
       final uri = Uri.parse(
         '${baseUrl}return-package',
-      ).replace(queryParameters: {'wellId': _wellId});
+      ).replace(queryParameters: _queryScope);
 
       final response = await http.get(uri, headers: _headers);
 
@@ -192,13 +207,13 @@ class ReturnProductController {
       final response = await http.post(
         Uri.parse('${baseUrl}return-package'),
         headers: _headers,
-        body: jsonEncode({
+        body: jsonEncode(_withReportScope({
           'wellId': _wellId,
           'packageName': packageName,
           'code': code,
           'unit': unit,
           'amount': amount,
-        }),
+        })),
       );
 
       final responseData = jsonDecode(response.body);
@@ -237,13 +252,13 @@ class ReturnProductController {
       final response = await http.put(
         Uri.parse('${baseUrl}return-package/$id'),
         headers: _headers,
-        body: jsonEncode({
+        body: jsonEncode(_withReportScope({
           'wellId': _wellId,
           'packageName': packageName,
           'code': code,
           'unit': unit,
           'amount': amount,
-        }),
+        })),
       );
 
       final responseData = jsonDecode(response.body);

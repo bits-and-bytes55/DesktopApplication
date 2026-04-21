@@ -1,6 +1,7 @@
 import ReturnProduct from "../../../modules/ReturnProduct/Product/ReturnProduct.js";
 import {
   buildScopedFilter,
+  legacyReportScope,
   readReportId,
   readWellId,
   toText,
@@ -56,11 +57,21 @@ export const createReturnProduct = async (req, res) => {
  */
 export const getAllReturnProducts = async (req, res) => {
   try {
-    const { filter } = getScope(req);
-    const products = await ReturnProduct.find(filter).sort({
+    const { wellId, reportId, filter } = getScope(req);
+    let products = await ReturnProduct.find(filter).sort({
       createdAt: 1,
       _id: 1,
     });
+
+    if (wellId && reportId && products.length === 0) {
+      products = await ReturnProduct.find({
+        wellId,
+        ...legacyReportScope(),
+      }).sort({
+        createdAt: 1,
+        _id: 1,
+      });
+    }
 
     res.status(200).json({
       success: true,

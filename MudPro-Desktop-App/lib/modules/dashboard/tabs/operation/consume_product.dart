@@ -6,6 +6,8 @@ import 'package:mudpro_desktop_app/modules/company_setup/model/products_model.da
 import 'package:mudpro_desktop_app/modules/daily_report/controller/inventory_snapshot_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/consume_product_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/consume_product_save_bridge.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/recieve_product_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/return_product_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/controller/ug_inventory_product_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/inventory_store/inventory_store.dart';
 import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
@@ -30,6 +32,8 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       : Get.put(PitController());
   final AuthRepository _authRepository = AuthRepository();
   final ConsumeProductController consumeProductController = ConsumeProductController();
+  final ReceiveProductController _receiveProductController = ReceiveProductController();
+  final ReturnProductController _returnProductController = ReturnProductController();
   final InventorySnapshotController inventorySnapshotController = InventorySnapshotController();
 
   late final InventoryProductsStore _inventoryStore;
@@ -53,6 +57,8 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
   final RxInt selectedProductRow = 0.obs;
   final Rx<ProductModel?> selectedTopProduct = Rx<ProductModel?>(null);
   final RxBool isSavingAll = false.obs;
+  final Map<String, double> _receiveProductTotals = {};
+  final Map<String, double> _returnProductTotals = {};
 
   // Special option constants
   static const String kActiveSystem = 'Active System';
@@ -72,6 +78,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     pitController.fetchUnselectedPits();
     Future.microtask(() async {
       await _loadProductsIfNeeded();
+      await _loadProductMovementTotals();
       await _fetchAllConsumeProducts();
     });
     // Start with 1 row in distribute table
@@ -220,6 +227,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
         row.used    = _numStr(item['used']);
         row.savedId = item['_id']?.toString();
 
+        _applyProductMovementToRow(row);
         row.recalculate();
         productRows.add(row);
         productRowSaving.add(false);
@@ -249,6 +257,81 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
         (p) => p.product.trim().toLowerCase() == name.trim().toLowerCase(),
       );
 
+  String _nameMovementKey(String value) {
+    final normalized = value.trim().toLowerCase();
+    return normalized.isEmpty ? '' : 'name:$normalized';
+  }
+
+  String _codeMovementKey(String value) {
+    final normalized = value.trim().toLowerCase();
+    return normalized.isEmpty ? '' : 'code:$normalized';
+  }
+
+  void _addMovementTotal(Map<String, double> totals, Map<String, dynamic> item) {
+    final amount = _toDouble(item['amount']);
+    if (amount == 0) return;
+
+    final codeKey = _codeMovementKey(item['code']?.toString() ?? '');
+    final nameKey = _nameMovementKey(item['productName']?.toString() ?? '');
+
+    if (codeKey.isNotEmpty) {
+      totals[codeKey] = (totals[codeKey] ?? 0.0) + amount;
+    }
+    if (nameKey.isNotEmpty) {
+      totals[nameKey] = (totals[nameKey] ?? 0.0) + amount;
+    }
+  }
+
+  double _movementTotalForRow(Map<String, double> totals, ProductRowData row) {
+    final codeKey = _codeMovementKey(row.code);
+    if (codeKey.isNotEmpty && totals.containsKey(codeKey)) {
+      return totals[codeKey] ?? 0.0;
+    }
+
+    final productName = row.selectedProduct.value?.product.isNotEmpty == true
+        ? row.selectedProduct.value!.product
+        : row.productName;
+    final nameKey = _nameMovementKey(productName);
+    return nameKey.isEmpty ? 0.0 : (totals[nameKey] ?? 0.0);
+  }
+
+  void _applyProductMovementToRow(ProductRowData row) {
+    row.received = _movementTotalForRow(_receiveProductTotals, row);
+    row.returned = _movementTotalForRow(_returnProductTotals, row);
+  }
+
+  void _applyProductMovementTotals() {
+    for (final row in productRows) {
+      _applyProductMovementToRow(row);
+      row.recalculate();
+    }
+    productRows.refresh();
+    _recalculateTotalVolume();
+  }
+
+  Future<void> _loadProductMovementTotals() async {
+    try {
+      final results = await Future.wait([
+        _receiveProductController.getReceiveProducts(),
+        _returnProductController.getReturnProducts(),
+      ]);
+
+      _receiveProductTotals.clear();
+      _returnProductTotals.clear();
+
+      for (final item in results[0]) {
+        _addMovementTotal(_receiveProductTotals, item);
+      }
+      for (final item in results[1]) {
+        _addMovementTotal(_returnProductTotals, item);
+      }
+
+      _applyProductMovementTotals();
+    } catch (e) {
+      debugPrint('[PRODUCT MOVEMENT] Error loading receive/return totals: $e');
+    }
+  }
+
   Future<void> _loadProductsIfNeeded() async {
     try {
       if (_inventoryStore.selectedProducts.isNotEmpty) {
@@ -273,9 +356,12 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
 
   void _syncProductSelectionsWithInventory() {
     for (final row in productRows) {
-      if (row.selectedProduct.value != null) continue;
-      if (row.productName.trim().isEmpty) continue;
-      row.selectedProduct.value = _findByName(row.productName);
+      if (row.selectedProduct.value == null &&
+          row.productName.trim().isNotEmpty) {
+        row.selectedProduct.value = _findByName(row.productName);
+      }
+      _applyProductMovementToRow(row);
+      row.recalculate();
     }
     productRows.refresh();
   }
@@ -337,6 +423,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     final row = productRows[index];
     if (row.productName.isEmpty && row.selectedProduct.value == null) return;
 
+    _applyProductMovementToRow(row);
     row.recalculate();
     productRows.refresh();
     _recalculateTotalVolume();
@@ -1008,6 +1095,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                   row.initial = initD != 0.0 ? val.initial : '';
                   row.adjust = '';
                   row.used   = '';
+                  _applyProductMovementToRow(row);
                   productRows.refresh();
                   _checkAndAddProductRow();
                   row.recalculate();
@@ -1047,6 +1135,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                 row.initial = initD != 0.0 ? val.initial : '';
                 row.adjust = '';
                 row.used   = '';
+                _applyProductMovementToRow(row);
                 productRows.refresh();
                 _checkAndAddProductRow();
                 row.recalculate();
@@ -1641,6 +1730,8 @@ class ProductRowData {
   String adjust  = '';
   String used    = '';
   String? savedId;
+  double received = 0.0;
+  double returned = 0.0;
 
   final RxDouble calculatedCost   = 0.0.obs;
   final RxDouble calculatedVolume = 0.0.obs;
@@ -1652,7 +1743,7 @@ class ProductRowData {
     final uVal = double.tryParse(used)    ?? 0.0;
     final sVal = double.tryParse(sg)      ?? 0.0;
 
-    calculatedFinal.value  = iVal + aVal - uVal;
+    calculatedFinal.value  = iVal + received - returned - aVal - uVal;
     calculatedCost.value   = uVal * price;
     calculatedVolume.value = (sVal > 0 && uVal > 0)
         ? double.parse((uVal / (sVal * 158.987)).toStringAsFixed(3))

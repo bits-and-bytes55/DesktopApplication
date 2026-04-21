@@ -171,7 +171,7 @@ export const generateInventorySnapshot = async (req, res) => {
         "";
 
       const finalVal = round2(
-        initial + cumulativeRec - cumulativeRet - cumulativeUsed + cumulativeAdj
+        initial + cumulativeRec - cumulativeRet - cumulativeUsed - cumulativeAdj
       );
       const subtotal = round2(cumulativeUsed * price);
 

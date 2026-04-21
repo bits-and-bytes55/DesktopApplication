@@ -1,4 +1,6 @@
 import ConsumeProduct from "../../modules/Consumeproduct/ConsumeProduct.js";
+import ReceiveProduct from "../../modules/ReceiveProduct/Product/ReceiveProduct.js";
+import ReturnProduct from "../../modules/ReturnProduct/Product/ReturnProduct.js";
 import { legacyReportScope, readReportId } from "../../utils/reportScope.js";
 
 const toNumber = (value, fallback = 0) => {
@@ -114,15 +116,76 @@ const buildConsumeProductPayload = (payload = {}, existing = {}) => {
   };
 };
 
+const normalizeText = (value) => String(value ?? "").trim().toLowerCase();
+
+const productMovementFilter = ({ wellId, reportId, product, code }) => {
+  if (!wellId) return null;
+
+  const matchers = [];
+  const cleanCode = normalizeText(code);
+  const cleanProduct = normalizeText(product);
+
+  if (cleanCode) {
+    matchers.push({ code: new RegExp(`^${escapeRegExp(cleanCode)}$`, "i") });
+  }
+  if (cleanProduct) {
+    matchers.push({
+      productName: new RegExp(`^${escapeRegExp(cleanProduct)}$`, "i"),
+    });
+  }
+  if (matchers.length === 0) return null;
+
+  return {
+    $and: [
+      { wellId },
+      reportId ? { reportId } : legacyReportScope(),
+      matchers.length === 1 ? matchers[0] : { $or: matchers },
+    ],
+  };
+};
+
+const escapeRegExp = (value) =>
+  String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const sumProductMovement = async (Model, payload) => {
+  const scopedFilter = productMovementFilter(payload);
+  if (!scopedFilter) return 0;
+
+  let rows = await Model.find(scopedFilter).select("amount").lean();
+
+  if (rows.length === 0 && payload.reportId) {
+    const legacyFilter = productMovementFilter({ ...payload, reportId: "" });
+    rows = legacyFilter
+      ? await Model.find(legacyFilter).select("amount").lean()
+      : [];
+  }
+
+  return rows.reduce((sum, row) => sum + toNumber(row.amount), 0);
+};
+
+const applyProductMovementFinal = async (payload) => {
+  const [received, returned] = await Promise.all([
+    sumProductMovement(ReceiveProduct, payload),
+    sumProductMovement(ReturnProduct, payload),
+  ]);
+
+  return {
+    ...payload,
+    final: round(
+      payload.initial + received - returned - payload.adjust - payload.used
+    ),
+  };
+};
+
 /**
  * @desc    Create Consume Product (With Auto Calculation)
  */
 export const createConsumeProduct = async (req, res) => {
   try {
-    const consumeProductPayload = buildConsumeProductPayload({
+    const consumeProductPayload = await applyProductMovementFinal(buildConsumeProductPayload({
       ...req.body,
       reportId: req.body.reportId ?? readReportId(req),
-    });
+    }));
 
     if (!consumeProductPayload.wellId) {
       return res.status(400).json({
@@ -231,7 +294,7 @@ export const updateConsumeProduct = async (req, res) => {
       return res.status(404).json({ success: false, message: "Consume Product not found" });
     }
 
-    const updatedPayload = buildConsumeProductPayload(
+    let updatedPayload = buildConsumeProductPayload(
       {
         ...req.body,
         reportId: req.body.reportId ?? readReportId(req),
@@ -242,6 +305,8 @@ export const updateConsumeProduct = async (req, res) => {
     if (!updatedPayload.wellId) {
       updatedPayload.wellId = String(existing.wellId ?? "").trim();
     }
+
+    updatedPayload = await applyProductMovementFinal(updatedPayload);
 
     const updatedProduct = await ConsumeProduct.findByIdAndUpdate(
       req.params.id,

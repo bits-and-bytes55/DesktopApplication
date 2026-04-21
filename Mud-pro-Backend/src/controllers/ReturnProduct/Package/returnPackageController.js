@@ -1,6 +1,7 @@
 import ReturnPackage from "../../../modules/ReturnProduct/Package/ReturnPackage.js";
 import {
   buildScopedFilter,
+  legacyReportScope,
   readReportId,
   readWellId,
   toText,
@@ -56,11 +57,21 @@ export const createReturnPackage = async (req, res) => {
  */
 export const getAllReturnPackages = async (req, res) => {
   try {
-    const { filter } = getScope(req);
-    const packages = await ReturnPackage.find(filter).sort({
+    const { wellId, reportId, filter } = getScope(req);
+    let packages = await ReturnPackage.find(filter).sort({
       createdAt: 1,
       _id: 1,
     });
+
+    if (wellId && reportId && packages.length === 0) {
+      packages = await ReturnPackage.find({
+        wellId,
+        ...legacyReportScope(),
+      }).sort({
+        createdAt: 1,
+        _id: 1,
+      });
+    }
 
     res.status(200).json({
       success: true,

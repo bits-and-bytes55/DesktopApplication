@@ -1,6 +1,7 @@
 import ReceivePackage from "../../../modules/ReceiveProduct/Package/ReceivePackage.js";
 import {
   buildScopedFilter,
+  legacyReportScope,
   readReportId,
   readWellId,
   toText,
@@ -56,11 +57,21 @@ export const createReceivePackage = async (req, res) => {
  */
 export const getAllReceivePackages = async (req, res) => {
   try {
-    const { filter } = getScope(req);
-    const packages = await ReceivePackage.find(filter).sort({
+    const { wellId, reportId, filter } = getScope(req);
+    let packages = await ReceivePackage.find(filter).sort({
       createdAt: 1,
       _id: 1,
     });
+
+    if (wellId && reportId && packages.length === 0) {
+      packages = await ReceivePackage.find({
+        wellId,
+        ...legacyReportScope(),
+      }).sort({
+        createdAt: 1,
+        _id: 1,
+      });
+    }
 
     res.status(200).json({
       success: true,
