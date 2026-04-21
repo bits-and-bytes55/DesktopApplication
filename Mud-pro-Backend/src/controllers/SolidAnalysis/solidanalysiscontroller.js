@@ -157,6 +157,7 @@ export const createSolidsAnalysis = async (req, res) => {
     }
     const record = await SolidsAnalysis.create({
       ...computed,
+      wellId:      req.body.wellId      ?? "",
       reportId:    req.body.reportId    ?? null,
       sampleIndex: req.body.sampleIndex ?? 0,
     });
@@ -178,7 +179,7 @@ export const updateSolidsAnalysis = async (req, res) => {
     }
     const updated = await SolidsAnalysis.findByIdAndUpdate(
       id,
-      { $set: { ...computed, reportId: req.body.reportId ?? undefined, sampleIndex: req.body.sampleIndex ?? undefined } },
+      { $set: { ...computed, wellId: req.body.wellId ?? undefined, reportId: req.body.reportId ?? undefined, sampleIndex: req.body.sampleIndex ?? undefined } },
       { new: true, runValidators: true }
     );
     if (!updated) {
@@ -197,7 +198,11 @@ export const getLatestSolidsAnalysis = async (req, res) => {
   try {
     const limit    = parseInt(req.query.limit) || 1;
     const reportId = req.query.reportId || null;
-    const query    = reportId ? { reportId } : {};
+    const wellId   = req.query.wellId || null;
+    const query    = {
+      ...(wellId ? { wellId } : {}),
+      ...(reportId ? { reportId } : {}),
+    };
     const records  = await SolidsAnalysis.find(query).sort({ createdAt: -1 }).limit(limit).lean();
     if (!records || records.length === 0) {
       return res.status(404).json({ success: false, message: "No records found" });

@@ -3,8 +3,9 @@ import mongoose from "mongoose";
 const solidsSchema = new mongoose.Schema(
   {
     // ── Link to report & sample slot ────────────────────────────────────
-    // reportId:    the _id of the mud report this belongs to (optional but recommended)
+    // wellId/reportId: scope this result to the active well/report.
     // sampleIndex: 0=Sample1, 1=Sample2, 2=Sample3
+    wellId:      { type: String, default: "", index: true },
     reportId:    { type: String, default: null, index: true },
     sampleIndex: { type: Number, default: 0 },
 
@@ -35,6 +36,6 @@ const solidsSchema = new mongoose.Schema(
 );
 
 // Compound index: one record per (reportId, sampleIndex) combination
-solidsSchema.index({ reportId: 1, sampleIndex: 1 });
+solidsSchema.index({ wellId: 1, reportId: 1, sampleIndex: 1 });
 
 export default mongoose.model("SolidsAnalysis", solidsSchema);

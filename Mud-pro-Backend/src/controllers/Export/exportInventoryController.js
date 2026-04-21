@@ -23,6 +23,7 @@ import MudLossStorage from "../../modules/mudlossstorage/MudLossStorage.js";
 import { Interval } from "../../modules/wellInterval/intervalModel.js";
 import { loadMergedPits } from "../../utils/pitReportState.js";
 import MudReportState from "../../modules/mudReport/MudReportState.js";
+import SolidsAnalysis from "../../modules/SolidAnalysis/solidanalysismodel.js";
 
 const TEMPLATE_PATH = fileURLToPath(
   new URL("../../../assets/template.xlsx", import.meta.url)
@@ -449,7 +450,7 @@ const clearDmrDynamicAreas = (ws) => {
     ["AC7", "AC7"], ["AT7", "AT7"], ["BL7", "BL7"], ["H8", "H11"], ["T8", "T8"],
     ["AB8", "AB11"], ["AT8", "AT11"], ["BL8", "BL11"], ["H14", "P21"], ["Q14", "V21"],
     ["W14", "AB21"], ["AC14", "AI21"], ["AJ14", "AR21"], ["AS14", "AX21"], ["AY14", "BD21"],
-    ["BE14", "BK21"], ["BL14", "BS21"], ["M23", "BS34"], ["P36", "AI54"],
+    ["BE14", "BK21"], ["BL14", "BS21"], ["M23", "BS34"], ["P36", "AI80"],
     ["AJ36", "BS51"], ["AJ53", "BS86"], ["L92", "Q96"], ["AC92", "AI94"],
     ["AT93", "AY94"], ["BM93", "BS94"], ["AC96", "AI98"], ["AR96", "AX97"],
     ["BF97", "BS99"],
@@ -667,6 +668,67 @@ const fillMudPropertyRows = (ws, { mudReportState, activePits, fluidName, wellGe
     mudReportState,
     (key) => key.includes("hthp") && key.includes("cake")
   );
+  const solids = findMudRow(
+    mudReportState,
+    (key) =>
+      (key === "solids" || key.startsWith("solids ") || key === "retort solids") &&
+      !key.includes("correct") &&
+      !key.includes("corr") &&
+      !key.includes("drill") &&
+      !key.includes("salt")
+  );
+  const oil = findMudRow(
+    mudReportState,
+    (key) => (key === "oil" || key.startsWith("oil ")) && !key.includes("ratio")
+  );
+  const water = findMudRow(
+    mudReportState,
+    (key) => (key === "water" || key.startsWith("water ")) && !key.includes("phase")
+  );
+  const sand = findMudRow(mudReportState, (key) => key.includes("sand content"));
+  const mbt = findMudRow(
+    mudReportState,
+    (key) => key.includes("mbt") || key.includes("methylene")
+  );
+  const ph = findMudRow(mudReportState, (key) => key === "ph" || key.startsWith("ph "));
+  const mudAlkalinity = findMudRow(
+    mudReportState,
+    (key) => key.includes("mud alkalinity") || key.includes("whole mud alkalinity")
+  );
+  const filtratePf = findMudRow(
+    mudReportState,
+    (key) => key.includes("filtrate alkalinity") && key.includes("pf")
+  );
+  const filtrateMf = findMudRow(
+    mudReportState,
+    (key) => key.includes("filtrate alkalinity") && key.includes("mf")
+  );
+  const calcium = findMudRow(
+    mudReportState,
+    (key) => key === "calcium" || key.startsWith("calcium ")
+  );
+  const chlorides = findMudRow(
+    mudReportState,
+    (key) =>
+      key.includes("chloride") &&
+      !key.includes("cacl2") &&
+      !key.includes("calcium chloride")
+  );
+  const totalHardness = findMudRow(mudReportState, (key) => key.includes("total hardness"));
+  const excessLime = findMudRow(mudReportState, (key) => key.includes("excess lime"));
+  const potassium = findMudRow(
+    mudReportState,
+    (key) => key === "k+" || key === "k" || key.startsWith("kcl")
+  );
+  const makeUpWaterChlorides = findMudRow(
+    mudReportState,
+    (key) => key.includes("make up") && key.includes("chloride")
+  );
+  const solidsAdjusted = findMudRow(
+    mudReportState,
+    (key) => key.includes("solids adjusted") || key.includes("corrected solids")
+  );
+  const fineLcm = findMudRow(mudReportState, (key) => key.includes("fine lcm"));
 
   const activeDensity = firstMeaningfulText(activePits[0]?.density, activePits[1]?.density);
   const rowValues = {
@@ -689,6 +751,23 @@ const fillMudPropertyRows = (ws, { mudReportState, activePits, fluidName, wellGe
     52: buildMudGroups(hthpTemp),
     53: buildMudGroups(hthpFiltrate),
     54: buildMudGroups(hthpCake),
+    55: buildMudGroups(solids),
+    56: buildMudGroups(oil),
+    57: buildMudGroups(water),
+    58: buildMudGroups(sand),
+    59: buildMudGroups(mbt),
+    60: buildMudGroups(ph),
+    61: buildMudGroups(mudAlkalinity),
+    62: buildMudGroups(filtratePf),
+    63: buildMudGroups(filtrateMf),
+    64: buildMudGroups(calcium),
+    65: buildMudGroups(chlorides),
+    66: buildMudGroups(totalHardness),
+    67: buildMudGroups(excessLime),
+    68: buildMudGroups(potassium),
+    69: buildMudGroups(makeUpWaterChlorides),
+    70: buildMudGroups(solidsAdjusted),
+    71: buildMudGroups(fineLcm),
   };
 
   const columns = [["P", "T"], ["U", "Y"], ["Z", "AD"], ["AE", "AI"]];
@@ -699,7 +778,44 @@ const fillMudPropertyRows = (ws, { mudReportState, activePits, fluidName, wellGe
   });
 };
 
-const fillDmrTopSections = (ws, { drillStrings, casings, summary, activePits, fluidName, wellGeneral, consumeProducts, mudReportState }) => {
+const normalizeSolidsAnalysisRows = (rows = []) => {
+  const latestBySample = new Map();
+  for (const row of rows) {
+    const sampleIndex = Number(row.sampleIndex) || 0;
+    const previous = latestBySample.get(sampleIndex);
+    const previousTime = new Date(previous?.updatedAt ?? previous?.createdAt ?? 0).getTime();
+    const currentTime = new Date(row?.updatedAt ?? row?.createdAt ?? 0).getTime();
+    if (!previous || currentTime >= previousTime) {
+      latestBySample.set(sampleIndex, row);
+    }
+  }
+  return [0, 1, 2].map((sampleIndex) => latestBySample.get(sampleIndex) || null);
+};
+
+const fillDmrSolidsAnalysisRows = (ws, solidsAnalysisRows = []) => {
+  const samples = normalizeSolidsAnalysisRows(solidsAnalysisRows);
+  const columns = [["P", "T"], ["U", "Y"], ["Z", "AD"]];
+  const rowMap = {
+    70: "correctedSolids",
+    73: "brineSG",
+    74: "dissolvedSolids",
+    75: "correctedSolids",
+    76: "lgsPercent",
+    77: "lgsLb",
+    78: "hgsPercent",
+    79: "hgsLb",
+    80: "avgSG",
+  };
+
+  Object.entries(rowMap).forEach(([row, key]) => {
+    columns.forEach(([start, end], index) => {
+      const value = roundOrBlank(samples[index]?.[key], key === "brineSG" ? 4 : 2);
+      fillRowRange(ws, Number(row), start, end, value);
+    });
+  });
+};
+
+const fillDmrTopSections = (ws, { drillStrings, casings, summary, activePits, fluidName, wellGeneral, consumeProducts, mudReportState, solidsAnalysisRows }) => {
   for (let index = 0; index < 8; index += 1) {
     const row = 14 + index;
     const drill = drillStrings[index];
@@ -756,6 +872,7 @@ const fillDmrTopSections = (ws, { drillStrings, casings, summary, activePits, fl
   }
 
   fillMudPropertyRows(ws, { mudReportState, activePits, fluidName, wellGeneral });
+  fillDmrSolidsAnalysisRows(ws, solidsAnalysisRows);
 
   for (let index = 0; index < 16; index += 1) {
     const row = 37 + index;
@@ -1216,6 +1333,35 @@ const loadExportMudReportState = async ({ wellId, reportId }) => {
     .lean();
 };
 
+const emptyWellScope = () => ({
+  $or: [{ wellId: "" }, { wellId: null }, { wellId: { $exists: false } }],
+});
+
+const loadExportSolidsAnalysis = async ({ wellId, reportId }) => {
+  if (!wellId && !reportId) return [];
+
+  const queries = [];
+  if (wellId && reportId) {
+    queries.push({ wellId, reportId });
+    queries.push({ reportId, ...emptyWellScope() });
+  }
+  if (wellId) {
+    queries.push({ wellId, ...legacyReportScopeWithEmpty() });
+    queries.push({ wellId });
+  }
+  if (reportId) {
+    queries.push({ reportId });
+  }
+
+  for (const query of queries) {
+    const rows = await SolidsAnalysis.find(query)
+      .sort({ sampleIndex: 1, updatedAt: -1, createdAt: -1, _id: -1 })
+      .lean();
+    if (rows.length > 0) return rows;
+  }
+  return [];
+};
+
 export const exportInventoryReport = async (req, res) => {
   try {
     const { wellId } = req.params;
@@ -1229,7 +1375,7 @@ export const exportInventoryReport = async (req, res) => {
     const [
       inventoryData, activities, well, drillStrings, casings, pumps, consumeProducts,
       liveServices, liveEngineering, addWaterRows, receiveMudRows, returnLostRows, transferRows, otherVolRows, mudLossRows, mudLossStorageRows,
-      allOtherVolRows, intervals, mudReportState,
+      allOtherVolRows, intervals, mudReportState, solidsAnalysisRows,
     ] = await Promise.all([
       loadInventorySnapshot({ wellId, reportId }),
       loadReportScopedList(Activity, {
@@ -1255,6 +1401,7 @@ export const exportInventoryReport = async (req, res) => {
       OtherVolAddition.find({ wellId }).sort({ createdAt: 1, _id: 1 }).lean(),
       Interval.find({ wellId }).sort({ order: 1, createdAt: 1, _id: 1 }).lean(),
       loadExportMudReportState({ wellId, reportId }),
+      loadExportSolidsAnalysis({ wellId, reportId }),
     ]);
     if (!well) {
       return res.status(404).json({ success: false, message: "Well not found" });
@@ -1347,6 +1494,7 @@ export const exportInventoryReport = async (req, res) => {
       wellGeneral,
       consumeProducts,
       mudReportState,
+      solidsAnalysisRows,
     });
     fillDmrBottomSections(dmrSheet, {
       report,

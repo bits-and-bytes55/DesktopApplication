@@ -63,16 +63,28 @@ class MudController extends GetxController {
   // FIELD KEY GETTERS
   // ═══════════════════════════════════════════════════════════════════════════
 
+  String _normalizedKey(String key) => key
+      .toLowerCase()
+      .replaceAll('*', '')
+      .replaceAll(RegExp(r'[\r\n\t]+'), ' ')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
+
   String? _findKey(bool Function(String) test) {
     for (final key in propertyTable.keys) {
-      if (test(key.toLowerCase().replaceAll('*', '').trim())) return key;
+      if (test(_normalizedKey(key))) return key;
     }
     return null;
   }
 
   // Matches: "MW (ppg)", "*MW (ppg)", "Mud Weight", "Mud Weight (ppg)"
   String? get _mwKey => _findKey((k) =>
-      k == 'mw' || k.startsWith('mw') || k.contains('mud weight'));
+      k == 'mw' ||
+      k.startsWith('mw') ||
+      k.contains('mud weight') ||
+      k.contains('mud wt') ||
+      k.contains('mud density') ||
+      (k.startsWith('density') && k.contains('ppg')));
 
   // Retort solids — "*Solids (% vol)" USER INPUT. NOT auto-calc.
   // Must NOT match Total Solids, Corrected Solids, Drill Solids
@@ -82,12 +94,14 @@ class MudController extends GetxController {
       !k.contains('drill') && !k.contains('adj') && !k.contains('salt'));
 
   String? get _oilKey => _findKey((k) =>
-      (k == 'oil' || k == 'oil (% vol)' || k == 'oil%') &&
+      (k == 'oil' || k == 'oil (% vol)' || k == 'oil%' ||
+       k.startsWith('oil ')) &&
       !k.contains('ratio') && !k.contains('sg') && !k.contains('water') &&
       !k.contains('density'));
 
   String? get _waterKey => _findKey((k) =>
-      (k == 'water' || k == 'water (% vol)' || k == 'water%') &&
+      (k == 'water' || k == 'water (% vol)' || k == 'water%' ||
+       k.startsWith('water ')) &&
       !k.contains('activity') && !k.contains('sg') &&
       !k.contains('oil') && !k.contains('phase') && !k.contains('salinity'));
 
@@ -252,10 +266,11 @@ class MudController extends GetxController {
       ]);
 
       _setupAutoCalculations();
-      _setupSolidAnalysisWatchers();
       if (savedState != null) {
         _applyMudReportState(savedState);
+        _setupAutoCalculations();
       }
+      _setupSolidAnalysisWatchers();
       _setupMudStateWatchers();
     } catch (e) {
       debugPrint('[MudController] loadFluidTypeData error: $e');
@@ -856,6 +871,11 @@ class MudController extends GetxController {
 
     solidSaveStatus['$sampleIdx']?.value = 'saving';
     try {
+      final localResult = _computeSolidsAnalysis(vals);
+      if (localResult != null) {
+        _updateResultFromData(sampleIdx, localResult);
+      }
+
       final body = jsonEncode({
         'mudWeight':     vals['mudWeight'],
         'retortSolids':  vals['retortSolids'],
@@ -907,6 +927,89 @@ class MudController extends GetxController {
       debugPrint('[SolidsAnalysis] Save error (sample $sampleIdx): $e');
       solidSaveStatus['$sampleIdx']?.value = 'error';
     }
+  }
+
+  Map<String, dynamic>? _computeSolidsAnalysis(Map<String, double> vals) {
+    final mw = vals['mudWeight'] ?? 0;
+    if (mw <= 0) return null;
+
+    final retortSolids = vals['retortSolids'] ?? 0;
+    final oilVol = vals['oilVol'] ?? 0;
+    final waterVol = vals['waterVol'] ?? 0;
+    final bariteLb = vals['bariteLb'] ?? 0;
+    final bentoniteLb = vals['bentoniteLb'] ?? 0;
+    final cacl2Pct = vals['cacl2Pct'] ?? 0;
+    final oilSG = vals['oilSG'] ?? 0.81;
+    final hgsSG = vals['hgsSG'] ?? 4.20;
+    final lgsSG = vals['lgsSG'] ?? 2.60;
+    final brineSG =
+        0.99707 + (0.007923 * cacl2Pct) + (0.00004964 * cacl2Pct * cacl2Pct);
+
+    double brineVol;
+    final brineVolPct = vals['brineVolPct'] ?? 0;
+    if (brineVolPct > 0) {
+      brineVol = brineVolPct;
+    } else if (cacl2Pct > 0 && waterVol > 0) {
+      brineVol =
+          (100 * waterVol) / (brineSG * (100 - cacl2Pct) * 0.99707);
+    } else {
+      brineVol = waterVol;
+    }
+
+    final dissolvedSolids = (brineSG - 1) * 100;
+    final corrSolidsPct = vals['corrSolidsPct'] ?? 0;
+    final correctedSolids =
+        corrSolidsPct > 0 ? corrSolidsPct : (100 - (oilVol + brineVol));
+    final safeCorrected = correctedSolids < 0 ? 0 : correctedSolids;
+    final totalSolids =
+        retortSolids > 0 ? retortSolids : (100 - (oilVol + waterVol));
+
+    var avgSG = 0.0;
+    if (safeCorrected > 0) {
+      avgSG =
+          (100 * (mw / 8.34) - oilVol * oilSG - brineSG * brineVol) /
+              safeCorrected;
+    }
+
+    var hgsPercent = 0.0;
+    if (hgsSG != lgsSG && safeCorrected > 0) {
+      hgsPercent = ((avgSG - lgsSG) / (hgsSG - lgsSG)) * safeCorrected;
+    }
+
+    final lgsPercent = safeCorrected - hgsPercent;
+    final lgsLb = 3.5 * lgsSG * lgsPercent;
+    final hgsLb = 3.5 * hgsSG * hgsPercent;
+    final bentPercent = bentoniteLb > 0 ? bentoniteLb / (3.5 * 2.65) : 0;
+    final drillSolidsPercent = lgsPercent - bentPercent;
+    final drillSolidsLb = 3.5 * lgsSG * drillSolidsPercent;
+    final dsBentRatio =
+        bentPercent > 0 ? drillSolidsPercent / bentPercent : 0;
+
+    double fmt(double v, [int digits = 2]) {
+      if (v.isNaN || v.isInfinite) return 0;
+      return double.parse(v.toStringAsFixed(digits));
+    }
+
+    return {
+      'mudWeight': fmt(mw),
+      'retortSolids': fmt(totalSolids < 0 ? 0 : totalSolids),
+      'bariteLb': fmt(bariteLb),
+      'bentoniteLb': fmt(bentoniteLb),
+      'brineSG': fmt(brineSG, 4),
+      'brineVol': fmt(brineVol),
+      'totalSolids': fmt(totalSolids < 0 ? 0 : totalSolids),
+      'correctedSolids': fmt(safeCorrected),
+      'dissolvedSolids': fmt(dissolvedSolids < 0 ? 0 : dissolvedSolids),
+      'avgSG': fmt(avgSG),
+      'hgsPercent': fmt(hgsPercent),
+      'hgsLb': fmt(hgsLb),
+      'lgsPercent': fmt(lgsPercent),
+      'lgsLb': fmt(lgsLb),
+      'bentPercent': fmt(bentPercent),
+      'drillSolidsPercent': fmt(drillSolidsPercent),
+      'drillSolidsLb': fmt(drillSolidsLb),
+      'dsBentRatio': fmt(dsBentRatio),
+    };
   }
 
   void _updateResultFromData(int sampleIdx, Map<String, dynamic> data) {
