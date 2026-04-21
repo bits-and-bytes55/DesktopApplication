@@ -1,4 +1,22 @@
 import Operation from "../../modules/operation/operation.model.js";
+import ConsumeProduct from "../../modules/Consumeproduct/ConsumeProduct.js";
+import ConsumeProductDistributionState from "../../modules/Consumeproduct/ConsumeProductDistributionState.js";
+import ConsumePackage from "../../modules/ConsumeServices/Package/Package.js";
+import Service from "../../modules/ConsumeServices/Services/Service.js";
+import Engineering from "../../modules/ConsumeServices/Engineers/Engineering.js";
+import ReceiveProduct from "../../modules/ReceiveProduct/Product/ReceiveProduct.js";
+import ReceivePackage from "../../modules/ReceiveProduct/Package/ReceivePackage.js";
+import ReturnProduct from "../../modules/ReturnProduct/Product/ReturnProduct.js";
+import ReturnPackage from "../../modules/ReturnProduct/Package/ReturnPackage.js";
+import TransferMud from "../../modules/transfermud/TransferMud.js";
+import ReceiveMud from "../../modules/receivemud/ReceiveMud.js";
+import ReturnLostMud from "../../modules/returnlostmud/ReturnLostMud.js";
+import AddWater from "../../modules/addwater/AddWater.js";
+import OtherVolAddition from "../../modules/othervol/OtherVolAddition.js";
+import MudLoss from "../../modules/mudloss/MudLoss.js";
+import MudLossStorage from "../../modules/mudlossstorage/MudLossStorage.js";
+import EmptyFluidActiveSystem from "../../modules/emptyfluidactivesystem/EmptyFluidActiveSystem.js";
+import { legacyReportScope } from "../../utils/reportScope.js";
 
 const toNumber = (value) => {
   if (value === null || value === undefined || value === "") return 0;
@@ -199,4 +217,99 @@ export const deleteOperation = async (req, res) => {
       error: error.message,
     });
   }
+};
+
+export const deleteOperationData = async (req, res) => {
+  try {
+    const wellId = String(req.params.wellId ?? "").trim();
+    const operationType = String(req.params.operationType ?? "").trim();
+    const reportId = String(req.query.reportId ?? req.body?.reportId ?? "").trim();
+
+    if (!wellId) {
+      return res.status(400).json({
+        success: false,
+        message: "wellId is required",
+      });
+    }
+
+    if (!Object.prototype.hasOwnProperty.call(operationDataModels, operationType)) {
+      return res.status(400).json({
+        success: false,
+        message: "Unknown operation type",
+      });
+    }
+
+    const models = operationDataModels[operationType];
+    const filter = buildOperationDataFilter(wellId, reportId);
+    const results = await Promise.all(
+      models.map(async (Model) => {
+        const result = await Model.deleteMany(filter);
+        return {
+          model: Model.modelName,
+          deletedCount: result.deletedCount || 0,
+        };
+      })
+    );
+
+    const deletedCount = results.reduce(
+      (sum, item) => sum + item.deletedCount,
+      0
+    );
+
+    return res.status(200).json({
+      success: true,
+      message:
+        deletedCount > 0
+          ? "Operation data deleted successfully"
+          : "Operation removed. No saved data found for this operation.",
+      operationType,
+      deletedCount,
+      details: results,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to delete operation data",
+      error: error.message,
+    });
+  }
+};
+
+const operationDataModels = {
+  consumeServices: [ConsumePackage, Service, Engineering],
+  consumeProduct: [ConsumeProduct, ConsumeProductDistributionState],
+  receiveProduct: [ReceiveProduct, ReceivePackage],
+  returnProduct: [ReturnProduct, ReturnPackage],
+  transferMud: [TransferMud],
+  receiveMud: [ReceiveMud],
+  returnLostMud: [ReturnLostMud],
+  addWater: [AddWater],
+  switchPit: [],
+  switchMudType: [],
+  emptyActiveSystem: [EmptyFluidActiveSystem],
+  otherVolAddition: [OtherVolAddition],
+  mudLossActiveSystem: [MudLoss],
+  mudLossStorage: [MudLossStorage],
+};
+
+const buildOperationDataFilter = (wellId, reportId) => {
+  const cleanWellId = String(wellId ?? "").trim();
+  const cleanReportId = String(reportId ?? "").trim();
+
+  if (!cleanReportId) {
+    return {
+      wellId: cleanWellId,
+      ...legacyReportScope(),
+    };
+  }
+
+  return {
+    wellId: cleanWellId,
+    $or: [
+      { reportId: cleanReportId },
+      { reportId: { $exists: false } },
+      { reportId: null },
+      { reportId: "" },
+    ],
+  };
 };

@@ -2308,6 +2308,30 @@ class AuthRepository {
   }
 
   // ══════════════════════════════════════════════════════════════════════════════
+  Future<Map<String, dynamic>> deleteOperationData({
+    required String wellId,
+    required String operationType,
+  }) async {
+    try {
+      final uri = _uriWithReportId(
+        '${baseUrl}operations/data/$wellId/$operationType',
+      );
+      print('Hitting DELETE $uri');
+      final response = await http.delete(uri, headers: _headers);
+      print('statuscode------${response.statusCode}');
+      print('response body------${response.body}');
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200,
+        'data': data,
+        'message': data['message'] ?? 'Operation data deleted successfully',
+      };
+    } catch (e) {
+      print('Error in deleteOperationData: $e');
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
   Map<String, double> calculateLocally({
     required double initial,
     required double adjust,

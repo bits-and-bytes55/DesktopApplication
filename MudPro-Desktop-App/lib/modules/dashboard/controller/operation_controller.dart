@@ -251,6 +251,7 @@ class OperationController extends GetxController {
 
   RxList<OperationType?> dropdownValues = <OperationType?>[].obs;
   RxList<bool> isDropdownOpen = <bool>[].obs;
+  final deletingOperationRowIndex = (-1).obs;
   final backendLabels = <OperationType, String>{}.obs;
 
   final Map<OperationType, String> labels = {
@@ -416,6 +417,65 @@ final RxList<String> returnLostDropdownValue =
         nextSelections[selectedRowIndex.value] == null) {
       final firstSelected = nextSelections.indexWhere((item) => item != null);
       selectedRowIndex.value = firstSelected == -1 ? 0 : firstSelected;
+    }
+  }
+
+  void _removeOperationSelectionAt(int index) {
+    if (index < 0 || index >= dropdownValues.length) return;
+
+    final rawSelections = dropdownValues.toList();
+    rawSelections.removeAt(index);
+    rawSelections.add(null);
+    final selected = rawSelections.whereType<OperationType>().toList();
+    final nextSelections = List<OperationType?>.filled(dropdownItems.length, null);
+    for (var i = 0; i < selected.length && i < nextSelections.length; i++) {
+      nextSelections[i] = selected[i];
+    }
+
+    dropdownValues.assignAll(nextSelections);
+    isDropdownOpen.assignAll(List.generate(nextSelections.length, (_) => false));
+    selectedRowIndex.value = selected.isEmpty
+        ? 0
+        : index.clamp(0, selected.length - 1).toInt();
+  }
+
+  Future<Map<String, dynamic>> deleteOperationRow(int index) async {
+    if (index < 0 || index >= dropdownValues.length) {
+      return {'success': false, 'message': 'Invalid operation row'};
+    }
+
+    final operation = dropdownValues[index];
+    if (operation == null) {
+      return {'success': true, 'message': 'No operation selected'};
+    }
+
+    final wellId = currentBackendWellId.trim();
+    if (wellId.isEmpty) {
+      return {'success': false, 'message': 'No backend well selected'};
+    }
+
+    deletingOperationRowIndex.value = index;
+    try {
+      final result = await _repository.deleteOperationData(
+        wellId: wellId,
+        operationType: operation.name,
+      );
+
+      if (result['success'] == true) {
+        if (operation == OperationType.addWater) {
+          _resetAddWaterState();
+          _loadedAddWaterWellId = wellId;
+          _loadedAddWaterReportId = reportContext.selectedReportId.value.trim();
+        }
+        _removeOperationSelectionAt(index);
+        await _refreshPitState();
+      }
+
+      return result;
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    } finally {
+      deletingOperationRowIndex.value = -1;
     }
   }
 

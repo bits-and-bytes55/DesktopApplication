@@ -35,7 +35,7 @@ class OperationPage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             /// LEFT SIDEBAR - OPERATION MENU
-            _buildLeftPanel(),
+            _buildLeftPanel(context),
             
             /// VERTICAL DIVIDER
             Container(
@@ -57,7 +57,33 @@ class OperationPage extends StatelessWidget {
 
   // ----------------- LEFT PANEL -----------------
 
- Widget _buildLeftPanel() {
+  Future<void> _deleteOperationRow(BuildContext context, int index) async {
+    final operation = index >= 0 && index < controller.dropdownValues.length
+        ? controller.dropdownValues[index]
+        : null;
+    if (operation == null) return;
+
+    final label = controller.labelFor(operation);
+    final result = await controller.deleteOperationRow(index);
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    if (messenger == null) return;
+
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          result['success'] == true
+              ? '$label deleted'
+              : (result['message']?.toString() ?? 'Delete failed'),
+        ),
+        backgroundColor:
+            result['success'] == true ? AppTheme.successColor : Colors.red,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+ Widget _buildLeftPanel(BuildContext context) {
   return Container(
     width: 280,
     decoration: BoxDecoration(
@@ -164,6 +190,9 @@ class OperationPage extends StatelessWidget {
                 itemBuilder: (context, index) {
                   return Obx(() {
                     final isSelected = controller.selectedRowIndex.value == index;
+                    final rowOperation = controller.dropdownValues[index];
+                    final isDeleting =
+                        controller.deletingOperationRowIndex.value == index;
 
                     return Container(
                       height: 36,
@@ -216,7 +245,7 @@ class OperationPage extends StatelessWidget {
                                     ),
                                   ),
                                   dropdownColor: Colors.white,
-                                  value: controller.dropdownValues[index],
+                                  value: rowOperation,
                                   onChanged: (v) {
                                     controller.dropdownValues[index] = v;
                                     controller.selectedRowIndex.value = index;
@@ -278,6 +307,34 @@ class OperationPage extends StatelessWidget {
                                   color: AppTheme.primaryColor,
                                 ),
                               ),
+                            if (rowOperation != null) ...[
+                              const SizedBox(width: 6),
+                              InkWell(
+                                onTap: isDeleting
+                                    ? null
+                                    : () => _deleteOperationRow(context, index),
+                                borderRadius: BorderRadius.circular(4),
+                                child: Container(
+                                  width: 24,
+                                  height: 24,
+                                  alignment: Alignment.center,
+                                  child: isDeleting
+                                      ? SizedBox(
+                                          width: 12,
+                                          height: 12,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: AppTheme.primaryColor,
+                                          ),
+                                        )
+                                      : Icon(
+                                          Icons.delete_outline,
+                                          size: 15,
+                                          color: Colors.red.shade400,
+                                        ),
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ),
