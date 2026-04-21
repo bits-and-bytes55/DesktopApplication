@@ -108,7 +108,7 @@ const buildConsumeProductPayload = (payload = {}, existing = {}) => {
     initial,
     adjust,
     used,
-    final: round(initial - adjust + used),
+    final: round(initial - (adjust + used)),
     cost: round(used * price),
     volumeBbl: round(calculateVolumeBbl({ used, unit, sg })),
   };
