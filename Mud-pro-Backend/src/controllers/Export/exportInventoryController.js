@@ -7,6 +7,7 @@ import Well from "../../modules/well/well.model.js";
 import Pad from "../../modules/pad/pad.model.js";
 import WellGeneral from "../../modules/wellGeneral/wellGeneralModel.js";
 import Report from "../../modules/report/report.model.js";
+import Engineer from "../../modules/engineers/engineer.model.js";
 import DrillString from "../../modules/DrillString/DrillString.js";
 import Casing from "../../modules/casing/casing.model.js";
 import Pump from "../../modules/pump/pump.model.js";
@@ -490,7 +491,8 @@ const clearDmrDynamicAreas = (ws) => {
     ["AJ36", "BS51"], ["AJ53", "BS86"], ["L92", "Q96"], ["AC92", "AI94"],
     ["AT93", "AY94"], ["BM93", "BS94"], ["AC96", "AI98"], ["AR96", "AX97"],
     ["BF97", "BS99"],
-    ["L100", "AI105"], ["AR99", "AX101"], ["BF105", "BS108"], ["AT108", "AX111"],
+    ["L100", "AI105"], ["AR99", "AX101"], ["AD106", "AX109"],
+    ["BF105", "BS108"], ["AT108", "AX111"],
   ].forEach(([start, end]) => clearRange(ws, start, end));
 };
 
@@ -1013,6 +1015,46 @@ const fillDmrSceRows = (ws, { shakers = [], otherSceRows = [] }) => {
   });
 };
 
+const normalizePersonName = (value) =>
+  text(value).toLowerCase().replace(/\s+/g, " ").trim();
+const engineerFullName = (engineer = {}) =>
+  [engineer.firstName, engineer.lastName].map((value) => text(value)).filter(Boolean).join(" ");
+const uniqueTextValues = (values = []) => {
+  const seen = new Set();
+  const result = [];
+  for (const value of values.map((item) => text(item)).filter(Boolean)) {
+    const key = value.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(value);
+  }
+  return result;
+};
+const loadExportFluidEngineers = async (wellGeneral) => {
+  const selectedNames = uniqueTextValues([wellGeneral?.engineer, wellGeneral?.engineer2]);
+  if (selectedNames.length === 0) return [];
+
+  const engineers = await Engineer.find({}).lean();
+  const byName = new Map(
+    engineers.map((engineer) => [normalizePersonName(engineerFullName(engineer)), engineer])
+  );
+
+  return selectedNames.map((name) => {
+    const match = byName.get(normalizePersonName(name));
+    return {
+      name: engineerFullName(match) || name,
+      phone: firstText(match?.cell, match?.office),
+      email: text(match?.email),
+    };
+  });
+};
+const fillDmrFluidEngineers = (ws, fluidEngineers = []) => {
+  fillRowRange(ws, 106, "AD", "AX", "Fluid Engineer(s)");
+  fillRowRange(ws, 107, "AD", "AX", fluidEngineers.map((item) => item.name).filter(Boolean).join(" / "));
+  fillRowRange(ws, 108, "AD", "AX", fluidEngineers.map((item) => item.phone).filter(Boolean).join(" / "));
+  fillRowRange(ws, 109, "AD", "AX", fluidEngineers.map((item) => item.email).filter(Boolean).join(" / "));
+};
+
 const fillDmrBitInformation = (ws, { casings = [], intervals = [], wellGeneral, reportFormat, nozzleData }) => {
   const rawBitSize =
     resolveIntervalBitSize(intervals, wellGeneral?.interval) ||
@@ -1187,6 +1229,7 @@ const fillDmrBottomSections = (ws, {
   reportFormat,
   shakers,
   otherSceRows,
+  fluidEngineers,
 }) => {
   const generatedOperationalComments = [
     text(report?.notes),
@@ -1257,6 +1300,7 @@ const fillDmrBottomSections = (ws, {
   if (wellGeneral?.onBottomTq) setCellValue(ws, "BM93", round(wellGeneral.onBottomTq, 2));
   if (wellGeneral?.offBottomTq) setCellValue(ws, "BM94", round(wellGeneral.offBottomTq, 2));
   fillDmrSceRows(ws, { shakers, otherSceRows });
+  fillDmrFluidEngineers(ws, fluidEngineers);
 
   const totalDailyCost = round(productDailyCost + engineeringDailyCost, 3);
   const costValues = [
@@ -1757,6 +1801,7 @@ export const exportInventoryReport = async (req, res) => {
         ? loadMergedPits({ wellId, reportId })
         : Pit.find({ wellId }).sort({ createdAt: 1, _id: 1 }).lean(),
     ]);
+    const fluidEngineers = await loadExportFluidEngineers(wellGeneral);
 
     const activePits = pits.filter((pit) => pit.initialActive === true);
     const reservePits = pits.filter((pit) => pit.initialActive === false);
@@ -1860,6 +1905,7 @@ export const exportInventoryReport = async (req, res) => {
       reportFormat,
       shakers,
       otherSceRows,
+      fluidEngineers,
     });
     fillInventoryHeader(inventorySheet, { well, pad, report, wellGeneral });
     fillInventorySheet(inventorySheet, {
