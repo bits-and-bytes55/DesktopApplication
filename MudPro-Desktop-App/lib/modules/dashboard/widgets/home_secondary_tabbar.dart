@@ -25,6 +25,7 @@ import 'package:mudpro_desktop_app/modules/dashboard/controller/consume_product_
 import 'package:mudpro_desktop_app/modules/dashboard/controller/drill_string_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/return_lostmud_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/mud_loss_active_system_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/nozzle_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/other_vol_addition_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/mud_loss_storage_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart';
@@ -526,6 +527,19 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
             }
           } else {
             errorMessages.add(res['message'] ?? 'Drill String save failed');
+          }
+        }
+
+        final nozzleCtrl = Get.isRegistered<NozzleController>()
+            ? Get.find<NozzleController>()
+            : null;
+        if (nozzleCtrl != null) {
+          try {
+            await nozzleCtrl
+                .saveNow()
+                .timeout(const Duration(seconds: 12));
+          } catch (e) {
+            errorMessages.add('Bit / Nozzle save failed: $e');
           }
         }
 
