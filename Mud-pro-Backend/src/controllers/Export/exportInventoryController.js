@@ -820,24 +820,23 @@ const fillMudPropertyRows = (ws, { mudReportState, activePits, fluidName, wellGe
     (key) => (key === "pv" || key.startsWith("pv ")) && !key.includes("for")
   );
   const yp = findMudRow(mudReportState, (key) => key === "yp" || key.startsWith("yp "));
-  const r600r300 = findMudRow(
+  const gel10s = findMudRow(
     mudReportState,
-    (key) => key.includes("r600") && key.includes("r300")
+    (key) =>
+      key.includes("gel") &&
+      (key.includes("10s") || key.includes("10 s") || key.includes("10 sec"))
   );
-  const r200r100 = findMudRow(
+  const gel10m = findMudRow(
     mudReportState,
-    (key) => key.includes("r200") && key.includes("r100")
+    (key) =>
+      key.includes("gel") &&
+      (key.includes("10m") || key.includes("10 m") || key.includes("10 min"))
   );
-  const r6r3 = findMudRow(mudReportState, (key) => key.includes("r6") && key.includes("r3"));
-  const r600 = findMudRow(mudReportState, (key) => key === "r600" || key.startsWith("r600 "));
-  const r300 = findMudRow(mudReportState, (key) => key === "r300" || key.startsWith("r300 "));
-  const r200 = findMudRow(mudReportState, (key) => key === "r200" || key.startsWith("r200 "));
-  const r100 = findMudRow(mudReportState, (key) => key === "r100" || key.startsWith("r100 "));
-  const r6 = findMudRow(mudReportState, (key) => key === "r6" || key.startsWith("r6 "));
-  const r3 = findMudRow(mudReportState, (key) => key === "r3" || key.startsWith("r3 "));
-  const gel = findMudRow(
+  const gel30m = findMudRow(
     mudReportState,
-    (key) => key.includes("gel") && (key.includes("10") || key.includes("sec"))
+    (key) =>
+      key.includes("gel") &&
+      (key.includes("30m") || key.includes("30 m") || key.includes("30 min"))
   );
   const apiFiltrate = findMudRow(
     mudReportState,
@@ -921,6 +920,7 @@ const fillMudPropertyRows = (ws, { mudReportState, activePits, fluidName, wellGe
     (key) => key.includes("solids adjusted") || key.includes("corrected solids")
   );
   const fineLcm = findMudRow(mudReportState, (key) => key.includes("fine lcm"));
+  const coarseLcm = findMudRow(mudReportState, (key) => key.includes("coarse lcm"));
 
   const activeDensity = firstMeaningfulText(activePits[0]?.density, activePits[1]?.density);
   const rowValues = {
@@ -934,32 +934,32 @@ const fillMudPropertyRows = (ws, { mudReportState, activePits, fluidName, wellGe
     43: buildMudGroups(tempForPv),
     44: buildMudGroups(pv),
     45: buildMudGroups(yp),
-    46: buildMudRatioGroups(r600r300, r600, r300),
-    47: buildMudRatioGroups(r200r100, r200, r100),
-    48: buildMudRatioGroups(r6r3, r6, r3),
-    49: buildMudGroups(gel),
-    50: buildMudGroups(apiFiltrate),
-    51: buildMudGroups(apiCake),
-    52: buildMudGroups(hthpTemp),
-    53: buildMudGroups(hthpFiltrate),
-    54: buildMudGroups(hthpCake),
-    55: buildMudGroups(solids),
-    56: buildMudGroups(oil),
-    57: buildMudGroups(water),
-    58: buildMudGroups(sand),
-    59: buildMudGroups(mbt),
-    60: buildMudGroups(ph),
-    61: buildMudGroups(mudAlkalinity),
-    62: buildMudGroups(filtratePf),
-    63: buildMudGroups(filtrateMf),
-    64: buildMudGroups(calcium),
-    65: buildMudGroups(chlorides),
-    66: buildMudGroups(totalHardness),
-    67: buildMudGroups(excessLime),
-    68: buildMudGroups(potassium),
-    69: buildMudGroups(makeUpWaterChlorides),
-    70: buildMudGroups(solidsAdjusted),
-    71: buildMudGroups(fineLcm),
+    46: buildMudGroups(gel10s),
+    47: buildMudGroups(gel10m),
+    48: buildMudGroups(gel30m),
+    49: buildMudGroups(apiFiltrate),
+    50: buildMudGroups(apiCake),
+    51: buildMudGroups(hthpTemp),
+    52: buildMudGroups(hthpFiltrate),
+    53: buildMudGroups(hthpCake),
+    54: buildMudGroups(solids),
+    55: buildMudGroups(oil),
+    56: buildMudGroups(water),
+    57: buildMudGroups(sand),
+    58: buildMudGroups(mbt),
+    59: buildMudGroups(ph),
+    60: buildMudGroups(mudAlkalinity),
+    61: buildMudGroups(filtratePf),
+    62: buildMudGroups(filtrateMf),
+    63: buildMudGroups(calcium),
+    64: buildMudGroups(chlorides),
+    65: buildMudGroups(totalHardness),
+    66: buildMudGroups(excessLime),
+    67: buildMudGroups(potassium),
+    68: buildMudGroups(makeUpWaterChlorides),
+    69: buildMudGroups(solidsAdjusted),
+    70: buildMudGroups(fineLcm),
+    71: buildMudGroups(coarseLcm),
   };
 
   const columns = [["P", "T"], ["U", "Y"], ["Z", "AD"], ["AE", "AI"]];
@@ -1029,10 +1029,16 @@ const shakerScreenInfo = (row = {}) => {
 };
 const otherSceModelInfo = (row = {}) =>
   [row.model1, row.model2, row.model3].map((value) => text(value)).filter(Boolean).join("/");
+const sceHours = (row = {}) => roundOrBlank(firstMeaningfulText(row.time, row.hours), 2);
+const otherSceInInfo = (row = {}) =>
+  firstMeaningfulText(row.uf, row.in, row.inPpg, row.inlet, row.inletPpg, otherSceModelInfo(row));
+const otherSceOutInfo = (row = {}) =>
+  firstMeaningfulText(row.of, row.out, row.outPpg, row.outlet, row.outletPpg);
 const fillDmrSceRows = (ws, { shakers = [], otherSceRows = [] }) => {
   const shakerRows = [...shakers]
     .filter((row) =>
       sceHasText(row, [
+        "shaker",
         "model",
         "screens",
         "screen1",
@@ -1051,13 +1057,13 @@ const fillDmrSceRows = (ws, { shakers = [], otherSceRows = [] }) => {
 
   [97, 98, 99].forEach((row, index) => {
     const item = shakerRows[index];
-    fillRowRange(ws, row, "AY", "BE", "Shaker");
+    fillRowRange(ws, row, "AY", "BE", firstText(item?.shaker, "Shaker"));
     fillRowRange(ws, row, "BF", "BO", item ? shakerScreenInfo(item) : "");
-    fillRowRange(ws, row, "BP", "BS", item ? roundOrBlank(item.time, 2) : "");
+    fillRowRange(ws, row, "BP", "BS", item ? sceHours(item) : "");
   });
 
   const availableOtherRows = otherSceRows.filter((row) =>
-    sceHasText(row, ["model1", "model2", "model3", "uf", "of", "time"])
+    sceHasText(row, ["type", "model1", "model2", "model3", "uf", "of", "time"])
   );
   const byType = new Map(
     availableOtherRows.map((row) => [normalizeSceKey(row.type), row])
@@ -1074,9 +1080,9 @@ const fillDmrSceRows = (ws, { shakers = [], otherSceRows = [] }) => {
       byType.get(key) ||
       availableOtherRows.find((candidate) => normalizeSceKey(candidate.type).includes(key));
     fillRowRange(ws, row, "AY", "BE", firstText(item?.type, label));
-    fillRowRange(ws, row, "BF", "BJ", item ? firstText(item.uf, otherSceModelInfo(item)) : "");
-    fillRowRange(ws, row, "BK", "BO", item ? text(item.of) : "");
-    fillRowRange(ws, row, "BP", "BS", item ? roundOrBlank(item.time, 2) : "");
+    fillRowRange(ws, row, "BF", "BJ", item ? otherSceInInfo(item) : "");
+    fillRowRange(ws, row, "BK", "BO", item ? otherSceOutInfo(item) : "");
+    fillRowRange(ws, row, "BP", "BS", item ? sceHours(item) : "");
   });
 };
 
