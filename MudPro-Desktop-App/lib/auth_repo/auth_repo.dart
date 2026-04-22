@@ -1795,7 +1795,7 @@ class AuthRepository {
   Future<Map<String, dynamic>> getShakers(String wellId) async {
     try {
       final response = await http.get(
-        Uri.parse('${baseUrl}sce/shakers/$wellId'),
+        _uriWithReportId('${baseUrl}sce/shakers/$wellId'),
         headers: _headers,
       );
       final data = jsonDecode(response.body);
@@ -1817,9 +1817,9 @@ class AuthRepository {
   ) async {
     try {
       final response = await http.post(
-        Uri.parse('${baseUrl}sce/shakers/$wellId'),
+        _uriWithReportId('${baseUrl}sce/shakers/$wellId'),
         headers: _headers,
-        body: jsonEncode(shakerData),
+        body: jsonEncode(_payloadWithReportId(shakerData)),
       );
       final data = jsonDecode(response.body);
       if (response.statusCode == 201 || response.statusCode == 200) {
@@ -1841,9 +1841,9 @@ class AuthRepository {
   ) async {
     try {
       final response = await http.put(
-        Uri.parse('${baseUrl}sce/shakers/$id'),
+        _uriWithReportId('${baseUrl}sce/shakers/$id'),
         headers: _headers,
-        body: jsonEncode(shakerData),
+        body: jsonEncode(_payloadWithReportId(shakerData)),
       );
       final data = jsonDecode(response.body);
       if (response.statusCode == 200) {
@@ -1882,7 +1882,7 @@ class AuthRepository {
   Future<Map<String, dynamic>> getOtherSce(String wellId) async {
     try {
       final response = await http.get(
-        Uri.parse('${baseUrl}sce/other-sce/$wellId'),
+        _uriWithReportId('${baseUrl}sce/other-sce/$wellId'),
         headers: _headers,
       );
       final data = jsonDecode(response.body);
@@ -1904,9 +1904,9 @@ class AuthRepository {
   ) async {
     try {
       final response = await http.post(
-        Uri.parse('${baseUrl}sce/other-sce/$wellId'),
+        _uriWithReportId('${baseUrl}sce/other-sce/$wellId'),
         headers: _headers,
-        body: jsonEncode(sceData),
+        body: jsonEncode(_payloadWithReportId(sceData)),
       );
       final data = jsonDecode(response.body);
       if (response.statusCode == 201 || response.statusCode == 200) {
@@ -1928,9 +1928,9 @@ class AuthRepository {
   ) async {
     try {
       final response = await http.put(
-        Uri.parse('${baseUrl}sce/other-sce/$id'),
+        _uriWithReportId('${baseUrl}sce/other-sce/$id'),
         headers: _headers,
-        body: jsonEncode(sceData),
+        body: jsonEncode(_payloadWithReportId(sceData)),
       );
       final data = jsonDecode(response.body);
       if (response.statusCode == 200) {

@@ -26,6 +26,7 @@ import MudReportState from "../../modules/mudReport/MudReportState.js";
 import SolidsAnalysis from "../../modules/SolidAnalysis/solidanalysismodel.js";
 import { Shaker, OtherSce } from "../../modules/sce/sce.model.js";
 import EmptyFluidActiveSystem from "../../modules/emptyfluidactivesystem/EmptyFluidActiveSystem.js";
+import Nozzle from "../../modules/nozzle/nozzle.model.js";
 
 const TEMPLATE_PATH = fileURLToPath(
   new URL("../../../assets/template.xlsx", import.meta.url)
@@ -1012,7 +1013,42 @@ const fillDmrSceRows = (ws, { shakers = [], otherSceRows = [] }) => {
   });
 };
 
-const fillDmrTopSections = (ws, { drillStrings, casings, summary, activePits, fluidName, wellGeneral, consumeProducts, mudReportState, solidsAnalysisRows }) => {
+const fillDmrBitInformation = (ws, { casings = [], intervals = [], wellGeneral, reportFormat, nozzleData }) => {
+  const rawBitSize =
+    resolveIntervalBitSize(intervals, wellGeneral?.interval) ||
+    parseFraction(casings.find((item) => text(item?.bit))?.bit);
+  const bitSize = rawBitSize
+    ? round(convertLength(rawBitSize, "in", reportFormat.diameterUnit), reportFormat.digits)
+    : "";
+  const nozzles = Array.isArray(nozzleData?.nozzles) ? nozzleData.nozzles : [];
+
+  fillRowRange(ws, 13, "BE", "BK", "Bit Type");
+  fillRowRange(ws, 13, "BL", "BS", "");
+  fillRowRange(ws, 14, "BE", "BK", "Bit Model");
+  fillRowRange(ws, 14, "BL", "BS", "");
+  fillRowRange(
+    ws,
+    15,
+    "BE",
+    "BK",
+    `Bit Size (${unitSuffix(reportFormat.diameterUnit, "in")})`
+  );
+  fillRowRange(ws, 15, "BL", "BS", bitSize);
+  fillRowRange(ws, 16, "BE", "BS", "Nozzles");
+  fillRowRange(ws, 17, "BE", "BK", "Number");
+  fillRowRange(ws, 17, "BL", "BS", "Size");
+
+  [18, 19, 20].forEach((row, index) => {
+    const nozzle = nozzles[index];
+    fillRowRange(ws, row, "BE", "BK", nozzle ? roundOrBlank(nozzle.count, 0) : "");
+    fillRowRange(ws, row, "BL", "BS", nozzle ? roundOrBlank(nozzle.size32, 0) : "");
+  });
+
+  fillRowRange(ws, 21, "BE", "BK", "TFA (in2)");
+  fillRowRange(ws, 21, "BL", "BS", round(toNumber(nozzleData?.tfa), 3));
+};
+
+const fillDmrTopSections = (ws, { drillStrings, casings, summary, activePits, fluidName, wellGeneral, consumeProducts, mudReportState, solidsAnalysisRows, intervals, reportFormat, nozzleData }) => {
   for (let index = 0; index < 8; index += 1) {
     const row = 14 + index;
     const drill = drillStrings[index];
@@ -1028,13 +1064,12 @@ const fillDmrTopSections = (ws, { drillStrings, casings, summary, activePits, fl
     );
     const casingOd = firstMeaningfulText(casing?.od, casing?.id, casing?.bit);
     const casingShoe = firstMeaningfulText(casing?.shoe, casing?.top);
-    const bitValue = firstMeaningfulText(casing?.bit, casing?.id, casing?.od);
     setCellValue(ws, `AJ${row}`, casingLabel);
     setCellValue(ws, `AS${row}`, roundOrBlank(casingOd, 3));
     setCellValue(ws, `AY${row}`, roundOrBlank(casingShoe, 2));
-    setCellValue(ws, `BE${row}`, bitValue);
-    setCellValue(ws, `BL${row}`, text(casing?.toc));
   }
+
+  fillDmrBitInformation(ws, { casings, intervals, wellGeneral, reportFormat, nozzleData });
 
   [
     ["M24", summary.startingVolume], ["N24", summary.startingVolume], ["O24", summary.startingVolume],
@@ -1618,6 +1653,54 @@ const loadExportSolidsAnalysis = async ({ wellId, reportId }) => {
   return [];
 };
 
+const loadExportSceRows = async (Model, { wellId, reportId }, sort = { createdAt: 1, _id: 1 }) => {
+  if (!wellId && !reportId) return [];
+
+  const queries = [];
+  if (wellId && reportId) {
+    queries.push({ wellId, reportId });
+  }
+  if (wellId) {
+    queries.push({ wellId, ...legacyReportScopeForModel(Model) });
+    queries.push({ wellId });
+  }
+  if (reportId) {
+    queries.push({ reportId });
+  }
+
+  for (const query of queries) {
+    const rows = await Model.find(query).sort(sort).lean();
+    if (rows.length > 0) return rows;
+  }
+
+  return [];
+};
+
+const loadExportNozzle = async ({ wellId, reportId }) => {
+  if (!wellId && !reportId) return null;
+
+  const queries = [];
+  if (wellId && reportId) {
+    queries.push({ wellId, reportId });
+  }
+  if (wellId) {
+    queries.push({ wellId, ...legacyReportScopeForModel(Nozzle) });
+    queries.push({ wellId });
+  }
+  if (reportId) {
+    queries.push({ reportId });
+  }
+
+  for (const query of queries) {
+    const row = await Nozzle.findOne(query)
+      .sort({ updatedAt: -1, createdAt: -1, _id: -1 })
+      .lean();
+    if (row) return row;
+  }
+
+  return null;
+};
+
 export const exportInventoryReport = async (req, res) => {
   try {
     const { wellId } = req.params;
@@ -1631,7 +1714,7 @@ export const exportInventoryReport = async (req, res) => {
     const [
       inventoryData, activities, well, drillStrings, casings, pumps, consumeProducts,
       liveServices, liveEngineering, addWaterRows, receiveMudRows, returnLostRows, transferRows, otherVolRows, mudLossRows, mudLossStorageRows,
-      allOtherVolRows, intervals, mudReportState, solidsAnalysisRows, shakers, otherSceRows, emptyFluidRows,
+      allOtherVolRows, intervals, mudReportState, solidsAnalysisRows, shakers, otherSceRows, emptyFluidRows, nozzleData,
     ] = await Promise.all([
       loadInventorySnapshot({ wellId, reportId }),
       loadReportScopedList(Activity, {
@@ -1658,9 +1741,10 @@ export const exportInventoryReport = async (req, res) => {
       Interval.find({ wellId }).sort({ order: 1, createdAt: 1, _id: 1 }).lean(),
       loadExportMudReportState({ wellId, reportId }),
       loadExportSolidsAnalysis({ wellId, reportId }),
-      loadReportScopedList(Shaker, { wellId, reportId, sort: { createdAt: 1, _id: 1 } }),
-      loadReportScopedList(OtherSce, { wellId, reportId, sort: { createdAt: 1, _id: 1 } }),
+      loadExportSceRows(Shaker, { wellId, reportId }),
+      loadExportSceRows(OtherSce, { wellId, reportId }),
       loadReportScopedList(EmptyFluidActiveSystem, { wellId, reportId }),
+      loadExportNozzle({ wellId, reportId }),
     ]);
     if (!well) {
       return res.status(404).json({ success: false, message: "Well not found" });
@@ -1759,6 +1843,9 @@ export const exportInventoryReport = async (req, res) => {
       consumeProducts,
       mudReportState,
       solidsAnalysisRows,
+      intervals,
+      reportFormat,
+      nozzleData,
     });
     fillDmrBottomSections(dmrSheet, {
       report,
