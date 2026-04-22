@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:mudpro_desktop_app/api_endpoint/api_endpoint.dart';
 import 'package:mudpro_desktop_app/modules/daily_report/controller/inventory_snapshot_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/mud_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/nozzle_controller.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
@@ -23,6 +24,9 @@ class ExportController {
     final reportId = reportContext.selectedReportId.value.trim();
     if (Get.isRegistered<MudController>()) {
       await Get.find<MudController>().saveMudReportState(force: true);
+    }
+    if (Get.isRegistered<NozzleController>()) {
+      await Get.find<NozzleController>().saveNow();
     }
 
     final snapshotResult = await InventorySnapshotController()
