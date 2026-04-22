@@ -17,8 +17,8 @@ class NozzleEntry {
         area = area.obs;
 
   factory NozzleEntry.fromJson(Map<String, dynamic> json) => NozzleEntry(
-        count: (json['count'] ?? 1) as int,
-        size32: (json['size32'] ?? 0) as int,
+        count: ((json['count'] ?? 1) as num).toInt(),
+        size32: ((json['size32'] ?? 0) as num).toInt(),
         diameterInch: ((json['diameterInch'] ?? 0) as num).toDouble(),
         area: ((json['area'] ?? 0) as num).toDouble(),
       );
@@ -33,15 +33,25 @@ class NozzleEntry {
 
 class NozzleModel {
   String? id;
+  String bitType;
+  String bitModel;
   List<NozzleEntry> nozzles;
   double tfa;
 
-  NozzleModel({this.id, required this.nozzles, this.tfa = 0});
+  NozzleModel({
+    this.id,
+    this.bitType = '',
+    this.bitModel = '',
+    required this.nozzles,
+    this.tfa = 0,
+  });
 
   factory NozzleModel.fromJson(Map<String, dynamic> json) {
     final List<dynamic> nozzleList = json['nozzles'] ?? [];
     return NozzleModel(
       id: json['_id']?.toString(),
+      bitType: json['bitType']?.toString() ?? '',
+      bitModel: json['bitModel']?.toString() ?? '',
       nozzles: nozzleList.map((n) => NozzleEntry.fromJson(n)).toList(),
       tfa: ((json['tfa'] ?? 0) as num).toDouble(),
     );

@@ -23,6 +23,18 @@ const nozzleSchema = new mongoose.Schema({
     default: "",
   },
 
+  bitType: {
+    type: String,
+    trim: true,
+    default: "",
+  },
+
+  bitModel: {
+    type: String,
+    trim: true,
+    default: "",
+  },
+
   nozzles: [
     {
       count: { type: Number, required: true },

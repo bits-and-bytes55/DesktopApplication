@@ -11,6 +11,8 @@ class NozzleController extends GetxController {
   final String baseUrl = ApiEndpoint.baseUrl;
 
   final entries = <NozzleEntry>[].obs;
+  final bitType = ''.obs;
+  final bitModel = ''.obs;
   final tfa = 0.0.obs;
   final isLoading = false.obs;
   final isSaving = false.obs;
@@ -85,6 +87,8 @@ class NozzleController extends GetxController {
     if (clearSavedId) {
       _savedId = null;
     }
+    bitType.value = '';
+    bitModel.value = '';
     tfa.value = 0;
     entries.clear();
     for (int i = 0; i < _minRows; i++) {
@@ -120,6 +124,16 @@ class NozzleController extends GetxController {
   void onCellChanged(int rowIndex) {
     recalculateTfa();
     _ensureExtraRow();
+    _scheduleAutoSave();
+  }
+
+  void onBitInfoChanged({String? type, String? model}) {
+    if (type != null) {
+      bitType.value = type;
+    }
+    if (model != null) {
+      bitModel.value = model;
+    }
     _scheduleAutoSave();
   }
 
@@ -163,6 +177,8 @@ class NozzleController extends GetxController {
         if (data.isNotEmpty) {
           final model = NozzleModel.fromJson(data.first);
           _savedId = model.id;
+          bitType.value = model.bitType;
+          bitModel.value = model.bitModel;
           tfa.value = model.tfa;
 
           entries.clear();
@@ -193,7 +209,11 @@ class NozzleController extends GetxController {
   // ─── SAVE (POST if new, PUT if exists) ──────────────────────────
   Future<void> _saveToServer() async {
     final nozzlesWithData = entries.where((e) => e.hasData).toList();
-    if (nozzlesWithData.isEmpty && (_savedId == null || _savedId!.isEmpty)) {
+    final hasBitInfo =
+        bitType.value.trim().isNotEmpty || bitModel.value.trim().isNotEmpty;
+    if (nozzlesWithData.isEmpty &&
+        !hasBitInfo &&
+        (_savedId == null || _savedId!.isEmpty)) {
       tfa.value = 0;
       return;
     }
@@ -202,6 +222,8 @@ class NozzleController extends GetxController {
       isSaving.value = true;
 
       final body = jsonEncode(_withScope({
+        'bitType': bitType.value.trim(),
+        'bitModel': bitModel.value.trim(),
         'nozzles': nozzlesWithData.map((e) => e.toJson()).toList(),
       }));
 
@@ -229,6 +251,8 @@ class NozzleController extends GetxController {
         final json = jsonDecode(response.body);
         final model = NozzleModel.fromJson(json['data']);
         _savedId = model.id;
+        bitType.value = model.bitType;
+        bitModel.value = model.bitModel;
         // Update TFA from server response (authoritative)
         tfa.value = model.tfa;
       }

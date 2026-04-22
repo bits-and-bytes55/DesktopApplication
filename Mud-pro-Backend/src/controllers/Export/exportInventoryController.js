@@ -1023,9 +1023,9 @@ const fillDmrBitInformation = (ws, { casings = [], intervals = [], wellGeneral, 
   const nozzles = Array.isArray(nozzleData?.nozzles) ? nozzleData.nozzles : [];
 
   fillRowRange(ws, 13, "BE", "BK", "Bit Type");
-  fillRowRange(ws, 13, "BL", "BS", "");
+  fillRowRange(ws, 13, "BL", "BS", text(nozzleData?.bitType));
   fillRowRange(ws, 14, "BE", "BK", "Bit Model");
-  fillRowRange(ws, 14, "BL", "BS", "");
+  fillRowRange(ws, 14, "BL", "BS", text(nozzleData?.bitModel));
   fillRowRange(
     ws,
     15,
@@ -1045,7 +1045,7 @@ const fillDmrBitInformation = (ws, { casings = [], intervals = [], wellGeneral, 
   });
 
   fillRowRange(ws, 21, "BE", "BK", "TFA (in2)");
-  fillRowRange(ws, 21, "BL", "BS", round(toNumber(nozzleData?.tfa), 3));
+  fillRowRange(ws, 21, "BL", "BS", roundOrBlank(nozzleData?.tfa, 3));
 };
 
 const fillDmrTopSections = (ws, { drillStrings, casings, summary, activePits, fluidName, wellGeneral, consumeProducts, mudReportState, solidsAnalysisRows, intervals, reportFormat, nozzleData }) => {

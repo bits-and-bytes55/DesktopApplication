@@ -57,6 +57,9 @@ const processNozzles = (inputNozzles = []) => {
   return { processedNozzles, totalTFA: +totalTFA.toFixed(4) };
 };
 
+const hasBitInfoInput = (body = {}) =>
+  Boolean(toText(body.bitType) || toText(body.bitModel));
+
 const resolveScope = (req, existing = {}) => {
   const wellId = normalizeObjectId(readWellId(req) || existing.wellId);
   const reportId = normalizeObjectId(readReportId(req) || existing.reportId);
@@ -134,6 +137,8 @@ const buildPayload = ({
   existing = {},
   processedNozzles = [],
   totalTFA = 0,
+  bitType,
+  bitModel,
   wellId,
   reportId,
   reportNo,
@@ -142,6 +147,8 @@ const buildPayload = ({
   wellId: wellId || null,
   reportId: reportId || null,
   reportNo: reportId ? reportNo : "",
+  bitType: bitType !== undefined ? toText(bitType) : toText(existing.bitType),
+  bitModel: bitModel !== undefined ? toText(bitModel) : toText(existing.bitModel),
   nozzles: processedNozzles,
   tfa: totalTFA,
 });
@@ -156,7 +163,7 @@ export const createNozzle = async (req, res) => {
     }
 
     const { processedNozzles, totalTFA } = processNozzles(req.body.nozzles);
-    if (processedNozzles.length === 0) {
+    if (processedNozzles.length === 0 && !hasBitInfoInput(req.body)) {
       return res.status(400).json({
         success: false,
         message: "Nozzle data is required",
@@ -172,6 +179,8 @@ export const createNozzle = async (req, res) => {
             existing: scopedExisting,
             processedNozzles,
             totalTFA,
+            bitType: req.body.bitType,
+            bitModel: req.body.bitModel,
             wellId: scope.wellId,
             reportId: scope.reportId,
             reportNo: scope.reportNo,
@@ -192,6 +201,8 @@ export const createNozzle = async (req, res) => {
           existing: legacyExisting,
           processedNozzles,
           totalTFA,
+          bitType: req.body.bitType,
+          bitModel: req.body.bitModel,
           wellId: scope.wellId,
           reportId: "",
           reportNo: "",
@@ -206,6 +217,8 @@ export const createNozzle = async (req, res) => {
       buildPayload({
         processedNozzles,
         totalTFA,
+        bitType: req.body.bitType,
+        bitModel: req.body.bitModel,
         wellId: scope.wellId,
         reportId: scope.reportId,
         reportNo: scope.reportNo,
@@ -257,6 +270,8 @@ export const updateNozzle = async (req, res) => {
             existing: targetExisting.toObject(),
             processedNozzles,
             totalTFA,
+            bitType: req.body.bitType,
+            bitModel: req.body.bitModel,
             wellId: scope.wellId,
             reportId: scope.reportId,
             reportNo: scope.reportNo,
@@ -272,6 +287,8 @@ export const updateNozzle = async (req, res) => {
           existing: existing.toObject(),
           processedNozzles,
           totalTFA,
+          bitType: req.body.bitType,
+          bitModel: req.body.bitModel,
           wellId: scope.wellId,
           reportId: scope.reportId,
           reportNo: scope.reportNo,
@@ -287,6 +304,8 @@ export const updateNozzle = async (req, res) => {
         existing: existing.toObject(),
         processedNozzles,
         totalTFA,
+        bitType: req.body.bitType,
+        bitModel: req.body.bitModel,
         wellId: scope.wellId,
         reportId: scope.reportId,
         reportNo: scope.reportNo,
