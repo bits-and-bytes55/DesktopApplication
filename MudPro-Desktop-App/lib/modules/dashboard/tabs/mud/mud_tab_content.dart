@@ -4,6 +4,7 @@ import 'package:mudpro_desktop_app/modules/dashboard/controller/mud_controller.d
 import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/tabs/mud/apply_rheology_page.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/tabs/mud/solid_analysis_page.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class MudView extends StatefulWidget {
@@ -369,6 +370,71 @@ class _MudViewState extends State<MudView> {
   // Auto-calc fields → yellow read-only display (like rheology calculated rows)
   // PV / YP and all other fields → editable TextField (unchanged)
   // ═══════════════════════════════════════════════════════════════════════════
+  String _mudPropertyLabel(String name, String storedUnit) {
+    final unit = _dynamicMudUnit(name, storedUnit);
+    return unit.isEmpty ? name : '$name ($unit)';
+  }
+
+  String _dynamicMudUnit(String name, String storedUnit) {
+    final key = name.toLowerCase().replaceAll('*', '').trim();
+    final raw = storedUnit.trim();
+
+    if (key == 'ph' || raw == '-') return '';
+    if (key.contains('flowline') ||
+        key.contains('t. for pv') ||
+        key.contains('t. for hthp') ||
+        key.contains('hthp temp') ||
+        key.contains('rheology temp')) {
+      return AppUnits.strip(AppUnits.temperature);
+    }
+    if (key == 'depth' || key.startsWith('depth ')) {
+      return AppUnits.strip(AppUnits.length);
+    }
+    if (key == 'mw' || key.startsWith('mw ') || key.contains('mud weight')) {
+      return AppUnits.strip(AppUnits.mudWeight);
+    }
+    if (key.contains('funnel')) {
+      return AppUnits.strip(AppUnits.funnelViscosity);
+    }
+    if (key == 'pv' || key.startsWith('pv ')) {
+      return AppUnits.strip(AppUnits.viscosity);
+    }
+    if (key == 'yp' || key.startsWith('yp ') || key.contains('gel str')) {
+      return AppUnits.strip(AppUnits.yieldPoint);
+    }
+    if (key.contains('cake thickness')) {
+      return AppUnits.strip(AppUnits.nozzleDiameter);
+    }
+    if (key.contains('filtrate') && !key.contains('alkalinity')) {
+      final volumeUnit = AppUnits.strip(AppUnits.fluidVolume);
+      return raw.toLowerCase().contains('30min') ? '$volumeUnit/30min' : volumeUnit;
+    }
+    if (key.contains('solids') ||
+        key == 'oil' ||
+        key == 'water' ||
+        key.contains('sand content')) {
+      return '%';
+    }
+    if (key.contains('mbt') ||
+        key.contains('excess lime') ||
+        key.contains('lcm')) {
+      return AppUnits.strip(AppUnits.massVolumeRatio);
+    }
+    if (key.contains('alkalinity')) {
+      return AppUnits.strip(AppUnits.fluidVolume);
+    }
+    if (key.contains('calcium') ||
+        key.contains('chloride') ||
+        key.contains('hardness') ||
+        key == 'k+' ||
+        key == 'k') {
+      return AppUnits.strip(AppUnits.concentration);
+    }
+
+    if (raw.isEmpty) return '';
+    return AppUnits.strip(AppUnits.unitText(raw));
+  }
+
   Widget _propertyRow(String name, List<RxString> values, bool isLast) {
     final isAutoCalc = _isAutoCalcField(name);
 
@@ -390,8 +456,9 @@ class _MudViewState extends State<MudView> {
               border: Border(
                   right: BorderSide(color: Colors.grey.shade200))),
           child: Obx(() {
+            AppUnits.signature;
             final unit = c.propertyUnits[name] ?? '';
-            final displayName = unit.isNotEmpty ? '$name ($unit)' : name;
+            final displayName = _mudPropertyLabel(name, unit);
             return Row(
               children: [
                 Expanded(

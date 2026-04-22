@@ -385,7 +385,9 @@ class MudController extends GetxController {
     for (final row in _legacyWaterBasedRows) {
       ordered.add(byName.remove(row.name) ?? row);
     }
-    ordered.addAll(byName.values);
+    ordered.addAll(
+      byName.values.where((item) => _shouldKeepExtraWaterBasedRow(item.name)),
+    );
     return ordered;
   }
 
@@ -411,6 +413,14 @@ class MudController extends GetxController {
   bool _matchesWaterBasedRow(String key, String rowName) {
     final row = _normalizeLabel(rowName);
     if (key == row) return true;
+    if (row == 't. for pv' &&
+        (key.contains('rheology temp') || key.contains('temp for pv') || key.contains('temperature for pv'))) {
+      return true;
+    }
+    if (row == 't. for hthp' &&
+        (key.contains('hthp temp') || key.contains('temp for hthp') || key.contains('temperature for hthp'))) {
+      return true;
+    }
     if (row == 'gel str. 10s' && key.contains('gel') && key.contains('10s')) return true;
     if (row == 'gel str. 10m' && key.contains('gel') && key.contains('10m')) return true;
     if (row == 'gel str. 30m' && key.contains('gel') && key.contains('30m')) return true;
@@ -428,6 +438,44 @@ class MudController extends GetxController {
     if (row == 'chlorides' && key.contains('chloride') && !key.contains('make') && !key.contains('calcium')) return true;
     return false;
   }
+
+  bool _shouldKeepExtraWaterBasedRow(String name) {
+    final key = _normalizeLabel(name);
+    final oilOnlyRows = [
+      'r600',
+      'r300',
+      'r200',
+      'r100',
+      'r6',
+      'r3',
+      'corrected solids',
+      'oil/water ratio',
+      'whole mud alkalinity',
+      'whole mud alkalinity (pom)',
+      'electrical stability',
+      'whole mud chlorides',
+      'cacl2 concentration',
+      'cacl2',
+      'water phase salinity',
+      'water phase salinity (wps)',
+      'brine density',
+      'water activity',
+      'salt content water phase',
+      'wps',
+      'nacl2 wt.',
+      'nacl2',
+    ];
+    if (oilOnlyRows.any((row) => key == row || key.startsWith('$row '))) {
+      return false;
+    }
+    if (key.contains('oil/water ratio') || key.contains('water phase salinity')) {
+      return false;
+    }
+    return true;
+  }
+
+  bool _isLegacyWaterBasedRow(String name) =>
+      _legacyWaterBasedRows.any((row) => row.name == name);
 
   String _normalizeLabel(String value) => value
       .toLowerCase()
@@ -500,6 +548,11 @@ class MudController extends GetxController {
       final targetKey = selectedFluidType.value == 'Water-based'
           ? _canonicalWaterBasedProperty(key).name
           : key;
+      if (selectedFluidType.value == 'Water-based' &&
+          !_isLegacyWaterBasedRow(targetKey) &&
+          !_shouldKeepExtraWaterBasedRow(key)) {
+        return;
+      }
       propertyTable.putIfAbsent(
         targetKey,
         () => List.generate(samples.length, (_) => ''.obs),

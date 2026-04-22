@@ -24,6 +24,8 @@ import { Interval } from "../../modules/wellInterval/intervalModel.js";
 import { loadMergedPits } from "../../utils/pitReportState.js";
 import MudReportState from "../../modules/mudReport/MudReportState.js";
 import SolidsAnalysis from "../../modules/SolidAnalysis/solidanalysismodel.js";
+import { Shaker, OtherSce } from "../../modules/sce/sce.model.js";
+import EmptyFluidActiveSystem from "../../modules/emptyfluidactivesystem/EmptyFluidActiveSystem.js";
 
 const TEMPLATE_PATH = fileURLToPath(
   new URL("../../../assets/template.xlsx", import.meta.url)
@@ -406,6 +408,39 @@ const computeDrilledVolume = ({
     (depthFt * Math.PI * Math.pow(bitSizeIn / 12, 2)) / 4 / 5.614583333333333;
   return convertVolume(volumeBbl, "bbl", fluidVolumeUnit);
 };
+const calculatePipeVolume = ({ id, length }) => {
+  const idIn = toNumber(id);
+  const lengthFt = toNumber(length);
+  if (idIn <= 0 || lengthFt <= 0) return 0;
+  return (idIn * idIn * lengthFt) / 1029.4;
+};
+const calculateHoleVolume = (casing, mdInFeet) => {
+  const id = toNumber(casing?.id || casing?.od || casing?.bit);
+  const md = toNumber(mdInFeet);
+  const top = toNumber(casing?.top);
+  const shoe = toNumber(casing?.shoe);
+
+  if (id <= 0) return 0;
+
+  let length = 0;
+  if (md > 0 && shoe > 0) {
+    length = Math.max(0, Math.min(md, shoe) - top);
+  } else if (md > 0) {
+    length = Math.max(0, md - top);
+  } else if (shoe > 0) {
+    length = Math.max(0, shoe - top);
+  }
+
+  if (length <= 0) {
+    length = md > 0 ? md : shoe;
+  }
+
+  return length > 0 ? calculatePipeVolume({ id, length }) : 0;
+};
+const isActiveSystemTarget = (value) =>
+  text(value).toLowerCase() === "active system";
+const activeReserveText = (active, reserve) =>
+  `${round(active)}/${round(reserve)}`;
 const buildReportFormat = (req) => ({
   lengthUnit: text(req.query.lengthUnit, "(ft)"),
   diameterUnit: text(req.query.diameterUnit, "(in)"),
@@ -454,7 +489,7 @@ const clearDmrDynamicAreas = (ws) => {
     ["AJ36", "BS51"], ["AJ53", "BS86"], ["L92", "Q96"], ["AC92", "AI94"],
     ["AT93", "AY94"], ["BM93", "BS94"], ["AC96", "AI98"], ["AR96", "AX97"],
     ["BF97", "BS99"],
-    ["L100", "AI105"], ["AR99", "AX101"], ["AT108", "AX111"],
+    ["L100", "AI105"], ["AR99", "AX101"], ["BF105", "BS108"], ["AT108", "AX111"],
   ].forEach(([start, end]) => clearRange(ws, start, end));
 };
 
@@ -469,32 +504,109 @@ const clearInventoryDynamicAreas = (ws) => {
 };
 
 const computeVolumeSummary = ({
-  activePits,
-  productsUsed,
-  addWaterRows,
-  receiveMudRows,
-  transferRows,
-  returnLostRows,
-  otherVolRows,
-  mudLossRows,
-  mudLossStorageRows,
+  activePits = [],
+  reservePits = [],
+  drillStrings = [],
+  casings = [],
+  wellGeneral,
+  productsUsed = [],
+  addWaterRows = [],
+  receiveMudRows = [],
+  transferRows = [],
+  returnLostRows = [],
+  otherVolRows = [],
+  mudLossRows = [],
+  mudLossStorageRows = [],
+  emptyFluidRows = [],
 }) => {
   const currentActiveVolume = sumBy(activePits, (pit) => getActivePitVolume(pit));
+  const reserveVolume = sumBy(reservePits, (pit) => getPitVolume(pit));
+  const activeWaterAddition = sumBy(
+    addWaterRows.filter((item) => isActiveSystemTarget(item.to)),
+    (item) => item.volume
+  );
+  const reserveWaterAddition = sumBy(
+    addWaterRows.filter((item) => !isActiveSystemTarget(item.to)),
+    (item) => item.volume
+  );
+  const activeReceived = sumBy(
+    receiveMudRows.filter((item) => isActiveSystemTarget(item.to)),
+    (item) => item.netVolume || item.volume
+  );
+  const reserveReceived = sumBy(
+    receiveMudRows.filter((item) => !isActiveSystemTarget(item.to)),
+    (item) => item.netVolume || item.volume
+  );
   const totalWaterAddition = sumBy(addWaterRows, (item) => item.volume);
   const totalReceived = sumBy(receiveMudRows, (item) => item.netVolume || item.volume);
   const totalProductAddition = sumBy(productsUsed, (item) => item.volumeBbl);
   const totalOtherAddition = sumBy(otherVolRows, (item) => item.totalVolume);
+  const volumeNotFluid = sumBy(otherVolRows, (item) => item.volumeNotFluid);
   const totalTransferOut = sumBy(transferRows, (item) => item.totalTransferVol);
   const totalReturned = sumBy(returnLostRows, (item) => item.volReturned);
-  const totalLoss =
-    sumBy(mudLossRows, (item) => item.totalLoss) +
-    sumBy(mudLossStorageRows, (item) => item.totalLoss);
+  const totalReturnLost = sumBy(returnLostRows, (item) => item.volLost);
+  const emptyDumpLoss = sumBy(
+    emptyFluidRows.filter((item) => text(item.actionType).toLowerCase() === "dump"),
+    (item) => item.volume || item.totalVolume
+  );
+  const emptyTransferOut = sumBy(
+    emptyFluidRows.filter((item) => text(item.actionType).toLowerCase() === "transfer to storage"),
+    (item) => item.volume || item.totalVolume
+  );
+  const activeMudLoss = sumBy(mudLossRows, (item) => item.totalLoss);
+  const reserveMudLoss = sumBy(mudLossStorageRows, (item) => item.totalLoss);
+  const totalLoss = activeMudLoss + reserveMudLoss + totalReturnLost + emptyDumpLoss;
   const totalAdditions =
     totalWaterAddition + totalReceived + totalProductAddition + totalOtherAddition;
-  const totalTransfersOut = totalTransferOut + totalReturned;
+  const totalTransfersOut = totalTransferOut + totalReturned + emptyTransferOut;
   const estimatedStartingVolume = Math.max(
     0,
     currentActiveVolume - totalAdditions + totalTransfersOut + totalLoss
+  );
+  const drillstringVolume = sumBy(drillStrings, (item) =>
+    calculatePipeVolume({ id: item.id, length: item.length })
+  );
+  const casingForHole = [...casings]
+    .reverse()
+    .find((item) => toNumber(item.id || item.od || item.bit) > 0);
+  const downholeVolume = calculateHoleVolume(
+    casingForHole,
+    firstMeaningfulText(wellGeneral?.md, wellGeneral?.depthDrilled)
+  );
+  const annularVolume = Math.max(0, downholeVolume - drillstringVolume);
+  const lossBreakdown = {
+    shakersHydroclones: sumBy(mudLossRows, (item) => item.shakers),
+    cuttingsRetention: sumBy(mudLossRows, (item) => item.cuttingsRetention),
+    centrifuge: sumBy(mudLossRows, (item) => item.centrifuge),
+    evaporation:
+      sumBy(mudLossRows, (item) => item.evaporation) +
+      sumBy(mudLossStorageRows, (item) => item.evaporation),
+    dumped:
+      sumBy(mudLossRows, (item) => item.dump) +
+      sumBy(mudLossStorageRows, (item) => item.dump) +
+      emptyDumpLoss,
+    formation: sumBy(mudLossRows, (item) => item.formation),
+    pitCleaning:
+      sumBy(mudLossRows, (item) => item.pitCleaning) +
+      sumBy(mudLossStorageRows, (item) => item.pitCleaning),
+    tripping: sumBy(mudLossRows, (item) => item.tripping),
+    others:
+      sumBy(mudLossRows, (item) =>
+        toNumber(item.seepage) +
+        toNumber(item.abandonInHole) +
+        toNumber(item.leftBehindCasing) +
+        toNumber(item.extraLossVolume)
+      ) + totalReturnLost,
+  };
+  const activeBuilt = activeWaterAddition + activeReceived + totalProductAddition + totalOtherAddition;
+  const reserveBuilt = reserveWaterAddition + reserveReceived;
+  const returnedActive = sumBy(
+    returnLostRows.filter((item) => isActiveSystemTarget(item.from)),
+    (item) => item.volReturned
+  );
+  const returnedReserve = sumBy(
+    returnLostRows.filter((item) => !isActiveSystemTarget(item.from)),
+    (item) => item.volReturned
   );
 
   return {
@@ -510,6 +622,18 @@ const computeVolumeSummary = ({
     returnToWarehouse: round(totalReturned),
     totalTransfersOut: round(totalTransfersOut),
     totalLoss: round(totalLoss),
+    reserveVolume: round(reserveVolume),
+    annularVolume: round(annularVolume),
+    drillstringVolume: round(drillstringVolume),
+    downholeVolume: round(downholeVolume),
+    totalCircVolume: round(currentActiveVolume + downholeVolume),
+    volumeBelowBit: 0,
+    dailyVolBuilt: activeReserveText(activeBuilt, reserveBuilt),
+    dailyVolLost: activeReserveText(activeMudLoss + totalReturnLost + emptyDumpLoss, reserveMudLoss),
+    dailyVolReturned: activeReserveText(returnedActive, returnedReserve),
+    volumeNotFluid: round(volumeNotFluid),
+    totalRigsiteVolume: round(currentActiveVolume + reserveVolume),
+    lossBreakdown,
     finalActiveVolume: round(currentActiveVolume),
   };
 };
@@ -815,6 +939,79 @@ const fillDmrSolidsAnalysisRows = (ws, solidsAnalysisRows = []) => {
   });
 };
 
+const normalizeSceKey = (value) => text(value).toLowerCase().replace(/\s+/g, " ").trim();
+const sceHasText = (row = {}, fields = []) =>
+  fields.some((field) => text(row?.[field]));
+const shakerSortValue = (row = {}) => {
+  const number = Number(text(row.shaker).match(/\d+/)?.[0]);
+  return Number.isFinite(number) ? number : 999;
+};
+const shakerScreenInfo = (row = {}) => {
+  const screens = [
+    row.screen1,
+    row.screen2,
+    row.screen3,
+    row.screen4,
+    row.screen5,
+    row.screen6,
+    row.screen7,
+    row.screen8,
+  ].map((value) => text(value)).filter(Boolean);
+  return firstText(screens.join("/"), row.screens, row.model);
+};
+const otherSceModelInfo = (row = {}) =>
+  [row.model1, row.model2, row.model3].map((value) => text(value)).filter(Boolean).join("/");
+const fillDmrSceRows = (ws, { shakers = [], otherSceRows = [] }) => {
+  const shakerRows = [...shakers]
+    .filter((row) =>
+      sceHasText(row, [
+        "model",
+        "screens",
+        "screen1",
+        "screen2",
+        "screen3",
+        "screen4",
+        "screen5",
+        "screen6",
+        "screen7",
+        "screen8",
+        "time",
+      ])
+    )
+    .sort((left, right) => shakerSortValue(left) - shakerSortValue(right))
+    .slice(0, 3);
+
+  [97, 98, 99].forEach((row, index) => {
+    const item = shakerRows[index];
+    fillRowRange(ws, row, "AY", "BE", "Shaker");
+    fillRowRange(ws, row, "BF", "BO", item ? shakerScreenInfo(item) : "");
+    fillRowRange(ws, row, "BP", "BS", item ? roundOrBlank(item.time, 2) : "");
+  });
+
+  const availableOtherRows = otherSceRows.filter((row) =>
+    sceHasText(row, ["model1", "model2", "model3", "uf", "of", "time"])
+  );
+  const byType = new Map(
+    availableOtherRows.map((row) => [normalizeSceKey(row.type), row])
+  );
+
+  [
+    [105, "Degasser"],
+    [106, "Desander"],
+    [107, "Desilter"],
+    [108, "Centrifuge"],
+  ].forEach(([row, label]) => {
+    const key = normalizeSceKey(label);
+    const item =
+      byType.get(key) ||
+      availableOtherRows.find((candidate) => normalizeSceKey(candidate.type).includes(key));
+    fillRowRange(ws, row, "AY", "BE", firstText(item?.type, label));
+    fillRowRange(ws, row, "BF", "BJ", item ? firstText(item.uf, otherSceModelInfo(item)) : "");
+    fillRowRange(ws, row, "BK", "BO", item ? text(item.of) : "");
+    fillRowRange(ws, row, "BP", "BS", item ? roundOrBlank(item.time, 2) : "");
+  });
+};
+
 const fillDmrTopSections = (ws, { drillStrings, casings, summary, activePits, fluidName, wellGeneral, consumeProducts, mudReportState, solidsAnalysisRows }) => {
   for (let index = 0; index < 8; index += 1) {
     const row = 14 + index;
@@ -864,6 +1061,62 @@ const fillDmrTopSections = (ws, { drillStrings, casings, summary, activePits, fl
     ["AY34", summary.finalActiveVolume],
   ].forEach(([address, value]) => setCellValue(ws, address, value));
 
+  [
+    ["M23", "Daily"], ["P23", "Cum. Int."], ["AB23", "Daily"], ["AF23", "Cum. Int."],
+  ].forEach(([address, value]) => setCellValue(ws, address, value));
+
+  [
+    [24, summary.startingVolume],
+    [25, summary.receivedFromReserve],
+    [26, summary.productAddition],
+    [27, summary.weightMaterialAddition],
+    [28, summary.baseOilAddition],
+    [29, summary.waterAddition],
+    [30, summary.wholeFluidAddition],
+    [31, summary.totalAdditions],
+    [32, summary.transferToReserve],
+    [33, summary.returnToWarehouse],
+    [34, summary.totalTransfersOut],
+  ].forEach(([row, value]) => {
+    fillRowRange(ws, row, "M", "R", value);
+  });
+
+  [
+    [24, "Shakers/Hydroclones", summary.lossBreakdown?.shakersHydroclones],
+    [25, "Cuttings Retention", summary.lossBreakdown?.cuttingsRetention],
+    [26, "Centrifuge", summary.lossBreakdown?.centrifuge],
+    [27, "Evaporation", summary.lossBreakdown?.evaporation],
+    [28, "Dumped", summary.lossBreakdown?.dumped],
+    [29, "Formation", summary.lossBreakdown?.formation],
+    [30, "Pit Cleaning", summary.lossBreakdown?.pitCleaning],
+    [31, "Tripping", summary.lossBreakdown?.tripping],
+    [32, "Others", summary.lossBreakdown?.others],
+    [33, "Total Losses", summary.totalLoss],
+    [34, "Final Active Volume", summary.finalActiveVolume],
+  ].forEach(([row, label, value]) => {
+    fillRowRange(ws, row, "S", "AA", label);
+    fillRowRange(ws, row, "AB", "AE", round(value));
+    fillRowRange(ws, row, "AF", "AI", row === 34 ? "" : round(value));
+  });
+
+  [
+    [23, "Active Pit Vol", summary.finalActiveVolume],
+    [24, "Annular Volume", summary.annularVolume],
+    [25, "Drillstring Volume", summary.drillstringVolume],
+    [26, "Downhole Vol", summary.downholeVolume],
+    [27, "Total Circ. Vol", summary.totalCircVolume],
+    [28, "Vol Below Bit", summary.volumeBelowBit],
+    [29, "Reserve Vol", summary.reserveVolume],
+    [30, "Daily Vol Built (Active/Reserve)", summary.dailyVolBuilt],
+    [31, "Daily Vol Lost (Active/Reserve)", summary.dailyVolLost],
+    [32, "Daily Vol Returned (Active/Reserve)", summary.dailyVolReturned],
+    [33, "Volume Not Fluid", summary.volumeNotFluid],
+    [34, "Total Fluid Volume at Rigsite", summary.totalRigsiteVolume],
+  ].forEach(([row, label, value]) => {
+    fillRowRange(ws, row, "AJ", "AT", label);
+    fillRowRange(ws, row, "AU", "AY", value);
+  });
+
   for (let index = 0; index < 12; index += 1) {
     const row = 23 + index;
     const pit = activePits[index];
@@ -897,6 +1150,8 @@ const fillDmrBottomSections = (ws, {
   engineeringDailyCost,
   cuttingsAnalysis,
   reportFormat,
+  shakers,
+  otherSceRows,
 }) => {
   const generatedOperationalComments = [
     text(report?.notes),
@@ -966,6 +1221,7 @@ const fillDmrBottomSections = (ws, {
   if (wellGeneral?.wob) setCellValue(ws, "AT93", round(wellGeneral.wob, 2));
   if (wellGeneral?.onBottomTq) setCellValue(ws, "BM93", round(wellGeneral.onBottomTq, 2));
   if (wellGeneral?.offBottomTq) setCellValue(ws, "BM94", round(wellGeneral.offBottomTq, 2));
+  fillDmrSceRows(ws, { shakers, otherSceRows });
 
   const totalDailyCost = round(productDailyCost + engineeringDailyCost, 3);
   const costValues = [
@@ -1375,7 +1631,7 @@ export const exportInventoryReport = async (req, res) => {
     const [
       inventoryData, activities, well, drillStrings, casings, pumps, consumeProducts,
       liveServices, liveEngineering, addWaterRows, receiveMudRows, returnLostRows, transferRows, otherVolRows, mudLossRows, mudLossStorageRows,
-      allOtherVolRows, intervals, mudReportState, solidsAnalysisRows,
+      allOtherVolRows, intervals, mudReportState, solidsAnalysisRows, shakers, otherSceRows, emptyFluidRows,
     ] = await Promise.all([
       loadInventorySnapshot({ wellId, reportId }),
       loadReportScopedList(Activity, {
@@ -1402,6 +1658,9 @@ export const exportInventoryReport = async (req, res) => {
       Interval.find({ wellId }).sort({ order: 1, createdAt: 1, _id: 1 }).lean(),
       loadExportMudReportState({ wellId, reportId }),
       loadExportSolidsAnalysis({ wellId, reportId }),
+      loadReportScopedList(Shaker, { wellId, reportId, sort: { createdAt: 1, _id: 1 } }),
+      loadReportScopedList(OtherSce, { wellId, reportId, sort: { createdAt: 1, _id: 1 } }),
+      loadReportScopedList(EmptyFluidActiveSystem, { wellId, reportId }),
     ]);
     if (!well) {
       return res.status(404).json({ success: false, message: "Well not found" });
@@ -1444,6 +1703,10 @@ export const exportInventoryReport = async (req, res) => {
     const engineers = engineeringRows.length > 0 ? engineeringRows : snapshotEngineering;
     const summary = computeVolumeSummary({
       activePits,
+      reservePits,
+      drillStrings,
+      casings,
+      wellGeneral,
       productsUsed: consumeProducts,
       addWaterRows,
       receiveMudRows,
@@ -1452,6 +1715,7 @@ export const exportInventoryReport = async (req, res) => {
       otherVolRows,
       mudLossRows,
       mudLossStorageRows,
+      emptyFluidRows,
     });
     const productDailyCost = sumBy(products, (item) => item.costDollar);
     const engineeringDailyCost = sumBy(engineers, (item) => item.costDollar);
@@ -1507,6 +1771,8 @@ export const exportInventoryReport = async (req, res) => {
       engineeringDailyCost,
       cuttingsAnalysis,
       reportFormat,
+      shakers,
+      otherSceRows,
     });
     fillInventoryHeader(inventorySheet, { well, pad, report, wellGeneral });
     fillInventorySheet(inventorySheet, {
