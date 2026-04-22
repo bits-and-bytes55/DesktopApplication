@@ -265,6 +265,7 @@ class _ReturnProductViewState extends State<ReturnProductView> {
           amount: double.tryParse(row.amount) ?? 0.0,
         );
         if (result['success'] == true) {
+          _scheduleInventorySnapshotRefresh();
           _showAlert('Updated ✓');
         } else {
           _showAlert(result['message'] ?? 'Update failed', isError: true);
@@ -362,6 +363,7 @@ class _ReturnProductViewState extends State<ReturnProductView> {
           amount: double.tryParse(row.amount) ?? 0.0,
         );
         if (result['success'] == true) {
+          _scheduleInventorySnapshotRefresh();
           _showAlert('Updated ✓');
         } else {
           _showAlert(result['message'] ?? 'Update failed', isError: true);
@@ -425,24 +427,28 @@ class _ReturnProductViewState extends State<ReturnProductView> {
     if (dashboardController.isLocked.value) return;
     isSaving.value = true;
     try {
-      for (int i = 0; i < productRows.length; i++) {
+      int saved = 0;
+      final productCount = productRows.length;
+      for (int i = 0; i < productCount; i++) {
         final row = productRows[i];
         row.amount = row.amountController.text;
         if (row.selectedItem.isNotEmpty &&
-            row.amount.isNotEmpty &&
-            row.savedId == null) {
+            row.amount.isNotEmpty) {
           await _saveProductRow(i);
+          saved++;
         }
       }
-      for (int i = 0; i < packageRows.length; i++) {
+      final packageCount = packageRows.length;
+      for (int i = 0; i < packageCount; i++) {
         final row = packageRows[i];
         row.amount = row.amountController.text;
         if (row.selectedItem.isNotEmpty &&
-            row.amount.isNotEmpty &&
-            row.savedId == null) {
+            row.amount.isNotEmpty) {
           await _savePackageRow(i);
+          saved++;
         }
       }
+      if (saved == 0) _showAlert('No data to save', isError: true);
     } finally {
       isSaving.value = false;
     }

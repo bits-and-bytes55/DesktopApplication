@@ -55,21 +55,27 @@ class ProductInventoryModel {
     } else {
       unitValue = json['unit']?.toString() ?? json['Unit']?.toString() ?? "";
     }
+
+    bool boolValue(dynamic value) {
+      if (value is bool) return value;
+      final text = value?.toString().toLowerCase().trim() ?? '';
+      return text == 'true' || text == '1' || text == 'yes';
+    }
     
     return ProductInventoryModel(
       id: json['_id']?.toString(),
-      product: json['Product'] ?? "",
-      code: json['Code'] ?? "",
-      sg: json['SG']?.toString() ?? "",
+      product: json['product']?.toString() ?? json['Product']?.toString() ?? "",
+      code: json['code']?.toString() ?? json['Code']?.toString() ?? "",
+      sg: json['sg']?.toString() ?? json['SG']?.toString() ?? "",
       unit: unitValue,
       // Fix: Map 'A' from API response to price field (API uses 'A' for price)
       price: json['A']?.toString() ?? json['price']?.toString() ?? "",
       initial: json['initial']?.toString() ?? json['Initial']?.toString() ?? "",
-      group: json['Group'] ?? "",
-      volAdd: json['volAdd'] ?? false,
-      calculate: json['calculate'] ?? false,
-      plot: json['plot'] ?? false,
-      tax: json['tax'] ?? false,
+      group: json['group']?.toString() ?? json['Group']?.toString() ?? "",
+      volAdd: boolValue(json['volAdd']),
+      calculate: boolValue(json['calculate']),
+      plot: boolValue(json['plot']),
+      tax: boolValue(json['tax']),
     );
   }
 

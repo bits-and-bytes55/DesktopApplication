@@ -56,6 +56,8 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
 
   final RxInt selectedProductRow = 0.obs;
   final Rx<ProductModel?> selectedTopProduct = Rx<ProductModel?>(null);
+  final RxString selectedPreviousReportId = ''.obs;
+  final RxBool isLoadingPreviousProducts = false.obs;
   final RxBool isSavingAll = false.obs;
   final Map<String, double> _receiveProductTotals = {};
   final Map<String, double> _returnProductTotals = {};
@@ -399,6 +401,140 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     if (n.isNotEmpty && c.isNotEmpty) return '$n $c';
     if (c.isNotEmpty) return c;
     return n;
+  }
+
+  void _fillRowFromProduct(
+    ProductRowData row,
+    ProductModel product, {
+    bool clearUsage = true,
+  }) {
+    row.selectedProduct.value = product;
+    row.productName = product.product;
+    row.code = product.code;
+    row.sg = product.sg;
+    row.unit = _mergeUnit(product);
+    row.price = double.tryParse(product.a.isNotEmpty ? product.a : product.price) ?? 0.0;
+    final initD = double.tryParse(product.initial) ?? 0.0;
+    row.initial = initD != 0.0 ? product.initial : '';
+    if (clearUsage) {
+      row.adjust = '';
+      row.used = '';
+    }
+    _applyProductMovementToRow(row);
+    row.recalculate();
+  }
+
+  void _addProductFromTop(ProductModel? product) {
+    if (product == null || dashboardController.isLocked.value) return;
+
+    var index = productRows.indexWhere(
+      (row) =>
+          row.productName.trim().isEmpty &&
+          row.selectedProduct.value == null,
+    );
+    if (index < 0) {
+      productRows.add(ProductRowData());
+      productRowSaving.add(false);
+      productRowDeleting.add(false);
+      index = productRows.length - 1;
+    }
+
+    selectedProductRow.value = index;
+    _fillRowFromProduct(productRows[index], product);
+    productRows.refresh();
+    _checkAndAddProductRow();
+    _recalculateTotalVolume();
+    selectedTopProduct.value = null;
+  }
+
+  void _setFinalValue(ProductRowData row, String value, int index) {
+    final desiredFinal = double.tryParse(value.trim());
+    if (desiredFinal == null) return;
+    final initial = double.tryParse(row.initial) ?? 0.0;
+    final adjust = double.tryParse(row.adjust) ?? 0.0;
+    final base = initial + row.received - row.returned - adjust;
+    final used = base - desiredFinal;
+    row.used = used <= 0 ? '' : used.toStringAsFixed(2);
+    _onFieldChanged(index);
+    _checkAndAddProductRow();
+  }
+
+  int _reportOrderValue(dynamic report) {
+    final userNo = int.tryParse(report.userReportNo.toString().trim());
+    final reportNo = int.tryParse(report.reportNo.toString().trim());
+    return userNo ?? reportNo ?? 0;
+  }
+
+  List<dynamic> _previousReports() {
+    final currentId = reportContext.selectedReportId.value.trim();
+    final reports = reportContext.reports.toList();
+    reports.sort((a, b) {
+      final orderDiff = _reportOrderValue(a).compareTo(_reportOrderValue(b));
+      if (orderDiff != 0) return orderDiff;
+      return a.createdAt.toString().compareTo(b.createdAt.toString());
+    });
+
+    final currentIndex = reports.indexWhere((report) => report.id == currentId);
+    if (currentIndex <= 0) return const [];
+    return reports.sublist(0, currentIndex).reversed.toList();
+  }
+
+  Future<void> _loadPreviousReportProducts(String reportId) async {
+    if (reportId.isEmpty || isLoadingPreviousProducts.value) return;
+
+    isLoadingPreviousProducts.value = true;
+    try {
+      final data = await consumeProductController.getAllConsumeProducts(
+        reportIdOverride: reportId,
+      );
+      if (data.isEmpty) {
+        _showToast('Previous report me products nahi mile', isError: true);
+        return;
+      }
+
+      for (var index = productRows.length - 1; index >= 0; index--) {
+        final row = productRows[index];
+        if (row.savedId == null &&
+            row.productName.trim().isEmpty &&
+            row.selectedProduct.value == null) {
+          productRows.removeAt(index);
+          if (index < productRowSaving.length) productRowSaving.removeAt(index);
+          if (index < productRowDeleting.length) productRowDeleting.removeAt(index);
+        }
+      }
+
+      for (final item in data) {
+        final row = ProductRowData();
+        final productName = item['product']?.toString() ?? '';
+        row.productName = productName;
+        row.selectedProduct.value = _findByName(productName);
+        row.code = item['code']?.toString() ?? '';
+        row.sg = item['sg']?.toString() ?? '';
+        row.unit = item['unit']?.toString() ?? '';
+        row.price = _toDouble(item['price']);
+        row.initial = _numStr(item['initial']);
+        row.adjust = _numStr(item['adjust']);
+        row.used = '';
+        row.savedId = null;
+        _applyProductMovementToRow(row);
+        row.recalculate();
+        productRows.add(row);
+        productRowSaving.add(false);
+        productRowDeleting.add(false);
+      }
+
+      productRows.add(ProductRowData());
+      productRowSaving.add(false);
+      productRowDeleting.add(false);
+      productRows.refresh();
+      _recalculateTotalVolume();
+      _showToast('Previous products loaded');
+    } catch (e) {
+      _showToast('Previous products load failed: $e', isError: true);
+    } finally {
+      isLoadingPreviousProducts.value = false;
+      selectedPreviousReportId.value = '';
+    }
   }
 
   void _recalculateTotalVolume() {
@@ -850,7 +986,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       child: Row(children: [
         Expanded(flex: 2, child: _buildTopProductDropdown()),
         const SizedBox(width: 10),
-        Expanded(flex: 2, child: _buildDropdown(hint: "Load Previous Products", icon: Icons.history)),
+        Expanded(flex: 2, child: _buildPreviousProductsDropdown()),
         const SizedBox(width: 12),
         Expanded(flex: 2, child: Row(children: [
           Text("Input Method",
@@ -890,14 +1026,14 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                     style: AppTheme.bodySmall.copyWith(fontSize: 10),
                     overflow: TextOverflow.ellipsis))).toList(),
             onChanged: dashboardController.isLocked.value
-                ? null : (v) => selectedTopProduct.value = v,
+                ? null : _addProductFromTop,
           ),
         ))),
       ]),
     );
   }
 
-  Widget _buildDropdown({required String hint, required IconData icon}) {
+  Widget _buildPreviousProductsDropdown() {
     return Container(
       height: 32,
       padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -906,16 +1042,51 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
         border: Border.all(color: Colors.grey.shade300),
       ),
       child: Row(children: [
-        Icon(icon, size: 14, color: AppTheme.textSecondary),
+        Icon(Icons.history, size: 14, color: AppTheme.textSecondary),
         const SizedBox(width: 6),
-        Expanded(child: DropdownButtonHideUnderline(
-          child: DropdownButton<String>(
-            hint: Text(hint,
-                style: AppTheme.bodySmall.copyWith(fontSize: 10, color: AppTheme.textSecondary)),
-            icon: const Icon(Icons.arrow_drop_down, size: 16),
-            items: const [], onChanged: (_) {},
-          ),
-        )),
+        Expanded(child: Obx(() {
+          final previousReports = _previousReports();
+          return DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: selectedPreviousReportId.value.isNotEmpty &&
+                      previousReports.any((r) => r.id == selectedPreviousReportId.value)
+                  ? selectedPreviousReportId.value
+                  : null,
+              hint: Text(
+                isLoadingPreviousProducts.value
+                    ? "Loading Previous Products..."
+                    : "Load Previous Products",
+                style: AppTheme.bodySmall.copyWith(
+                  fontSize: 10,
+                  color: AppTheme.textSecondary,
+                ),
+              ),
+              icon: const Icon(Icons.arrow_drop_down, size: 16),
+              isExpanded: true,
+              isDense: true,
+              menuMaxHeight: 260,
+              items: previousReports
+                  .map(
+                    (report) => DropdownMenuItem<String>(
+                      value: report.id,
+                      child: Text(
+                        report.displayName,
+                        style: AppTheme.bodySmall.copyWith(fontSize: 10),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  )
+                  .toList(),
+              onChanged: dashboardController.isLocked.value ||
+                      isLoadingPreviousProducts.value
+                  ? null
+                  : (reportId) {
+                      selectedPreviousReportId.value = reportId ?? '';
+                      _loadPreviousReportProducts(reportId ?? '');
+                    },
+            ),
+          );
+        })),
       ]),
     );
   }
@@ -1085,20 +1256,9 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                 onChanged: locked ? null : (ProductModel? val) {
                   if (val == null) return;
                   selectedProductRow.value = i;
-                  row.selectedProduct.value = val;
-                  row.productName = val.product;
-                  row.code  = val.code;
-                  row.sg    = val.sg;
-                  row.unit  = _mergeUnit(val);
-                  row.price = double.tryParse(val.a) ?? 0.0;
-                  final initD = double.tryParse(val.initial) ?? 0.0;
-                  row.initial = initD != 0.0 ? val.initial : '';
-                  row.adjust = '';
-                  row.used   = '';
-                  _applyProductMovementToRow(row);
+                  _fillRowFromProduct(row, val);
                   productRows.refresh();
                   _checkAndAddProductRow();
-                  row.recalculate();
                   _recalculateTotalVolume();
                 },
               ),
@@ -1125,20 +1285,9 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
               onChanged: locked ? null : (ProductModel? val) {
                 if (val == null) return;
                 selectedProductRow.value = i;
-                row.selectedProduct.value = val;
-                row.productName = val.product;
-                row.code  = val.code;
-                row.sg    = val.sg;
-                row.unit  = _mergeUnit(val);
-                row.price = double.tryParse(val.a) ?? 0.0;
-                final initD = double.tryParse(val.initial) ?? 0.0;
-                row.initial = initD != 0.0 ? val.initial : '';
-                row.adjust = '';
-                row.used   = '';
-                _applyProductMovementToRow(row);
+                _fillRowFromProduct(row, val);
                 productRows.refresh();
                 _checkAndAddProductRow();
-                row.recalculate();
                 _recalculateTotalVolume();
               },
             ),
@@ -1155,14 +1304,14 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       // 6. Initial
       DataCell(_editField(
         key: ValueKey('init_${row.savedId ?? i}_${row.productName}'),
-        value: row.initial, width: 75, locked: locked,
+        value: row.initial, width: 75, locked: true,
         onChange: (v) { row.initial = v; _onFieldChanged(i); _checkAndAddProductRow(); },
       )),
 
       // 7. Adjust
       DataCell(_editField(
         key: ValueKey('adj_${row.savedId ?? i}_${row.productName}'),
-        value: row.adjust, width: 75, locked: locked,
+        value: row.adjust, width: 75, locked: true,
         onChange: (v) { row.adjust = v; _onFieldChanged(i); _checkAndAddProductRow(); },
       )),
 
@@ -1184,13 +1333,14 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
         final isFinalMode = selectedMethod.value == "Final";
 
         if (isFinalMode) {
+          final fv = row.calculatedFinal.value;
           return _editField(
             key: ValueKey('final_edit_${row.savedId ?? i}_${row.productName}'),
-            value: row.used,
+            value: row.productName.isNotEmpty ? fv.toStringAsFixed(2) : '',
             width: 75,
             locked: locked,
             highlighted: true,
-            onChange: (v) { row.used = v; _onFieldChanged(i); _checkAndAddProductRow(); },
+            onChange: (v) => _setFinalValue(row, v, i),
           );
         }
 

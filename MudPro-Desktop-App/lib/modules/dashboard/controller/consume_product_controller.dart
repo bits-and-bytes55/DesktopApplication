@@ -193,10 +193,13 @@ class ConsumeProductController {
   // ═══════════════════════════════════════════
   //  GET ALL CONSUME PRODUCTS
   // ═══════════════════════════════════════════
-  Future<List<Map<String, dynamic>>> getAllConsumeProducts() async {
+  Future<List<Map<String, dynamic>>> getAllConsumeProducts({
+    String? reportIdOverride,
+  }) async {
     try {
       final wellId = currentBackendWellId.trim();
-      final reportId = reportContext.selectedReportId.value.trim();
+      final reportId =
+          reportIdOverride?.trim() ?? reportContext.selectedReportId.value.trim();
       if (wellId.isEmpty) {
         return [];
       }
