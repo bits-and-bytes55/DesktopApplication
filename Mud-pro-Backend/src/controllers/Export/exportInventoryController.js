@@ -363,6 +363,71 @@ const calculatePumpDisplacement = (pump = {}) => {
   const constant = constants[pump.type] || 0;
   return constant ? constant * linerId * linerId * strokeLength * efficiency : 0;
 };
+const getPumpDisplacement = (pump = {}) => {
+  const saved = toNumber(pump.displacement);
+  return saved > 0 ? saved : calculatePumpDisplacement(pump);
+};
+const getPumpRateGpm = (pump = {}) => {
+  const saved = toNumber(pump.rate);
+  if (saved > 0) return saved;
+
+  const displacement = getPumpDisplacement(pump);
+  const spm = toNumber(pump.spm);
+  return displacement > 0 && spm > 0 ? displacement * spm * 42 : 0;
+};
+const summarizePumpFlow = (pumps = []) => {
+  const activePumps = pumps.filter((pump) => toNumber(pump.spm) > 0);
+  const sourcePumps = activePumps.length > 0 ? activePumps : pumps;
+
+  return sourcePumps.reduce(
+    (summary, pump) => {
+      const displacement = getPumpDisplacement(pump);
+      const spm = toNumber(pump.spm);
+      const rateGpm = getPumpRateGpm(pump);
+      const maxPumpP = toNumber(pump.maxPumpP);
+      const surfaceLineVolume = calculatePipeVolume({
+        id: pump.surfaceId,
+        length: pump.surfaceLen,
+      });
+
+      return {
+        displacementBblPerStroke:
+          summary.displacementBblPerStroke + (spm > 0 ? displacement : 0),
+        rateGpm: summary.rateGpm + rateGpm,
+        spm: summary.spm + spm,
+        maxPumpP: Math.max(summary.maxPumpP, maxPumpP),
+        surfaceLineVolume: summary.surfaceLineVolume + surfaceLineVolume,
+      };
+    },
+    {
+      displacementBblPerStroke: 0,
+      rateGpm: 0,
+      spm: 0,
+      maxPumpP: 0,
+      surfaceLineVolume: 0,
+    }
+  );
+};
+const calculateCirculationTiming = (volumeBbl, pumpFlow = {}) => {
+  const volume = toNumber(volumeBbl);
+  if (volume <= 0) return { strokes: "", minutes: "" };
+
+  const strokes =
+    pumpFlow.displacementBblPerStroke > 0
+      ? volume / pumpFlow.displacementBblPerStroke
+      : 0;
+  const minutes =
+    pumpFlow.rateGpm > 0
+      ? (volume * 42) / pumpFlow.rateGpm
+      : pumpFlow.spm > 0 && strokes > 0
+        ? strokes / pumpFlow.spm
+        : 0;
+
+  return {
+    strokes: strokes > 0 ? round(strokes, 0) : "",
+    minutes: minutes > 0 ? round(minutes, 1) : "",
+  };
+};
 const hasPumpData = (pump = {}) =>
   [
     pump.type,
@@ -489,7 +554,7 @@ const clearDmrDynamicAreas = (ws) => {
     ["W14", "AB21"], ["AC14", "AI21"], ["AJ14", "AR21"], ["AS14", "AX21"], ["AY14", "BD21"],
     ["BE14", "BK21"], ["BL14", "BS21"], ["M23", "BS34"], ["P36", "AI80"],
     ["AJ36", "BS51"], ["AJ53", "BS86"], ["L92", "Q96"], ["AC92", "AI94"],
-    ["AT93", "AY94"], ["BM93", "BS94"], ["AC96", "AI98"], ["AR96", "AX97"],
+    ["AT91", "AY94"], ["BM91", "BS94"], ["AC96", "AI98"], ["AR96", "AX102"],
     ["BF97", "BS99"],
     ["L100", "AI105"], ["AR99", "AX101"], ["AD106", "AX109"],
     ["BF105", "BS108"], ["AT108", "AX111"],
@@ -1230,6 +1295,7 @@ const fillDmrBottomSections = (ws, {
   shakers,
   otherSceRows,
   fluidEngineers,
+  costSummary,
 }) => {
   const generatedOperationalComments = [
     text(report?.notes),
@@ -1282,6 +1348,39 @@ const fillDmrBottomSections = (ws, {
     ws.getRow(105).getCell(baseColumn).value = roundOrBlank(displacement, 4);
   });
 
+  const pumpFlow = summarizePumpFlow(pumps);
+  const pumpRateAndPressure = report?.pumpRateAndPressure || {};
+  const pumpPressure = firstMeaningfulText(
+    pumpRateAndPressure.pumpPressure,
+    pumpFlow.maxPumpP
+  );
+  const pumpRate = firstMeaningfulText(
+    pumpRateAndPressure.pumpRate,
+    pumpFlow.rateGpm
+  );
+  const circulationVolumes = [
+    [99, summary.drillstringVolume + pumpFlow.surfaceLineVolume],
+    [100, summary.annularVolume],
+    [101, summary.drillstringVolume + summary.annularVolume + pumpFlow.surfaceLineVolume],
+    [102, summary.finalActiveVolume],
+  ];
+
+  setCellValue(ws, "AT91", roundOrBlank(wellGeneral?.rpm, 2));
+  setCellValue(ws, "AT92", roundOrBlank(wellGeneral?.rop, 2));
+  setCellValue(ws, "AT93", roundOrBlank(wellGeneral?.wob, 2));
+  setCellValue(ws, "AT94", roundOrBlank(wellGeneral?.bottomT, 2));
+  setCellValue(ws, "BM91", roundOrBlank(wellGeneral?.puWt, 2));
+  setCellValue(ws, "BM92", roundOrBlank(wellGeneral?.soWt, 2));
+  setCellValue(ws, "BM93", roundOrBlank(wellGeneral?.onBottomTq, 2));
+  setCellValue(ws, "BM94", roundOrBlank(wellGeneral?.offBottomTq, 2));
+  fillRowRange(ws, 96, "AR", "AX", roundOrBlank(pumpPressure, 2));
+  fillRowRange(ws, 97, "AR", "AX", roundOrBlank(pumpRate, 2));
+  circulationVolumes.forEach(([row, volume]) => {
+    const timing = calculateCirculationTiming(volume, pumpFlow);
+    fillRowRange(ws, row, "AR", "AS", timing.strokes);
+    fillRowRange(ws, row, "AT", "AX", timing.minutes);
+  });
+
   setCellValue(
     ws,
     "AJ104",
@@ -1295,23 +1394,22 @@ const fillDmrBottomSections = (ws, {
   setCellValue(ws, "AT104", round(cuttingsAnalysis.depthDrilled, reportFormat.digits));
   setCellValue(ws, "AT105", round(cuttingsAnalysis.volumeDrilled, reportFormat.digits));
 
-  if (wellGeneral?.depthDrilled) setCellValue(ws, "AE94", round(wellGeneral.depthDrilled, 2));
-  if (wellGeneral?.wob) setCellValue(ws, "AT93", round(wellGeneral.wob, 2));
-  if (wellGeneral?.onBottomTq) setCellValue(ws, "BM93", round(wellGeneral.onBottomTq, 2));
-  if (wellGeneral?.offBottomTq) setCellValue(ws, "BM94", round(wellGeneral.offBottomTq, 2));
   fillDmrSceRows(ws, { shakers, otherSceRows });
   fillDmrFluidEngineers(ws, fluidEngineers);
 
-  const totalDailyCost = round(productDailyCost + engineeringDailyCost, 3);
+  const totalDailyCost = round(
+    costSummary?.totalDailyCost ?? productDailyCost + engineeringDailyCost,
+    3
+  );
   const costValues = [
-    round(productDailyCost, 3),
-    round(productDailyCost, 3),
-    round(engineeringDailyCost, 3),
-    round(engineeringDailyCost, 3),
-    round(productDailyCost, 3),
-    round(engineeringDailyCost, 3),
+    round(costSummary?.dailyProductCost ?? productDailyCost, 3),
+    round(costSummary?.sectionProductCost ?? productDailyCost, 3),
+    round(costSummary?.dailyEngineeringCost ?? engineeringDailyCost, 3),
+    round(costSummary?.sectionEngineeringCost ?? engineeringDailyCost, 3),
+    round(costSummary?.cumProductCost ?? productDailyCost, 3),
+    round(costSummary?.cumEngineeringCost ?? engineeringDailyCost, 3),
     totalDailyCost,
-    totalDailyCost,
+    round(costSummary?.totalWellCost ?? totalDailyCost, 3),
   ];
   DMR_COST_VALUE_CELLS.forEach((address, index) => setCellValue(ws, address, costValues[index] ?? ""));
 };
@@ -1395,6 +1493,7 @@ const fillInventorySheet = (ws, {
   summary,
   cuttingsAnalysis,
   reportFormat,
+  costSummary,
 }) => {
   writeRows(ws, PRODUCT_ROWS, PRODUCT_COLUMNS, products, (item) => ({
     A: item.itemName || "",
@@ -1457,10 +1556,19 @@ const fillInventorySheet = (ws, {
     W: "",
   }));
 
-  const totalDailyCost = round(productDailyCost + engineeringDailyCost, 3);
+  const totalDailyCost = round(
+    costSummary?.totalDailyCost ?? productDailyCost + engineeringDailyCost,
+    3
+  );
   clearCells(ws, COST_SUMMARY_VALUE_CELLS);
-  [["G94", productDailyCost],["G95", productDailyCost],["G96", engineeringDailyCost],["G97", engineeringDailyCost],
-   ["G98", productDailyCost],["G99", engineeringDailyCost],["G100", totalDailyCost],["G101", totalDailyCost]].forEach(
+  [["G94", costSummary?.dailyProductCost ?? productDailyCost],
+   ["G95", costSummary?.sectionProductCost ?? productDailyCost],
+   ["G96", costSummary?.dailyEngineeringCost ?? engineeringDailyCost],
+   ["G97", costSummary?.sectionEngineeringCost ?? engineeringDailyCost],
+   ["G98", costSummary?.cumProductCost ?? productDailyCost],
+   ["G99", costSummary?.cumEngineeringCost ?? engineeringDailyCost],
+   ["G100", totalDailyCost],
+   ["G101", costSummary?.totalWellCost ?? totalDailyCost]].forEach(
     ([address, value]) => setCellValue(ws, address, round(value, 3))
   );
 
@@ -1584,6 +1692,151 @@ const loadInventorySnapshot = async ({ wellId, reportId }) => {
   return InventorySnapshot.find({ wellId })
     .sort({ category: 1, itemName: 1 })
     .lean();
+};
+
+const normalizeCostCategory = (value) => text(value).toLowerCase();
+const isProductCostCategory = (category) =>
+  normalizeCostCategory(category) === "product";
+const isEngineeringCostCategory = (category) =>
+  ["service", "engineering", "package"].includes(normalizeCostCategory(category));
+const snapshotCost = (row = {}) =>
+  toNumber(row.costDollar) || toNumber(row.subtotal) || toNumber(row.totalDollar);
+const summarizeCostRows = (rows = []) => {
+  const productCost = sumBy(
+    rows.filter((row) => isProductCostCategory(row.category)),
+    snapshotCost
+  );
+  const engineeringCost = sumBy(
+    rows.filter((row) => isEngineeringCostCategory(row.category)),
+    snapshotCost
+  );
+
+  return {
+    productCost: round(productCost, 3),
+    engineeringCost: round(engineeringCost, 3),
+    totalCost: round(productCost + engineeringCost, 3),
+    hasRows: rows.length > 0,
+  };
+};
+const reportOrderNumber = (report = {}) => {
+  const parsed = Number(text(report.userReportNo || report.reportNo));
+  return Number.isFinite(parsed) ? parsed : null;
+};
+const reportTimeValue = (report = {}) =>
+  new Date(report.reportDate || report.createdAt || report.updatedAt || 0).getTime() || 0;
+const sortReportsForCost = (reports = []) =>
+  [...reports].sort((left, right) => {
+    const leftNumber = reportOrderNumber(left);
+    const rightNumber = reportOrderNumber(right);
+    if (leftNumber !== null && rightNumber !== null && leftNumber !== rightNumber) {
+      return leftNumber - rightNumber;
+    }
+
+    const timeDiff = reportTimeValue(left) - reportTimeValue(right);
+    if (timeDiff !== 0) return timeDiff;
+    return text(left._id).localeCompare(text(right._id));
+  });
+const loadCostReportIds = async ({ wellId, reportId, report }) => {
+  if (!wellId || !reportId) return [];
+
+  const reports = sortReportsForCost(await Report.find({ wellId }).lean());
+  if (reports.length === 0) return [];
+
+  const currentId = text(reportId || report?._id);
+  const currentReport =
+    reports.find((item) => text(item._id) === currentId) || report || null;
+  if (!currentReport) return reports.map((item) => text(item._id)).filter(Boolean);
+
+  const currentNumber = reportOrderNumber(currentReport);
+  if (currentNumber !== null) {
+    return reports
+      .filter((item) => {
+        const itemNumber = reportOrderNumber(item);
+        if (itemNumber !== null) return itemNumber <= currentNumber;
+        return reportTimeValue(item) <= reportTimeValue(currentReport);
+      })
+      .map((item) => text(item._id))
+      .filter(Boolean);
+  }
+
+  const currentIndex = reports.findIndex((item) => text(item._id) === currentId);
+  return (currentIndex >= 0 ? reports.slice(0, currentIndex + 1) : reports)
+    .map((item) => text(item._id))
+    .filter(Boolean);
+};
+const loadDmrCostSummary = async ({
+  wellId,
+  reportId,
+  report,
+  wellGeneral,
+  currentRows,
+  fallbackProductCost,
+  fallbackEngineeringCost,
+}) => {
+  const daily = summarizeCostRows(currentRows);
+  let cumulativeRows = currentRows;
+  let sectionRows = currentRows;
+
+  const reportIds = await loadCostReportIds({ wellId, reportId, report });
+  if (reportIds.length > 0) {
+    const historyRows = await InventorySnapshot.find({
+      wellId,
+      reportId: { $in: reportIds },
+    }).lean();
+
+    if (historyRows.length > 0) {
+      cumulativeRows = historyRows;
+      const currentInterval = normalizeIntervalKey(wellGeneral?.interval);
+
+      if (currentInterval) {
+        const wellGeneralRows = await WellGeneral.find({
+          wellId,
+          reportId: { $in: reportIds },
+        })
+          .select("reportId interval")
+          .lean();
+        const sectionReportIds = new Set(
+          wellGeneralRows
+            .filter((item) => normalizeIntervalKey(item.interval) === currentInterval)
+            .map((item) => text(item.reportId))
+            .filter(Boolean)
+        );
+
+        sectionRows =
+          sectionReportIds.size > 0
+            ? historyRows.filter((item) => sectionReportIds.has(text(item.reportId)))
+            : historyRows;
+      } else {
+        sectionRows = historyRows;
+      }
+    }
+  }
+
+  const section = summarizeCostRows(sectionRows);
+  const cumulative = summarizeCostRows(cumulativeRows);
+  const dailyProductCost = daily.hasRows ? daily.productCost : round(fallbackProductCost, 3);
+  const dailyEngineeringCost = daily.hasRows
+    ? daily.engineeringCost
+    : round(fallbackEngineeringCost, 3);
+  const sectionProductCost = section.hasRows ? section.productCost : dailyProductCost;
+  const sectionEngineeringCost = section.hasRows
+    ? section.engineeringCost
+    : dailyEngineeringCost;
+  const cumProductCost = cumulative.hasRows ? cumulative.productCost : dailyProductCost;
+  const cumEngineeringCost = cumulative.hasRows
+    ? cumulative.engineeringCost
+    : dailyEngineeringCost;
+
+  return {
+    dailyProductCost,
+    sectionProductCost,
+    dailyEngineeringCost,
+    sectionEngineeringCost,
+    cumProductCost,
+    cumEngineeringCost,
+    totalDailyCost: round(dailyProductCost + dailyEngineeringCost, 3),
+    totalWellCost: round(cumProductCost + cumEngineeringCost, 3),
+  };
 };
 
 const loadExportPumps = async ({ wellId, reportId }) => {
@@ -1820,6 +2073,7 @@ export const exportInventoryReport = async (req, res) => {
     const products = inventoryData.filter((item) => item.category === "Product");
     const snapshotServices = inventoryData.filter((item) => item.category === "Service");
     const snapshotEngineering = inventoryData.filter((item) => item.category === "Engineering");
+    const snapshotPackages = inventoryData.filter((item) => item.category === "Package");
     const serviceRows = normalizeServiceCostRows(liveServices, {
       category: "Service",
       nameField: "serviceName",
@@ -1846,8 +2100,20 @@ export const exportInventoryReport = async (req, res) => {
       mudLossStorageRows,
       emptyFluidRows,
     });
-    const productDailyCost = sumBy(products, (item) => item.costDollar);
-    const engineeringDailyCost = sumBy(engineers, (item) => item.costDollar);
+    const productDailyCost = sumBy(products, snapshotCost);
+    const serviceDailyCost = sumBy(services, snapshotCost);
+    const engineerDailyCost = sumBy(engineers, snapshotCost);
+    const packageDailyCost = sumBy(snapshotPackages, snapshotCost);
+    const engineeringDailyCost = serviceDailyCost + engineerDailyCost + packageDailyCost;
+    const costSummary = await loadDmrCostSummary({
+      wellId,
+      reportId,
+      report,
+      wellGeneral,
+      currentRows: inventoryData,
+      fallbackProductCost: productDailyCost,
+      fallbackEngineeringCost: engineeringDailyCost,
+    });
     const intervalBitSize = resolveIntervalBitSize(intervals, wellGeneral?.interval);
     const casingOpenHoleRows = prepareCasingOpenHoleRows({
       casings,
@@ -1906,6 +2172,7 @@ export const exportInventoryReport = async (req, res) => {
       shakers,
       otherSceRows,
       fluidEngineers,
+      costSummary,
     });
     fillInventoryHeader(inventorySheet, { well, pad, report, wellGeneral });
     fillInventorySheet(inventorySheet, {
@@ -1920,6 +2187,7 @@ export const exportInventoryReport = async (req, res) => {
       summary,
       cuttingsAnalysis,
       reportFormat,
+      costSummary,
     });
 
     const reportNumber = text(report?.userReportNo || report?.reportNo || wellGeneral?.reportNo, "1");
