@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -77,7 +78,10 @@ class CasedHoleUIController extends GetxController {
   var isLoading = false.obs;
   var isSaving = false.obs;
   Worker? _wellWorker;
+  Worker? _reportWorker;
   final List<Worker> _unitWorkers = <Worker>[];
+  Timer? _autoSaveTimer;
+  bool _isApplyingState = false;
   late String _lengthUnit;
   late String _diameterUnit;
   late String _lineDensityUnit;
@@ -105,11 +109,16 @@ class CasedHoleUIController extends GetxController {
     _wellWorker = ever<String>(padWellContext.selectedWellId, (_) {
       fetchTableCasings();
     });
+    _reportWorker = ever<String>(reportContext.selectedReportId, (_) {
+      fetchTableCasings();
+    });
   }
 
   @override
   void onClose() {
+    _autoSaveTimer?.cancel();
     _wellWorker?.dispose();
+    _reportWorker?.dispose();
     for (final worker in _unitWorkers) {
       worker.dispose();
     }
@@ -117,6 +126,23 @@ class CasedHoleUIController extends GetxController {
       e.dispose();
     }
     super.onClose();
+  }
+
+  bool get _hasSavableRows => entries.any(
+        (entry) => entry.hasContent && entry.idCtrl.text.trim().isNotEmpty,
+      );
+
+  void _scheduleAutoSave() {
+    if (_isApplyingState || isLoading.value || !_hasSavableRows) return;
+    _autoSaveTimer?.cancel();
+    _autoSaveTimer = Timer(const Duration(milliseconds: 850), () async {
+      if (_isApplyingState || isLoading.value || !_hasSavableRows) return;
+      if (isSaving.value) {
+        _scheduleAutoSave();
+        return;
+      }
+      await saveAll();
+    });
   }
 
   void _handleUnitChange() {
@@ -144,6 +170,7 @@ class CasedHoleUIController extends GetxController {
     _lengthUnit = nextLengthUnit;
     _diameterUnit = nextDiameterUnit;
     _lineDensityUnit = nextLineDensityUnit;
+    _scheduleAutoSave();
   }
 
   String _convertText(String rawValue, String fromUnit, String toUnit) {
@@ -175,6 +202,12 @@ class CasedHoleUIController extends GetxController {
   void _attachListeners(CasedHoleEntry entry) {
     entry.top.addListener(() => recalcLength(entry));
     entry.shoe.addListener(() => recalcLength(entry));
+    entry.description.addListener(_scheduleAutoSave);
+    entry.od.addListener(_scheduleAutoSave);
+    entry.wt.addListener(_scheduleAutoSave);
+    entry.idCtrl.addListener(_scheduleAutoSave);
+    entry.top.addListener(_scheduleAutoSave);
+    entry.shoe.addListener(_scheduleAutoSave);
   }
 
   void recalcLength(CasedHoleEntry e) {
@@ -248,8 +281,10 @@ class CasedHoleUIController extends GetxController {
   }
 
   Future<void> fetchTableCasings() async {
+    _autoSaveTimer?.cancel();
     if (kControllerWellId.isEmpty) return;
     isLoading.value = true;
+    _isApplyingState = true;
     try {
       final response = await http.get(
         Uri.parse('${baseUrl}casing/$kControllerWellId').replace(
@@ -299,11 +334,13 @@ class CasedHoleUIController extends GetxController {
     } catch (e) {
       print('CasedHole fetch error: $e');
     } finally {
+      _isApplyingState = false;
       isLoading.value = false;
     }
   }
 
   Future<Map<String, dynamic>> saveAll() async {
+    _autoSaveTimer?.cancel();
     if (kControllerWellId.isEmpty) {
       return {'success': false, 'message': 'No backend well selected'};
     }

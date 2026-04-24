@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
@@ -11,6 +13,8 @@ class MudLossActiveSystemController extends GetxController {
   final recordId = RxnString();
   final selectedExtraLoss = ''.obs;
   final extraLossVolumeController = TextEditingController();
+  Timer? _autoSaveTimer;
+  bool _isApplyingState = false;
 
   static const List<String> extraLossOptions = [
     'Trip Loss',
@@ -36,12 +40,21 @@ class MudLossActiveSystemController extends GetxController {
 
   Worker? _wellWorker;
   Worker? _reportWorker;
+  Worker? _extraLossWorker;
 
   String get wellId => currentBackendWellId.trim();
 
   @override
   void onInit() {
     super.onInit();
+    for (final controller in fields.values) {
+      controller.addListener(_scheduleAutoSave);
+    }
+    extraLossVolumeController.addListener(_scheduleAutoSave);
+    _extraLossWorker = ever<String>(
+      selectedExtraLoss,
+      (_) => _scheduleAutoSave(),
+    );
     load();
     _wellWorker = ever<String>(padWellContext.selectedWellId, (_) => load(force: true));
     _reportWorker = ever<String>(
@@ -52,8 +65,10 @@ class MudLossActiveSystemController extends GetxController {
 
   @override
   void onClose() {
+    _autoSaveTimer?.cancel();
     _wellWorker?.dispose();
     _reportWorker?.dispose();
+    _extraLossWorker?.dispose();
     for (final controller in fields.values) {
       controller.dispose();
     }
@@ -79,6 +94,21 @@ class MudLossActiveSystemController extends GetxController {
     recordId.value = null;
   }
 
+  bool get _hasData =>
+      recordId.value != null ||
+      selectedExtraLoss.value.trim().isNotEmpty ||
+      extraLossVolumeController.text.trim().isNotEmpty ||
+      fields.values.any((controller) => controller.text.trim().isNotEmpty);
+
+  void _scheduleAutoSave() {
+    if (_isApplyingState || isLoading.value || !_hasData) return;
+    _autoSaveTimer?.cancel();
+    _autoSaveTimer = Timer(const Duration(milliseconds: 850), () async {
+      if (_isApplyingState || isLoading.value || !_hasData) return;
+      await save();
+    });
+  }
+
   String _formatNumber(dynamic value) {
     final parsed = _parseNumber(value?.toString() ?? '');
     if (parsed == 0 && (value == null || value.toString().trim().isEmpty)) {
@@ -102,13 +132,17 @@ class MudLossActiveSystemController extends GetxController {
   }
 
   Future<void> load({bool force = false}) async {
+    _autoSaveTimer?.cancel();
     if (wellId.isEmpty) {
+      _isApplyingState = true;
       _clearFields();
+      _isApplyingState = false;
       return;
     }
     if (isLoading.value && !force) return;
 
     isLoading.value = true;
+    _isApplyingState = true;
     try {
       final result = await _repository.getMudLossList(wellId);
       if (result['success'] != true) {
@@ -140,11 +174,13 @@ class MudLossActiveSystemController extends GetxController {
     } catch (_) {
       _clearFields();
     } finally {
+      _isApplyingState = false;
       isLoading.value = false;
     }
   }
 
   Future<Map<String, dynamic>> save() async {
+    _autoSaveTimer?.cancel();
     if (wellId.isEmpty) {
       return {'success': false, 'message': 'No backend well selected'};
     }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
@@ -25,16 +27,22 @@ class ConsumeProductView extends StatefulWidget {
 }
 
 class _ConsumeProductViewState extends State<ConsumeProductView> {
-  final OperationController operationController = Get.find<OperationController>();
-  final DashboardController dashboardController = Get.find<DashboardController>();
+  final OperationController operationController =
+      Get.find<OperationController>();
+  final DashboardController dashboardController =
+      Get.find<DashboardController>();
   final PitController pitController = Get.isRegistered<PitController>()
       ? Get.find<PitController>()
       : Get.put(PitController());
   final AuthRepository _authRepository = AuthRepository();
-  final ConsumeProductController consumeProductController = ConsumeProductController();
-  final ReceiveProductController _receiveProductController = ReceiveProductController();
-  final ReturnProductController _returnProductController = ReturnProductController();
-  final InventorySnapshotController inventorySnapshotController = InventorySnapshotController();
+  final ConsumeProductController consumeProductController =
+      ConsumeProductController();
+  final ReceiveProductController _receiveProductController =
+      ReceiveProductController();
+  final ReturnProductController _returnProductController =
+      ReturnProductController();
+  final InventorySnapshotController inventorySnapshotController =
+      InventorySnapshotController();
 
   late final InventoryProductsStore _inventoryStore;
   late final ConsumeProductSaveBridge _saveBridge;
@@ -61,6 +69,8 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
   final RxBool isSavingAll = false.obs;
   final Map<String, double> _receiveProductTotals = {};
   final Map<String, double> _returnProductTotals = {};
+  final Map<int, Timer> _autoSaveProductTimers = {};
+  Timer? _autoSaveDistributionTimer;
 
   // Special option constants
   static const String kActiveSystem = 'Active System';
@@ -85,7 +95,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     });
     // Start with 1 row in distribute table
     _addDistributeRow(initialPit: kActiveSystem);
-    
+
     waterVolumeController.addListener(_recalculateTotalVolume);
 
     Future.microtask(_loadSavedDistributionState);
@@ -94,6 +104,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
         waterVolumeController.text = '';
         _recalculateTotalVolume();
       }
+      _scheduleDistributionAutoSave();
     });
 
     // Automatically rebalance distribution whenever total volume changes
@@ -144,10 +155,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       final volume = _toDouble(map['volume']);
       if (pitName.isEmpty || volume <= 0) continue;
       restoredRows.add(
-        DistributeRowData(
-          pit: pitName,
-          volume: volume.toStringAsFixed(3),
-        ),
+        DistributeRowData(pit: pitName, volume: volume.toStringAsFixed(3)),
       );
     }
 
@@ -185,10 +193,15 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
 
   @override
   void dispose() {
+    for (final timer in _autoSaveProductTimers.values) {
+      timer.cancel();
+    }
+    _autoSaveProductTimers.clear();
+    _autoSaveDistributionTimer?.cancel();
     waterVolumeController.removeListener(_recalculateTotalVolume);
     waterVolumeController.dispose();
     _saveBridge.unregister();
-    
+
     // Dispose all distribution row controllers
     for (var row in distributeRows) {
       row.volumeController.dispose();
@@ -220,13 +233,13 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
           row.selectedProduct.value = _findByName(productName);
         }
 
-        row.code    = item['code']?.toString() ?? '';
-        row.sg      = item['sg']?.toString() ?? '';
-        row.unit    = item['unit']?.toString() ?? '';
-        row.price   = _toDouble(item['price']);
+        row.code = item['code']?.toString() ?? '';
+        row.sg = item['sg']?.toString() ?? '';
+        row.unit = item['unit']?.toString() ?? '';
+        row.price = _toDouble(item['price']);
         row.initial = _numStr(item['initial']);
-        row.adjust  = _numStr(item['adjust']);
-        row.used    = _numStr(item['used']);
+        row.adjust = _numStr(item['adjust']);
+        row.used = _numStr(item['used']);
         row.savedId = item['_id']?.toString();
 
         _applyProductMovementToRow(row);
@@ -235,7 +248,9 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
         productRowSaving.add(false);
         productRowDeleting.add(false);
 
-        debugPrint('🟢 [ROW] name="$productName" code=${row.code} savedId=${row.savedId}');
+        debugPrint(
+          '🟢 [ROW] name="$productName" code=${row.code} savedId=${row.savedId}',
+        );
       }
 
       productRows.add(ProductRowData());
@@ -269,7 +284,10 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     return normalized.isEmpty ? '' : 'code:$normalized';
   }
 
-  void _addMovementTotal(Map<String, double> totals, Map<String, dynamic> item) {
+  void _addMovementTotal(
+    Map<String, double> totals,
+    Map<String, dynamic> item,
+  ) {
     final amount = _toDouble(item['amount']);
     if (amount == 0) return;
 
@@ -344,7 +362,9 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       final wellId = currentBackendWellId.trim();
       if (wellId.isEmpty) return;
 
-      final savedProducts = await InventoryProductsService.fetchProducts(wellId);
+      final savedProducts = await InventoryProductsService.fetchProducts(
+        wellId,
+      );
       if (savedProducts.isEmpty) return;
 
       _inventoryStore.setSelectedProducts(
@@ -413,7 +433,9 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     row.code = product.code;
     row.sg = product.sg;
     row.unit = _mergeUnit(product);
-    row.price = double.tryParse(product.a.isNotEmpty ? product.a : product.price) ?? 0.0;
+    row.price =
+        double.tryParse(product.a.isNotEmpty ? product.a : product.price) ??
+        0.0;
     final initD = double.tryParse(product.initial) ?? 0.0;
     row.initial = initD != 0.0 ? product.initial : '';
     if (clearUsage) {
@@ -429,8 +451,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
 
     var index = productRows.indexWhere(
       (row) =>
-          row.productName.trim().isEmpty &&
-          row.selectedProduct.value == null,
+          row.productName.trim().isEmpty && row.selectedProduct.value == null,
     );
     if (index < 0) {
       productRows.add(ProductRowData());
@@ -445,18 +466,6 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     _checkAndAddProductRow();
     _recalculateTotalVolume();
     selectedTopProduct.value = null;
-  }
-
-  void _setFinalValue(ProductRowData row, String value, int index) {
-    final desiredFinal = double.tryParse(value.trim());
-    if (desiredFinal == null) return;
-    final initial = double.tryParse(row.initial) ?? 0.0;
-    final adjust = double.tryParse(row.adjust) ?? 0.0;
-    final base = initial + row.received - row.returned - adjust;
-    final used = base - desiredFinal;
-    row.used = used <= 0 ? '' : used.toStringAsFixed(2);
-    _onFieldChanged(index);
-    _checkAndAddProductRow();
   }
 
   int _reportOrderValue(dynamic report) {
@@ -499,7 +508,8 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
             row.selectedProduct.value == null) {
           productRows.removeAt(index);
           if (index < productRowSaving.length) productRowSaving.removeAt(index);
-          if (index < productRowDeleting.length) productRowDeleting.removeAt(index);
+          if (index < productRowDeleting.length)
+            productRowDeleting.removeAt(index);
         }
       }
 
@@ -554,6 +564,53 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     return usedVal > 0 && row.price > 0;
   }
 
+  bool _hasSavableProductRow(ProductRowData row) {
+    final productName = row.selectedProduct.value?.product.isNotEmpty == true
+        ? row.selectedProduct.value!.product
+        : row.productName;
+    if (productName.trim().isEmpty) return false;
+    return row.savedId != null ||
+        row.initial.trim().isNotEmpty ||
+        row.adjust.trim().isNotEmpty ||
+        row.used.trim().isNotEmpty ||
+        row.price > 0;
+  }
+
+  void _scheduleProductAutoSave(int index) {
+    if (dashboardController.isLocked.value || index >= productRows.length)
+      return;
+    if (!_hasSavableProductRow(productRows[index])) return;
+    _autoSaveProductTimers[index]?.cancel();
+    _autoSaveProductTimers[index] = Timer(
+      const Duration(milliseconds: 650),
+      () {
+        _autoSaveProductTimers.remove(index);
+        if (!mounted ||
+            dashboardController.isLocked.value ||
+            index >= productRows.length ||
+            !_hasSavableProductRow(productRows[index])) {
+          return;
+        }
+        _saveRow(index);
+      },
+    );
+  }
+
+  void _scheduleDistributionAutoSave() {
+    if (dashboardController.isLocked.value) return;
+    _autoSaveDistributionTimer?.cancel();
+    _autoSaveDistributionTimer = Timer(
+      const Duration(milliseconds: 750),
+      () async {
+        if (!mounted || dashboardController.isLocked.value) return;
+        final result = await _saveDistributionState();
+        if (result['success'] == true) {
+          await _refreshPitStateAfterConsumeProductSave();
+        }
+      },
+    );
+  }
+
   void _onFieldChanged(int index) {
     if (index >= productRows.length) return;
     final row = productRows[index];
@@ -563,14 +620,8 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     row.recalculate();
     productRows.refresh();
     _recalculateTotalVolume();
-
-    if (_isCostCalculated(row)) {
-      Future.delayed(const Duration(milliseconds: 600), () {
-        if (index < productRows.length) {
-          _saveRow(index);
-        }
-      });
-    }
+    _scheduleProductAutoSave(index);
+    _scheduleDistributionAutoSave();
   }
 
   void _checkAndAddProductRow() {
@@ -601,17 +652,19 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       distributeRows[0].volume = '';
       distributeRows[0].volumeController.text = '';
       distributeRows.refresh();
+      _scheduleDistributionAutoSave();
       return;
     }
-    
+
     // Dispose the controller before removing to avoid leaks
     distributeRows[index].volumeController.dispose();
     distributeRows.removeAt(index);
-    
+
     if (selectedDistributeRow.value >= distributeRows.length) {
       selectedDistributeRow.value = distributeRows.length - 1;
     }
     _rebalanceDistributeVolumes();
+    _scheduleDistributionAutoSave();
   }
 
   /// Auto-fill first row with total vol when a pit is selected
@@ -623,6 +676,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       distributeRows[index].volume = '';
       distributeRows[index].volumeController.text = '';
       distributeRows.refresh();
+      _scheduleDistributionAutoSave();
       return;
     }
 
@@ -631,20 +685,23 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       _rebalanceDistributeVolumes();
     }
     distributeRows.refresh();
+    _scheduleDistributionAutoSave();
   }
 
   /// Called when user manually changes volume (triggered on every keystroke)
   void _onDistributeVolumeChanged(int index, String value) {
     // Update internal value only
     distributeRows[index].volume = value;
-    // We don't automatically trigger rebalance on every keypress for other rows 
+    // We don't automatically trigger rebalance on every keypress for other rows
     // to prevent Row 1's volume jumping while the user is typing.
     // Rebalance will happen when user clicks Calculate or on lose focus/submit.
+    _scheduleDistributionAutoSave();
   }
 
   /// Calculate button: refresh the Active System row from Total Vol.
   void _calculateDistribution() {
     _rebalanceDistributeVolumes();
+    _scheduleDistributionAutoSave();
   }
 
   /// Legacy behavior: row 0 mirrors Total Vol.; storage rows stay manual.
@@ -666,6 +723,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
   //  SAVE ROW
   // ─────────────────────────────────────────────
   Future<Map<String, dynamic>> _saveRow(int index) async {
+    _autoSaveProductTimers.remove(index)?.cancel();
     if (dashboardController.isLocked.value) {
       return {'success': false, 'message': 'Report is locked'};
     }
@@ -680,12 +738,6 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
 
     if (productName.isEmpty) {
       return {'success': false, 'message': 'Product is required'};
-    }
-    if (!_isCostCalculated(row)) {
-      return {
-        'success': false,
-        'message': 'Used quantity and price are required',
-      };
     }
 
     if (_savingInProgress.contains(index)) {
@@ -709,20 +761,20 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       if (row.savedId == null) {
         debugPrint('🆕 [CREATE] Row $index — product="$productName"');
         result = await consumeProductController.createConsumeProduct(
-          productName:  productName,
-          code:         row.code,
-          sg:           double.tryParse(row.sg) ?? 0.0,
-          unit:         row.unit,
-          price:        row.price,
-          initial:      double.tryParse(row.initial) ?? 0.0,
-          adjust:       double.tryParse(row.adjust) ?? 0.0,
-          used:         double.tryParse(row.used) ?? 0.0,
+          productName: productName,
+          code: row.code,
+          sg: double.tryParse(row.sg) ?? 0.0,
+          unit: row.unit,
+          price: row.price,
+          initial: double.tryParse(row.initial) ?? 0.0,
+          adjust: double.tryParse(row.adjust) ?? 0.0,
+          used: double.tryParse(row.used) ?? 0.0,
           numberOfBags: 1.0,
           weightPerBag: 1.0,
         );
 
         if (result['success'] == true) {
-          row.savedId     = result['data']?['_id']?.toString();
+          row.savedId = result['data']?['_id']?.toString();
           row.productName = productName;
           productRows.refresh();
           await pitController.fetchVolumeNameData();
@@ -731,17 +783,19 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
           _showToast(result['message'] ?? 'Save failed', isError: true);
         }
       } else {
-        debugPrint('✏️ [UPDATE] Row $index — product="$productName" id=${row.savedId}');
+        debugPrint(
+          '✏️ [UPDATE] Row $index — product="$productName" id=${row.savedId}',
+        );
         result = await consumeProductController.updateConsumeProduct(
-          id:           row.savedId!,
-          productName:  productName,
-          code:         row.code,
-          sg:           double.tryParse(row.sg) ?? 0.0,
-          unit:         row.unit,
-          price:        row.price,
-          initial:      double.tryParse(row.initial) ?? 0.0,
-          adjust:       double.tryParse(row.adjust) ?? 0.0,
-          used:         double.tryParse(row.used) ?? 0.0,
+          id: row.savedId!,
+          productName: productName,
+          code: row.code,
+          sg: double.tryParse(row.sg) ?? 0.0,
+          unit: row.unit,
+          price: row.price,
+          initial: double.tryParse(row.initial) ?? 0.0,
+          adjust: double.tryParse(row.adjust) ?? 0.0,
+          used: double.tryParse(row.used) ?? 0.0,
           numberOfBags: 1.0,
           weightPerBag: 1.0,
         );
@@ -767,6 +821,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
   }
 
   Future<void> _deleteRow(int index) async {
+    _autoSaveProductTimers.remove(index)?.cancel();
     if (index >= productRows.length) return;
     final row = productRows[index];
 
@@ -774,7 +829,8 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       if (productRows.length > 1) {
         productRows.removeAt(index);
         if (index < productRowSaving.length) productRowSaving.removeAt(index);
-        if (index < productRowDeleting.length) productRowDeleting.removeAt(index);
+        if (index < productRowDeleting.length)
+          productRowDeleting.removeAt(index);
         _savingInProgress.remove(index);
       } else {
         productRows[index] = ProductRowData();
@@ -790,7 +846,9 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     }
 
     try {
-      final result = await consumeProductController.deleteConsumeProduct(row.savedId!);
+      final result = await consumeProductController.deleteConsumeProduct(
+        row.savedId!,
+      );
       if (result['success'] == true) {
         _savingInProgress.remove(index);
         await _fetchAllConsumeProducts();
@@ -868,7 +926,8 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       if (reportId.isNotEmpty) 'reportId': reportId,
       'inputMethod': selectedMethod.value,
       'addWater': addWater.value,
-      'addWaterVolume': double.tryParse(waterVolumeController.text.trim()) ?? 0.0,
+      'addWaterVolume':
+          double.tryParse(waterVolumeController.text.trim()) ?? 0.0,
       'totalVolume': totalVolume,
       'distributions': distributions,
     });
@@ -889,11 +948,12 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     try {
       for (int i = 0; i < productRows.length; i++) {
         final row = productRows[i];
-        final productName = row.selectedProduct.value?.product.isNotEmpty == true
+        final productName =
+            row.selectedProduct.value?.product.isNotEmpty == true
             ? row.selectedProduct.value!.product
             : row.productName;
 
-        if (productName.isNotEmpty && _isCostCalculated(row)) {
+        if (productName.isNotEmpty && _hasSavableProductRow(row)) {
           final saveResult = await _saveRow(i);
           if (saveResult['success'] == true) {
             savedRows++;
@@ -914,7 +974,8 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
 
       await _refreshPitStateAfterConsumeProductSave();
 
-      final snapResult = await inventorySnapshotController.generateInventorySnapshot();
+      final snapResult = await inventorySnapshotController
+          .generateInventorySnapshot();
       if (snapResult['success'] != true) {
         errors.add('Snapshot: ${snapResult['message'] ?? 'Failed'}');
       }
@@ -938,19 +999,33 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
 
   void _showToast(String msg, {bool isError = false}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Row(children: [
-        Icon(isError ? Icons.error_outline : Icons.check_circle_outline,
-            color: Colors.white, size: 16),
-        const SizedBox(width: 8),
-        Expanded(child: Text(msg, style: const TextStyle(color: Colors.white, fontSize: 12))),
-      ]),
-      backgroundColor: isError ? const Color(0xffEF4444) : const Color(0xff10B981),
-      behavior: SnackBarBehavior.floating,
-      margin: const EdgeInsets.only(bottom: 20, left: 12, right: 12),
-      duration: Duration(seconds: isError ? 3 : 2),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(
+              isError ? Icons.error_outline : Icons.check_circle_outline,
+              color: Colors.white,
+              size: 16,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                msg,
+                style: const TextStyle(color: Colors.white, fontSize: 12),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: isError
+            ? const Color(0xffEF4444)
+            : const Color(0xff10B981),
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.only(bottom: 20, left: 12, right: 12),
+        duration: Duration(seconds: isError ? 3 : 2),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+      ),
+    );
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -964,13 +1039,16 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       child: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(12),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            _buildTopControls(),
-            const SizedBox(height: 10),
-            _buildProductTable(),
-            const SizedBox(height: 10),
-            _buildBottomSection(),
-          ]),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildTopControls(),
+              const SizedBox(height: 10),
+              _buildProductTable(),
+              const SizedBox(height: 10),
+              _buildBottomSection(),
+            ],
+          ),
         ),
       ),
     );
@@ -980,23 +1058,36 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white, borderRadius: BorderRadius.circular(4),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(4),
         border: Border.all(color: Colors.grey.shade300),
       ),
-      child: Row(children: [
-        Expanded(flex: 2, child: _buildTopProductDropdown()),
-        const SizedBox(width: 10),
-        Expanded(flex: 2, child: _buildPreviousProductsDropdown()),
-        const SizedBox(width: 12),
-        Expanded(flex: 2, child: Row(children: [
-          Text("Input Method",
-              style: AppTheme.bodySmall.copyWith(fontWeight: FontWeight.w600, fontSize: 10)),
+      child: Row(
+        children: [
+          Expanded(flex: 2, child: _buildTopProductDropdown()),
           const SizedBox(width: 10),
-          _buildRadioBtn("Used"),
-          const SizedBox(width: 6),
-          _buildRadioBtn("Final"),
-        ])),
-      ]),
+          Expanded(flex: 2, child: _buildPreviousProductsDropdown()),
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 2,
+            child: Row(
+              children: [
+                Text(
+                  "Input Method",
+                  style: AppTheme.bodySmall.copyWith(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 10,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                _buildRadioBtn("Used"),
+                const SizedBox(width: 6),
+                _buildRadioBtn("Final"),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1005,31 +1096,62 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       height: 32,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
-        color: Colors.white, borderRadius: BorderRadius.circular(3),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(3),
         border: Border.all(color: Colors.grey.shade300),
       ),
-      child: Row(children: [
-        Icon(Icons.inventory_2_outlined, size: 14, color: AppTheme.textSecondary),
-        const SizedBox(width: 6),
-        Expanded(child: Obx(() => DropdownButtonHideUnderline(
-          child: DropdownButton<ProductModel>(
-            value: selectedTopProduct.value != null &&
-                products.any((p) => p.id == selectedTopProduct.value?.id)
-                ? selectedTopProduct.value : null,
-            hint: Text("Select Products",
-                style: AppTheme.bodySmall.copyWith(fontSize: 10, color: AppTheme.textSecondary)),
-            icon: const Icon(Icons.arrow_drop_down, size: 16),
-            isExpanded: true, isDense: true, menuMaxHeight: 300,
-            items: products.where((p) => p.id != null).map((p) =>
-              DropdownMenuItem(value: p,
-                child: Text(p.product,
-                    style: AppTheme.bodySmall.copyWith(fontSize: 10),
-                    overflow: TextOverflow.ellipsis))).toList(),
-            onChanged: dashboardController.isLocked.value
-                ? null : _addProductFromTop,
+      child: Row(
+        children: [
+          Icon(
+            Icons.inventory_2_outlined,
+            size: 14,
+            color: AppTheme.textSecondary,
           ),
-        ))),
-      ]),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Obx(
+              () => DropdownButtonHideUnderline(
+                child: DropdownButton<ProductModel>(
+                  value:
+                      selectedTopProduct.value != null &&
+                          products.any(
+                            (p) => p.id == selectedTopProduct.value?.id,
+                          )
+                      ? selectedTopProduct.value
+                      : null,
+                  hint: Text(
+                    "Select Products",
+                    style: AppTheme.bodySmall.copyWith(
+                      fontSize: 10,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                  icon: const Icon(Icons.arrow_drop_down, size: 16),
+                  isExpanded: true,
+                  isDense: true,
+                  menuMaxHeight: 300,
+                  items: products
+                      .where((p) => p.id != null)
+                      .map(
+                        (p) => DropdownMenuItem(
+                          value: p,
+                          child: Text(
+                            p.product,
+                            style: AppTheme.bodySmall.copyWith(fontSize: 10),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: dashboardController.isLocked.value
+                      ? null
+                      : _addProductFromTop,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1038,105 +1160,149 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       height: 32,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
-        color: Colors.white, borderRadius: BorderRadius.circular(3),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(3),
         border: Border.all(color: Colors.grey.shade300),
       ),
-      child: Row(children: [
-        Icon(Icons.history, size: 14, color: AppTheme.textSecondary),
-        const SizedBox(width: 6),
-        Expanded(child: Obx(() {
-          final previousReports = _previousReports();
-          return DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: selectedPreviousReportId.value.isNotEmpty &&
-                      previousReports.any((r) => r.id == selectedPreviousReportId.value)
-                  ? selectedPreviousReportId.value
-                  : null,
-              hint: Text(
-                isLoadingPreviousProducts.value
-                    ? "Loading Previous Products..."
-                    : "Load Previous Products",
-                style: AppTheme.bodySmall.copyWith(
-                  fontSize: 10,
-                  color: AppTheme.textSecondary,
-                ),
-              ),
-              icon: const Icon(Icons.arrow_drop_down, size: 16),
-              isExpanded: true,
-              isDense: true,
-              menuMaxHeight: 260,
-              items: previousReports
-                  .map(
-                    (report) => DropdownMenuItem<String>(
-                      value: report.id,
-                      child: Text(
-                        report.displayName,
-                        style: AppTheme.bodySmall.copyWith(fontSize: 10),
-                        overflow: TextOverflow.ellipsis,
-                      ),
+      child: Row(
+        children: [
+          Icon(Icons.history, size: 14, color: AppTheme.textSecondary),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Obx(() {
+              final previousReports = _previousReports();
+              return DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value:
+                      selectedPreviousReportId.value.isNotEmpty &&
+                          previousReports.any(
+                            (r) => r.id == selectedPreviousReportId.value,
+                          )
+                      ? selectedPreviousReportId.value
+                      : null,
+                  hint: Text(
+                    isLoadingPreviousProducts.value
+                        ? "Loading Previous Products..."
+                        : "Load Previous Products",
+                    style: AppTheme.bodySmall.copyWith(
+                      fontSize: 10,
+                      color: AppTheme.textSecondary,
                     ),
-                  )
-                  .toList(),
-              onChanged: dashboardController.isLocked.value ||
-                      isLoadingPreviousProducts.value
-                  ? null
-                  : (reportId) {
-                      selectedPreviousReportId.value = reportId ?? '';
-                      _loadPreviousReportProducts(reportId ?? '');
-                    },
-            ),
-          );
-        })),
-      ]),
+                  ),
+                  icon: const Icon(Icons.arrow_drop_down, size: 16),
+                  isExpanded: true,
+                  isDense: true,
+                  menuMaxHeight: 260,
+                  items: previousReports
+                      .map(
+                        (report) => DropdownMenuItem<String>(
+                          value: report.id,
+                          child: Text(
+                            report.displayName,
+                            style: AppTheme.bodySmall.copyWith(fontSize: 10),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      )
+                      .toList(),
+                  onChanged:
+                      dashboardController.isLocked.value ||
+                          isLoadingPreviousProducts.value
+                      ? null
+                      : (reportId) {
+                          selectedPreviousReportId.value = reportId ?? '';
+                          _loadPreviousReportProducts(reportId ?? '');
+                        },
+                ),
+              );
+            }),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildRadioBtn(String value) {
-    return Obx(() => InkWell(
-      onTap: dashboardController.isLocked.value
-          ? null : () => selectedMethod.value = value,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-        decoration: BoxDecoration(
-          color: selectedMethod.value == value
-              ? AppTheme.primaryColor.withOpacity(0.1) : Colors.transparent,
-          borderRadius: BorderRadius.circular(3),
-          border: Border.all(
-              color: selectedMethod.value == value
-                  ? AppTheme.primaryColor : Colors.grey.shade300),
-        ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Container(
-            width: 11, height: 11,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                  color: selectedMethod.value == value
-                      ? AppTheme.primaryColor : Colors.grey.shade400,
-                  width: 1.5),
-            ),
-            child: selectedMethod.value == value
-                ? Center(child: Container(
-                    width: 5, height: 5,
-                    decoration: BoxDecoration(
-                        shape: BoxShape.circle, color: AppTheme.primaryColor)))
-                : null,
-          ),
-          const SizedBox(width: 5),
-          Text(value, style: AppTheme.bodySmall.copyWith(
-            fontSize: 10,
+    return Obx(
+      () => InkWell(
+        onTap: dashboardController.isLocked.value
+            ? null
+            : () {
+                selectedMethod.value = value;
+                _scheduleDistributionAutoSave();
+              },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
             color: selectedMethod.value == value
-                ? AppTheme.primaryColor : AppTheme.textSecondary,
-          )),
-        ]),
+                ? AppTheme.primaryColor.withOpacity(0.1)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(3),
+            border: Border.all(
+              color: selectedMethod.value == value
+                  ? AppTheme.primaryColor
+                  : Colors.grey.shade300,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 11,
+                height: 11,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: selectedMethod.value == value
+                        ? AppTheme.primaryColor
+                        : Colors.grey.shade400,
+                    width: 1.5,
+                  ),
+                ),
+                child: selectedMethod.value == value
+                    ? Center(
+                        child: Container(
+                          width: 5,
+                          height: 5,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: AppTheme.primaryColor,
+                          ),
+                        ),
+                      )
+                    : null,
+              ),
+              const SizedBox(width: 5),
+              Text(
+                value,
+                style: AppTheme.bodySmall.copyWith(
+                  fontSize: 10,
+                  color: selectedMethod.value == value
+                      ? AppTheme.primaryColor
+                      : AppTheme.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
-    ));
+    );
   }
 
   Widget _buildProductTable() {
     const headers = [
-      "Product", "Code", "SG", "Unit", "Price (\$)",
-      "Initial", "Adjust", "Used", "Final", "Cost (\$)", "Vol (bbl)", "",
+      "Product",
+      "Code",
+      "SG",
+      "Unit",
+      "Price (\$)",
+      "Initial",
+      "Adjust",
+      "Used",
+      "Final",
+      "Cost (\$)",
+      "Vol (bbl)",
+      "",
     ];
 
     return Container(
@@ -1144,77 +1310,127 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
         border: Border.all(color: Colors.grey.shade300),
         borderRadius: BorderRadius.circular(4),
       ),
-      child: Column(children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color: AppTheme.primaryColor,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
-          ),
-          child: Row(children: [
-            const Icon(Icons.inventory_2, color: Colors.white, size: 16),
-            const SizedBox(width: 8),
-            Text("Consume Product", style: AppTheme.bodySmall.copyWith(
-                fontWeight: FontWeight.w600, fontSize: 11, color: Colors.white)),
-          ]),
-        ),
-        SizedBox(
-          height: 220,
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: SingleChildScrollView(
-              scrollDirection: Axis.vertical,
-              child: Obx(() => DataTable(
-                headingRowHeight: 32, dataRowHeight: 38,
-                columnSpacing: 0, horizontalMargin: 0, dividerThickness: 0,
-                headingRowColor: MaterialStateProperty.all(Colors.grey.shade50),
-                border: TableBorder(
-                  verticalInside: BorderSide(color: Colors.grey.shade300),
-                  horizontalInside: BorderSide(color: Colors.grey.shade200),
-                ),
-                headingTextStyle: AppTheme.bodySmall.copyWith(
-                    fontSize: 10, fontWeight: FontWeight.w600,
-                    color: AppTheme.primaryColor),
-                dataTextStyle: AppTheme.bodySmall.copyWith(fontSize: 10),
-                columns: headers.map((h) => DataColumn(label: Container(
-                  width: _colWidth(h),
-                  alignment: _isRightCol(h) ? Alignment.centerRight : Alignment.centerLeft,
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  decoration: BoxDecoration(
-                    color: (h == 'Used' && selectedMethod.value == 'Used') ||
-                           (h == 'Final' && selectedMethod.value == 'Final')
-                        ? const Color(0xFFD6EAF8)
-                        : null,
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryColor,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(4),
+              ),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.inventory_2, color: Colors.white, size: 16),
+                const SizedBox(width: 8),
+                Text(
+                  "Consume Product",
+                  style: AppTheme.bodySmall.copyWith(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 11,
+                    color: Colors.white,
                   ),
-                  child: Text(AppUnits.label(h)),
-                ))).toList(),
-                rows: List.generate(productRows.length, (i) => DataRow(
-                  color: MaterialStateProperty.all(
-                      i % 2 == 0 ? Colors.white : Colors.grey.shade50),
-                  cells: _buildRowCells(productRows[i], i),
-                )),
-              )),
+                ),
+              ],
             ),
           ),
-        ),
-      ]),
+          SizedBox(
+            height: 220,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.vertical,
+                child: Obx(
+                  () => DataTable(
+                    headingRowHeight: 32,
+                    dataRowHeight: 38,
+                    columnSpacing: 0,
+                    horizontalMargin: 0,
+                    dividerThickness: 0,
+                    headingRowColor: MaterialStateProperty.all(
+                      Colors.grey.shade50,
+                    ),
+                    border: TableBorder(
+                      verticalInside: BorderSide(color: Colors.grey.shade300),
+                      horizontalInside: BorderSide(color: Colors.grey.shade200),
+                    ),
+                    headingTextStyle: AppTheme.bodySmall.copyWith(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.primaryColor,
+                    ),
+                    dataTextStyle: AppTheme.bodySmall.copyWith(fontSize: 10),
+                    columns: headers
+                        .map(
+                          (h) => DataColumn(
+                            label: Container(
+                              width: _colWidth(h),
+                              alignment: _isRightCol(h)
+                                  ? Alignment.centerRight
+                                  : Alignment.centerLeft,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color:
+                                    (h == 'Used' &&
+                                            selectedMethod.value == 'Used') ||
+                                        (h == 'Final' &&
+                                            selectedMethod.value == 'Final')
+                                    ? const Color(0xFFD6EAF8)
+                                    : null,
+                              ),
+                              child: Text(AppUnits.label(h)),
+                            ),
+                          ),
+                        )
+                        .toList(),
+                    rows: List.generate(
+                      productRows.length,
+                      (i) => DataRow(
+                        color: MaterialStateProperty.all(
+                          i % 2 == 0 ? Colors.white : Colors.grey.shade50,
+                        ),
+                        cells: _buildRowCells(productRows[i], i),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
   bool _isRightCol(String h) => const {
-    'Price (\$)', 'Cost (\$)', 'Initial', 'Adjust', 'Used', 'Final', 'Vol (bbl)'
+    'Price (\$)',
+    'Cost (\$)',
+    'Initial',
+    'Adjust',
+    'Used',
+    'Final',
+    'Vol (bbl)',
   }.contains(h);
 
   double _colWidth(String h) {
     switch (h) {
-      case 'Product':    return 160;
-      case 'Code':       return 80;
+      case 'Product':
+        return 160;
+      case 'Code':
+        return 80;
       case 'SG':
-      case 'Unit':       return 70;
+      case 'Unit':
+        return 70;
       case 'Price (\$)':
-      case 'Cost (\$)':  return 90;
-      case '':           return 36;
-      default:           return 75;
+      case 'Cost (\$)':
+        return 90;
+      case '':
+        return 36;
+      default:
+        return 75;
     }
   }
 
@@ -1225,190 +1441,286 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       // ══════════════════════════════════════════
       // 1. Product Column
       // ══════════════════════════════════════════
-      DataCell(Container(
-        width: 160,
-        padding: const EdgeInsets.symmetric(horizontal: 6),
-        child: Obx(() {
-          final storeProducts = _inventoryStore.selectedProducts;
-          final currentVal = row.selectedProduct.value;
+      DataCell(
+        Container(
+          width: 160,
+          padding: const EdgeInsets.symmetric(horizontal: 6),
+          child: Obx(() {
+            final storeProducts = _inventoryStore.selectedProducts;
+            final currentVal = row.selectedProduct.value;
 
-          if (currentVal == null && row.productName.isNotEmpty) {
+            if (currentVal == null && row.productName.isNotEmpty) {
+              return DropdownButtonHideUnderline(
+                child: DropdownButton<ProductModel>(
+                  value: null,
+                  hint: Text(
+                    row.productName,
+                    style: AppTheme.bodySmall.copyWith(
+                      fontSize: 10,
+                      color: Colors.black87,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  isExpanded: true,
+                  isDense: true,
+                  icon: const Icon(Icons.arrow_drop_down, size: 14),
+                  menuMaxHeight: 300,
+                  items: storeProducts
+                      .where((p) => p.id != null)
+                      .map(
+                        (p) => DropdownMenuItem(
+                          value: p,
+                          child: Text(
+                            p.product,
+                            style: AppTheme.bodySmall.copyWith(fontSize: 10),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: locked
+                      ? null
+                      : (ProductModel? val) {
+                          if (val == null) return;
+                          selectedProductRow.value = i;
+                          _fillRowFromProduct(row, val);
+                          productRows.refresh();
+                          _checkAndAddProductRow();
+                          _recalculateTotalVolume();
+                          _scheduleProductAutoSave(i);
+                          _scheduleDistributionAutoSave();
+                        },
+                ),
+              );
+            }
+
+            final validVal =
+                currentVal != null &&
+                    storeProducts.any((p) => p.id == currentVal.id)
+                ? currentVal
+                : null;
+
             return DropdownButtonHideUnderline(
               child: DropdownButton<ProductModel>(
-                value: null,
+                value: validVal,
                 hint: Text(
-                  row.productName,
+                  "Select",
                   style: AppTheme.bodySmall.copyWith(
                     fontSize: 10,
-                    color: Colors.black87,
-                    fontWeight: FontWeight.w500,
+                    color: Colors.grey,
                   ),
-                  overflow: TextOverflow.ellipsis,
                 ),
-                isExpanded: true, isDense: true,
+                isExpanded: true,
+                isDense: true,
                 icon: const Icon(Icons.arrow_drop_down, size: 14),
                 menuMaxHeight: 300,
-                items: storeProducts.where((p) => p.id != null).map((p) =>
-                  DropdownMenuItem(value: p,
-                    child: Text(p.product,
-                        style: AppTheme.bodySmall.copyWith(fontSize: 10),
-                        overflow: TextOverflow.ellipsis))).toList(),
-                onChanged: locked ? null : (ProductModel? val) {
-                  if (val == null) return;
-                  selectedProductRow.value = i;
-                  _fillRowFromProduct(row, val);
-                  productRows.refresh();
-                  _checkAndAddProductRow();
-                  _recalculateTotalVolume();
-                },
+                items: storeProducts
+                    .where((p) => p.id != null)
+                    .map(
+                      (p) => DropdownMenuItem(
+                        value: p,
+                        child: Text(
+                          p.product,
+                          style: AppTheme.bodySmall.copyWith(fontSize: 10),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    )
+                    .toList(),
+                onChanged: locked
+                    ? null
+                    : (ProductModel? val) {
+                        if (val == null) return;
+                        selectedProductRow.value = i;
+                        _fillRowFromProduct(row, val);
+                        productRows.refresh();
+                        _checkAndAddProductRow();
+                        _recalculateTotalVolume();
+                        _scheduleProductAutoSave(i);
+                        _scheduleDistributionAutoSave();
+                      },
               ),
             );
-          }
-
-          final validVal = currentVal != null &&
-              storeProducts.any((p) => p.id == currentVal.id)
-              ? currentVal : null;
-
-          return DropdownButtonHideUnderline(
-            child: DropdownButton<ProductModel>(
-              value: validVal,
-              hint: Text("Select",
-                  style: AppTheme.bodySmall.copyWith(fontSize: 10, color: Colors.grey)),
-              isExpanded: true, isDense: true,
-              icon: const Icon(Icons.arrow_drop_down, size: 14),
-              menuMaxHeight: 300,
-              items: storeProducts.where((p) => p.id != null).map((p) =>
-                DropdownMenuItem(value: p,
-                  child: Text(p.product,
-                      style: AppTheme.bodySmall.copyWith(fontSize: 10),
-                      overflow: TextOverflow.ellipsis))).toList(),
-              onChanged: locked ? null : (ProductModel? val) {
-                if (val == null) return;
-                selectedProductRow.value = i;
-                _fillRowFromProduct(row, val);
-                productRows.refresh();
-                _checkAndAddProductRow();
-                _recalculateTotalVolume();
-              },
-            ),
-          );
-        }),
-      )),
+          }),
+        ),
+      ),
 
       // 2–5. Static read-only cells
       DataCell(_staticField(row.code, 80)),
       DataCell(_staticField(row.sg, 70)),
       DataCell(_staticField(row.unit, 70)),
-      DataCell(_staticField(row.price > 0 ? row.price.toStringAsFixed(2) : '', 90, right: true)),
+      DataCell(
+        _staticField(
+          row.price > 0 ? row.price.toStringAsFixed(2) : '',
+          90,
+          right: true,
+        ),
+      ),
 
       // 6. Initial
-      DataCell(_editField(
-        key: ValueKey('init_${row.savedId ?? i}_${row.productName}'),
-        value: row.initial, width: 75, locked: true,
-        onChange: (v) { row.initial = v; _onFieldChanged(i); _checkAndAddProductRow(); },
-      )),
+      DataCell(
+        _editField(
+          key: ValueKey('init_${row.savedId ?? i}_${row.productName}'),
+          value: row.initial,
+          width: 75,
+          locked: locked,
+          onChange: (v) {
+            row.initial = v;
+            _onFieldChanged(i);
+            _checkAndAddProductRow();
+          },
+        ),
+      ),
 
       // 7. Adjust
-      DataCell(_editField(
-        key: ValueKey('adj_${row.savedId ?? i}_${row.productName}'),
-        value: row.adjust, width: 75, locked: true,
-        onChange: (v) { row.adjust = v; _onFieldChanged(i); _checkAndAddProductRow(); },
-      )),
+      DataCell(
+        _editField(
+          key: ValueKey('adj_${row.savedId ?? i}_${row.productName}'),
+          value: row.adjust,
+          width: 75,
+          locked: locked,
+          onChange: (v) {
+            row.adjust = v;
+            _onFieldChanged(i);
+            _checkAndAddProductRow();
+          },
+        ),
+      ),
 
       // 8. Used
-      DataCell(Obx(() {
-        final isUsedMode = selectedMethod.value == "Used";
-        return _editField(
-          key: ValueKey('used_${row.savedId ?? i}_${row.productName}_$isUsedMode'),
-          value: row.used,
-          width: 75,
-          locked: locked || !isUsedMode,
-          highlighted: isUsedMode,
-          onChange: (v) { row.used = v; _onFieldChanged(i); _checkAndAddProductRow(); },
-        );
-      })),
-
-      // 9. Final
-      DataCell(Obx(() {
-        final isFinalMode = selectedMethod.value == "Final";
-
-        if (isFinalMode) {
-          final fv = row.calculatedFinal.value;
+      DataCell(
+        Obx(() {
+          final isUsedMode = selectedMethod.value == "Used";
           return _editField(
-            key: ValueKey('final_edit_${row.savedId ?? i}_${row.productName}'),
-            value: row.productName.isNotEmpty ? fv.toStringAsFixed(2) : '',
+            key: ValueKey(
+              'used_${row.savedId ?? i}_${row.productName}_$isUsedMode',
+            ),
+            value: row.used,
             width: 75,
             locked: locked,
-            highlighted: true,
-            onChange: (v) => _setFinalValue(row, v, i),
+            highlighted: isUsedMode,
+            onChange: (v) {
+              row.used = v;
+              _onFieldChanged(i);
+              _checkAndAddProductRow();
+            },
           );
-        }
+        }),
+      ),
 
-        final fv = row.calculatedFinal.value;
-        return Container(
-          width: 75,
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          child: Text(
-            row.productName.isNotEmpty ? fv.toStringAsFixed(2) : '',
-            textAlign: TextAlign.right,
-            style: AppTheme.bodySmall.copyWith(
-              fontSize: 10, fontWeight: FontWeight.w600,
-              color: fv < 0 ? Colors.red : Colors.grey.shade700,
+      // 9. Final
+      DataCell(
+        Obx(() {
+          final fv = row.calculatedFinal.value;
+          return Container(
+            width: 75,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Text(
+              row.productName.isNotEmpty ? fv.toStringAsFixed(2) : '',
+              textAlign: TextAlign.right,
+              style: AppTheme.bodySmall.copyWith(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: fv < 0 ? Colors.red : Colors.grey.shade700,
+              ),
             ),
-          ),
-        );
-      })),
+          );
+        }),
+      ),
 
       // 10. Cost
-      DataCell(Container(
-        width: 90, padding: const EdgeInsets.symmetric(horizontal: 8),
-        decoration: BoxDecoration(color: AppTheme.primaryColor.withOpacity(0.05)),
-        child: Obx(() {
-          final cv = row.calculatedCost.value;
-          return Text(cv > 0 ? cv.toStringAsFixed(2) : '',
-            textAlign: TextAlign.right,
-            style: AppTheme.bodySmall.copyWith(
-                fontSize: 10, fontWeight: FontWeight.w600, color: AppTheme.primaryColor));
-        }),
-      )),
+      DataCell(
+        Container(
+          width: 90,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          decoration: BoxDecoration(
+            color: AppTheme.primaryColor.withOpacity(0.05),
+          ),
+          child: Obx(() {
+            final cv = row.calculatedCost.value;
+            return Text(
+              cv > 0 ? cv.toStringAsFixed(2) : '',
+              textAlign: TextAlign.right,
+              style: AppTheme.bodySmall.copyWith(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.primaryColor,
+              ),
+            );
+          }),
+        ),
+      ),
 
       // 11. Vol
-      DataCell(Container(
-        width: 75, padding: const EdgeInsets.symmetric(horizontal: 8),
-        decoration: BoxDecoration(color: AppTheme.primaryColor.withOpacity(0.03)),
-        child: Obx(() {
-          final vv = row.calculatedVolume.value;
-          return Text(vv > 0 ? vv.toStringAsFixed(3) : '',
-            textAlign: TextAlign.right,
-            style: AppTheme.bodySmall.copyWith(fontSize: 10, color: AppTheme.primaryColor));
-        }),
-      )),
+      DataCell(
+        Container(
+          width: 75,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          decoration: BoxDecoration(
+            color: AppTheme.primaryColor.withOpacity(0.03),
+          ),
+          child: Obx(() {
+            final vv = row.calculatedVolume.value;
+            return Text(
+              vv > 0 ? vv.toStringAsFixed(3) : '',
+              textAlign: TextAlign.right,
+              style: AppTheme.bodySmall.copyWith(
+                fontSize: 10,
+                color: AppTheme.primaryColor,
+              ),
+            );
+          }),
+        ),
+      ),
 
       // 12. Delete
-      DataCell(Obx(() {
-        final del = i < productRowDeleting.length && productRowDeleting[i];
-        if (del) {
-          return const SizedBox(width: 36, child: Center(
-              child: SizedBox(width: 12, height: 12,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.red))));
-        }
-        return SizedBox(width: 36, child: IconButton(
-          icon: Icon(Icons.delete_outline, size: 15,
-              color: locked ? Colors.grey.shade300 : Colors.red.shade300),
-          padding: EdgeInsets.zero, constraints: const BoxConstraints(),
-          onPressed: locked ? null : () => _deleteRow(i),
-        ));
-      })),
+      DataCell(
+        Obx(() {
+          final del = i < productRowDeleting.length && productRowDeleting[i];
+          if (del) {
+            return const SizedBox(
+              width: 36,
+              child: Center(
+                child: SizedBox(
+                  width: 12,
+                  height: 12,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.red,
+                  ),
+                ),
+              ),
+            );
+          }
+          return SizedBox(
+            width: 36,
+            child: IconButton(
+              icon: Icon(
+                Icons.delete_outline,
+                size: 15,
+                color: locked ? Colors.grey.shade300 : Colors.red.shade300,
+              ),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+              onPressed: locked ? null : () => _deleteRow(i),
+            ),
+          );
+        }),
+      ),
     ];
   }
 
   Widget _staticField(String text, double width, {bool right = false}) {
     return Container(
-      width: width, padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Text(text,
+      width: width,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Text(
+        text,
         textAlign: right ? TextAlign.right : TextAlign.left,
         overflow: TextOverflow.ellipsis,
-        style: AppTheme.bodySmall.copyWith(fontSize: 10)),
+        style: AppTheme.bodySmall.copyWith(fontSize: 10),
+      ),
     );
   }
 
@@ -1430,7 +1742,10 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
         enabled: !locked,
         style: AppTheme.bodySmall.copyWith(fontSize: 10),
         textAlign: TextAlign.right,
-        keyboardType: const TextInputType.numberWithOptions(signed: true, decimal: true),
+        keyboardType: const TextInputType.numberWithOptions(
+          signed: true,
+          decimal: true,
+        ),
         decoration: const InputDecoration(
           isDense: true,
           contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 6),
@@ -1445,11 +1760,14 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
   //  BOTTOM SECTION
   // ══════════════════════════════════════════════════════════════════════════
   Widget _buildBottomSection() {
-    return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      SizedBox(width: 310, child: _buildDistributeTable()),
-      const SizedBox(width: 12),
-      Expanded(child: _buildRightControls()),
-    ]);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(width: 310, child: _buildDistributeTable()),
+        const SizedBox(width: 12),
+        Expanded(child: _buildRightControls()),
+      ],
+    );
   }
 
   // ── Distribute Table ──────────────────────────────────────────────────────
@@ -1459,139 +1777,202 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
         border: Border.all(color: Colors.grey.shade300),
         borderRadius: BorderRadius.circular(4),
       ),
-      child: Column(children: [
-        // ── Header row with title + action buttons ──
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-          decoration: BoxDecoration(
-            color: AppTheme.successColor,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+      child: Column(
+        children: [
+          // ── Header row with title + action buttons ──
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: AppTheme.successColor,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(4),
+              ),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.share, color: Colors.white, size: 14),
+                const SizedBox(width: 6),
+                Text(
+                  "Distribute to",
+                  style: AppTheme.bodySmall.copyWith(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 11,
+                    color: Colors.white,
+                  ),
+                ),
+                const Spacer(),
+                // Calculate button
+                Obx(
+                  () => _distributeHeaderBtn(
+                    icon: Icons.calculate_outlined,
+                    tooltip: 'Calculate distribution',
+                    onTap: dashboardController.isLocked.value
+                        ? null
+                        : _calculateDistribution,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                // Delete selected row button
+                Obx(
+                  () => _distributeHeaderBtn(
+                    icon: Icons.delete_outline,
+                    tooltip: 'Delete selected row',
+                    color: Colors.red.shade100,
+                    iconColor: Colors.red.shade700,
+                    onTap: dashboardController.isLocked.value
+                        ? null
+                        : (selectedDistributeRow.value >= 0 &&
+                                  selectedDistributeRow.value <
+                                      distributeRows.length
+                              ? () => _deleteDistributeRow(
+                                  selectedDistributeRow.value,
+                                )
+                              : null),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                // Add row button
+                Obx(
+                  () => _distributeHeaderBtn(
+                    icon: Icons.add,
+                    tooltip: 'Add row',
+                    onTap: dashboardController.isLocked.value
+                        ? null
+                        : () {
+                            _addDistributeRow();
+                            _scheduleDistributionAutoSave();
+                          },
+                  ),
+                ),
+              ],
+            ),
           ),
-          child: Row(children: [
-            const Icon(Icons.share, color: Colors.white, size: 14),
-            const SizedBox(width: 6),
-            Text("Distribute to", style: AppTheme.bodySmall.copyWith(
-                fontWeight: FontWeight.w600, fontSize: 11, color: Colors.white)),
-            const Spacer(),
-            // Calculate button
-            Obx(() => _distributeHeaderBtn(
-              icon: Icons.calculate_outlined,
-              tooltip: 'Calculate distribution',
-              onTap: dashboardController.isLocked.value ? null : _calculateDistribution,
-            )),
-            const SizedBox(width: 4),
-            // Delete selected row button
-            Obx(() => _distributeHeaderBtn(
-              icon: Icons.delete_outline,
-              tooltip: 'Delete selected row',
-              color: Colors.red.shade100,
-              iconColor: Colors.red.shade700,
-              onTap: dashboardController.isLocked.value
-                  ? null
-                  : (selectedDistributeRow.value >= 0 &&
-                          selectedDistributeRow.value < distributeRows.length
-                      ? () => _deleteDistributeRow(selectedDistributeRow.value)
-                      : null),
-            )),
-            const SizedBox(width: 4),
-            // Add row button
-            Obx(() => _distributeHeaderBtn(
-              icon: Icons.add,
-              tooltip: 'Add row',
-              onTap: dashboardController.isLocked.value ? null : _addDistributeRow,
-            )),
-          ]),
-        ),
 
-        // ── Table header ──
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.grey.shade50,
-            border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
+          // ── Table header ──
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
+            ),
+            child: Row(
+              children: [
+                _distHeaderCell('Pit', 180),
+                _distHeaderCell('Vol (bbl)', 110, right: true),
+              ],
+            ),
           ),
-          child: Row(children: [
-            _distHeaderCell('Pit', 180),
-            _distHeaderCell('Vol (bbl)', 110, right: true),
-          ]),
-        ),
 
-        // ── Rows ──
-        SizedBox(
-          height: 185,
-          child: SingleChildScrollView(
-            child: Obx(() {
-              // Build the dropdown items list: empty + Active System + unselected pits
-              final unselectedPits = pitController.unselectedPits
-                  .where((p) => p.id != null && p.pitName.isNotEmpty)
-                  .toList();
+          // ── Rows ──
+          SizedBox(
+            height: 185,
+            child: SingleChildScrollView(
+              child: Obx(() {
+                // Build the dropdown items list: empty + Active System + unselected pits
+                final unselectedPits = pitController.unselectedPits
+                    .where((p) => p.id != null && p.pitName.isNotEmpty)
+                    .toList();
 
-              return Column(
-                children: List.generate(distributeRows.length, (i) {
-                  final dr = distributeRows[i];
-                  final isSelected = selectedDistributeRow.value == i;
+                return Column(
+                  children: List.generate(distributeRows.length, (i) {
+                    final dr = distributeRows[i];
+                    final isSelected = selectedDistributeRow.value == i;
 
-                  return GestureDetector(
-                    onTap: () => selectedDistributeRow.value = i,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? AppTheme.successColor.withOpacity(0.06)
-                            : (i % 2 == 0 ? Colors.white : Colors.grey.shade50),
-                        border: Border(
-                          left: isSelected
-                              ? BorderSide(color: AppTheme.successColor, width: 2)
-                              : BorderSide.none,
-                          bottom: BorderSide(color: Colors.grey.shade200, width: 0.5),
-                        ),
-                      ),
-                      child: Row(children: [
-                        // Pit dropdown cell
-                        SizedBox(
-                          width: 180,
-                          height: 32,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 6),
-                            child: _buildDistributePitDropdown(dr, i, unselectedPits),
-                          ),
-                        ),
-                        // Volume divider
-                        Container(width: 1, height: 32, color: Colors.grey.shade200),
-                        // Volume input cell
-                        SizedBox(
-                          width: 110,
-                          height: 32,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 6),
-                            child: TextField(
-                              controller: dr.volumeController,
-                              enabled: !dashboardController.isLocked.value,
-                              style: AppTheme.bodySmall.copyWith(fontSize: 10),
-                              textAlign: TextAlign.right,
-                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                              decoration: const InputDecoration(
-                                isDense: true,
-                                contentPadding: EdgeInsets.symmetric(
-                                    horizontal: 4, vertical: 6),
-                                border: InputBorder.none,
-                              ),
-                              onChanged: (v) => _onDistributeVolumeChanged(i, v),
+                    return GestureDetector(
+                      onTap: () => selectedDistributeRow.value = i,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? AppTheme.successColor.withOpacity(0.06)
+                              : (i % 2 == 0
+                                    ? Colors.white
+                                    : Colors.grey.shade50),
+                          border: Border(
+                            left: isSelected
+                                ? BorderSide(
+                                    color: AppTheme.successColor,
+                                    width: 2,
+                                  )
+                                : BorderSide.none,
+                            bottom: BorderSide(
+                              color: Colors.grey.shade200,
+                              width: 0.5,
                             ),
                           ),
                         ),
-                      ]),
-                    ),
-                  );
-                }),
-              );
-            }),
+                        child: Row(
+                          children: [
+                            // Pit dropdown cell
+                            SizedBox(
+                              width: 180,
+                              height: 32,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                ),
+                                child: _buildDistributePitDropdown(
+                                  dr,
+                                  i,
+                                  unselectedPits,
+                                ),
+                              ),
+                            ),
+                            // Volume divider
+                            Container(
+                              width: 1,
+                              height: 32,
+                              color: Colors.grey.shade200,
+                            ),
+                            // Volume input cell
+                            SizedBox(
+                              width: 110,
+                              height: 32,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                ),
+                                child: TextField(
+                                  controller: dr.volumeController,
+                                  enabled: !dashboardController.isLocked.value,
+                                  style: AppTheme.bodySmall.copyWith(
+                                    fontSize: 10,
+                                  ),
+                                  textAlign: TextAlign.right,
+                                  keyboardType:
+                                      const TextInputType.numberWithOptions(
+                                        decimal: true,
+                                      ),
+                                  decoration: const InputDecoration(
+                                    isDense: true,
+                                    contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 4,
+                                      vertical: 6,
+                                    ),
+                                    border: InputBorder.none,
+                                  ),
+                                  onChanged: (v) =>
+                                      _onDistributeVolumeChanged(i, v),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }),
+                );
+              }),
+            ),
           ),
-        ),
-      ]),
+        ],
+      ),
     );
   }
 
   Widget _buildDistributePitDropdown(
-      DistributeRowData dr, int index, List unselectedPits) {
+    DistributeRowData dr,
+    int index,
+    List unselectedPits,
+  ) {
     final currentPit = dr.pit.trim();
     final normalizedNames = <String>{};
     final dropdownPitNames = <String>[];
@@ -1619,30 +2000,41 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       // Empty option to clear selection
       DropdownMenuItem<String>(
         value: kEmpty,
-        child: Text('',
-            style: AppTheme.bodySmall.copyWith(fontSize: 10)),
+        child: Text('', style: AppTheme.bodySmall.copyWith(fontSize: 10)),
       ),
       // Active System fixed option
       DropdownMenuItem<String>(
         value: kActiveSystem,
-        child: Row(children: [
-          Icon(Icons.layers_outlined, size: 12,
-              color: AppTheme.primaryColor.withOpacity(0.7)),
-          const SizedBox(width: 4),
-          Text(kActiveSystem,
+        child: Row(
+          children: [
+            Icon(
+              Icons.layers_outlined,
+              size: 12,
+              color: AppTheme.primaryColor.withOpacity(0.7),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              kActiveSystem,
               style: AppTheme.bodySmall.copyWith(
-                  fontSize: 10,
-                  color: AppTheme.primaryColor,
-                  fontWeight: FontWeight.w600)),
-        ]),
+                fontSize: 10,
+                color: AppTheme.primaryColor,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
       ),
       // Unselected pits from API
-      ...dropdownPitNames.map((pitName) => DropdownMenuItem<String>(
-        value: pitName,
-        child: Text(pitName,
+      ...dropdownPitNames.map(
+        (pitName) => DropdownMenuItem<String>(
+          value: pitName,
+          child: Text(
+            pitName,
             style: AppTheme.bodySmall.copyWith(fontSize: 10),
-            overflow: TextOverflow.ellipsis),
-      )),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ),
     ];
 
     // Validate current value
@@ -1659,7 +2051,10 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
           size: 14,
           color: Colors.grey.shade500,
         ),
-        style: AppTheme.bodySmall.copyWith(fontSize: 10, color: AppTheme.textPrimary),
+        style: AppTheme.bodySmall.copyWith(
+          fontSize: 10,
+          color: AppTheme.textPrimary,
+        ),
         menuMaxHeight: 250,
         items: items,
         onChanged: dashboardController.isLocked.value
@@ -1715,9 +2110,10 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
           AppUnits.label(text),
           textAlign: right ? TextAlign.right : TextAlign.left,
           style: AppTheme.bodySmall.copyWith(
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-              color: AppTheme.successColor),
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+            color: AppTheme.successColor,
+          ),
         ),
       ),
     );
@@ -1729,104 +2125,179 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       height: 240,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white, borderRadius: BorderRadius.circular(4),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(4),
         border: Border.all(color: Colors.grey.shade300),
       ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Obx(() => Row(children: [
-          InkWell(
-            onTap: dashboardController.isLocked.value ? null : () {
-              addWater.value = !addWater.value;
-              _recalculateTotalVolume();
-            },
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: addWater.value
-                    ? AppTheme.primaryColor.withOpacity(0.1) : Colors.grey.shade50,
-                borderRadius: BorderRadius.circular(3),
-                border: Border.all(
-                    color: addWater.value ? AppTheme.primaryColor : Colors.grey.shade300),
-              ),
-              child: Row(children: [
-                Container(
-                  width: 16, height: 16,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(2),
-                    border: Border.all(
-                        color: addWater.value ? AppTheme.primaryColor : Colors.grey.shade400),
-                    color: addWater.value ? AppTheme.primaryColor : Colors.transparent,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Obx(
+            () => Row(
+              children: [
+                InkWell(
+                  onTap: dashboardController.isLocked.value
+                      ? null
+                      : () {
+                          addWater.value = !addWater.value;
+                          _recalculateTotalVolume();
+                          _scheduleDistributionAutoSave();
+                        },
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: addWater.value
+                          ? AppTheme.primaryColor.withOpacity(0.1)
+                          : Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(3),
+                      border: Border.all(
+                        color: addWater.value
+                            ? AppTheme.primaryColor
+                            : Colors.grey.shade300,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 16,
+                          height: 16,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(2),
+                            border: Border.all(
+                              color: addWater.value
+                                  ? AppTheme.primaryColor
+                                  : Colors.grey.shade400,
+                            ),
+                            color: addWater.value
+                                ? AppTheme.primaryColor
+                                : Colors.transparent,
+                          ),
+                          child: addWater.value
+                              ? const Icon(
+                                  Icons.check,
+                                  size: 11,
+                                  color: Colors.white,
+                                )
+                              : null,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          "Add Water",
+                          style: AppTheme.bodySmall.copyWith(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  child: addWater.value
-                      ? const Icon(Icons.check, size: 11, color: Colors.white) : null,
                 ),
-                const SizedBox(width: 8),
-                Text("Add Water", style: AppTheme.bodySmall.copyWith(
-                    fontSize: 10, fontWeight: FontWeight.w500)),
-              ]),
+                if (addWater.value) ...[
+                  const SizedBox(width: 10),
+                  Expanded(child: _waterField()),
+                ],
+              ],
             ),
           ),
-          if (addWater.value) ...[
-            const SizedBox(width: 10),
-            Expanded(child: _waterField()),
-          ],
-        ])),
 
-        const SizedBox(height: 10),
+          const SizedBox(height: 10),
 
-        Row(children: [
-          Text("Total Vol.",
-              style: AppTheme.bodySmall.copyWith(fontSize: 10, fontWeight: FontWeight.w600)),
-          const SizedBox(width: 10),
-          Expanded(child: Obx(() => Container(
-            height: 32,
-            decoration: BoxDecoration(
-              color: AppTheme.primaryColor.withOpacity(0.04),
-              borderRadius: BorderRadius.circular(3),
-              border: Border.all(color: AppTheme.primaryColor.withOpacity(0.3)),
-            ),
-            child: Row(children: [
-              Expanded(child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: Text(totalVolumeDisplay.value,
-                  textAlign: TextAlign.right,
-                  style: AppTheme.bodySmall.copyWith(
-                      fontSize: 11, fontWeight: FontWeight.w700,
-                      color: AppTheme.primaryColor)),
-              )),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withOpacity(0.1),
-                  borderRadius: const BorderRadius.only(
-                      topRight: Radius.circular(3), bottomRight: Radius.circular(3)),
+          Row(
+            children: [
+              Text(
+                "Total Vol.",
+                style: AppTheme.bodySmall.copyWith(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
                 ),
-                child: Center(child: Text("bbl", style: AppTheme.bodySmall.copyWith(
-                    fontSize: 10, color: AppTheme.primaryColor,
-                    fontWeight: FontWeight.w600))),
               ),
-            ]),
-          ))),
-        ]),
-
-        const SizedBox(height: 10),
-
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: Colors.amber.shade50, borderRadius: BorderRadius.circular(3),
-            border: Border.all(color: Colors.amber.shade200),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Obx(
+                  () => Container(
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryColor.withOpacity(0.04),
+                      borderRadius: BorderRadius.circular(3),
+                      border: Border.all(
+                        color: AppTheme.primaryColor.withOpacity(0.3),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            child: Text(
+                              totalVolumeDisplay.value,
+                              textAlign: TextAlign.right,
+                              style: AppTheme.bodySmall.copyWith(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: AppTheme.primaryColor,
+                              ),
+                            ),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryColor.withOpacity(0.1),
+                            borderRadius: const BorderRadius.only(
+                              topRight: Radius.circular(3),
+                              bottomRight: Radius.circular(3),
+                            ),
+                          ),
+                          child: Center(
+                            child: Text(
+                              "bbl",
+                              style: AppTheme.bodySmall.copyWith(
+                                fontSize: 10,
+                                color: AppTheme.primaryColor,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-          child: Row(children: [
-            Icon(Icons.info_outline, size: 13, color: Colors.amber.shade700),
-            const SizedBox(width: 6),
-            Expanded(child: Text(
-              "Active System follows Total Vol. Storage pit rows are saved separately for Volume Name End Vol. calculations.",
-              style: AppTheme.bodySmall.copyWith(fontSize: 9, color: Colors.amber.shade900),
-            )),
-          ]),
-        ),
-      ]),
+
+          const SizedBox(height: 10),
+
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.amber.shade50,
+              borderRadius: BorderRadius.circular(3),
+              border: Border.all(color: Colors.amber.shade200),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  size: 13,
+                  color: Colors.amber.shade700,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    "Active System follows Total Vol. Storage pit rows are saved separately for Volume Name End Vol. calculations.",
+                    style: AppTheme.bodySmall.copyWith(
+                      fontSize: 9,
+                      color: Colors.amber.shade900,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1834,32 +2305,51 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     return Container(
       height: 32,
       decoration: BoxDecoration(
-        color: Colors.white, borderRadius: BorderRadius.circular(3),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(3),
         border: Border.all(color: Colors.grey.shade300),
       ),
-      child: Row(children: [
-        Expanded(child: TextField(
-          controller: waterVolumeController,
-          enabled: !dashboardController.isLocked.value,
-          style: AppTheme.bodySmall.copyWith(fontSize: 10),
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            isDense: true,
-            contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            border: InputBorder.none,
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: waterVolumeController,
+              enabled: !dashboardController.isLocked.value,
+              style: AppTheme.bodySmall.copyWith(fontSize: 10),
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                isDense: true,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 6,
+                ),
+                border: InputBorder.none,
+              ),
+              onChanged: (_) => _scheduleDistributionAutoSave(),
+            ),
           ),
-        )),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          decoration: BoxDecoration(
-            color: AppTheme.primaryColor.withOpacity(0.1),
-            borderRadius: const BorderRadius.only(
-                topRight: Radius.circular(3), bottomRight: Radius.circular(3)),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryColor.withOpacity(0.1),
+              borderRadius: const BorderRadius.only(
+                topRight: Radius.circular(3),
+                bottomRight: Radius.circular(3),
+              ),
+            ),
+            child: Center(
+              child: Text(
+                "bbl",
+                style: AppTheme.bodySmall.copyWith(
+                  fontSize: 10,
+                  color: AppTheme.primaryColor,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
           ),
-          child: Center(child: Text("bbl", style: AppTheme.bodySmall.copyWith(
-              fontSize: 10, color: AppTheme.primaryColor, fontWeight: FontWeight.w600))),
-        ),
-      ]),
+        ],
+      ),
     );
   }
 }

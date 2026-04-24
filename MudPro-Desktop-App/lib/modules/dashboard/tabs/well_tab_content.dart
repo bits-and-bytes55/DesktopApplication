@@ -2376,12 +2376,8 @@ class _NozzleSectionState extends State<NozzleSection> {
 
   int? selectedRowIndex;
 
-  final TextEditingController _bitTypeCtrl = TextEditingController();
-  final TextEditingController _bitModelCtrl = TextEditingController();
   final Map<int, TextEditingController> _countCtrls = {};
   final Map<int, TextEditingController> _sizeCtrls = {};
-  final FocusNode _bitTypeFocusNode = FocusNode();
-  final FocusNode _bitModelFocusNode = FocusNode();
   final Map<int, FocusNode> _countFocusNodes = {};
   final Map<int, FocusNode> _sizeFocusNodes = {};
 
@@ -2422,10 +2418,6 @@ class _NozzleSectionState extends State<NozzleSection> {
 
   @override
   void dispose() {
-    _bitTypeCtrl.dispose();
-    _bitModelCtrl.dispose();
-    _bitTypeFocusNode.dispose();
-    _bitModelFocusNode.dispose();
     for (final c in _countCtrls.values) c.dispose();
     for (final c in _sizeCtrls.values) c.dispose();
     for (final n in _countFocusNodes.values) n.dispose();
@@ -2455,45 +2447,6 @@ class _NozzleSectionState extends State<NozzleSection> {
             ),
           ),
         ),
-        const SizedBox(height: 2),
-        Obx(() {
-          _syncCtrl(_bitTypeCtrl, _bitTypeFocusNode, nc.bitType.value);
-          _syncCtrl(_bitModelCtrl, _bitModelFocusNode, nc.bitModel.value);
-
-          return SizedBox(
-            height: 50,
-            child: Table(
-              border: TableBorder.all(color: Colors.grey.shade300, width: 1),
-              defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-              columnWidths: const {
-                0: FixedColumnWidth(72),
-                1: FlexColumnWidth(1),
-              },
-              children: [
-                TableRow(
-                  children: [
-                    _bitInfoLabel('Bit Type'),
-                    _bitInfoEditCell(
-                      _bitTypeCtrl,
-                      _bitTypeFocusNode,
-                      (value) => nc.onBitInfoChanged(type: value),
-                    ),
-                  ],
-                ),
-                TableRow(
-                  children: [
-                    _bitInfoLabel('Bit Model'),
-                    _bitInfoEditCell(
-                      _bitModelCtrl,
-                      _bitModelFocusNode,
-                      (value) => nc.onBitInfoChanged(model: value),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          );
-        }),
         const SizedBox(height: 2),
         Expanded(
           child: Obx(() {
@@ -2679,62 +2632,6 @@ class _NozzleSectionState extends State<NozzleSection> {
                       fillColor: Colors.white,
                       filled: true,
                     ),
-                  ),
-                ),
-        ),
-      );
-
-  Widget _bitInfoLabel(String label) => Container(
-        height: 24,
-        padding: const EdgeInsets.symmetric(horizontal: 6),
-        alignment: Alignment.centerLeft,
-        color: AppTheme.primaryColor.withOpacity(0.08),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 9,
-            fontWeight: FontWeight.w600,
-            color: AppTheme.textPrimary,
-          ),
-        ),
-      );
-
-  Widget _bitInfoEditCell(
-    TextEditingController ctrl,
-    FocusNode focusNode,
-    Function(String) onChanged,
-  ) =>
-      Container(
-        height: 24,
-        padding: const EdgeInsets.symmetric(horizontal: 4),
-        child: Obx(
-          () => c.isLocked.value
-              ? Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    ctrl.text,
-                    style: TextStyle(
-                      fontSize: 9,
-                      color: AppTheme.textPrimary,
-                    ),
-                  ),
-                )
-              : TextField(
-                  controller: ctrl,
-                  focusNode: focusNode,
-                  style: const TextStyle(fontSize: 9),
-                  onChanged: onChanged,
-                  decoration: const InputDecoration(
-                    isDense: true,
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 2,
-                      vertical: 3,
-                    ),
-                    border: InputBorder.none,
-                    enabledBorder: InputBorder.none,
-                    focusedBorder: InputBorder.none,
-                    fillColor: Colors.white,
-                    filled: true,
                   ),
                 ),
         ),

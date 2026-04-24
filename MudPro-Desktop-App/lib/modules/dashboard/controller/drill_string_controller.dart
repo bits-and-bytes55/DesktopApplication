@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -40,6 +41,14 @@ class DrillStringEntry {
     length.dispose();
   }
 
+  bool get hasContent =>
+      description.text.trim().isNotEmpty ||
+      od.text.trim().isNotEmpty ||
+      weightPpf.text.trim().isNotEmpty ||
+      idCtrl.text.trim().isNotEmpty ||
+      grade.text.trim().isNotEmpty ||
+      length.text.trim().isNotEmpty;
+
   Map<String, dynamic> toJson() => {
         'description': description.text,
         'od': double.tryParse(od.text) ?? 0,
@@ -58,6 +67,8 @@ class DrillStringController extends GetxController {
   var isSaving = false.obs;
   var totalLength = 0.0.obs;
   final List<Worker> _unitWorkers = <Worker>[];
+  Timer? _autoSaveTimer;
+  bool _isApplyingState = false;
   late String _lengthUnit;
   late String _diameterUnit;
   late String _lineDensityUnit;
@@ -95,6 +106,21 @@ class DrillStringController extends GetxController {
     }
 
     return body;
+  }
+
+  bool get _hasSavableRows => entries.any((entry) => entry.hasContent);
+
+  void _scheduleAutoSave() {
+    if (_isApplyingState || isLoading.value || !_hasSavableRows) return;
+    _autoSaveTimer?.cancel();
+    _autoSaveTimer = Timer(const Duration(milliseconds: 850), () async {
+      if (_isApplyingState || isLoading.value || !_hasSavableRows) return;
+      if (isSaving.value) {
+        _scheduleAutoSave();
+        return;
+      }
+      await saveAll();
+    });
   }
 
   @override
@@ -146,6 +172,7 @@ class DrillStringController extends GetxController {
     _lineDensityUnit = nextLineDensityUnit;
     entries.refresh();
     _recalcTotal();
+    _scheduleAutoSave();
   }
 
   String _convertText(String rawValue, String fromUnit, String toUnit) {
@@ -176,6 +203,12 @@ class DrillStringController extends GetxController {
 
   void _attachListeners(DrillStringEntry entry) {
     entry.length.addListener(_recalcTotal);
+    entry.description.addListener(_scheduleAutoSave);
+    entry.od.addListener(_scheduleAutoSave);
+    entry.weightPpf.addListener(_scheduleAutoSave);
+    entry.idCtrl.addListener(_scheduleAutoSave);
+    entry.grade.addListener(_scheduleAutoSave);
+    entry.length.addListener(_scheduleAutoSave);
   }
 
   void _recalcTotal() {
@@ -201,6 +234,7 @@ class DrillStringController extends GetxController {
       }
     }
     _recalcTotal();
+    _scheduleAutoSave();
   }
 
   void addEmptyRow() {
@@ -211,18 +245,22 @@ class DrillStringController extends GetxController {
 
   // ─── API: FETCH ───────────────────────────────
   Future<void> fetchDrillStrings() async {
+    _autoSaveTimer?.cancel();
     final wellId = currentBackendWellId.trim();
     if (wellId.isEmpty) {
+      _isApplyingState = true;
       for (final e in entries) {
         e.dispose();
       }
       entries.clear();
       _initEmptyRows();
       totalLength.value = 0.0;
+      _isApplyingState = false;
       return;
     }
 
     isLoading.value = true;
+    _isApplyingState = true;
     try {
       final response = await http.get(
         _buildScopedUri('drill-string'),
@@ -271,39 +309,20 @@ class DrillStringController extends GetxController {
     } catch (e) {
       print('DrillString fetch error: $e');
     } finally {
+      _isApplyingState = false;
       isLoading.value = false;
     }
   }
 
   // ─── API: ADD ROW ─────────────────────────────
   Future<void> saveRow(int rowIndex) async {
+    _autoSaveTimer?.cancel();
     final entry = entries[rowIndex];
-    if (entry.description.text.isEmpty) return;
+    if (!entry.hasContent) return;
     isSaving.value = true;
     try {
-      final response = await http.post(
-        Uri.parse('${baseUrl}drill-string'),
-        headers: _headers,
-        body: jsonEncode(_withScope(entry.toJson())),
-      );
-      if (response.statusCode == 201) {
-        final json = jsonDecode(response.body);
-        final newId = json['data']['_id'];
-        // Rebuild entry with id
-        final updated = DrillStringEntry(
-          id: newId,
-          desc: entry.description.text,
-          odVal: entry.od.text,
-          wt: entry.weightPpf.text,
-          idVal: entry.idCtrl.text,
-          gr: entry.grade.text,
-          len: entry.length.text,
-        );
-        _attachListeners(updated);
-        entry.dispose();
-        entries[rowIndex] = updated;
-        entries.refresh();
-      }
+      await _saveEntry(rowIndex, entry);
+      entries.refresh();
     } catch (e) {
       print('DrillString save error: $e');
     } finally {
@@ -312,43 +331,75 @@ class DrillStringController extends GetxController {
   }
 
   // ─── API: SAVE ALL unsaved rows ───────────────
+  Future<bool> _saveEntry(int rowIndex, DrillStringEntry entry) async {
+    final isUpdate = entry.id != null && entry.id!.isNotEmpty;
+    final response = isUpdate
+        ? await http.put(
+            Uri.parse('${baseUrl}drill-string/${entry.id}'),
+            headers: _headers,
+            body: jsonEncode(_withScope(entry.toJson())),
+          )
+        : await http.post(
+            Uri.parse('${baseUrl}drill-string'),
+            headers: _headers,
+            body: jsonEncode(_withScope(entry.toJson())),
+          );
+
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      return false;
+    }
+
+    final json = jsonDecode(response.body);
+    final saved = json['data'];
+    final savedId = (saved is Map ? saved['_id'] : null)?.toString();
+    if (savedId == null || savedId.isEmpty) return true;
+
+    final updated = DrillStringEntry(
+      id: savedId,
+      desc: entry.description.text,
+      odVal: entry.od.text,
+      wt: entry.weightPpf.text,
+      idVal: entry.idCtrl.text,
+      gr: entry.grade.text,
+      len: entry.length.text,
+    );
+    _attachListeners(updated);
+    entry.dispose();
+    if (rowIndex >= 0 && rowIndex < entries.length) {
+      entries[rowIndex] = updated;
+    }
+    return true;
+  }
+
   Future<Map<String, dynamic>> saveAll() async {
-    final unsaved = entries.asMap().entries.where((e) => e.value.id == null && e.value.description.text.isNotEmpty).toList();
-    if (unsaved.isEmpty) {
-      return {'success': true, 'message': 'No new Drill String rows to save'};
+    _autoSaveTimer?.cancel();
+    final candidates =
+        entries.asMap().entries.where((e) => e.value.hasContent).toList();
+    if (candidates.isEmpty) {
+      return {'success': true, 'message': 'No Drill String rows to save'};
     }
     isSaving.value = true;
     int successCount = 0;
+    final errors = <String>[];
     try {
-      for (final entry in unsaved) {
+      for (final entry in candidates) {
         final rowIndex = entry.key;
-        final e = entry.value;
-        final response = await http.post(
-          Uri.parse('${baseUrl}drill-string'),
-          headers: _headers,
-          body: jsonEncode(_withScope(e.toJson())),
-        );
-        if (response.statusCode == 201) {
+        final saved = await _saveEntry(rowIndex, entry.value);
+        if (saved) {
           successCount++;
-          final json = jsonDecode(response.body);
-          final newId = json['data']['_id'];
-          final updated = DrillStringEntry(
-            id: newId,
-            desc: e.description.text,
-            odVal: e.od.text,
-            wt: e.weightPpf.text,
-            idVal: e.idCtrl.text,
-            gr: e.grade.text,
-            len: e.length.text,
-          );
-          _attachListeners(updated);
-          e.dispose();
-          entries[rowIndex] = updated;
+        } else {
+          errors.add('Row ${rowIndex + 1} failed');
         }
       }
       entries.refresh();
       _recalcTotal();
-      return {'success': true, 'message': '$successCount Drill String rows saved successfully'};
+      return {
+        'success': errors.isEmpty,
+        'message': errors.isEmpty
+            ? '$successCount Drill String rows saved successfully'
+            : '$successCount saved, ${errors.length} failed',
+        if (errors.isNotEmpty) 'errors': errors,
+      };
     } catch (e) {
       print('DrillString saveAll error: $e');
       return {'success': false, 'message': 'Error saving Drill String: $e'};
@@ -378,6 +429,7 @@ class DrillStringController extends GetxController {
 
   @override
   void onClose() {
+    _autoSaveTimer?.cancel();
     for (final worker in _unitWorkers) {
       worker.dispose();
     }

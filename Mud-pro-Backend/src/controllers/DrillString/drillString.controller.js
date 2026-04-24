@@ -170,3 +170,46 @@ export const deleteDrillString = async (req, res) => {
     });
   }
 };
+
+
+/**
+ * @desc Update Drill String Entry
+ */
+export const updateDrillString = async (req, res) => {
+  try {
+    const existing = await DrillString.findById(req.params.id);
+    if (!existing) {
+      return res.status(404).json({
+        success: false,
+        message: "Drill String not found"
+      });
+    }
+
+    const { wellId, reportId, reportNo } = resolveScope(req, existing);
+    const { description, od, weightPpf, id, grade, length } = req.body;
+
+    existing.wellId = wellId || null;
+    existing.reportId = reportId || null;
+    existing.reportNo = reportId ? reportNo : "";
+    existing.description = description;
+    existing.od = Number(od || 0);
+    existing.weightPpf = Number(weightPpf || 0);
+    existing.id = Number(id || 0);
+    existing.grade = grade;
+    existing.length = Number(length || 0);
+
+    const drill = await existing.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Drill String Updated Successfully",
+      data: drill
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};

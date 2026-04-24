@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
@@ -51,6 +52,42 @@ class WellGeneralController extends GetxController {
   final timeDistributionRevision = 0.obs;
   Worker? _wellWorker;
   Worker? _reportWorker;
+  final List<Worker> _autoSaveWorkers = <Worker>[];
+  Timer? _autoSaveTimer;
+  bool _isApplyingState = false;
+
+  List<RxString> get _autoSaveFields => [
+        reportNo,
+        userReportNo,
+        date,
+        time,
+        engineer,
+        engineer2,
+        operatorRep,
+        contractorRep,
+        activity,
+        md,
+        tvd,
+        inc,
+        azi,
+        wob,
+        rotWt,
+        soWt,
+        puWt,
+        rpm,
+        rop,
+        offBottomTq,
+        onBottomTq,
+        suctionT,
+        bottomT,
+        interval,
+        fit,
+        formation,
+        additionalFootage,
+        nptTime,
+        nptCost,
+        depthDrilled,
+      ];
 
   @override
   void onInit() {
@@ -62,14 +99,43 @@ class WellGeneralController extends GetxController {
     _reportWorker = ever<String>(reportContext.selectedReportId, (_) {
       fetchLatest();
     });
+    for (final field in _autoSaveFields) {
+      _autoSaveWorkers.add(ever<String>(field, (_) => _scheduleAutoSave()));
+    }
+    _autoSaveWorkers.add(
+      ever<int>(timeDistributionRevision, (_) => _scheduleAutoSave()),
+    );
     fetchLatest();
   }
 
   @override
   void onClose() {
+    _autoSaveTimer?.cancel();
     _wellWorker?.dispose();
     _reportWorker?.dispose();
+    for (final worker in _autoSaveWorkers) {
+      worker.dispose();
+    }
     super.onClose();
+  }
+
+  bool get _hasMeaningfulData {
+    return savedId.value.isNotEmpty ||
+        _autoSaveFields.any((field) => field.value.trim().isNotEmpty) ||
+        _serializeTimeDistributionRows().isNotEmpty;
+  }
+
+  void _scheduleAutoSave() {
+    if (_isApplyingState || isLoading.value || !_hasMeaningfulData) return;
+    _autoSaveTimer?.cancel();
+    _autoSaveTimer = Timer(const Duration(milliseconds: 850), () async {
+      if (_isApplyingState || isLoading.value || !_hasMeaningfulData) return;
+      if (isSaving.value) {
+        _scheduleAutoSave();
+        return;
+      }
+      await save();
+    });
   }
 
   Map<String, String> get _headers => {
@@ -150,7 +216,7 @@ class WellGeneralController extends GetxController {
     int index, {
     String? activity,
     String? time,
-    bool notify = false,
+    bool notify = true,
   }) {
     final rows = timeDistributionRowsForUi;
     while (rows.length <= index) {
@@ -348,13 +414,17 @@ class WellGeneralController extends GetxController {
 
   // FETCH latest record
   Future<void> fetchLatest() async {
+    _autoSaveTimer?.cancel();
     if (kControllerWellId.isEmpty) {
       if (savedId.value.isEmpty && md.value.isEmpty) {
+        _isApplyingState = true;
         _clearFields();
+        _isApplyingState = false;
       }
       return;
     }
     isLoading.value = true;
+    _isApplyingState = true;
     try {
       final primaryUri = Uri.parse('${baseUrl}well-general/$kControllerWellId').replace(
         queryParameters: {
@@ -422,12 +492,14 @@ class WellGeneralController extends GetxController {
       print('WellGeneral fetch error: $e');
       _applySelectedReportMetadata();
     } finally {
+      _isApplyingState = false;
       isLoading.value = false;
     }
   }
 
   // SAVE (create or update)
   Future<Map<String, dynamic>> save() async {
+    _autoSaveTimer?.cancel();
     if (kControllerWellId.isEmpty) {
       return {'success': false, 'message': 'No backend well selected'};
     }
@@ -443,7 +515,9 @@ class WellGeneralController extends GetxController {
       if (result['success'] == true) {
         final data = result['data']?['data'];
         if (data != null) {
+          _isApplyingState = true;
           _fromJson(data);
+          _isApplyingState = false;
         }
         return {
           'success': true,

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart';
@@ -41,6 +43,9 @@ class OperationController extends GetxController {
   final isAddWaterLoading = false.obs;
   String _loadedAddWaterWellId = '';
   String _loadedAddWaterReportId = '';
+  Timer? _addWaterAutoSaveTimer;
+  bool _isApplyingAddWaterState = false;
+  final List<Worker> _addWaterAutoSaveWorkers = <Worker>[];
 
   String _formatVolume(double value) {
     return value
@@ -75,6 +80,26 @@ class OperationController extends GetxController {
     return values;
   }
 
+  bool get _hasAddWaterData =>
+      addWaterRecordIds.isNotEmpty || _collectAddWaterVolumes().isNotEmpty;
+
+  void _scheduleAddWaterAutoSave() {
+    if (_isApplyingAddWaterState ||
+        isAddWaterLoading.value ||
+        !_hasAddWaterData) {
+      return;
+    }
+    _addWaterAutoSaveTimer?.cancel();
+    _addWaterAutoSaveTimer = Timer(const Duration(milliseconds: 850), () async {
+      if (_isApplyingAddWaterState ||
+          isAddWaterLoading.value ||
+          !_hasAddWaterData) {
+        return;
+      }
+      await saveAddWater();
+    });
+  }
+
   Future<void> _refreshPitState() async {
     if (!Get.isRegistered<PitController>()) return;
     final pitCtrl = Get.find<PitController>();
@@ -85,12 +110,15 @@ class OperationController extends GetxController {
   }
 
   Future<void> loadAddWater({bool force = false}) async {
+    _addWaterAutoSaveTimer?.cancel();
     final wellId = currentBackendWellId.trim();
     final reportId = reportContext.selectedReportId.value.trim();
     if (wellId.isEmpty || reportId.isEmpty) {
+      _isApplyingAddWaterState = true;
       _loadedAddWaterWellId = '';
       _loadedAddWaterReportId = '';
       _resetAddWaterState();
+      _isApplyingAddWaterState = false;
       return;
     }
     if (!force &&
@@ -101,6 +129,7 @@ class OperationController extends GetxController {
     }
 
     isAddWaterLoading.value = true;
+    _isApplyingAddWaterState = true;
     try {
       final result = await _repository.getAddWaterList(wellId);
       if (result['success'] != true) {
@@ -157,11 +186,13 @@ class OperationController extends GetxController {
     } catch (_) {
       _resetAddWaterState();
     } finally {
+      _isApplyingAddWaterState = false;
       isAddWaterLoading.value = false;
     }
   }
 
   Future<Map<String, dynamic>> saveAddWater() async {
+    _addWaterAutoSaveTimer?.cancel();
     final wellId = currentBackendWellId;
     if (wellId.isEmpty) {
       return {'success': false, 'message': 'No backend well selected'};
@@ -534,6 +565,14 @@ final RxList<String> returnLostDropdownValue =
     _applyAvailableOperations(_fallbackOperations);
     fetchOperationsMenu();
     loadAddWater();
+    _addWaterAutoSaveWorkers.addAll([
+      ever<String>(addWaterTo, (_) => _scheduleAddWaterAutoSave()),
+      ever<String>(addWaterMainVol, (_) => _scheduleAddWaterAutoSave()),
+      ever<List<String>>(
+        addWaterExtraRows,
+        (_) => _scheduleAddWaterAutoSave(),
+      ),
+    ]);
     _wellWorker = ever<String>(padWellContext.selectedWellId, (_) {
       _loadedAddWaterWellId = '';
       _loadedAddWaterReportId = '';
@@ -548,8 +587,12 @@ final RxList<String> returnLostDropdownValue =
 
   @override
   void onClose() {
+    _addWaterAutoSaveTimer?.cancel();
     _wellWorker?.dispose();
     _reportWorker?.dispose();
+    for (final worker in _addWaterAutoSaveWorkers) {
+      worker.dispose();
+    }
     super.onClose();
   }
 }

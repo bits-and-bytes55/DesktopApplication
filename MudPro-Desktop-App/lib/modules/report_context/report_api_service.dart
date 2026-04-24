@@ -30,6 +30,26 @@ class ReportApiService {
     return reports;
   }
 
+  Future<List<ReportManagerRow>> fetchReportManagerRows(String wellId) async {
+    final decoded = await _getObject(
+      path: 'reports/manager',
+      queryParameters: {'wellId': wellId},
+    );
+
+    final data = decoded['data'];
+    if (data is! List) return const <ReportManagerRow>[];
+
+    final rows = data
+        .whereType<Map>()
+        .map(
+          (item) => ReportManagerRow.fromJson(Map<String, dynamic>.from(item)),
+        )
+        .toList();
+
+    rows.sort(_compareReportManagerRows);
+    return rows;
+  }
+
   Future<Map<String, dynamic>> createReport(Map<String, dynamic> payload) {
     return _sendObject(
       method: 'POST',
@@ -251,4 +271,27 @@ int _compareReports(AppReport a, AppReport b) {
   }
 
   return a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase());
+}
+
+int _compareReportManagerRows(ReportManagerRow a, ReportManagerRow b) {
+  final leftNo = int.tryParse(a.reportNo.trim());
+  final rightNo = int.tryParse(b.reportNo.trim());
+
+  if (leftNo != null && rightNo != null && leftNo != rightNo) {
+    return leftNo.compareTo(rightNo);
+  }
+
+  if (leftNo != null && rightNo == null) return -1;
+  if (leftNo == null && rightNo != null) return 1;
+
+  final leftCreated = DateTime.tryParse(a.createdAt);
+  final rightCreated = DateTime.tryParse(b.createdAt);
+  if (leftCreated != null && rightCreated != null) {
+    final createdCompare = leftCreated.compareTo(rightCreated);
+    if (createdCompare != 0) {
+      return createdCompare;
+    }
+  }
+
+  return a.reportLabel.toLowerCase().compareTo(b.reportLabel.toLowerCase());
 }

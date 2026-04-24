@@ -73,6 +73,7 @@ class _ReceiveProductViewState extends State<ReceiveProductView> {
   final RxBool alertIsError = false.obs;
   final RxBool isSaving = false.obs;
   Timer? _inventorySnapshotRefreshTimer;
+  final Map<String, Timer> _autoSaveTimers = {};
 
   @override
   void initState() {
@@ -184,6 +185,28 @@ class _ReceiveProductViewState extends State<ReceiveProductView> {
     );
   }
 
+  void _scheduleAutoSaveRow(String kind, int index) {
+    if (dashboardController.isLocked.value) return;
+    final key = '$kind:$index';
+    _autoSaveTimers[key]?.cancel();
+    _autoSaveTimers[key] = Timer(const Duration(milliseconds: 650), () {
+      _autoSaveTimers.remove(key);
+      if (!mounted || dashboardController.isLocked.value) return;
+      if (kind == 'product') {
+        _saveProductRow(index);
+      } else {
+        _savePackageRow(index);
+      }
+    });
+  }
+
+  void _cancelAutoSaves() {
+    for (final timer in _autoSaveTimers.values) {
+      timer.cancel();
+    }
+    _autoSaveTimers.clear();
+  }
+
   // ─── Auto-add empty row when last row has value ────────────
   void _checkAndAddRow<T>(RxList<T> rows, T Function() factory, String selectedItem) {
     if (rows.isNotEmpty) {
@@ -199,6 +222,7 @@ class _ReceiveProductViewState extends State<ReceiveProductView> {
 
   // ─── Save single product row (create or update) ────────────
   Future<void> _saveProductRow(int index) async {
+    _autoSaveTimers.remove('product:$index')?.cancel();
     if (index >= productRows.length) return;
     final row = productRows[index];
     row.amount = row.amountController.text;
@@ -255,6 +279,7 @@ class _ReceiveProductViewState extends State<ReceiveProductView> {
 
   // ─── Delete product row ─────────────────────────────────────
   Future<void> _deleteProductRow(int index) async {
+    _cancelAutoSaves();
     if (index >= productRows.length) return;
     final row = productRows[index];
 
@@ -299,6 +324,7 @@ class _ReceiveProductViewState extends State<ReceiveProductView> {
 
   // ─── Save single package row ────────────────────────────────
   Future<void> _savePackageRow(int index) async {
+    _autoSaveTimers.remove('package:$index')?.cancel();
     if (index >= packageRows.length) return;
     final row = packageRows[index];
     row.amount = row.amountController.text;
@@ -354,6 +380,7 @@ class _ReceiveProductViewState extends State<ReceiveProductView> {
 
   // ─── Delete package row ─────────────────────────────────────
   Future<void> _deletePackageRow(int index) async {
+    _cancelAutoSaves();
     if (index >= packageRows.length) return;
     final row = packageRows[index];
 
@@ -522,6 +549,7 @@ class _ReceiveProductViewState extends State<ReceiveProductView> {
                             if (productRows.last.selectedItem.isNotEmpty) {
                               productRows.add(ProductRowData());
                             }
+                            _scheduleAutoSaveRow('product', index);
                           },
                           onSaveRow: _saveProductRow,
                           onDeleteRow: _deleteProductRow,
@@ -544,6 +572,7 @@ class _ReceiveProductViewState extends State<ReceiveProductView> {
                             if (packageRows.last.selectedItem.isNotEmpty) {
                               packageRows.add(PackageRowData());
                             }
+                            _scheduleAutoSaveRow('package', index);
                           },
                           onSaveRow: _savePackageRow,
                           onDeleteRow: _deletePackageRow,
@@ -799,9 +828,13 @@ class _ReceiveProductViewState extends State<ReceiveProductView> {
                                               if (T == ProductRowData) {
                                                 (rows[index] as ProductRowData)
                                                     .amount = val;
+                                                _scheduleAutoSaveRow(
+                                                    'product', index);
                                               } else if (T == PackageRowData) {
                                                 (rows[index] as PackageRowData)
                                                     .amount = val;
+                                                _scheduleAutoSaveRow(
+                                                    'package', index);
                                               }
                                             },
                                             // Enter dabao → auto save/update
@@ -1001,6 +1034,7 @@ class _ReceiveProductViewState extends State<ReceiveProductView> {
 
   @override
   void dispose() {
+    _cancelAutoSaves();
     _inventorySnapshotRefreshTimer?.cancel();
     bolController.dispose();
     for (final r in productRows) r.dispose();

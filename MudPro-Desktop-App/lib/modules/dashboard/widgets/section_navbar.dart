@@ -20,9 +20,7 @@ class _SectionNavBarState extends State<SectionNavBar>
     {"name": "Pump", "icon": Icons.settings},
     {"name": "Operation", "icon": Icons.build},
     {"name": "Pit", "icon": Icons.inbox},
-    {"name": "Safety", "icon": Icons.health_and_safety},
     {"name": "Remarks", "icon": Icons.comment},
-    {"name": "JSA", "icon": Icons.assignment},
   ];
 
   final c = Get.find<DashboardController>();

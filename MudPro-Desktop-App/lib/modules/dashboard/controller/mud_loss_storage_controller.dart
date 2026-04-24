@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
@@ -81,6 +83,8 @@ class MudLossStorageController extends GetxController {
   final AuthRepository _repository = AuthRepository();
   final rows = <MudLossStorageEntry>[].obs;
   final isLoading = false.obs;
+  Timer? _autoSaveTimer;
+  bool _isApplyingState = false;
 
   Worker? _wellWorker;
   Worker? _reportWorker;
@@ -104,6 +108,7 @@ class MudLossStorageController extends GetxController {
 
   @override
   void onClose() {
+    _autoSaveTimer?.cancel();
     _wellWorker?.dispose();
     _reportWorker?.dispose();
     for (final row in rows) {
@@ -124,6 +129,17 @@ class MudLossStorageController extends GetxController {
 
   void ensureTrailingRow() {
     _ensureMinimumRows();
+  }
+
+  bool get _hasData => rows.any((row) => row.hasAnyData);
+
+  void scheduleAutoSave() {
+    if (_isApplyingState || isLoading.value || !_hasData) return;
+    _autoSaveTimer?.cancel();
+    _autoSaveTimer = Timer(const Duration(milliseconds: 850), () async {
+      if (_isApplyingState || isLoading.value || !_hasData) return;
+      await save();
+    });
   }
 
   Future<void> _refreshPitState() async {
@@ -148,13 +164,17 @@ class MudLossStorageController extends GetxController {
   }
 
   Future<void> load({bool force = false}) async {
+    _autoSaveTimer?.cancel();
     if (wellId.isEmpty) {
+      _isApplyingState = true;
       _resetRows();
+      _isApplyingState = false;
       return;
     }
     if (isLoading.value && !force) return;
 
     isLoading.value = true;
+    _isApplyingState = true;
     try {
       final result = await _repository.getMudLossStorageList(wellId);
       if (result['success'] != true) {
@@ -187,11 +207,13 @@ class MudLossStorageController extends GetxController {
     } catch (_) {
       _resetRows();
     } finally {
+      _isApplyingState = false;
       isLoading.value = false;
     }
   }
 
   Future<Map<String, dynamic>> save() async {
+    _autoSaveTimer?.cancel();
     if (wellId.isEmpty) {
       return {'success': false, 'message': 'No backend well selected'};
     }

@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:mudpro_desktop_app/modules/daily_report/daily_report_body.dart';
-import 'package:mudpro_desktop_app/modules/daily_report/report_topbar.dart';
 import 'package:mudpro_desktop_app/modules/report/tabs/recap_body.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
@@ -12,7 +10,6 @@ class RecapHomePage extends StatefulWidget {
 }
 
 class _RecapHomePageState extends State<RecapHomePage> {
-  int _selectedMainTab = 0; // 0: Home, 1: Report, 2: Utilities, 3: Help
   bool _isSidebarVisible = true;
 
   void _toggleSidebar() {
@@ -28,6 +25,10 @@ class _RecapHomePageState extends State<RecapHomePage> {
       appBar: AppBar(
         backgroundColor: AppTheme.darkPrimaryColor,
         elevation: 0,
+        leading: IconButton(
+          icon: Icon(_isSidebarVisible ? Icons.menu_open : Icons.menu),
+          onPressed: _toggleSidebar,
+        ),
         actions: [
           IconButton(
             icon: Icon(Icons.close),
@@ -37,11 +38,9 @@ class _RecapHomePageState extends State<RecapHomePage> {
       ),
       body: Column(
         children: [
-
           // Main Content
           Expanded(
             child: RecapBody(
-              selectedMainTab: _selectedMainTab,
               isSidebarVisible: _isSidebarVisible,
               onToggleSidebar: _toggleSidebar,
             ),

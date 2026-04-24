@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -31,6 +32,7 @@ class _RemarksViewState extends State<RemarksView> {
   final TextEditingController internalCtrl = TextEditingController();
 
   Worker? _reportWorker;
+  Timer? _autoSaveTimer;
   bool _isHydrating = false;
   bool _isDirty = false;
   bool _isSaving = false;
@@ -60,8 +62,29 @@ class _RemarksViewState extends State<RemarksView> {
   }
 
   void _handleTextChanged() {
-    if (_isHydrating || _isDirty) return;
-    if (mounted) setState(() => _isDirty = true);
+    if (_isHydrating) return;
+    if (!_isDirty && mounted) setState(() => _isDirty = true);
+    _scheduleAutoSave();
+  }
+
+  void _scheduleAutoSave() {
+    if (_isHydrating ||
+        dashboard.isLocked.value ||
+        !reports.hasSelectedReport) {
+      return;
+    }
+    _autoSaveTimer?.cancel();
+    _autoSaveTimer = Timer(
+      const Duration(milliseconds: 800),
+      () {
+        if (!mounted) return;
+        if (_isSaving) {
+          _scheduleAutoSave();
+        } else {
+          _saveRemarks(silent: true);
+        }
+      },
+    );
   }
 
   void _loadSelectedReport() {
@@ -109,6 +132,7 @@ class _RemarksViewState extends State<RemarksView> {
       _attachmentDirty = true;
       _isDirty = true;
     });
+    _scheduleAutoSave();
   }
 
   void deleteFile() {
@@ -119,26 +143,35 @@ class _RemarksViewState extends State<RemarksView> {
       _attachmentDirty = true;
       _isDirty = true;
     });
+    _scheduleAutoSave();
   }
 
-  Future<void> _saveRemarks() async {
+  Future<void> _saveRemarks({bool silent = false}) async {
+    _autoSaveTimer?.cancel();
+    if (!mounted) return;
     if (_isSaving) return;
     if (!reports.hasSelectedReport) {
-      _showMessage('Select a report first.', isError: true);
+      if (!silent) _showMessage('Select a report first.', isError: true);
       return;
     }
     if (dashboard.isLocked.value) {
-      _showMessage('Unlock the document before saving.', isError: true);
+      if (!silent) {
+        _showMessage('Unlock the document before saving.', isError: true);
+      }
       return;
     }
 
     setState(() => _isSaving = true);
     try {
+      final recommended = recommendedCtrl.text.trim();
+      final remarks = remarksCtrl.text.trim();
+      final recap = recapCtrl.text.trim();
+      final internal = internalCtrl.text.trim();
       final payload = <String, dynamic>{
-        'recommendedTreatment': recommendedCtrl.text.trim(),
-        'remarks': remarksCtrl.text.trim(),
-        'recapRemarks': recapCtrl.text.trim(),
-        'internalNotes': internalCtrl.text.trim(),
+        'recommendedTreatment': recommended,
+        'remarks': remarks,
+        'recapRemarks': recap,
+        'internalNotes': internal,
       };
 
       if (_attachmentDirty) {
@@ -146,10 +179,19 @@ class _RemarksViewState extends State<RemarksView> {
       }
 
       await reports.updateSelectedReport(payload);
-      _loadSelectedReport();
-      _showMessage('Remarks saved.');
+      final changedDuringSave = recommendedCtrl.text.trim() != recommended ||
+          remarksCtrl.text.trim() != remarks ||
+          recapCtrl.text.trim() != recap ||
+          internalCtrl.text.trim() != internal;
+      if (changedDuringSave) {
+        if (mounted) setState(() => _isDirty = true);
+        _scheduleAutoSave();
+      } else {
+        _loadSelectedReport();
+      }
+      if (!silent) _showMessage('Remarks saved.');
     } catch (e) {
-      _showMessage(_friendlyError(e), isError: true);
+      if (!silent) _showMessage(_friendlyError(e), isError: true);
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -262,7 +304,8 @@ class _RemarksViewState extends State<RemarksView> {
           ),
           const SizedBox(width: 8),
           ElevatedButton.icon(
-            onPressed: isLocked || !_isDirty || _isSaving ? null : _saveRemarks,
+            onPressed:
+                isLocked || !_isDirty || _isSaving ? null : () => _saveRemarks(),
             icon: _isSaving
                 ? const SizedBox(
                     width: 14,
@@ -818,6 +861,7 @@ class _RemarksViewState extends State<RemarksView> {
 
   @override
   void dispose() {
+    _autoSaveTimer?.cancel();
     _reportWorker?.dispose();
     recommendedCtrl.dispose();
     remarksCtrl.dispose();

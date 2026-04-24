@@ -15,8 +15,6 @@ import 'package:mudpro_desktop_app/modules/dashboard/widgets/home_secondary_tabb
 import 'package:mudpro_desktop_app/modules/dashboard/tabs/well_tab_content.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/tabs/mud/mud_tab_content.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_tab_content.dart';
-import 'package:mudpro_desktop_app/modules/dashboard/tabs/safety_tab_content.dart';
-import 'package:mudpro_desktop_app/modules/dashboard/tabs/jsa_tab_content.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/UG_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/right_pannel_view.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/pit_view.dart';
@@ -205,11 +203,7 @@ Obx(() {
                             case 4:
                               return PitPage();
                             case 5:
-                              return SafetyTabContent();
-                            case 6:
                               return RemarksView();
-                            case 7:
-                              return JSATabContent();
                             default:
                               return WellTabContent();
                           }

@@ -6,6 +6,8 @@ import Pit from "../../modules/pit/pit.model.js";
 import Pump from "../../modules/pump/pump.model.js";
 import Nozzle from "../../modules/nozzle/nozzle.model.js";
 import { Shaker, OtherSce } from "../../modules/sce/sce.model.js";
+import InventorySnapshot from "../../modules/FullInventory/InventorySnapshot.js";
+import MudReportState from "../../modules/mudReport/MudReportState.js";
 
 const toText = (value) => String(value ?? "").trim();
 
@@ -13,6 +15,8 @@ const toNumber = (value, fallback = 0) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
 };
+
+const round2 = (value) => Number(toNumber(value).toFixed(2));
 
 const sanitizePumpRateAndPressure = (value = {}) => {
   const source =
@@ -55,6 +59,125 @@ const hasPumpRateAndPressureInput = (value) =>
 
 const escapeRegex = (value) =>
   String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const normalizeKey = (value) =>
+  toText(value)
+    .toLowerCase()
+    .replaceAll("*", "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const latestTimestamp = (item) =>
+  new Date(item?.updatedAt ?? item?.createdAt ?? 0).getTime();
+
+const firstMeaningfulText = (...values) => {
+  for (const value of values) {
+    const parsed = toText(value);
+    if (parsed) return parsed;
+  }
+  return "";
+};
+
+const firstPositiveNumber = (...values) => {
+  for (const value of values) {
+    const parsed = toNumber(value, NaN);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+  return 0;
+};
+
+const pickLatestByKey = (items = [], getKey) => {
+  const sorted = [...items].sort(
+    (left, right) => latestTimestamp(right) - latestTimestamp(left)
+  );
+  const byKey = new Map();
+
+  for (const item of sorted) {
+    const key = toText(getKey(item));
+    if (!key || byKey.has(key)) continue;
+    byKey.set(key, item);
+  }
+
+  return byKey;
+};
+
+const firstPositiveFromList = (value) => {
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const parsed = toNumber(item, NaN);
+      if (Number.isFinite(parsed) && parsed > 0) {
+        return parsed;
+      }
+    }
+  }
+
+  const parsed = toNumber(value, NaN);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+};
+
+const extractMudWeight = (propertyTable = {}) => {
+  if (!propertyTable || typeof propertyTable !== "object" || Array.isArray(propertyTable)) {
+    return 0;
+  }
+
+  for (const [key, value] of Object.entries(propertyTable)) {
+    const normalized = normalizeKey(key);
+    if (
+      normalized === "mw" ||
+      normalized.startsWith("mw ") ||
+      normalized.includes("mud weight")
+    ) {
+      const parsed = firstPositiveFromList(value);
+      if (parsed > 0) {
+        return parsed;
+      }
+    }
+  }
+
+  return 0;
+};
+
+const buildInventorySummaryByReportId = (rows = []) => {
+  const byReportId = new Map();
+
+  const sorted = [...rows].sort(
+    (left, right) => latestTimestamp(right) - latestTimestamp(left)
+  );
+
+  for (const row of sorted) {
+    const reportId = toText(row.reportId);
+    if (!reportId || byReportId.has(reportId)) continue;
+
+    byReportId.set(reportId, {
+      dailyCost: round2(row.dailyTotal || row.totalDollar),
+      cumulativeCost: round2(row.cumTotal || row.totalDollar),
+    });
+  }
+
+  return byReportId;
+};
+
+const buildPitSummaryByReportId = (rows = []) => {
+  const byReportId = new Map();
+
+  const sorted = [...rows].sort(
+    (left, right) => latestTimestamp(right) - latestTimestamp(left)
+  );
+
+  for (const row of sorted) {
+    const reportId = toText(row.reportId);
+    if (!reportId || byReportId.has(reportId)) continue;
+
+    byReportId.set(reportId, {
+      mudType: toText(row.fluidType),
+      mw: round2(row.density),
+    });
+  }
+
+  return byReportId;
+};
 
 const ensureWellExists = async (wellId) => {
   if (!mongoose.Types.ObjectId.isValid(wellId)) {
@@ -525,6 +648,125 @@ export const getReports = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to fetch reports",
+      error: error.message,
+    });
+  }
+};
+
+export const getReportManagerRows = async (req, res) => {
+  try {
+    const wellId = toText(req.query.wellId);
+    if (!wellId) {
+      return res.status(400).json({
+        success: false,
+        message: "wellId is required",
+      });
+    }
+
+    const wellCheck = await ensureWellExists(wellId);
+    if (!wellCheck.ok) {
+      return res.status(wellCheck.status).json({
+        success: false,
+        message: wellCheck.message,
+      });
+    }
+
+    const reports = await Report.find({ wellId }).sort({ createdAt: -1 }).lean();
+    if (reports.length === 0) {
+      return res.status(200).json({
+        success: true,
+        count: 0,
+        data: [],
+      });
+    }
+
+    const reportIds = reports.map((report) => toText(report._id)).filter(Boolean);
+    const reportNos = reports.map((report) => toText(report.reportNo)).filter(Boolean);
+
+    const [wellGeneralRows, mudReportRows, inventoryRows, pitRows] =
+      await Promise.all([
+        WellGeneral.find({
+          wellId,
+          $or: [
+            { reportId: { $in: reportIds } },
+            { reportNo: { $in: reportNos } },
+          ],
+        }).lean(),
+        MudReportState.find({
+          wellId,
+          reportId: { $in: reportIds },
+        }).lean(),
+        InventorySnapshot.find({
+          wellId,
+          reportId: { $in: reportIds },
+        }).lean(),
+        Pit.find({
+          wellId,
+          reportId: { $in: reportIds },
+        }).lean(),
+      ]);
+
+    const wellGeneralByReportId = pickLatestByKey(
+      wellGeneralRows,
+      (item) => item.reportId
+    );
+    const wellGeneralByReportNo = pickLatestByKey(
+      wellGeneralRows,
+      (item) => item.reportNo
+    );
+    const mudReportByReportId = pickLatestByKey(
+      mudReportRows,
+      (item) => item.reportId
+    );
+    const inventoryByReportId = buildInventorySummaryByReportId(inventoryRows);
+    const pitByReportId = buildPitSummaryByReportId(pitRows);
+
+    const data = reports.map((report) => {
+      const reportId = toText(report._id);
+      const reportNo = toText(report.reportNo);
+      const wellGeneral =
+        wellGeneralByReportId.get(reportId) || wellGeneralByReportNo.get(reportNo);
+      const mudReport = mudReportByReportId.get(reportId);
+      const inventory = inventoryByReportId.get(reportId);
+      const pit = pitByReportId.get(reportId);
+
+      return {
+        reportId,
+        wellId: toText(report.wellId),
+        reportNo,
+        userReportNo: toText(report.userReportNo),
+        reportDate: toText(report.reportDate),
+        title: toText(report.title),
+        notes: toText(report.notes),
+        recommendedTreatment: toText(report.recommendedTreatment),
+        remarks: toText(report.remarks),
+        recapRemarks: toText(report.recapRemarks),
+        internalNotes: toText(report.internalNotes),
+        activity: toText(wellGeneral?.activity),
+        interval: toText(wellGeneral?.interval),
+        md: round2(wellGeneral?.md),
+        mudType: firstMeaningfulText(mudReport?.fluidType, pit?.mudType),
+        mw: round2(
+          firstPositiveNumber(
+            extractMudWeight(mudReport?.propertyTable),
+            pit?.mw
+          )
+        ),
+        dailyCost: round2(inventory?.dailyCost),
+        cumulativeCost: round2(inventory?.cumulativeCost),
+        createdAt: toText(report.createdAt),
+      };
+    });
+
+    return res.status(200).json({
+      success: true,
+      count: data.length,
+      data,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch report manager rows",
       error: error.message,
     });
   }

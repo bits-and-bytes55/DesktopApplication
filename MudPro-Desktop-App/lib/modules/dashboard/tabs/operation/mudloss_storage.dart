@@ -233,6 +233,7 @@ class _MudLossStorageViewState extends State<MudLossStorageView> {
                     if (value == null) return;
                     row.storage.value = value;
                     controller.ensureTrailingRow();
+                    controller.scheduleAutoSave();
                   },
           ),
         ),
@@ -279,6 +280,7 @@ class _MudLossStorageViewState extends State<MudLossStorageView> {
         onChanged: (text) {
           value.value = text;
           controller.ensureTrailingRow();
+          controller.scheduleAutoSave();
         },
       ),
     );

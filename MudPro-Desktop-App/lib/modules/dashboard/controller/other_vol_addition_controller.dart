@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
@@ -13,6 +15,8 @@ class OtherVolAdditionController extends GetxController {
   final cuttingsController = TextEditingController();
   final volumeNotFluidController = TextEditingController();
   final selectedDropdownAddition = ''.obs;
+  Timer? _autoSaveTimer;
+  bool _isApplyingState = false;
 
   static const List<String> additionOptions = [
     'Formation',
@@ -28,6 +32,9 @@ class OtherVolAdditionController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    formationController.addListener(_scheduleAutoSave);
+    cuttingsController.addListener(_scheduleAutoSave);
+    volumeNotFluidController.addListener(_scheduleAutoSave);
     load();
     _wellWorker = ever<String>(
       padWellContext.selectedWellId,
@@ -41,6 +48,7 @@ class OtherVolAdditionController extends GetxController {
 
   @override
   void onClose() {
+    _autoSaveTimer?.cancel();
     _wellWorker?.dispose();
     _reportWorker?.dispose();
     formationController.dispose();
@@ -66,6 +74,21 @@ class OtherVolAdditionController extends GetxController {
     recordId.value = null;
   }
 
+  bool get _hasData =>
+      recordId.value != null ||
+      formationController.text.trim().isNotEmpty ||
+      cuttingsController.text.trim().isNotEmpty ||
+      volumeNotFluidController.text.trim().isNotEmpty;
+
+  void _scheduleAutoSave() {
+    if (_isApplyingState || isLoading.value || !_hasData) return;
+    _autoSaveTimer?.cancel();
+    _autoSaveTimer = Timer(const Duration(milliseconds: 850), () async {
+      if (_isApplyingState || isLoading.value || !_hasData) return;
+      await save();
+    });
+  }
+
   TextEditingController controllerForAddition(String label) {
     switch (label) {
       case 'Formation':
@@ -80,7 +103,10 @@ class OtherVolAdditionController extends GetxController {
   }
 
   Future<void> _reloadForContext() async {
+    _autoSaveTimer?.cancel();
+    _isApplyingState = true;
     _clearFields();
+    _isApplyingState = false;
     await load(force: true);
   }
 
@@ -107,13 +133,17 @@ class OtherVolAdditionController extends GetxController {
   }
 
   Future<void> load({bool force = false}) async {
+    _autoSaveTimer?.cancel();
     if (wellId.isEmpty) {
+      _isApplyingState = true;
       _clearFields();
+      _isApplyingState = false;
       return;
     }
     if (isLoading.value && !force) return;
 
     isLoading.value = true;
+    _isApplyingState = true;
     try {
       final result = await _repository.getOtherVolAdditionList(wellId);
       if (result['success'] != true) {
@@ -133,11 +163,13 @@ class OtherVolAdditionController extends GetxController {
     } catch (_) {
       _clearFields();
     } finally {
+      _isApplyingState = false;
       isLoading.value = false;
     }
   }
 
   Future<Map<String, dynamic>> save() async {
+    _autoSaveTimer?.cancel();
     if (wellId.isEmpty) {
       return {'success': false, 'message': 'No backend well selected'};
     }

@@ -350,6 +350,18 @@ class UnitConversionService {
     },
 
     // ── VOL-VOL (base: L/m³) ──────────────────────────────────────────────
+    'viscosity': {'(cP)': 0.001, '(mPa-s)': 0.001, '(Pa-s)': 1.0},
+
+    'yieldPoint': {
+      '(lbf/100ft2)': 0.4788026,
+      '(lb/100ft2)': 0.4788026,
+      '(lbs/100ft2)': 0.4788026,
+      '(Pa)': 1.0,
+      '(N/m2)': 1.0,
+    },
+
+    'concentration': {'(mg/L)': 1.0, '(ppm)': 1.0},
+
     'volVol': {
       '(gal/bbl)': 23.8095, // gal/bbl → L/m³
       '(L/m3)': 1.0,

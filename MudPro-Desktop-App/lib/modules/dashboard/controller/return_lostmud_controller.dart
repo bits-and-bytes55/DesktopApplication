@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
@@ -11,6 +13,9 @@ class ReturnLostMudController extends GetxController {
   final AuthRepository _repository = AuthRepository();
   Worker? _wellWorker;
   Worker? _reportWorker;
+  final List<Worker> _autoSaveWorkers = <Worker>[];
+  Timer? _autoSaveTimer;
+  bool _isApplyingState = false;
   
   // Loading states
   final isLoading = false.obs;
@@ -53,6 +58,17 @@ class ReturnLostMudController extends GetxController {
   void onInit() {
     super.onInit();
     print('🚀 ReturnLostMudController initialized');
+    toController.addListener(_scheduleAutoSave);
+    volReturnedController.addListener(_scheduleAutoSave);
+    bolController.addListener(_scheduleAutoSave);
+    volLostController.addListener(_scheduleAutoSave);
+    costOfLostController.addListener(_scheduleAutoSave);
+    _autoSaveWorkers.addAll([
+      ever<bool>(isPremixedMud, (_) => _scheduleAutoSave()),
+      ever<bool>(isLeased, (_) => _scheduleAutoSave()),
+      ever<String>(selectedPremixedId, (_) => _scheduleAutoSave()),
+      ever<String>(selectedPitId, (_) => _scheduleAutoSave()),
+    ]);
     _loadInitialData();
     _wellWorker = ever<String>(
       padWellContext.selectedWellId,
@@ -66,6 +82,7 @@ class ReturnLostMudController extends GetxController {
   
   @override
   void onClose() {
+    _autoSaveTimer?.cancel();
     toController.dispose();
     volReturnedController.dispose();
     bolController.dispose();
@@ -73,6 +90,9 @@ class ReturnLostMudController extends GetxController {
     costOfLostController.dispose();
     _wellWorker?.dispose();
     _reportWorker?.dispose();
+    for (final worker in _autoSaveWorkers) {
+      worker.dispose();
+    }
     super.onClose();
   }
   
@@ -109,13 +129,58 @@ class ReturnLostMudController extends GetxController {
   }
 
   Future<void> _reloadForContext() async {
+    _autoSaveTimer?.cancel();
+    _isApplyingState = true;
     _clearForm();
+    _isApplyingState = false;
     await _loadInitialData();
+  }
+
+  bool get _isReturnLostFormEmpty =>
+      selectedPremixed.value == null &&
+      selectedPit.value == null &&
+      toController.text.trim().isEmpty &&
+      volReturnedController.text.trim().isEmpty &&
+      bolController.text.trim().isEmpty &&
+      volLostController.text.trim().isEmpty &&
+      costOfLostController.text.trim().isEmpty;
+
+  bool get _hasAutoSavableData {
+    if (_isReturnLostFormEmpty) {
+      return recordId.value != null && recordId.value!.isNotEmpty;
+    }
+    final hasVolume =
+        _parseNumber(volReturnedController.text) > 0 ||
+        _parseNumber(volLostController.text) > 0;
+    return selectedPremixed.value != null &&
+        selectedPit.value != null &&
+        toController.text.trim().isNotEmpty &&
+        hasVolume;
+  }
+
+  void _scheduleAutoSave() {
+    if (_isApplyingState ||
+        isLoading.value ||
+        isSaving.value ||
+        !_hasAutoSavableData) {
+      return;
+    }
+    _autoSaveTimer?.cancel();
+    _autoSaveTimer = Timer(const Duration(milliseconds: 850), () async {
+      if (_isApplyingState ||
+          isLoading.value ||
+          isSaving.value ||
+          !_hasAutoSavableData) {
+        return;
+      }
+      await saveReturnLostMud(silent: true);
+    });
   }
 
   // ================= LOAD INITIAL DATA =================
   
   Future<void> _loadInitialData() async {
+    _autoSaveTimer?.cancel();
     final currentWellId = wellId;
     print('📍 Using wellId: $currentWellId');
     
@@ -125,6 +190,7 @@ class ReturnLostMudController extends GetxController {
     }
     
     isLoading.value = true;
+    _isApplyingState = true;
     try {
       await Future.wait([
         _loadPremixedMud(),
@@ -135,6 +201,7 @@ class ReturnLostMudController extends GetxController {
       _showToast('Failed to load data', isError: true);
       print('❌ Error loading initial data: $e');
     } finally {
+      _isApplyingState = false;
       isLoading.value = false;
     }
   }
@@ -299,6 +366,7 @@ class ReturnLostMudController extends GetxController {
       // Update MW and Mud Type
       mw.value = _formatNumber(selectedPremixed.value?.mw);
       mudType.value = selectedPremixed.value?.mudType ?? '';
+      _scheduleAutoSave();
       
       print('✅ Selected premixed mud: ${selectedPremixed.value?.description}');
       print('📊 MW: ${mw.value}, Mud Type: ${mudType.value}');
@@ -318,6 +386,7 @@ class ReturnLostMudController extends GetxController {
       selectedPit.value = pitsList.firstWhere(
         (p) => p.id == pitId,
       );
+      _scheduleAutoSave();
       print('✅ Selected pit: ${selectedPit.value?.pitName}');
     } catch (e) {
       print('❌ Error selecting pit: $e');
@@ -327,25 +396,19 @@ class ReturnLostMudController extends GetxController {
   
   // ================= SAVE RETURN/LOST MUD =================
   
-  Future<Map<String, dynamic>> saveReturnLostMud() async {
+  Future<Map<String, dynamic>> saveReturnLostMud({bool silent = false}) async {
+    _autoSaveTimer?.cancel();
     final currentWellId = wellId;
     if (currentWellId == null) {
-      _showToast('Well ID not found', isError: true);
+      if (!silent) _showToast('Well ID not found', isError: true);
       return {'success': false, 'message': 'Well ID not found'};
     }
 
-    final isFormEmpty =
-        selectedPremixed.value == null &&
-        selectedPit.value == null &&
-        toController.text.trim().isEmpty &&
-        volReturnedController.text.trim().isEmpty &&
-        bolController.text.trim().isEmpty &&
-        volLostController.text.trim().isEmpty &&
-        costOfLostController.text.trim().isEmpty;
-
-    if (isFormEmpty) {
+    if (_isReturnLostFormEmpty) {
       if (recordId.value == null || recordId.value!.isEmpty) {
-        _showToast('No Return / Lost Mud data to save', isError: false);
+        if (!silent) {
+          _showToast('No Return / Lost Mud data to save', isError: false);
+        }
         return {'success': true, 'message': 'No Return / Lost Mud data to save'};
       }
 
@@ -358,16 +421,18 @@ class ReturnLostMudController extends GetxController {
         if (deleteResult['success'] == true) {
           _clearForm();
           await _refreshPitState();
-          _showToast('Data deleted successfully', isError: false);
+          if (!silent) _showToast('Data deleted successfully', isError: false);
           return {
             'success': true,
             'message': 'Return / Lost Mud deleted successfully',
           };
         } else {
-          _showToast(
-            deleteResult['message'] ?? 'Failed to delete data',
-            isError: true,
-          );
+          if (!silent) {
+            _showToast(
+              deleteResult['message'] ?? 'Failed to delete data',
+              isError: true,
+            );
+          }
           return {
             'success': false,
             'message': deleteResult['message'] ?? 'Failed to delete data',
@@ -375,7 +440,7 @@ class ReturnLostMudController extends GetxController {
         }
       } catch (e) {
         print('Error deleting return/lost mud: $e');
-        _showToast('Failed to delete data', isError: true);
+        if (!silent) _showToast('Failed to delete data', isError: true);
         return {'success': false, 'message': 'Failed to delete data'};
       } finally {
         isSaving.value = false;
@@ -384,17 +449,17 @@ class ReturnLostMudController extends GetxController {
 
     // Validation
     if (selectedPremixed.value == null) {
-      _showToast('Please select Premixed Mud', isError: true);
+      if (!silent) _showToast('Please select Premixed Mud', isError: true);
       return {'success': false, 'message': 'Please select Premixed Mud'};
     }
     
     if (selectedPit.value == null) {
-      _showToast('Please select From Pit', isError: true);
+      if (!silent) _showToast('Please select From Pit', isError: true);
       return {'success': false, 'message': 'Please select From Pit'};
     }
     
     if (toController.text.isEmpty) {
-      _showToast('To field is required', isError: true);
+      if (!silent) _showToast('To field is required', isError: true);
       return {'success': false, 'message': 'To field is required'};
     }
     
@@ -402,7 +467,9 @@ class ReturnLostMudController extends GetxController {
     final lostVolume = _parseNumber(volLostController.text);
 
     if (returnedVolume <= 0 && lostVolume <= 0) {
-      _showToast('Returned or Lost volume is required', isError: true);
+      if (!silent) {
+        _showToast('Returned or Lost volume is required', isError: true);
+      }
       return {
         'success': false,
         'message': 'Returned or Lost volume is required',
@@ -438,7 +505,9 @@ class ReturnLostMudController extends GetxController {
             )
           : await _repository.createReturnLostMud(currentWellId, data);
       if (result['success'] != true) {
-        _showToast(result['message'] ?? 'Failed to save data', isError: true);
+        if (!silent) {
+          _showToast(result['message'] ?? 'Failed to save data', isError: true);
+        }
         return {
           'success': false,
           'message': result['message'] ?? 'Failed to save data',
@@ -452,7 +521,7 @@ class ReturnLostMudController extends GetxController {
       }
 
       await _refreshPitState();
-      _showToast('Data saved successfully', isError: false);
+      if (!silent) _showToast('Data saved successfully', isError: false);
       return {
         'success': true,
         'message': 'Return / Lost Mud saved successfully',
@@ -460,7 +529,7 @@ class ReturnLostMudController extends GetxController {
       
     } catch (e) {
       print('❌ Error saving return/lost mud: $e');
-      _showToast('Failed to save data', isError: true);
+      if (!silent) _showToast('Failed to save data', isError: true);
       return {'success': false, 'message': 'Failed to save data'};
     } finally {
       isSaving.value = false;

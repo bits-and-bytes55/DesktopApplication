@@ -20,16 +20,39 @@ class _MudViewState extends State<MudView> {
 
   final _propertyScrollCtrl = ScrollController();
   final _rheologyScrollCtrl = ScrollController();
+  Worker? _unitSystemWorker;
+  Worker? _customSystemWorker;
+  Worker? _customUnitsWorker;
+  Worker? _mudLoadingWorker;
 
   @override
   void initState() {
     super.initState();
     c = Get.put(MudController());
     dashboard = Get.find<DashboardController>();
+    final options = AppUnits.controller;
+    _unitSystemWorker =
+        ever(options.unitSystem, (_) => _convertMudValuesForActiveUnits());
+    _customSystemWorker = ever(
+      options.selectedCustomSystemId,
+      (_) => _convertMudValuesForActiveUnits(),
+    );
+    _customUnitsWorker =
+        ever(options.customUnits, (_) => _convertMudValuesForActiveUnits());
+    _mudLoadingWorker = ever<bool>(c.isLoading, (loading) {
+      if (!loading) _convertMudValuesForActiveUnits();
+    });
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _convertMudValuesForActiveUnits(),
+    );
   }
 
   @override
   void dispose() {
+    _unitSystemWorker?.dispose();
+    _customSystemWorker?.dispose();
+    _customUnitsWorker?.dispose();
+    _mudLoadingWorker?.dispose();
     _propertyScrollCtrl.dispose();
     _rheologyScrollCtrl.dispose();
     super.dispose();
@@ -433,6 +456,160 @@ class _MudViewState extends State<MudView> {
 
     if (raw.isEmpty) return '';
     return AppUnits.strip(AppUnits.unitText(raw));
+  }
+
+  void _convertMudValuesForActiveUnits() {
+    if (!mounted || c.isLoading.value || c.propertyTable.isEmpty) return;
+
+    var changed = false;
+    for (final entry in c.propertyTable.entries.toList()) {
+      final name = entry.key;
+      final sourceUnit = (c.propertyUnits[name] ?? '').trim();
+      final targetUnit = _dynamicMudUnit(name, sourceUnit).trim();
+      if (targetUnit.isEmpty) continue;
+
+      if (sourceUnit.isEmpty) {
+        c.propertyUnits[name] = targetUnit;
+        changed = true;
+        continue;
+      }
+
+      if (_sameMudUnit(sourceUnit, targetUnit)) {
+        if (sourceUnit != targetUnit) {
+          c.propertyUnits[name] = targetUnit;
+          changed = true;
+        }
+        continue;
+      }
+
+      var conversionFailed = false;
+      for (final cell in entry.value) {
+        final current = cell.value.trim();
+        if (current.isEmpty) continue;
+
+        final converted = _convertMudCellValue(current, sourceUnit, targetUnit);
+        if (converted == null) {
+          conversionFailed = true;
+          continue;
+        }
+        if (converted != cell.value) {
+          cell.value = converted;
+          changed = true;
+        }
+      }
+
+      if (!conversionFailed) {
+        c.propertyUnits[name] = targetUnit;
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      c.propertyUnits.refresh();
+      c.saveMudReportState(force: true);
+    }
+  }
+
+  String? _convertMudCellValue(String raw, String fromUnit, String toUnit) {
+    final value = double.tryParse(raw.replaceAll(',', ''));
+    if (value == null) return null;
+
+    final converted = _convertMudNumber(value, fromUnit, toUnit);
+    if (converted == null) return null;
+    return _formatMudConverted(converted);
+  }
+
+  double? _convertMudNumber(double value, String fromUnit, String toUnit) {
+    final from = _normalizeMudUnitForConversion(fromUnit);
+    final to = _normalizeMudUnitForConversion(toUnit);
+    if (_sameMudUnit(from, to)) return value;
+
+    final fromTemp = _temperatureUnitKey(from);
+    final toTemp = _temperatureUnitKey(to);
+    if (fromTemp != null && toTemp != null) {
+      return _convertTemperature(value, fromTemp, toTemp);
+    }
+
+    final fromRate = _splitRateUnit(from);
+    final toRate = _splitRateUnit(to);
+    if (fromRate != null && toRate != null && fromRate[1] == toRate[1]) {
+      return AppUnits.convertValue(value, fromRate[0], toRate[0]);
+    }
+
+    final fromKey = _unitCompareKey(from);
+    final toKey = _unitCompareKey(to);
+    if ((fromKey == 'mg/l' || fromKey == 'ppm') &&
+        (toKey == 'mg/l' || toKey == 'ppm')) {
+      return value;
+    }
+
+    return AppUnits.convertValue(value, from, to);
+  }
+
+  String _normalizeMudUnitForConversion(String unit) {
+    return AppUnits.strip(unit)
+        .replaceAll('Ã‚', '')
+        .replaceAll('Â', '')
+        .replaceAll('²', '2')
+        .replaceAll('³', '3')
+        .trim();
+  }
+
+  bool _sameMudUnit(String a, String b) => _unitCompareKey(a) == _unitCompareKey(b);
+
+  String _unitCompareKey(String unit) {
+    final normalized = AppUnits.normalizedText(unit)
+        .replaceAll('Ã‚', '')
+        .replaceAll('Â', '')
+        .replaceAll('²', '2')
+        .replaceAll('³', '3')
+        .replaceAll('\u00B0', 'deg')
+        .replaceAll(RegExp(r'[()\s]'), '')
+        .toLowerCase();
+    if (normalized == 'f') return 'degf';
+    if (normalized == 'c') return 'degc';
+    return normalized;
+  }
+
+  String? _temperatureUnitKey(String unit) {
+    final key = _unitCompareKey(unit);
+    if (key == 'degf') return 'f';
+    if (key == 'degc') return 'c';
+    if (key == 'k') return 'k';
+    return null;
+  }
+
+  double _convertTemperature(double value, String from, String to) {
+    if (from == to) return value;
+    final celsius = switch (from) {
+      'f' => (value - 32) * 5 / 9,
+      'k' => value - 273.15,
+      _ => value,
+    };
+    return switch (to) {
+      'f' => celsius * 9 / 5 + 32,
+      'k' => celsius + 273.15,
+      _ => celsius,
+    };
+  }
+
+  List<String>? _splitRateUnit(String unit) {
+    final compact = unit.replaceAll(' ', '');
+    final lower = compact.toLowerCase();
+    const suffix = '/30min';
+    if (!lower.endsWith(suffix)) return null;
+    return [compact.substring(0, compact.length - suffix.length), suffix];
+  }
+
+  String _formatMudConverted(double value) {
+    final normalized = value.abs() < 0.0000001 ? 0.0 : value;
+    if (normalized == normalized.truncateToDouble()) {
+      return normalized.toInt().toString();
+    }
+    return normalized
+        .toStringAsFixed(4)
+        .replaceAll(RegExp(r'0+$'), '')
+        .replaceAll(RegExp(r'\.$'), '');
   }
 
   Widget _propertyRow(String name, List<RxString> values, bool isLast) {

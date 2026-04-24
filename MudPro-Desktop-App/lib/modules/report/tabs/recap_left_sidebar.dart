@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mudpro_desktop_app/modules/report/tabs/recap_tab_registry.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class RecapLeftSidebar extends StatefulWidget {
@@ -22,274 +23,146 @@ class _RecapLeftSidebarState extends State<RecapLeftSidebar> {
 
   @override
   Widget build(BuildContext context) {
+    final sidebarWidth = _collapsed ? 68.0 : 220.0;
+
     return ConstrainedBox(
       constraints: BoxConstraints(
-        minWidth: _collapsed ? 60 : 200,
-        maxWidth: _collapsed ? 60 : 200,
+        minWidth: sidebarWidth,
+        maxWidth: sidebarWidth,
       ),
       child: Container(
-        width: _collapsed ? 60 : 200,
+        width: sidebarWidth,
         decoration: BoxDecoration(
           color: AppTheme.darkPrimaryColor,
           border: Border(
-            right: BorderSide(
-              color: Colors.grey.shade800,
-              width: 1,
-            ),
+            right: BorderSide(color: Colors.grey.shade800, width: 1),
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.2),
+              color: Colors.black.withValues(alpha: 0.2),
               blurRadius: 8,
               offset: const Offset(2, 0),
             ),
           ],
         ),
-      child: Column(
-        children: [
-          // Sidebar Header with Toggle Button
-          SizedBox(
-            height: 48,
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                bool isNarrow = constraints.maxWidth < 60;
-                return Container(
-                  padding: isNarrow ? EdgeInsets.zero : (_collapsed ? EdgeInsets.zero : const EdgeInsets.symmetric(horizontal: 12)),
-                  decoration: BoxDecoration(
-                    color: AppTheme.darkPrimaryColor.withOpacity(0.8),
-                    border: Border(
-                      bottom: BorderSide(
-                        color: Colors.grey.shade800,
-                        width: 1,
+        child: Column(
+          children: [
+            SizedBox(
+              height: 52,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final isNarrow = constraints.maxWidth < 72;
+                  return Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isNarrow || _collapsed ? 8 : 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppTheme.darkPrimaryColor.withValues(alpha: 0.82),
+                      border: Border(
+                        bottom: BorderSide(
+                          color: Colors.grey.shade800,
+                          width: 1,
+                        ),
                       ),
                     ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (!isNarrow && !_collapsed)
-                        Flexible(
-                          child: Text(
-                            "Navigation",
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.9),
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14,
+                    child: Row(
+                      children: [
+                        if (!isNarrow && !_collapsed)
+                          Expanded(
+                            child: Text(
+                              'Recap',
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.92),
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                              ),
                             ),
                           ),
-                        ),
-                      GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _collapsed = !_collapsed;
-                          });
-                        },
-                        child: SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: Icon(
-                            _collapsed ? Icons.chevron_right : Icons.chevron_left,
-                            color: Colors.white.withOpacity(0.8),
-                            size: 16,
+                        IconButton(
+                          tooltip: _collapsed
+                              ? 'Expand sidebar'
+                              : 'Collapse sidebar',
+                          visualDensity: VisualDensity.compact,
+                          splashRadius: 18,
+                          onPressed: () {
+                            setState(() {
+                              _collapsed = !_collapsed;
+                            });
+                          },
+                          icon: Icon(
+                            _collapsed
+                                ? Icons.chevron_right
+                                : Icons.chevron_left,
+                            color: Colors.white.withValues(alpha: 0.8),
+                            size: 18,
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                );
-              },
+                        IconButton(
+                          tooltip: 'Hide sidebar',
+                          visualDensity: VisualDensity.compact,
+                          splashRadius: 18,
+                          onPressed: widget.onToggleSidebar,
+                          icon: Icon(
+                            Icons.vertical_split,
+                            color: Colors.white.withValues(alpha: 0.72),
+                            size: 18,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
             ),
-          ),
-          
-          // Sidebar Items
-          Expanded(
-            child: ListView(
-              children: [
-                _SideItem(
-                  title: "Summary",
-                  icon: Icons.dashboard_outlined,
-                  selected: widget.selectedTab == 0,
-                  collapsed: _collapsed,
-                  onTap: () => widget.onTabSelected(0),
-                ),
-                _SideItem(
-                  title: "Cost Distribution",
-                  icon: Icons.list_alt_outlined,
-                  selected: widget.selectedTab == 1,
-                  collapsed: _collapsed,
-                  onTap: () => widget.onTabSelected(1),
-                ),
-                _SideItem(
-                  title: "Daily Cost",
-                  icon: Icons.attach_money_outlined,
-                  selected: widget.selectedTab == 2,
-                  collapsed: _collapsed,
-                  onTap: () => widget.onTabSelected(2),
-                ),
-                _SideItem(
-                  title: "Depth Cost",
-                  icon: Icons.account_balance_wallet_outlined,
-                  selected: widget.selectedTab == 3,
-                  collapsed: _collapsed,
-                  onTap: () => widget.onTabSelected(3),
-                ),
-                _SideItem(
-                  title: "Cum. Cost",
-                  icon: Icons.pie_chart_outline,
-                  selected: widget.selectedTab == 4,
-                  collapsed: _collapsed,
-                  onTap: () => widget.onTabSelected(4),
-                ),
-                _SideItem(
-                  title: "Drilling Data",
-                  icon: Icons.access_time_outlined,
-                  selected: widget.selectedTab == 5,
-                  collapsed: _collapsed,
-                  onTap: () => widget.onTabSelected(5),
-                ),
-                _SideItem(
-                  title: "Mud Prop.",
-                  icon: Icons.map_outlined,
-                  selected: widget.selectedTab == 6,
-                  collapsed: _collapsed,
-                  onTap: () => widget.onTabSelected(6),
-                ),
-                _SideItem(
-                  title: "Hydraulics",
-                  icon: Icons.notifications_active_outlined,
-                  selected: widget.selectedTab == 7,
-                  collapsed: _collapsed,
-                  onTap: () => widget.onTabSelected(7),
-                ),
-                _SideItem(
-                  title: "Solids",
-                  icon: Icons.notifications_active_outlined,
-                  selected: widget.selectedTab == 7,
-                  collapsed: _collapsed,
-                  onTap: () => widget.onTabSelected(7),
-                ),
-                _SideItem(
-                  title: "Volume",
-                  icon: Icons.notifications_active_outlined,
-                  selected: widget.selectedTab == 7,
-                  collapsed: _collapsed,
-                  onTap: () => widget.onTabSelected(7),
-                ),
-                _SideItem(
-                  title: "Usage",
-                  icon: Icons.notifications_active_outlined,
-                  selected: widget.selectedTab == 7,
-                  collapsed: _collapsed,
-                  onTap: () => widget.onTabSelected(7),
-                ),
-                _SideItem(
-                  title: "Concentration",
-                  icon: Icons.notifications_active_outlined,
-                  selected: widget.selectedTab == 7,
-                  collapsed: _collapsed,
-                  onTap: () => widget.onTabSelected(7),
-                ),
-                _SideItem(
-                  title: "Time Distribution",
-                  icon: Icons.notifications_active_outlined,
-                  selected: widget.selectedTab == 7,
-                  collapsed: _collapsed,
-                  onTap: () => widget.onTabSelected(7),
-                ),
-                _SideItem(
-                  title: "SCE",
-                  icon: Icons.notifications_active_outlined,
-                  selected: widget.selectedTab == 7,
-                  collapsed: _collapsed,
-                  onTap: () => widget.onTabSelected(7),
-                ),
-                _SideItem(
-                  title: "Bit",
-                  icon: Icons.notifications_active_outlined,
-                  selected: widget.selectedTab == 7,
-                  collapsed: _collapsed,
-                  onTap: () => widget.onTabSelected(7),
-                ),
-                _SideItem(
-                  title: "Remarks",
-                  icon: Icons.notifications_active_outlined,
-                  selected: widget.selectedTab == 7,
-                  collapsed: _collapsed,
-                  onTap: () => widget.onTabSelected(7),
-                ),
-                _SideItem(
-                  title: "Interval",
-                  icon: Icons.notifications_active_outlined,
-                  selected: widget.selectedTab == 7,
-                  collapsed: _collapsed,
-                  onTap: () => widget.onTabSelected(7),
-                ),
-                _SideItem(
-                  title: "Survey",
-                  icon: Icons.notifications_active_outlined,
-                  selected: widget.selectedTab == 7,
-                  collapsed: _collapsed,
-                  onTap: () => widget.onTabSelected(7),
-                ),
-                _SideItem(
-                  title: "Customized",
-                  icon: Icons.notifications_active_outlined,
-                  selected: widget.selectedTab == 7,
-                  collapsed: _collapsed,
-                  onTap: () => widget.onTabSelected(7),
-                ),
-              ],
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                itemCount: recapTabItems.length,
+                itemBuilder: (context, index) {
+                  final item = recapTabItems[index];
+                  return _SideItem(
+                    title: item.title,
+                    icon: item.icon,
+                    selected: widget.selectedTab == index,
+                    collapsed: _collapsed,
+                    onTap: () => widget.onTabSelected(index),
+                  );
+                },
+              ),
             ),
-          ),
-          
-          // Sidebar Footer
-          Container(
-            height: 48,
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                bool isNarrow = constraints.maxWidth < 60;
-                return Container(
-                  padding: isNarrow ? EdgeInsets.zero : (_collapsed ? EdgeInsets.zero : const EdgeInsets.symmetric(horizontal: 12)),
-                  decoration: BoxDecoration(
-                    border: Border(
-                      top: BorderSide(
-                        color: Colors.grey.shade800,
-                        width: 1,
+            Container(
+              height: 44,
+              padding: EdgeInsets.symmetric(horizontal: _collapsed ? 8 : 12),
+              decoration: BoxDecoration(
+                border: Border(
+                  top: BorderSide(color: Colors.grey.shade800, width: 1),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: _collapsed
+                    ? MainAxisAlignment.center
+                    : MainAxisAlignment.spaceBetween,
+                children: [
+                  if (!_collapsed)
+                    Flexible(
+                      child: Text(
+                        '${recapTabItems.length} tabs',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.55),
+                          fontSize: 11,
+                        ),
                       ),
                     ),
+                  Icon(
+                    Icons.list_alt_outlined,
+                    size: 16,
+                    color: Colors.white.withValues(alpha: 0.6),
                   ),
-                  child: Row(
-                    children: [
-                      if (!isNarrow && !_collapsed)
-                        Expanded(
-                          child: Text(
-                            "Version 2.1.0",
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.5),
-                              fontSize: 11,
-                            ),
-                          ),
-                        ),
-                      GestureDetector(
-                        onTap: () {},
-                        child: SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: Icon(
-                            Icons.help_outline,
-                            size: 16,
-                            color: Colors.white.withOpacity(0.6),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
+                ],
+              ),
             ),
-          ),
-        ],
-      ),
+          ],
+        ),
       ),
     );
   }
@@ -312,54 +185,65 @@ class _SideItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 50,
-        decoration: BoxDecoration(
-          color: selected ? AppTheme.primaryColor.withOpacity(0.3) : Colors.transparent,
-          border: selected
-              ? Border(
-                  left: BorderSide(
-                    color: AppTheme.accentColor,
-                    width: 3,
-                  ),
-                )
-              : null,
-        ),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            bool isNarrow = constraints.maxWidth < 60;
-            return Container(
-              padding: isNarrow ? EdgeInsets.zero : EdgeInsets.symmetric(horizontal: collapsed ? 0 : 16),
-              alignment: Alignment.centerLeft,
-              child: ClipRect(
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          height: 48,
+          decoration: BoxDecoration(
+            color: selected
+                ? AppTheme.primaryColor.withValues(alpha: 0.28)
+                : Colors.transparent,
+            border: selected
+                ? Border(
+                    left: BorderSide(color: AppTheme.accentColor, width: 3),
+                  )
+                : null,
+          ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isNarrow = constraints.maxWidth < 72;
+              return Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: isNarrow || collapsed ? 0 : 16,
+                ),
                 child: Row(
-                  mainAxisAlignment: isNarrow ? MainAxisAlignment.center : (collapsed ? MainAxisAlignment.center : MainAxisAlignment.start),
+                  mainAxisAlignment: isNarrow || collapsed
+                      ? MainAxisAlignment.center
+                      : MainAxisAlignment.start,
                   children: [
                     Icon(
                       icon,
-                      size: isNarrow ? 16 : 18,
-                      color: selected ? Colors.white : Colors.white.withOpacity(0.7),
+                      size: isNarrow ? 17 : 18,
+                      color: selected
+                          ? Colors.white
+                          : Colors.white.withValues(alpha: 0.72),
                     ),
                     if (!isNarrow && !collapsed) ...[
                       const SizedBox(width: 12),
-                      Flexible(
+                      Expanded(
                         child: Text(
                           title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            color: selected ? Colors.white : Colors.white.withOpacity(0.9),
+                            color: selected
+                                ? Colors.white
+                                : Colors.white.withValues(alpha: 0.9),
                             fontSize: 13,
-                            fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                            fontWeight: selected
+                                ? FontWeight.w600
+                                : FontWeight.w400,
                           ),
                         ),
                       ),
                     ],
                   ],
                 ),
-              ),
-            );
-          },
+              );
+            },
+          ),
         ),
       ),
     );

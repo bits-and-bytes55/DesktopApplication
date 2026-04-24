@@ -416,6 +416,7 @@ class _TransferMudViewState extends State<TransferMudView> {
                             row.pitName = value;
                             pitController.transferRows.refresh();
                             pitController.checkAndAddTransferRow();
+                            pitController.scheduleTransferMudAutoSave();
                           }
                         },
                 ),
@@ -450,6 +451,7 @@ class _TransferMudViewState extends State<TransferMudView> {
         textAlign: TextAlign.right,
         onChanged: (val) {
           row.volume = val;
+          pitController.scheduleTransferMudAutoSave();
         },
       ),
     );

@@ -56,8 +56,11 @@ class PitController extends GetxController {
   final Set<String> modifiedPitIds = {};
 
   Timer? _debounceTimer;
+  Timer? _transferAutoSaveTimer;
+  bool _isApplyingTransferState = false;
   Worker? _wellWorker;
   Worker? _reportWorker;
+  final List<Worker> _transferAutoSaveWorkers = <Worker>[];
 
   bool get _hasWellId => currentWellId != null && currentWellId!.isNotEmpty;
 
@@ -97,6 +100,10 @@ class PitController extends GetxController {
       fetchVolumeNameData();
       fetchTransferMud();
     });
+    _transferAutoSaveWorkers.addAll([
+      ever<String>(selectedFromPit, (_) => scheduleTransferMudAutoSave()),
+      ever<bool>(notTreatedMud, (_) => scheduleTransferMudAutoSave()),
+    ]);
     if (_hasWellId) {
       fetchAllPits();
       fetchVolumeNameData();
@@ -755,8 +762,10 @@ class PitController extends GetxController {
   // ================= TRANSFER MUD OPERATIONS =================
 
   Future<void> fetchTransferMud() async {
+    _transferAutoSaveTimer?.cancel();
     if (!_hasWellId) return;
     isLoadingTransfer.value = true;
+    _isApplyingTransferState = true;
     try {
       final authRepo = AuthRepository();
       final result = await authRepo.getTransferMud(currentWellId!);
@@ -807,6 +816,7 @@ class PitController extends GetxController {
     } catch (e) {
       debugPrint('Error fetching transfer mud: $e');
     } finally {
+      _isApplyingTransferState = false;
       isLoadingTransfer.value = false;
     }
   }
@@ -825,7 +835,32 @@ class PitController extends GetxController {
 
     if (changed) {
       transferRows.refresh();
+      scheduleTransferMudAutoSave();
     }
+  }
+
+  bool get _hasTransferData => transferRows.any(
+        (row) =>
+            (row.savedId ?? '').isNotEmpty ||
+            row.pitName.trim().isNotEmpty ||
+            row.volume.trim().isNotEmpty,
+      );
+
+  void scheduleTransferMudAutoSave() {
+    if (_isApplyingTransferState ||
+        isLoadingTransfer.value ||
+        !_hasTransferData) {
+      return;
+    }
+    _transferAutoSaveTimer?.cancel();
+    _transferAutoSaveTimer = Timer(const Duration(milliseconds: 850), () async {
+      if (_isApplyingTransferState ||
+          isLoadingTransfer.value ||
+          !_hasTransferData) {
+        return;
+      }
+      await saveTransferMud();
+    });
   }
 
   String? _validateTransferRow(TransferRowData row) {
@@ -855,6 +890,7 @@ class PitController extends GetxController {
   }
 
   Future<Map<String, dynamic>> saveTransferMud() async {
+    _transferAutoSaveTimer?.cancel();
     if (!_hasWellId) return {'success': false, 'message': 'Well ID missing'};
 
     final authRepo = AuthRepository();
@@ -1005,8 +1041,12 @@ class PitController extends GetxController {
 
   @override
   void onClose() {
+    _transferAutoSaveTimer?.cancel();
     _wellWorker?.dispose();
     _reportWorker?.dispose();
+    for (final worker in _transferAutoSaveWorkers) {
+      worker.dispose();
+    }
     _disposePitControllers();
     for (var row in transferRows) {
       row.volumeController.dispose();
