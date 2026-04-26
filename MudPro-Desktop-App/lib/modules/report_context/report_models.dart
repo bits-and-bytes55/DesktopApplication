@@ -67,6 +67,8 @@ class ReportManagerRow {
   final String internalNotes;
   final String activity;
   final String interval;
+  final String engineer;
+  final String engineer2;
   final String mudType;
   final double md;
   final double mw;
@@ -88,6 +90,8 @@ class ReportManagerRow {
     required this.internalNotes,
     required this.activity,
     required this.interval,
+    required this.engineer,
+    required this.engineer2,
     required this.mudType,
     required this.md,
     required this.mw,
@@ -111,6 +115,8 @@ class ReportManagerRow {
         internalNotes: _text(json['internalNotes']),
         activity: _text(json['activity']),
         interval: _text(json['interval']),
+        engineer: _text(json['engineer']),
+        engineer2: _text(json['engineer2']),
         mudType: _text(json['mudType']),
         md: _doubleValue(json['md']),
         mw: _doubleValue(json['mw']),

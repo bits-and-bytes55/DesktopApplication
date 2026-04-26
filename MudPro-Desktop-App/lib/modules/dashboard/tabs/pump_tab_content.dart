@@ -1,9 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/pump_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/sce_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
+import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
+import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 // ─── Local row model for Pump page ────────────────────────────────────────────
@@ -56,6 +60,7 @@ class _PumpRow {
 
 // ─── Local row models for SCE ─────────────────────────────────────────────────
 class _ShakerRow {
+  String? id;
   final RxString shakerType = ''.obs;
   final RxString model = ''.obs;
   final RxString screen1 = ''.obs;
@@ -74,6 +79,7 @@ class _ShakerRow {
 }
 
 class _OtherSceRow {
+  String? id;
   final RxString type = ''.obs;
   final RxString model = ''.obs;
   final RxString uf = ''.obs;
@@ -97,6 +103,10 @@ class _PumpPageState extends State<PumpPage> {
   late final SceController sceController;
   late final DashboardController dashboard;
   final List<Worker> _unitWorkers = <Worker>[];
+  Worker? _wellWorker;
+  Worker? _reportWorker;
+  final Map<_ShakerRow, Timer> _shakerSaveTimers = {};
+  final Map<_OtherSceRow, Timer> _otherSceSaveTimers = {};
   late String _diameterUnit;
   late String _lengthUnit;
   late String _displacementUnit;
@@ -172,10 +182,27 @@ class _PumpPageState extends State<PumpPage> {
     _pumpRows.addAll(List.generate(_initialPumpRows, (_) => _PumpRow()));
     _shakerRows.addAll(List.generate(_initialShakerRows, (_) => _ShakerRow()));
     _sceRows.addAll(List.generate(_initialSceRows, (_) => _OtherSceRow()));
+    _wellWorker = ever<String>(
+      padWellContext.selectedWellId,
+      (_) => _loadReportSceRows(),
+    );
+    _reportWorker = ever<String>(
+      reportContext.selectedReportId,
+      (_) => _loadReportSceRows(),
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadReportSceRows());
   }
 
   @override
   void dispose() {
+    for (final timer in _shakerSaveTimers.values) {
+      timer.cancel();
+    }
+    for (final timer in _otherSceSaveTimers.values) {
+      timer.cancel();
+    }
+    _wellWorker?.dispose();
+    _reportWorker?.dispose();
     for (final worker in _unitWorkers) {
       worker.dispose();
     }
@@ -289,6 +316,163 @@ class _PumpPageState extends State<PumpPage> {
   void _checkAddSceRow(int changedIndex) {
     if (changedIndex == _sceRows.length - 1 && _sceRows[changedIndex].hasData) {
       _sceRows.add(_OtherSceRow());
+    }
+  }
+
+  bool _sameSelectedReport(Map item) {
+    final selectedReportId = reportContext.selectedReportId.value.trim();
+    if (selectedReportId.isEmpty) return true;
+    return (item['reportId']?.toString().trim() ?? '') == selectedReportId;
+  }
+
+  Future<void> _loadReportSceRows() async {
+    final wellId = currentBackendWellId.trim();
+    if (wellId.isEmpty) return;
+
+    final shakerResult = await sceController.repository.getShakers(wellId);
+    final otherResult = await sceController.repository.getOtherSce(wellId);
+
+    if (shakerResult['success'] == true) {
+      final rows = (shakerResult['data'] as List? ?? const [])
+          .whereType<Map>()
+          .where(_sameSelectedReport)
+          .map(_shakerRowFromMap)
+          .toList(growable: true);
+      while (rows.length < _initialShakerRows) {
+        rows.add(_ShakerRow());
+      }
+      _shakerRows.assignAll(rows);
+    }
+
+    if (otherResult['success'] == true) {
+      final rows = (otherResult['data'] as List? ?? const [])
+          .whereType<Map>()
+          .where(_sameSelectedReport)
+          .map(_otherSceRowFromMap)
+          .toList(growable: true);
+      while (rows.length < _initialSceRows) {
+        rows.add(_OtherSceRow());
+      }
+      _sceRows.assignAll(rows);
+    }
+  }
+
+  _ShakerRow _shakerRowFromMap(Map item) {
+    final row = _ShakerRow();
+    row.id = item['_id']?.toString() ?? item['id']?.toString();
+    row.shakerType.value = item['shaker']?.toString() ?? '';
+    row.model.value = item['model']?.toString() ?? '';
+    row.screen1.value = item['screen1']?.toString() ?? '';
+    row.screen2.value = item['screen2']?.toString() ?? '';
+    row.screen3.value = item['screen3']?.toString() ?? '';
+    row.screen4.value = item['screen4']?.toString() ?? '';
+    row.screen5.value = item['screen5']?.toString() ?? '';
+    row.screen6.value = item['screen6']?.toString() ?? '';
+    row.screen7.value = item['screen7']?.toString() ?? '';
+    row.screen8.value = item['screen8']?.toString() ?? '';
+    row.time.value = item['time']?.toString() ?? '';
+    row.oocWt.value = item['oocWt']?.toString() ?? '';
+    row.enabledScreens.value =
+        int.tryParse(item['screens']?.toString() ?? '') ?? 0;
+    return row;
+  }
+
+  _OtherSceRow _otherSceRowFromMap(Map item) {
+    final row = _OtherSceRow();
+    row.id = item['_id']?.toString() ?? item['id']?.toString();
+    row.type.value = item['type']?.toString() ?? '';
+    row.model.value = item['model1']?.toString() ?? '';
+    row.uf.value = item['uf']?.toString() ?? '';
+    row.of_.value = item['of']?.toString() ?? '';
+    row.time.value = item['time']?.toString() ?? '';
+    row.oocWt.value = item['oocWt']?.toString() ?? '';
+    return row;
+  }
+
+  void _scheduleSaveShakerRow(_ShakerRow row) {
+    if (dashboard.isLocked.value ||
+        !row.hasData ||
+        currentBackendWellId.trim().isEmpty) {
+      return;
+    }
+    _shakerSaveTimers[row]?.cancel();
+    _shakerSaveTimers[row] = Timer(
+      const Duration(milliseconds: 850),
+      () => _saveShakerRow(row),
+    );
+  }
+
+  Future<void> _saveShakerRow(_ShakerRow row) async {
+    if (!row.hasData || currentBackendWellId.trim().isEmpty) return;
+    final payload = {
+      'shaker': row.shakerType.value.trim(),
+      'model': row.model.value.trim(),
+      'screens': row.enabledScreens.value > 0
+          ? row.enabledScreens.value.toString()
+          : '',
+      'plot': true,
+      'screen1': row.screen1.value.trim(),
+      'screen2': row.screen2.value.trim(),
+      'screen3': row.screen3.value.trim(),
+      'screen4': row.screen4.value.trim(),
+      'screen5': row.screen5.value.trim(),
+      'screen6': row.screen6.value.trim(),
+      'screen7': row.screen7.value.trim(),
+      'screen8': row.screen8.value.trim(),
+      'time': row.time.value.trim(),
+      'oocWt': row.oocWt.value.trim(),
+    };
+
+    if ((payload['shaker'] as String).isEmpty) return;
+
+    final result = row.id == null
+        ? await sceController.repository.createShaker(
+            currentBackendWellId.trim(),
+            payload,
+          )
+        : await sceController.repository.updateShaker(row.id!, payload);
+
+    if (result['success'] == true) {
+      row.id = result['data']?['_id']?.toString() ?? row.id;
+    }
+  }
+
+  void _scheduleSaveOtherSceRow(_OtherSceRow row) {
+    if (dashboard.isLocked.value ||
+        !row.hasData ||
+        currentBackendWellId.trim().isEmpty) {
+      return;
+    }
+    _otherSceSaveTimers[row]?.cancel();
+    _otherSceSaveTimers[row] = Timer(
+      const Duration(milliseconds: 850),
+      () => _saveOtherSceRow(row),
+    );
+  }
+
+  Future<void> _saveOtherSceRow(_OtherSceRow row) async {
+    if (!row.hasData || currentBackendWellId.trim().isEmpty) return;
+    final payload = {
+      'type': row.type.value.trim(),
+      'model1': row.model.value.trim(),
+      'plot': true,
+      'uf': row.uf.value.trim(),
+      'of': row.of_.value.trim(),
+      'time': row.time.value.trim(),
+      'oocWt': row.oocWt.value.trim(),
+    };
+
+    if ((payload['type'] as String).isEmpty) return;
+
+    final result = row.id == null
+        ? await sceController.repository.createOtherSce(
+            currentBackendWellId.trim(),
+            payload,
+          )
+        : await sceController.repository.updateOtherSce(row.id!, payload);
+
+    if (result['success'] == true) {
+      row.id = result['data']?['_id']?.toString() ?? row.id;
     }
   }
 
@@ -700,12 +884,20 @@ class _PumpPageState extends State<PumpPage> {
                             _verticalDivider(),
                             _dataCell(
                               width: 70,
-                              child: _rxTextField(row.time, isLocked),
+                              child: _rxTextField(
+                                row.time,
+                                isLocked,
+                                onChanged: () => _scheduleSaveShakerRow(row),
+                              ),
                             ),
                             _verticalDivider(),
                             _dataCell(
                               width: 75,
-                              child: _rxTextField(row.oocWt, isLocked),
+                              child: _rxTextField(
+                                row.oocWt,
+                                isLocked,
+                                onChanged: () => _scheduleSaveShakerRow(row),
+                              ),
                             ),
                           ],
                         ),
@@ -743,6 +935,7 @@ class _PumpPageState extends State<PumpPage> {
                   row.shakerType.value = sel ?? '';
                   // ✅ Auto-add row when last row gets a type selected
                   _checkAddShakerRow(rowIndex);
+                  _scheduleSaveShakerRow(row);
                 },
           items: [
             const DropdownMenuItem<String?>(
@@ -793,6 +986,7 @@ class _PumpPageState extends State<PumpPage> {
                     }
                     // ✅ Auto-add row when last row's model is selected
                     _checkAddShakerRow(rowIndex);
+                    _scheduleSaveShakerRow(row);
                   } else {
                     row.enabledScreens.value = 0;
                     row.screen1.value = '';
@@ -803,6 +997,7 @@ class _PumpPageState extends State<PumpPage> {
                     row.screen6.value = '';
                     row.screen7.value = '';
                     row.screen8.value = '';
+                    _scheduleSaveShakerRow(row);
                   }
                 },
           items: [
@@ -847,7 +1042,10 @@ class _PumpPageState extends State<PumpPage> {
                 ..selection = TextSelection.collapsed(
                   offset: fields[idx].value.length,
                 ),
-              onChanged: (v) => fields[idx].value = v,
+              onChanged: (v) {
+                fields[idx].value = v;
+                _scheduleSaveShakerRow(row);
+              },
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 9,
@@ -1005,6 +1203,7 @@ class _PumpPageState extends State<PumpPage> {
       ) {
         fields[i].value = fillVal;
       }
+      _scheduleSaveShakerRow(row);
     }
   }
 
@@ -1095,22 +1294,38 @@ class _PumpPageState extends State<PumpPage> {
                             _verticalDivider(),
                             _dataCell(
                               width: 70,
-                              child: _rxTextField(row.uf, isLocked),
+                              child: _rxTextField(
+                                row.uf,
+                                isLocked,
+                                onChanged: () => _scheduleSaveOtherSceRow(row),
+                              ),
                             ),
                             _verticalDivider(),
                             _dataCell(
                               width: 70,
-                              child: _rxTextField(row.of_, isLocked),
+                              child: _rxTextField(
+                                row.of_,
+                                isLocked,
+                                onChanged: () => _scheduleSaveOtherSceRow(row),
+                              ),
                             ),
                             _verticalDivider(),
                             _dataCell(
                               width: 70,
-                              child: _rxTextField(row.time, isLocked),
+                              child: _rxTextField(
+                                row.time,
+                                isLocked,
+                                onChanged: () => _scheduleSaveOtherSceRow(row),
+                              ),
                             ),
                             _verticalDivider(),
                             _dataCell(
                               width: 75,
-                              child: _rxTextField(row.oocWt, isLocked),
+                              child: _rxTextField(
+                                row.oocWt,
+                                isLocked,
+                                onChanged: () => _scheduleSaveOtherSceRow(row),
+                              ),
                             ),
                           ],
                         ),
@@ -1147,6 +1362,7 @@ class _PumpPageState extends State<PumpPage> {
                   if (sel == null) row.model.value = '';
                   // ✅ Auto-add row when last row gets a type
                   _checkAddSceRow(rowIndex);
+                  _scheduleSaveOtherSceRow(row);
                 },
           items: [
             const DropdownMenuItem<String?>(
@@ -1186,6 +1402,7 @@ class _PumpPageState extends State<PumpPage> {
                   row.model.value = sel ?? '';
                   // ✅ Auto-add row when last row's model is selected
                   _checkAddSceRow(rowIndex);
+                  _scheduleSaveOtherSceRow(row);
                 },
           items: [
             const DropdownMenuItem<String?>(
@@ -1413,7 +1630,11 @@ class _PumpPageState extends State<PumpPage> {
     );
   }
 
-  Widget _rxTextField(RxString rxValue, bool isLocked) {
+  Widget _rxTextField(
+    RxString rxValue,
+    bool isLocked, {
+    VoidCallback? onChanged,
+  }) {
     return Obx(
       () => TextField(
         enabled: !isLocked,
@@ -1421,7 +1642,10 @@ class _PumpPageState extends State<PumpPage> {
           ..selection = TextSelection.fromPosition(
             TextPosition(offset: rxValue.value.length),
           ),
-        onChanged: (v) => rxValue.value = v,
+        onChanged: (v) {
+          rxValue.value = v;
+          onChanged?.call();
+        },
         textAlign: TextAlign.center,
         style: const TextStyle(fontSize: 9),
         decoration: const InputDecoration(

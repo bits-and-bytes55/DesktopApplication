@@ -131,6 +131,8 @@ class RecapEngineerController extends GetxController {
         final assignedNames = _uniqueNames([
           _text(matched?['engineer']),
           _text(matched?['engineer2']),
+          summary.engineer,
+          summary.engineer2,
         ]);
 
         for (final assignedName in assignedNames) {

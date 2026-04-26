@@ -744,6 +744,8 @@ export const getReportManagerRows = async (req, res) => {
         internalNotes: toText(report.internalNotes),
         activity: toText(wellGeneral?.activity),
         interval: toText(wellGeneral?.interval),
+        engineer: toText(wellGeneral?.engineer),
+        engineer2: toText(wellGeneral?.engineer2),
         md: round2(wellGeneral?.md),
         mudType: firstMeaningfulText(mudReport?.fluidType, pit?.mudType),
         mw: round2(

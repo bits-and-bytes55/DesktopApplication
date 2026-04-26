@@ -53,8 +53,14 @@ class RecapSceController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    _wellWorker = ever<String>(_padWellController.selectedWellId, (_) => load());
-    _reportWorker = ever<String>(_reportContext.selectedReportId, (_) => load());
+    _wellWorker = ever<String>(
+      _padWellController.selectedWellId,
+      (_) => load(),
+    );
+    _reportWorker = ever<String>(
+      _reportContext.selectedReportId,
+      (_) => load(),
+    );
     load();
   }
 
@@ -74,7 +80,8 @@ class RecapSceController extends GetxController {
       shakers.clear();
       otherSce.clear();
       plottedItems.clear();
-      emptyMessage.value = 'Select a well first to open Solid Control Equipment recap.';
+      emptyMessage.value =
+          'Select a well first to open Solid Control Equipment recap.';
       return;
     }
 
@@ -83,7 +90,8 @@ class RecapSceController extends GetxController {
       final shakerResult = await _repository.getShakers(wellId);
       final otherResult = await _repository.getOtherSce(wellId);
 
-      if (!(shakerResult['success'] == true) && !(otherResult['success'] == true)) {
+      if (!(shakerResult['success'] == true) &&
+          !(otherResult['success'] == true)) {
         throw Exception(
           shakerResult['message'] ??
               otherResult['message'] ??
@@ -91,13 +99,25 @@ class RecapSceController extends GetxController {
         );
       }
 
-      final shakerModels = (shakerResult['data'] as List? ?? const [])
+      final selectedReportId = _reportContext.selectedReportId.value.trim();
+      final shakerData = _strictReportRows(
+        shakerResult['data'],
+        selectedReportId,
+      );
+      final otherData = _strictReportRows(
+        otherResult['data'],
+        selectedReportId,
+      );
+
+      final shakerModels = shakerData
           .whereType<Map>()
           .map((item) => ShakerModel.fromJson(Map<String, dynamic>.from(item)))
           .toList(growable: false);
-      final otherModels = (otherResult['data'] as List? ?? const [])
+      final otherModels = otherData
           .whereType<Map>()
-          .map((item) => OtherSceModel.fromJson(Map<String, dynamic>.from(item)))
+          .map(
+            (item) => OtherSceModel.fromJson(Map<String, dynamic>.from(item)),
+          )
           .toList(growable: false);
 
       shakers.assignAll(_buildShakerRows(shakerModels));
@@ -119,7 +139,19 @@ class RecapSceController extends GetxController {
   }
 
   bool _hasVisibleData() {
-    return shakers.any((item) => item.hasData) || otherSce.any((item) => item.hasData);
+    return shakers.any((item) => item.hasData) ||
+        otherSce.any((item) => item.hasData);
+  }
+
+  List<dynamic> _strictReportRows(dynamic value, String reportId) {
+    final rows = value is List ? value : const [];
+    if (reportId.isEmpty) return rows;
+    return rows
+        .where((item) {
+          if (item is! Map) return false;
+          return (item['reportId']?.toString().trim() ?? '') == reportId;
+        })
+        .toList(growable: false);
   }
 
   List<RecapSceShakerRow> _buildShakerRows(List<ShakerModel> items) {
@@ -147,7 +179,9 @@ class RecapSceController extends GetxController {
     for (final item in items) {
       final label = item.shaker.value.trim();
       if (label.isEmpty ||
-          shakerLabels.any((known) => known.toLowerCase() == label.toLowerCase())) {
+          shakerLabels.any(
+            (known) => known.toLowerCase() == label.toLowerCase(),
+          )) {
         continue;
       }
 
@@ -193,7 +227,9 @@ class RecapSceController extends GetxController {
     for (final item in items) {
       final label = item.type.value.trim();
       if (label.isEmpty ||
-          otherSceLabels.any((known) => known.toLowerCase() == label.toLowerCase())) {
+          otherSceLabels.any(
+            (known) => known.toLowerCase() == label.toLowerCase(),
+          )) {
         continue;
       }
 
@@ -221,7 +257,11 @@ class RecapSceController extends GetxController {
       items.add(
         RecapScePlotItem(
           title: shaker.label,
-          subtitle: _joinValues([shaker.model, shaker.screensLabel, shaker.timeLabel]),
+          subtitle: _joinValues([
+            shaker.model,
+            shaker.screensLabel,
+            shaker.timeLabel,
+          ]),
           isOtherSce: false,
         ),
       );
@@ -295,7 +335,8 @@ class RecapSceOtherRow {
       of.isNotEmpty ||
       time.isNotEmpty;
 
-  String get modelSummary => _joinValues([model1, model2, model3], separator: ' / ');
+  String get modelSummary =>
+      _joinValues([model1, model2, model3], separator: ' / ');
   String get ufLabel => uf.isEmpty ? '' : 'UF $uf';
   String get ofLabel => of.isEmpty ? '' : 'OF $of';
   String get timeLabel => time.isEmpty ? '' : '$time hr';
@@ -314,5 +355,8 @@ class RecapScePlotItem {
 }
 
 String _joinValues(Iterable<String> values, {String separator = '  |  '}) {
-  return values.map((item) => item.trim()).where((item) => item.isNotEmpty).join(separator);
+  return values
+      .map((item) => item.trim())
+      .where((item) => item.isNotEmpty)
+      .join(separator);
 }
