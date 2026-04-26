@@ -151,6 +151,8 @@ class _PumpPageState extends State<PumpPage> {
   static const int _initialPumpRows = 4;
   static const int _initialShakerRows = 4;
   static const int _initialSceRows = 4;
+  static const double _pumpTableWidth = 735;
+  static const double _shakerTableWidth = 762;
 
   @override
   void initState() {
@@ -558,138 +560,164 @@ class _PumpPageState extends State<PumpPage> {
       child: Column(
         children: [
           _tableHeader("Pump", Icons.settings),
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              border: Border(
-                bottom: BorderSide(color: Colors.grey.shade400, width: 1),
-              ),
-            ),
-            child: IntrinsicHeight(
-              child: Row(
-                children: [
-                  _headerCell("Model", 100),
-                  _verticalDivider(),
-                  _headerCell("Type", 85),
-                  _verticalDivider(),
-                  _headerCell("Liner ID\n(in)", 68),
-                  _verticalDivider(),
-                  _headerCell("Rod OD\n(in)", 68),
-                  _verticalDivider(),
-                  _headerCell("Stk. Length\n(in)", 80),
-                  _verticalDivider(),
-                  _headerCell("Efficiency\n(%)", 75),
-                  _verticalDivider(),
-                  _headerCell("Displ.\n(bbl/stk)", 80),
-                  _verticalDivider(),
-                  _headerCell("Stroke\n(stk/min)", 80),
-                  _verticalDivider(),
-                  _headerCell("Rate\n(gpm)", 68),
-                ],
-              ),
-            ),
-          ),
           Expanded(
-            child: Obx(() {
-              final isLocked = dashboard.isLocked.value;
-              final models = pumpController.availablePumpModels.toList();
-              // React to _pumpRows list changes
-              final rows = _pumpRows.toList();
-              return ListView.builder(
-                itemCount: rows.length,
-                itemBuilder: (context, index) {
-                  final row = rows[index];
-                  return Container(
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: index % 2 == 0
-                          ? Colors.white
-                          : Colors.grey.shade50,
-                      border: Border(
-                        bottom: BorderSide(
-                          color: Colors.grey.shade300,
-                          width: 0.5,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: SizedBox(
+                width: _pumpTableWidth,
+                child: Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        border: Border(
+                          bottom: BorderSide(
+                            color: Colors.grey.shade400,
+                            width: 1,
+                          ),
+                        ),
+                      ),
+                      child: IntrinsicHeight(
+                        child: Row(
+                          children: [
+                            _headerCell("Model", 100),
+                            _verticalDivider(),
+                            _headerCell("Type", 85),
+                            _verticalDivider(),
+                            _headerCell("Liner ID\n(in)", 68),
+                            _verticalDivider(),
+                            _headerCell("Rod OD\n(in)", 68),
+                            _verticalDivider(),
+                            _headerCell("Stk. Length\n(in)", 80),
+                            _verticalDivider(),
+                            _headerCell("Efficiency\n(%)", 75),
+                            _verticalDivider(),
+                            _headerCell("Displ.\n(bbl/stk)", 80),
+                            _verticalDivider(),
+                            _headerCell("Stroke\n(stk/min)", 80),
+                            _verticalDivider(),
+                            _headerCell("Rate\n(gpm)", 68),
+                          ],
                         ),
                       ),
                     ),
-                    child: IntrinsicHeight(
-                      child: Row(
-                        children: [
-                          _dataCell(
-                            width: 100,
-                            child: _pumpModelDropdown(
-                              row: row,
-                              models: models,
-                              isLocked: isLocked,
-                              rowIndex: index,
-                            ),
-                          ),
-                          _verticalDivider(),
-                          _dataCell(
-                            width: 85,
-                            child: Obx(() => _readOnlyCell(row.type.value)),
-                          ),
-                          _verticalDivider(),
-                          _dataCell(
-                            width: 68,
-                            child: Obx(() => _readOnlyCell(row.linerId.value)),
-                          ),
-                          _verticalDivider(),
-                          _dataCell(
-                            width: 68,
-                            child: Obx(() => _readOnlyCell(row.rodOd.value)),
-                          ),
-                          _verticalDivider(),
-                          _dataCell(
-                            width: 80,
-                            child: Obx(
-                              () => _readOnlyCell(row.strokeLength.value),
-                            ),
-                          ),
-                          _verticalDivider(),
-                          _dataCell(
-                            width: 75,
-                            child: Obx(
-                              () => _readOnlyCell(row.efficiency.value),
-                            ),
-                          ),
-                          _verticalDivider(),
-                          _dataCell(
-                            width: 80,
-                            child: Obx(
-                              () => _readOnlyCell(
-                                row.displacement.value.isEmpty
-                                    ? '-'
-                                    : row.displacement.value,
+                    Expanded(
+                      child: Obx(() {
+                        final isLocked = dashboard.isLocked.value;
+                        final models = pumpController.availablePumpModels
+                            .toList();
+                        final rows = _pumpRows.toList();
+                        return ListView.builder(
+                          itemCount: rows.length,
+                          itemBuilder: (context, index) {
+                            final row = rows[index];
+                            return Container(
+                              height: 32,
+                              decoration: BoxDecoration(
+                                color: index % 2 == 0
+                                    ? Colors.white
+                                    : Colors.grey.shade50,
+                                border: Border(
+                                  bottom: BorderSide(
+                                    color: Colors.grey.shade300,
+                                    width: 0.5,
+                                  ),
+                                ),
                               ),
-                            ),
-                          ),
-                          _verticalDivider(),
-                          _dataCell(
-                            width: 80,
-                            child: _spmField(
-                              row: row,
-                              isLocked: isLocked,
-                              rowIndex: index,
-                            ),
-                          ),
-                          _verticalDivider(),
-                          _dataCell(
-                            width: 68,
-                            child: Obx(
-                              () => _readOnlyCell(
-                                row.rate.value.isEmpty ? '-' : row.rate.value,
+                              child: IntrinsicHeight(
+                                child: Row(
+                                  children: [
+                                    _dataCell(
+                                      width: 100,
+                                      child: _pumpModelDropdown(
+                                        row: row,
+                                        models: models,
+                                        isLocked: isLocked,
+                                        rowIndex: index,
+                                      ),
+                                    ),
+                                    _verticalDivider(),
+                                    _dataCell(
+                                      width: 85,
+                                      child: Obx(
+                                        () => _readOnlyCell(row.type.value),
+                                      ),
+                                    ),
+                                    _verticalDivider(),
+                                    _dataCell(
+                                      width: 68,
+                                      child: Obx(
+                                        () => _readOnlyCell(row.linerId.value),
+                                      ),
+                                    ),
+                                    _verticalDivider(),
+                                    _dataCell(
+                                      width: 68,
+                                      child: Obx(
+                                        () => _readOnlyCell(row.rodOd.value),
+                                      ),
+                                    ),
+                                    _verticalDivider(),
+                                    _dataCell(
+                                      width: 80,
+                                      child: Obx(
+                                        () => _readOnlyCell(
+                                          row.strokeLength.value,
+                                        ),
+                                      ),
+                                    ),
+                                    _verticalDivider(),
+                                    _dataCell(
+                                      width: 75,
+                                      child: Obx(
+                                        () =>
+                                            _readOnlyCell(row.efficiency.value),
+                                      ),
+                                    ),
+                                    _verticalDivider(),
+                                    _dataCell(
+                                      width: 80,
+                                      child: Obx(
+                                        () => _readOnlyCell(
+                                          row.displacement.value.isEmpty
+                                              ? '-'
+                                              : row.displacement.value,
+                                        ),
+                                      ),
+                                    ),
+                                    _verticalDivider(),
+                                    _dataCell(
+                                      width: 80,
+                                      child: _spmField(
+                                        row: row,
+                                        isLocked: isLocked,
+                                        rowIndex: index,
+                                      ),
+                                    ),
+                                    _verticalDivider(),
+                                    _dataCell(
+                                      width: 68,
+                                      child: Obx(
+                                        () => _readOnlyCell(
+                                          row.rate.value.isEmpty
+                                              ? '-'
+                                              : row.rate.value,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                          ),
-                        ],
-                      ),
+                            );
+                          },
+                        );
+                      }),
                     ),
-                  );
-                },
-              );
-            }),
+                  ],
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -802,111 +830,129 @@ class _PumpPageState extends State<PumpPage> {
       child: Column(
         children: [
           _tableHeader("Shaker", Icons.filter_alt),
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              border: Border(
-                bottom: BorderSide(color: Colors.grey.shade400, width: 1),
-              ),
-            ),
-            child: IntrinsicHeight(
-              child: Row(
-                children: [
-                  _headerCell("Shaker", 100),
-                  _verticalDivider(),
-                  _headerCell("Model", 120),
-                  _verticalDivider(),
-                  _headerCellWithSubheaders(
-                    "Screen",
-                    List.generate(
-                      _totalScreenCols,
-                      (i) => _subHeaderCell("${i + 1}", 48),
-                    ),
-                  ),
-                  _verticalDivider(),
-                  _headerCell("Time\n(hr)", 70),
-                  _verticalDivider(),
-                  _headerCell("OOC Wt.\n(%)", 75),
-                ],
-              ),
-            ),
-          ),
           Expanded(
-            child: Obx(() {
-              final isLocked = dashboard.isLocked.value;
-              final shakerModels = sceController.availableShakerModels.toList();
-              final rows = _shakerRows.toList(); // react to list changes
-              return Scrollbar(
-                controller: shakerScrollController,
-                thumbVisibility: true,
-                child: ListView.builder(
-                  controller: shakerScrollController,
-                  itemCount: rows.length,
-                  itemBuilder: (ctx, index) {
-                    final row = rows[index];
-                    return Container(
-                      height: 30,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: SizedBox(
+                width: _shakerTableWidth,
+                child: Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
                       decoration: BoxDecoration(
-                        color: index % 2 == 0
-                            ? Colors.white
-                            : Colors.grey.shade50,
+                        color: Colors.grey.shade100,
                         border: Border(
                           bottom: BorderSide(
-                            color: Colors.grey.shade300,
-                            width: 0.5,
+                            color: Colors.grey.shade400,
+                            width: 1,
                           ),
                         ),
                       ),
                       child: IntrinsicHeight(
                         child: Row(
                           children: [
-                            _dataCell(
-                              width: 100,
-                              child: _shakerTypeDropdown(
-                                row: row,
-                                isLocked: isLocked,
-                                rowIndex: index,
+                            _headerCell("Shaker", 100),
+                            _verticalDivider(),
+                            _headerCell("Model", 120),
+                            _verticalDivider(),
+                            _headerCellWithSubheaders(
+                              "Screen",
+                              List.generate(
+                                _totalScreenCols,
+                                (i) => _subHeaderCell("${i + 1}", 48),
                               ),
                             ),
                             _verticalDivider(),
-                            _dataCell(
-                              width: 120,
-                              child: _shakerModelDropdown(
-                                row: row,
-                                models: shakerModels,
-                                isLocked: isLocked,
-                                rowIndex: index,
-                              ),
-                            ),
+                            _headerCell("Time\n(hr)", 70),
                             _verticalDivider(),
-                            ..._buildScreenCols(row, isLocked),
-                            _verticalDivider(),
-                            _dataCell(
-                              width: 70,
-                              child: _rxTextField(
-                                row.time,
-                                isLocked,
-                                onChanged: () => _scheduleSaveShakerRow(row),
-                              ),
-                            ),
-                            _verticalDivider(),
-                            _dataCell(
-                              width: 75,
-                              child: _rxTextField(
-                                row.oocWt,
-                                isLocked,
-                                onChanged: () => _scheduleSaveShakerRow(row),
-                              ),
-                            ),
+                            _headerCell("OOC Wt.\n(%)", 75),
                           ],
                         ),
                       ),
-                    );
-                  },
+                    ),
+                    Expanded(
+                      child: Obx(() {
+                        final isLocked = dashboard.isLocked.value;
+                        final shakerModels = sceController.availableShakerModels
+                            .toList();
+                        final rows = _shakerRows.toList();
+                        return Scrollbar(
+                          controller: shakerScrollController,
+                          thumbVisibility: true,
+                          child: ListView.builder(
+                            controller: shakerScrollController,
+                            itemCount: rows.length,
+                            itemBuilder: (ctx, index) {
+                              final row = rows[index];
+                              return Container(
+                                height: 30,
+                                decoration: BoxDecoration(
+                                  color: index % 2 == 0
+                                      ? Colors.white
+                                      : Colors.grey.shade50,
+                                  border: Border(
+                                    bottom: BorderSide(
+                                      color: Colors.grey.shade300,
+                                      width: 0.5,
+                                    ),
+                                  ),
+                                ),
+                                child: IntrinsicHeight(
+                                  child: Row(
+                                    children: [
+                                      _dataCell(
+                                        width: 100,
+                                        child: _shakerTypeDropdown(
+                                          row: row,
+                                          isLocked: isLocked,
+                                          rowIndex: index,
+                                        ),
+                                      ),
+                                      _verticalDivider(),
+                                      _dataCell(
+                                        width: 120,
+                                        child: _shakerModelDropdown(
+                                          row: row,
+                                          models: shakerModels,
+                                          isLocked: isLocked,
+                                          rowIndex: index,
+                                        ),
+                                      ),
+                                      _verticalDivider(),
+                                      ..._buildScreenCols(row, isLocked),
+                                      _verticalDivider(),
+                                      _dataCell(
+                                        width: 70,
+                                        child: _rxTextField(
+                                          row.time,
+                                          isLocked,
+                                          onChanged: () =>
+                                              _scheduleSaveShakerRow(row),
+                                        ),
+                                      ),
+                                      _verticalDivider(),
+                                      _dataCell(
+                                        width: 75,
+                                        child: _rxTextField(
+                                          row.oocWt,
+                                          isLocked,
+                                          onChanged: () =>
+                                              _scheduleSaveShakerRow(row),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        );
+                      }),
+                    ),
+                  ],
                 ),
-              );
-            }),
+              ),
+            ),
           ),
         ],
       ),
@@ -1442,10 +1488,6 @@ class _PumpPageState extends State<PumpPage> {
                   _summaryItem("Pump Rate", "gpm"),
                   const SizedBox(height: 8),
                   _summaryItem("Pump Pressure", "psi"),
-                  const SizedBox(height: 8),
-                  _summaryItem("Boost Pump Rate", "gpm"),
-                  const SizedBox(height: 8),
-                  _summaryItem("Return Rate", "gpm"),
                   const SizedBox(height: 8),
                   _summaryItem("DH Tools P. Loss", "psi"),
                   const SizedBox(height: 8),

@@ -57,37 +57,37 @@ class WellGeneralController extends GetxController {
   bool _isApplyingState = false;
 
   List<RxString> get _autoSaveFields => [
-        reportNo,
-        userReportNo,
-        date,
-        time,
-        engineer,
-        engineer2,
-        operatorRep,
-        contractorRep,
-        activity,
-        md,
-        tvd,
-        inc,
-        azi,
-        wob,
-        rotWt,
-        soWt,
-        puWt,
-        rpm,
-        rop,
-        offBottomTq,
-        onBottomTq,
-        suctionT,
-        bottomT,
-        interval,
-        fit,
-        formation,
-        additionalFootage,
-        nptTime,
-        nptCost,
-        depthDrilled,
-      ];
+    reportNo,
+    userReportNo,
+    date,
+    time,
+    engineer,
+    engineer2,
+    operatorRep,
+    contractorRep,
+    activity,
+    md,
+    tvd,
+    inc,
+    azi,
+    wob,
+    rotWt,
+    soWt,
+    puWt,
+    rpm,
+    rop,
+    offBottomTq,
+    onBottomTq,
+    suctionT,
+    bottomT,
+    interval,
+    fit,
+    formation,
+    additionalFootage,
+    nptTime,
+    nptCost,
+    depthDrilled,
+  ];
 
   @override
   void onInit() {
@@ -171,10 +171,7 @@ class WellGeneralController extends GetxController {
           final time = _formatTimeDistributionValue(
             item['time'] ?? item['hours'],
           );
-          normalized.add({
-            'activity': activity,
-            'time': time,
-          });
+          normalized.add({'activity': activity, 'time': time});
         }
       }
     }
@@ -378,7 +375,10 @@ class WellGeneralController extends GetxController {
   }
 
   Map<String, dynamic>? _findMatchingRecord(List<dynamic> rawItems) {
-    final items = rawItems.whereType<Map>().map(Map<String, dynamic>.from).toList();
+    final items = rawItems
+        .whereType<Map>()
+        .map(Map<String, dynamic>.from)
+        .toList();
     if (items.isEmpty) return null;
 
     final report = reportContext.selectedReport;
@@ -393,11 +393,17 @@ class WellGeneralController extends GetxController {
       return null;
     }
 
+    final reportId = report.id.trim();
     final reportNo = report.reportNo.trim();
     final userReportNo = report.userReportNo.trim();
     final reportDate = report.reportDate.trim();
 
     return firstMatch(
+          (item) =>
+              reportId.isNotEmpty &&
+              (item['reportId']?.toString().trim() ?? '') == reportId,
+        ) ??
+        firstMatch(
           (item) => (item['reportNo']?.toString().trim() ?? '') == reportNo,
         ) ??
         firstMatch(
@@ -426,16 +432,14 @@ class WellGeneralController extends GetxController {
     isLoading.value = true;
     _isApplyingState = true;
     try {
-      final primaryUri = Uri.parse('${baseUrl}well-general/$kControllerWellId').replace(
-        queryParameters: {
-          if (reportContext.selectedReportId.value.isNotEmpty)
-            'reportId': reportContext.selectedReportId.value,
-        },
-      );
-      final response = await http.get(
-        primaryUri,
-        headers: _headers,
-      );
+      final primaryUri = Uri.parse('${baseUrl}well-general/$kControllerWellId')
+          .replace(
+            queryParameters: {
+              if (reportContext.selectedReportId.value.isNotEmpty)
+                'reportId': reportContext.selectedReportId.value,
+            },
+          );
+      final response = await http.get(primaryUri, headers: _headers);
 
       print(
         'WellGeneral fetch response: ${response.statusCode} ${response.body}',
@@ -449,8 +453,9 @@ class WellGeneralController extends GetxController {
         if (matched == null) {
           final reportNo = reportContext.selectedReportNumber.trim();
           if (reportNo.isNotEmpty) {
-            final fallbackUri = Uri.parse('${baseUrl}well-general/$kControllerWellId')
-                .replace(queryParameters: {'reportNo': reportNo});
+            final fallbackUri = Uri.parse(
+              '${baseUrl}well-general/$kControllerWellId',
+            ).replace(queryParameters: {'reportNo': reportNo});
             final fallbackResponse = await http.get(
               fallbackUri,
               headers: _headers,
@@ -478,14 +483,12 @@ class WellGeneralController extends GetxController {
 
         if (matched != null) {
           _fromJson(matched);
-        } else if (savedId.value.isEmpty && md.value.isEmpty) {
+        } else {
           _clearFields();
         }
         _applySelectedReportMetadata();
       } else {
-        if (savedId.value.isEmpty && md.value.isEmpty) {
-          _clearFields();
-        }
+        _clearFields();
         _applySelectedReportMetadata();
       }
     } catch (e) {

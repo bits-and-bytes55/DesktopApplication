@@ -8,6 +8,7 @@ import 'package:mudpro_desktop_app/modules/dashboard/controller/drill_string_con
 import 'package:mudpro_desktop_app/modules/dashboard/controller/nozzle_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/well_general_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/widgets/tabular_database.dart';
+import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/controller/UG_ST_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/model/UG_ST_model.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/interval/controller/interval_controller.dart';
@@ -218,6 +219,7 @@ class _GeneralSectionState extends State<GeneralSection> {
       ? Get.find<IntervalController>()
       : Get.put(IntervalController(), permanent: true);
   Worker? _wellWorker;
+  Worker? _reportWorker;
   Worker? _intervalWorker;
   final List<Worker> _unitWorkers = <Worker>[];
   late String _lengthUnit;
@@ -387,12 +389,13 @@ class _GeneralSectionState extends State<GeneralSection> {
     _fetchEngineers();
     _loadIntervals();
     _loadFromApi();
-    _wellWorker = ever<String>(
-      padWellContext.selectedWellId,
-      (_) {
-        _loadIntervals();
-        _loadFromApi();
-      },
+    _wellWorker = ever<String>(padWellContext.selectedWellId, (_) {
+      _loadIntervals();
+      _loadFromApi();
+    });
+    _reportWorker = ever<String>(
+      reportContext.selectedReportId,
+      (_) => _loadFromApi(),
     );
   }
 
@@ -501,7 +504,9 @@ class _GeneralSectionState extends State<GeneralSection> {
     try {
       await engineerCtrl.fetchEngineers();
     } catch (_) {}
+    if (!mounted) return;
     setState(() => _isLoadingEngineers = false);
+    await _loadFromApi();
   }
 
   Future<void> _loadFromApi() async {
@@ -609,6 +614,7 @@ class _GeneralSectionState extends State<GeneralSection> {
   @override
   void dispose() {
     _wellWorker?.dispose();
+    _reportWorker?.dispose();
     _intervalWorker?.dispose();
     for (final worker in _unitWorkers) {
       worker.dispose();
@@ -682,7 +688,9 @@ class _GeneralSectionState extends State<GeneralSection> {
                 _tfRow("On-bottom TQ", "On-bottom TQ", "ft-lb"),
                 _tfRow("Suction T.", "Suction T.", "°F"),
                 _tfRow("Bottom T.", "Bottom T.", "°F"),
-                _ddRow("Interval", selectedInterval, dynamicIntervalOptions, (v) {
+                _ddRow("Interval", selectedInterval, dynamicIntervalOptions, (
+                  v,
+                ) {
                   setState(() => selectedInterval = v!);
                   _sync();
                 }),
@@ -1349,7 +1357,8 @@ class _CasedHoleSectionState extends State<CasedHoleSection> {
                     });
                   } else if (!identical(matchingCasing, _selectedCasing)) {
                     WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (mounted) setState(() => _selectedCasing = matchingCasing);
+                      if (mounted)
+                        setState(() => _selectedCasing = matchingCasing);
                     });
                   }
                 }
@@ -1610,7 +1619,11 @@ class _OpenHoleSectionState extends State<OpenHoleSection> {
 
     for (final row in _cellControllers) {
       if (row.length >= 3) {
-        row[1].text = _convertText(row[1].text, _diameterUnit, nextDiameterUnit);
+        row[1].text = _convertText(
+          row[1].text,
+          _diameterUnit,
+          nextDiameterUnit,
+        );
         row[2].text = _convertText(row[2].text, _lengthUnit, nextLengthUnit);
       }
     }
@@ -1802,7 +1815,11 @@ class _OpenHoleSectionState extends State<OpenHoleSection> {
                               onTap: () => setState(
                                 () => selectedRowIndex = sel ? null : idx,
                               ),
-                              child: _noCell(idx + 1, sel, AppTheme.primaryColor),
+                              child: _noCell(
+                                idx + 1,
+                                sel,
+                                AppTheme.primaryColor,
+                              ),
                             ),
                             ..._buildRowCells(
                               rowControllers,
@@ -2204,12 +2221,21 @@ class _BitSectionState extends State<BitSection> {
       return;
     }
 
-    bc['Size']!.text =
-        _convertText(bc['Size']!.text, _diameterUnit, nextDiameterUnit);
-    bc['Depth-in']!.text =
-        _convertText(bc['Depth-in']!.text, _lengthUnit, nextLengthUnit);
-    bc['Depth']!.text =
-        _convertText(bc['Depth']!.text, _lengthUnit, nextLengthUnit);
+    bc['Size']!.text = _convertText(
+      bc['Size']!.text,
+      _diameterUnit,
+      nextDiameterUnit,
+    );
+    bc['Depth-in']!.text = _convertText(
+      bc['Depth-in']!.text,
+      _lengthUnit,
+      nextLengthUnit,
+    );
+    bc['Depth']!.text = _convertText(
+      bc['Depth']!.text,
+      _lengthUnit,
+      nextLengthUnit,
+    );
 
     _lengthUnit = nextLengthUnit;
     _diameterUnit = nextDiameterUnit;
@@ -2407,11 +2433,7 @@ class _NozzleSectionState extends State<NozzleSection> {
     return _sizeFocusNodes[idx]!;
   }
 
-  void _syncCtrl(
-    TextEditingController ctrl,
-    FocusNode focusNode,
-    String text,
-  ) {
+  void _syncCtrl(TextEditingController ctrl, FocusNode focusNode, String text) {
     if (focusNode.hasFocus || ctrl.text == text) return;
     ctrl.text = text;
   }
@@ -2458,16 +2480,12 @@ class _NozzleSectionState extends State<NozzleSection> {
                   : entries[i].size32.value.toString();
 
               if (!_countCtrls.containsKey(i)) {
-                _countCtrls[i] = TextEditingController(
-                  text: countText,
-                );
+                _countCtrls[i] = TextEditingController(text: countText);
               } else {
                 _syncCtrl(_countCtrls[i]!, _countFocusNode(i), countText);
               }
               if (!_sizeCtrls.containsKey(i)) {
-                _sizeCtrls[i] = TextEditingController(
-                  text: sizeText,
-                );
+                _sizeCtrls[i] = TextEditingController(text: sizeText);
               } else {
                 _syncCtrl(_sizeCtrls[i]!, _sizeFocusNode(i), sizeText);
               }
@@ -2513,22 +2531,16 @@ class _NozzleSectionState extends State<NozzleSection> {
                           ),
                           child: _noCell(idx + 1, sel, AppTheme.primaryColor),
                         ),
-                        _nzEditCell(
-                          _countCtrl(idx),
-                          _countFocusNode(idx),
-                          (val) {
-                            nozzle.count.value = int.tryParse(val) ?? 1;
-                            nc.onCellChanged(idx);
-                          },
-                        ),
-                        _nzEditCell(
-                          _sizeCtrl(idx),
-                          _sizeFocusNode(idx),
-                          (val) {
-                            nozzle.size32.value = int.tryParse(val) ?? 0;
-                            nc.onCellChanged(idx);
-                          },
-                        ),
+                        _nzEditCell(_countCtrl(idx), _countFocusNode(idx), (
+                          val,
+                        ) {
+                          nozzle.count.value = int.tryParse(val) ?? 1;
+                          nc.onCellChanged(idx);
+                        }),
+                        _nzEditCell(_sizeCtrl(idx), _sizeFocusNode(idx), (val) {
+                          nozzle.size32.value = int.tryParse(val) ?? 0;
+                          nc.onCellChanged(idx);
+                        }),
                       ],
                     );
                   }).toList(),
@@ -2593,49 +2605,45 @@ class _NozzleSectionState extends State<NozzleSection> {
     TextEditingController ctrl,
     FocusNode focusNode,
     Function(String) onChanged,
-  ) =>
-      Container(
-        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
-        child: Obx(
-          () => c.isLocked.value
-              ? SizedBox(
-                  height: _kRowH,
-                  child: Center(
-                    child: Text(
-                      ctrl.text,
-                      style: TextStyle(
-                        fontSize: 9,
-                        color: AppTheme.textPrimary,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                )
-              : SizedBox(
-                  height: _kRowH,
-                  child: TextField(
-                    controller: ctrl,
-                    focusNode: focusNode,
-                    style: const TextStyle(fontSize: 9),
-                    textAlign: TextAlign.center,
-                    keyboardType: TextInputType.number,
-                    onChanged: onChanged,
-                    decoration: const InputDecoration(
-                      isDense: true,
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: 2,
-                        vertical: 2,
-                      ),
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      fillColor: Colors.white,
-                      filled: true,
-                    ),
-                  ),
+  ) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+    child: Obx(
+      () => c.isLocked.value
+          ? SizedBox(
+              height: _kRowH,
+              child: Center(
+                child: Text(
+                  ctrl.text,
+                  style: TextStyle(fontSize: 9, color: AppTheme.textPrimary),
+                  textAlign: TextAlign.center,
                 ),
-        ),
-      );
+              ),
+            )
+          : SizedBox(
+              height: _kRowH,
+              child: TextField(
+                controller: ctrl,
+                focusNode: focusNode,
+                style: const TextStyle(fontSize: 9),
+                textAlign: TextAlign.center,
+                keyboardType: TextInputType.number,
+                onChanged: onChanged,
+                decoration: const InputDecoration(
+                  isDense: true,
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 2,
+                    vertical: 2,
+                  ),
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  fillColor: Colors.white,
+                  filled: true,
+                ),
+              ),
+            ),
+    ),
+  );
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -2665,15 +2673,14 @@ class _TimeDistributionSectionState extends State<TimeDistributionSection> {
         ? Get.find<WellGeneralController>()
         : Get.put(WellGeneralController(), permanent: true);
     _replaceTableData(wellGenCtrl.timeDistributionRowsForUi);
-    _timeDistributionWorker = ever<int>(
-      wellGenCtrl.timeDistributionRevision,
-      (_) {
-        if (!mounted) return;
-        setState(() {
-          _replaceTableData(wellGenCtrl.timeDistributionRowsForUi);
-        });
-      },
-    );
+    _timeDistributionWorker = ever<int>(wellGenCtrl.timeDistributionRevision, (
+      _,
+    ) {
+      if (!mounted) return;
+      setState(() {
+        _replaceTableData(wellGenCtrl.timeDistributionRowsForUi);
+      });
+    });
     _fetchActivities();
   }
 

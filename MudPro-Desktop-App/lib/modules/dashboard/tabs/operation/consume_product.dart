@@ -71,6 +71,9 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
   final Map<String, double> _returnProductTotals = {};
   final Map<int, Timer> _autoSaveProductTimers = {};
   Timer? _autoSaveDistributionTimer;
+  Worker? _wellWorker;
+  Worker? _reportWorker;
+  Worker? _totalVolumeWorker;
 
   // Special option constants
   static const String kActiveSystem = 'Active System';
@@ -88,17 +91,11 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     _saveBridge.register(_saveAll);
     pitController.fetchAllPits();
     pitController.fetchUnselectedPits();
-    Future.microtask(() async {
-      await _loadProductsIfNeeded();
-      await _loadProductMovementTotals();
-      await _fetchAllConsumeProducts();
-    });
+    Future.microtask(_reloadScopedState);
     // Start with 1 row in distribute table
     _addDistributeRow(initialPit: kActiveSystem);
 
     waterVolumeController.addListener(_recalculateTotalVolume);
-
-    Future.microtask(_loadSavedDistributionState);
     addWater.listen((enabled) {
       if (!enabled) {
         waterVolumeController.text = '';
@@ -108,13 +105,65 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     });
 
     // Automatically rebalance distribution whenever total volume changes
-    ever(operationController.totalVolume, (_) => _rebalanceDistributeVolumes());
+    _wellWorker = ever<String>(
+      padWellContext.selectedWellId,
+      (_) => _reloadScopedState(),
+    );
+    _reportWorker = ever<String>(
+      reportContext.selectedReportId,
+      (_) => _reloadScopedState(),
+    );
+    _totalVolumeWorker = ever<double>(
+      operationController.totalVolume,
+      (_) => _rebalanceDistributeVolumes(),
+    );
   }
 
   Future<void> _loadSavedDistributionState() async {
+    if (reportContext.selectedReportId.value.trim().isEmpty) {
+      _resetDistributionStateUi();
+      return;
+    }
     await pitController.fetchVolumeNameData();
     if (!mounted) return;
     _hydrateDistributionStateFromPitData();
+  }
+
+  Future<void> _reloadScopedState() async {
+    final wellId = currentBackendWellId.trim();
+    final reportId = reportContext.selectedReportId.value.trim();
+    if (wellId.isEmpty || reportId.isEmpty) {
+      _resetProductRows();
+      _resetDistributionStateUi();
+      return;
+    }
+
+    await _loadProductsIfNeeded();
+    await _loadProductMovementTotals();
+    await _fetchAllConsumeProducts();
+    await _loadSavedDistributionState();
+  }
+
+  void _resetProductRows() {
+    productRows.clear();
+    productRowSaving.clear();
+    productRowDeleting.clear();
+    _savingInProgress.clear();
+    productRows.add(ProductRowData());
+    productRowSaving.add(false);
+    productRowDeleting.add(false);
+    productRows.refresh();
+    _recalculateTotalVolume();
+  }
+
+  void _resetDistributionStateUi() {
+    selectedMethod.value = 'Used';
+    addWater.value = false;
+    waterVolumeController.text = '';
+    totalVolumeDisplay.value = '0.000';
+    operationController.totalVolume.value = 0.0;
+    _replaceDistributeRows([DistributeRowData(pit: kActiveSystem)]);
+    selectedDistributeRow.value = 0;
   }
 
   void _hydrateDistributionStateFromPitData() {
@@ -198,6 +247,9 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     }
     _autoSaveProductTimers.clear();
     _autoSaveDistributionTimer?.cancel();
+    _wellWorker?.dispose();
+    _reportWorker?.dispose();
+    _totalVolumeWorker?.dispose();
     waterVolumeController.removeListener(_recalculateTotalVolume);
     waterVolumeController.dispose();
     _saveBridge.unregister();
@@ -215,6 +267,13 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
   Future<void> _fetchAllConsumeProducts() async {
     debugPrint('🔵 [FETCH] Fetching saved consume products...');
     try {
+      final wellId = currentBackendWellId.trim();
+      final reportId = reportContext.selectedReportId.value.trim();
+      if (wellId.isEmpty || reportId.isEmpty) {
+        _resetProductRows();
+        return;
+      }
+
       final data = await consumeProductController.getAllConsumeProducts();
       debugPrint('🟢 [FETCH] ConsumeProducts: ${data.length} items');
 
@@ -598,6 +657,8 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
 
   void _scheduleDistributionAutoSave() {
     if (dashboardController.isLocked.value) return;
+    if (currentBackendWellId.trim().isEmpty) return;
+    if (reportContext.selectedReportId.value.trim().isEmpty) return;
     _autoSaveDistributionTimer?.cancel();
     _autoSaveDistributionTimer = Timer(
       const Duration(milliseconds: 750),
@@ -837,6 +898,8 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
         productRows.refresh();
       }
       _recalculateTotalVolume();
+      _rebalanceDistributeVolumes();
+      _scheduleDistributionAutoSave();
       return;
     }
 
@@ -852,7 +915,14 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       if (result['success'] == true) {
         _savingInProgress.remove(index);
         await _fetchAllConsumeProducts();
-        await pitController.fetchVolumeNameData();
+        _rebalanceDistributeVolumes();
+        final distributionResult = await _saveDistributionState();
+        if (distributionResult['success'] == true) {
+          await _refreshPitStateAfterConsumeProductSave();
+        } else {
+          await pitController.fetchVolumeNameData();
+        }
+        await inventorySnapshotController.generateInventorySnapshot();
         _showToast('Deleted');
       } else {
         _showToast(result['message'] ?? 'Delete failed', isError: true);
@@ -882,6 +952,10 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     final wellId = currentBackendWellId.trim();
     if (wellId.isEmpty) {
       return {'success': false, 'message': 'No backend well selected'};
+    }
+    final reportId = reportContext.selectedReportId.value.trim();
+    if (reportId.isEmpty) {
+      return {'success': false, 'message': 'No report selected'};
     }
 
     final totalVolume = double.tryParse(totalVolumeDisplay.value) ?? 0.0;
@@ -919,11 +993,9 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     if (errors.isNotEmpty) {
       return {'success': false, 'message': errors.join(' | ')};
     }
-
-    final reportId = reportContext.selectedReportId.value.trim();
     return _authRepository.saveConsumeProductVolumeName({
       'wellId': wellId,
-      if (reportId.isNotEmpty) 'reportId': reportId,
+      'reportId': reportId,
       'inputMethod': selectedMethod.value,
       'addWater': addWater.value,
       'addWaterVolume':
@@ -2362,29 +2434,29 @@ class ProductRowData {
   final Rx<ProductModel?> selectedProduct = Rx<ProductModel?>(null);
 
   String productName = '';
-  String code    = '';
-  String sg      = '';
-  String unit    = '';
-  double price   = 0.0;
+  String code = '';
+  String sg = '';
+  String unit = '';
+  double price = 0.0;
   String initial = '';
-  String adjust  = '';
-  String used    = '';
+  String adjust = '';
+  String used = '';
   String? savedId;
   double received = 0.0;
   double returned = 0.0;
 
-  final RxDouble calculatedCost   = 0.0.obs;
+  final RxDouble calculatedCost = 0.0.obs;
   final RxDouble calculatedVolume = 0.0.obs;
-  final RxDouble calculatedFinal  = 0.0.obs;
+  final RxDouble calculatedFinal = 0.0.obs;
 
   void recalculate() {
     final iVal = double.tryParse(initial) ?? 0.0;
-    final aVal = double.tryParse(adjust)  ?? 0.0;
-    final uVal = double.tryParse(used)    ?? 0.0;
-    final sVal = double.tryParse(sg)      ?? 0.0;
+    final aVal = double.tryParse(adjust) ?? 0.0;
+    final uVal = double.tryParse(used) ?? 0.0;
+    final sVal = double.tryParse(sg) ?? 0.0;
 
-    calculatedFinal.value  = iVal + received - returned - aVal - uVal;
-    calculatedCost.value   = uVal * price;
+    calculatedFinal.value = iVal + received - returned - aVal - uVal;
+    calculatedCost.value = uVal * price;
     calculatedVolume.value = (sVal > 0 && uVal > 0)
         ? double.parse((uVal / (sVal * 158.987)).toStringAsFixed(3))
         : 0.0;

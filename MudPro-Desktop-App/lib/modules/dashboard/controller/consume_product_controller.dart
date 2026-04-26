@@ -39,19 +39,21 @@ class ConsumeProductController {
         return {'success': false, 'message': 'No backend well selected'};
       }
 
-      final body = jsonEncode(_withReportScope({
-        'wellId': wellId,
-        'product': productName, // ✅ FIX: name send ho raha hai
-        'code': code,
-        'sg': sg,
-        'unit': unit,
-        'price': price,
-        'initial': initial,
-        'adjust': adjust,
-        'used': used,
-        'numberOfBags': numberOfBags,
-        'weightPerBag': weightPerBag,
-      }));
+      final body = jsonEncode(
+        _withReportScope({
+          'wellId': wellId,
+          'product': productName, // ✅ FIX: name send ho raha hai
+          'code': code,
+          'sg': sg,
+          'unit': unit,
+          'price': price,
+          'initial': initial,
+          'adjust': adjust,
+          'used': used,
+          'numberOfBags': numberOfBags,
+          'weightPerBag': weightPerBag,
+        }),
+      );
 
       print('🔵 [API] POST ${baseUrl}consume-product');
       print('🔵 [API] Body: $body');
@@ -108,19 +110,21 @@ class ConsumeProductController {
         return {'success': false, 'message': 'No backend well selected'};
       }
 
-      final body = jsonEncode(_withReportScope({
-        'wellId': wellId,
-        'product': productName, // ✅ FIX: name send ho raha hai
-        'code': code,
-        'sg': sg,
-        'unit': unit,
-        'price': price,
-        'initial': initial,
-        'adjust': adjust,
-        'used': used,
-        'numberOfBags': numberOfBags,
-        'weightPerBag': weightPerBag,
-      }));
+      final body = jsonEncode(
+        _withReportScope({
+          'wellId': wellId,
+          'product': productName, // ✅ FIX: name send ho raha hai
+          'code': code,
+          'sg': sg,
+          'unit': unit,
+          'price': price,
+          'initial': initial,
+          'adjust': adjust,
+          'used': used,
+          'numberOfBags': numberOfBags,
+          'weightPerBag': weightPerBag,
+        }),
+      );
 
       print('🔵 [API] PUT ${baseUrl}consume-product/$id');
       print('🔵 [API] Body: $body');
@@ -199,16 +203,16 @@ class ConsumeProductController {
     try {
       final wellId = currentBackendWellId.trim();
       final reportId =
-          reportIdOverride?.trim() ?? reportContext.selectedReportId.value.trim();
+          reportIdOverride?.trim() ??
+          reportContext.selectedReportId.value.trim();
       if (wellId.isEmpty) {
         return [];
       }
 
-      final uri = Uri.parse(
-        '${baseUrl}consume-product',
-      ).replace(
+      final uri = Uri.parse('${baseUrl}consume-product').replace(
         queryParameters: {
           'wellId': wellId,
+          'strictScope': 'true',
           if (reportId.isNotEmpty) 'reportId': reportId,
         },
       );
@@ -230,8 +234,7 @@ class ConsumeProductController {
         return items
             .map((e) => Map<String, dynamic>.from(e as Map))
             .where(
-              (item) =>
-                  (item['wellId']?.toString().trim() ?? '') == wellId,
+              (item) => (item['wellId']?.toString().trim() ?? '') == wellId,
             )
             .toList();
       } else {

@@ -36,10 +36,7 @@ class AuthRepository {
     if (reportId.isEmpty) return uri;
 
     return uri.replace(
-      queryParameters: {
-        ...uri.queryParameters,
-        'reportId': reportId,
-      },
+      queryParameters: {...uri.queryParameters, 'reportId': reportId},
     );
   }
 
@@ -81,11 +78,11 @@ class AuthRepository {
       print('Hitting ${isUpdate ? 'PUT' : 'POST'} $uri');
       final response = isUpdate
           ? await http
-              .put(uri, headers: _headers, body: jsonEncode(payload))
-              .timeout(const Duration(seconds: 12))
+                .put(uri, headers: _headers, body: jsonEncode(payload))
+                .timeout(const Duration(seconds: 12))
           : await http
-              .post(uri, headers: _headers, body: jsonEncode(payload))
-              .timeout(const Duration(seconds: 12));
+                .post(uri, headers: _headers, body: jsonEncode(payload))
+                .timeout(const Duration(seconds: 12));
       print('statuscode------${response.statusCode}');
       print('response body------${response.body}');
       final data = jsonDecode(response.body);
@@ -113,11 +110,11 @@ class AuthRepository {
       print('Hitting ${isUpdate ? 'PUT' : 'POST'} $uri');
       final response = isUpdate
           ? await http
-              .put(uri, headers: _headers, body: jsonEncode(payload))
-              .timeout(const Duration(seconds: 12))
+                .put(uri, headers: _headers, body: jsonEncode(payload))
+                .timeout(const Duration(seconds: 12))
           : await http
-              .post(uri, headers: _headers, body: jsonEncode(payload))
-              .timeout(const Duration(seconds: 12));
+                .post(uri, headers: _headers, body: jsonEncode(payload))
+                .timeout(const Duration(seconds: 12));
       print('statuscode------${response.statusCode}');
       print('response body------${response.body}');
       final data = jsonDecode(response.body);
@@ -214,14 +211,12 @@ class AuthRepository {
       final reportId = reportContext.selectedReportId.value.trim();
       final uri = Uri.parse('${baseUrl}volume-name/$wellId').replace(
         queryParameters: {
+          'strictScope': 'true',
           if (reportId.isNotEmpty) 'reportId': reportId,
         },
       );
       print('Hitting GET $uri');
-      final response = await http.get(
-        uri,
-        headers: _headers,
-      );
+      final response = await http.get(uri, headers: _headers);
       print('statuscode------${response.statusCode}');
       print('response body------${response.body}');
       final data = jsonDecode(response.body);
@@ -241,10 +236,7 @@ class AuthRepository {
     try {
       final uri = _uriWithReportId('${baseUrl}transfer-mud/$wellId');
       print('Hitting GET $uri');
-      final response = await http.get(
-        uri,
-        headers: _headers,
-      );
+      final response = await http.get(uri, headers: _headers);
       print('statuscode------${response.statusCode}');
       print('response body------${response.body}');
       final data = jsonDecode(response.body);
@@ -356,13 +348,11 @@ class AuthRepository {
     try {
       final reportId = reportContext.selectedReportId.value.trim();
       final uri = reportId.isNotEmpty
-          ? Uri.parse('${baseUrl}add-water/$wellId')
-              .replace(queryParameters: {'reportId': reportId})
+          ? Uri.parse(
+              '${baseUrl}add-water/$wellId',
+            ).replace(queryParameters: {'reportId': reportId})
           : Uri.parse('${baseUrl}add-water/$wellId');
-      final response = await http.get(
-        uri,
-        headers: _headers,
-      );
+      final response = await http.get(uri, headers: _headers);
       final data = jsonDecode(response.body);
       return {
         'success': response.statusCode == 200,
@@ -407,13 +397,11 @@ class AuthRepository {
     try {
       final reportId = reportContext.selectedReportId.value.trim();
       final uri = reportId.isNotEmpty
-          ? Uri.parse('${baseUrl}add-water/$wellId/$id')
-              .replace(queryParameters: {'reportId': reportId})
+          ? Uri.parse(
+              '${baseUrl}add-water/$wellId/$id',
+            ).replace(queryParameters: {'reportId': reportId})
           : Uri.parse('${baseUrl}add-water/$wellId/$id');
-      final response = await http.delete(
-        uri,
-        headers: _headers,
-      );
+      final response = await http.delete(uri, headers: _headers);
       final data = jsonDecode(response.body);
       return {
         'success': response.statusCode == 200,
@@ -456,10 +444,7 @@ class AuthRepository {
   Future<Map<String, dynamic>> getReceiveMudList(String wellId) async {
     try {
       final uri = _uriWithReportId('${baseUrl}receive-mud/$wellId');
-      final response = await http.get(
-        uri,
-        headers: _headers,
-      );
+      final response = await http.get(uri, headers: _headers);
       final data = jsonDecode(response.body);
       return {
         'success': response.statusCode == 200,
@@ -504,10 +489,7 @@ class AuthRepository {
   ) async {
     try {
       final uri = _uriWithReportId('${baseUrl}receive-mud/$wellId/$id');
-      final response = await http.delete(
-        uri,
-        headers: _headers,
-      );
+      final response = await http.delete(uri, headers: _headers);
       final data = jsonDecode(response.body);
       return {
         'success': response.statusCode == 200,
@@ -526,10 +508,7 @@ class AuthRepository {
     try {
       final uri = _uriWithReportId('${baseUrl}transfer-mud/$wellId/$id');
       print('Hitting DELETE $uri');
-      final response = await http.delete(
-        uri,
-        headers: _headers,
-      );
+      final response = await http.delete(uri, headers: _headers);
       print('statuscode------${response.statusCode}');
       print('response body------${response.body}');
       final data = jsonDecode(response.body);
@@ -1314,9 +1293,7 @@ class AuthRepository {
       final reportId = reportContext.selectedReportId.value.trim();
       final response = await http.get(
         Uri.parse('${baseUrl}pit/well/$wellId').replace(
-          queryParameters: {
-            if (reportId.isNotEmpty) 'reportId': reportId,
-          },
+          queryParameters: {if (reportId.isNotEmpty) 'reportId': reportId},
         ),
         headers: {'Content-Type': 'application/json'},
       );
@@ -1353,9 +1330,7 @@ class AuthRepository {
       final reportId = reportContext.selectedReportId.value.trim();
       final response = await http.get(
         Uri.parse('${baseUrl}pit/well/$wellId/selected').replace(
-          queryParameters: {
-            if (reportId.isNotEmpty) 'reportId': reportId,
-          },
+          queryParameters: {if (reportId.isNotEmpty) 'reportId': reportId},
         ),
         headers: {'Content-Type': 'application/json'},
       );
@@ -1389,9 +1364,7 @@ class AuthRepository {
       final reportId = reportContext.selectedReportId.value.trim();
       final response = await http.get(
         Uri.parse('${baseUrl}pit/well/$wellId/unselected').replace(
-          queryParameters: {
-            if (reportId.isNotEmpty) 'reportId': reportId,
-          },
+          queryParameters: {if (reportId.isNotEmpty) 'reportId': reportId},
         ),
         headers: {'Content-Type': 'application/json'},
       );
@@ -1772,9 +1745,7 @@ class AuthRepository {
       final reportId = reportContext.selectedReportId.value.trim();
       final response = await http.delete(
         Uri.parse('${baseUrl}pump/$id').replace(
-          queryParameters: {
-            if (reportId.isNotEmpty) 'reportId': reportId,
-          },
+          queryParameters: {if (reportId.isNotEmpty) 'reportId': reportId},
         ),
         headers: _headers,
       );
@@ -1987,10 +1958,7 @@ class AuthRepository {
   Future<Map<String, dynamic>> getReturnLostMudList(String wellId) async {
     try {
       final uri = _uriWithReportId('${baseUrl}return-lost-mud/$wellId');
-      final response = await http.get(
-        uri,
-        headers: _headers,
-      );
+      final response = await http.get(uri, headers: _headers);
       final data = jsonDecode(response.body);
       return {
         'success': response.statusCode == 200,
@@ -2031,10 +1999,7 @@ class AuthRepository {
   ) async {
     try {
       final uri = _uriWithReportId('${baseUrl}return-lost-mud/$wellId/$id');
-      final response = await http.delete(
-        uri,
-        headers: _headers,
-      );
+      final response = await http.delete(uri, headers: _headers);
       final data = jsonDecode(response.body);
       return {
         'success': response.statusCode == 200,
@@ -2074,10 +2039,7 @@ class AuthRepository {
   Future<Map<String, dynamic>> getMudLossList(String wellId) async {
     try {
       final uri = _uriWithReportId('${baseUrl}mud-loss/$wellId');
-      final response = await http.get(
-        uri,
-        headers: _headers,
-      );
+      final response = await http.get(uri, headers: _headers);
       final data = jsonDecode(response.body);
       return {
         'success': response.statusCode == 200,
@@ -2119,10 +2081,7 @@ class AuthRepository {
   Future<Map<String, dynamic>> deleteMudLoss(String wellId, String id) async {
     try {
       final uri = _uriWithReportId('${baseUrl}mud-loss/$wellId/$id');
-      final response = await http.delete(
-        uri,
-        headers: _headers,
-      );
+      final response = await http.delete(uri, headers: _headers);
       final data = jsonDecode(response.body);
       return {
         'success': response.statusCode == 200,
@@ -2158,10 +2117,7 @@ class AuthRepository {
   Future<Map<String, dynamic>> getOtherVolAdditionList(String wellId) async {
     try {
       final uri = _uriWithReportId('${baseUrl}other-vol-addition/$wellId');
-      final response = await http.get(
-        uri,
-        headers: _headers,
-      );
+      final response = await http.get(uri, headers: _headers);
       final data = jsonDecode(response.body);
       return {
         'success': response.statusCode == 200,
@@ -2202,10 +2158,7 @@ class AuthRepository {
   ) async {
     try {
       final uri = _uriWithReportId('${baseUrl}other-vol-addition/$wellId/$id');
-      final response = await http.delete(
-        uri,
-        headers: _headers,
-      );
+      final response = await http.delete(uri, headers: _headers);
       final data = jsonDecode(response.body);
       return {
         'success': response.statusCode == 200,
@@ -2245,10 +2198,7 @@ class AuthRepository {
   Future<Map<String, dynamic>> getMudLossStorageList(String wellId) async {
     try {
       final uri = _uriWithReportId('${baseUrl}mud-loss-storage/$wellId');
-      final response = await http.get(
-        uri,
-        headers: _headers,
-      );
+      final response = await http.get(uri, headers: _headers);
       final data = jsonDecode(response.body);
       return {
         'success': response.statusCode == 200,
@@ -2293,10 +2243,7 @@ class AuthRepository {
   ) async {
     try {
       final uri = _uriWithReportId('${baseUrl}mud-loss-storage/$wellId/$id');
-      final response = await http.delete(
-        uri,
-        headers: _headers,
-      );
+      final response = await http.delete(uri, headers: _headers);
       final data = jsonDecode(response.body);
       return {
         'success': response.statusCode == 200,

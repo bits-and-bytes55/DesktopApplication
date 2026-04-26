@@ -18,6 +18,10 @@ const getReportId = (req) =>
   String(req.query.reportId ?? req.body?.reportId ?? "").trim();
 const getReportNo = (req) =>
   String(req.query.reportNo ?? req.body?.reportNo ?? "").trim();
+const useStrictScope = (req) =>
+  String(req.query.strictScope ?? req.body?.strictScope ?? "")
+    .trim()
+    .toLowerCase() === "true";
 
 const toNumber = (value) => {
   if (value === null || value === undefined || value === "") return 0;
@@ -235,6 +239,7 @@ const calculateTotalOnLocationForReport = async ({ wellId, reportId, reportNo })
 const findScopedConsumeProductDistributionState = async ({
   wellId,
   reportId,
+  strictScope = false,
 }) => {
   if (reportId) {
     const scopedState = await ConsumeProductDistributionState.findOne({
@@ -244,6 +249,10 @@ const findScopedConsumeProductDistributionState = async ({
 
     if (scopedState) {
       return scopedState;
+    }
+
+    if (strictScope) {
+      return null;
     }
 
     return ConsumeProductDistributionState.findOne(legacyScopeFilter(wellId)).sort({
@@ -722,6 +731,7 @@ export const getVolumeNameCalculation = async (req, res) => {
     const wellId = getWellId(req);
     const reportId = getReportId(req);
     const reportNo = getReportNo(req);
+    const strictScope = useStrictScope(req);
 
     if (!wellId) {
       return res.status(400).json({
@@ -744,6 +754,7 @@ export const getVolumeNameCalculation = async (req, res) => {
         findScopedConsumeProductDistributionState({
           wellId,
           reportId: reportMeta.reportId,
+          strictScope,
         }),
         ConsumeProduct.find(
           scopedOperationFilter({ wellId, reportId: reportMeta.reportId })

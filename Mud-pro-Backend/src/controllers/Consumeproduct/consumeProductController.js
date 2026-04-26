@@ -222,6 +222,8 @@ export const getAllConsumeProducts = async (req, res) => {
     const filter = {};
     const wellId = String(req.query.wellId ?? "").trim();
     const reportId = String(req.query.reportId ?? "").trim();
+    const strictScope =
+      String(req.query.strictScope ?? "").trim().toLowerCase() === "true";
 
     if (wellId) {
       filter.wellId = wellId;
@@ -238,7 +240,7 @@ export const getAllConsumeProducts = async (req, res) => {
         _id: 1,
       });
 
-      if (products.length === 0) {
+      if (products.length === 0 && !strictScope) {
         products = await ConsumeProduct.find({
           wellId,
           ...legacyReportScope(),
