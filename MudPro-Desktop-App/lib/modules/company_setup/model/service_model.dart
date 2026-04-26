@@ -21,23 +21,28 @@ class ServiceItem {
 
   factory ServiceItem.fromJson(Map<String, dynamic> json) {
     return ServiceItem(
-      id: json['_id'],
-      name: json['name'] ?? '',
-      code: json['code'] ?? '',
-      unit: json['unit'] ?? '',
-      price: double.tryParse(json['price']?.toString() ?? '0') ?? 0.0,
-      initial: json['initial']?.toString() ?? '',
-      tax: json['tax'] ?? false,
+      id: _readString(json, const ['_id', 'id']),
+      name: _readString(json, const [
+        'name',
+        'Name',
+        'itemName',
+        'serviceName',
+      ]),
+      code: _readString(json, const ['code', 'Code']),
+      unit: _normalizeUnit(_readString(json, const ['unit', 'Unit'])),
+      price: _readDouble(json, const ['price', 'Price']),
+      initial: _readString(json, const ['initial', 'Initial']),
+      tax: _readBool(json, const ['tax', 'Tax']),
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'name': name,
-      'code': code,
-      'unit': unit,
+      'name': name.trim(),
+      'code': code.trim(),
+      'unit': _normalizeUnit(unit),
       'price': price,
-      'initial': initial,
+      'initial': initial.trim(),
       'tax': tax,
     };
   }
@@ -64,23 +69,28 @@ class PackageItem {
 
   factory PackageItem.fromJson(Map<String, dynamic> json) {
     return PackageItem(
-      id: json['_id'],
-      name: json['name'] ?? '',
-      code: json['code'] ?? '',
-      unit: json['unit'] ?? '',
-      price: double.tryParse(json['price']?.toString() ?? '0') ?? 0.0,
-      initial: json['initial']?.toString() ?? '',
-      tax: json['tax'] ?? false,
+      id: _readString(json, const ['_id', 'id']),
+      name: _readString(json, const [
+        'name',
+        'Name',
+        'itemName',
+        'packageName',
+      ]),
+      code: _readString(json, const ['code', 'Code']),
+      unit: _normalizeUnit(_readString(json, const ['unit', 'Unit'])),
+      price: _readDouble(json, const ['price', 'Price']),
+      initial: _readString(json, const ['initial', 'Initial']),
+      tax: _readBool(json, const ['tax', 'Tax']),
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'name': name,
-      'code': code,
-      'unit': unit,
+      'name': name.trim(),
+      'code': code.trim(),
+      'unit': _normalizeUnit(unit),
       'price': price,
-      'initial': initial,
+      'initial': initial.trim(),
       'tax': tax,
     };
   }
@@ -107,24 +117,64 @@ class EngineeringItem {
 
   factory EngineeringItem.fromJson(Map<String, dynamic> json) {
     return EngineeringItem(
-      id: json['_id'],
-      name: json['name'] ?? '',
-      code: json['code'] ?? '',
-      unit: json['unit'] ?? '',
-      price: double.tryParse(json['price']?.toString() ?? '0') ?? 0.0,
-      initial: json['initial']?.toString() ?? '',
-      tax: json['tax'] ?? false,
+      id: _readString(json, const ['_id', 'id']),
+      name: _readString(json, const [
+        'name',
+        'Name',
+        'itemName',
+        'engineeringName',
+      ]),
+      code: _readString(json, const ['code', 'Code']),
+      unit: _normalizeUnit(_readString(json, const ['unit', 'Unit'])),
+      price: _readDouble(json, const ['price', 'Price']),
+      initial: _readString(json, const ['initial', 'Initial']),
+      tax: _readBool(json, const ['tax', 'Tax']),
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'name': name,
-      'code': code,
-      'unit': unit,
+      'name': name.trim(),
+      'code': code.trim(),
+      'unit': _normalizeUnit(unit),
       'price': price,
-      'initial': initial,
+      'initial': initial.trim(),
       'tax': tax,
     };
   }
+}
+
+String _readString(Map<String, dynamic> json, List<String> keys) {
+  for (final key in keys) {
+    final value = json[key];
+    if (value == null) continue;
+    final text = value.toString().trim();
+    if (text.isNotEmpty) return text;
+  }
+  return '';
+}
+
+double _readDouble(Map<String, dynamic> json, List<String> keys) {
+  for (final key in keys) {
+    final value = json[key];
+    if (value == null) continue;
+    final parsed = double.tryParse(value.toString().trim());
+    if (parsed != null) return parsed;
+  }
+  return 0.0;
+}
+
+bool _readBool(Map<String, dynamic> json, List<String> keys) {
+  for (final key in keys) {
+    final value = json[key];
+    if (value is bool) return value;
+    final text = value?.toString().trim().toLowerCase() ?? '';
+    if (text == 'true' || text == '1' || text == 'yes') return true;
+    if (text == 'false' || text == '0' || text == 'no') return false;
+  }
+  return false;
+}
+
+String _normalizeUnit(String value) {
+  return value.trim().replaceAll(RegExp(r'\s+'), ' ');
 }

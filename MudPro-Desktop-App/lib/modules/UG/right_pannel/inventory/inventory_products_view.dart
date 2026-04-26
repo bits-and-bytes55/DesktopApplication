@@ -20,9 +20,9 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
   final c = Get.find<UgController>();
   final _repository = AuthRepository();
   final padWellC = padWellContext;
-  
+
   String get wellId => padWellC.selectedWellId.value;
-  
+
   bool _isLoading = false;
 
   // Controllers for empty rows
@@ -95,7 +95,9 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
           wellId,
         );
         if (savedProducts.isNotEmpty) {
-          store.setSelectedProducts(savedProducts.map(_toProductModel).toList());
+          store.setSelectedProducts(
+            savedProducts.map(_toProductModel).toList(),
+          );
         }
       }
 
@@ -127,13 +129,14 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
   }
 
   ProductModel _toProductModel(dynamic product) {
+    final unitParts = _splitInventoryUnit(product.unit);
     return ProductModel(
       id: product.id,
       product: product.product,
       code: product.code,
       sg: product.sg,
-      unitNum: product.unit,
-      unitClass: '',
+      unitNum: unitParts['num'] ?? '',
+      unitClass: unitParts['class'] ?? '',
       group: product.group,
       a: product.price,
       price: product.price,
@@ -159,10 +162,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
             builder: (context, value, child) {
               return Transform.translate(
                 offset: Offset(0, -20 * (1 - value)),
-                child: Opacity(
-                  opacity: value,
-                  child: child,
-                ),
+                child: Opacity(opacity: value, child: child),
               );
             },
             child: Container(
@@ -231,10 +231,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
       child: Column(
         children: [
           // ================= MAIN PRODUCTS TABLE =================
-          Expanded(
-            flex: 3,
-            child: _buildProductsTable(store),
-          ),
+          Expanded(flex: 3, child: _buildProductsTable(store)),
 
           const SizedBox(height: 8),
 
@@ -303,19 +300,24 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                 ),
                 const Spacer(),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 1,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(4),
                   ),
-                  child: Obx(() => Text(
-                    '${store.selectedProducts.length} items',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
+                  child: Obx(
+                    () => Text(
+                      '${store.selectedProducts.length} items',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  )),
+                  ),
                 ),
               ],
             ),
@@ -346,7 +348,8 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                         color: Colors.grey.shade200,
                         width: 1,
                       ),
-                      defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+                      defaultVerticalAlignment:
+                          TableCellVerticalAlignment.middle,
                       columnWidths: const {
                         0: FixedColumnWidth(40),
                         1: FixedColumnWidth(250),
@@ -367,7 +370,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                             gradient: LinearGradient(
                               colors: [
                                 AppTheme.primaryColor.withOpacity(0.1),
-                                AppTheme.primaryColor.withOpacity(0.05)
+                                AppTheme.primaryColor.withOpacity(0.05),
                               ],
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
@@ -384,18 +387,32 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                             _tableHeaderCell('Group'),
                             _tableHeaderCell('Vol. Add'),
                             Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   _headerText('Concentration'),
                                   const SizedBox(height: 2),
                                   Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceEvenly,
                                     children: [
                                       Expanded(
-                                          child: Center(child: _headerText('Calculate', size: 9))),
-                                      Expanded(child: Center(child: _headerText('Plot', size: 9))),
+                                        child: Center(
+                                          child: _headerText(
+                                            'Calculate',
+                                            size: 9,
+                                          ),
+                                        ),
+                                      ),
+                                      Expanded(
+                                        child: Center(
+                                          child: _headerText('Plot', size: 9),
+                                        ),
+                                      ),
                                     ],
                                   ),
                                 ],
@@ -410,52 +427,72 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                           final p = entry.value;
                           return TableRow(
                             decoration: BoxDecoration(
-                              color: index.isEven ? Colors.white : AppTheme.cardColor,
+                              color: index.isEven
+                                  ? Colors.white
+                                  : AppTheme.cardColor,
                             ),
                             children: [
                               _tableCell((index + 1).toString()),
-                              _editableTableCell(p.product, onChanged: (v) {
-                                p.product = v;
-                                store.selectedProducts.refresh();
-                              }),
-                              _editableTableCell(p.code, onChanged: (v) {
-                                p.code = v;
-                                store.selectedProducts.refresh();
-                              }),
-                              _editableTableCell(p.sg, onChanged: (v) {
-                                p.sg = v;
-                                store.selectedProducts.refresh();
-                              }),
+                              _productActionCell(p, store),
+                              _editableTableCell(
+                                p.code,
+                                onChanged: (v) {
+                                  p.code = v;
+                                  store.selectedProducts.refresh();
+                                },
+                              ),
+                              _editableTableCell(
+                                p.sg,
+                                onChanged: (v) {
+                                  p.sg = v;
+                                  store.selectedProducts.refresh();
+                                },
+                              ),
                               _tableCell(p.formattedUnit),
-                              _editableTableCell(p.a, onChanged: (v) {
-                                p.a = v;
-                                store.selectedProducts.refresh();
-                              }),
-                              _editableTableCell(p.initial, onChanged: (v) {
-                                p.initial = v;
-                                store.selectedProducts.refresh();
-                              }),
-                              _editableTableCell(p.group, onChanged: (v) {
-                                p.group = v;
-                                store.selectedProducts.refresh();
-                              }),
+                              _editableTableCell(
+                                p.a,
+                                onChanged: (v) {
+                                  p.a = v;
+                                  p.price = v;
+                                  store.selectedProducts.refresh();
+                                },
+                              ),
+                              _editableTableCell(
+                                p.initial,
+                                onChanged: (v) {
+                                  p.initial = v;
+                                  store.selectedProducts.refresh();
+                                },
+                              ),
+                              _editableTableCell(
+                                p.group,
+                                onChanged: (v) {
+                                  p.group = v;
+                                  store.selectedProducts.refresh();
+                                },
+                              ),
                               _checkboxCell(() => p.volAdd, (v) {
                                 p.volAdd = v;
                                 store.selectedProducts.refresh();
                               }),
                               Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 1),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 1,
+                                ),
                                 child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceEvenly,
                                   children: [
                                     Expanded(
-                                      child: _checkboxCell(() => p.calculate, (v) {
+                                      child: _checkboxCell(() => p.calculate, (
+                                        v,
+                                      ) {
                                         p.calculate = v;
                                         store.selectedProducts.refresh();
                                       }),
                                     ),
                                     Expanded(
-                                      child: _checkboxCell(() => p.plot ?? false, (v) {
+                                      child: _checkboxCell(() => p.plot, (v) {
                                         p.plot = v;
                                         store.selectedProducts.refresh();
                                       }),
@@ -478,6 +515,267 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
             }),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _productActionCell(
+    ProductModel product,
+    InventoryProductsStore store,
+  ) {
+    final label = product.product.trim().isEmpty
+        ? 'Untitled Product'
+        : product.product;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      child: MouseRegion(
+        cursor: c.isLocked.value
+            ? SystemMouseCursors.basic
+            : SystemMouseCursors.click,
+        child: InkWell(
+          onTap: c.isLocked.value
+              ? null
+              : () => _showProductActions(product, store),
+          child: Text(
+            label,
+            style: TextStyle(fontSize: 9, color: AppTheme.textPrimary),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showProductActions(
+    ProductModel product,
+    InventoryProductsStore store,
+  ) async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Product Actions'),
+          content: Text(
+            product.product.trim().isEmpty
+                ? 'Choose what you want to do with this product.'
+                : product.product,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+                _showProductEditDialog(product, store);
+              },
+              child: const Text('Edit'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+                _removeProductFromInventory(product, store);
+              },
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _showProductEditDialog(
+    ProductModel product,
+    InventoryProductsStore store,
+  ) async {
+    final productController = TextEditingController(text: product.product);
+    final codeController = TextEditingController(text: product.code);
+    final sgController = TextEditingController(text: product.sg);
+    final unitNumController = TextEditingController(text: product.unitNum);
+    final unitClassController = TextEditingController(text: product.unitClass);
+    final priceController = TextEditingController(
+      text: product.a.isNotEmpty ? product.a : product.price,
+    );
+    final initialController = TextEditingController(text: product.initial);
+    final groupController = TextEditingController(text: product.group);
+
+    var volAdd = product.volAdd;
+    var calculate = product.calculate;
+    var plot = product.plot;
+    var tax = product.tax;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Edit Product'),
+              content: SizedBox(
+                width: 520,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _dialogField('Product', productController),
+                      const SizedBox(height: 10),
+                      _dialogField('Code', codeController),
+                      const SizedBox(height: 10),
+                      _dialogField('SG', sgController),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _dialogField('Unit Qty', unitNumController),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _dialogField('Unit', unitClassController),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _dialogField('Price', priceController),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _dialogField('Initial', initialController),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      _dialogField('Group', groupController),
+                      const SizedBox(height: 10),
+                      CheckboxListTile(
+                        value: volAdd,
+                        onChanged: (value) {
+                          setDialogState(() => volAdd = value ?? false);
+                        },
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                        title: const Text('Vol. Add'),
+                      ),
+                      CheckboxListTile(
+                        value: calculate,
+                        onChanged: (value) {
+                          setDialogState(() => calculate = value ?? false);
+                        },
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                        title: const Text('Calculate'),
+                      ),
+                      CheckboxListTile(
+                        value: plot,
+                        onChanged: (value) {
+                          setDialogState(() => plot = value ?? false);
+                        },
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                        title: const Text('Plot'),
+                      ),
+                      CheckboxListTile(
+                        value: tax,
+                        onChanged: (value) {
+                          setDialogState(() => tax = value ?? false);
+                        },
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                        title: const Text('Tax'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    product.product = productController.text.trim();
+                    product.code = codeController.text.trim();
+                    product.sg = sgController.text.trim();
+                    product.unitNum = unitNumController.text.trim();
+                    product.unitClass = unitClassController.text.trim();
+                    product.a = priceController.text.trim();
+                    product.price = priceController.text.trim();
+                    product.initial = initialController.text.trim();
+                    product.group = groupController.text.trim();
+                    product.volAdd = volAdd;
+                    product.calculate = calculate;
+                    product.plot = plot;
+                    product.tax = tax;
+
+                    store.selectedProducts.refresh();
+                    Navigator.of(dialogContext).pop();
+                    _showToast('Product updated in inventory');
+                  },
+                  child: const Text('Save'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    productController.dispose();
+    codeController.dispose();
+    sgController.dispose();
+    unitNumController.dispose();
+    unitClassController.dispose();
+    priceController.dispose();
+    initialController.dispose();
+    groupController.dispose();
+  }
+
+  Future<void> _removeProductFromInventory(
+    ProductModel product,
+    InventoryProductsStore store,
+  ) async {
+    final confirmed = await _showDeleteConfirmation('Product');
+    if (!confirmed) return;
+
+    final index = _findProductIndex(store, product);
+    if (index == -1) {
+      _showToast('Product not found', isError: true);
+      return;
+    }
+
+    store.selectedProducts.removeAt(index);
+    store.selectedProducts.refresh();
+    _showToast('Product removed from inventory');
+  }
+
+  int _findProductIndex(InventoryProductsStore store, ProductModel product) {
+    return store.selectedProducts.indexWhere((item) {
+      if (identical(item, product)) return true;
+
+      final itemId = item.id?.trim() ?? '';
+      final productId = product.id?.trim() ?? '';
+      if (itemId.isNotEmpty && productId.isNotEmpty && itemId == productId) {
+        return true;
+      }
+
+      return item.product.trim().toLowerCase() ==
+              product.product.trim().toLowerCase() &&
+          item.code.trim().toLowerCase() == product.code.trim().toLowerCase();
+    });
+  }
+
+  Widget _dialogField(String label, TextEditingController controller) {
+    return TextField(
+      controller: controller,
+      decoration: InputDecoration(
+        labelText: label,
+        isDense: true,
+        border: const OutlineInputBorder(),
       ),
     );
   }
@@ -516,21 +814,26 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                     ),
                   ),
                 ),
-                Obx(() => Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    '${c.premixed.length} items',
-                    style: const TextStyle(
-                      fontSize: 10,
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
+                Obx(
+                  () => Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 1,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      '${c.premixed.length} items',
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
-                )),
+                ),
               ],
             ),
           ),
@@ -543,195 +846,292 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                 scrollDirection: Axis.horizontal,
                 child: SingleChildScrollView(
                   controller: _premixedVerticalScroll,
-                  child: Obx(() => Table(
-                    border: TableBorder.all(
-                      color: Colors.grey.shade300,
-                      width: 1,
-                    ),
-                    defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-                    columnWidths: const {
-                      0: FixedColumnWidth(40),
-                      1: FixedColumnWidth(180),
-                      2: FixedColumnWidth(80),
-                      3: FixedColumnWidth(100),
-                      4: FixedColumnWidth(100),
-                      5: FixedColumnWidth(60),
-                      6: FixedColumnWidth(90),
-                    },
-                    children: [
-                      // Header Row
-                      TableRow(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              AppTheme.primaryColor.withOpacity(0.1),
-                              AppTheme.primaryColor.withOpacity(0.05)
-                            ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                        ),
-                        children: [
-                          _tableHeaderCell('#'),
-                          _tableHeaderCell('Description'),
-                          _tableHeaderCell('MW'),
-                          _tableHeaderCell('Leasing Fee'),
-                          _tableHeaderCell('Mud Type'),
-                          _tableHeaderCell('Tax'),
-                          _tableHeaderCell('Actions'),
-                        ],
+                  child: Obx(
+                    () => Table(
+                      border: TableBorder.all(
+                        color: Colors.grey.shade300,
+                        width: 1,
                       ),
-                      // Data Rows
-                      ...c.premixed.asMap().entries.map((entry) {
-                        final index = entry.key;
-                        final e = entry.value;
-                        return TableRow(
+                      defaultVerticalAlignment:
+                          TableCellVerticalAlignment.middle,
+                      columnWidths: const {
+                        0: FixedColumnWidth(40),
+                        1: FixedColumnWidth(180),
+                        2: FixedColumnWidth(80),
+                        3: FixedColumnWidth(100),
+                        4: FixedColumnWidth(100),
+                        5: FixedColumnWidth(60),
+                        6: FixedColumnWidth(90),
+                      },
+                      children: [
+                        // Header Row
+                        TableRow(
                           decoration: BoxDecoration(
-                            color: index.isEven ? Colors.white : AppTheme.cardColor,
+                            gradient: LinearGradient(
+                              colors: [
+                                AppTheme.primaryColor.withOpacity(0.1),
+                                AppTheme.primaryColor.withOpacity(0.05),
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
                           ),
                           children: [
-                            _tableCell((index + 1).toString()),
-                            _editableTableCell(e.description, key: ValueKey(e.id ?? e.description), onChanged: (v) {
-                              e.description = v;
-                              c.premixed.refresh();
-                            }),
-                            _editableTableCell(e.mw, key: ValueKey(e.id ?? e.mw), onChanged: (v) {
-                              e.mw = v;
-                              c.premixed.refresh();
-                            }),
-                            _editableTableCell(e.leasingFee, key: ValueKey(e.id ?? e.leasingFee), onChanged: (v) {
-                              e.leasingFee = v;
-                              c.premixed.refresh();
-                            }),
-                            _editableTableCell(e.mudType, key: ValueKey(e.id ?? e.mudType), onChanged: (v) {
-                              e.mudType = v;
-                              c.premixed.refresh();
-                            }),
-                            _checkboxCell(() => e.tax, (v) {
-                              e.tax = v;
-                              c.premixed.refresh();
-                            }),
+                            _tableHeaderCell('#'),
+                            _tableHeaderCell('Description'),
+                            _tableHeaderCell('MW'),
+                            _tableHeaderCell('Leasing Fee'),
+                            _tableHeaderCell('Mud Type'),
+                            _tableHeaderCell('Tax'),
+                            _tableHeaderCell('Actions'),
+                          ],
+                        ),
+                        // Data Rows
+                        ...c.premixed.asMap().entries.map((entry) {
+                          final index = entry.key;
+                          final e = entry.value;
+                          return TableRow(
+                            decoration: BoxDecoration(
+                              color: index.isEven
+                                  ? Colors.white
+                                  : AppTheme.cardColor,
+                            ),
+                            children: [
+                              _tableCell((index + 1).toString()),
+                              _editableTableCell(
+                                e.description,
+                                key: ValueKey(e.id ?? e.description),
+                                onChanged: (v) {
+                                  e.description = v;
+                                  c.premixed.refresh();
+                                },
+                              ),
+                              _editableTableCell(
+                                e.mw,
+                                key: ValueKey(e.id ?? e.mw),
+                                onChanged: (v) {
+                                  e.mw = v;
+                                  c.premixed.refresh();
+                                },
+                              ),
+                              _editableTableCell(
+                                e.leasingFee,
+                                key: ValueKey(e.id ?? e.leasingFee),
+                                onChanged: (v) {
+                                  e.leasingFee = v;
+                                  c.premixed.refresh();
+                                },
+                              ),
+                              _editableTableCell(
+                                e.mudType,
+                                key: ValueKey(e.id ?? e.mudType),
+                                onChanged: (v) {
+                                  e.mudType = v;
+                                  c.premixed.refresh();
+                                },
+                              ),
+                              _checkboxCell(() => e.tax, (v) {
+                                e.tax = v;
+                                c.premixed.refresh();
+                              }),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 2,
+                                  horizontal: 2,
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    IconButton(
+                                      icon: Icon(
+                                        Icons.save,
+                                        size: 14,
+                                        color: Colors.blue,
+                                      ),
+                                      onPressed: c.isLocked.value
+                                          ? null
+                                          : () => _updatePremixed(e),
+                                      tooltip: 'Update',
+                                      padding: EdgeInsets.all(2),
+                                      constraints: BoxConstraints(),
+                                    ),
+                                    SizedBox(width: 2),
+                                    IconButton(
+                                      icon: Icon(
+                                        Icons.delete,
+                                        size: 14,
+                                        color: Colors.red,
+                                      ),
+                                      onPressed: c.isLocked.value
+                                          ? null
+                                          : () => _deletePremixed(e.id!),
+                                      tooltip: 'Delete',
+                                      padding: EdgeInsets.all(2),
+                                      constraints: BoxConstraints(),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          );
+                        }),
+                        // Empty row for adding new data
+                        TableRow(
+                          decoration: BoxDecoration(color: Colors.grey.shade50),
+                          children: [
                             Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 2),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  IconButton(
-                                    icon: Icon(Icons.save, size: 14, color: Colors.blue),
-                                    onPressed: c.isLocked.value ? null : () => _updatePremixed(e),
-                                    tooltip: 'Update',
-                                    padding: EdgeInsets.all(2),
-                                    constraints: BoxConstraints(),
+                              padding: const EdgeInsets.all(6.0),
+                              child: Icon(
+                                Icons.add,
+                                size: 14,
+                                color: Colors.green,
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                                vertical: 1,
+                              ),
+                              child: TextFormField(
+                                controller: c.premixedDescController,
+                                readOnly: c.isLocked.value,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.black87,
+                                ),
+                                decoration: InputDecoration(
+                                  hintText: 'Enter description...',
+                                  hintStyle: TextStyle(
+                                    fontSize: 9,
+                                    color: Colors.grey.shade400,
                                   ),
-                                  SizedBox(width: 2),
-                                  IconButton(
-                                    icon: Icon(Icons.delete, size: 14, color: Colors.red),
-                                    onPressed: c.isLocked.value ? null : () => _deletePremixed(e.id!),
-                                    tooltip: 'Delete',
-                                    padding: EdgeInsets.all(2),
-                                    constraints: BoxConstraints(),
+                                  isDense: true,
+                                  contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                    vertical: 2,
                                   ),
-                                ],
+                                  border: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                ),
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                                vertical: 1,
+                              ),
+                              child: TextFormField(
+                                controller: c.premixedMwController,
+                                readOnly: c.isLocked.value,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.black87,
+                                ),
+                                decoration: InputDecoration(
+                                  hintText: 'MW...',
+                                  hintStyle: TextStyle(
+                                    fontSize: 9,
+                                    color: Colors.grey.shade400,
+                                  ),
+                                  isDense: true,
+                                  contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                    vertical: 2,
+                                  ),
+                                  border: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                ),
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                                vertical: 1,
+                              ),
+                              child: TextFormField(
+                                controller: c.premixedLeasingFeeController,
+                                readOnly: c.isLocked.value,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.black87,
+                                ),
+                                decoration: InputDecoration(
+                                  hintText: 'Fee...',
+                                  hintStyle: TextStyle(
+                                    fontSize: 9,
+                                    color: Colors.grey.shade400,
+                                  ),
+                                  isDense: true,
+                                  contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                    vertical: 2,
+                                  ),
+                                  border: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                ),
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                                vertical: 1,
+                              ),
+                              child: TextFormField(
+                                controller: c.premixedMudTypeController,
+                                readOnly: c.isLocked.value,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.black87,
+                                ),
+                                decoration: InputDecoration(
+                                  hintText: 'Type...',
+                                  hintStyle: TextStyle(
+                                    fontSize: 9,
+                                    color: Colors.grey.shade400,
+                                  ),
+                                  isDense: true,
+                                  contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                    vertical: 2,
+                                  ),
+                                  border: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                ),
+                              ),
+                            ),
+                            Obx(
+                              () => _checkboxCell(
+                                () => c.premixedTaxNew.value,
+                                (v) {
+                                  c.premixedTaxNew.value = v;
+                                },
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.all(2.0),
+                              child: IconButton(
+                                icon: Icon(
+                                  Icons.add_circle,
+                                  color: Colors.green,
+                                  size: 18,
+                                ),
+                                onPressed: c.isLocked.value
+                                    ? null
+                                    : _addPremixedFromEmptyRow,
+                                tooltip: 'Add',
+                                padding: EdgeInsets.all(2),
+                                constraints: BoxConstraints(),
                               ),
                             ),
                           ],
-                        );
-                      }),
-                      // Empty row for adding new data
-                      TableRow(
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade50,
                         ),
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.all(6.0),
-                            child: Icon(Icons.add, size: 14, color: Colors.green),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                            child: TextFormField(
-                              controller: c.premixedDescController,
-                              readOnly: c.isLocked.value,
-                              style: TextStyle(fontSize: 10, color: Colors.black87),
-                              decoration: InputDecoration(
-                                hintText: 'Enter description...',
-                                hintStyle: TextStyle(fontSize: 9, color: Colors.grey.shade400),
-                                isDense: true,
-                                contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                                border: InputBorder.none,
-                                enabledBorder: InputBorder.none,
-                                focusedBorder: InputBorder.none,
-                              ),
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                            child: TextFormField(
-                              controller: c.premixedMwController,
-                              readOnly: c.isLocked.value,
-                              style: TextStyle(fontSize: 10, color: Colors.black87),
-                              decoration: InputDecoration(
-                                hintText: 'MW...',
-                                hintStyle: TextStyle(fontSize: 9, color: Colors.grey.shade400),
-                                isDense: true,
-                                contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                                border: InputBorder.none,
-                                enabledBorder: InputBorder.none,
-                                focusedBorder: InputBorder.none,
-                              ),
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                            child: TextFormField(
-                              controller: c.premixedLeasingFeeController,
-                              readOnly: c.isLocked.value,
-                              style: TextStyle(fontSize: 10, color: Colors.black87),
-                              decoration: InputDecoration(
-                                hintText: 'Fee...',
-                                hintStyle: TextStyle(fontSize: 9, color: Colors.grey.shade400),
-                                isDense: true,
-                                contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                                border: InputBorder.none,
-                                enabledBorder: InputBorder.none,
-                                focusedBorder: InputBorder.none,
-                              ),
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                            child: TextFormField(
-                              controller: c.premixedMudTypeController,
-                              readOnly: c.isLocked.value,
-                              style: TextStyle(fontSize: 10, color: Colors.black87),
-                              decoration: InputDecoration(
-                                hintText: 'Type...',
-                                hintStyle: TextStyle(fontSize: 9, color: Colors.grey.shade400),
-                                isDense: true,
-                                contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                                border: InputBorder.none,
-                                enabledBorder: InputBorder.none,
-                                focusedBorder: InputBorder.none,
-                              ),
-                            ),
-                          ),
-                          Obx(() => _checkboxCell(() => c.premixedTaxNew.value, (v) {
-                            c.premixedTaxNew.value = v;
-                          })),
-                          Padding(
-                            padding: const EdgeInsets.all(2.0),
-                            child: IconButton(
-                              icon: Icon(Icons.add_circle, color: Colors.green, size: 18),
-                              onPressed: c.isLocked.value ? null : _addPremixedFromEmptyRow,
-                              tooltip: 'Add',
-                              padding: EdgeInsets.all(2),
-                              constraints: BoxConstraints(),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  )),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -775,21 +1175,26 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                     ),
                   ),
                 ),
-                Obx(() => Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    '${c.obm.length} items',
-                    style: const TextStyle(
-                      fontSize: 10,
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
+                Obx(
+                  () => Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 1,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      '${c.obm.length} items',
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
-                )),
+                ),
               ],
             ),
           ),
@@ -802,209 +1207,317 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                 scrollDirection: Axis.horizontal,
                 child: SingleChildScrollView(
                   controller: _obmVerticalScroll,
-                  child: Obx(() => Table(
-                    border: TableBorder.all(
-                      color: Colors.grey.shade300,
-                      width: 1,
-                    ),
-                    defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-                    columnWidths: const {
-                      0: FixedColumnWidth(40),
-                      1: FixedColumnWidth(180),
-                      2: FixedColumnWidth(100),
-                      3: FixedColumnWidth(80),
-                      4: FixedColumnWidth(80),
-                      5: FixedColumnWidth(80),
-                      6: FixedColumnWidth(90),
-                    },
-                    children: [
-                      // Header Row
-                      TableRow(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              AppTheme.primaryColor.withOpacity(0.1),
-                              AppTheme.primaryColor.withOpacity(0.05)
-                            ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                        ),
-                        children: [
-                          _tableHeaderCell('#'),
-                          _tableHeaderCell('Product'),
-                          _tableHeaderCell('Code'),
-                          _tableHeaderCell('SG'),
-                          _tableHeaderCell('Conc'),
-                          _tableHeaderCell('Unit'),
-                          _tableHeaderCell('Actions'),
-                        ],
+                  child: Obx(
+                    () => Table(
+                      border: TableBorder.all(
+                        color: Colors.grey.shade300,
+                        width: 1,
                       ),
-                      // Data Rows
-                      ...c.obm.asMap().entries.map((entry) {
-                        final index = entry.key;
-                        final e = entry.value;
-                        return TableRow(
+                      defaultVerticalAlignment:
+                          TableCellVerticalAlignment.middle,
+                      columnWidths: const {
+                        0: FixedColumnWidth(40),
+                        1: FixedColumnWidth(180),
+                        2: FixedColumnWidth(100),
+                        3: FixedColumnWidth(80),
+                        4: FixedColumnWidth(80),
+                        5: FixedColumnWidth(80),
+                        6: FixedColumnWidth(90),
+                      },
+                      children: [
+                        // Header Row
+                        TableRow(
                           decoration: BoxDecoration(
-                            color: index.isEven ? Colors.white : AppTheme.cardColor,
+                            gradient: LinearGradient(
+                              colors: [
+                                AppTheme.primaryColor.withOpacity(0.1),
+                                AppTheme.primaryColor.withOpacity(0.05),
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
                           ),
                           children: [
-                            _tableCell((index + 1).toString()),
-                            _editableTableCell(e.product, key: ValueKey(e.id ?? e.product), onChanged: (v) {
-                              e.product = v;
-                              c.obm.refresh();
-                            }),
-                            _editableTableCell(e.code, key: ValueKey(e.id ?? e.code), onChanged: (v) {
-                              e.code = v;
-                              c.obm.refresh();
-                            }),
-                            _editableTableCell(e.sg, key: ValueKey(e.id ?? e.sg), onChanged: (v) {
-                              e.sg = v;
-                              c.obm.refresh();
-                            }),
-                            _editableTableCell(e.conc, key: ValueKey(e.id ?? e.conc), onChanged: (v) {
-                              e.conc = v;
-                              c.obm.refresh();
-                            }),
-                            _editableTableCell(e.unit, key: ValueKey(e.id ?? e.unit), onChanged: (v) {
-                              e.unit = v;
-                              c.obm.refresh();
-                            }),
+                            _tableHeaderCell('#'),
+                            _tableHeaderCell('Product'),
+                            _tableHeaderCell('Code'),
+                            _tableHeaderCell('SG'),
+                            _tableHeaderCell('Conc'),
+                            _tableHeaderCell('Unit'),
+                            _tableHeaderCell('Actions'),
+                          ],
+                        ),
+                        // Data Rows
+                        ...c.obm.asMap().entries.map((entry) {
+                          final index = entry.key;
+                          final e = entry.value;
+                          return TableRow(
+                            decoration: BoxDecoration(
+                              color: index.isEven
+                                  ? Colors.white
+                                  : AppTheme.cardColor,
+                            ),
+                            children: [
+                              _tableCell((index + 1).toString()),
+                              _editableTableCell(
+                                e.product,
+                                key: ValueKey(e.id ?? e.product),
+                                onChanged: (v) {
+                                  e.product = v;
+                                  c.obm.refresh();
+                                },
+                              ),
+                              _editableTableCell(
+                                e.code,
+                                key: ValueKey(e.id ?? e.code),
+                                onChanged: (v) {
+                                  e.code = v;
+                                  c.obm.refresh();
+                                },
+                              ),
+                              _editableTableCell(
+                                e.sg,
+                                key: ValueKey(e.id ?? e.sg),
+                                onChanged: (v) {
+                                  e.sg = v;
+                                  c.obm.refresh();
+                                },
+                              ),
+                              _editableTableCell(
+                                e.conc,
+                                key: ValueKey(e.id ?? e.conc),
+                                onChanged: (v) {
+                                  e.conc = v;
+                                  c.obm.refresh();
+                                },
+                              ),
+                              _editableTableCell(
+                                e.unit,
+                                key: ValueKey(e.id ?? e.unit),
+                                onChanged: (v) {
+                                  e.unit = v;
+                                  c.obm.refresh();
+                                },
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 2,
+                                  horizontal: 2,
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    IconButton(
+                                      icon: Icon(
+                                        Icons.save,
+                                        size: 14,
+                                        color: Colors.blue,
+                                      ),
+                                      onPressed: c.isLocked.value
+                                          ? null
+                                          : () => _updateObm(e),
+                                      tooltip: 'Update',
+                                      padding: EdgeInsets.all(2),
+                                      constraints: BoxConstraints(),
+                                    ),
+                                    SizedBox(width: 2),
+                                    IconButton(
+                                      icon: Icon(
+                                        Icons.delete,
+                                        size: 14,
+                                        color: Colors.red,
+                                      ),
+                                      onPressed: c.isLocked.value
+                                          ? null
+                                          : () => _deleteObm(e.id!),
+                                      tooltip: 'Delete',
+                                      padding: EdgeInsets.all(2),
+                                      constraints: BoxConstraints(),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          );
+                        }),
+                        // Empty row for adding new data
+                        TableRow(
+                          decoration: BoxDecoration(color: Colors.grey.shade50),
+                          children: [
                             Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 2),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  IconButton(
-                                    icon: Icon(Icons.save, size: 14, color: Colors.blue),
-                                    onPressed: c.isLocked.value ? null : () => _updateObm(e),
-                                    tooltip: 'Update',
-                                    padding: EdgeInsets.all(2),
-                                    constraints: BoxConstraints(),
+                              padding: const EdgeInsets.all(6.0),
+                              child: Icon(
+                                Icons.add,
+                                size: 14,
+                                color: Colors.green,
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                                vertical: 1,
+                              ),
+                              child: TextFormField(
+                                controller: c.obmProductController,
+                                readOnly: c.isLocked.value,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.black87,
+                                ),
+                                decoration: InputDecoration(
+                                  hintText: 'Enter product...',
+                                  hintStyle: TextStyle(
+                                    fontSize: 9,
+                                    color: Colors.grey.shade400,
                                   ),
-                                  SizedBox(width: 2),
-                                  IconButton(
-                                    icon: Icon(Icons.delete, size: 14, color: Colors.red),
-                                    onPressed: c.isLocked.value ? null : () => _deleteObm(e.id!),
-                                    tooltip: 'Delete',
-                                    padding: EdgeInsets.all(2),
-                                    constraints: BoxConstraints(),
+                                  isDense: true,
+                                  contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                    vertical: 2,
                                   ),
-                                ],
+                                  border: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                ),
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                                vertical: 1,
+                              ),
+                              child: TextFormField(
+                                controller: c.obmCodeController,
+                                readOnly: c.isLocked.value,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.black87,
+                                ),
+                                decoration: InputDecoration(
+                                  hintText: 'Code...',
+                                  hintStyle: TextStyle(
+                                    fontSize: 9,
+                                    color: Colors.grey.shade400,
+                                  ),
+                                  isDense: true,
+                                  contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                    vertical: 2,
+                                  ),
+                                  border: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                ),
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                                vertical: 1,
+                              ),
+                              child: TextFormField(
+                                controller: c.obmSgController,
+                                readOnly: c.isLocked.value,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.black87,
+                                ),
+                                decoration: InputDecoration(
+                                  hintText: 'SG...',
+                                  hintStyle: TextStyle(
+                                    fontSize: 9,
+                                    color: Colors.grey.shade400,
+                                  ),
+                                  isDense: true,
+                                  contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                    vertical: 2,
+                                  ),
+                                  border: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                ),
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                                vertical: 1,
+                              ),
+                              child: TextFormField(
+                                controller: c.obmConcController,
+                                readOnly: c.isLocked.value,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.black87,
+                                ),
+                                decoration: InputDecoration(
+                                  hintText: 'Conc...',
+                                  hintStyle: TextStyle(
+                                    fontSize: 9,
+                                    color: Colors.grey.shade400,
+                                  ),
+                                  isDense: true,
+                                  contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                    vertical: 2,
+                                  ),
+                                  border: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                ),
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                                vertical: 1,
+                              ),
+                              child: TextFormField(
+                                controller: c.obmUnitController,
+                                readOnly: c.isLocked.value,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.black87,
+                                ),
+                                decoration: InputDecoration(
+                                  hintText: 'Unit...',
+                                  hintStyle: TextStyle(
+                                    fontSize: 9,
+                                    color: Colors.grey.shade400,
+                                  ),
+                                  isDense: true,
+                                  contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                    vertical: 2,
+                                  ),
+                                  border: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                ),
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.all(2.0),
+                              child: IconButton(
+                                icon: Icon(
+                                  Icons.add_circle,
+                                  color: Colors.green,
+                                  size: 18,
+                                ),
+                                onPressed: c.isLocked.value
+                                    ? null
+                                    : _addObmFromEmptyRow,
+                                tooltip: 'Add',
+                                padding: EdgeInsets.all(2),
+                                constraints: BoxConstraints(),
                               ),
                             ),
                           ],
-                        );
-                      }),
-                      // Empty row for adding new data
-                      TableRow(
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade50,
                         ),
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.all(6.0),
-                            child: Icon(Icons.add, size: 14, color: Colors.green),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                            child: TextFormField(
-                              controller: c.obmProductController,
-                              readOnly: c.isLocked.value,
-                              style: TextStyle(fontSize: 10, color: Colors.black87),
-                              decoration: InputDecoration(
-                                hintText: 'Enter product...',
-                                hintStyle: TextStyle(fontSize: 9, color: Colors.grey.shade400),
-                                isDense: true,
-                                contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                                border: InputBorder.none,
-                                enabledBorder: InputBorder.none,
-                                focusedBorder: InputBorder.none,
-                              ),
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                            child: TextFormField(
-                              controller: c.obmCodeController,
-                              readOnly: c.isLocked.value,
-                              style: TextStyle(fontSize: 10, color: Colors.black87),
-                              decoration: InputDecoration(
-                                hintText: 'Code...',
-                                hintStyle: TextStyle(fontSize: 9, color: Colors.grey.shade400),
-                                isDense: true,
-                                contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                                border: InputBorder.none,
-                                enabledBorder: InputBorder.none,
-                                focusedBorder: InputBorder.none,
-                                                  ),
-                                                ),
-                                              ),
-                                              Padding(
-                                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                                                child: TextFormField(
-                                                  controller: c.obmSgController,
-                                                  readOnly: c.isLocked.value,
-                                                  style: TextStyle(fontSize: 10, color: Colors.black87),
-                                                  decoration: InputDecoration(
-                                                    hintText: 'SG...',
-                                                    hintStyle: TextStyle(fontSize: 9, color: Colors.grey.shade400),
-                                                    isDense: true,
-                                                    contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                                                    border: InputBorder.none,
-                                                    enabledBorder: InputBorder.none,
-                                                    focusedBorder: InputBorder.none,
-                                                  ),
-                                                ),
-                                              ),
-                                              Padding(
-                                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                                                child: TextFormField(
-                                                  controller: c.obmConcController,
-                                                  readOnly: c.isLocked.value,
-                                                  style: TextStyle(fontSize: 10, color: Colors.black87),
-                                                  decoration: InputDecoration(
-                                                    hintText: 'Conc...',
-                                                    hintStyle: TextStyle(fontSize: 9, color: Colors.grey.shade400),
-                                                    isDense: true,
-                                                    contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                                                    border: InputBorder.none,
-                                                    enabledBorder: InputBorder.none,
-                                                    focusedBorder: InputBorder.none,
-                                                  ),
-                                                ),
-                                              ),
-                                              Padding(
-                                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                                                child: TextFormField(
-                                                  controller: c.obmUnitController,
-                                                  readOnly: c.isLocked.value,
-                                                  style: TextStyle(fontSize: 10, color: Colors.black87),
-                                                  decoration: InputDecoration(
-                                                    hintText: 'Unit...',
-                                                    hintStyle: TextStyle(fontSize: 9, color: Colors.grey.shade400),
-                                                    isDense: true,
-                                                    contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                                                    border: InputBorder.none,
-                                                    enabledBorder: InputBorder.none,
-                                                    focusedBorder: InputBorder.none,
-                                                  ),
-                                                ),
-                                              ),
-                          Padding(
-                            padding: const EdgeInsets.all(2.0),
-                            child: IconButton(
-                              icon: Icon(Icons.add_circle, color: Colors.green, size: 18),
-                              onPressed: c.isLocked.value ? null : _addObmFromEmptyRow,
-                              tooltip: 'Add',
-                              padding: EdgeInsets.all(2),
-                              constraints: BoxConstraints(),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  )),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -1103,7 +1616,9 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
           context: context,
           builder: (context) => AlertDialog(
             title: Text('Delete $itemType'),
-            content: Text('Are you sure you want to delete this $itemType item?'),
+            content: Text(
+              'Are you sure you want to delete this $itemType item?',
+            ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(false),
@@ -1121,62 +1636,58 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
   }
 
   Widget _headerText(String text, {double? size}) => Text(
-        text,
-        style: TextStyle(
-          fontSize: size ?? 9,
-          fontWeight: FontWeight.w600,
-          color: AppTheme.textPrimary,
-        ),
-      );
+    text,
+    style: TextStyle(
+      fontSize: size ?? 9,
+      fontWeight: FontWeight.w600,
+      color: AppTheme.textPrimary,
+    ),
+  );
 
   Widget _tableHeaderCell(String text) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-        child: Text(
-          text,
-          textAlign: TextAlign.left,
-          style: TextStyle(
-            fontSize: 9,
-            fontWeight: FontWeight.w600,
-            color: AppTheme.textPrimary,
-          ),
-        ),
-      );
+    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+    child: Text(
+      text,
+      textAlign: TextAlign.left,
+      style: TextStyle(
+        fontSize: 9,
+        fontWeight: FontWeight.w600,
+        color: AppTheme.textPrimary,
+      ),
+    ),
+  );
 
   Widget _tableCell(String value) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-        child: Text(
-          value,
-          style: TextStyle(
-            fontSize: 9,
-            color: AppTheme.textPrimary,
-          ),
-        ),
-      );
+    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+    child: Text(
+      value,
+      style: TextStyle(fontSize: 9, color: AppTheme.textPrimary),
+    ),
+  );
 
-  Widget _editableTableCell(String value, {Function(String)? onChanged, Key? key}) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
-        child: c.isLocked.value
-            ? Text(
-                value,
-                style: TextStyle(
-                  fontSize: 9,
-                  color: AppTheme.textPrimary,
-                ),
-              )
-            : TextFormField(key: key ?? ValueKey(value),
-                initialValue: value,
-                onChanged: onChanged,
-                style: TextStyle(
-                  fontSize: 9,
-                  color: AppTheme.textPrimary,
-                ),
-                decoration: const InputDecoration(
-                  isDense: true,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                  border: InputBorder.none,
-                ),
-              ),
-      );
+  Widget _editableTableCell(
+    String value, {
+    Function(String)? onChanged,
+    Key? key,
+  }) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+    child: c.isLocked.value
+        ? Text(
+            value,
+            style: TextStyle(fontSize: 9, color: AppTheme.textPrimary),
+          )
+        : TextFormField(
+            key: key ?? ValueKey(value),
+            initialValue: value,
+            onChanged: onChanged,
+            style: TextStyle(fontSize: 9, color: AppTheme.textPrimary),
+            decoration: const InputDecoration(
+              isDense: true,
+              contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+              border: InputBorder.none,
+            ),
+          ),
+  );
 
   Widget _checkboxCell(bool Function() getter, Function(bool) onChange) {
     return Center(
@@ -1207,8 +1718,19 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
   }
 }
 
+Map<String, String> _splitInventoryUnit(String rawUnit) {
+  final clean = rawUnit.trim();
+  if (clean.isEmpty) {
+    return {'num': '', 'class': ''};
+  }
 
+  final match = RegExp(r'^([0-9]+(?:\.[0-9]+)?)\s*(.*)$').firstMatch(clean);
+  if (match == null) {
+    return {'num': '', 'class': clean};
+  }
 
-
-
-
+  return {
+    'num': match.group(1)?.trim() ?? '',
+    'class': match.group(2)?.trim() ?? '',
+  };
+}

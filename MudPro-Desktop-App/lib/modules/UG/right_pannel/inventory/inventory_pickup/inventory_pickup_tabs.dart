@@ -3,8 +3,6 @@ import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/UG_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/pickup_tabs/products_pickup_tab.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/pickup_tabs/services_pickup_tab.dart';
-import 'package:mudpro_desktop_app/modules/company_setup/tabs/products_page.dart';
-import 'package:mudpro_desktop_app/modules/company_setup/tabs/service_page.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class InventoryPickupTabs extends StatefulWidget {
@@ -15,89 +13,92 @@ class InventoryPickupTabs extends StatefulWidget {
 }
 
 class _InventoryPickupTabsState extends State<InventoryPickupTabs> {
-  final c = Get.find<UgController>();
+  final UgController c = Get.find<UgController>();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Inventory Pickup'),
-        backgroundColor: AppTheme.primaryColor,
-        foregroundColor: Colors.white,
-      ),
-      body: Column(
-        children: [
-          // ================= TOP SUB TABS =================
-          Container(
-            height: 36,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border(
-                bottom: BorderSide(color: Colors.grey.shade300, width: 1),
+      backgroundColor: AppTheme.backgroundColor,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Padding(
+                padding: EdgeInsets.only(left: 4, bottom: 8),
+                child: Text(
+                  'Inventory Pickup',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF2F2F2F),
+                  ),
+                ),
               ),
-            ),
-            child: Row(
-              children: [
-                _tabButton('Products'),
-                _tabButton('Services'),
-              ],
-            ),
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _tabButton(label: 'Product', value: 'Products'),
+                    _tabButton(label: 'Services', value: 'Services'),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: Container(
+                  margin: const EdgeInsets.only(top: 0),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border(
+                      left: BorderSide(color: Colors.grey.shade300),
+                      right: BorderSide(color: Colors.grey.shade300),
+                      bottom: BorderSide(color: Colors.grey.shade300),
+                    ),
+                  ),
+                  child: Obx(
+                    () => c.inventoryTab.value == 'Products'
+                        ? ProductsPickupPage()
+                        : const ServicesPickupPage(),
+                  ),
+                ),
+              ),
+            ],
           ),
-
-          // ================= MIDDLE CONTENT =================
-          Expanded(
-            child: Container(
-              color: Colors.grey.shade50,
-              child: Obx(() {
-                return c.inventoryTab.value == 'Products'
-                    ? ProductsPickupPage()
-                    : ServicesPickupPage();
-              }),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
 
-  // ---------------- TAB BUTTON ----------------
-  Widget _tabButton(String title) {
+  Widget _tabButton({required String label, required String value}) {
     return Obx(() {
-      final active = c.inventoryTab.value == title;
-      return Expanded(
-        child: InkWell(
-          onTap: () => c.inventoryTab.value = title,
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
-            decoration: BoxDecoration(
-              gradient: active ? AppTheme.primaryGradient : null,
-              color: active ? null : Colors.transparent,
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(
-                color: active ? Colors.transparent : Colors.grey.shade300,
-              ),
+      final active = c.inventoryTab.value == value;
+      return InkWell(
+        onTap: () => c.inventoryTab.value = value,
+        child: Container(
+          height: 34,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            gradient: active ? AppTheme.primaryGradient : null,
+            color: active ? null : Colors.white,
+            border: Border(
+              right: BorderSide(color: Colors.grey.shade300),
+              bottom: active
+                  ? BorderSide.none
+                  : BorderSide(color: Colors.grey.shade300),
             ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: active ? Colors.white : AppTheme.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Container(
-                  width: 40,
-                  height: 2,
-                  decoration: BoxDecoration(
-                    color: active ? Colors.white : Colors.transparent,
-                    borderRadius: BorderRadius.circular(1),
-                  ),
-                ),
-              ],
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: active ? Colors.white : AppTheme.textPrimary,
             ),
           ),
         ),

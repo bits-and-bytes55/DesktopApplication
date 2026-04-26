@@ -325,9 +325,9 @@ class _ServicesPageState extends State<ServicesPickupPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
-      body: Stack(
+    return Container(
+      color: AppTheme.backgroundColor,
+      child: Stack(
         children: [
           Padding(
             padding: const EdgeInsets.all(12),

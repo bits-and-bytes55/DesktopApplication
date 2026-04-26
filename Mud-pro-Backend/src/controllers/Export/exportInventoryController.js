@@ -1423,6 +1423,8 @@ const fillDmrSceRows = (ws, { shakers = [], otherSceRows = [] }) => {
 
 const normalizePersonName = (value) =>
   text(value).toLowerCase().replace(/\s+/g, " ").trim();
+const normalizeLookupValue = (value) =>
+  text(value).toLowerCase().replace(/\s+/g, " ").trim();
 const engineerFullName = (engineer = {}) =>
   [engineer.firstName, engineer.lastName].map((value) => text(value)).filter(Boolean).join(" ");
 const uniqueTextValues = (values = []) => {
@@ -1437,18 +1439,38 @@ const uniqueTextValues = (values = []) => {
   return result;
 };
 const loadExportFluidEngineers = async (wellGeneral) => {
-  const selectedNames = uniqueTextValues([wellGeneral?.engineer, wellGeneral?.engineer2]);
-  if (selectedNames.length === 0) return [];
+  const selectedValues = uniqueTextValues([wellGeneral?.engineer, wellGeneral?.engineer2]);
+  if (selectedValues.length === 0) return [];
 
   const engineers = await Engineer.find({}).lean();
-  const byName = new Map(
-    engineers.map((engineer) => [normalizePersonName(engineerFullName(engineer)), engineer])
-  );
+  const byName = new Map();
+  const byId = new Map();
+  const byEmail = new Map();
 
-  return selectedNames.map((name) => {
-    const match = byName.get(normalizePersonName(name));
+  for (const engineer of engineers) {
+    const fullName = normalizePersonName(engineerFullName(engineer));
+    const id = text(engineer?._id);
+    const email = normalizeLookupValue(engineer?.email);
+
+    if (fullName && !byName.has(fullName)) {
+      byName.set(fullName, engineer);
+    }
+    if (id && !byId.has(id)) {
+      byId.set(id, engineer);
+    }
+    if (email && !byEmail.has(email)) {
+      byEmail.set(email, engineer);
+    }
+  }
+
+  return selectedValues.map((value) => {
+    const normalized = normalizeLookupValue(value);
+    const match =
+      byId.get(text(value)) ||
+      byEmail.get(normalized) ||
+      byName.get(normalizePersonName(value));
     return {
-      name: engineerFullName(match) || name,
+      name: engineerFullName(match) || value,
       phone: firstText(match?.cell, match?.office),
       email: text(match?.email),
     };
@@ -2220,12 +2242,17 @@ const loadExportWellGeneral = async ({ wellId, reportId, report }) => {
     if (byReportId) return byReportId;
   }
 
-  const reportNo = text(report?.reportNo);
-  if (reportNo) {
-    const byReportNo = await WellGeneral.findOne({ wellId, reportNo })
+  for (const reportNumber of uniqueTextValues([
+    report?.reportNo,
+    report?.userReportNo,
+  ])) {
+    const byReportNumber = await WellGeneral.findOne({
+      wellId,
+      $or: [{ reportNo: reportNumber }, { userReportNo: reportNumber }],
+    })
       .sort({ createdAt: -1, _id: -1 })
       .lean();
-    if (byReportNo) return byReportNo;
+    if (byReportNumber) return byReportNumber;
   }
 
   const legacy = await WellGeneral.findOne({
@@ -2293,12 +2320,24 @@ const loadExportSolidsAnalysis = async ({ wellId, reportId }) => {
   return [];
 };
 
-const loadExportSceRows = async (Model, { wellId, reportId }, sort = { createdAt: 1, _id: 1 }) => {
+const loadExportSceRows = async (
+  Model,
+  { wellId, reportId, report },
+  sort = { createdAt: 1, _id: 1 }
+) => {
   if (!wellId && !reportId) return [];
 
   const queries = [];
   if (wellId && reportId) {
     queries.push({ wellId, reportId });
+  }
+  if (wellId) {
+    for (const reportNumber of uniqueTextValues([
+      report?.reportNo,
+      report?.userReportNo,
+    ])) {
+      queries.push({ wellId, reportNo: reportNumber });
+    }
   }
   if (wellId) {
     queries.push({ wellId, ...legacyReportScopeForModel(Model) });
@@ -2381,8 +2420,8 @@ export const exportInventoryReport = async (req, res) => {
       Interval.find({ wellId }).sort({ order: 1, createdAt: 1, _id: 1 }).lean(),
       loadExportMudReportState({ wellId, reportId }),
       loadExportSolidsAnalysis({ wellId, reportId }),
-      loadExportSceRows(Shaker, { wellId, reportId }),
-      loadExportSceRows(OtherSce, { wellId, reportId }),
+      loadExportSceRows(Shaker, { wellId, reportId, report }),
+      loadExportSceRows(OtherSce, { wellId, reportId, report }),
       loadReportScopedList(EmptyFluidActiveSystem, { wellId, reportId }),
       loadExportNozzle({ wellId, reportId }),
       UgInventorySnapshot.findOne({ wellId }).sort({ updatedAt: -1 }).lean(),

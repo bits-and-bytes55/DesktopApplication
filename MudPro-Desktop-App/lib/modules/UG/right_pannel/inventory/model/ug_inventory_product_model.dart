@@ -1,5 +1,4 @@
 // ─── Product Inventory Model ──────────────────────────────────
-import 'package:mudpro_desktop_app/modules/company_setup/model/products_model.dart';
 
 class ProductInventoryModel {
   String? id;
@@ -48,13 +47,7 @@ class ProductInventoryModel {
 // }
 
   factory ProductInventoryModel.fromJson(Map<String, dynamic> json) {
-    // Handle both nested Unit object and flat unit field
-    String unitValue = "";
-    if (json['Unit'] != null && json['Unit'] is Map) {
-      unitValue = json['Unit']['Class']?.toString() ?? "";
-    } else {
-      unitValue = json['unit']?.toString() ?? json['Unit']?.toString() ?? "";
-    }
+    final unitValue = _mergeUnitParts(json['Unit'] ?? json['unit']);
 
     bool boolValue(dynamic value) {
       if (value is bool) return value;
@@ -95,4 +88,15 @@ class ProductInventoryModel {
         'plot': plot,
         'tax': tax,
       };
+}
+
+String _mergeUnitParts(dynamic rawUnit) {
+  if (rawUnit is Map) {
+    final map = Map<String, dynamic>.from(rawUnit);
+    final num = map['Num']?.toString().trim() ?? '';
+    final unitClass = map['Class']?.toString().trim() ?? '';
+    return [num, unitClass].where((part) => part.isNotEmpty).join(' ');
+  }
+
+  return rawUnit?.toString().trim() ?? '';
 }

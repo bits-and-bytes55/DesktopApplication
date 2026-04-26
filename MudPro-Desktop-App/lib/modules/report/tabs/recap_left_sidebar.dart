@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:mudpro_desktop_app/modules/report/tabs/recap_tab_registry.dart';
-import 'package:mudpro_desktop_app/theme/app_theme.dart';
+
+const Color _recapHeaderBlue = Color(0xFF3F5F8E);
+const Color _recapSidebarBackground = Color(0xFFF3F3F3);
+const Color _recapSidebarSelected = Color(0xFFC6D7F4);
+const Color _recapSidebarBorder = Color(0xFFD8D8D8);
+const Color _recapSidebarText = Color(0xFF0F2745);
 
 class RecapLeftSidebar extends StatefulWidget {
   final int selectedTab;
@@ -19,146 +24,52 @@ class RecapLeftSidebar extends StatefulWidget {
 }
 
 class _RecapLeftSidebarState extends State<RecapLeftSidebar> {
-  bool _collapsed = false;
-
   @override
   Widget build(BuildContext context) {
-    final sidebarWidth = _collapsed ? 68.0 : 220.0;
+    const sidebarWidth = 212.0;
 
     return ConstrainedBox(
-      constraints: BoxConstraints(
+      constraints: const BoxConstraints(
         minWidth: sidebarWidth,
         maxWidth: sidebarWidth,
       ),
       child: Container(
         width: sidebarWidth,
         decoration: BoxDecoration(
-          color: AppTheme.darkPrimaryColor,
+          color: _recapSidebarBackground,
           border: Border(
-            right: BorderSide(color: Colors.grey.shade800, width: 1),
+            right: const BorderSide(color: _recapSidebarBorder, width: 1),
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.2),
-              blurRadius: 8,
-              offset: const Offset(2, 0),
-            ),
-          ],
         ),
         child: Column(
           children: [
-            SizedBox(
-              height: 52,
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final isNarrow = constraints.maxWidth < 72;
-                  return Container(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: isNarrow || _collapsed ? 8 : 12,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppTheme.darkPrimaryColor.withValues(alpha: 0.82),
-                      border: Border(
-                        bottom: BorderSide(
-                          color: Colors.grey.shade800,
-                          width: 1,
-                        ),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        if (!isNarrow && !_collapsed)
-                          Expanded(
-                            child: Text(
-                              'Recap',
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.92),
-                                fontWeight: FontWeight.w600,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ),
-                        IconButton(
-                          tooltip: _collapsed
-                              ? 'Expand sidebar'
-                              : 'Collapse sidebar',
-                          visualDensity: VisualDensity.compact,
-                          splashRadius: 18,
-                          onPressed: () {
-                            setState(() {
-                              _collapsed = !_collapsed;
-                            });
-                          },
-                          icon: Icon(
-                            _collapsed
-                                ? Icons.chevron_right
-                                : Icons.chevron_left,
-                            color: Colors.white.withValues(alpha: 0.8),
-                            size: 18,
-                          ),
-                        ),
-                        IconButton(
-                          tooltip: 'Hide sidebar',
-                          visualDensity: VisualDensity.compact,
-                          splashRadius: 18,
-                          onPressed: widget.onToggleSidebar,
-                          icon: Icon(
-                            Icons.vertical_split,
-                            color: Colors.white.withValues(alpha: 0.72),
-                            size: 18,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
+            Container(
+              height: 78,
+              color: _recapHeaderBlue,
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              alignment: Alignment.centerLeft,
+              child: IconButton(
+                tooltip: 'Hide sidebar',
+                visualDensity: VisualDensity.compact,
+                splashRadius: 20,
+                onPressed: widget.onToggleSidebar,
+                icon: const Icon(Icons.menu, color: Colors.white, size: 28),
               ),
             ),
             Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.symmetric(vertical: 8),
+              child: ListView.separated(
+                padding: const EdgeInsets.fromLTRB(10, 8, 10, 12),
                 itemCount: recapTabItems.length,
+                separatorBuilder: (_, _) => const SizedBox(height: 6),
                 itemBuilder: (context, index) {
                   final item = recapTabItems[index];
                   return _SideItem(
                     title: item.title,
                     icon: item.icon,
                     selected: widget.selectedTab == index,
-                    collapsed: _collapsed,
                     onTap: () => widget.onTabSelected(index),
                   );
                 },
-              ),
-            ),
-            Container(
-              height: 44,
-              padding: EdgeInsets.symmetric(horizontal: _collapsed ? 8 : 12),
-              decoration: BoxDecoration(
-                border: Border(
-                  top: BorderSide(color: Colors.grey.shade800, width: 1),
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: _collapsed
-                    ? MainAxisAlignment.center
-                    : MainAxisAlignment.spaceBetween,
-                children: [
-                  if (!_collapsed)
-                    Flexible(
-                      child: Text(
-                        '${recapTabItems.length} tabs',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.55),
-                          fontSize: 11,
-                        ),
-                      ),
-                    ),
-                  Icon(
-                    Icons.list_alt_outlined,
-                    size: 16,
-                    color: Colors.white.withValues(alpha: 0.6),
-                  ),
-                ],
               ),
             ),
           ],
@@ -172,14 +83,12 @@ class _SideItem extends StatelessWidget {
   final String title;
   final IconData icon;
   final bool selected;
-  final bool collapsed;
   final VoidCallback onTap;
 
   const _SideItem({
     required this.title,
     required this.icon,
     this.selected = false,
-    required this.collapsed,
     required this.onTap,
   });
 
@@ -189,60 +98,41 @@ class _SideItem extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
+        splashColor: _recapSidebarSelected.withValues(alpha: 0.35),
+        highlightColor: _recapSidebarSelected.withValues(alpha: 0.18),
         child: Container(
-          height: 48,
+          height: 42,
           decoration: BoxDecoration(
-            color: selected
-                ? AppTheme.primaryColor.withValues(alpha: 0.28)
-                : Colors.transparent,
+            color: selected ? _recapSidebarSelected : Colors.white,
             border: selected
-                ? Border(
-                    left: BorderSide(color: AppTheme.accentColor, width: 3),
+                ? const Border(
+                    left: BorderSide(color: Colors.black, width: 4),
+                    top: BorderSide(color: _recapSidebarBorder, width: 1),
+                    right: BorderSide(color: _recapSidebarBorder, width: 1),
+                    bottom: BorderSide(color: _recapSidebarBorder, width: 1),
                   )
-                : null,
+                : Border.all(color: _recapSidebarBorder),
           ),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final isNarrow = constraints.maxWidth < 72;
-              return Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: isNarrow || collapsed ? 0 : 16,
-                ),
-                child: Row(
-                  mainAxisAlignment: isNarrow || collapsed
-                      ? MainAxisAlignment.center
-                      : MainAxisAlignment.start,
-                  children: [
-                    Icon(
-                      icon,
-                      size: isNarrow ? 17 : 18,
-                      color: selected
-                          ? Colors.white
-                          : Colors.white.withValues(alpha: 0.72),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Row(
+              children: [
+                Icon(icon, size: 22, color: _recapSidebarText),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: _recapSidebarText,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
                     ),
-                    if (!isNarrow && !collapsed) ...[
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: selected
-                                ? Colors.white
-                                : Colors.white.withValues(alpha: 0.9),
-                            fontSize: 13,
-                            fontWeight: selected
-                                ? FontWeight.w600
-                                : FontWeight.w400,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
+                  ),
                 ),
-              );
-            },
+              ],
+            ),
           ),
         ),
       ),

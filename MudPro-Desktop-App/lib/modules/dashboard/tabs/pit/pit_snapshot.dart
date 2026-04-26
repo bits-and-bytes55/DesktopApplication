@@ -1,768 +1,461 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/pit_snapshot_Controller.dart';
-import 'package:mudpro_desktop_app/modules/options/app_units.dart';
-import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
-import 'package:mudpro_desktop_app/theme/app_theme.dart';
+
+const _snapshotFrameBlue = Color(0xFF3A98F5);
+const _snapshotBorder = Color(0xFFB7B7B7);
+const _snapshotHeaderFill = Color(0xFFF3F3F3);
+const _snapshotValueFill = Color(0xFFFFF8CC);
+const _snapshotActive = Color(0xFFF47B20);
+const _snapshotStorage = Color(0xFF4C78C6);
+const _snapshotWellGrey = Color(0xFFA6A6A6);
+const _snapshotAxisRed = Color(0xFFFF1E1E);
 
 class PitSnapshotPage extends StatelessWidget {
-  const PitSnapshotPage({Key? key}) : super(key: key);
+  const PitSnapshotPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.put(PitSnapshotController());
+    final controller = Get.isRegistered<PitSnapshotController>()
+        ? Get.find<PitSnapshotController>()
+        : Get.put(PitSnapshotController());
 
-    return Obx(() {
-      AppUnits.signature;
-      return Scaffold(
+    return Obx(
+      () => Scaffold(
         backgroundColor: Colors.white,
-        appBar: AppBar(
-          backgroundColor: AppTheme.primaryColor,
-          title: const Text(
+        body: SafeArea(
+          child: Column(
+            children: [
+              _buildWindowBar(),
+              Expanded(
+                child: Container(
+                  margin: const EdgeInsets.fromLTRB(4, 0, 4, 4),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: _snapshotFrameBlue, width: 1.5),
+                  ),
+                  child: Stack(
+                    children: [
+                      Column(
+                        children: [
+                          Expanded(
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  flex: 3,
+                                  child: _buildLeftPane(controller),
+                                ),
+                                Container(width: 1, color: _snapshotBorder),
+                                Expanded(
+                                  flex: 2,
+                                  child: _buildRightPane(controller),
+                                ),
+                              ],
+                            ),
+                          ),
+                          _buildFooter(),
+                        ],
+                      ),
+                      if (controller.isLoading.value)
+                        Positioned.fill(
+                          child: IgnorePointer(
+                            child: Container(
+                              color: Colors.white.withValues(alpha: 0.65),
+                              alignment: Alignment.center,
+                              child: const SizedBox(
+                                width: 26,
+                                height: 26,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWindowBar() {
+    return Container(
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      color: _snapshotHeaderFill,
+      child: Row(
+        children: [
+          const Text(
             'Pit Snapshot',
-            style: TextStyle(color: Colors.white, fontSize: 16),
+            style: TextStyle(fontSize: 18, color: Color(0xFF2B2B2B)),
           ),
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: () => Get.back(),
+          const Spacer(),
+          IconButton(
+            onPressed: Get.back,
+            icon: const Icon(Icons.close, color: Color(0xFF666666), size: 26),
+            splashRadius: 18,
           ),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.close, color: Colors.white),
-              onPressed: () => Get.back(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLeftPane(PitSnapshotController controller) {
+    final note = controller.errorMessage.value.isNotEmpty
+        ? controller.errorMessage.value
+        : controller.emptyMessage.value;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(18, 10, 10, 12),
+      child: Column(
+        children: [
+          SizedBox(
+            height: 48,
+            child: Row(
+              children: [
+                const SizedBox(width: 160),
+                Expanded(
+                  child: Center(
+                    child: Text(
+                      controller.reportHeaderText,
+                      style: const TextStyle(
+                        fontSize: 22,
+                        color: Colors.black87,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+                Row(
+                  children: const [
+                    _LegendSwatch(label: 'Active Pits', color: _snapshotActive),
+                    SizedBox(width: 28),
+                    _LegendSwatch(label: 'Storage', color: _snapshotStorage),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: CustomPaint(
+                    painter: _PitSnapshotDiagramPainter(
+                      measuredDepth: controller.measuredDepth.value,
+                      shoeDepth: controller.shoeDepth.value,
+                      activePits: controller.activePits.toList(growable: false),
+                      storagePits: controller.storagePits.toList(
+                        growable: false,
+                      ),
+                    ),
+                  ),
+                ),
+                if (note.isNotEmpty)
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 6,
+                    child: Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        color: Colors.white,
+                        child: Text(
+                          note,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: controller.errorMessage.value.isNotEmpty
+                                ? Colors.red.shade700
+                                : Colors.grey.shade700,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRightPane(PitSnapshotController controller) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(6, 6, 10, 10),
+      child: Column(
+        children: [
+          _buildVolumeSummary(controller),
+          const SizedBox(height: 8),
+          Expanded(child: _buildConcentration(controller)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVolumeSummary(PitSnapshotController controller) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.only(left: 2, bottom: 6),
+          child: Text(
+            'Volume Summary',
+            style: TextStyle(fontSize: 13, color: Colors.black87),
+          ),
+        ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Container(
+                decoration: BoxDecoration(
+                  border: Border.all(color: _snapshotBorder),
+                ),
+                child: Table(
+                  border: const TableBorder(
+                    horizontalInside: BorderSide(color: _snapshotBorder),
+                    verticalInside: BorderSide(color: _snapshotBorder),
+                  ),
+                  columnWidths: const {
+                    0: FlexColumnWidth(2.4),
+                    1: FlexColumnWidth(1),
+                  },
+                  children: [
+                    const TableRow(
+                      decoration: BoxDecoration(color: _snapshotHeaderFill),
+                      children: [
+                        _SummaryHeaderCell('Vol. Name'),
+                        _SummaryHeaderCell('Vol. (bbl)', alignRight: true),
+                      ],
+                    ),
+                    ...controller.volumeSummaryRows.map(
+                      (row) => TableRow(
+                        children: [
+                          _SummaryValueCell(
+                            row.name,
+                            fill: Colors.white,
+                            alignRight: false,
+                            textColor: Colors.black87,
+                          ),
+                          _SummaryValueCell(
+                            row.value.toStringAsFixed(2),
+                            fill: _snapshotValueFill,
+                            alignRight: true,
+                            textColor: row.highlightRed
+                                ? Colors.red
+                                : Colors.black87,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+            Container(
+              margin: const EdgeInsets.only(top: 96),
+              width: 24,
+              height: 42,
+              decoration: BoxDecoration(
+                color: _snapshotHeaderFill,
+                border: Border.all(color: _snapshotBorder),
+              ),
+              alignment: Alignment.center,
+              child: const Icon(
+                Icons.help_outline,
+                color: _snapshotFrameBlue,
+                size: 18,
+              ),
             ),
           ],
         ),
-        body: LayoutBuilder(
-          builder: (context, constraints) {
-            return Container(
-              color: const Color(0xFFF5F5F5),
-              child: SingleChildScrollView(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Title and Legend
-                      _buildHeader(controller),
-                      const SizedBox(height: 16),
-
-                      // Main Content
-                      constraints.maxWidth > 1000
-                          ? _buildWideLayout(controller)
-                          : _buildNarrowLayout(controller),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          },
-        ),
-      );
-    });
-  }
-
-  Widget _buildHeader(PitSnapshotController controller) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade300),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Obx(
-            () => Text(
-              '*${padWellContext.selectedWellName.isEmpty ? 'No well selected' : padWellContext.selectedWellName}',
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1E4A5F),
-              ),
-            ),
-          ),
-          Row(
-            children: [
-              Container(
-                width: 24,
-                height: 20,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFD07845),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              ),
-              const SizedBox(width: 8),
-              const Text(
-                'Active Pits',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(width: 20),
-              Container(
-                width: 24,
-                height: 20,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF5B8AA6),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              ),
-              const SizedBox(width: 8),
-              const Text(
-                'Storage',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-              ),
-            ],
-          ),
-        ],
-      ),
+      ],
     );
   }
 
-  Widget _buildWideLayout(PitSnapshotController controller) {
-    return Row(
+  Widget _buildConcentration(PitSnapshotController controller) {
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Left Chart Section - Increased Width
-        Expanded(flex: 3, child: _buildChartSection(controller)),
-        const SizedBox(width: 16),
-        // Right Data Section - Decreased Width
-        Expanded(flex: 2, child: _buildDataSection(controller)),
-      ],
-    );
-  }
-
-  Widget _buildNarrowLayout(PitSnapshotController controller) {
-    return Column(
-      children: [
-        _buildChartSection(controller),
-        const SizedBox(height: 16),
-        _buildDataSection(controller),
-      ],
-    );
-  }
-
-  Widget _buildChartSection(PitSnapshotController controller) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade300),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // Header
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              color: AppTheme.primaryColor,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(8),
-                topRight: Radius.circular(8),
-              ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'MD/TVD (m)',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    const Text(
-                      '0.00 ≈ 0.00',
-                      style: TextStyle(fontSize: 10, color: Colors.white70),
-                    ),
-                  ],
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    const Text(
-                      'Shoe (m)',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    const Text(
-                      '0.00',
-                      style: TextStyle(fontSize: 10, color: Colors.white70),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-
-          // Chart Area
-          Obx(
-            () => SizedBox(
-              height: 650,
+        Row(
+          children: [
+            const Expanded(
               child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    // Left vertical scale with depth markers
-                    SizedBox(
-                      width: 110,
-                      child: CustomPaint(painter: DepthScalePainter()),
-                    ),
-
-                    const SizedBox(width: 20),
-
-                    // Well diagram with 2 pipes
-                    Expanded(
-                      flex: 2,
-                      child: CustomPaint(painter: WellDiagramPainter()),
-                    ),
-
-                    const SizedBox(width: 20),
-
-                    // Pit list containers - equal size
-                    Expanded(
-                      flex: 2,
-                      child: SingleChildScrollView(
-                        child: Column(
-                          children: [
-                            ...controller.activePits.map(
-                              (pit) => _buildPitItem(pit, true),
-                            ),
-                            const SizedBox(height: 4),
-                            ...controller.storagePits.map(
-                              (pit) => _buildPitItem(pit, false),
-                            ),
-                          ],
+                padding: EdgeInsets.only(left: 2, bottom: 6),
+                child: Text(
+                  'Pit Concentration',
+                  style: TextStyle(fontSize: 13, color: Colors.black87),
+                ),
+              ),
+            ),
+            Container(
+              height: 30,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              decoration: BoxDecoration(
+                border: Border.all(color: _snapshotBorder),
+                color: Colors.white,
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: controller.selectedSystem.value,
+                  items: controller.systemOptions
+                      .map(
+                        (item) => DropdownMenuItem<String>(
+                          value: item,
+                          child: Text(
+                            item,
+                            style: const TextStyle(fontSize: 12),
+                          ),
                         ),
-                      ),
-                    ),
-                  ],
+                      )
+                      .toList(growable: false),
+                  onChanged: (value) {
+                    if (value != null) {
+                      controller.selectSystem(value);
+                    }
+                  },
                 ),
               ),
             ),
-          ),
-
-          // Bottom depth labels
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+          ],
+        ),
+        Expanded(
+          child: Container(
             decoration: BoxDecoration(
-              color: AppTheme.primaryColor,
-              borderRadius: const BorderRadius.only(
-                bottomLeft: Radius.circular(8),
-                bottomRight: Radius.circular(8),
-              ),
+              border: Border.all(color: _snapshotBorder),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+            child: Column(
               children: [
-                const Text(
-                  '2386.5',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                Container(
+                  color: _snapshotHeaderFill,
+                  child: const Row(
+                    children: [
+                      _ConcentrationHeaderCell('', width: 18),
+                      _ConcentrationHeaderCell('', width: 40),
+                      _ConcentrationHeaderCell('Product', flex: 5),
+                      _ConcentrationHeaderCell('Unit', flex: 2),
+                      _ConcentrationHeaderCell('Start Conc.', flex: 2),
+                      _ConcentrationHeaderCell('End Conc.', flex: 2),
+                    ],
                   ),
                 ),
-                const SizedBox(width: 80),
-                const Text(
-                  '2759.3',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
+                Expanded(
+                  child: controller.concentrationRows.isEmpty
+                      ? Center(
+                          child: Text(
+                            controller.isLoading.value
+                                ? ''
+                                : 'No live pit concentration rows are available.',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        )
+                      : SingleChildScrollView(
+                          child: Column(
+                            children: controller.concentrationRows
+                                .map(_buildConcentrationRow)
+                                .toList(growable: false),
+                          ),
+                        ),
                 ),
               ],
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPitItem(Map<String, dynamic> pit, bool isActive) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 4),
-      padding: const EdgeInsets.all(12),
-      height: 50, // Fixed equal height
-      decoration: BoxDecoration(
-        color: isActive ? const Color(0xFFD07845) : const Color(0xFF5B8AA6),
-        borderRadius: BorderRadius.circular(4),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 2,
-            offset: const Offset(0, 1),
-          ),
-        ],
-      ),
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: Text(
-          pit['name'],
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-          ),
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
         ),
-      ),
-    );
-  }
-
-  Widget _buildDataSection(PitSnapshotController controller) {
-    return Column(
-      children: [
-        _buildVolumeSummaryTable(controller),
-        const SizedBox(height: 16),
-        _buildPitConcentrationTable(controller),
       ],
     );
   }
 
-  Widget _buildVolumeSummaryTable(PitSnapshotController controller) {
+  Widget _buildConcentrationRow(PitConcentrationRow row) {
     return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade300),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
+      height: 32,
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: _snapshotBorder)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              color: AppTheme.primaryColor,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(8),
-                topRight: Radius.circular(8),
-              ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    const Icon(Icons.summarize, color: Colors.white, size: 16),
-                    const SizedBox(width: 8),
-                    const Text(
-                      'Volume Summary',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ],
-                ),
-                Row(
-                  children: [
-                    ElevatedButton(
-                      onPressed: () => _showHoleVolumeDialog(),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                        minimumSize: const Size(0, 28),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      ),
-                      child: Text(
-                        'Hole Volume',
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: AppTheme.primaryColor,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    ElevatedButton(
-                      onPressed: () => _showCkbVolumeDialog(),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                        minimumSize: const Size(0, 28),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      ),
-                      child: Text(
-                        'CKB Volume',
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: AppTheme.primaryColor,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          Obx(
-            () => Table(
-              border: TableBorder.all(color: Colors.grey.shade300, width: 1),
-              columnWidths: const {
-                0: FlexColumnWidth(2.5),
-                1: FlexColumnWidth(1),
-              },
-              children: [
-                TableRow(
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryColor.withOpacity(0.1),
-                  ),
-                  children: [
-                    _buildTableHeaderCell('Vol. Name', TextAlign.left),
-                    _buildTableHeaderCell('Vol. (bbl)', TextAlign.right),
-                  ],
-                ),
-                ...controller.volumeSummaryData.asMap().entries.map((entry) {
-                  bool isNegative = entry.value['volume'].toString().contains(
-                    '-',
-                  );
-                  return TableRow(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.all(10.0),
-                        child: Text(
-                          entry.value['name'],
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.all(6.0),
-                        child: TextField(
-                          decoration: InputDecoration(
-                            border: InputBorder.none,
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 6,
-                            ),
-                            hintText: entry.value['volume'],
-                            hintStyle: TextStyle(fontSize: 11),
-                            isDense: true,
-                          ),
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: isNegative ? Colors.red : Colors.black,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          textAlign: TextAlign.right,
-                          onChanged: (value) =>
-                              controller.updateVolumeSummary(entry.key, value),
-                        ),
-                      ),
-                    ],
-                  );
-                }).toList(),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPitConcentrationTable(PitSnapshotController controller) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade300),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              color: AppTheme.primaryColor,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(8),
-                topRight: Radius.circular(8),
-              ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    const Icon(Icons.science, color: Colors.white, size: 16),
-                    const SizedBox(width: 8),
-                    const Text(
-                      'Pit Concentration',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ],
-                ),
-                Obx(
-                  () => Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: Colors.grey.shade300),
-                    ),
-                    child: DropdownButton<String>(
-                      value: controller.selectedSystem.value,
-                      underline: const SizedBox(),
-                      isDense: true,
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: AppTheme.primaryColor,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      items: controller.systemOptions.map((option) {
-                        return DropdownMenuItem(
-                          value: option,
-                          child: Text(option),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        if (value != null) controller.changeSystem(value);
-                      },
-                    ),
-                  ),
-                ),
-              ],
-            ),
+          const SizedBox(
+            width: 18,
+            child: Icon(Icons.play_arrow, size: 12, color: Color(0xFF6F6F6F)),
           ),
           SizedBox(
-            height: 450,
-            child: SingleChildScrollView(
-              scrollDirection: Axis.vertical,
-              child: Obx(
-                () => SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: DataTable(
-                    border: TableBorder.all(
-                      color: Colors.grey.shade300,
-                      width: 1,
-                    ),
-                    headingRowColor: MaterialStateProperty.all(
-                      AppTheme.primaryColor.withOpacity(0.1),
-                    ),
-                    columnSpacing: 10,
-                    horizontalMargin: 10,
-                    dataRowMinHeight: 36,
-                    dataRowMaxHeight: 36,
-                    headingRowHeight: 38,
-                    columns: [
-                      DataColumn(
-                        label: SizedBox(
-                          width: 25,
-                          child: Text(
-                            '',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 10,
-                              color: AppTheme.primaryColor,
-                            ),
-                          ),
-                        ),
-                      ),
-                      DataColumn(
-                        label: SizedBox(
-                          width: 180,
-                          child: Text(
-                            'Product',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 10,
-                              color: AppTheme.primaryColor,
-                            ),
-                          ),
-                        ),
-                      ),
-                      DataColumn(
-                        label: SizedBox(
-                          width: 70,
-                          child: Text(
-                            'Unit',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 10,
-                              color: AppTheme.primaryColor,
-                            ),
-                          ),
-                        ),
-                      ),
-                      DataColumn(
-                        label: SizedBox(
-                          width: 80,
-                          child: Text(
-                            'Start Conc.',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 10,
-                              color: AppTheme.primaryColor,
-                            ),
-                          ),
-                        ),
-                      ),
-                      DataColumn(
-                        label: SizedBox(
-                          width: 80,
-                          child: Text(
-                            'End Conc.',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 10,
-                              color: AppTheme.primaryColor,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                    rows: controller.pitConcentrationData.asMap().entries.map((
-                      entry,
-                    ) {
-                      return DataRow(
-                        cells: [
-                          DataCell(
-                            SizedBox(
-                              width: 25,
-                              child: Text(
-                                '${entry.value['id']}',
-                                style: const TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                          ),
-                          DataCell(
-                            SizedBox(
-                              width: 180,
-                              child: Text(
-                                entry.value['product'],
-                                style: const TextStyle(fontSize: 10),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ),
-                          DataCell(
-                            SizedBox(
-                              width: 70,
-                              child: Text(
-                                entry.value['unit'],
-                                style: const TextStyle(fontSize: 10),
-                              ),
-                            ),
-                          ),
-                          DataCell(
-                            SizedBox(
-                              width: 80,
-                              height: 30,
-                              child: TextField(
-                                decoration: const InputDecoration(
-                                  border: InputBorder.none,
-                                  contentPadding: EdgeInsets.symmetric(
-                                    horizontal: 6,
-                                    vertical: 4,
-                                  ),
-                                  isDense: true,
-                                ),
-                                style: const TextStyle(fontSize: 10),
-                                textAlign: TextAlign.center,
-                                onChanged: (value) =>
-                                    controller.updatePitConcentration(
-                                      entry.key,
-                                      'startConc',
-                                      value,
-                                    ),
-                              ),
-                            ),
-                          ),
-                          DataCell(
-                            SizedBox(
-                              width: 80,
-                              height: 30,
-                              child: TextField(
-                                decoration: const InputDecoration(
-                                  border: InputBorder.none,
-                                  contentPadding: EdgeInsets.symmetric(
-                                    horizontal: 6,
-                                    vertical: 4,
-                                  ),
-                                  isDense: true,
-                                ),
-                                style: const TextStyle(fontSize: 10),
-                                textAlign: TextAlign.center,
-                                onChanged: (value) =>
-                                    controller.updatePitConcentration(
-                                      entry.key,
-                                      'endConc',
-                                      value,
-                                    ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      );
-                    }).toList(),
-                  ),
-                ),
+            width: 40,
+            child: Center(
+              child: Text(
+                '${row.rowNumber}',
+                style: const TextStyle(fontSize: 11),
               ),
+            ),
+          ),
+          Expanded(
+            flex: 5,
+            child: Container(
+              height: double.infinity,
+              color: _snapshotValueFill,
+              alignment: Alignment.centerLeft,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Text(
+                row.product,
+                style: const TextStyle(fontSize: 11),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Container(
+              height: double.infinity,
+              decoration: const BoxDecoration(
+                color: _snapshotValueFill,
+                border: Border(left: BorderSide(color: _snapshotBorder)),
+              ),
+              alignment: Alignment.centerLeft,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Text(
+                row.unit,
+                style: const TextStyle(fontSize: 11),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Container(
+              height: double.infinity,
+              decoration: const BoxDecoration(
+                color: _snapshotValueFill,
+                border: Border(left: BorderSide(color: _snapshotBorder)),
+              ),
+              alignment: Alignment.centerRight,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Text(row.startConc, style: const TextStyle(fontSize: 11)),
+            ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Container(
+              height: double.infinity,
+              decoration: const BoxDecoration(
+                color: _snapshotValueFill,
+                border: Border(left: BorderSide(color: _snapshotBorder)),
+              ),
+              alignment: Alignment.centerRight,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Text(row.endConc, style: const TextStyle(fontSize: 11)),
             ),
           ),
         ],
@@ -770,345 +463,391 @@ class PitSnapshotPage extends StatelessWidget {
     );
   }
 
-  Widget _buildTableHeaderCell(String text, TextAlign align) {
+  Widget _buildFooter() {
     return Container(
-      padding: const EdgeInsets.all(10.0),
-      child: Text(
-        AppUnits.label(text),
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.bold,
-          color: AppTheme.primaryColor,
-        ),
-        textAlign: align,
-      ),
-    );
-  }
-
-  void _showHoleVolumeDialog() {
-    final controller = Get.find<PitSnapshotController>();
-
-    Get.dialog(
-      Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        child: Container(
-          width: 450,
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    AppUnits.label('Hole Volume (bbl)'),
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.primaryColor,
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Get.back(),
-                    color: Colors.grey,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Container(
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade300),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Obx(
-                  () => Table(
-                    border: TableBorder.all(color: Colors.grey.shade300),
-                    columnWidths: const {
-                      0: FlexColumnWidth(2),
-                      1: FlexColumnWidth(1),
-                    },
-                    children: [
-                      TableRow(
-                        decoration: BoxDecoration(
-                          color: AppTheme.primaryColor.withOpacity(0.1),
-                        ),
-                        children: [
-                          _buildTableHeaderCell('Description', TextAlign.left),
-                          _buildTableHeaderCell('Volume', TextAlign.right),
-                        ],
-                      ),
-                      ...controller.holeVolumeData.asMap().entries.map((entry) {
-                        return TableRow(
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.all(10.0),
-                              child: Text(
-                                entry.value['name'],
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.all(6.0),
-                              child: TextField(
-                                decoration: const InputDecoration(
-                                  border: InputBorder.none,
-                                  contentPadding: EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 6,
-                                  ),
-                                  isDense: true,
-                                ),
-                                style: const TextStyle(fontSize: 11),
-                                textAlign: TextAlign.right,
-                                onChanged: (value) => controller
-                                    .updateHoleVolume(entry.key, value),
-                              ),
-                            ),
-                          ],
-                        );
-                      }).toList(),
-                    ],
-                  ),
-                ),
-              ),
-            ],
+      height: 58,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      alignment: Alignment.centerRight,
+      child: SizedBox(
+        width: 90,
+        height: 40,
+        child: OutlinedButton(
+          onPressed: Get.back,
+          style: OutlinedButton.styleFrom(
+            shape: const RoundedRectangleBorder(),
+            side: const BorderSide(color: _snapshotBorder),
+            foregroundColor: Colors.black87,
           ),
-        ),
-      ),
-    );
-  }
-
-  void _showCkbVolumeDialog() {
-    final controller = Get.find<PitSnapshotController>();
-
-    Get.dialog(
-      Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        child: Container(
-          width: 450,
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    AppUnits.label('CKB Volume (bbl)'),
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.primaryColor,
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Get.back(),
-                    color: Colors.grey,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Container(
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade300),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Obx(
-                  () => Table(
-                    border: TableBorder.all(color: Colors.grey.shade300),
-                    columnWidths: const {
-                      0: FlexColumnWidth(2),
-                      1: FlexColumnWidth(1),
-                    },
-                    children: [
-                      TableRow(
-                        decoration: BoxDecoration(
-                          color: AppTheme.primaryColor.withOpacity(0.1),
-                        ),
-                        children: [
-                          _buildTableHeaderCell('Line Type', TextAlign.left),
-                          _buildTableHeaderCell('Volume', TextAlign.right),
-                        ],
-                      ),
-                      ...controller.ckbVolumeData.asMap().entries.map((entry) {
-                        return TableRow(
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.all(10.0),
-                              child: Text(
-                                entry.value['name'],
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.all(6.0),
-                              child: TextField(
-                                decoration: const InputDecoration(
-                                  border: InputBorder.none,
-                                  contentPadding: EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 6,
-                                  ),
-                                  isDense: true,
-                                ),
-                                style: const TextStyle(fontSize: 11),
-                                textAlign: TextAlign.right,
-                                onChanged: (value) => controller
-                                    .updateCkbVolume(entry.key, value),
-                              ),
-                            ),
-                          ],
-                        );
-                      }).toList(),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
+          child: const Text('Close', style: TextStyle(fontSize: 12)),
         ),
       ),
     );
   }
 }
 
-// ============= DEPTH SCALE PAINTER =============
-class DepthScalePainter extends CustomPainter {
+class _LegendSwatch extends StatelessWidget {
+  const _LegendSwatch({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(width: 20, height: 20, color: color),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 12, color: Colors.black87),
+        ),
+      ],
+    );
+  }
+}
+
+class _SummaryHeaderCell extends StatelessWidget {
+  const _SummaryHeaderCell(this.text, {this.alignRight = false});
+
+  final String text;
+  final bool alignRight;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      child: Text(
+        text,
+        textAlign: alignRight ? TextAlign.right : TextAlign.center,
+        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
+      ),
+    );
+  }
+}
+
+class _SummaryValueCell extends StatelessWidget {
+  const _SummaryValueCell(
+    this.text, {
+    required this.fill,
+    required this.alignRight,
+    required this.textColor,
+  });
+
+  final String text;
+  final Color fill;
+  final bool alignRight;
+  final Color textColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: fill,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      alignment: alignRight ? Alignment.centerRight : Alignment.centerLeft,
+      child: Text(text, style: TextStyle(fontSize: 11, color: textColor)),
+    );
+  }
+}
+
+class _ConcentrationHeaderCell extends StatelessWidget {
+  const _ConcentrationHeaderCell(this.text, {this.width, this.flex});
+
+  final String text;
+  final double? width;
+  final int? flex;
+
+  @override
+  Widget build(BuildContext context) {
+    final child = Container(
+      height: 34,
+      alignment: Alignment.center,
+      decoration: const BoxDecoration(
+        border: Border(left: BorderSide(color: _snapshotBorder)),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
+        textAlign: TextAlign.center,
+      ),
+    );
+
+    if (width != null) {
+      return SizedBox(width: width, child: child);
+    }
+    return Expanded(flex: flex ?? 1, child: child);
+  }
+}
+
+class _PitSnapshotDiagramPainter extends CustomPainter {
+  _PitSnapshotDiagramPainter({
+    required this.measuredDepth,
+    required this.shoeDepth,
+    required this.activePits,
+    required this.storagePits,
+  });
+
+  final double measuredDepth;
+  final double shoeDepth;
+  final List<PitSnapshotPitRow> activePits;
+  final List<PitSnapshotPitRow> storagePits;
+
   @override
   void paint(Canvas canvas, Size size) {
-    final linePaint = Paint()
+    final maxDepth = math.max(math.max(measuredDepth, shoeDepth), 10.0);
+    const topInset = 56.0;
+    const bottomInset = 22.0;
+    final depthTop = topInset + 36;
+    final depthBottom = size.height - bottomInset;
+    final depthHeight = math.max(40.0, depthBottom - depthTop);
+
+    _drawDepthScale(canvas, size, maxDepth, depthTop, depthBottom, depthHeight);
+    _drawWellShape(canvas, size, depthTop, depthBottom);
+    _drawPitBoxes(canvas, size, depthTop);
+  }
+
+  void _drawDepthScale(
+    Canvas canvas,
+    Size size,
+    double maxDepth,
+    double depthTop,
+    double depthBottom,
+    double depthHeight,
+  ) {
+    const axisX = 56.0;
+    final axisPaint = Paint()
+      ..color = _snapshotAxisRed
+      ..strokeWidth = 1.2;
+    final tickPaint = Paint()
       ..color = Colors.black
-      ..strokeWidth = 2
+      ..strokeWidth = 1;
+
+    final tp = _textPainter(
+      'MD/TVD (ft)Shoe (ft)',
+      const TextStyle(fontSize: 11, color: Colors.black87),
+    );
+    tp.paint(canvas, const Offset(12, 16));
+
+    canvas.drawLine(
+      Offset(axisX, depthTop),
+      Offset(axisX, depthBottom),
+      axisPaint,
+    );
+
+    const majorTicks = 5;
+    for (var i = 0; i <= majorTicks; i++) {
+      final fraction = i / majorTicks;
+      final y = depthTop + (depthHeight * fraction);
+      final value = (maxDepth * fraction).toStringAsFixed(1);
+
+      canvas.drawLine(Offset(axisX - 6, y), Offset(axisX + 6, y), axisPaint);
+      for (var minor = 1; minor <= 3 && i < majorTicks; minor++) {
+        final minorY = y + ((depthHeight / majorTicks) * (minor / 4));
+        canvas.drawLine(
+          Offset(axisX - 4, minorY),
+          Offset(axisX, minorY),
+          tickPaint,
+        );
+      }
+
+      final left = _textPainter(
+        value,
+        const TextStyle(fontSize: 11, color: Colors.black87),
+      );
+      left.paint(canvas, Offset(18, y - (left.height / 2)));
+
+      final marker = _textPainter(
+        '⊕',
+        const TextStyle(fontSize: 12, color: _snapshotAxisRed),
+      );
+      marker.paint(canvas, Offset(axisX - 10, y - (marker.height / 2)));
+
+      final right = _textPainter(
+        value,
+        const TextStyle(fontSize: 11, color: Colors.black87),
+      );
+      right.paint(canvas, Offset(axisX + 12, y - (right.height / 2)));
+    }
+  }
+
+  void _drawWellShape(
+    Canvas canvas,
+    Size size,
+    double depthTop,
+    double depthBottom,
+  ) {
+    final fillPaint = Paint()..color = _snapshotWellGrey;
+    final strokePaint = Paint()
+      ..color = Colors.black87
+      ..strokeWidth = 1.1
       ..style = PaintingStyle.stroke;
 
-    final textPainter = TextPainter(
-      textDirection: TextDirection.ltr,
-      textAlign: TextAlign.left,
+    final leftBar = Rect.fromLTWH(
+      170,
+      depthTop,
+      44,
+      depthBottom - depthTop - 12,
+    );
+    final rightBar = Rect.fromLTWH(
+      math.max(320.0, size.width * 0.64),
+      depthTop,
+      44,
+      depthBottom - depthTop - 12,
     );
 
-    // Draw main vertical line in center
-    final centerX = size.width / 2;
+    canvas.drawRect(leftBar, fillPaint);
+    canvas.drawRect(leftBar, strokePaint);
+    canvas.drawRect(rightBar, fillPaint);
+    canvas.drawRect(rightBar, strokePaint);
+
+    final leftFoot = Path()
+      ..moveTo(leftBar.left - 8, depthBottom)
+      ..lineTo(leftBar.right + 2, depthBottom)
+      ..lineTo(leftBar.left - 2, depthBottom - 10)
+      ..close();
+    canvas.drawPath(leftFoot, fillPaint);
+    canvas.drawPath(leftFoot, strokePaint);
+
+    final rightFoot = Path()
+      ..moveTo(rightBar.left - 2, depthBottom)
+      ..lineTo(rightBar.right + 8, depthBottom)
+      ..lineTo(rightBar.right + 2, depthBottom - 10)
+      ..close();
+    canvas.drawPath(rightFoot, fillPaint);
+    canvas.drawPath(rightFoot, strokePaint);
+  }
+
+  void _drawPitBoxes(Canvas canvas, Size size, double depthTop) {
+    final allPits = [...activePits, ...storagePits];
+    if (allPits.isEmpty) return;
+
+    final startX = math.max(420.0, size.width * 0.74);
+    final width = math.min(255.0, size.width - startX - 14);
+    final availableHeight = size.height - depthTop - 30;
+    final count = allPits.length;
+    final gap = count <= 5 ? 14.0 : 8.0;
+    final boxHeight = math.min(
+      48.0,
+      math.max(28.0, (availableHeight - (gap * (count - 1))) / count),
+    );
+
+    final activeConnectorPaint = Paint()
+      ..color = _snapshotActive
+      ..strokeWidth = 1.4
+      ..style = PaintingStyle.stroke;
+    final storageConnectorPaint = Paint()
+      ..color = _snapshotStorage
+      ..strokeWidth = 1.2
+      ..style = PaintingStyle.stroke;
+
+    final trunkX = startX - 32;
+    final trunkTop = depthTop - 14;
+    final wellX = math.max(300.0, size.width * 0.55);
     canvas.drawLine(
-      Offset(centerX, 0),
-      Offset(centerX, size.height),
-      linePaint,
+      Offset(wellX, trunkTop),
+      Offset(trunkX, trunkTop),
+      activeConnectorPaint,
     );
 
-    // Draw horizontal tick marks and depth labels
-    final depths = [
-      {'value': '0.00', 'position': 0.0},
-      {'value': '500.00', 'position': 0.16},
-      {'value': '1000.00', 'position': 0.33},
-      {'value': '1500.00', 'position': 0.50},
-      {'value': '2000.00', 'position': 0.67},
-      {'value': '2500.00', 'position': 0.83},
-      {'value': '2759.36', 'position': 1.0},
-    ];
+    for (var i = 0; i < allPits.length; i++) {
+      final pit = allPits[i];
+      final top = depthTop + (i * (boxHeight + gap));
+      final rect = Rect.fromLTWH(startX, top, width, boxHeight);
+      final boxPaint = Paint()
+        ..color = pit.isActive ? _snapshotActive : _snapshotStorage;
+      final borderPaint = Paint()
+        ..color = pit.isActive ? _snapshotActive : _snapshotStorage
+        ..strokeWidth = 1.1
+        ..style = PaintingStyle.stroke;
 
-    for (var depth in depths) {
-      final y = size.height * (depth['position'] as double);
+      final centerY = rect.center.dy;
+      final connectorPaint = pit.isActive
+          ? activeConnectorPaint
+          : storageConnectorPaint;
 
-      // Draw horizontal tick mark across the vertical line (1cm total)
-      canvas.drawLine(
-        Offset(centerX - 15, y),
-        Offset(centerX + 15, y),
-        linePaint,
+      if (pit.isActive) {
+        final branchY = trunkTop + (i * 16);
+        canvas.drawLine(
+          Offset(trunkX, trunkTop),
+          Offset(trunkX, centerY),
+          connectorPaint,
+        );
+        canvas.drawLine(
+          Offset(trunkX, centerY),
+          Offset(rect.left, centerY),
+          connectorPaint,
+        );
+        canvas.drawLine(
+          Offset(wellX - 110, branchY),
+          Offset(wellX, branchY),
+          connectorPaint,
+        );
+      } else {
+        canvas.drawLine(
+          Offset(trunkX, centerY),
+          Offset(rect.left, centerY),
+          connectorPaint,
+        );
+      }
+
+      canvas.drawRect(rect, boxPaint);
+      canvas.drawRect(rect, borderPaint);
+
+      final label = _fitLabel(pit.label);
+      final tp = _textPainter(
+        label,
+        const TextStyle(fontSize: 12, color: Colors.white),
+        maxWidth: rect.width - 16,
       );
-
-      // Draw left side depth text
-      textPainter.text = TextSpan(
-        text: depth['value'] as String,
-        style: const TextStyle(
-          color: Colors.black,
-          fontSize: 9,
-          fontWeight: FontWeight.w600,
-        ),
-      );
-      textPainter.layout();
-      textPainter.paint(canvas, Offset(0, y - textPainter.height / 2));
-
-      // Draw right side depth text
-      textPainter.text = TextSpan(
-        text: depth['value'] as String,
-        style: const TextStyle(
-          color: Colors.black,
-          fontSize: 9,
-          fontWeight: FontWeight.w600,
-        ),
-      );
-      textPainter.layout();
-      textPainter.paint(
+      tp.paint(
         canvas,
-        Offset(size.width - textPainter.width, y - textPainter.height / 2),
+        Offset(rect.left + 10, rect.top + ((rect.height - tp.height) / 2)),
       );
     }
   }
 
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-// ============= WELL DIAGRAM PAINTER =============
-class WellDiagramPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final pipePaint = Paint()
-      ..color = const Color(0xFF696969)
-      ..style = PaintingStyle.fill;
-
-    final strokePaint = Paint()
-      ..color = const Color(0xFF3A3A3A)
-      ..strokeWidth = 2
-      ..style = PaintingStyle.stroke;
-
-    // Left pipe (goes from top to 90%)
-    final leftPipePath = Path();
-    leftPipePath.moveTo(size.width * 0.35, 0);
-    leftPipePath.lineTo(size.width * 0.42, 0);
-    leftPipePath.lineTo(size.width * 0.42, size.height * 0.90);
-    leftPipePath.lineTo(size.width * 0.35, size.height * 0.90);
-    leftPipePath.close();
-    canvas.drawPath(leftPipePath, pipePaint);
-    canvas.drawPath(leftPipePath, strokePaint);
-
-    // Right pipe (goes from top to 90%)
-    final rightPipePath = Path();
-    rightPipePath.moveTo(size.width * 0.58, 0);
-    rightPipePath.lineTo(size.width * 0.65, 0);
-    rightPipePath.lineTo(size.width * 0.65, size.height * 0.90);
-    rightPipePath.lineTo(size.width * 0.58, size.height * 0.90);
-    rightPipePath.close();
-    canvas.drawPath(rightPipePath, pipePaint);
-    canvas.drawPath(rightPipePath, strokePaint);
-
-    // Bottom shoe section (horizontal bar connecting both pipes)
-    final shoePath = Path();
-    shoePath.moveTo(size.width * 0.30, size.height * 0.85);
-    shoePath.lineTo(size.width * 0.70, size.height * 0.85);
-    shoePath.lineTo(size.width * 0.70, size.height * 0.90);
-    shoePath.lineTo(size.width * 0.30, size.height * 0.90);
-    shoePath.close();
-    canvas.drawPath(shoePath, pipePaint);
-    canvas.drawPath(shoePath, strokePaint);
-
-    // Draw bit at bottom (triangle shape between pipes)
-    final bitPath = Path();
-    bitPath.moveTo(size.width * 0.42, size.height * 0.90);
-    bitPath.lineTo(size.width * 0.50, size.height * 0.96);
-    bitPath.lineTo(size.width * 0.58, size.height * 0.90);
-    bitPath.close();
-    canvas.drawPath(bitPath, pipePaint);
-    canvas.drawPath(bitPath, strokePaint);
+  String _fitLabel(String text) {
+    if (text.length <= 34) return text;
+    return '${text.substring(0, 31)}...';
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _PitSnapshotDiagramPainter oldDelegate) {
+    if (oldDelegate.measuredDepth != measuredDepth ||
+        oldDelegate.shoeDepth != shoeDepth) {
+      return true;
+    }
+    if (oldDelegate.activePits.length != activePits.length ||
+        oldDelegate.storagePits.length != storagePits.length) {
+      return true;
+    }
+    for (var i = 0; i < activePits.length; i++) {
+      final left = oldDelegate.activePits[i];
+      final right = activePits[i];
+      if (left.id != right.id ||
+          left.displayVolume != right.displayVolume ||
+          left.pitName != right.pitName) {
+        return true;
+      }
+    }
+    for (var i = 0; i < storagePits.length; i++) {
+      final left = oldDelegate.storagePits[i];
+      final right = storagePits[i];
+      if (left.id != right.id ||
+          left.displayVolume != right.displayVolume ||
+          left.pitName != right.pitName) {
+        return true;
+      }
+    }
+    return false;
+  }
+}
+
+TextPainter _textPainter(String text, TextStyle style, {double? maxWidth}) {
+  final painter = TextPainter(
+    text: TextSpan(text: text, style: style),
+    textDirection: TextDirection.ltr,
+    maxLines: 1,
+    ellipsis: '...',
+  )..layout(maxWidth: maxWidth ?? double.infinity);
+  return painter;
 }

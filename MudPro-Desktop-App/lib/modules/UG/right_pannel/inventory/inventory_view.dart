@@ -6,7 +6,6 @@ import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/inventory_p
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/inventory_service.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/inventory_store/inventory_store.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/model/ug_inventory_product_model.dart';
-import 'package:mudpro_desktop_app/modules/UG/model/inventory_model.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/controller/ug_inventory_product_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
@@ -28,10 +27,7 @@ class InventoryView extends StatelessWidget {
             ),
           ),
           child: Row(
-            children: [
-              _tabButton('Products'),
-              _tabButton('Services'),
-            ],
+            children: [_tabButton('Products'), _tabButton('Services')],
           ),
         ),
 
@@ -105,9 +101,7 @@ class InventoryView extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border(
-          top: BorderSide(color: Colors.grey.shade300, width: 1),
-        ),
+        border: Border(top: BorderSide(color: Colors.grey.shade300, width: 1)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
@@ -199,21 +193,25 @@ class InventoryView extends StatelessWidget {
               Expanded(
                 child: SizedBox(
                   height: 24,
-                  child: Obx(() => TextField(
-                    controller: TextEditingController(text: c.fromDate.value),
-                    enabled: !c.isLocked.value,
-                    onChanged: (value) => c.fromDate.value = value,
-                    decoration: InputDecoration(
-                      isDense: true,
-                      border: OutlineInputBorder(
-                        borderSide: BorderSide(color: Colors.grey.shade400),
-                        borderRadius: BorderRadius.circular(4),
+                  child: Obx(
+                    () => TextField(
+                      controller: TextEditingController(text: c.fromDate.value),
+                      enabled: !c.isLocked.value,
+                      onChanged: (value) => c.fromDate.value = value,
+                      decoration: InputDecoration(
+                        isDense: true,
+                        border: OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.grey.shade400),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                       ),
-                      contentPadding:
-                          const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      style: const TextStyle(fontSize: 10),
                     ),
-                    style: const TextStyle(fontSize: 10),
-                  )),
+                  ),
                 ),
               ),
             ],
@@ -254,18 +252,23 @@ class InventoryView extends StatelessWidget {
         // ✅ Apply button — now calls _applyAll
         SizedBox(
           height: 32,
-          child: Obx(() => ElevatedButton(
-            onPressed: c.isLocked.value ? null : () => _applyAll(context),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(4),
+          child: Obx(
+            () => ElevatedButton(
+              onPressed: c.isLocked.value ? null : () => _applyAll(context),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryColor,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 4,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(4),
+                ),
               ),
+              child: const Text('Apply', style: TextStyle(fontSize: 11)),
             ),
-            child: const Text('Apply', style: TextStyle(fontSize: 11)),
-          )),
+          ),
         ),
       ],
     );
@@ -282,7 +285,9 @@ class InventoryView extends StatelessWidget {
       builder: (_) => PopScope(
         canPop: false,
         child: AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
           content: Padding(
             padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
             child: Row(
@@ -290,7 +295,10 @@ class InventoryView extends StatelessWidget {
               children: [
                 CircularProgressIndicator(color: AppTheme.primaryColor),
                 const SizedBox(width: 20),
-                const Text('Saving inventory...', style: TextStyle(fontSize: 15)),
+                const Text(
+                  'Saving inventory...',
+                  style: TextStyle(fontSize: 15),
+                ),
               ],
             ),
           ),
@@ -301,6 +309,26 @@ class InventoryView extends StatelessWidget {
     try {
       final servicesStore = Get.find<InventoryServicesStore>();
 
+      if (c.wellId.trim().isNotEmpty &&
+          servicesStore.selectedPackages.isEmpty &&
+          servicesStore.selectedEngineering.isEmpty &&
+          servicesStore.selectedServices.isEmpty) {
+        final fetchedPackages = await InventoryProductsService.fetchPackages(
+          c.wellId,
+        );
+        final fetchedEngineering =
+            await InventoryProductsService.fetchEngineering(c.wellId);
+        final fetchedServices = await InventoryProductsService.fetchServices(
+          c.wellId,
+        );
+
+        servicesStore.setSelectedServices(
+          packages: fetchedPackages,
+          engineering: fetchedEngineering,
+          services: fetchedServices,
+        );
+      }
+
       // Map InventoryProductsStore products → ProductInventoryModel list
       final productsList = store.selectedProducts.map((p) {
         return ProductInventoryModel(
@@ -308,7 +336,7 @@ class InventoryView extends StatelessWidget {
           product: p.product,
           code: p.code,
           sg: p.sg,
-          unit: p.unitNum,
+          unit: p.formattedUnit,
           price: p.price,
           initial: p.initial,
           group: p.group,
@@ -349,7 +377,11 @@ class InventoryView extends StatelessWidget {
     }
   }
 
-  void _showToast(BuildContext context, String message, {bool isError = false}) {
+  void _showToast(
+    BuildContext context,
+    String message, {
+    bool isError = false,
+  }) {
     final overlay = Overlay.of(context);
     final entry = OverlayEntry(
       builder: (_) => Positioned(
@@ -405,33 +437,43 @@ class InventoryView extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-          child: Text(label, style: TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
+          child: Text(
+            label,
+            style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+          ),
         ),
         SizedBox(
           width: 90,
           height: 24,
-          child: Obx(() => TextField(
-            controller: TextEditingController(
-              text: label.contains('Bulk Tank') ? c.bulkTankSetupFee.value : c.taxRate.value,
-            ),
-            enabled: enabled,
-            onChanged: (value) {
-              if (label.contains('Bulk Tank')) {
-                c.bulkTankSetupFee.value = value;
-              } else {
-                c.taxRate.value = value;
-              }
-            },
-            decoration: InputDecoration(
-              isDense: true,
-              border: OutlineInputBorder(
-                borderSide: BorderSide(color: Colors.grey.shade400),
-                borderRadius: BorderRadius.circular(4),
+          child: Obx(
+            () => TextField(
+              controller: TextEditingController(
+                text: label.contains('Bulk Tank')
+                    ? c.bulkTankSetupFee.value
+                    : c.taxRate.value,
               ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              enabled: enabled,
+              onChanged: (value) {
+                if (label.contains('Bulk Tank')) {
+                  c.bulkTankSetupFee.value = value;
+                } else {
+                  c.taxRate.value = value;
+                }
+              },
+              decoration: InputDecoration(
+                isDense: true,
+                border: OutlineInputBorder(
+                  borderSide: BorderSide(color: Colors.grey.shade400),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 4,
+                ),
+              ),
+              style: const TextStyle(fontSize: 10),
             ),
-            style: const TextStyle(fontSize: 10),
-          )),
+          ),
         ),
       ],
     );
@@ -441,13 +483,17 @@ class InventoryView extends StatelessWidget {
     final c = Get.find<UgController>();
     return Row(
       children: [
-        Obx(() => Radio<String>(
-          value: text,
-          groupValue: c.applyChangedPricesOption.value,
-          onChanged: c.isLocked.value ? null : (value) => c.applyChangedPricesOption.value = value!,
-          visualDensity: VisualDensity.compact,
-          activeColor: AppTheme.primaryColor,
-        )),
+        Obx(
+          () => Radio<String>(
+            value: text,
+            groupValue: c.applyChangedPricesOption.value,
+            onChanged: c.isLocked.value
+                ? null
+                : (value) => c.applyChangedPricesOption.value = value!,
+            visualDensity: VisualDensity.compact,
+            activeColor: AppTheme.primaryColor,
+          ),
+        ),
         Text(text, style: const TextStyle(fontSize: 10)),
       ],
     );

@@ -74,13 +74,14 @@ class ProductModel {
 
   // Convert from API response
   factory ProductModel.fromJson(Map<String, dynamic> json) {
+    final unit = _parseProductUnit(json['Unit'] ?? json['unit']);
     return ProductModel(
       id: json['_id'],
       product: json['Product'] ?? '',
       code: json['Code'] ?? '',
       sg: json['SG']?.toString() ?? '',
-      unitNum: json['Unit']?['Num']?.toString() ?? '',
-      unitClass: json['Unit']?['Class'] ?? '',
+      unitNum: unit['num'] ?? '',
+      unitClass: unit['class'] ?? '',
       group: json['Group'] ?? '',
       retail: json['Retail'] ?? '',
       a: json['A']?.toString() ?? '',
@@ -163,4 +164,29 @@ class ProductModel {
     a = '';
     b = '';
   }
+}
+
+Map<String, String> _parseProductUnit(dynamic rawUnit) {
+  if (rawUnit is Map) {
+    final map = Map<String, dynamic>.from(rawUnit);
+    return {
+      'num': map['Num']?.toString().trim() ?? '',
+      'class': map['Class']?.toString().trim() ?? '',
+    };
+  }
+
+  final raw = rawUnit?.toString().trim() ?? '';
+  if (raw.isEmpty) {
+    return {'num': '', 'class': ''};
+  }
+
+  final match = RegExp(r'^([0-9]+(?:\.[0-9]+)?)\s*(.*)$').firstMatch(raw);
+  if (match == null) {
+    return {'num': '', 'class': raw};
+  }
+
+  return {
+    'num': match.group(1)?.trim() ?? '',
+    'class': match.group(2)?.trim() ?? '',
+  };
 }

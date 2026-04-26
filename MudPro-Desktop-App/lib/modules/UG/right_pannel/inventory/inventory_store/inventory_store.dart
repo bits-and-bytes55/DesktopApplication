@@ -88,13 +88,13 @@ class InventoryServicesStore extends GetxController {
     List<EngineeringItem>? engineering,
   }) {
     if (packages != null) {
-      selectedPackages.assignAll(packages);
+      selectedPackages.assignAll(packages.map(_clonePackage));
     }
     if (services != null) {
-      selectedServices.assignAll(services);
+      selectedServices.assignAll(services.map(_cloneService));
     }
     if (engineering != null) {
-      selectedEngineering.assignAll(engineering);
+      selectedEngineering.assignAll(engineering.map(_cloneEngineering));
     }
     print(
       'Services stored: pkgs=${selectedPackages.length}, srvs=${selectedServices.length}, eng=${selectedEngineering.length}',
@@ -105,5 +105,41 @@ class InventoryServicesStore extends GetxController {
     selectedPackages.clear();
     selectedServices.clear();
     selectedEngineering.clear();
+  }
+
+  PackageItem _clonePackage(PackageItem item) {
+    return PackageItem(
+      id: item.id,
+      name: item.name,
+      code: item.code,
+      unit: item.unit,
+      price: item.price,
+      initial: item.initial,
+      tax: item.tax,
+    );
+  }
+
+  ServiceItem _cloneService(ServiceItem item) {
+    return ServiceItem(
+      id: item.id,
+      name: item.name,
+      code: item.code,
+      unit: item.unit,
+      price: item.price,
+      initial: item.initial,
+      tax: item.tax,
+    );
+  }
+
+  EngineeringItem _cloneEngineering(EngineeringItem item) {
+    return EngineeringItem(
+      id: item.id,
+      name: item.name,
+      code: item.code,
+      unit: item.unit,
+      price: item.price,
+      initial: item.initial,
+      tax: item.tax,
+    );
   }
 }

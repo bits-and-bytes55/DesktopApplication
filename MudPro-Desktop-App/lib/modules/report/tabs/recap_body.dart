@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mudpro_desktop_app/modules/report/tabs/recap_left_sidebar.dart';
 import 'package:mudpro_desktop_app/modules/report/tabs/recap_tab_registry.dart';
-import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class RecapBody extends StatefulWidget {
   final bool isSidebarVisible;
@@ -54,7 +53,7 @@ class _SidebarRevealRail extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: 44,
-      color: AppTheme.darkPrimaryColor,
+      color: const Color(0xFF3F5F8E),
       child: Center(
         child: IconButton(
           tooltip: 'Show recap navigation',
