@@ -1492,18 +1492,16 @@ const fillDmrFluidEngineers = (ws, fluidEngineers = []) => {
 };
 
 const fillDmrBitInformation = (ws, { casings = [], intervals = [], wellGeneral, reportFormat, nozzleData }) => {
-  const rawBitSize =
-    resolveIntervalBitSize(intervals, wellGeneral?.interval) ||
-    parseFraction(casings.find((item) => text(item?.bit))?.bit);
+  const rawBitSize = parseFraction(wellGeneral?.bitSize);
   const bitSize = rawBitSize
     ? round(convertLength(rawBitSize, "in", reportFormat.diameterUnit), reportFormat.digits)
-    : "";
+    : 0;
   const nozzles = Array.isArray(nozzleData?.nozzles) ? nozzleData.nozzles : [];
 
   fillRowRange(ws, 13, "BE", "BK", "Bit Type");
-  fillRowRange(ws, 13, "BL", "BS", text(nozzleData?.bitType));
+  fillRowRange(ws, 13, "BL", "BS", text(wellGeneral?.bitType, "0"));
   fillRowRange(ws, 14, "BE", "BK", "Bit Model");
-  fillRowRange(ws, 14, "BL", "BS", text(nozzleData?.bitModel));
+  fillRowRange(ws, 14, "BL", "BS", text(wellGeneral?.bitMft, "0"));
   fillRowRange(
     ws,
     15,

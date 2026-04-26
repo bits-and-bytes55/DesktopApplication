@@ -2176,15 +2176,19 @@ class BitSection extends StatefulWidget {
 
 class _BitSectionState extends State<BitSection> {
   final c = Get.find<DashboardController>();
+  final wellGenCtrl = Get.isRegistered<WellGeneralController>()
+      ? Get.find<WellGeneralController>()
+      : Get.put(WellGeneralController(), permanent: true);
   final Map<String, TextEditingController> bc = {
-    'Mft': TextEditingController(text: 'VAREL'),
-    'Type': TextEditingController(text: 'MT-TCI'),
+    'Mft': TextEditingController(),
+    'Type': TextEditingController(),
     'No. of Bits': TextEditingController(text: '1'),
-    'Size': TextEditingController(text: '6.125'),
+    'Size': TextEditingController(),
     'Depth-in': TextEditingController(),
     'Depth': TextEditingController(text: '8982.0'),
   };
   final List<Worker> _unitWorkers = <Worker>[];
+  final List<Worker> _bitWorkers = <Worker>[];
   late String _lengthUnit;
   late String _diameterUnit;
 
@@ -2201,6 +2205,12 @@ class _BitSectionState extends State<BitSection> {
       ),
       ever(AppUnits.controller.customUnits, (_) => _handleUnitChange()),
     ]);
+    _bitWorkers.addAll([
+      ever<String>(wellGenCtrl.bitMft, (_) => _loadBitFieldsFromController()),
+      ever<String>(wellGenCtrl.bitType, (_) => _loadBitFieldsFromController()),
+      ever<String>(wellGenCtrl.bitSize, (_) => _loadBitFieldsFromController()),
+    ]);
+    _loadBitFieldsFromController();
   }
 
   @override
@@ -2208,10 +2218,66 @@ class _BitSectionState extends State<BitSection> {
     for (final worker in _unitWorkers) {
       worker.dispose();
     }
+    for (final worker in _bitWorkers) {
+      worker.dispose();
+    }
     for (final controller in bc.values) {
       controller.dispose();
     }
     super.dispose();
+  }
+
+  void _loadBitFieldsFromController() {
+    _setTextIfChanged('Mft', wellGenCtrl.bitMft.value);
+    _setTextIfChanged('Type', wellGenCtrl.bitType.value);
+    _setTextIfChanged('Size', _displayBitSize(wellGenCtrl.bitSize.value));
+  }
+
+  void _setTextIfChanged(String key, String value) {
+    final controller = bc[key];
+    if (controller == null) return;
+    if (controller.text == value) return;
+    controller.text = value;
+  }
+
+  void _syncBitField(String key, String value) {
+    switch (key) {
+      case 'Mft':
+        wellGenCtrl.bitMft.value = value;
+        break;
+      case 'Type':
+        wellGenCtrl.bitType.value = value;
+        break;
+      case 'Size':
+        wellGenCtrl.bitSize.value = _storeBitSize(value);
+        break;
+    }
+  }
+
+  String _displayBitSize(String rawValue) {
+    final raw = rawValue.trim();
+    if (raw.isEmpty) return '';
+    final parsed = double.tryParse(raw.replaceAll(',', ''));
+    if (parsed == null) return raw;
+    final converted = AppUnits.convertValue(parsed, 'in', _diameterUnit);
+    final value = converted ?? parsed;
+    return value
+        .toStringAsFixed(4)
+        .replaceAll(RegExp(r'0+$'), '')
+        .replaceAll(RegExp(r'\.$'), '');
+  }
+
+  String _storeBitSize(String rawValue) {
+    final raw = rawValue.trim();
+    if (raw.isEmpty) return '';
+    final parsed = double.tryParse(raw.replaceAll(',', ''));
+    if (parsed == null) return raw;
+    final converted = AppUnits.convertValue(parsed, _diameterUnit, 'in');
+    final value = converted ?? parsed;
+    return value
+        .toStringAsFixed(4)
+        .replaceAll(RegExp(r'0+$'), '')
+        .replaceAll(RegExp(r'\.$'), '');
   }
 
   void _handleUnitChange() {
@@ -2239,6 +2305,7 @@ class _BitSectionState extends State<BitSection> {
 
     _lengthUnit = nextLengthUnit;
     _diameterUnit = nextDiameterUnit;
+    _syncBitField('Size', bc['Size']!.text);
     if (mounted) setState(() {});
   }
 
@@ -2356,6 +2423,7 @@ class _BitSectionState extends State<BitSection> {
                       controller: ctrl,
                       style: const TextStyle(fontSize: 9),
                       textAlign: TextAlign.center,
+                      onChanged: (value) => _syncBitField(key, value),
                       decoration: const InputDecoration(
                         isDense: true,
                         contentPadding: EdgeInsets.symmetric(

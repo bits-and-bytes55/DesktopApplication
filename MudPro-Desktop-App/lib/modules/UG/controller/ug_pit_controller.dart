@@ -56,6 +56,7 @@ class PitController extends GetxController {
   final Set<String> modifiedPitIds = {};
 
   Timer? _debounceTimer;
+  Timer? _pitAutoSaveTimer;
   Timer? _transferAutoSaveTimer;
   bool _isApplyingTransferState = false;
   Worker? _wellWorker;
@@ -90,12 +91,18 @@ class PitController extends GetxController {
     _initializeTransferRows();
     _wellWorker = ever<String>(padWellContext.selectedWellId, (wellId) {
       if (wellId.isEmpty || wellId == currentWellId) return;
+      _debounceTimer?.cancel();
+      _pitAutoSaveTimer?.cancel();
+      modifiedPitIds.clear();
       currentWellId = wellId;
       fetchAllPits();
       fetchVolumeNameData();
       fetchTransferMud();
     });
     _reportWorker = ever<String>(reportContext.selectedReportId, (_) {
+      _debounceTimer?.cancel();
+      _pitAutoSaveTimer?.cancel();
+      modifiedPitIds.clear();
       fetchAllPits();
       fetchVolumeNameData();
       fetchTransferMud();
@@ -311,6 +318,7 @@ class PitController extends GetxController {
         fluidType: fluidType,
       );
     });
+    schedulePitAutoSave();
   }
 
   /// Updates the master pit record via PUT /pit/:id (No new records created)
@@ -671,6 +679,7 @@ class PitController extends GetxController {
 
     pits.refresh();
     _ensureDraftRows();
+    schedulePitAutoSave();
   }
 
   String controllerKeyForPit(PitModel pit, String section, int index) {
@@ -710,6 +719,25 @@ class PitController extends GetxController {
   bool _isDraftFilled(PitModel pit) {
     return pit.pitName.trim().isNotEmpty &&
         ((pit.volume?.value ?? 0) > 0 || pit.capacity.value > 0);
+  }
+
+  bool get _hasPendingPitChanges {
+    final hasDraftChanges = pits.any(
+      (pit) => pit.id == null && _isDraftFilled(pit),
+    );
+    return modifiedPitIds.isNotEmpty || hasDraftChanges;
+  }
+
+  void schedulePitAutoSave() {
+    if (!_hasWellId) return;
+
+    _pitAutoSaveTimer?.cancel();
+    _pitAutoSaveTimer = Timer(const Duration(milliseconds: 1200), () async {
+      if (isSaving.value || isLoading.value || !_hasPendingPitChanges) {
+        return;
+      }
+      await saveAllActivePits();
+    });
   }
 
   double _draftCapacity(PitModel pit) {
@@ -1041,6 +1069,8 @@ class PitController extends GetxController {
 
   @override
   void onClose() {
+    _debounceTimer?.cancel();
+    _pitAutoSaveTimer?.cancel();
     _transferAutoSaveTimer?.cancel();
     _wellWorker?.dispose();
     _reportWorker?.dispose();

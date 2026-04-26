@@ -44,6 +44,9 @@ class WellGeneralController extends GetxController {
   var interval = ''.obs;
   var fit = ''.obs;
   var formation = ''.obs;
+  var bitMft = ''.obs;
+  var bitType = ''.obs;
+  var bitSize = ''.obs;
   var additionalFootage = ''.obs;
   var nptTime = ''.obs;
   var nptCost = ''.obs;
@@ -83,6 +86,9 @@ class WellGeneralController extends GetxController {
     interval,
     fit,
     formation,
+    bitMft,
+    bitType,
+    bitSize,
     additionalFootage,
     nptTime,
     nptCost,
@@ -284,6 +290,9 @@ class WellGeneralController extends GetxController {
     'interval': interval.value,
     'fit': fit.value,
     'formation': formation.value,
+    'bitMft': bitMft.value,
+    'bitType': bitType.value,
+    'bitSize': bitSize.value,
     'additionalFootage': double.tryParse(additionalFootage.value) ?? 0,
     'nptTime': double.tryParse(nptTime.value) ?? 0,
     'nptCost': double.tryParse(nptCost.value) ?? 0,
@@ -319,6 +328,9 @@ class WellGeneralController extends GetxController {
     interval.value = d['interval']?.toString() ?? '';
     fit.value = d['fit']?.toString() ?? '';
     formation.value = d['formation']?.toString() ?? '';
+    bitMft.value = d['bitMft']?.toString() ?? '';
+    bitType.value = d['bitType']?.toString() ?? '';
+    bitSize.value = d['bitSize']?.toString() ?? '';
     additionalFootage.value = (d['additionalFootage'] ?? '').toString();
     nptTime.value = (d['nptTime'] ?? '').toString();
     nptCost.value = (d['nptCost'] ?? '').toString();
@@ -354,6 +366,9 @@ class WellGeneralController extends GetxController {
     interval.value = '';
     fit.value = '';
     formation.value = '';
+    bitMft.value = '';
+    bitType.value = '';
+    bitSize.value = '';
     additionalFootage.value = '';
     nptTime.value = '';
     nptCost.value = '';
