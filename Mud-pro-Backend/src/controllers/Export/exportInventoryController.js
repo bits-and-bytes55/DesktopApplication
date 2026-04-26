@@ -2,7 +2,6 @@ import ExcelJS from "exceljs";
 import { fileURLToPath } from "url";
 import InventorySnapshot from "../../modules/FullInventory/InventorySnapshot.js";
 import Pit from "../../modules/pit/pit.model.js";
-import { Activity } from "../../modules/others/others.model.js";
 import Well from "../../modules/well/well.model.js";
 import Pad from "../../modules/pad/pad.model.js";
 import WellGeneral from "../../modules/wellGeneral/wellGeneralModel.js";
@@ -224,6 +223,25 @@ const getPitVolume = (pit) => pit.volume || pit.capacity || "";
 const getActivePitVolume = (pit) => toNumber(pit.volume || pit.capacity);
 const setCellValue = (ws, address, value = "") => {
   ws.getCell(address).value = value ?? "";
+};
+const setCellTextFit = (ws, address, { wrapText = true, shrinkToFit = true } = {}) => {
+  const cell = ws.getCell(address);
+  cell.alignment = {
+    ...(cell.alignment || {}),
+    wrapText,
+    shrinkToFit,
+  };
+};
+const fitColumnRange = (
+  ws,
+  column,
+  startRow,
+  endRow,
+  options = { wrapText: true, shrinkToFit: true }
+) => {
+  for (let row = startRow; row <= endRow; row += 1) {
+    setCellTextFit(ws, `${column}${row}`, options);
+  }
 };
 const normalizeUnit = (value, fallback = "") =>
   text(value, fallback)
@@ -1525,6 +1543,11 @@ const fillDmrBitInformation = (ws, { casings = [], intervals = [], wellGeneral, 
 };
 
 const fillDmrTopSections = (ws, { drillStrings, casings, summary, activePits, fluidName, wellGeneral, consumeProducts, mudReportState, solidsAnalysisRows, intervals, reportFormat, nozzleData }) => {
+  const namedActivePits = activePits.filter((pit) => text(pit?.pitName));
+  const namedConsumeProducts = consumeProducts.filter((item) =>
+    firstText(item?.product, item?.itemName, item?.code)
+  );
+
   for (let index = 0; index < 8; index += 1) {
     const row = 14 + index;
     const drill = drillStrings[index];
@@ -1630,7 +1653,7 @@ const fillDmrTopSections = (ws, { drillStrings, casings, summary, activePits, fl
 
   for (let index = 0; index < 12; index += 1) {
     const row = 23 + index;
-    const pit = activePits[index];
+    const pit = namedActivePits[index];
     setCellValue(ws, `BA${row}`, text(pit?.pitName));
     setCellValue(ws, `BN${row}`, pit ? round(getActivePitVolume(pit)) : "");
   }
@@ -1640,7 +1663,7 @@ const fillDmrTopSections = (ws, { drillStrings, casings, summary, activePits, fl
 
   for (let index = 0; index < 16; index += 1) {
     const row = 37 + index;
-    const item = consumeProducts[index];
+    const item = namedConsumeProducts[index];
     setCellValue(ws, `AJ${row}`, text(item?.product));
     setCellValue(ws, `AT${row}`, text(item?.unit));
     setCellValue(ws, `AY${row}`, item ? round(item.used) : "");
@@ -1648,6 +1671,12 @@ const fillDmrTopSections = (ws, { drillStrings, casings, summary, activePits, fl
     setCellValue(ws, `BH${row}`, item ? round(item.price, 3) : "");
     setCellValue(ws, `BN${row}`, item ? round(item.cost || item.price * item.used, 3) : "");
   }
+
+  fitColumnRange(ws, "H", 14, 21);
+  fitColumnRange(ws, "AJ", 14, 21);
+  fitColumnRange(ws, "BA", 23, 34);
+  fitColumnRange(ws, "AJ", 37, 52);
+  fitColumnRange(ws, "AT", 37, 52);
 };
 
 const fillDmrBottomSections = (ws, {
@@ -1701,6 +1730,8 @@ const fillDmrBottomSections = (ws, {
       generatedOperationalComments ||
       "No operational comments were saved for this report."
   );
+  setCellTextFit(ws, "AJ53", { wrapText: true, shrinkToFit: false });
+  setCellTextFit(ws, "AJ73", { wrapText: true, shrinkToFit: false });
 
   pumps.slice(0, 4).forEach((pump, index) => {
     const startColumn = ["L", "R", "X", "AD"][index];
@@ -1765,6 +1796,10 @@ const fillDmrBottomSections = (ws, {
 
   fillDmrSceRows(ws, { shakers, otherSceRows });
   fillDmrFluidEngineers(ws, fluidEngineers);
+  fitColumnRange(ws, "AY", 97, 108);
+  fitColumnRange(ws, "BF", 97, 108);
+  fitColumnRange(ws, "BK", 101, 108);
+  fitColumnRange(ws, "AD", 106, 109);
 
   const totalDailyCost = round(
     costSummary?.totalDailyCost ?? productDailyCost + engineeringDailyCost,
@@ -1829,7 +1864,10 @@ const hasServiceCostData = (item = {}, nameField) =>
 
 const normalizeServiceCostRows = (items = [], { category, nameField }) =>
   items
-    .filter((item) => hasServiceCostData(item, nameField))
+    .filter((item) => {
+      if (!hasServiceCostData(item, nameField)) return false;
+      return Boolean(firstText(item[nameField], item.itemName, item.code));
+    })
     .map((item) => {
       const usage = toNumber(item.usage ?? item.used ?? item.cumulativeUsed);
       const price = toNumber(item.price);
@@ -1865,7 +1903,29 @@ const fillInventorySheet = (ws, {
   costSummary,
   productMetadataMap,
 }) => {
-  writeRows(ws, PRODUCT_ROWS, PRODUCT_COLUMNS, products, (item) => ({
+  const productRows = products.filter((item) =>
+    firstText(item?.itemName, item?.code, item?.product)
+  );
+  const serviceRows = services.filter((item) =>
+    firstText(item?.itemName, item?.code)
+  );
+  const engineeringRows = engineers.filter((item) =>
+    firstText(item?.itemName, item?.code)
+  );
+  const activePitRows = activePits.filter((pit) => text(pit?.pitName));
+  const reservePitRows = reservePits.filter((pit) => text(pit?.pitName));
+  const timeRows = activities.filter((activity) =>
+    text(activity?.description) || toNumber(activity?.hours) > 0
+  );
+
+  setCellValue(ws, "A74", "Services");
+  setCellValue(ws, "M74", "Pit Information");
+  setCellValue(ws, "AA74", "Time Breakdown");
+  setCellValue(ws, "A85", "Engineering");
+  setCellValue(ws, "M89", "Reserve");
+  setCellValue(ws, "A92", "Cost Summary");
+
+  writeRows(ws, PRODUCT_ROWS, PRODUCT_COLUMNS, productRows, (item) => ({
     A: item.itemName || "",
     F: item.unit || "",
     I: round(item.price, 3),
@@ -1898,34 +1958,41 @@ const fillInventorySheet = (ws, {
     ([address, value]) => setCellValue(ws, address, value)
   );
 
-  writeRows(ws, SERVICE_ROWS, SERVICE_COLUMNS, services, (item) => ({
+  writeRows(ws, SERVICE_ROWS, SERVICE_COLUMNS, serviceRows, (item) => ({
     A: item.itemName || "",
     G: round(item.used ?? item.cumulativeUsed ?? item.usage),
     I: round(item.cumulativeUsed ?? item.used ?? item.usage),
     K: round(item.costDollar, 3),
   }));
-  writeRows(ws, ACTIVE_PIT_ROWS, PIT_COLUMNS, activePits, (pit) => ({
+  writeRows(ws, ACTIVE_PIT_ROWS, PIT_COLUMNS, activePitRows, (pit) => ({
     M: pit.pitName || "",
     S: round(getPitVolume(pit)),
     U: round(pit.density),
     W: pit.fluidType || "",
   }));
-  writeRows(ws, TIME_ROWS, TIME_COLUMNS, activities, (activity) => ({
+  writeRows(ws, TIME_ROWS, TIME_COLUMNS, timeRows, (activity) => ({
     AA: activity.description || "",
     AE: round(activity.hours),
   }));
-  writeRows(ws, ENGINEERING_ROWS, SERVICE_COLUMNS, engineers, (item) => ({
+  writeRows(ws, ENGINEERING_ROWS, SERVICE_COLUMNS, engineeringRows, (item) => ({
     A: item.itemName || "",
     G: round(item.used ?? item.cumulativeUsed ?? item.usage),
     I: round(item.cumulativeUsed ?? item.used ?? item.usage),
     K: round(item.costDollar, 3),
   }));
-  writeRows(ws, RESERVE_ROWS, PIT_COLUMNS, reservePits, (pit) => ({
+  writeRows(ws, RESERVE_ROWS, PIT_COLUMNS, reservePitRows, (pit) => ({
     M: pit.pitName || "",
     S: round(getPitVolume(pit)),
     U: round(pit.density),
     W: pit.fluidType || "",
   }));
+  fitColumnRange(ws, "A", 14, 63);
+  fitColumnRange(ws, "F", 14, 63);
+  fitColumnRange(ws, "A", 76, 84);
+  fitColumnRange(ws, "M", 77, 84);
+  fitColumnRange(ws, "AA", 75, 84);
+  fitColumnRange(ws, "A", 87, 91);
+  fitColumnRange(ws, "M", 95, 101);
 
   const totalDailyCost = round(
     costSummary?.totalDailyCost ?? productDailyCost + engineeringDailyCost,
@@ -2012,16 +2079,7 @@ const loadExportDrillStrings = async ({ wellId, reportId }) => {
     .limit(8)
     .lean();
   if (wellScopedLegacy.length > 0) return wellScopedLegacy;
-
-  return DrillString.find({
-    $and: [
-      emptyFieldFilterForModel(DrillString, "wellId"),
-      legacyReportScopeForModel(DrillString),
-    ],
-  })
-    .sort({ createdAt: 1, _id: 1 })
-    .limit(8)
-    .lean();
+  return [];
 };
 
 const loadExportCasings = async ({ wellId, reportId }) => {
@@ -2059,10 +2117,11 @@ const loadInventorySnapshot = async ({ wellId, reportId }) => {
     .sort({ category: 1, itemName: 1 })
     .lean();
   if (legacy.length > 0) return legacy;
-
-  return InventorySnapshot.find({ wellId })
-    .sort({ category: 1, itemName: 1 })
-    .lean();
+  return reportId
+    ? []
+    : InventorySnapshot.find({ wellId })
+        .sort({ category: 1, itemName: 1 })
+        .lean();
 };
 
 const normalizeCostCategory = (value) => text(value).toLowerCase();
@@ -2231,11 +2290,13 @@ const loadExportPumps = async ({ wellId, reportId }) => {
   if (normalizedLegacy.length > 0) {
     return normalizedLegacy;
   }
-
-  const latestForWell = await Pump.find({ wellId })
-    .sort({ rowNumber: 1, updatedAt: -1, createdAt: -1, _id: -1 })
-    .lean();
-  return normalizePumpRows(latestForWell);
+  return reportId
+    ? []
+    : normalizePumpRows(
+        await Pump.find({ wellId })
+          .sort({ rowNumber: 1, updatedAt: -1, createdAt: -1, _id: -1 })
+          .lean()
+      );
 };
 
 const loadExportWellGeneral = async ({ wellId, reportId, report }) => {
@@ -2268,10 +2329,11 @@ const loadExportWellGeneral = async ({ wellId, reportId, report }) => {
     .sort({ createdAt: -1, _id: -1 })
     .lean();
   if (legacy) return legacy;
-
-  return WellGeneral.findOne({ wellId })
-    .sort({ createdAt: -1, _id: -1 })
-    .lean();
+  return reportId
+    ? null
+    : WellGeneral.findOne({ wellId })
+        .sort({ createdAt: -1, _id: -1 })
+        .lean();
 };
 
 const loadExportMudReportState = async ({ wellId, reportId }) => {
@@ -2291,10 +2353,11 @@ const loadExportMudReportState = async ({ wellId, reportId }) => {
     .sort({ updatedAt: -1, _id: -1 })
     .lean();
   if (legacy) return legacy;
-
-  return MudReportState.findOne({ wellId })
-    .sort({ updatedAt: -1, _id: -1 })
-    .lean();
+  return reportId
+    ? null
+    : MudReportState.findOne({ wellId })
+        .sort({ updatedAt: -1, _id: -1 })
+        .lean();
 };
 
 const emptyWellScope = () => ({
@@ -2308,12 +2371,13 @@ const loadExportSolidsAnalysis = async ({ wellId, reportId }) => {
   if (wellId && reportId) {
     queries.push({ wellId, reportId });
     queries.push({ reportId, ...emptyWellScope() });
+    queries.push({ wellId, ...legacyReportScopeWithEmpty() });
   }
-  if (wellId) {
+  if (wellId && !reportId) {
     queries.push({ wellId, ...legacyReportScopeWithEmpty() });
     queries.push({ wellId });
   }
-  if (reportId) {
+  if (reportId && !wellId) {
     queries.push({ reportId });
   }
 
@@ -2347,7 +2411,9 @@ const loadExportSceRows = async (
   }
   if (wellId) {
     queries.push({ wellId, ...legacyReportScopeForModel(Model) });
-    queries.push({ wellId });
+    if (!reportId) {
+      queries.push({ wellId });
+    }
   }
   if (reportId) {
     queries.push({ reportId });
@@ -2370,7 +2436,9 @@ const loadExportNozzle = async ({ wellId, reportId }) => {
   }
   if (wellId) {
     queries.push({ wellId, ...legacyReportScopeForModel(Nozzle) });
-    queries.push({ wellId });
+    if (!reportId) {
+      queries.push({ wellId });
+    }
   }
   if (reportId) {
     queries.push({ reportId });
@@ -2397,17 +2465,11 @@ export const exportInventoryReport = async (req, res) => {
 
     const report = reportId ? await Report.findById(reportId).lean().catch(() => null) : null;
     const [
-      inventoryData, activities, well, drillStrings, casings, pumps, consumeProducts,
+      inventoryData, well, drillStrings, casings, pumps, consumeProducts,
       liveServices, liveEngineering, addWaterRows, receiveMudRows, returnLostRows, transferRows, otherVolRows, mudLossRows, mudLossStorageRows,
       allOtherVolRows, intervals, mudReportState, solidsAnalysisRows, shakers, otherSceRows, emptyFluidRows, nozzleData, inventoryConfig,
     ] = await Promise.all([
       loadInventorySnapshot({ wellId, reportId }),
-      loadReportScopedList(Activity, {
-        wellId,
-        reportId,
-        sort: { createdAt: -1 },
-        limit: 10,
-      }),
       Well.findById(wellId).lean(),
       loadExportDrillStrings({ wellId, reportId }),
       loadExportCasings({ wellId, reportId }),
@@ -2458,7 +2520,7 @@ export const exportInventoryReport = async (req, res) => {
       Array.isArray(wellGeneral?.timeDistributionRows) &&
       wellGeneral.timeDistributionRows.length > 0
         ? wellGeneral.timeDistributionRows
-        : activities;
+        : [];
     const products = inventoryData.filter((item) => item.category === "Product");
     const snapshotServices = inventoryData.filter((item) => item.category === "Service");
     const snapshotEngineering = inventoryData.filter((item) => item.category === "Engineering");
