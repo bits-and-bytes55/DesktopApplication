@@ -7,12 +7,19 @@ import Engineering from "../../modules/ConsumeServices/Engineers/Engineering.js"
 import Package from "../../modules/ConsumeServices/Package/Package.js";
 import ReceivePackage from "../../modules/ReceiveProduct/Package/ReceivePackage.js";
 import ReturnPackage from "../../modules/ReturnProduct/Package/ReturnPackage.js";
+import ConsumeProductDistributionState from "../../modules/Consumeproduct/ConsumeProductDistributionState.js";
 import UgInventorySnapshot from "../../modules/ugInventory/ugInventoryProductModel.js";
 import Well from "../../modules/well/well.model.js";
+import Report from "../../modules/report/report.model.js";
+import WellGeneral from "../../modules/wellGeneral/wellGeneralModel.js";
+import Casing from "../../modules/casing/casing.model.js";
+import { loadMergedPits } from "../../utils/pitReportState.js";
 import {
   buildScopedFilter,
+  legacyReportScope,
   readReportId,
   readWellId,
+  toText,
 } from "../../utils/reportScope.js";
 
 const toNumber = (value) => {
@@ -62,6 +69,189 @@ const isVolumeNameWaterHelper = (item) =>
   toNumber(item.cost) === 0 &&
   toNumber(item.volumeBbl) > 0;
 
+const reportOrderNumber = (report = {}) => {
+  const parsed = Number(toText(report.userReportNo || report.reportNo));
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const reportTimeValue = (report = {}) =>
+  new Date(report.reportDate || report.createdAt || report.updatedAt || 0).getTime() || 0;
+
+const sortReportsOldestFirst = (reports = []) =>
+  [...reports].sort((left, right) => {
+    const leftNumber = reportOrderNumber(left);
+    const rightNumber = reportOrderNumber(right);
+    if (leftNumber !== null && rightNumber !== null && leftNumber !== rightNumber) {
+      return leftNumber - rightNumber;
+    }
+
+    const timeDiff = reportTimeValue(left) - reportTimeValue(right);
+    if (timeDiff !== 0) return timeDiff;
+    return toText(left._id).localeCompare(toText(right._id));
+  });
+
+const calculateHoleVolume = (casing, mdInFeet) => {
+  const id = toNumber(casing?.id);
+  const md = toNumber(mdInFeet);
+  const top = toNumber(casing?.top);
+  const shoe = toNumber(casing?.shoe);
+
+  if (id <= 0) return 0;
+
+  let length = 0;
+  if (md > 0 && shoe > 0) {
+    length = Math.max(0, Math.min(md, shoe) - top);
+  } else if (md > 0) {
+    length = Math.max(0, md - top);
+  } else if (shoe > 0) {
+    length = Math.max(0, shoe - top);
+  }
+
+  if (length <= 0) {
+    length = md > 0 ? md : shoe;
+  }
+
+  return length > 0 ? round2((id * id * length) / 1029.4) : 0;
+};
+
+const packSize = (unit = "") => {
+  const match = String(unit).match(/-?\d+(?:\.\d+)?/);
+  return match ? toNumber(match[0]) || 1 : 1;
+};
+
+const concentrationBasisForUnit = (unit = "") => {
+  const normalized = normalizeText(unit);
+  const amount = packSize(unit);
+  if (amount <= 0) return null;
+
+  if (normalized.includes("ton")) {
+    return { factorPerPack: amount * 2000, concentrationUnit: "lb/bbl" };
+  }
+  if (normalized.includes("kg")) {
+    return { factorPerPack: amount * 2.20462, concentrationUnit: "lb/bbl" };
+  }
+  if (normalized.includes("lb")) {
+    return { factorPerPack: amount, concentrationUnit: "lb/bbl" };
+  }
+  if (normalized.includes("gal")) {
+    return { factorPerPack: amount, concentrationUnit: "gal/bbl" };
+  }
+  if (normalized.includes(" bbl") || normalized.startsWith("bbl")) {
+    return { factorPerPack: amount * 42, concentrationUnit: "gal/bbl" };
+  }
+  if (normalized.includes(" m3") || normalized.startsWith("m3")) {
+    return { factorPerPack: amount * 264.172, concentrationUnit: "gal/bbl" };
+  }
+  if (normalized.includes("ml")) {
+    return {
+      factorPerPack: amount * 0.000264172,
+      concentrationUnit: "gal/bbl",
+    };
+  }
+  if (normalized.includes(" l") || normalized.startsWith("l")) {
+    return { factorPerPack: amount * 0.264172, concentrationUnit: "gal/bbl" };
+  }
+
+  return null;
+};
+
+const findScopedWellGeneral = async ({ wellId, reportId, reportNo }) => {
+  if (reportId) {
+    const byReportId = await WellGeneral.findOne({ wellId, reportId })
+      .sort({ updatedAt: -1, createdAt: -1, _id: -1 })
+      .lean();
+    if (byReportId) return byReportId;
+  }
+
+  if (reportNo) {
+    const byReportNo = await WellGeneral.findOne({ wellId, reportNo })
+      .sort({ updatedAt: -1, createdAt: -1, _id: -1 })
+      .lean();
+    if (byReportNo) return byReportNo;
+  }
+
+  const legacy = await WellGeneral.findOne({
+    wellId,
+    ...legacyReportScope(),
+  })
+    .sort({ updatedAt: -1, createdAt: -1, _id: -1 })
+    .lean();
+  if (legacy) return legacy;
+
+  return WellGeneral.findOne({ wellId })
+    .sort({ updatedAt: -1, createdAt: -1, _id: -1 })
+    .lean();
+};
+
+const findScopedCasings = async ({ wellId, reportId }) => {
+  const filter = reportId
+    ? {
+        wellId,
+        $or: [{ reportId }, { reportId: { $exists: false } }, { reportId: null }, { reportId: "" }],
+      }
+    : { wellId };
+
+  return Casing.find(filter).sort({ createdAt: 1, _id: 1 }).lean();
+};
+
+const findPreviousReport = async ({ wellId, reportId }) => {
+  if (!wellId || !reportId) return null;
+
+  const reports = sortReportsOldestFirst(await Report.find({ wellId }).lean());
+  const index = reports.findIndex((item) => toText(item._id) === reportId);
+  return index > 0 ? reports[index - 1] : null;
+};
+
+const resolveConcentrationVolumeBasis = async ({ wellId, reportId, reportNo }) => {
+  if (!wellId || !reportId) return 0;
+
+  const [distributionState, wellGeneral, casings, pits] = await Promise.all([
+    ConsumeProductDistributionState.findOne({ wellId, reportId })
+      .sort({ updatedAt: -1, createdAt: -1, _id: -1 })
+      .lean(),
+    findScopedWellGeneral({ wellId, reportId, reportNo }),
+    findScopedCasings({ wellId, reportId }),
+    loadMergedPits({ wellId, reportId, initialActive: true }),
+  ]);
+
+  const distributedTotal = round2(distributionState?.totalVolume);
+  if (distributedTotal > 0) {
+    return distributedTotal;
+  }
+
+  const md = toNumber(wellGeneral?.md);
+  const validCasings = casings.filter((row) => toNumber(row.id) > 0);
+  const latestCasing = validCasings.length
+    ? validCasings[validCasings.length - 1]
+    : null;
+  const hole = calculateHoleVolume(latestCasing, md);
+  const activeSystem = round2(
+    pits.reduce((sum, pit) => sum + toNumber(pit.volume), 0) + hole
+  );
+
+  return activeSystem > 0 ? activeSystem : 0;
+};
+
+const buildPreviousConcentrationMap = async ({ wellId, reportId }) => {
+  const previousReport = await findPreviousReport({ wellId, reportId });
+  if (!previousReport) {
+    return new Map();
+  }
+
+  const rows = await InventorySnapshot.find({
+    wellId,
+    reportId: toText(previousReport._id),
+    category: "Product",
+  }).lean();
+
+  return new Map(
+    rows.map((row, index) => [
+      keyFromCodeOrName(row.code, row.itemName, `previous:${index}`),
+      row,
+    ])
+  );
+};
+
 export const generateInventorySnapshot = async (req, res) => {
   try {
     const wellId = readWellId(req);
@@ -100,6 +290,9 @@ export const generateInventorySnapshot = async (req, res) => {
       ? await UgInventorySnapshot.findOne({ wellId }).sort({ updatedAt: -1 }).lean()
       : null;
     const wellConfig = wellId ? await Well.findById(wellId).lean() : null;
+    const currentReport = reportId
+      ? await Report.findById(reportId).lean().catch(() => null)
+      : null;
 
     const taxRate = round2(inventoryConfig?.taxRate);
     const bulkTankSetupFee = round2(
@@ -303,6 +496,51 @@ export const generateInventorySnapshot = async (req, res) => {
         final: finalVal,
         subtotal,
         costDollar: subtotal,
+      });
+    }
+
+    if (wellId && reportId) {
+      const previousConcentrationMap = await buildPreviousConcentrationMap({
+        wellId,
+        reportId,
+      });
+      const concentrationVolumeBasis = await resolveConcentrationVolumeBasis({
+        wellId,
+        reportId,
+        reportNo: currentReport?.reportNo,
+      });
+
+      snapshotData = snapshotData.map((item, index) => {
+        if (item.category !== "Product") {
+          return item;
+        }
+
+        const basis = concentrationBasisForUnit(item.unit);
+        const rowKey = keyFromCodeOrName(item.code, item.itemName, `product:${index}`);
+        const previous = previousConcentrationMap.get(rowKey) || {};
+        const previousEndConcentration = round2(previous.endingConcentration);
+        const previousAmount =
+          toNumber(previous.concentrationSourceAmount) > 0
+            ? toNumber(previous.concentrationSourceAmount)
+            : toNumber(previous.endingConcentration) *
+              toNumber(previous.concentrationVolumeBasis);
+        const currentAmount = basis
+          ? round2(toNumber(item.used) * basis.factorPerPack)
+          : 0;
+        const endingAmount = round2(previousAmount + currentAmount);
+        const endingConcentration =
+          basis && concentrationVolumeBasis > 0
+            ? round2(endingAmount / concentrationVolumeBasis)
+            : previousEndConcentration;
+
+        return {
+          ...item,
+          concentrationUnit: basis?.concentrationUnit || "",
+          concentrationVolumeBasis,
+          concentrationSourceAmount: endingAmount,
+          startingConcentration: previousEndConcentration,
+          endingConcentration,
+        };
       });
     }
 

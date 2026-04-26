@@ -7,6 +7,7 @@ import 'package:mudpro_desktop_app/modules/dashboard/controller/mud_controller.d
 import 'package:mudpro_desktop_app/modules/dashboard/controller/nozzle_controller.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
+import 'package:mudpro_desktop_app/modules/report_context/report_models.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
@@ -29,12 +30,32 @@ class ExportController {
       await Get.find<NozzleController>().saveNow();
     }
 
-    final snapshotResult = await InventorySnapshotController()
-        .generateInventorySnapshot(wellId: wellId);
-    if (snapshotResult['success'] != true) {
-      throw Exception(
-        snapshotResult['message'] ?? 'Failed to update report data',
+    final snapshotController = InventorySnapshotController();
+    final historyReports = _orderedReportsUpToSelected(reportId);
+    if (historyReports.isEmpty) {
+      final snapshotResult = await snapshotController.generateInventorySnapshot(
+        wellId: wellId,
+        reportIdOverride: reportId.isEmpty ? null : reportId,
       );
+      if (snapshotResult['success'] != true) {
+        throw Exception(
+          snapshotResult['message'] ?? 'Failed to update report data',
+        );
+      }
+    } else {
+      for (final report in historyReports) {
+        final snapshotResult = await snapshotController
+            .generateInventorySnapshot(
+              wellId: wellId,
+              reportIdOverride: report.id,
+            );
+        if (snapshotResult['success'] != true) {
+          throw Exception(
+            snapshotResult['message'] ??
+                'Failed to update report data for report ${report.reportNo}',
+          );
+        }
+      }
     }
 
     final baseUri = Uri.parse('${baseUrl}export/inventory-export/$wellId');
@@ -86,8 +107,10 @@ class ExportController {
 
     final Directory reportDir = await _resolveReportDirectory();
     final String filePath = await _resolveOutputPath(reportDir, response);
-    final String finalPath =
-        await _writeBytesWithRetry(filePath, response.bodyBytes);
+    final String finalPath = await _writeBytesWithRetry(
+      filePath,
+      response.bodyBytes,
+    );
 
     if (!await _openReportFile(finalPath)) {
       await _openContainingFolder(finalPath);
@@ -138,8 +161,10 @@ class ExportController {
     final nameWithoutExtension = hasXlsxExtension
         ? cleanedBase.substring(0, cleanedBase.length - '.xlsx'.length)
         : cleanedBase;
-    final String safeBase =
-        nameWithoutExtension.replaceAll(RegExp(r'[<>:"/\\|?*]'), '_');
+    final String safeBase = nameWithoutExtension.replaceAll(
+      RegExp(r'[<>:"/\\|?*]'),
+      '_',
+    );
     final String stamp = DateTime.now().millisecondsSinceEpoch.toString();
     final String candidate = '${tempDir.path}/$safeBase.xlsx';
     final File file = File(candidate);
@@ -186,18 +211,15 @@ class ExportController {
 
   static Future<bool> _openWithWindowsAssociation(String filePath) async {
     try {
-      final result = await Process.run(
-        'powershell.exe',
-        [
-          '-NoProfile',
-          '-NonInteractive',
-          '-ExecutionPolicy',
-          'Bypass',
-          '-Command',
-          r'Invoke-Item -LiteralPath $args[0]',
-          filePath,
-        ],
-      ).timeout(const Duration(seconds: 10));
+      final result = await Process.run('powershell.exe', [
+        '-NoProfile',
+        '-NonInteractive',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-Command',
+        r'Invoke-Item -LiteralPath $args[0]',
+        filePath,
+      ]).timeout(const Duration(seconds: 10));
       return result.exitCode == 0;
     } catch (_) {
       return false;
@@ -215,11 +237,9 @@ class ExportController {
       final exe = File(path);
       if (await exe.exists()) {
         try {
-          await Process.start(
-            path,
-            [filePath],
-            mode: ProcessStartMode.detached,
-          );
+          await Process.start(path, [
+            filePath,
+          ], mode: ProcessStartMode.detached);
           return true;
         } catch (_) {
           return false;
@@ -231,11 +251,9 @@ class ExportController {
 
   static Future<bool> _openWithExplorer(String filePath) async {
     try {
-      await Process.start(
-        'explorer.exe',
-        [filePath],
-        mode: ProcessStartMode.detached,
-      );
+      await Process.start('explorer.exe', [
+        filePath,
+      ], mode: ProcessStartMode.detached);
       return true;
     } catch (_) {
       return false;
@@ -247,14 +265,50 @@ class ExportController {
     final folderPath = file.parent.path;
     if (Platform.isWindows) {
       try {
-        await Process.start(
-          'explorer.exe',
-          ['/select,$filePath'],
-          mode: ProcessStartMode.detached,
-        );
+        await Process.start('explorer.exe', [
+          '/select,$filePath',
+        ], mode: ProcessStartMode.detached);
         return;
       } catch (_) {}
     }
     await OpenFilex.open(folderPath);
+  }
+
+  static List<AppReport> _orderedReportsUpToSelected(String selectedReportId) {
+    if (selectedReportId.trim().isEmpty) {
+      return const <AppReport>[];
+    }
+
+    final reports = reportContext.reports.toList()
+      ..sort(_compareReportsOldestFirst);
+    final index = reports.indexWhere((item) => item.id == selectedReportId);
+    if (index < 0) {
+      return const <AppReport>[];
+    }
+    return reports.sublist(0, index + 1);
+  }
+
+  static int _compareReportsOldestFirst(AppReport left, AppReport right) {
+    final leftOrder = _reportOrderValue(left);
+    final rightOrder = _reportOrderValue(right);
+    if (leftOrder != rightOrder) {
+      return leftOrder.compareTo(rightOrder);
+    }
+
+    final leftTime =
+        DateTime.tryParse(left.createdAt)?.millisecondsSinceEpoch ?? 0;
+    final rightTime =
+        DateTime.tryParse(right.createdAt)?.millisecondsSinceEpoch ?? 0;
+    if (leftTime != rightTime) {
+      return leftTime.compareTo(rightTime);
+    }
+
+    return left.id.compareTo(right.id);
+  }
+
+  static int _reportOrderValue(AppReport report) {
+    final userNo = int.tryParse(report.userReportNo.trim());
+    final reportNo = int.tryParse(report.reportNo.trim());
+    return userNo ?? reportNo ?? 0;
   }
 }

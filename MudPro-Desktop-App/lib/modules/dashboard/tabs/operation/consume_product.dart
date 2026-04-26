@@ -91,9 +91,10 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     _saveBridge.register(_saveAll);
     pitController.fetchAllPits();
     pitController.fetchUnselectedPits();
-    Future.microtask(_reloadScopedState);
     // Start with 1 row in distribute table
     _addDistributeRow(initialPit: kActiveSystem);
+    _resetProductRows();
+    Future.microtask(_reloadScopedState);
 
     waterVolumeController.addListener(_recalculateTotalVolume);
     addWater.listen((enabled) {
@@ -109,10 +110,10 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       padWellContext.selectedWellId,
       (_) => _reloadScopedState(),
     );
-    _reportWorker = ever<String>(
-      reportContext.selectedReportId,
-      (_) => _reloadScopedState(),
-    );
+    _reportWorker = ever<String>(reportContext.selectedReportId, (reportId) {
+      if (reportId.trim().isEmpty) return;
+      _reloadScopedState();
+    });
     _totalVolumeWorker = ever<double>(
       operationController.totalVolume,
       (_) => _rebalanceDistributeVolumes(),
@@ -120,10 +121,11 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
   }
 
   Future<void> _loadSavedDistributionState() async {
-    if (reportContext.selectedReportId.value.trim().isEmpty) {
+    if (currentBackendWellId.trim().isEmpty) {
       _resetDistributionStateUi();
       return;
     }
+    if (reportContext.selectedReportId.value.trim().isEmpty) return;
     await pitController.fetchVolumeNameData();
     if (!mounted) return;
     _hydrateDistributionStateFromPitData();
@@ -132,11 +134,12 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
   Future<void> _reloadScopedState() async {
     final wellId = currentBackendWellId.trim();
     final reportId = reportContext.selectedReportId.value.trim();
-    if (wellId.isEmpty || reportId.isEmpty) {
+    if (wellId.isEmpty) {
       _resetProductRows();
       _resetDistributionStateUi();
       return;
     }
+    if (reportId.isEmpty) return;
 
     await _loadProductsIfNeeded();
     await _loadProductMovementTotals();
@@ -269,10 +272,11 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     try {
       final wellId = currentBackendWellId.trim();
       final reportId = reportContext.selectedReportId.value.trim();
-      if (wellId.isEmpty || reportId.isEmpty) {
+      if (wellId.isEmpty) {
         _resetProductRows();
         return;
       }
+      if (reportId.isEmpty) return;
 
       final data = await consumeProductController.getAllConsumeProducts();
       debugPrint('🟢 [FETCH] ConsumeProducts: ${data.length} items');

@@ -90,6 +90,14 @@ const roundOrBlank = (value, digits = 2) => {
   const rounded = parsed === null || !Number.isFinite(parsed) ? null : round(parsed, digits);
   return rounded === null ? raw : rounded || "";
 };
+const roundOrZero = (value, digits = 2) => {
+  const raw = text(value);
+  if (!raw) return "";
+  const direct = Number(raw);
+  const parsed = Number.isFinite(direct) ? direct : parseFraction(raw);
+  if (parsed === null || !Number.isFinite(parsed)) return "";
+  return round(parsed, digits);
+};
 const text = (value, fallback = "") => {
   const parsed = value?.toString().trim();
   return parsed ? parsed : fallback;
@@ -161,7 +169,7 @@ const unitPackMassLb = (unit, sgValue) => {
   return 0;
 };
 const productEndingConcentration = (item, summary, metadataMap) => {
-  const explicit = roundOrBlank(item.endingConcentration ?? item.endConc ?? item.end);
+  const explicit = roundOrZero(item.endingConcentration ?? item.endConc ?? item.end);
   if (explicit !== "") return explicit;
 
   const volumeBasis = toNumber(summary?.totalAdditions) || toNumber(summary?.finalActiveVolume);
@@ -1872,7 +1880,7 @@ const fillInventorySheet = (ws, {
     W: round(item.cumulativeUsed),
     Y: round(item.final),
     AA: round(item.costDollar, 3),
-    AC: roundOrBlank(item.startingConcentration ?? item.startConc ?? item.start),
+    AC: roundOrZero(item.startingConcentration ?? item.startConc ?? item.start),
     AE: productEndingConcentration(item, summary, productMetadataMap),
   }));
 

@@ -1,6 +1,7 @@
 import WellGeneral from "../../modules/wellGeneral/wellGeneralModel.js";
 import Casing from "../../modules/casing/casing.model.js";
 import Pit from "../../modules/pit/pit.model.js";
+import DrillString from "../../modules/DrillString/DrillString.js";
 import ConsumeProduct from "../../modules/Consumeproduct/ConsumeProduct.js";
 import ConsumeProductDistributionState from "../../modules/Consumeproduct/ConsumeProductDistributionState.js";
 import ReceiveMud from "../../modules/receivemud/ReceiveMud.js";
@@ -34,6 +35,13 @@ const toText = (value) => String(value ?? "").trim();
 const round2 = (value) => {
   const n = Number(value);
   return Number.isFinite(n) ? Number(n.toFixed(2)) : 0;
+};
+
+const calculatePipeVolume = ({ id, length }) => {
+  const idIn = toNumber(id);
+  const lengthFt = toNumber(length);
+  if (idIn <= 0 || lengthFt <= 0) return 0;
+  return round2((idIn * idIn * lengthFt) / 1029.4);
 };
 
 const calculateHoleVolume = (casing, mdInFeet) => {
@@ -166,6 +174,29 @@ const findScopedCasings = async ({ wellId, reportId }) => {
   }
 
   return Casing.find({ wellId }).sort({ createdAt: 1, _id: 1 });
+};
+
+const findScopedDrillStrings = async ({ wellId, reportId }) => {
+  if (reportId) {
+    const scopedDrillStrings = await DrillString.find({ wellId, reportId })
+      .sort({ createdAt: 1, _id: 1 })
+      .limit(8)
+      .lean();
+
+    if (scopedDrillStrings.length > 0) {
+      return scopedDrillStrings;
+    }
+
+    return DrillString.find(legacyScopeFilter(wellId))
+      .sort({ createdAt: 1, _id: 1 })
+      .limit(8)
+      .lean();
+  }
+
+  return DrillString.find({ wellId })
+    .sort({ createdAt: 1, _id: 1 })
+    .limit(8)
+    .lean();
 };
 
 const findScopedPits = async ({ wellId, reportId }) => {
@@ -742,7 +773,7 @@ export const getVolumeNameCalculation = async (req, res) => {
 
     const reportMeta = await resolveReportMeta({ wellId, reportId, reportNo });
 
-    const [wellGeneral, casings, pits, distributionState, consumeProducts, receivedMud, returnLostMud, addWaterEntries, otherVolAdditions, mudLossEntries, mudLossStorageEntries, transferMudEntries, emptyFluidEntries] =
+    const [wellGeneral, casings, drillStrings, pits, distributionState, consumeProducts, receivedMud, returnLostMud, addWaterEntries, otherVolAdditions, mudLossEntries, mudLossStorageEntries, transferMudEntries, emptyFluidEntries] =
       await Promise.all([
         findScopedWellGeneral({
           wellId,
@@ -750,6 +781,7 @@ export const getVolumeNameCalculation = async (req, res) => {
           reportNo: reportMeta.reportNo,
         }),
         findScopedCasings({ wellId, reportId: reportMeta.reportId }),
+        findScopedDrillStrings({ wellId, reportId: reportMeta.reportId }),
         findScopedPits({ wellId, reportId: reportMeta.reportId }),
         findScopedConsumeProductDistributionState({
           wellId,
@@ -794,6 +826,22 @@ export const getVolumeNameCalculation = async (req, res) => {
 
     const casingId = toNumber(latestCasing?.id);
     const hole = calculateHoleVolume(latestCasing, md);
+    const drillstringVolume = Number(
+      drillStrings
+        .reduce(
+          (sum, item) =>
+            sum +
+            calculatePipeVolume({
+              id: item?.id,
+              length: item?.length,
+            }),
+          0
+        )
+        .toFixed(2)
+    );
+    const annulus = Number(Math.max(0, hole - drillstringVolume).toFixed(2));
+    const belowBit = 0;
+    const displacement = 0;
 
     const activePitsList = pits.filter((pit) => pit.initialActive === true);
     const storagePitsList = pits.filter((pit) => pit.initialActive === false);
@@ -914,6 +962,13 @@ export const getVolumeNameCalculation = async (req, res) => {
           shoe: toNumber(latestCasing?.shoe),
           description: latestCasing?.description || "",
         },
+        holeVolumeBreakdown: {
+          string: drillstringVolume,
+          annulus,
+          belowBit,
+          hole,
+          displacement,
+        },
         volumeName: {
           heldVolDifference,
           hole,
@@ -961,6 +1016,7 @@ export const getVolumeNameCalculation = async (req, res) => {
         activePitsTable: activePitsList.map((pit) => ({
           _id: pit._id,
           pitName: pit.pitName,
+          capacity: toNumber(pit.capacity),
           measuredVol: toNumber(pit.volume),
           mw: toNumber(pit.density),
           mud: pit.fluidType || "",
@@ -969,6 +1025,7 @@ export const getVolumeNameCalculation = async (req, res) => {
         storageTable: storagePitsList.map((pit) => ({
           _id: pit._id,
           pitName: pit.pitName,
+          capacity: toNumber(pit.capacity),
           calculatedVol: calculatedVolumeByPit.get(toText(pit.pitName).toLowerCase()) ?? 0,
           measuredVol: toNumber(pit.volume),
           mw: toNumber(pit.density),

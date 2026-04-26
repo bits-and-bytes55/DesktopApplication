@@ -2,6 +2,7 @@ import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/daily_report/controller/inventory_snapshot_controller.dart';
 import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
+import 'package:mudpro_desktop_app/modules/report_context/report_models.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
 class PitSnapshotController extends GetxController {
@@ -29,17 +30,19 @@ class PitSnapshotController extends GetxController {
   final shoeDepth = 0.0.obs;
 
   final volumeSummaryRows = <PitVolumeSummaryRow>[].obs;
+  final holeVolumeRows = <PitHoleVolumeRow>[].obs;
   final activePits = <PitSnapshotPitRow>[].obs;
   final storagePits = <PitSnapshotPitRow>[].obs;
   final concentrationRows = <PitConcentrationRow>[].obs;
 
   final selectedSystem = 'Active System'.obs;
-  final systemOptions = <String>[].obs;
+  final systemOptions = <String>['Active System'].obs;
 
   Worker? _wellWorker;
   Worker? _reportWorker;
 
-  List<_SnapshotProduct> _products = const <_SnapshotProduct>[];
+  List<_ComputedConcentrationRow> _computedConcentrationRows =
+      const <_ComputedConcentrationRow>[];
   double _activeSystemVolume = 0.0;
   double _endVolume = 0.0;
 
@@ -69,8 +72,7 @@ class PitSnapshotController extends GetxController {
       _reportContext.selectedReportId,
       (_) => load(),
     );
-    systemOptions.assignAll(const ['Active System']);
-    load();
+    Future.microtask(load);
   }
 
   @override
@@ -82,6 +84,7 @@ class PitSnapshotController extends GetxController {
 
   Future<void> load() async {
     final wellId = currentBackendWellId.trim();
+    final reportId = _reportContext.selectedReportId.value.trim();
 
     errorMessage.value = '';
     emptyMessage.value = '';
@@ -89,6 +92,12 @@ class PitSnapshotController extends GetxController {
     if (wellId.isEmpty) {
       _clearAll();
       emptyMessage.value = 'Select a well first to open Pit Snapshot.';
+      return;
+    }
+
+    if (reportId.isEmpty) {
+      _clearAll();
+      emptyMessage.value = 'Select a report first to open Pit Snapshot.';
       return;
     }
 
@@ -128,7 +137,12 @@ class PitSnapshotController extends GetxController {
       }
 
       _bindVolumePayload(volumePayload);
-      _bindInventory(inventoryItems);
+      await _bindConcentrationHistory(
+        wellId: wellId,
+        currentReportId: reportId,
+        currentVolumePayload: volumePayload,
+        currentInventoryItems: inventoryItems,
+      );
 
       if (activePits.isEmpty &&
           storagePits.isEmpty &&
@@ -169,6 +183,9 @@ class PitSnapshotController extends GetxController {
     );
     storagePits.assignAll(
       _buildPitRows(_extractList(payload['storageTable']), isActive: false),
+    );
+    holeVolumeRows.assignAll(
+      _buildHoleVolumeRows(_map(payload['holeVolumeBreakdown'])),
     );
 
     final activePitsVolume = _number(volumeName['activePits']);
@@ -213,92 +230,187 @@ class PitSnapshotController extends GetxController {
     }
   }
 
-  void _bindInventory(List<Map<String, dynamic>> items) {
-    final byKey = <String, _SnapshotProduct>{};
-
-    for (final item in items) {
-      if (_normalizeText(item['category']) != 'product') continue;
-
-      final itemName = _text(item['itemName']);
-      final code = _text(item['code']);
-      final unit = _text(item['unit']);
-      final initial = _number(item['initial']);
-      final finalValue = _number(item['final']);
-      final received = _number(item['rec']);
-      final used = _number(item['used']);
-
-      if (itemName.isEmpty || unit.isEmpty) continue;
-      if (initial <= 0 && finalValue <= 0 && received <= 0 && used <= 0) {
-        continue;
-      }
-
-      final basis = _basisFromPackUnit(unit);
-      if (basis == null) continue;
-
-      final key = _keyFromCodeOrName(code, itemName);
-      byKey[key] = _SnapshotProduct(
-        key: key,
-        itemName: itemName,
-        code: code,
-        unitDisplay: unit,
-        concentrationUnit: basis.concentrationUnit,
-        factorPerPack: basis.factorPerPack,
-        initial: initial,
-        finalValue: finalValue,
+  Future<void> _bindConcentrationHistory({
+    required String wellId,
+    required String currentReportId,
+    required Map<String, dynamic> currentVolumePayload,
+    required List<Map<String, dynamic>> currentInventoryItems,
+  }) async {
+    final reports = _orderedReportsUpToSelected(currentReportId);
+    if (reports.isEmpty) {
+      _computedConcentrationRows = _buildCurrentOnlyConcentrationRows(
+        volumePayload: currentVolumePayload,
+        inventoryItems: currentInventoryItems,
       );
+      _rebuildConcentrationRows();
+      return;
     }
 
-    _products = byKey.values.toList()
-      ..sort(
-        (left, right) =>
-            left.itemName.toLowerCase().compareTo(right.itemName.toLowerCase()),
-      );
+    final cumulativeAmounts = <String, double>{};
+    final productMetaByKey = <String, _SnapshotProduct>{};
+    var previousEndVolume = 0.0;
+    var selectedRows = const <_ComputedConcentrationRow>[];
+
+    for (final report in reports) {
+      final source = report.id == currentReportId
+          ? _HistoricalConcentrationSource(
+              volumePayload: currentVolumePayload,
+              inventoryItems: currentInventoryItems,
+            )
+          : await _loadHistoricalConcentrationSource(
+              wellId: wellId,
+              reportId: report.id,
+            );
+
+      final usedAmounts = <String, double>{};
+      for (final item in source.inventoryItems) {
+        if (_normalizeText(item['category']) != 'product') continue;
+
+        final product = _snapshotProductFromInventoryItem(item);
+        if (product == null) continue;
+
+        final used = _number(item['used']);
+        productMetaByKey[product.key] = product;
+        if (used <= 0) continue;
+
+        usedAmounts[product.key] =
+            (usedAmounts[product.key] ?? 0.0) + (used * product.factorPerPack);
+      }
+
+      final keys = {...cumulativeAmounts.keys, ...usedAmounts.keys}.toList()
+        ..sort((left, right) {
+          final leftMeta = productMetaByKey[left];
+          final rightMeta = productMetaByKey[right];
+          final leftName = leftMeta?.itemName.toLowerCase() ?? left;
+          final rightName = rightMeta?.itemName.toLowerCase() ?? right;
+          return leftName.compareTo(rightName);
+        });
+
+      final startVolume = previousEndVolume > 0 ? previousEndVolume : 0.0;
+      final endVolume = _resolveConcentrationEndVolume(source.volumePayload);
+      final rows = <_ComputedConcentrationRow>[];
+
+      for (final key in keys) {
+        final product = productMetaByKey[key];
+        if (product == null) continue;
+
+        final startAmount = cumulativeAmounts[key] ?? 0.0;
+        final endAmount = startAmount + (usedAmounts[key] ?? 0.0);
+        if (startAmount <= 0 && endAmount <= 0) continue;
+
+        rows.add(
+          _ComputedConcentrationRow(
+            key: key,
+            itemName: product.itemName,
+            unitDisplay: product.unitDisplay,
+            concentrationUnit: product.concentrationUnit,
+            startConcentration: _concentrationForAmount(
+              amount: startAmount,
+              systemVolume: startVolume,
+            ),
+            endConcentration: _concentrationForAmount(
+              amount: endAmount,
+              systemVolume: endVolume,
+            ),
+          ),
+        );
+
+        if (endAmount > 0) {
+          cumulativeAmounts[key] = endAmount;
+        } else {
+          cumulativeAmounts.remove(key);
+        }
+      }
+
+      if (report.id == currentReportId) {
+        selectedRows = rows;
+      }
+
+      if (endVolume > 0) {
+        previousEndVolume = endVolume;
+      }
+    }
+
+    _computedConcentrationRows = selectedRows;
     _rebuildConcentrationRows();
   }
 
-  void _rebuildConcentrationRows() {
-    final system = selectedSystem.value.trim();
-    final isActiveSystem = system == 'Active System';
-    final startVolume = _activeSystemVolume > 0 ? _activeSystemVolume : 0.0;
-    final endVolume = _endVolume > 0
-        ? _endVolume
-        : (_activeSystemVolume > 0 ? _activeSystemVolume : 0.0);
+  Future<_HistoricalConcentrationSource> _loadHistoricalConcentrationSource({
+    required String wellId,
+    required String reportId,
+  }) async {
+    final responses = await Future.wait([
+      _authRepository.getVolumeNameCalculation(
+        wellId,
+        reportIdOverride: reportId,
+      ),
+      _inventorySnapshotController.getInventorySnapshot(
+        wellId: wellId,
+        reportIdOverride: reportId,
+      ),
+    ]);
 
-    final rows = <PitConcentrationRow>[];
+    final volumeResult = Map<String, dynamic>.from(responses[0]);
+    final inventoryResult = Map<String, dynamic>.from(responses[1]);
 
-    for (var index = 0; index < _products.length; index++) {
-      final product = _products[index];
-      final startConc = isActiveSystem
-          ? _formatConcentration(
-              _concentrationFor(
-                packs: product.initial,
-                factorPerPack: product.factorPerPack,
-                systemVolume: startVolume,
-              ),
-            )
-          : '';
-      final endConc = isActiveSystem
-          ? _formatConcentration(
-              _concentrationFor(
-                packs: product.finalValue,
-                factorPerPack: product.factorPerPack,
-                systemVolume: endVolume,
-              ),
-            )
-          : '';
+    return _HistoricalConcentrationSource(
+      volumePayload: volumeResult['success'] == true
+          ? _map(_map(volumeResult['data'])['data'])
+          : const <String, dynamic>{},
+      inventoryItems: inventoryResult['success'] == true
+          ? _extractList(inventoryResult['items'])
+          : const <Map<String, dynamic>>[],
+    );
+  }
+
+  List<_ComputedConcentrationRow> _buildCurrentOnlyConcentrationRows({
+    required Map<String, dynamic> volumePayload,
+    required List<Map<String, dynamic>> inventoryItems,
+  }) {
+    final endVolume = _resolveConcentrationEndVolume(volumePayload);
+    final rows = <_ComputedConcentrationRow>[];
+
+    for (final item in inventoryItems) {
+      if (_normalizeText(item['category']) != 'product') continue;
+
+      final product = _snapshotProductFromInventoryItem(item);
+      if (product == null) continue;
+
+      final used = _number(item['used']);
+      final endAmount = used > 0 ? used * product.factorPerPack : 0.0;
+      if (endAmount <= 0) continue;
 
       rows.add(
-        PitConcentrationRow(
-          rowNumber: index + 1,
-          product: '${product.itemName} (${product.concentrationUnit})',
-          unit: product.unitDisplay,
-          startConc: startConc,
-          endConc: endConc,
+        _ComputedConcentrationRow(
+          key: product.key,
+          itemName: product.itemName,
+          unitDisplay: product.unitDisplay,
+          concentrationUnit: product.concentrationUnit,
+          startConcentration: 0.0,
+          endConcentration: _concentrationForAmount(
+            amount: endAmount,
+            systemVolume: endVolume,
+          ),
         ),
       );
     }
 
-    concentrationRows.assignAll(rows);
+    return rows;
+  }
+
+  void _rebuildConcentrationRows() {
+    concentrationRows.assignAll(
+      List.generate(_computedConcentrationRows.length, (index) {
+        final row = _computedConcentrationRows[index];
+        return PitConcentrationRow(
+          rowNumber: index + 1,
+          product: '${row.itemName} (${row.concentrationUnit})',
+          unit: row.unitDisplay,
+          startConc: _formatConcentration(row.startConcentration),
+          endConc: _formatConcentration(row.endConcentration),
+        );
+      }),
+    );
   }
 
   List<PitSnapshotPitRow> _buildPitRows(
@@ -334,17 +446,80 @@ class PitSnapshotController extends GetxController {
     return cleaned;
   }
 
-  double _concentrationFor({
-    required double packs,
-    required double factorPerPack,
+  List<PitHoleVolumeRow> _buildHoleVolumeRows(Map<String, dynamic> values) {
+    return [
+      PitHoleVolumeRow(label: 'String', value: _number(values['string'])),
+      PitHoleVolumeRow(label: 'Annulus', value: _number(values['annulus'])),
+      PitHoleVolumeRow(label: 'Below bit', value: _number(values['belowBit'])),
+      PitHoleVolumeRow(label: 'Hole', value: _number(values['hole'])),
+      PitHoleVolumeRow(
+        label: 'Displacement',
+        value: _number(values['displacement']),
+      ),
+    ];
+  }
+
+  _SnapshotProduct? _snapshotProductFromInventoryItem(
+    Map<String, dynamic> item,
+  ) {
+    final itemName = _text(item['itemName']);
+    final code = _text(item['code']);
+    final unit = _text(item['unit']);
+    if (itemName.isEmpty || unit.isEmpty) return null;
+
+    final basis = _basisFromPackUnit(unit);
+    if (basis == null) return null;
+
+    return _SnapshotProduct(
+      key: _keyFromCodeOrName(code, itemName),
+      itemName: itemName,
+      code: code,
+      unitDisplay: unit,
+      concentrationUnit: basis.concentrationUnit,
+      factorPerPack: basis.factorPerPack,
+    );
+  }
+
+  List<AppReport> _orderedReportsUpToSelected(String selectedReportId) {
+    if (selectedReportId.trim().isEmpty) return const <AppReport>[];
+
+    final reports = _reportContext.reports.toList()
+      ..sort(_compareReportsOldestFirst);
+    final selectedIndex = reports.indexWhere(
+      (item) => item.id == selectedReportId,
+    );
+    if (selectedIndex < 0) return const <AppReport>[];
+    return reports.sublist(0, selectedIndex + 1);
+  }
+
+  double _resolveConcentrationEndVolume(Map<String, dynamic> volumePayload) {
+    final volumeName = _map(volumePayload['volumeName']);
+    final distribution = _map(volumePayload['consumeProductDistribution']);
+
+    final endVol = _number(volumeName['endVol']);
+    if (endVol > 0) return endVol;
+
+    final activeSystem = _number(volumeName['activeSystem']);
+    if (activeSystem > 0) return activeSystem;
+
+    final distributedTotal = _number(distribution['totalVolume']);
+    if (distributedTotal > 0) return distributedTotal;
+
+    return 0.0;
+  }
+
+  double _concentrationForAmount({
+    required double amount,
     required double systemVolume,
   }) {
-    if (packs <= 0 || factorPerPack <= 0 || systemVolume <= 0) return 0;
-    return (packs * factorPerPack) / systemVolume;
+    if (amount <= 0 || systemVolume <= 0) return 0;
+    return amount / systemVolume;
   }
 
   String _formatConcentration(double value) {
-    if (value <= 0) return '';
+    if (value.isNaN || value.isInfinite || value <= 0) {
+      return '0.00';
+    }
     return value.toStringAsFixed(2);
   }
 
@@ -415,10 +590,11 @@ class PitSnapshotController extends GetxController {
     shoeDepth.value = 0;
     _activeSystemVolume = 0;
     _endVolume = 0;
-    _products = const <_SnapshotProduct>[];
+    _computedConcentrationRows = const <_ComputedConcentrationRow>[];
     activePits.clear();
     storagePits.clear();
     volumeSummaryRows.clear();
+    holeVolumeRows.clear();
     concentrationRows.clear();
     systemOptions.assignAll(const ['Active System']);
     selectedSystem.value = 'Active System';
@@ -473,6 +649,13 @@ class PitVolumeSummaryRow {
   final bool highlightRed;
 }
 
+class PitHoleVolumeRow {
+  const PitHoleVolumeRow({required this.label, required this.value});
+
+  final String label;
+  final double value;
+}
+
 class PitConcentrationRow {
   const PitConcentrationRow({
     required this.rowNumber,
@@ -497,8 +680,6 @@ class _SnapshotProduct {
     required this.unitDisplay,
     required this.concentrationUnit,
     required this.factorPerPack,
-    required this.initial,
-    required this.finalValue,
   });
 
   final String key;
@@ -507,8 +688,34 @@ class _SnapshotProduct {
   final String unitDisplay;
   final String concentrationUnit;
   final double factorPerPack;
-  final double initial;
-  final double finalValue;
+}
+
+class _ComputedConcentrationRow {
+  const _ComputedConcentrationRow({
+    required this.key,
+    required this.itemName,
+    required this.unitDisplay,
+    required this.concentrationUnit,
+    required this.startConcentration,
+    required this.endConcentration,
+  });
+
+  final String key;
+  final String itemName;
+  final String unitDisplay;
+  final String concentrationUnit;
+  final double startConcentration;
+  final double endConcentration;
+}
+
+class _HistoricalConcentrationSource {
+  const _HistoricalConcentrationSource({
+    required this.volumePayload,
+    required this.inventoryItems,
+  });
+
+  final Map<String, dynamic> volumePayload;
+  final List<Map<String, dynamic>> inventoryItems;
 }
 
 class _ConcentrationBasis {
@@ -535,4 +742,53 @@ double _number(dynamic value) {
   if (value is double) return value;
   if (value is num) return value.toDouble();
   return double.tryParse(_text(value).replaceAll(',', '')) ?? 0.0;
+}
+
+int _compareReportsOldestFirst(AppReport left, AppReport right) {
+  final leftDate = _parseReportDate(left.reportDate, left.createdAt);
+  final rightDate = _parseReportDate(right.reportDate, right.createdAt);
+
+  if (leftDate != null && rightDate != null) {
+    final dateCompare = leftDate.compareTo(rightDate);
+    if (dateCompare != 0) return dateCompare;
+  } else if (leftDate != null) {
+    return -1;
+  } else if (rightDate != null) {
+    return 1;
+  }
+
+  final leftNo = _reportOrderValue(left);
+  final rightNo = _reportOrderValue(right);
+  if (leftNo != rightNo) {
+    return leftNo.compareTo(rightNo);
+  }
+
+  return left.createdAt.compareTo(right.createdAt);
+}
+
+int _reportOrderValue(AppReport report) {
+  final userNo = int.tryParse(report.userReportNo.trim());
+  final reportNo = int.tryParse(report.reportNo.trim());
+  return userNo ?? reportNo ?? 0;
+}
+
+DateTime? _parseReportDate(String reportDate, String createdAt) {
+  for (final value in [reportDate, createdAt]) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) continue;
+
+    final parsed = DateTime.tryParse(trimmed);
+    if (parsed != null) return parsed;
+
+    final parts = trimmed.split('/');
+    if (parts.length == 3) {
+      final month = int.tryParse(parts[0]);
+      final day = int.tryParse(parts[1]);
+      final year = int.tryParse(parts[2]);
+      if (month != null && day != null && year != null) {
+        return DateTime(year, month, day);
+      }
+    }
+  }
+  return null;
 }

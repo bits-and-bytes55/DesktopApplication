@@ -13,7 +13,7 @@ class InventorySnapshotController {
     'Accept': 'application/json',
   };
 
-  Uri _buildUri(String path, {String? wellId}) {
+  Uri _buildUri(String path, {String? wellId, String? reportIdOverride}) {
     final activeWellId = (wellId ?? currentBackendWellId).trim();
     final base = Uri.parse('$baseUrl$path');
     final queryParameters = Map<String, String>.from(base.queryParameters);
@@ -21,7 +21,8 @@ class InventorySnapshotController {
     if (activeWellId.isNotEmpty) {
       queryParameters['wellId'] = activeWellId;
     }
-    final reportId = reportContext.selectedReportId.value.trim();
+    final reportId =
+        reportIdOverride?.trim() ?? reportContext.selectedReportId.value.trim();
     if (reportId.isNotEmpty) {
       queryParameters['reportId'] = reportId;
     }
@@ -29,7 +30,10 @@ class InventorySnapshotController {
     return base.replace(queryParameters: queryParameters);
   }
 
-  Future<Map<String, dynamic>> getInventorySnapshot({String? wellId}) async {
+  Future<Map<String, dynamic>> getInventorySnapshot({
+    String? wellId,
+    String? reportIdOverride,
+  }) async {
     try {
       final activeWellId = (wellId ?? currentBackendWellId).trim();
       if (activeWellId.isEmpty) {
@@ -44,10 +48,17 @@ class InventorySnapshotController {
       // Always refresh snapshot from the latest source rows before reading it.
       // This keeps receive/return/consume changes visible without requiring
       // every source tab to manage snapshot invalidation perfectly.
-      await generateInventorySnapshot(wellId: activeWellId);
+      await generateInventorySnapshot(
+        wellId: activeWellId,
+        reportIdOverride: reportIdOverride,
+      );
 
       final response = await http.get(
-        _buildUri('inventory/', wellId: activeWellId),
+        _buildUri(
+          'inventory/',
+          wellId: activeWellId,
+          reportIdOverride: reportIdOverride,
+        ),
         headers: _headers,
       );
 
@@ -60,6 +71,7 @@ class InventorySnapshotController {
         if (items.isEmpty) {
           final generated = await generateInventorySnapshot(
             wellId: activeWellId,
+            reportIdOverride: reportIdOverride,
           );
           final generatedCount = (generated['count'] is num)
               ? (generated['count'] as num).toInt()
@@ -67,7 +79,11 @@ class InventorySnapshotController {
 
           if (generated['success'] == true && generatedCount > 0) {
             final refreshedResponse = await http.get(
-              _buildUri('inventory/', wellId: activeWellId),
+              _buildUri(
+                'inventory/',
+                wellId: activeWellId,
+                reportIdOverride: reportIdOverride,
+              ),
               headers: _headers,
             );
             final refreshedData =
@@ -120,10 +136,15 @@ class InventorySnapshotController {
 
   Future<Map<String, dynamic>> generateInventorySnapshot({
     String? wellId,
+    String? reportIdOverride,
   }) async {
     try {
       final response = await http.post(
-        _buildUri('inventory/generate', wellId: wellId),
+        _buildUri(
+          'inventory/generate',
+          wellId: wellId,
+          reportIdOverride: reportIdOverride,
+        ),
         headers: _headers,
       );
 

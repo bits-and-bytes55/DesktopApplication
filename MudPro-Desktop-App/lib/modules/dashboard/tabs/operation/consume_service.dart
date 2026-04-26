@@ -64,15 +64,16 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
   @override
   void initState() {
     super.initState();
+    _resetAllRows();
     Future.microtask(_reloadScopedData);
     _wellWorker = ever<String>(
       padWellContext.selectedWellId,
       (_) => _reloadScopedData(),
     );
-    _reportWorker = ever<String>(
-      reportContext.selectedReportId,
-      (_) => _fetchAllData(),
-    );
+    _reportWorker = ever<String>(reportContext.selectedReportId, (reportId) {
+      if (reportId.trim().isEmpty) return;
+      _reloadScopedData();
+    });
   }
 
   @override
@@ -87,6 +88,15 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
   }
 
   Future<void> _reloadScopedData() async {
+    final wellId = currentBackendWellId.trim();
+    final reportId = reportContext.selectedReportId.value.trim();
+    if (wellId.isEmpty) {
+      _clearDropdownData();
+      _resetAllRows();
+      return;
+    }
+    if (reportId.isEmpty) return;
+
     await _loadDropdownData();
     await _fetchAllData();
   }
@@ -96,8 +106,11 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
   // ─────────────────────────────────────────────
   Future<void> _loadDropdownData() async {
     try {
-      final wellId = currentBackendWellId;
-      if (wellId.isEmpty) return;
+      final wellId = currentBackendWellId.trim();
+      if (wellId.isEmpty) {
+        _clearDropdownData();
+        return;
+      }
       final pkgs = await InventoryProductsService.fetchPackages(wellId);
       final srvs = await InventoryProductsService.fetchServices(wellId);
       final engs = await InventoryProductsService.fetchEngineering(wellId);
@@ -121,10 +134,11 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
       // ── PACKAGES ──
       final wellId = currentBackendWellId.trim();
       final reportId = reportContext.selectedReportId.value.trim();
-      if (wellId.isEmpty || reportId.isEmpty) {
+      if (wellId.isEmpty) {
         _resetAllRows();
         return;
       }
+      if (reportId.isEmpty) return;
 
       final pkgData = await consumeServiceController.getAllConsumePackages();
       for (var r in packageRows) r.dispose();
@@ -223,6 +237,12 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
   // ─────────────────────────────────────────────
   //  Helpers
   // ─────────────────────────────────────────────
+  void _clearDropdownData() {
+    packages.clear();
+    services.clear();
+    engineering.clear();
+  }
+
   void _resetAllRows() {
     for (var r in packageRows) {
       r.dispose();

@@ -80,6 +80,31 @@ const inventorySnapshotSchema = new mongoose.Schema(
       default: 0,
     },
 
+    startingConcentration: {
+      type: Number,
+      default: 0,
+    },
+
+    endingConcentration: {
+      type: Number,
+      default: 0,
+    },
+
+    concentrationUnit: {
+      type: String,
+      default: "",
+    },
+
+    concentrationVolumeBasis: {
+      type: Number,
+      default: 0,
+    },
+
+    concentrationSourceAmount: {
+      type: Number,
+      default: 0,
+    },
+
     final: {
       type: Number,
       default: 0,

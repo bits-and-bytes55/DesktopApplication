@@ -142,15 +142,15 @@ class ConsumeServiceController {
 
   Future<List<Map<String, dynamic>>> getAllConsumePackages() async {
     try {
-      if (_wellId.isEmpty) {
+      final reportId = reportContext.selectedReportId.value.trim();
+      if (_wellId.isEmpty || reportId.isEmpty) {
         return [];
       }
 
-      final queryParameters = <String, String>{'wellId': _wellId};
-      final reportId = reportContext.selectedReportId.value.trim();
-      if (reportId.isNotEmpty) {
-        queryParameters['reportId'] = reportId;
-      }
+      final queryParameters = <String, String>{
+        'wellId': _wellId,
+        'reportId': reportId,
+      };
 
       final uri = Uri.parse(
         '${baseUrl}cs/package',
@@ -287,15 +287,15 @@ class ConsumeServiceController {
 
   Future<List<Map<String, dynamic>>> getAllConsumeServices() async {
     try {
-      if (_wellId.isEmpty) {
+      final reportId = reportContext.selectedReportId.value.trim();
+      if (_wellId.isEmpty || reportId.isEmpty) {
         return [];
       }
 
-      final queryParameters = <String, String>{'wellId': _wellId};
-      final reportId = reportContext.selectedReportId.value.trim();
-      if (reportId.isNotEmpty) {
-        queryParameters['reportId'] = reportId;
-      }
+      final queryParameters = <String, String>{
+        'wellId': _wellId,
+        'reportId': reportId,
+      };
 
       final uri = Uri.parse(
         '${baseUrl}cs/service',
@@ -432,15 +432,15 @@ class ConsumeServiceController {
 
   Future<List<Map<String, dynamic>>> getAllConsumeEngineering() async {
     try {
-      if (_wellId.isEmpty) {
+      final reportId = reportContext.selectedReportId.value.trim();
+      if (_wellId.isEmpty || reportId.isEmpty) {
         return [];
       }
 
-      final queryParameters = <String, String>{'wellId': _wellId};
-      final reportId = reportContext.selectedReportId.value.trim();
-      if (reportId.isNotEmpty) {
-        queryParameters['reportId'] = reportId;
-      }
+      final queryParameters = <String, String>{
+        'wellId': _wellId,
+        'reportId': reportId,
+      };
 
       final uri = Uri.parse(
         '${baseUrl}cs/engineering',

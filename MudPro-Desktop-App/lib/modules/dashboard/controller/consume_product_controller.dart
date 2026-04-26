@@ -205,7 +205,7 @@ class ConsumeProductController {
       final reportId =
           reportIdOverride?.trim() ??
           reportContext.selectedReportId.value.trim();
-      if (wellId.isEmpty) {
+      if (wellId.isEmpty || reportId.isEmpty) {
         return [];
       }
 

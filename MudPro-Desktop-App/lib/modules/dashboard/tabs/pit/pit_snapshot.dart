@@ -272,11 +272,15 @@ class PitSnapshotPage extends StatelessWidget {
                 color: _snapshotHeaderFill,
                 border: Border.all(color: _snapshotBorder),
               ),
-              alignment: Alignment.center,
-              child: const Icon(
-                Icons.help_outline,
-                color: _snapshotFrameBlue,
-                size: 18,
+              child: IconButton(
+                padding: EdgeInsets.zero,
+                splashRadius: 16,
+                onPressed: () => _showHoleVolumeDialog(controller),
+                icon: const Icon(
+                  Icons.help_outline,
+                  color: _snapshotFrameBlue,
+                  size: 18,
+                ),
               ),
             ),
           ],
@@ -479,6 +483,88 @@ class PitSnapshotPage extends StatelessWidget {
             foregroundColor: Colors.black87,
           ),
           child: const Text('Close', style: TextStyle(fontSize: 12)),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showHoleVolumeDialog(PitSnapshotController controller) {
+    final rows = controller.holeVolumeRows.toList(growable: false);
+    return Get.dialog(
+      Dialog(
+        insetPadding: const EdgeInsets.all(24),
+        child: Container(
+          width: 420,
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+          color: Colors.white,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Hole Volume (bbl)',
+                      style: TextStyle(fontSize: 14, color: Colors.black87),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: Get.back,
+                    icon: const Icon(
+                      Icons.close,
+                      size: 22,
+                      color: Color(0xFF666666),
+                    ),
+                    splashRadius: 18,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Container(
+                decoration: BoxDecoration(
+                  border: Border.all(color: _snapshotBorder),
+                ),
+                child: Table(
+                  border: const TableBorder(
+                    horizontalInside: BorderSide(color: _snapshotBorder),
+                    verticalInside: BorderSide(color: _snapshotBorder),
+                  ),
+                  columnWidths: const {
+                    0: FlexColumnWidth(1.6),
+                    1: FlexColumnWidth(1),
+                  },
+                  children: [
+                    const TableRow(
+                      decoration: BoxDecoration(color: _snapshotHeaderFill),
+                      children: [
+                        _SummaryHeaderCell('', alignRight: false),
+                        _SummaryHeaderCell('', alignRight: true),
+                      ],
+                    ),
+                    ...rows.map(
+                      (row) => TableRow(
+                        children: [
+                          _SummaryValueCell(
+                            row.label,
+                            fill: Colors.white,
+                            alignRight: false,
+                            textColor: Colors.black87,
+                          ),
+                          _SummaryValueCell(
+                            row.value.toStringAsFixed(2),
+                            fill: _snapshotValueFill,
+                            alignRight: true,
+                            textColor: Colors.black87,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

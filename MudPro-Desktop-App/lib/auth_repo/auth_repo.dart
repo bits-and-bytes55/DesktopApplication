@@ -206,9 +206,13 @@ class AuthRepository {
   }
 
   // ── Get Volume Name Calculation ────────────────────────────────────────────────
-  Future<Map<String, dynamic>> getVolumeNameCalculation(String wellId) async {
+  Future<Map<String, dynamic>> getVolumeNameCalculation(
+    String wellId, {
+    String? reportIdOverride,
+  }) async {
     try {
-      final reportId = reportContext.selectedReportId.value.trim();
+      final reportId =
+          reportIdOverride?.trim() ?? reportContext.selectedReportId.value.trim();
       final uri = Uri.parse('${baseUrl}volume-name/$wellId').replace(
         queryParameters: {
           'strictScope': 'true',
