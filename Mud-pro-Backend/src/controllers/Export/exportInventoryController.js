@@ -344,6 +344,37 @@ const resolveIntervalBitSizeText = (intervals, intervalName) => {
   const firstWithBitSize = intervals.find((interval) => text(interval.bitSize));
   return text(firstWithBitSize?.bitSize);
 };
+const resolveIntervalFormationText = (intervals, intervalName) => {
+  const normalizedTarget = normalizeIntervalKey(intervalName);
+
+  if (normalizedTarget) {
+    const exact = intervals.find(
+      (interval) => normalizeIntervalKey(interval.name) === normalizedTarget
+    );
+    const exactFormation = text(exact?.formation);
+    if (exactFormation) return exactFormation;
+  }
+
+  const firstWithFormation = intervals.find((interval) => text(interval.formation));
+  return text(firstWithFormation?.formation);
+};
+const resolveWellActivityText = (wellGeneral) => {
+  const direct = text(wellGeneral?.activity);
+  if (direct) return direct;
+
+  const rows = Array.isArray(wellGeneral?.timeDistributionRows)
+    ? wellGeneral.timeDistributionRows
+    : [];
+  const firstRow = rows.find((row) => text(row?.description) || text(row?.activity));
+  return firstText(firstRow?.description, firstRow?.activity);
+};
+const resolveWellFormationText = (wellGeneral, intervals = []) =>
+  firstText(wellGeneral?.formation, resolveIntervalFormationText(intervals, wellGeneral?.interval));
+const formatInclinationAzimuth = (wellGeneral) => {
+  const inc = toNumber(wellGeneral?.inc);
+  const azi = toNumber(wellGeneral?.azi);
+  return inc || azi ? `${inc} / ${azi}` : "-";
+};
 const hasCasingData = (casing = {}) =>
   firstText(casing.description, casing.type) ||
   [casing.od, casing.id, casing.bit, casing.toc].some(
@@ -834,8 +865,10 @@ const computeVolumeSummary = ({
   };
 };
 
-const fillDmrHeader = (ws, { well, pad, report, wellGeneral, fluidName }) => {
+const fillDmrHeader = (ws, { well, pad, report, wellGeneral, fluidName, intervals = [] }) => {
   const reportNumber = text(report?.userReportNo || report?.reportNo || wellGeneral?.userReportNo || wellGeneral?.reportNo, "1");
+  const formationText = resolveWellFormationText(wellGeneral, intervals);
+  const activityText = resolveWellActivityText(wellGeneral);
   setCellValue(ws, "AC7", text(report?._id || well?._id || well?.apiWellNo));
   setCellValue(ws, "AT7", formatDate(report?.reportDate || wellGeneral?.date, getReportDate()));
   setCellValue(ws, "BB2", reportNumber);
@@ -846,21 +879,15 @@ const fillDmrHeader = (ws, { well, pad, report, wellGeneral, fluidName }) => {
   setCellValue(ws, "BL8", displayText(pad?.country || pad?.stateProvince));
   setCellValue(ws, "H9", displayText(pad?.operator));
   setCellValue(ws, "AB9", displayText(pad?.contractor));
-  setCellValue(ws, "AT9", displayText(wellGeneral?.formation));
+  setCellValue(ws, "AT9", displayText(formationText));
   setCellValue(ws, "BL9", displayText(wellGeneral?.md, "0"));
   setCellValue(ws, "H10", displayText(wellGeneral?.operatorRep || pad?.operatorRep));
   setCellValue(ws, "AB10", displayText(wellGeneral?.contractorRep || pad?.contractorRep));
-  setCellValue(
-    ws,
-    "AT10",
-    wellGeneral?.inc || wellGeneral?.azi
-      ? `${toNumber(wellGeneral?.inc)}/${toNumber(wellGeneral?.azi)}`
-      : "-"
-  );
+  setCellValue(ws, "AT10", formatInclinationAzimuth(wellGeneral).replace(" / ", "/"));
   setCellValue(ws, "BL10", displayText(wellGeneral?.tvd, "0"));
   setCellValue(ws, "H11", displayText(formatDate(well?.spudDate)));
   setCellValue(ws, "AB11", displayText(fluidName));
-  setCellValue(ws, "AT11", displayText(wellGeneral?.activity));
+  setCellValue(ws, "AT11", displayText(activityText));
   setCellValue(ws, "BL11", displayText(wellGeneral?.depthDrilled, "0"));
 };
 
@@ -1717,6 +1744,9 @@ const fillDmrBottomSections = (ws, {
       : "",
   ].filter(Boolean).join("\n\n");
 
+  setCellValue(ws, "AJ52", "Recommended Treatment");
+  setCellValue(ws, "A72", "Solids Analysis");
+  setCellValue(ws, "AJ72", "Operational Comments");
   setCellValue(
     ws,
     "AJ53",
@@ -1818,7 +1848,9 @@ const fillDmrBottomSections = (ws, {
   DMR_COST_VALUE_CELLS.forEach((address, index) => setCellValue(ws, address, costValues[index] ?? ""));
 };
 
-const fillInventoryHeader = (ws, { well, pad, report, wellGeneral, fluidName }) => {
+const fillInventoryHeader = (ws, { well, pad, report, wellGeneral, fluidName, intervals = [] }) => {
+  const formationText = resolveWellFormationText(wellGeneral, intervals);
+  const activityText = resolveWellActivityText(wellGeneral);
   setCellValue(ws, "I2", "Daily Inventory Report");
   setCellValue(ws, "V2", text(report?.userReportNo || report?.reportNo || wellGeneral?.reportNo, "1"));
   setCellValue(ws, "L7", text(well?._id || report?._id));
@@ -1830,21 +1862,15 @@ const fillInventoryHeader = (ws, { well, pad, report, wellGeneral, fluidName }) 
   setCellValue(ws, "AC8", displayText(pad?.stateProvince || pad?.country));
   setCellValue(ws, "D9", displayText(pad?.operator));
   setCellValue(ws, "L9", displayText(pad?.contractor));
-  setCellValue(ws, "U9", displayText(wellGeneral?.formation));
+  setCellValue(ws, "U9", displayText(formationText));
   setCellValue(ws, "AC9", displayText(wellGeneral?.md, "0"));
   setCellValue(ws, "D10", displayText(wellGeneral?.operatorRep || pad?.operatorRep));
   setCellValue(ws, "L10", displayText(wellGeneral?.contractorRep || pad?.contractorRep));
-  setCellValue(
-    ws,
-    "U10",
-    wellGeneral?.inc || wellGeneral?.azi
-      ? `${toNumber(wellGeneral?.inc)} / ${toNumber(wellGeneral?.azi)}`
-      : "-"
-  );
+  setCellValue(ws, "U10", formatInclinationAzimuth(wellGeneral));
   setCellValue(ws, "AC10", displayText(wellGeneral?.tvd, "0"));
   setCellValue(ws, "D11", displayText(formatDate(well?.spudDate)));
   setCellValue(ws, "L11", displayText(fluidName));
-  setCellValue(ws, "U11", displayText(wellGeneral?.activity));
+  setCellValue(ws, "U11", displayText(activityText));
   setCellValue(ws, "AC11", displayText(wellGeneral?.depthDrilled, "0"));
 };
 
@@ -2597,7 +2623,7 @@ export const exportInventoryReport = async (req, res) => {
     clearDmrDynamicAreas(dmrSheet);
     clearInventoryDynamicAreas(inventorySheet);
 
-    fillDmrHeader(dmrSheet, { well, pad, report, wellGeneral, fluidName });
+    fillDmrHeader(dmrSheet, { well, pad, report, wellGeneral, fluidName, intervals });
     fillDmrTopSections(dmrSheet, {
       drillStrings,
       casings: casingOpenHoleRows,
@@ -2639,7 +2665,7 @@ export const exportInventoryReport = async (req, res) => {
       fluidEngineers,
       costSummary,
     });
-    fillInventoryHeader(inventorySheet, { well, pad, report, wellGeneral, fluidName });
+    fillInventoryHeader(inventorySheet, { well, pad, report, wellGeneral, fluidName, intervals });
     fillInventorySheet(inventorySheet, {
       products,
       services,
