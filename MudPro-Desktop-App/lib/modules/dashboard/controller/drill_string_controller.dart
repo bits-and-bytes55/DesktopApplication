@@ -114,7 +114,7 @@ class DrillStringController extends GetxController {
   bool get _hasSavableRows => entries.any((entry) => entry.hasContent);
 
   void _ensureTrailingRows() {
-    while (entries.length < 5) {
+    while (entries.length < 7) {
       final entry = DrillStringEntry(sortOrder: entries.length);
       _attachListeners(entry);
       entries.add(entry);
@@ -225,7 +225,7 @@ class DrillStringController extends GetxController {
   }
 
   void _initEmptyRows() {
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 7; i++) {
       final entry = DrillStringEntry(sortOrder: entries.length);
       _attachListeners(entry);
       entries.add(entry);

@@ -1,6 +1,9 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:mudpro_desktop_app/modules/company_setup/controller/company_controller.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/controller/engineers_controller.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/controller/others_controller.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/model/engineers_model.dart';
@@ -12,16 +15,32 @@ import 'package:mudpro_desktop_app/modules/report_context/report_context_control
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/controller/UG_ST_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/model/UG_ST_model.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/interval/controller/interval_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/widgets/compact_tabular_database_dialog.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/cased_hole_controller.dart';
 
 const double _kRowH = 20.0;
-const double _kHeaderH = 24.0;
+const double _kHeaderH = 22.0;
+const double _kTableHeaderH = 36.0;
 const double _kFooterH = 18.0;
-const double _kSectionGap = 4.0;
-const Color _kWellPanelBorder = Color(0xFFD5DCE6);
+const double _kSectionGap = 3.0;
+const Color _kWellPanelBorder = Color(0xFFC8CCD1);
+const Color _kGridHeaderColor = Color(0xFFF1F1F1);
+const Color _kEditableCellColor = Color(0xFFFFF7CC);
+const Color _kSelectedRowColor = Color(0xFFDCE8F7);
+const Color _kAltRowColor = Color(0xFFFBFBFB);
+
+Color _cellFillColor({
+  required bool isLocked,
+  required bool editableWhenUnlocked,
+}) => isLocked || !editableWhenUnlocked ? _kEditableCellColor : Colors.white;
+
+String _displayCurrencyLabel(String rawCurrency) {
+  final trimmed = rawCurrency.trim();
+  return trimmed.isEmpty ? '\$' : trimmed;
+}
 
 enum _WellRowMenuAction { cut, copy, paste, delete, clear, toTop, toBottom }
 
@@ -55,21 +74,48 @@ Widget _wellPanel({required Widget child}) => Container(
 Widget _sectionTitle(String title) => Container(
   height: _kHeaderH,
   width: double.infinity,
-  padding: const EdgeInsets.symmetric(horizontal: 8),
-  decoration: BoxDecoration(
-    color: AppTheme.primaryColor.withOpacity(0.08),
-    border: const Border(bottom: BorderSide(color: _kWellPanelBorder)),
-  ),
+  padding: const EdgeInsets.symmetric(horizontal: 6),
   alignment: Alignment.centerLeft,
   child: Text(
     title,
-    style: TextStyle(
-      fontSize: 10,
-      fontWeight: FontWeight.w600,
-      color: AppTheme.primaryColor,
+    style: const TextStyle(
+      fontSize: 11,
+      fontWeight: FontWeight.w500,
+      color: Colors.black87,
     ),
   ),
 );
+
+Widget _toolButton({
+  required Widget child,
+  VoidCallback? onTap,
+  String? tooltip,
+  double size = 22,
+}) {
+  Widget button = SizedBox(
+    width: size,
+    height: size,
+    child: Material(
+      color: Colors.white,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border.all(color: _kWellPanelBorder),
+          ),
+          alignment: Alignment.center,
+          child: child,
+        ),
+      ),
+    ),
+  );
+
+  if (tooltip != null && tooltip.isNotEmpty) {
+    button = Tooltip(message: tooltip, child: button);
+  }
+
+  return button;
+}
 
 Widget _rowMenuTarget({
   required Widget child,
@@ -282,18 +328,22 @@ class WellTabContent extends StatelessWidget {
               ),
             );
           }
+          final double usableWidth =
+              constraints.maxWidth - (_kSectionGap * 2) - 6;
+          final double leftWidth = (usableWidth * 0.228).clamp(296.0, 352.0);
+          final double rightWidth = (usableWidth * 0.238).clamp(304.0, 362.0);
           return Container(
-            color: AppTheme.backgroundColor,
+            color: Colors.white,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(4, 4, 4, 4),
+              padding: const EdgeInsets.fromLTRB(1, 1, 1, 1),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  SizedBox(width: 300, child: LeftPortion()),
+                  SizedBox(width: leftWidth, child: LeftPortion()),
                   const SizedBox(width: _kSectionGap),
                   Expanded(child: MiddlePortion()),
                   const SizedBox(width: _kSectionGap),
-                  SizedBox(width: 240, child: RightPortion()),
+                  SizedBox(width: rightWidth, child: RightPortion()),
                 ],
               ),
             ),
@@ -319,6 +369,9 @@ class GeneralSection extends StatefulWidget {
 
 class _GeneralSectionState extends State<GeneralSection> {
   final c = Get.find<DashboardController>();
+  final companyCtrl = Get.isRegistered<CompanyController>()
+      ? Get.find<CompanyController>()
+      : Get.put(CompanyController(), permanent: true);
   late final EngineerController engineerCtrl;
   final activityCtrl = Get.isRegistered<OthersController>()
       ? Get.find<OthersController>()
@@ -332,6 +385,7 @@ class _GeneralSectionState extends State<GeneralSection> {
   Worker? _wellWorker;
   Worker? _reportWorker;
   Worker? _intervalWorker;
+  Worker? _depthDrilledWorker;
   final List<Worker> _unitWorkers = <Worker>[];
   late String _lengthUnit;
   late String _forceUnit;
@@ -508,6 +562,14 @@ class _GeneralSectionState extends State<GeneralSection> {
       reportContext.selectedReportId,
       (_) => _loadFromApi(),
     );
+    _depthDrilledWorker = ever<String>(wellGenCtrl.depthDrilled, (value) {
+      final controller = fc['Depth Drilled'];
+      if (controller == null || controller.text == value) return;
+      controller.text = value;
+      if (mounted) {
+        setState(() {});
+      }
+    });
   }
 
   Future<void> _loadIntervals() async {
@@ -727,6 +789,7 @@ class _GeneralSectionState extends State<GeneralSection> {
     _wellWorker?.dispose();
     _reportWorker?.dispose();
     _intervalWorker?.dispose();
+    _depthDrilledWorker?.dispose();
     for (final worker in _unitWorkers) {
       worker.dispose();
     }
@@ -744,12 +807,12 @@ class _GeneralSectionState extends State<GeneralSection> {
           Expanded(
             child: SingleChildScrollView(
               child: Table(
-                border: TableBorder.all(color: Colors.grey.shade300, width: 1),
+                border: TableBorder.all(color: _kWellPanelBorder, width: 1),
                 defaultVerticalAlignment: TableCellVerticalAlignment.middle,
                 columnWidths: const {
-                  0: FlexColumnWidth(2),
-                  1: FlexColumnWidth(2),
-                  2: FlexColumnWidth(1),
+                  0: FlexColumnWidth(1.34),
+                  1: FlexColumnWidth(1.32),
+                  2: FlexColumnWidth(0.48),
                 },
                 children: [
                   _tfRow("Report #", "Report #", ""),
@@ -794,7 +857,7 @@ class _GeneralSectionState extends State<GeneralSection> {
                   _tfRow("Formation", "Formation", ""),
                   _tfRow("Additional Footage", "Additional Footage", "ft"),
                   _tfRow("NPT Time", "NPT Time", "hr"),
-                  _tfRow("NPT Cost", "NPT Cost", "\$"),
+                  _currencyTfRow("NPT Cost", "NPT Cost"),
                   _tfRow("Depth Drilled", "Depth Drilled", "ft"),
                 ],
               ),
@@ -807,31 +870,32 @@ class _GeneralSectionState extends State<GeneralSection> {
 
   Widget _lbl(String t) => Container(
     height: _kRowH,
-    padding: const EdgeInsets.symmetric(horizontal: 6),
+    padding: const EdgeInsets.symmetric(horizontal: 5),
     alignment: Alignment.centerLeft,
     child: Text(
       t,
-      style: TextStyle(
+      style: const TextStyle(
         fontSize: 10,
-        fontWeight: FontWeight.w500,
-        color: AppTheme.textPrimary,
+        fontWeight: FontWeight.w400,
+        color: Colors.black87,
       ),
     ),
   );
 
   Widget _unit(String t) => Container(
     height: _kRowH,
-    padding: const EdgeInsets.symmetric(horizontal: 4),
+    padding: const EdgeInsets.symmetric(horizontal: 2),
     alignment: Alignment.center,
     child: Text(
       AppUnits.unitText(t),
-      style: TextStyle(fontSize: 10, color: AppTheme.textSecondary),
+      style: TextStyle(fontSize: 10, color: Colors.grey.shade700),
     ),
   );
 
   Widget _lockedText(String text) => SizedBox(
     height: _kRowH,
-    child: Align(
+    child: Container(
+      color: _cellFillColor(isLocked: true, editableWhenUnlocked: false),
       alignment: Alignment.center,
       child: Text(
         text,
@@ -854,30 +918,84 @@ class _GeneralSectionState extends State<GeneralSection> {
             if (c.isLocked.value) {
               return _lockedText(ctrl.text);
             }
-            return SizedBox(
-              height: _kRowH,
-              child: TextField(
-                controller: ctrl,
-                onChanged: (val) => _sync(),
-                style: const TextStyle(fontSize: 10),
-                textAlign: TextAlign.center,
-                decoration: const InputDecoration(
-                  isDense: true,
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 4,
-                    vertical: 3,
+            return Container(
+              color: _cellFillColor(
+                isLocked: false,
+                editableWhenUnlocked: true,
+              ),
+              child: SizedBox(
+                height: _kRowH,
+                child: TextField(
+                  controller: ctrl,
+                  onChanged: (val) => _sync(),
+                  style: const TextStyle(fontSize: 10),
+                  textAlign: TextAlign.center,
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 3,
+                    ),
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    fillColor: Colors.white,
+                    filled: true,
                   ),
-                  border: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                  focusedBorder: InputBorder.none,
-                  fillColor: Colors.white,
-                  filled: true,
                 ),
               ),
             );
           }),
         ),
         _unit(unit),
+      ],
+    );
+  }
+
+  TableRow _currencyTfRow(String label, String key) {
+    final ctrl = fc[key]!;
+    return TableRow(
+      decoration: const BoxDecoration(color: Colors.white),
+      children: [
+        _lbl(label),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+          child: Obx(() {
+            if (c.isLocked.value) {
+              return _lockedText(ctrl.text);
+            }
+            return Container(
+              color: _cellFillColor(
+                isLocked: false,
+                editableWhenUnlocked: true,
+              ),
+              child: SizedBox(
+                height: _kRowH,
+                child: TextField(
+                  controller: ctrl,
+                  onChanged: (val) => _sync(),
+                  style: const TextStyle(fontSize: 10),
+                  textAlign: TextAlign.center,
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 3,
+                    ),
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    fillColor: Colors.white,
+                    filled: true,
+                  ),
+                ),
+              ),
+            );
+          }),
+        ),
+        Obx(
+          () => _unit(_displayCurrencyLabel(companyCtrl.currencySymbol.value)),
+        ),
       ],
     );
   }
@@ -891,48 +1009,54 @@ class _GeneralSectionState extends State<GeneralSection> {
         child: Obx(
           () => c.isLocked.value
               ? _lockedText(_displayDate)
-              : SizedBox(
-                  height: _kRowH,
-                  child: TextButton(
-                    onPressed: () async {
-                      final initial =
-                          _parseLongDate(_storedDate) ?? DateTime.now();
-                      final picked = await showDatePicker(
-                        context: context,
-                        initialDate: initial,
-                        firstDate: DateTime(2000),
-                        lastDate: DateTime(2100),
-                      );
-                      if (picked != null) {
-                        setState(() => _storedDate = _formatStorage(picked));
-                        _sync();
-                      }
-                    },
-                    style: TextButton.styleFrom(
-                      padding: EdgeInsets.zero,
-                      shape: const RoundedRectangleBorder(
-                        borderRadius: BorderRadius.zero,
+              : Container(
+                  color: _cellFillColor(
+                    isLocked: false,
+                    editableWhenUnlocked: true,
+                  ),
+                  child: SizedBox(
+                    height: _kRowH,
+                    child: TextButton(
+                      onPressed: () async {
+                        final initial =
+                            _parseLongDate(_storedDate) ?? DateTime.now();
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: initial,
+                          firstDate: DateTime(2000),
+                          lastDate: DateTime(2100),
+                        );
+                        if (picked != null) {
+                          setState(() => _storedDate = _formatStorage(picked));
+                          _sync();
+                        }
+                      },
+                      style: TextButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.zero,
+                        ),
                       ),
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            _displayDate,
-                            style: const TextStyle(
-                              fontSize: 10,
-                              color: Colors.black,
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              _displayDate,
+                              style: const TextStyle(
+                                fontSize: 10,
+                                color: Colors.black,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
                             ),
-                            overflow: TextOverflow.ellipsis,
-                            textAlign: TextAlign.center,
                           ),
-                        ),
-                        const Icon(
-                          Icons.arrow_drop_down,
-                          size: 13,
-                          color: Colors.grey,
-                        ),
-                      ],
+                          const Icon(
+                            Icons.arrow_drop_down,
+                            size: 13,
+                            color: Colors.grey,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -951,34 +1075,43 @@ class _GeneralSectionState extends State<GeneralSection> {
         child: Obx(
           () => c.isLocked.value
               ? _lockedText(selectedTime)
-              : SizedBox(
-                  height: _kRowH,
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: selectedTime,
-                      isExpanded: true,
-                      icon: const Icon(Icons.arrow_drop_down, size: 13),
-                      style: const TextStyle(fontSize: 10, color: Colors.black),
-                      menuMaxHeight: 200,
-                      onChanged: (v) {
-                        if (v != null) {
-                          setState(() => selectedTime = v);
-                          _sync();
-                        }
-                      },
-                      items: _kTimeSlots
-                          .map(
-                            (t) => DropdownMenuItem(
-                              value: t,
-                              child: Center(
-                                child: Text(
-                                  t,
-                                  style: const TextStyle(fontSize: 10),
+              : Container(
+                  color: _cellFillColor(
+                    isLocked: false,
+                    editableWhenUnlocked: true,
+                  ),
+                  child: SizedBox(
+                    height: _kRowH,
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: selectedTime,
+                        isExpanded: true,
+                        icon: const Icon(Icons.arrow_drop_down, size: 13),
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: Colors.black,
+                        ),
+                        menuMaxHeight: 200,
+                        onChanged: (v) {
+                          if (v != null) {
+                            setState(() => selectedTime = v);
+                            _sync();
+                          }
+                        },
+                        items: _kTimeSlots
+                            .map(
+                              (t) => DropdownMenuItem(
+                                value: t,
+                                child: Center(
+                                  child: Text(
+                                    t,
+                                    style: const TextStyle(fontSize: 10),
+                                  ),
                                 ),
                               ),
-                            ),
-                          )
-                          .toList(),
+                            )
+                            .toList(),
+                      ),
                     ),
                   ),
                 ),
@@ -1002,30 +1135,39 @@ class _GeneralSectionState extends State<GeneralSection> {
         child: Obx(
           () => c.isLocked.value
               ? _lockedText(val)
-              : SizedBox(
-                  height: _kRowH,
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: opts.contains(val) ? val : null,
-                      isExpanded: true,
-                      icon: const Icon(Icons.arrow_drop_down, size: 13),
-                      style: const TextStyle(fontSize: 10, color: Colors.black),
-                      menuMaxHeight: 200,
-                      onChanged: onChange,
-                      items: opts
-                          .map(
-                            (o) => DropdownMenuItem(
-                              value: o,
-                              child: Center(
-                                child: Text(
-                                  o,
-                                  style: const TextStyle(fontSize: 10),
-                                  overflow: TextOverflow.ellipsis,
+              : Container(
+                  color: _cellFillColor(
+                    isLocked: false,
+                    editableWhenUnlocked: true,
+                  ),
+                  child: SizedBox(
+                    height: _kRowH,
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: opts.contains(val) ? val : null,
+                        isExpanded: true,
+                        icon: const Icon(Icons.arrow_drop_down, size: 13),
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: Colors.black,
+                        ),
+                        menuMaxHeight: 200,
+                        onChanged: onChange,
+                        items: opts
+                            .map(
+                              (o) => DropdownMenuItem(
+                                value: o,
+                                child: Center(
+                                  child: Text(
+                                    o,
+                                    style: const TextStyle(fontSize: 10),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
                               ),
-                            ),
-                          )
-                          .toList(),
+                            )
+                            .toList(),
+                      ),
                     ),
                   ),
                 ),
@@ -1051,49 +1193,55 @@ class _GeneralSectionState extends State<GeneralSection> {
           }
           final engineers = engineerCtrl.engineers;
           final safeEngId = engineers.any((e) => e.id == engId) ? engId : null;
-          return SizedBox(
-            height: _kRowH,
-            child: _isLoadingEngineers
-                ? const Center(
-                    child: SizedBox(
-                      width: 10,
-                      height: 10,
-                      child: CircularProgressIndicator(strokeWidth: 1.5),
-                    ),
-                  )
-                : DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: safeEngId,
-                      hint: Center(
-                        child: Text(
-                          "Select Engineer",
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: Colors.grey.shade500,
+          return Container(
+            color: _cellFillColor(isLocked: false, editableWhenUnlocked: true),
+            child: SizedBox(
+              height: _kRowH,
+              child: _isLoadingEngineers
+                  ? const Center(
+                      child: SizedBox(
+                        width: 10,
+                        height: 10,
+                        child: CircularProgressIndicator(strokeWidth: 1.5),
+                      ),
+                    )
+                  : DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: safeEngId,
+                        hint: Center(
+                          child: Text(
+                            "Select Engineer",
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.grey.shade500,
+                            ),
                           ),
                         ),
-                      ),
-                      isExpanded: true,
-                      icon: const Icon(Icons.arrow_drop_down, size: 13),
-                      style: const TextStyle(fontSize: 10, color: Colors.black),
-                      menuMaxHeight: 200,
-                      onChanged: onChange,
-                      items: engineers
-                          .map(
-                            (Engineer e) => DropdownMenuItem(
-                              value: e.id,
-                              child: Center(
-                                child: Text(
-                                  "${e.firstName} ${e.lastName}",
-                                  style: const TextStyle(fontSize: 10),
-                                  overflow: TextOverflow.ellipsis,
+                        isExpanded: true,
+                        icon: const Icon(Icons.arrow_drop_down, size: 13),
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: Colors.black,
+                        ),
+                        menuMaxHeight: 200,
+                        onChanged: onChange,
+                        items: engineers
+                            .map(
+                              (Engineer e) => DropdownMenuItem(
+                                value: e.id,
+                                child: Center(
+                                  child: Text(
+                                    "${e.firstName} ${e.lastName}",
+                                    style: const TextStyle(fontSize: 10),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
                               ),
-                            ),
-                          )
-                          .toList(),
+                            )
+                            .toList(),
+                      ),
                     ),
-                  ),
+            ),
           );
         }),
       ),
@@ -1121,11 +1269,19 @@ class _GeneralSectionState extends State<GeneralSection> {
 //  SHARED HELPERS
 // ═══════════════════════════════════════════════════════════════════
 Widget _hCell(String t, Color primary) => Container(
-  padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 4),
+  height: _kTableHeaderH,
+  padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 2),
   alignment: Alignment.center,
+  color: _kGridHeaderColor,
   child: Text(
     AppUnits.label(t),
-    style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: primary),
+    style: const TextStyle(
+      fontSize: 8.5,
+      fontWeight: FontWeight.w500,
+      color: Colors.black87,
+      height: 1.05,
+    ),
+    maxLines: 2,
     textAlign: TextAlign.center,
     overflow: TextOverflow.ellipsis,
   ),
@@ -1136,9 +1292,28 @@ Widget _noCell(int rowNo, bool sel, Color primary) => Container(
   alignment: Alignment.center,
   child: Text(
     rowNo > 0 ? '$rowNo' : '',
-    style: TextStyle(fontSize: 8, color: sel ? primary : Colors.grey.shade500),
+    style: TextStyle(
+      fontSize: 9,
+      color: sel ? Colors.black87 : Colors.grey.shade600,
+    ),
     textAlign: TextAlign.center,
   ),
+);
+
+TableBorder _headerTableBorder() => const TableBorder(
+  left: BorderSide(color: _kWellPanelBorder),
+  top: BorderSide(color: _kWellPanelBorder),
+  right: BorderSide(color: _kWellPanelBorder),
+  bottom: BorderSide(color: _kWellPanelBorder),
+  verticalInside: BorderSide(color: _kWellPanelBorder),
+);
+
+TableBorder _bodyTableBorder() => const TableBorder(
+  left: BorderSide(color: _kWellPanelBorder),
+  right: BorderSide(color: _kWellPanelBorder),
+  bottom: BorderSide(color: _kWellPanelBorder),
+  horizontalInside: BorderSide(color: _kWellPanelBorder),
+  verticalInside: BorderSide(color: _kWellPanelBorder),
 );
 
 Widget _eCell(
@@ -1150,35 +1325,50 @@ Widget _eCell(
   padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
   child: Obx(
     () => (c.isLocked.value || readOnly)
-        ? SizedBox(
-            height: _kRowH,
-            child: Center(
-              child: Text(
-                ctrl.text,
-                style: TextStyle(fontSize: 9, color: AppTheme.textPrimary),
-                textAlign: TextAlign.center,
+        ? Container(
+            color: _cellFillColor(
+              isLocked: true,
+              editableWhenUnlocked: !readOnly,
+            ),
+            child: SizedBox(
+              height: _kRowH,
+              child: Center(
+                child: Text(
+                  ctrl.text,
+                  style: TextStyle(fontSize: 9, color: AppTheme.textPrimary),
+                  textAlign: TextAlign.center,
+                ),
               ),
             ),
           )
-        : SizedBox(
-            height: _kRowH,
-            child: TextField(
-              controller: ctrl,
-              style: const TextStyle(fontSize: 9),
-              textAlign: TextAlign.center,
-              readOnly: readOnly,
-              onChanged: onChanged,
-              decoration: const InputDecoration(
-                isDense: true,
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: 2,
-                  vertical: 2,
+        : Container(
+            color: _cellFillColor(
+              isLocked: false,
+              editableWhenUnlocked: !readOnly,
+            ),
+            child: SizedBox(
+              height: _kRowH,
+              child: TextField(
+                controller: ctrl,
+                style: const TextStyle(fontSize: 9),
+                textAlign: TextAlign.center,
+                readOnly: readOnly,
+                onChanged: onChanged,
+                decoration: InputDecoration(
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 2,
+                    vertical: 2,
+                  ),
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  fillColor: _cellFillColor(
+                    isLocked: false,
+                    editableWhenUnlocked: !readOnly,
+                  ),
+                  filled: true,
                 ),
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                fillColor: Colors.white,
-                filled: true,
               ),
             ),
           ),
@@ -1295,6 +1485,67 @@ class _MiddlePortionState extends State<MiddlePortion> {
         .replaceAll(RegExp(r'\.$'), '');
   }
 
+  double? _parseNumber(String rawValue) {
+    return double.tryParse(rawValue.replaceAll(',', '').trim());
+  }
+
+  String _formatNumber(double value, {int decimals = 2}) {
+    return value
+        .toStringAsFixed(decimals)
+        .replaceAll(RegExp(r'0+$'), '')
+        .replaceAll(RegExp(r'\.$'), '');
+  }
+
+  double? _resolveHoleDiameterInches() {
+    final openHoleRows = wellGenCtrl.openHoleRowsForUi;
+    for (final row in openHoleRows) {
+      final rawId = row['id']?.trim() ?? '';
+      final parsed = _parseNumber(rawId);
+      if (parsed == null || parsed <= 0) continue;
+      return (AppUnits.convertValue(parsed, AppUnits.diameter, 'in') ?? parsed)
+          .toDouble();
+    }
+
+    final rawBitSize = wellGenCtrl.bitSize.value.trim();
+    final bitParsed = _parseNumber(rawBitSize);
+    if (bitParsed != null && bitParsed > 0) {
+      return bitParsed;
+    }
+    return null;
+  }
+
+  void _calculateTopPlug() {
+    final volume = _parseNumber(_cemCtrl.text);
+    final md = _parseNumber(wellGenCtrl.md.value);
+    final holeDiameterIn = _resolveHoleDiameterInches();
+
+    if (volume == null ||
+        volume <= 0 ||
+        md == null ||
+        md <= 0 ||
+        holeDiameterIn == null ||
+        holeDiameterIn <= 0) {
+      return;
+    }
+
+    final volumeBbl =
+        (AppUnits.convertValue(volume, _volumeUnit, 'bbl') ?? volume)
+            .toDouble();
+    final mdFt = (AppUnits.convertValue(md, _lengthUnit, 'ft') ?? md)
+        .toDouble();
+    final capacityBblPerFt = 0.0009714 * holeDiameterIn * holeDiameterIn;
+    if (capacityBblPerFt <= 0) return;
+
+    final plugTopFt = math.max(mdFt - (volumeBbl / capacityBblPerFt), 0.0);
+    final plugTopDisplay =
+        (AppUnits.convertValue(plugTopFt, 'ft', _lengthUnit) ?? plugTopFt)
+            .toDouble();
+    final formatted = _formatNumber(plugTopDisplay, decimals: 2);
+    _plugCtrl.text = formatted;
+    wellGenCtrl.cementPlugTop.value = formatted;
+    if (mounted) setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -1330,45 +1581,85 @@ class _MiddlePortionState extends State<MiddlePortion> {
     );
   }
 
-  Widget _cementRow() => SingleChildScrollView(
-    scrollDirection: Axis.horizontal,
-    child: Row(
-      children: [
-        Obx(
-          () => Checkbox(
-            value: cementPlug,
-            onChanged: c.isLocked.value
-                ? null
-                : (v) {
-                    setState(() => cementPlug = v ?? false);
-                    wellGenCtrl.cementPlugEnabled.value = cementPlug;
-                  },
-            visualDensity: VisualDensity.compact,
-            activeColor: AppTheme.primaryColor,
+  Widget _cementRow() => LayoutBuilder(
+    builder: (context, constraints) {
+      final compact = constraints.maxWidth < 620;
+      final checkboxWidth = compact ? 28.0 : 34.0;
+      final fieldWidth = compact ? 88.0 : 110.0;
+      final gap = compact ? 4.0 : 6.0;
+      final largeGap = compact ? 6.0 : 8.0;
+
+      return Row(
+        children: [
+          Obx(
+            () => SizedBox(
+              width: checkboxWidth,
+              child: Checkbox(
+                value: cementPlug,
+                onChanged: c.isLocked.value
+                    ? null
+                    : (v) {
+                        setState(() => cementPlug = v ?? false);
+                        wellGenCtrl.cementPlugEnabled.value = cementPlug;
+                      },
+                visualDensity: const VisualDensity(
+                  horizontal: -4,
+                  vertical: -4,
+                ),
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                activeColor: AppTheme.primaryColor,
+              ),
+            ),
           ),
-        ),
-        Text(
-          AppUnits.label("Cement Plug Vol. (bbl)"),
-          style: const TextStyle(fontSize: 10),
-        ),
-        const SizedBox(width: 6),
-        SizedBox(width: 110, child: _field(_cemCtrl)),
-        const SizedBox(width: 8),
-        Text(
-          AppUnits.label("Plug Top (ft)"),
-          style: const TextStyle(fontSize: 10),
-        ),
-        const SizedBox(width: 6),
-        SizedBox(width: 110, child: _field(_plugCtrl)),
-      ],
-    ),
+          Expanded(
+            child: Text(
+              AppUnits.label("Cement Plug Vol. (bbl)"),
+              style: const TextStyle(fontSize: 10),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          SizedBox(width: gap),
+          SizedBox(width: fieldWidth, child: _field(_cemCtrl)),
+          SizedBox(width: largeGap),
+          Obx(
+            () => _toolButton(
+              tooltip: 'Calculate Top Plug',
+              onTap: c.isLocked.value ? null : _calculateTopPlug,
+              child: Icon(
+                Icons.calculate_outlined,
+                size: 14,
+                color: c.isLocked.value ? Colors.grey.shade400 : Colors.blue,
+              ),
+            ),
+          ),
+          SizedBox(width: gap),
+          Flexible(
+            child: Text(
+              AppUnits.label("Plug Top (ft)"),
+              style: const TextStyle(fontSize: 10),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          SizedBox(width: gap),
+          SizedBox(width: fieldWidth, child: _field(_plugCtrl)),
+        ],
+      );
+    },
   );
 
-  Widget _field(TextEditingController ctrl) => Container(
-    height: 22,
-    decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300)),
-    child: Obx(
-      () => c.isLocked.value
+  Widget _field(TextEditingController ctrl) => Obx(
+    () => Container(
+      height: 22,
+      decoration: BoxDecoration(
+        border: Border.all(color: _kWellPanelBorder),
+        color: _cellFillColor(
+          isLocked: c.isLocked.value,
+          editableWhenUnlocked: true,
+        ),
+      ),
+      child: c.isLocked.value
           ? Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
               child: Text(ctrl.text, style: const TextStyle(fontSize: 10)),
@@ -1383,6 +1674,8 @@ class _MiddlePortionState extends State<MiddlePortion> {
                   vertical: 4,
                 ),
                 border: InputBorder.none,
+                filled: true,
+                fillColor: Colors.white,
               ),
             ),
     ),
@@ -1472,25 +1765,28 @@ class _CasedHoleSectionState extends State<CasedHoleSection> {
           // ── HEADER (only the dropdown source changed) ─────────────
           Container(
             height: _kHeaderH,
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            decoration: BoxDecoration(
-              color: AppTheme.primaryColor.withOpacity(0.08),
-              border: const Border(
-                bottom: BorderSide(color: _kWellPanelBorder),
-              ),
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 6),
             child: Row(
               children: [
-                Text(
+                const Text(
                   "Cased Hole",
                   style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.primaryColor,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.black87,
                   ),
                 ),
-                const Spacer(),
-                const Text("Add New Casing", style: TextStyle(fontSize: 9)),
+                Expanded(
+                  child: Center(
+                    child: Text(
+                      "Add New Casing",
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.grey.shade800,
+                      ),
+                    ),
+                  ),
+                ),
 
                 // ── Dynamic dropdown from API ──────────────────────────
                 Obx(() {
@@ -1523,7 +1819,7 @@ class _CasedHoleSectionState extends State<CasedHoleSection> {
                     padding: const EdgeInsets.symmetric(horizontal: 6),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      border: Border.all(color: Colors.grey.shade300),
+                      border: Border.all(color: _kWellPanelBorder),
                     ),
                     child: isLoading
                         ? const Center(
@@ -1554,9 +1850,7 @@ class _CasedHoleSectionState extends State<CasedHoleSection> {
                               onChanged: c.isLocked.value
                                   ? null
                                   : (value) {
-                                      if (value == null) return;
-                                      uiCtrl.addRowFromCasing(value);
-                                      setState(() => _selectedCasing = null);
+                                      setState(() => _selectedCasing = value);
                                     },
                               items: casings
                                   .where(
@@ -1581,7 +1875,24 @@ class _CasedHoleSectionState extends State<CasedHoleSection> {
 
                 const SizedBox(width: 6),
 
-                // ── Add button ────────────────────────────────────────
+                Obx(
+                  () => _toolButton(
+                    tooltip: 'Add casing',
+                    onTap: c.isLocked.value || _selectedCasing == null
+                        ? null
+                        : () {
+                            uiCtrl.addRowFromCasing(_selectedCasing!);
+                            setState(() => _selectedCasing = null);
+                          },
+                    child: Icon(
+                      Icons.add,
+                      size: 16,
+                      color: c.isLocked.value || _selectedCasing == null
+                          ? Colors.grey.shade400
+                          : AppTheme.primaryColor,
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -1592,31 +1903,26 @@ class _CasedHoleSectionState extends State<CasedHoleSection> {
               builder: (ctx, bc) {
                 final double avail = bc.maxWidth - 28;
                 final double cw = avail / 7;
-                return SingleChildScrollView(
-                  scrollDirection: Axis.vertical,
-                  child: Obx(
-                    () => Table(
-                      border: TableBorder.all(
-                        color: Colors.grey.shade300,
-                        width: 1,
-                      ),
+                final columnWidths = <int, TableColumnWidth>{
+                  0: const FixedColumnWidth(28),
+                  1: FixedColumnWidth(cw),
+                  2: FixedColumnWidth(cw),
+                  3: FixedColumnWidth(cw),
+                  4: FixedColumnWidth(cw),
+                  5: FixedColumnWidth(cw),
+                  6: FixedColumnWidth(cw),
+                  7: FixedColumnWidth(cw),
+                };
+                return Column(
+                  children: [
+                    Table(
+                      border: _headerTableBorder(),
                       defaultVerticalAlignment:
                           TableCellVerticalAlignment.middle,
-                      columnWidths: {
-                        0: const FixedColumnWidth(28),
-                        1: FixedColumnWidth(cw),
-                        2: FixedColumnWidth(cw),
-                        3: FixedColumnWidth(cw),
-                        4: FixedColumnWidth(cw),
-                        5: FixedColumnWidth(cw),
-                        6: FixedColumnWidth(cw),
-                        7: FixedColumnWidth(cw),
-                      },
+                      columnWidths: columnWidths,
                       children: [
                         TableRow(
-                          decoration: BoxDecoration(
-                            color: AppTheme.primaryColor.withOpacity(0.15),
-                          ),
+                          decoration: BoxDecoration(color: _kGridHeaderColor),
                           children:
                               [
                                     'No.',
@@ -1631,75 +1937,94 @@ class _CasedHoleSectionState extends State<CasedHoleSection> {
                                   .map((h) => _hCell(h, AppTheme.primaryColor))
                                   .toList(),
                         ),
-                        ...uiCtrl.entries.asMap().entries.map((entry) {
-                          final idx = entry.key;
-                          final e = entry.value;
-                          final bool sel = selectedRowIndex == idx;
-                          final rowChildren = <Widget>[
-                            GestureDetector(
-                              onTap: () => setState(
-                                () => selectedRowIndex = sel ? null : idx,
-                              ),
-                              child: _noCell(
-                                idx + 1,
-                                sel,
-                                AppTheme.primaryColor,
-                              ),
-                            ),
-                            _eCell(
-                              e.description,
-                              c,
-                              onChanged: (v) => uiCtrl.checkAndAddRow(idx),
-                            ),
-                            _eCell(
-                              e.od,
-                              c,
-                              onChanged: (v) => uiCtrl.checkAndAddRow(idx),
-                            ),
-                            _eCell(
-                              e.wt,
-                              c,
-                              onChanged: (v) => uiCtrl.checkAndAddRow(idx),
-                            ),
-                            _eCell(
-                              e.idCtrl,
-                              c,
-                              onChanged: (v) => uiCtrl.checkAndAddRow(idx),
-                            ),
-                            _eCell(
-                              e.top,
-                              c,
-                              onChanged: (v) => uiCtrl.checkAndAddRow(idx),
-                            ),
-                            _eCell(
-                              e.shoe,
-                              c,
-                              onChanged: (v) => uiCtrl.checkAndAddRow(idx),
-                            ),
-                            _eCell(e.length, c, readOnly: true),
-                          ];
-                          return TableRow(
-                            decoration: BoxDecoration(
-                              color: sel
-                                  ? AppTheme.primaryColor.withOpacity(0.1)
-                                  : (idx % 2 == 0
-                                        ? Colors.white
-                                        : Colors.grey.shade50),
-                            ),
-                            children: rowChildren
-                                .map(
-                                  (child) => _rowMenuTarget(
-                                    onSecondaryTapDown: (details) =>
-                                        _handleRowMenu(idx, details),
-                                    child: child,
-                                  ),
-                                )
-                                .toList(),
-                          );
-                        }).toList(),
                       ],
                     ),
-                  ),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.vertical,
+                        child: Obx(
+                          () => Table(
+                            border: _bodyTableBorder(),
+                            defaultVerticalAlignment:
+                                TableCellVerticalAlignment.middle,
+                            columnWidths: columnWidths,
+                            children: uiCtrl.entries.asMap().entries.map((
+                              entry,
+                            ) {
+                              final idx = entry.key;
+                              final e = entry.value;
+                              final bool sel = selectedRowIndex == idx;
+                              final rowChildren = <Widget>[
+                                GestureDetector(
+                                  onTap: () => setState(
+                                    () => selectedRowIndex = sel ? null : idx,
+                                  ),
+                                  child: _noCell(
+                                    idx + 1,
+                                    sel,
+                                    AppTheme.primaryColor,
+                                  ),
+                                ),
+                                _eCell(
+                                  e.description,
+                                  c,
+                                  readOnly: true,
+                                  onChanged: (v) => uiCtrl.checkAndAddRow(idx),
+                                ),
+                                _eCell(
+                                  e.od,
+                                  c,
+                                  readOnly: true,
+                                  onChanged: (v) => uiCtrl.checkAndAddRow(idx),
+                                ),
+                                _eCell(
+                                  e.wt,
+                                  c,
+                                  readOnly: true,
+                                  onChanged: (v) => uiCtrl.checkAndAddRow(idx),
+                                ),
+                                _eCell(
+                                  e.idCtrl,
+                                  c,
+                                  readOnly: true,
+                                  onChanged: (v) => uiCtrl.checkAndAddRow(idx),
+                                ),
+                                _eCell(
+                                  e.top,
+                                  c,
+                                  onChanged: (v) => uiCtrl.checkAndAddRow(idx),
+                                ),
+                                _eCell(
+                                  e.shoe,
+                                  c,
+                                  onChanged: (v) => uiCtrl.checkAndAddRow(idx),
+                                ),
+                                _eCell(e.length, c, readOnly: true),
+                              ];
+                              return TableRow(
+                                decoration: BoxDecoration(
+                                  color: sel
+                                      ? _kSelectedRowColor
+                                      : (idx % 2 == 0
+                                            ? Colors.white
+                                            : _kAltRowColor),
+                                ),
+                                children: rowChildren
+                                    .map(
+                                      (child) => _rowMenuTarget(
+                                        onSecondaryTapDown: (details) =>
+                                            _handleRowMenu(idx, details),
+                                        child: child,
+                                      ),
+                                    )
+                                    .toList(),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 );
               },
             ),
@@ -1709,7 +2034,7 @@ class _CasedHoleSectionState extends State<CasedHoleSection> {
             height: _kFooterH,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              color: AppTheme.primaryColor.withOpacity(0.05),
+              color: Colors.white,
             ),
           ),
         ],
@@ -1731,9 +2056,6 @@ class _OpenHoleSectionState extends State<OpenHoleSection> {
   final wellGenCtrl = Get.isRegistered<WellGeneralController>()
       ? Get.find<WellGeneralController>()
       : Get.put(WellGeneralController(), permanent: true);
-  final casedHoleCtrl = Get.isRegistered<CasedHoleUIController>()
-      ? Get.find<CasedHoleUIController>()
-      : Get.put(CasedHoleUIController(), permanent: true);
   int? selectedRowIndex;
   late final List<List<TextEditingController>> _cellControllers;
   List<String> _lastAutoFirstRow = const ['', '', '', ''];
@@ -1832,22 +2154,7 @@ class _OpenHoleSectionState extends State<OpenHoleSection> {
   List<String> _autoFirstRow() {
     final currentMd = wellGenCtrl.md.value.trim();
     final mdText = currentMd.isEmpty ? '' : currentMd;
-
-    final validRows = casedHoleCtrl.entries.where((entry) {
-      final idValue = double.tryParse(entry.idCtrl.text.trim()) ?? 0;
-      return idValue > 0;
-    }).toList();
-
-    if (validRows.isEmpty) {
-      return ['', '', mdText, ''];
-    }
-
-    final latest = validRows.last;
-    final holeDescription = latest.description.text.trim().isNotEmpty
-        ? latest.description.text.trim()
-        : '${latest.idCtrl.text.trim()}" Hole';
-
-    return [holeDescription, latest.idCtrl.text.trim(), mdText, ''];
+    return ['', '', mdText, ''];
   }
 
   void _syncAutoValues({bool force = false}) {
@@ -1863,6 +2170,41 @@ class _OpenHoleSectionState extends State<OpenHoleSection> {
     }
 
     _lastAutoFirstRow = autoRow;
+  }
+
+  String _formatNumber(double value, {int decimals = 2}) {
+    return value
+        .toStringAsFixed(decimals)
+        .replaceAll(RegExp(r'0+$'), '')
+        .replaceAll(RegExp(r'\.$'), '');
+  }
+
+  double? _parseNumber(String rawValue) {
+    return double.tryParse(rawValue.replaceAll(',', '').trim());
+  }
+
+  void _quickFillOpenHole() {
+    final bitSizeIn = _parseNumber(wellGenCtrl.bitSize.value);
+    final mdValue = wellGenCtrl.md.value.trim();
+    if (bitSizeIn == null || bitSizeIn <= 0) return;
+
+    final displaySize =
+        (AppUnits.convertValue(bitSizeIn, 'in', _diameterUnit) ?? bitSizeIn)
+            .toDouble();
+    final sizeText = _formatNumber(displaySize, decimals: 2);
+
+    _cellControllers[0][0].text = sizeText;
+    _cellControllers[0][1].text = sizeText;
+    if (mdValue.isNotEmpty) {
+      _cellControllers[0][2].text = mdValue;
+    }
+    if (_cellControllers[0][3].text.trim().isEmpty) {
+      _cellControllers[0][3].text = '0';
+    }
+
+    _commitRows();
+    _syncAutoValues(force: true);
+    setState(() {});
   }
 
   void _setControllerText(
@@ -2026,6 +2368,7 @@ class _OpenHoleSectionState extends State<OpenHoleSection> {
     ValueChanged<String>? onChanged,
   }) {
     return Container(
+      color: _cellFillColor(isLocked: !enabled, editableWhenUnlocked: true),
       padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
       child: SizedBox(
         height: _kRowH,
@@ -2035,10 +2378,18 @@ class _OpenHoleSectionState extends State<OpenHoleSection> {
           keyboardType: keyboardType,
           textAlign: TextAlign.center,
           onChanged: onChanged,
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             border: InputBorder.none,
             isDense: true,
-            contentPadding: EdgeInsets.symmetric(vertical: 6, horizontal: 2),
+            contentPadding: const EdgeInsets.symmetric(
+              vertical: 6,
+              horizontal: 2,
+            ),
+            filled: true,
+            fillColor: _cellFillColor(
+              isLocked: !enabled,
+              editableWhenUnlocked: true,
+            ),
           ),
           style: TextStyle(fontSize: 9, color: AppTheme.textPrimary),
         ),
@@ -2088,94 +2439,132 @@ class _OpenHoleSectionState extends State<OpenHoleSection> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _sectionTitle("Open Hole"),
+            Container(
+              height: _kHeaderH,
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              child: Row(
+                children: [
+                  const Text(
+                    "Open Hole",
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const Spacer(),
+                  Obx(
+                    () => _toolButton(
+                      tooltip: 'Open Hole Quickfill',
+                      onTap: c.isLocked.value ? null : _quickFillOpenHole,
+                      child: Icon(
+                        Icons.flash_on,
+                        size: 14,
+                        color: c.isLocked.value
+                            ? Colors.grey.shade400
+                            : Colors.deepOrange,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
             Expanded(
               child: LayoutBuilder(
                 builder: (ctx, bc) {
                   final double avail = bc.maxWidth - 28;
                   final double cw = avail / 4;
-                  return SingleChildScrollView(
-                    scrollDirection: Axis.vertical,
-                    child: Table(
-                      border: TableBorder.all(
-                        color: Colors.grey.shade300,
-                        width: 1,
-                      ),
-                      defaultVerticalAlignment:
-                          TableCellVerticalAlignment.middle,
-                      columnWidths: {
-                        0: const FixedColumnWidth(28),
-                        1: FixedColumnWidth(cw),
-                        2: FixedColumnWidth(cw),
-                        3: FixedColumnWidth(cw),
-                        4: FixedColumnWidth(cw),
-                      },
-                      children: [
-                        TableRow(
-                          decoration: BoxDecoration(
-                            color: AppTheme.primaryColor.withOpacity(0.15),
+                  final columnWidths = <int, TableColumnWidth>{
+                    0: const FixedColumnWidth(28),
+                    1: FixedColumnWidth(cw),
+                    2: FixedColumnWidth(cw),
+                    3: FixedColumnWidth(cw),
+                    4: FixedColumnWidth(cw),
+                  };
+                  return Column(
+                    children: [
+                      Table(
+                        border: _headerTableBorder(),
+                        defaultVerticalAlignment:
+                            TableCellVerticalAlignment.middle,
+                        columnWidths: columnWidths,
+                        children: [
+                          TableRow(
+                            decoration: BoxDecoration(color: _kGridHeaderColor),
+                            children:
+                                [
+                                      'No.',
+                                      'Description',
+                                      'ID\n${AppUnits.unitText('in')}',
+                                      'MD\n${AppUnits.unitText('ft')}',
+                                      'Washout\n(%)',
+                                    ]
+                                    .map(
+                                      (h) => _hCell(h, AppTheme.primaryColor),
+                                    )
+                                    .toList(),
                           ),
-                          children:
-                              [
-                                    'No.',
-                                    'Description',
-                                    'ID\n${AppUnits.unitText('in')}',
-                                    'MD\n${AppUnits.unitText('ft')}',
-                                    'Washout\n(%)',
-                                  ]
-                                  .map((h) => _hCell(h, AppTheme.primaryColor))
-                                  .toList(),
-                        ),
-                        ..._cellControllers.asMap().entries.map((entry) {
-                          final idx = entry.key;
-                          final rowControllers = entry.value;
-                          final sel = selectedRowIndex == idx;
-                          final rowChildren = <Widget>[
-                            GestureDetector(
-                              onTap: () => setState(
-                                () => selectedRowIndex = sel ? null : idx,
-                              ),
-                              child: _noCell(
-                                idx + 1,
-                                sel,
-                                AppTheme.primaryColor,
-                              ),
-                            ),
-                            ..._buildRowCells(
-                              rowControllers,
-                              enabled: !isLocked,
-                              rowIndex: idx,
-                            ),
-                          ];
-                          return TableRow(
-                            decoration: BoxDecoration(
-                              color: sel
-                                  ? AppTheme.primaryColor.withOpacity(0.1)
-                                  : (idx % 2 == 0
-                                        ? Colors.white
-                                        : Colors.grey.shade50),
-                            ),
-                            children: rowChildren
-                                .map(
-                                  (child) => _rowMenuTarget(
-                                    onSecondaryTapDown: (details) =>
-                                        _handleRowMenu(idx, details),
-                                    child: child,
+                        ],
+                      ),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.vertical,
+                          child: Table(
+                            border: _bodyTableBorder(),
+                            defaultVerticalAlignment:
+                                TableCellVerticalAlignment.middle,
+                            columnWidths: columnWidths,
+                            children: _cellControllers.asMap().entries.map((
+                              entry,
+                            ) {
+                              final idx = entry.key;
+                              final rowControllers = entry.value;
+                              final sel = selectedRowIndex == idx;
+                              final rowChildren = <Widget>[
+                                GestureDetector(
+                                  onTap: () => setState(
+                                    () => selectedRowIndex = sel ? null : idx,
                                   ),
-                                )
-                                .toList(),
-                          );
-                        }).toList(),
-                      ],
-                    ),
+                                  child: _noCell(
+                                    idx + 1,
+                                    sel,
+                                    AppTheme.primaryColor,
+                                  ),
+                                ),
+                                ..._buildRowCells(
+                                  rowControllers,
+                                  enabled: !isLocked,
+                                  rowIndex: idx,
+                                ),
+                              ];
+                              return TableRow(
+                                decoration: BoxDecoration(
+                                  color: sel
+                                      ? _kSelectedRowColor
+                                      : (idx % 2 == 0
+                                            ? Colors.white
+                                            : _kAltRowColor),
+                                ),
+                                children: rowChildren
+                                    .map(
+                                      (child) => _rowMenuTarget(
+                                        onSecondaryTapDown: (details) =>
+                                            _handleRowMenu(idx, details),
+                                        child: child,
+                                      ),
+                                    )
+                                    .toList(),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ),
+                    ],
                   );
                 },
               ),
             ),
-            Container(
-              height: _kFooterH,
-              color: AppTheme.primaryColor.withOpacity(0.05),
-            ),
+            Container(height: _kFooterH, color: Colors.white),
           ],
         ),
       );
@@ -2196,6 +2585,9 @@ class _DrillStringSectionState extends State<DrillStringSection> {
   final ds = Get.isRegistered<DrillStringController>()
       ? Get.find<DrillStringController>()
       : Get.put(DrillStringController());
+  final wellGenCtrl = Get.isRegistered<WellGeneralController>()
+      ? Get.find<WellGeneralController>()
+      : Get.put(WellGeneralController(), permanent: true);
   int? selectedRowIndex;
 
   Future<void> _handleRowMenu(int rowIndex, TapDownDetails details) async {
@@ -2236,6 +2628,153 @@ class _DrillStringSectionState extends State<DrillStringSection> {
     }
   }
 
+  double? _parseNumber(String rawValue) {
+    return double.tryParse(rawValue.replaceAll(',', '').trim());
+  }
+
+  String _formatNumber(double value, {int decimals = 2}) {
+    return value
+        .toStringAsFixed(decimals)
+        .replaceAll(RegExp(r'0+$'), '')
+        .replaceAll(RegExp(r'\.$'), '');
+  }
+
+  int _targetRowIndex() {
+    if (selectedRowIndex != null &&
+        selectedRowIndex! >= 0 &&
+        selectedRowIndex! < ds.entries.length) {
+      return selectedRowIndex!;
+    }
+    final firstEmpty = ds.entries.indexWhere((entry) => !entry.hasContent);
+    return firstEmpty >= 0 ? firstEmpty : 0;
+  }
+
+  void _calculateIds() {
+    final indices = selectedRowIndex != null
+        ? <int>[selectedRowIndex!]
+        : ds.entries
+              .asMap()
+              .entries
+              .where((entry) => entry.value.hasContent)
+              .map((entry) => entry.key)
+              .toList();
+
+    for (final index in indices) {
+      if (index < 0 || index >= ds.entries.length) continue;
+      final entry = ds.entries[index];
+      final odValue = _parseNumber(entry.od.text);
+      final wtValue = _parseNumber(entry.weightPpf.text);
+      if (odValue == null || odValue <= 0 || wtValue == null || wtValue <= 0) {
+        continue;
+      }
+
+      final odIn =
+          AppUnits.convertValue(odValue, AppUnits.diameter, 'in') ?? odValue;
+      final wtLbFt =
+          AppUnits.convertValue(wtValue, AppUnits.lineDensity, 'lb/ft') ??
+          wtValue;
+      final inside = (odIn * odIn) - (wtLbFt / 2.672);
+      if (inside <= 0) continue;
+
+      final idIn = math.sqrt(inside);
+      final displayId =
+          (AppUnits.convertValue(idIn, 'in', AppUnits.diameter) ?? idIn)
+              .toDouble();
+      entry.idCtrl.text = _formatNumber(displayId, decimals: 2);
+      ds.onCellChanged(index);
+    }
+    ds.entries.refresh();
+    if (mounted) setState(() {});
+  }
+
+  void _adjustLength() {
+    if (ds.entries.isEmpty) return;
+    final targetIndex = selectedRowIndex != null
+        ? selectedRowIndex!
+        : ds.entries.lastIndexWhere((entry) => entry.hasContent);
+    if (targetIndex < 0 || targetIndex >= ds.entries.length) return;
+
+    final mdValue = _parseNumber(wellGenCtrl.md.value);
+    if (mdValue == null || mdValue <= 0) return;
+    final wellDepthFt =
+        (AppUnits.convertValue(mdValue, AppUnits.length, 'ft') ?? mdValue)
+            .toDouble();
+
+    double otherLengthFt = 0;
+    for (var i = 0; i < ds.entries.length; i++) {
+      if (i == targetIndex) continue;
+      final rawLength = _parseNumber(ds.entries[i].length.text);
+      if (rawLength == null || rawLength <= 0) continue;
+      otherLengthFt +=
+          (AppUnits.convertValue(rawLength, AppUnits.length, 'ft') ?? rawLength)
+              .toDouble();
+    }
+
+    final adjustedFt = math.max(wellDepthFt - otherLengthFt, 0.0);
+    final adjustedDisplay =
+        (AppUnits.convertValue(adjustedFt, 'ft', AppUnits.length) ?? adjustedFt)
+            .toDouble();
+    ds.entries[targetIndex].length.text = _formatNumber(
+      adjustedDisplay,
+      decimals: 1,
+    );
+    ds.onCellChanged(targetIndex);
+    ds.entries.refresh();
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _openTabularDatabase() async {
+    final result = await showDialog<Map<String, String>>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const CompactTabularDatabaseDialog(),
+    );
+
+    if (result == null) return;
+    final rowIndex = _targetRowIndex();
+    while (ds.entries.length <= rowIndex) {
+      ds.addEmptyRow();
+    }
+
+    final entry = ds.entries[rowIndex];
+    final odMm = _parseNumber(result['odMm'] ?? '');
+    final idMm = _parseNumber(result['idMm'] ?? '');
+    final wtLbFt = _parseNumber(result['weightLbFt'] ?? '');
+
+    final odDisplay = odMm == null
+        ? ''
+        : _formatNumber(
+            (AppUnits.convertValue(odMm, 'mm', AppUnits.diameter) ?? odMm)
+                .toDouble(),
+            decimals: 2,
+          );
+    final idDisplay = idMm == null
+        ? ''
+        : _formatNumber(
+            (AppUnits.convertValue(idMm, 'mm', AppUnits.diameter) ?? idMm)
+                .toDouble(),
+            decimals: 2,
+          );
+    final wtDisplay = wtLbFt == null
+        ? ''
+        : _formatNumber(
+            ((AppUnits.convertValue(wtLbFt, 'lb/ft', AppUnits.lineDensity) ??
+                    wtLbFt))
+                .toDouble(),
+            decimals: 3,
+          );
+
+    entry.description.text = result['type'] ?? entry.description.text;
+    entry.od.text = odDisplay;
+    entry.weightPpf.text = wtDisplay;
+    entry.idCtrl.text = idDisplay;
+    entry.grade.text = result['grade'] ?? entry.grade.text;
+    selectedRowIndex = rowIndex;
+    ds.onCellChanged(rowIndex);
+    ds.entries.refresh();
+    if (mounted) setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
     return _wellPanel(
@@ -2244,24 +2783,63 @@ class _DrillStringSectionState extends State<DrillStringSection> {
         children: [
           Container(
             height: _kHeaderH,
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            decoration: BoxDecoration(
-              color: AppTheme.primaryColor.withOpacity(0.08),
-              border: const Border(
-                bottom: BorderSide(color: _kWellPanelBorder),
-              ),
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 6),
             child: Row(
               children: [
-                Text(
+                const Text(
                   "Drill String",
                   style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.primaryColor,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.black87,
                   ),
                 ),
                 const Spacer(),
+                Obx(
+                  () => _toolButton(
+                    tooltip: 'Calculate ID',
+                    onTap: c.isLocked.value ? null : _calculateIds,
+                    child: Text(
+                      '-ID',
+                      style: TextStyle(
+                        fontSize: 8,
+                        fontWeight: FontWeight.w700,
+                        color: c.isLocked.value
+                            ? Colors.grey.shade400
+                            : Colors.blue,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Obx(
+                  () => _toolButton(
+                    tooltip: 'Adjust Length',
+                    onTap: c.isLocked.value ? null : _adjustLength,
+                    child: Icon(
+                      Icons.straighten,
+                      size: 14,
+                      color: c.isLocked.value
+                          ? Colors.grey.shade400
+                          : Colors.deepOrange,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Obx(
+                  () => _toolButton(
+                    tooltip: 'Tabular Database',
+                    onTap: c.isLocked.value ? null : _openTabularDatabase,
+                    child: Icon(
+                      Icons.table_chart_outlined,
+                      size: 14,
+                      color: c.isLocked.value
+                          ? Colors.grey.shade400
+                          : Colors.blue,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
                 Obx(
                   () => ds.isLoading.value || ds.isSaving.value
                       ? const SizedBox(
@@ -2282,30 +2860,25 @@ class _DrillStringSectionState extends State<DrillStringSection> {
                 builder: (ctx, bc) {
                   final double avail = bc.maxWidth - 28;
                   final double cw = avail / 6;
-                  return SingleChildScrollView(
-                    scrollDirection: Axis.vertical,
-                    child: Obx(
-                      () => Table(
-                        border: TableBorder.all(
-                          color: Colors.grey.shade300,
-                          width: 1,
-                        ),
+                  final columnWidths = <int, TableColumnWidth>{
+                    0: const FixedColumnWidth(28),
+                    1: FixedColumnWidth(cw),
+                    2: FixedColumnWidth(cw),
+                    3: FixedColumnWidth(cw),
+                    4: FixedColumnWidth(cw),
+                    5: FixedColumnWidth(cw),
+                    6: FixedColumnWidth(cw),
+                  };
+                  return Column(
+                    children: [
+                      Table(
+                        border: _headerTableBorder(),
                         defaultVerticalAlignment:
                             TableCellVerticalAlignment.middle,
-                        columnWidths: {
-                          0: const FixedColumnWidth(28),
-                          1: FixedColumnWidth(cw),
-                          2: FixedColumnWidth(cw),
-                          3: FixedColumnWidth(cw),
-                          4: FixedColumnWidth(cw),
-                          5: FixedColumnWidth(cw),
-                          6: FixedColumnWidth(cw),
-                        },
+                        columnWidths: columnWidths,
                         children: [
                           TableRow(
-                            decoration: BoxDecoration(
-                              color: AppTheme.primaryColor.withOpacity(0.15),
-                            ),
+                            decoration: BoxDecoration(color: _kGridHeaderColor),
                             children:
                                 [
                                       'No.',
@@ -2321,14 +2894,27 @@ class _DrillStringSectionState extends State<DrillStringSection> {
                                     )
                                     .toList(),
                           ),
-                          ...ds.entries
-                              .asMap()
-                              .entries
-                              .map((e) => _dsRow(e.key, e.value))
-                              .toList(),
                         ],
                       ),
-                    ),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.vertical,
+                          child: Obx(
+                            () => Table(
+                              border: _bodyTableBorder(),
+                              defaultVerticalAlignment:
+                                  TableCellVerticalAlignment.middle,
+                              columnWidths: columnWidths,
+                              children: ds.entries
+                                  .asMap()
+                                  .entries
+                                  .map((e) => _dsRow(e.key, e.value))
+                                  .toList(),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   );
                 },
               );
@@ -2336,46 +2922,56 @@ class _DrillStringSectionState extends State<DrillStringSection> {
           ),
           Obx(
             () => SizedBox(
-              height: _kFooterH,
+              height: _kFooterH + 10,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                color: AppTheme.primaryColor.withOpacity(0.05),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      "Total String Length < Well Depth",
-                      style: TextStyle(fontSize: 9, color: Colors.black54),
-                    ),
-                    Row(
-                      children: [
-                        Text(
-                          AppUnits.label("Total Length (ft)"),
+                padding: const EdgeInsets.fromLTRB(1, 0, 1, 0),
+                color: Colors.white,
+                child: Align(
+                  alignment: Alignment.topCenter,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          "Total String Length < Well Depth",
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                            fontSize: 9,
-                            fontWeight: FontWeight.w600,
+                            fontSize: 10,
+                            color: Colors.black54,
                           ),
                         ),
-                        const SizedBox(width: 6),
-                        Container(
-                          width: 70,
-                          height: 20,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey.shade300),
-                            color: Colors.white,
-                          ),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        AppUnits.label("Total Length (ft)"),
+                        style: const TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Container(
+                        width: 126,
+                        height: 24,
+                        alignment: Alignment.centerRight,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: _kWellPanelBorder),
+                          color: _kEditableCellColor,
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 6),
                           child: Text(
                             ds.totalLength.value.toStringAsFixed(1),
+                            textAlign: TextAlign.right,
                             style: const TextStyle(
-                              fontSize: 9,
+                              fontSize: 10,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
-                      ],
-                    ),
-                  ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -2402,8 +2998,8 @@ class _DrillStringSectionState extends State<DrillStringSection> {
     return TableRow(
       decoration: BoxDecoration(
         color: sel
-            ? AppTheme.primaryColor.withOpacity(0.1)
-            : (rowIdx % 2 == 0 ? Colors.white : Colors.grey.shade50),
+            ? _kSelectedRowColor
+            : (rowIdx % 2 == 0 ? Colors.white : _kAltRowColor),
       ),
       children: rowChildren
           .map(
@@ -2420,34 +3016,40 @@ class _DrillStringSectionState extends State<DrillStringSection> {
     padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
     child: Obx(
       () => c.isLocked.value
-          ? SizedBox(
-              height: _kRowH,
-              child: Center(
-                child: Text(
-                  ctrl.text,
-                  style: TextStyle(fontSize: 9, color: AppTheme.textPrimary),
-                  textAlign: TextAlign.center,
+          ? Container(
+              color: _cellFillColor(isLocked: true, editableWhenUnlocked: true),
+              child: SizedBox(
+                height: _kRowH,
+                child: Center(
+                  child: Text(
+                    ctrl.text,
+                    style: TextStyle(fontSize: 10, color: AppTheme.textPrimary),
+                    textAlign: TextAlign.center,
+                  ),
                 ),
               ),
             )
-          : SizedBox(
-              height: _kRowH,
-              child: TextField(
-                controller: ctrl,
-                style: const TextStyle(fontSize: 9),
-                textAlign: TextAlign.center,
-                onChanged: (_) => ds.onCellChanged(rowIdx),
-                decoration: const InputDecoration(
-                  isDense: true,
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 2,
-                    vertical: 2,
+          : Container(
+              color: Colors.white,
+              child: SizedBox(
+                height: _kRowH,
+                child: TextField(
+                  controller: ctrl,
+                  style: const TextStyle(fontSize: 9),
+                  textAlign: TextAlign.center,
+                  onChanged: (_) => ds.onCellChanged(rowIdx),
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 2,
+                      vertical: 2,
+                    ),
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    fillColor: Colors.white,
+                    filled: true,
                   ),
-                  border: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                  focusedBorder: InputBorder.none,
-                  fillColor: Colors.white,
-                  filled: true,
                 ),
               ),
             ),
@@ -2682,6 +3284,16 @@ class _BitSectionState extends State<BitSection> {
         .replaceAll(RegExp(r'\.$'), '');
   }
 
+  void _applyDefaultBitDepth() {
+    final mdText = wellGenCtrl.md.value.trim();
+    if (mdText.isEmpty) return;
+    bc['Depth-in']!.text = mdText;
+    bc['Depth']!.text = mdText;
+    _syncBitField('Depth-in', mdText);
+    _syncBitField('Depth', mdText);
+    if (mounted) setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
     return _wellPanel(
@@ -2692,7 +3304,7 @@ class _BitSectionState extends State<BitSection> {
           Expanded(
             child: SingleChildScrollView(
               child: Table(
-                border: TableBorder.all(color: Colors.grey.shade300, width: 1),
+                border: TableBorder.all(color: _kWellPanelBorder, width: 1),
                 defaultVerticalAlignment: TableCellVerticalAlignment.middle,
                 columnWidths: const {
                   0: FlexColumnWidth(2),
@@ -2710,9 +3322,27 @@ class _BitSectionState extends State<BitSection> {
               ),
             ),
           ),
-          Container(
-            height: _kFooterH,
-            color: AppTheme.primaryColor.withOpacity(0.05),
+          SizedBox(
+            height: _kFooterH + 6,
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Padding(
+                padding: const EdgeInsets.only(right: 4),
+                child: Obx(
+                  () => _toolButton(
+                    tooltip: 'Default Value for Bit Depth',
+                    onTap: c.isLocked.value ? null : _applyDefaultBitDepth,
+                    child: Icon(
+                      Icons.flash_on,
+                      size: 14,
+                      color: c.isLocked.value
+                          ? Colors.grey.shade400
+                          : Colors.deepOrange,
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -2743,7 +3373,12 @@ class _BitSectionState extends State<BitSection> {
             if (c.isLocked.value) {
               return SizedBox(
                 height: _kRowH,
-                child: Center(
+                child: Container(
+                  color: _cellFillColor(
+                    isLocked: true,
+                    editableWhenUnlocked: true,
+                  ),
+                  alignment: Alignment.center,
                   child: Text(
                     ctrl.text,
                     style: TextStyle(fontSize: 9, color: AppTheme.textPrimary),
@@ -2752,24 +3387,27 @@ class _BitSectionState extends State<BitSection> {
                 ),
               );
             }
-            return SizedBox(
-              height: _kRowH,
-              child: TextField(
-                controller: ctrl,
-                style: const TextStyle(fontSize: 9),
-                textAlign: TextAlign.center,
-                onChanged: (value) => _syncBitField(key, value),
-                decoration: const InputDecoration(
-                  isDense: true,
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 4,
-                    vertical: 3,
+            return Container(
+              color: Colors.white,
+              child: SizedBox(
+                height: _kRowH,
+                child: TextField(
+                  controller: ctrl,
+                  style: const TextStyle(fontSize: 9),
+                  textAlign: TextAlign.center,
+                  onChanged: (value) => _syncBitField(key, value),
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 3,
+                    ),
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    fillColor: Colors.white,
+                    filled: true,
                   ),
-                  border: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                  focusedBorder: InputBorder.none,
-                  fillColor: Colors.white,
-                  filled: true,
                 ),
               ),
             );
@@ -2916,116 +3554,138 @@ class _NozzleSectionState extends State<NozzleSection> {
                 }
               }
 
-              return SingleChildScrollView(
-                scrollDirection: Axis.vertical,
-                child: Table(
-                  border: TableBorder.all(
-                    color: Colors.grey.shade300,
-                    width: 1,
-                  ),
-                  defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-                  columnWidths: const {
-                    0: FixedColumnWidth(28),
-                    1: FlexColumnWidth(1),
-                    2: FlexColumnWidth(1),
-                  },
-                  children: [
-                    TableRow(
-                      decoration: BoxDecoration(
-                        color: AppTheme.primaryColor.withOpacity(0.15),
+              const columnWidths = <int, TableColumnWidth>{
+                0: FixedColumnWidth(36),
+                1: FixedColumnWidth(72),
+                2: FlexColumnWidth(1),
+              };
+              return Column(
+                children: [
+                  Table(
+                    border: _headerTableBorder(),
+                    defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+                    columnWidths: columnWidths,
+                    children: [
+                      TableRow(
+                        decoration: BoxDecoration(color: _kGridHeaderColor),
+                        children: [
+                          'No.',
+                          'No.',
+                          'Size\n(1/32in)',
+                        ].map((h) => _hCell(h, AppTheme.primaryColor)).toList(),
                       ),
-                      children: [
-                        'No.',
-                        'No.',
-                        'Size\n(1/32in)',
-                      ].map((h) => _hCell(h, AppTheme.primaryColor)).toList(),
-                    ),
-                    ...entries.asMap().entries.map((entry) {
-                      final idx = entry.key;
-                      final nozzle = entry.value;
-                      final bool sel = selectedRowIndex == idx;
-                      final rowChildren = <Widget>[
-                        GestureDetector(
-                          onTap: () => setState(
-                            () => selectedRowIndex = sel ? null : idx,
-                          ),
-                          child: _noCell(idx + 1, sel, AppTheme.primaryColor),
-                        ),
-                        _nzEditCell(_countCtrl(idx), _countFocusNode(idx), (
-                          val,
-                        ) {
-                          nozzle.count.value = int.tryParse(val) ?? 1;
-                          nc.onCellChanged(idx);
-                        }),
-                        _nzEditCell(_sizeCtrl(idx), _sizeFocusNode(idx), (val) {
-                          nozzle.size32.value = int.tryParse(val) ?? 0;
-                          nc.onCellChanged(idx);
-                        }),
-                      ];
-                      return TableRow(
-                        decoration: BoxDecoration(
-                          color: sel
-                              ? AppTheme.primaryColor.withOpacity(0.1)
-                              : (idx % 2 == 0
-                                    ? Colors.white
-                                    : Colors.grey.shade50),
-                        ),
-                        children: rowChildren
-                            .map(
-                              (child) => _rowMenuTarget(
-                                onSecondaryTapDown: (details) =>
-                                    _handleRowMenu(idx, details),
-                                child: child,
+                    ],
+                  ),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.vertical,
+                      child: Table(
+                        border: _bodyTableBorder(),
+                        defaultVerticalAlignment:
+                            TableCellVerticalAlignment.middle,
+                        columnWidths: columnWidths,
+                        children: entries.asMap().entries.map((entry) {
+                          final idx = entry.key;
+                          final nozzle = entry.value;
+                          final bool sel = selectedRowIndex == idx;
+                          final rowChildren = <Widget>[
+                            GestureDetector(
+                              onTap: () => setState(
+                                () => selectedRowIndex = sel ? null : idx,
                               ),
-                            )
-                            .toList(),
-                      );
-                    }).toList(),
-                  ],
-                ),
+                              child: _noCell(
+                                idx + 1,
+                                sel,
+                                AppTheme.primaryColor,
+                              ),
+                            ),
+                            _nzEditCell(_countCtrl(idx), _countFocusNode(idx), (
+                              val,
+                            ) {
+                              nozzle.count.value = int.tryParse(val) ?? 1;
+                              nc.onCellChanged(idx);
+                            }),
+                            _nzEditCell(_sizeCtrl(idx), _sizeFocusNode(idx), (
+                              val,
+                            ) {
+                              nozzle.size32.value = int.tryParse(val) ?? 0;
+                              nc.onCellChanged(idx);
+                            }),
+                          ];
+                          return TableRow(
+                            decoration: BoxDecoration(
+                              color: sel
+                                  ? _kSelectedRowColor
+                                  : (idx % 2 == 0
+                                        ? Colors.white
+                                        : _kAltRowColor),
+                            ),
+                            children: rowChildren
+                                .map(
+                                  (child) => _rowMenuTarget(
+                                    onSecondaryTapDown: (details) =>
+                                        _handleRowMenu(idx, details),
+                                    child: child,
+                                  ),
+                                )
+                                .toList(),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ),
+                ],
               );
             }),
           ),
           Obx(
             () => SizedBox(
-              height: _kFooterH,
+              height: _kFooterH + 10,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                color: AppTheme.primaryColor.withOpacity(0.05),
+                padding: const EdgeInsets.fromLTRB(1, 0, 1, 0),
+                color: Colors.white,
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      children: [
-                        const Text(
-                          "TFA (in²)",
-                          style: TextStyle(
-                            fontSize: 9,
+                    Expanded(
+                      child: Row(
+                        children: [
+                          const Text(
+                            "TFA (in²)",
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          if (nc.isSaving.value)
+                            const SizedBox(
+                              width: 10,
+                              height: 10,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 1.5,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Container(
+                      width: 126,
+                      height: 24,
+                      alignment: Alignment.centerRight,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: _kWellPanelBorder),
+                        color: _kEditableCellColor,
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 6),
+                        child: Text(
+                          nc.tfa.value.toStringAsFixed(3),
+                          textAlign: TextAlign.right,
+                          style: const TextStyle(
+                            fontSize: 10,
                             fontWeight: FontWeight.w600,
                           ),
-                        ),
-                        const SizedBox(width: 4),
-                        if (nc.isSaving.value)
-                          const SizedBox(
-                            width: 10,
-                            height: 10,
-                            child: CircularProgressIndicator(strokeWidth: 1.5),
-                          ),
-                      ],
-                    ),
-                    Container(
-                      width: 60,
-                      height: 20,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey.shade300),
-                        color: Colors.white,
-                      ),
-                      child: Text(
-                        nc.tfa.value.toStringAsFixed(4),
-                        style: const TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
@@ -3047,36 +3707,42 @@ class _NozzleSectionState extends State<NozzleSection> {
     padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
     child: Obx(
       () => c.isLocked.value
-          ? SizedBox(
-              height: _kRowH,
-              child: Center(
-                child: Text(
-                  ctrl.text,
-                  style: TextStyle(fontSize: 9, color: AppTheme.textPrimary),
-                  textAlign: TextAlign.center,
+          ? Container(
+              color: _cellFillColor(isLocked: true, editableWhenUnlocked: true),
+              child: SizedBox(
+                height: _kRowH,
+                child: Center(
+                  child: Text(
+                    ctrl.text,
+                    style: TextStyle(fontSize: 9, color: AppTheme.textPrimary),
+                    textAlign: TextAlign.center,
+                  ),
                 ),
               ),
             )
-          : SizedBox(
-              height: _kRowH,
-              child: TextField(
-                controller: ctrl,
-                focusNode: focusNode,
-                style: const TextStyle(fontSize: 9),
-                textAlign: TextAlign.center,
-                keyboardType: TextInputType.number,
-                onChanged: onChanged,
-                decoration: const InputDecoration(
-                  isDense: true,
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 2,
-                    vertical: 2,
+          : Container(
+              color: Colors.white,
+              child: SizedBox(
+                height: _kRowH,
+                child: TextField(
+                  controller: ctrl,
+                  focusNode: focusNode,
+                  style: const TextStyle(fontSize: 10),
+                  textAlign: TextAlign.center,
+                  keyboardType: TextInputType.number,
+                  onChanged: onChanged,
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 3,
+                      vertical: 2,
+                    ),
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    fillColor: Colors.white,
+                    filled: true,
                   ),
-                  border: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                  focusedBorder: InputBorder.none,
-                  fillColor: Colors.white,
-                  filled: true,
                 ),
               ),
             ),
@@ -3342,208 +4008,234 @@ class _TimeDistributionSectionState extends State<TimeDistributionSection> {
         children: [
           _sectionTitle("Time Distribution"),
           Expanded(
-            child: SingleChildScrollView(
-              child: Table(
-                border: TableBorder.all(color: Colors.grey.shade300, width: 1),
-                defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-                columnWidths: const {
-                  0: FixedColumnWidth(28),
-                  1: FlexColumnWidth(3),
-                  2: FixedColumnWidth(50),
-                },
-                children: [
-                  TableRow(
-                    decoration: BoxDecoration(
-                      color: AppTheme.primaryColor.withOpacity(0.15),
+            child: Column(
+              children: [
+                Table(
+                  border: _headerTableBorder(),
+                  defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+                  columnWidths: const {
+                    0: FixedColumnWidth(28),
+                    1: FlexColumnWidth(3),
+                    2: FixedColumnWidth(50),
+                  },
+                  children: [
+                    TableRow(
+                      decoration: BoxDecoration(color: _kGridHeaderColor),
+                      children: [
+                        'No.',
+                        'Activity',
+                        'Time\n(hr)',
+                      ].map((h) => _hCell(h, AppTheme.primaryColor)).toList(),
                     ),
-                    children: [
-                      'No.',
-                      'Activity',
-                      'Time\n(hr)',
-                    ].map((h) => _hCell(h, AppTheme.primaryColor)).toList(),
-                  ),
-                  ...tableData.asMap().entries.map((entry) {
-                    final idx = entry.key;
-                    final row = entry.value;
-                    final timeCtrl = row['time'] as TextEditingController;
-                    final currentActivity = row['activity'] as String;
-                    final bool sel = selectedRowIndex == idx;
-                    final rowChildren = <Widget>[
-                      GestureDetector(
-                        onTap: () =>
-                            setState(() => selectedRowIndex = sel ? null : idx),
-                        child: _noCell(idx + 1, sel, AppTheme.primaryColor),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 2,
-                          vertical: 1,
-                        ),
-                        child: Obx(
-                          () => c.isLocked.value
-                              ? SizedBox(
-                                  height: _kRowH,
-                                  child: Align(
-                                    alignment: Alignment.centerLeft,
-                                    child: Text(
-                                      currentActivity,
-                                      style: TextStyle(
-                                        fontSize: 9,
-                                        color: AppTheme.textPrimary,
-                                      ),
-                                    ),
-                                  ),
-                                )
-                              : SizedBox(
-                                  height: _kRowH,
-                                  child: _isLoadingActivities
-                                      ? const Center(
-                                          child: SizedBox(
-                                            width: 10,
-                                            height: 10,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 1.5,
-                                            ),
-                                          ),
-                                        )
-                                      : DropdownButtonHideUnderline(
-                                          child: DropdownButton<String>(
-                                            value:
-                                                activityOptions.contains(
-                                                  currentActivity,
-                                                )
-                                                ? currentActivity
-                                                : null,
-                                            hint: Text(
-                                              "Select",
-                                              style: TextStyle(
-                                                fontSize: 9,
-                                                color: Colors.grey.shade400,
-                                              ),
-                                            ),
-                                            isExpanded: true,
-                                            icon: const Icon(
-                                              Icons.arrow_drop_down,
-                                              size: 12,
-                                            ),
-                                            style: const TextStyle(
+                  ],
+                ),
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Table(
+                      border: _bodyTableBorder(),
+                      defaultVerticalAlignment:
+                          TableCellVerticalAlignment.middle,
+                      columnWidths: const {
+                        0: FixedColumnWidth(28),
+                        1: FlexColumnWidth(3),
+                        2: FixedColumnWidth(50),
+                      },
+                      children: [
+                        ...tableData.asMap().entries.map((entry) {
+                          final idx = entry.key;
+                          final row = entry.value;
+                          final timeCtrl = row['time'] as TextEditingController;
+                          final currentActivity = row['activity'] as String;
+                          final bool sel = selectedRowIndex == idx;
+                          final rowChildren = <Widget>[
+                            GestureDetector(
+                              onTap: () => setState(
+                                () => selectedRowIndex = sel ? null : idx,
+                              ),
+                              child: _noCell(
+                                idx + 1,
+                                sel,
+                                AppTheme.primaryColor,
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 2,
+                                vertical: 1,
+                              ),
+                              child: Obx(
+                                () => c.isLocked.value
+                                    ? SizedBox(
+                                        height: _kRowH,
+                                        child: Align(
+                                          alignment: Alignment.centerLeft,
+                                          child: Text(
+                                            currentActivity,
+                                            style: TextStyle(
                                               fontSize: 9,
-                                              color: Colors.black,
+                                              color: AppTheme.textPrimary,
                                             ),
-                                            menuMaxHeight: 200,
-                                            onChanged: (v) {
-                                              if (v != null) {
-                                                setState(
-                                                  () =>
-                                                      tableData[idx]['activity'] =
-                                                          v,
-                                                );
-                                                _checkAndAddRow(idx);
-                                                _syncRowToController(idx);
-                                              }
-                                            },
-                                            items: activityOptions
-                                                .map(
-                                                  (o) => DropdownMenuItem(
-                                                    value: o,
-                                                    child: Padding(
-                                                      padding:
-                                                          const EdgeInsets.symmetric(
-                                                            horizontal: 4,
-                                                          ),
-                                                      child: Text(
-                                                        o,
-                                                        style: const TextStyle(
-                                                          fontSize: 9,
-                                                        ),
-                                                        overflow: TextOverflow
-                                                            .ellipsis,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                )
-                                                .toList(),
                                           ),
                                         ),
-                                ),
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 2,
-                          vertical: 1,
-                        ),
-                        child: Obx(
-                          () => c.isLocked.value
-                              ? SizedBox(
-                                  height: _kRowH,
-                                  child: Center(
-                                    child: Text(
-                                      timeCtrl.text,
-                                      style: TextStyle(
-                                        fontSize: 9,
-                                        color: AppTheme.textPrimary,
+                                      )
+                                    : SizedBox(
+                                        height: _kRowH,
+                                        child: _isLoadingActivities
+                                            ? const Center(
+                                                child: SizedBox(
+                                                  width: 10,
+                                                  height: 10,
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                        strokeWidth: 1.5,
+                                                      ),
+                                                ),
+                                              )
+                                            : DropdownButtonHideUnderline(
+                                                child: DropdownButton<String>(
+                                                  value:
+                                                      activityOptions.contains(
+                                                        currentActivity,
+                                                      )
+                                                      ? currentActivity
+                                                      : null,
+                                                  hint: Text(
+                                                    "Select",
+                                                    style: TextStyle(
+                                                      fontSize: 9,
+                                                      color:
+                                                          Colors.grey.shade400,
+                                                    ),
+                                                  ),
+                                                  isExpanded: true,
+                                                  icon: const Icon(
+                                                    Icons.arrow_drop_down,
+                                                    size: 12,
+                                                  ),
+                                                  style: const TextStyle(
+                                                    fontSize: 9,
+                                                    color: Colors.black,
+                                                  ),
+                                                  menuMaxHeight: 200,
+                                                  onChanged: (v) {
+                                                    if (v != null) {
+                                                      setState(
+                                                        () =>
+                                                            tableData[idx]['activity'] =
+                                                                v,
+                                                      );
+                                                      _checkAndAddRow(idx);
+                                                      _syncRowToController(idx);
+                                                    }
+                                                  },
+                                                  items: activityOptions
+                                                      .map(
+                                                        (o) => DropdownMenuItem(
+                                                          value: o,
+                                                          child: Padding(
+                                                            padding:
+                                                                const EdgeInsets.symmetric(
+                                                                  horizontal: 4,
+                                                                ),
+                                                            child: Text(
+                                                              o,
+                                                              style:
+                                                                  const TextStyle(
+                                                                    fontSize: 9,
+                                                                  ),
+                                                              overflow:
+                                                                  TextOverflow
+                                                                      .ellipsis,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      )
+                                                      .toList(),
+                                                ),
+                                              ),
                                       ),
-                                      textAlign: TextAlign.center,
-                                    ),
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 2,
+                                vertical: 1,
+                              ),
+                              child: Obx(
+                                () => c.isLocked.value
+                                    ? SizedBox(
+                                        height: _kRowH,
+                                        child: Center(
+                                          child: Text(
+                                            timeCtrl.text,
+                                            style: TextStyle(
+                                              fontSize: 9,
+                                              color: AppTheme.textPrimary,
+                                            ),
+                                            textAlign: TextAlign.center,
+                                          ),
+                                        ),
+                                      )
+                                    : Container(
+                                        color: Colors.white,
+                                        child: SizedBox(
+                                          height: _kRowH,
+                                          child: TextField(
+                                            controller: timeCtrl,
+                                            style: const TextStyle(fontSize: 9),
+                                            textAlign: TextAlign.center,
+                                            keyboardType: TextInputType.number,
+                                            onChanged: (v) {
+                                              _validateTotalTime(idx);
+                                              _syncRowToController(idx);
+                                            },
+                                            decoration: const InputDecoration(
+                                              isDense: true,
+                                              contentPadding:
+                                                  EdgeInsets.symmetric(
+                                                    horizontal: 2,
+                                                    vertical: 2,
+                                                  ),
+                                              border: InputBorder.none,
+                                              enabledBorder: InputBorder.none,
+                                              focusedBorder: InputBorder.none,
+                                              fillColor: Colors.white,
+                                              filled: true,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                              ),
+                            ),
+                          ];
+
+                          return TableRow(
+                            decoration: BoxDecoration(
+                              color: sel
+                                  ? _kSelectedRowColor
+                                  : (idx % 2 == 0
+                                        ? Colors.white
+                                        : _kAltRowColor),
+                            ),
+                            children: rowChildren
+                                .map(
+                                  (child) => _rowMenuTarget(
+                                    onSecondaryTapDown: (details) =>
+                                        _handleRowMenu(idx, details),
+                                    child: child,
                                   ),
                                 )
-                              : SizedBox(
-                                  height: _kRowH,
-                                  child: TextField(
-                                    controller: timeCtrl,
-                                    style: const TextStyle(fontSize: 9),
-                                    textAlign: TextAlign.center,
-                                    keyboardType: TextInputType.number,
-                                    onChanged: (v) {
-                                      _validateTotalTime(idx);
-                                      _syncRowToController(idx);
-                                    },
-                                    decoration: const InputDecoration(
-                                      isDense: true,
-                                      contentPadding: EdgeInsets.symmetric(
-                                        horizontal: 2,
-                                        vertical: 2,
-                                      ),
-                                      border: InputBorder.none,
-                                      enabledBorder: InputBorder.none,
-                                      focusedBorder: InputBorder.none,
-                                      fillColor: Colors.white,
-                                      filled: true,
-                                    ),
-                                  ),
-                                ),
-                        ),
-                      ),
-                    ];
-
-                    return TableRow(
-                      decoration: BoxDecoration(
-                        color: sel
-                            ? AppTheme.primaryColor.withOpacity(0.1)
-                            : (idx % 2 == 0
-                                  ? Colors.white
-                                  : Colors.grey.shade50),
-                      ),
-                      children: rowChildren
-                          .map(
-                            (child) => _rowMenuTarget(
-                              onSecondaryTapDown: (details) =>
-                                  _handleRowMenu(idx, details),
-                              child: child,
-                            ),
-                          )
-                          .toList(),
-                    );
-                  }).toList(),
-                ],
-              ),
+                                .toList(),
+                          );
+                        }).toList(),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-          Container(
-            height: _kFooterH,
-            color: AppTheme.primaryColor.withOpacity(0.05),
-          ),
+          Container(height: _kFooterH, color: Colors.white),
         ],
       ),
     );

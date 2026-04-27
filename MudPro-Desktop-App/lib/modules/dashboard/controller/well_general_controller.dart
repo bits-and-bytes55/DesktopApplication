@@ -11,7 +11,7 @@ import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart
 
 class WellGeneralController extends GetxController {
   final String baseUrl = ApiEndpoint.baseUrl;
-  static const int _minTimeDistributionRows = 5;
+  static const int _minTimeDistributionRows = 8;
   static const int _minOpenHoleRows = 3;
 
   var isLoading = false.obs;
@@ -66,6 +66,8 @@ class WellGeneralController extends GetxController {
   Worker? _reportWorker;
   final List<Worker> _autoSaveWorkers = <Worker>[];
   Timer? _autoSaveTimer;
+  Timer? _depthDrilledTimer;
+  int _depthDrilledGeneration = 0;
   bool _isApplyingState = false;
 
   List<RxString> get _autoSaveFields => [
@@ -131,12 +133,16 @@ class WellGeneralController extends GetxController {
     _autoSaveWorkers.add(
       ever<int>(openHoleRevision, (_) => _scheduleAutoSave()),
     );
+    _autoSaveWorkers.add(
+      ever<String>(md, (_) => _scheduleDepthDrilledRefresh()),
+    );
     fetchLatest();
   }
 
   @override
   void onClose() {
     _autoSaveTimer?.cancel();
+    _depthDrilledTimer?.cancel();
     _wellWorker?.dispose();
     _reportWorker?.dispose();
     for (final worker in _autoSaveWorkers) {
@@ -166,6 +172,14 @@ class WellGeneralController extends GetxController {
     });
   }
 
+  void _scheduleDepthDrilledRefresh({bool notifySave = true}) {
+    if (_isApplyingState) return;
+    _depthDrilledTimer?.cancel();
+    _depthDrilledTimer = Timer(const Duration(milliseconds: 250), () async {
+      await _refreshDepthDrilled(notifySave: notifySave);
+    });
+  }
+
   Map<String, String> get _headers => {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
@@ -182,6 +196,13 @@ class WellGeneralController extends GetxController {
     'md': '',
     'washout': '',
   };
+
+  String _formatNumericText(double value) {
+    return value
+        .toStringAsFixed(4)
+        .replaceAll(RegExp(r'0+$'), '')
+        .replaceAll(RegExp(r'\.$'), '');
+  }
 
   String _formatTimeDistributionValue(dynamic value) {
     if (value == null) return '';
@@ -536,6 +557,145 @@ class WellGeneralController extends GetxController {
     }
   }
 
+  Map<String, dynamic>? _findRecordForReport(
+    List<dynamic> rawItems, {
+    required String reportId,
+    required String reportNo,
+    required String userReportNo,
+    required String reportDate,
+  }) {
+    final items = rawItems
+        .whereType<Map>()
+        .map(Map<String, dynamic>.from)
+        .toList();
+    if (items.isEmpty) return null;
+
+    Map<String, dynamic>? firstMatch(bool Function(Map<String, dynamic>) test) {
+      for (final item in items) {
+        if (test(item)) return item;
+      }
+      return null;
+    }
+
+    return firstMatch(
+          (item) =>
+              reportId.isNotEmpty &&
+              (item['reportId']?.toString().trim() ?? '') == reportId,
+        ) ??
+        firstMatch(
+          (item) =>
+              reportNo.isNotEmpty &&
+              (item['reportNo']?.toString().trim() ?? '') == reportNo,
+        ) ??
+        firstMatch(
+          (item) =>
+              userReportNo.isNotEmpty &&
+              (item['userReportNo']?.toString().trim() ?? '') == userReportNo,
+        ) ??
+        firstMatch(
+          (item) =>
+              reportDate.isNotEmpty &&
+              (item['date']?.toString().trim() ?? '') == reportDate,
+        );
+  }
+
+  Future<double?> _loadPreviousReportMd() async {
+    final reports = reportContext.reports.toList(growable: false);
+    final selectedReportId = reportContext.selectedReportId.value.trim();
+    final currentIndex = reports.indexWhere(
+      (item) => item.id == selectedReportId,
+    );
+    if (currentIndex <= 0) {
+      return null;
+    }
+
+    final previousReport = reports[currentIndex - 1];
+    final response = await http.get(
+      Uri.parse(
+        '${baseUrl}well-general/$kControllerWellId',
+      ).replace(queryParameters: {'reportId': previousReport.id}),
+      headers: _headers,
+    );
+
+    if (response.statusCode != 200) {
+      return null;
+    }
+
+    final decoded = jsonDecode(response.body);
+    final List data = decoded['data'] ?? [];
+    var matched = _findRecordForReport(
+      data,
+      reportId: previousReport.id,
+      reportNo: previousReport.reportNo,
+      userReportNo: previousReport.userReportNo,
+      reportDate: previousReport.reportDate,
+    );
+
+    if (matched == null && previousReport.reportNo.trim().isNotEmpty) {
+      final fallback = await http.get(
+        Uri.parse('${baseUrl}well-general/$kControllerWellId').replace(
+          queryParameters: {'reportNo': previousReport.reportNo.trim()},
+        ),
+        headers: _headers,
+      );
+      if (fallback.statusCode == 200) {
+        final fallbackDecoded = jsonDecode(fallback.body);
+        final List fallbackData = fallbackDecoded['data'] ?? [];
+        matched = _findRecordForReport(
+          fallbackData,
+          reportId: previousReport.id,
+          reportNo: previousReport.reportNo,
+          userReportNo: previousReport.userReportNo,
+          reportDate: previousReport.reportDate,
+        );
+      }
+    }
+
+    if (matched == null) {
+      return null;
+    }
+
+    return double.tryParse(
+      (matched['md'] ?? '').toString().replaceAll(',', ''),
+    );
+  }
+
+  Future<void> _refreshDepthDrilled({bool notifySave = true}) async {
+    final generation = ++_depthDrilledGeneration;
+    final currentMd = double.tryParse(md.value.replaceAll(',', '').trim());
+
+    if (currentMd == null || currentMd <= 0) {
+      if (depthDrilled.value.isNotEmpty) {
+        depthDrilled.value = '';
+        if (notifySave && !_isApplyingState) {
+          _scheduleAutoSave();
+        }
+      }
+      return;
+    }
+
+    double nextDepth = currentMd;
+    try {
+      final previousMd = await _loadPreviousReportMd();
+      if (generation != _depthDrilledGeneration) return;
+      if (previousMd != null) {
+        nextDepth = currentMd - previousMd;
+      }
+    } catch (_) {}
+
+    if (nextDepth < 0) {
+      nextDepth = 0;
+    }
+
+    final nextText = _formatNumericText(nextDepth);
+    if (depthDrilled.value == nextText) return;
+
+    depthDrilled.value = nextText;
+    if (notifySave && !_isApplyingState) {
+      _scheduleAutoSave();
+    }
+  }
+
   Map<String, dynamic>? _findMatchingRecord(List<dynamic> rawItems) {
     final items = rawItems
         .whereType<Map>()
@@ -659,6 +819,7 @@ class WellGeneralController extends GetxController {
     } finally {
       _isApplyingState = false;
       isLoading.value = false;
+      await _refreshDepthDrilled(notifySave: false);
     }
   }
 

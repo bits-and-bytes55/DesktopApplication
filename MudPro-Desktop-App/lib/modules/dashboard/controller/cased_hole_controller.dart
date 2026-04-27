@@ -137,7 +137,7 @@ class CasedHoleUIController extends GetxController {
   );
 
   void _ensureMinimumRows() {
-    while (entries.length < 3) {
+    while (entries.length < 6) {
       final entry = CasedHoleEntry(sortOrder: entries.length);
       _attachListeners(entry);
       entries.add(entry);
@@ -234,7 +234,7 @@ class CasedHoleUIController extends GetxController {
   }
 
   void _initEmptyRows() {
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 6; i++) {
       final entry = CasedHoleEntry(sortOrder: entries.length);
       _attachListeners(entry);
       entries.add(entry);

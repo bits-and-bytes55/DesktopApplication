@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'package:mudpro_desktop_app/modules/company_setup/controller/company_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/modules/report/controller/report_manager_controller.dart';
 import 'package:mudpro_desktop_app/modules/report_context/report_models.dart';
@@ -20,6 +22,10 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
       ? Get.find<ReportManagerController>()
       : Get.put(ReportManagerController());
   final PadWellController padWellC = padWellContext;
+  final CompanyController companyC = Get.isRegistered<CompanyController>()
+      ? Get.find<CompanyController>()
+      : Get.put(CompanyController(), permanent: true);
+  final DashboardController dashboardC = Get.find<DashboardController>();
 
   final List<_CriteriaConfig> criteria = const [
     _CriteriaConfig(
@@ -36,7 +42,7 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
     ),
     _CriteriaConfig(
       key: 'md',
-      label: 'Depth (m)',
+      label: 'Depth (ft)',
       kind: _CriteriaKind.number,
       numericValue: _mdValue,
     ),
@@ -48,7 +54,7 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
     ),
     _CriteriaConfig(
       key: 'recommendedTreatment',
-      label: 'Recommended Tour Treatm.',
+      label: 'Recommended Tour Treatm...',
       kind: _CriteriaKind.text,
       textValue: _recommendedTreatmentValue,
     ),
@@ -105,31 +111,33 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
         final isSmallScreen = constraints.maxWidth < 1200;
 
         return Container(
-          padding: const EdgeInsets.all(16),
-          color: AppTheme.backgroundColor,
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+          color: Colors.white,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildHeader(),
-              const SizedBox(height: 16),
+              const SizedBox(height: 10),
               Expanded(
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     SizedBox(
-                      width: isSmallScreen ? constraints.maxWidth * 0.36 : 420,
+                      width: isSmallScreen ? constraints.maxWidth * 0.38 : 575,
                       child: Container(
-                        decoration: AppTheme.cardDecoration.copyWith(
-                          border: Border.all(color: Colors.grey.shade200),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          border: Border.all(color: Colors.grey.shade400),
                         ),
                         child: _buildSearchCriteria(),
                       ),
                     ),
-                    const SizedBox(width: 16),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: Container(
-                        decoration: AppTheme.cardDecoration.copyWith(
-                          border: Border.all(color: Colors.grey.shade200),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          border: Border.all(color: Colors.grey.shade400),
                         ),
                         child: _buildResultsPanel(),
                       ),
@@ -137,7 +145,7 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
               _buildActionButtons(),
             ],
           ),
@@ -147,281 +155,203 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
   }
 
   Widget _buildHeader() {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: AppTheme.elevatedCardDecoration.copyWith(color: Colors.white),
-      child: Obx(() {
-        final selectedWellId = padWellC.selectedWellId.value;
-        final selectedWellName = padWellC.selectedWellName.isEmpty
-            ? 'No well selected'
-            : padWellC.selectedWellName;
-        final rowCount = rmC.rows.length;
-
-        return Row(
-          children: [
-            Icon(Icons.folder_open, size: 20, color: AppTheme.primaryColor),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'Report Manager - $selectedWellName',
-                overflow: TextOverflow.ellipsis,
+    return Obx(() {
+      final selectedWellId = padWellC.selectedWellId.value;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'MUDPRO+ - Report Manager',
                 style: AppTheme.bodyLarge.copyWith(
                   fontWeight: FontWeight.w600,
-                  color: AppTheme.primaryColor,
+                  color: AppTheme.textPrimary,
                 ),
               ),
-            ),
-            const SizedBox(width: 16),
-            Text(
-              'Current Well:',
-              style: AppTheme.bodySmall.copyWith(
-                fontWeight: FontWeight.w600,
-                color: AppTheme.textSecondary,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.grey.shade300),
-              ),
-              child: DropdownButton<String>(
-                value: padWellC.wells.any((well) => well.id == selectedWellId)
-                    ? selectedWellId
-                    : null,
-                underline: const SizedBox(),
-                icon: Icon(Icons.arrow_drop_down, color: AppTheme.primaryColor),
-                style: AppTheme.bodySmall.copyWith(color: AppTheme.textPrimary),
-                hint: Text('Select well', style: AppTheme.bodySmall),
-                items: padWellC.wells
-                    .map(
-                      (well) => DropdownMenuItem(
-                        value: well.id,
-                        child: Text(
-                          well.displayName,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTheme.bodySmall,
-                        ),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (value) {
-                  if (value == null) return;
-                  padWellC.selectWell(value);
-                  rmC.clearSelection();
-                  setState(() {
-                    hasSearched = false;
-                  });
-                },
-              ),
-            ),
-            const SizedBox(width: 16),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: AppTheme.primaryColor.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                '$rowCount reports loaded',
-                style: AppTheme.bodySmall.copyWith(
-                  color: AppTheme.primaryColor,
-                  fontWeight: FontWeight.w600,
+              const Spacer(),
+              SizedBox(
+                width: 30,
+                height: 30,
+                child: IconButton(
+                  padding: EdgeInsets.zero,
+                  splashRadius: 16,
+                  onPressed: dashboardC.closeOverlay,
+                  icon: const Icon(Icons.close, size: 20),
                 ),
               ),
-            ),
-          ],
-        );
-      }),
-    );
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              SizedBox(
+                width: 150,
+                child: Text(
+                  'Current Well',
+                  style: AppTheme.bodySmall.copyWith(
+                    color: AppTheme.textPrimary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              Container(
+                width: 310,
+                height: 28,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border.all(color: Colors.grey.shade400),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value:
+                        padWellC.wells.any((well) => well.id == selectedWellId)
+                        ? selectedWellId
+                        : null,
+                    isExpanded: true,
+                    icon: const Icon(Icons.arrow_drop_down, size: 18),
+                    style: AppTheme.bodySmall.copyWith(
+                      color: AppTheme.textPrimary,
+                    ),
+                    hint: Text('Select well', style: AppTheme.bodySmall),
+                    items: padWellC.wells
+                        .map(
+                          (well) => DropdownMenuItem(
+                            value: well.id,
+                            child: Text(
+                              well.displayName,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTheme.bodySmall,
+                            ),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) {
+                      if (value == null) return;
+                      padWellC.selectWell(value);
+                      rmC.clearSelection();
+                      setState(() {
+                        hasSearched = false;
+                      });
+                    },
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      );
+    });
   }
 
   Widget _buildSearchCriteria() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionHeader(icon: Icons.search, title: 'Search Criteria'),
-        Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 8,
-                    horizontal: 12,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppTheme.tableHeadColor,
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: Colors.grey.shade200),
-                  ),
-                  child: Row(
-                    children: [
-                      SizedBox(
-                        width: 40,
-                        child: Text(
-                          'Use',
-                          style: AppTheme.caption.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        flex: 3,
-                        child: Text(
-                          'Variable',
-                          style: AppTheme.caption.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        flex: 2,
-                        child: Text(
-                          'Min Value',
-                          style: AppTheme.caption.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        flex: 2,
-                        child: Text(
-                          'Max Value',
-                          style: AppTheme.caption.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 8),
-                ...criteria.map(_criteriaRow),
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.grey.shade200),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Filter Tips',
-                        style: AppTheme.bodySmall.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Date expects MM/DD/YYYY. Text filters use contains match. Number filters use min and max range.',
-                        style: AppTheme.caption.copyWith(
-                          color: AppTheme.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: _clearAll,
-                        style: AppTheme.secondaryButtonStyle.copyWith(
-                          backgroundColor: WidgetStateProperty.all(
-                            Colors.white,
-                          ),
-                        ),
-                        child: Text(
-                          'Clear All',
-                          style: AppTheme.caption.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: AppTheme.textSecondary,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: _search,
-                        style: AppTheme.primaryButtonStyle,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.search, size: 14),
-                            const SizedBox(width: 6),
-                            Text(
-                              'Search Reports',
-                              style: AppTheme.caption.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+          child: Text(
+            'Search Criteria',
+            style: AppTheme.bodySmall.copyWith(
+              fontWeight: FontWeight.w600,
+              color: AppTheme.textPrimary,
             ),
+          ),
+        ),
+        Container(
+          height: 28,
+          margin: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            border: Border.all(color: Colors.grey.shade400),
+          ),
+          child: Row(
+            children: [
+              _criteriaHeaderCell('', width: 28),
+              _criteriaHeaderCell('', width: 32),
+              _criteriaHeaderCell('Variable', flex: 3),
+              _criteriaHeaderCell('Min.', flex: 2),
+              _criteriaHeaderCell('Max.', flex: 2),
+            ],
+          ),
+        ),
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            itemCount: criteria.length,
+            itemBuilder: (_, index) => _criteriaRow(index, criteria[index]),
           ),
         ),
       ],
     );
   }
 
-  Widget _criteriaRow(_CriteriaConfig item) {
+  Widget _criteriaHeaderCell(String label, {double? width, int flex = 0}) {
+    final child = Container(
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        border: Border(right: BorderSide(color: Colors.grey.shade400)),
+      ),
+      child: Text(
+        label,
+        style: AppTheme.caption.copyWith(
+          fontWeight: FontWeight.w600,
+          color: AppTheme.textPrimary,
+        ),
+      ),
+    );
+
+    if (width != null) {
+      return SizedBox(width: width, child: child);
+    }
+
+    return Expanded(flex: flex, child: child);
+  }
+
+  Widget _criteriaRow(int index, _CriteriaConfig item) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-      margin: const EdgeInsets.only(bottom: 4),
+      height: 36,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: Colors.grey.shade100),
+        border: Border(
+          left: BorderSide(color: Colors.grey.shade400),
+          right: BorderSide(color: Colors.grey.shade400),
+          bottom: BorderSide(color: Colors.grey.shade300),
+        ),
       ),
       child: Row(
         children: [
           SizedBox(
-            width: 40,
+            width: 28,
+            child: Center(
+              child: Text(
+                '${index + 1}',
+                style: AppTheme.caption.copyWith(color: AppTheme.textPrimary),
+              ),
+            ),
+          ),
+          SizedBox(
+            width: 32,
             child: Checkbox(
+              visualDensity: VisualDensity.compact,
               value: checked[item.key],
               onChanged: (value) {
                 setState(() {
                   checked[item.key] = value ?? false;
                 });
               },
-              fillColor: WidgetStateProperty.resolveWith<Color>((states) {
-                if (states.contains(WidgetState.selected)) {
-                  return AppTheme.primaryColor;
-                }
-                return Colors.white;
-              }),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(4),
-              ),
             ),
           ),
           Expanded(
             flex: 3,
             child: Text(
-              item.label,
+              _criteriaLabel(item),
               style: AppTheme.caption.copyWith(color: AppTheme.textPrimary),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
+          const SizedBox(width: 6),
           Expanded(
             flex: 2,
             child: _criteriaField(
@@ -430,7 +360,7 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
               keyboardType: item.keyboardType,
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 6),
           Expanded(
             flex: 2,
             child: _criteriaField(
@@ -450,11 +380,10 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
     required TextInputType keyboardType,
   }) {
     return Container(
-      height: 32,
-      padding: const EdgeInsets.symmetric(horizontal: 8),
+      height: 26,
+      padding: const EdgeInsets.symmetric(horizontal: 6),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(4),
         border: Border.all(color: Colors.grey.shade300),
       ),
       child: TextField(
@@ -474,12 +403,10 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
   Widget _buildResultsPanel() {
     return Obx(() {
       final rows = _visibleRows;
-      final selectedRow = _selectedVisibleRow(rows);
-
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildResultsHeader(rows.length, selectedRow),
+          _buildResultsHeader(rows.length),
           Expanded(
             child: rmC.isLoading.value
                 ? _stateMessage(
@@ -495,85 +422,47 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
                     title: 'Unable to load reports',
                     message: rmC.errorMessage.value,
                   )
+                : !hasSearched
+                ? _stateMessage(
+                    icon: Icons.search,
+                    title: 'Search reports',
+                    message:
+                        'Click Search to load all reports for the selected well.',
+                  )
                 : rows.isEmpty
                 ? _stateMessage(
                     icon: Icons.search_off,
-                    title: hasSearched
-                        ? 'No matching reports'
-                        : 'No reports found',
-                    message: hasSearched
-                        ? 'Adjust the search criteria and try again.'
-                        : 'Create reports for this well to populate Report Manager.',
+                    title: 'No matching reports',
+                    message: 'Adjust the search criteria and try again.',
                   )
-                : Column(
-                    children: [
-                      Expanded(child: _buildResultsTable(rows)),
-                      _buildSelectedDetails(selectedRow),
-                    ],
-                  ),
+                : _buildResultsTable(rows),
           ),
         ],
       );
     });
   }
 
-  Widget _buildResultsHeader(int visibleCount, ReportManagerRow? selectedRow) {
-    final totalRows = rmC.rows.length;
-    final countLabel = hasSearched
-        ? '$visibleCount of $totalRows reports matched'
-        : '$visibleCount reports available';
-
+  Widget _buildResultsHeader(int visibleCount) {
     return Container(
-      height: 40,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: AppTheme.tableHeadColor,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(8),
-          topRight: Radius.circular(8),
-        ),
-        border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
-      ),
+      height: 34,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      alignment: Alignment.centerLeft,
       child: Row(
         children: [
-          const Icon(Icons.table_chart, size: 16, color: Colors.white),
-          const SizedBox(width: 8),
           Text(
-            'Search Results',
+            'Result',
             style: AppTheme.bodySmall.copyWith(
               fontWeight: FontWeight.w600,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Text(
-              countLabel,
-              style: AppTheme.caption.copyWith(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-              ),
+              color: AppTheme.textPrimary,
             ),
           ),
           const Spacer(),
-          if (selectedRow != null)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.18),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Text(
-                'Selected: ${selectedRow.reportLabel}',
-                style: AppTheme.caption.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                ),
+          if (hasSearched)
+            Text(
+              '$visibleCount report(s)',
+              style: AppTheme.caption.copyWith(
+                color: AppTheme.textSecondary,
+                fontWeight: FontWeight.w500,
               ),
             ),
         ],
@@ -584,31 +473,31 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
   Widget _buildResultsTable(List<ReportManagerRow> rows) {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
       child: SingleChildScrollView(
         child: DataTable(
-          headingRowHeight: 40,
-          dataRowMinHeight: 38,
-          dataRowMaxHeight: 38,
+          headingRowHeight: 30,
+          dataRowMinHeight: 32,
+          dataRowMaxHeight: 32,
           dividerThickness: 0.5,
-          headingRowColor: WidgetStateProperty.all(AppTheme.tableHeadColor),
+          headingRowColor: WidgetStateProperty.all(Colors.grey.shade100),
           dataRowColor: WidgetStateProperty.resolveWith<Color?>((states) {
             if (states.contains(WidgetState.selected)) {
               return AppTheme.primaryColor.withValues(alpha: 0.1);
             }
-            return null;
+            return Colors.white;
           }),
           columns: [
             _dataColumn('#'),
             _dataColumn('Date'),
             _dataColumn('Report No'),
-            _dataColumn('MD (m)'),
+            _dataColumn('MD (ft)'),
             _dataColumn('Activity'),
             _dataColumn('Interval'),
             _dataColumn('Mud Type'),
             _dataColumn('MW (ppg)'),
-            _dataColumn('Daily Cost'),
-            _dataColumn('Cum. Cost'),
+            _dataColumn('Daily Cost (${_currencyLabel()})'),
+            _dataColumn('Cum. Cost (${_currencyLabel()})'),
           ],
           rows: List.generate(rows.length, (index) {
             final row = rows[index];
@@ -624,16 +513,21 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
                 }
               },
               cells: [
-                _textCell('${index + 1}', center: true, bold: true),
-                _textCell(_displayDate(row.reportDate)),
-                _textCell(row.reportLabel),
-                _textCell(_formatNumber(row.md), alignRight: true),
-                _textCell(row.activity),
-                _textCell(row.interval),
-                _textCell(row.mudType),
-                _textCell(_formatNumber(row.mw), alignRight: true),
-                _textCell(_formatCurrency(row.dailyCost), alignRight: true),
+                _textCell(row, '${index + 1}', center: true, bold: true),
+                _textCell(row, _displayDate(row.reportDate)),
+                _textCell(row, row.reportLabel),
+                _textCell(row, _formatNumber(row.md), alignRight: true),
+                _textCell(row, row.activity),
+                _textCell(row, row.interval),
+                _textCell(row, row.mudType),
+                _textCell(row, _formatNumber(row.mw), alignRight: true),
                 _textCell(
+                  row,
+                  _formatCurrency(row.dailyCost),
+                  alignRight: true,
+                ),
+                _textCell(
+                  row,
                   _formatCurrency(row.cumulativeCost),
                   alignRight: true,
                 ),
@@ -645,176 +539,74 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
     );
   }
 
-  Widget _buildSelectedDetails(ReportManagerRow? row) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.grey.shade50,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.grey.shade200),
-        ),
-        child: row == null
-            ? Text(
-                'Select a report row to review recommended treatment, remarks, recap remarks, and internal notes.',
-                style: AppTheme.bodySmall.copyWith(
-                  color: AppTheme.textSecondary,
-                ),
-              )
-            : Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Text(
-                        'Report ${row.reportLabel}',
-                        style: AppTheme.bodySmall.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          row.title.isEmpty ? 'Untitled report' : row.title,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTheme.bodySmall.copyWith(
-                            color: AppTheme.textSecondary,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  _detailBlock(
-                    title: 'Recommended Treatment',
-                    value: row.recommendedTreatment,
-                  ),
-                  const SizedBox(height: 8),
-                  _detailBlock(title: 'Remarks', value: row.remarks),
-                  const SizedBox(height: 8),
-                  _detailBlock(title: 'Recap Remarks', value: row.recapRemarks),
-                  const SizedBox(height: 8),
-                  _detailBlock(
-                    title: 'Internal Notes',
-                    value: row.internalNotes,
-                  ),
-                ],
-              ),
-      ),
-    );
-  }
-
-  Widget _detailBlock({required String title, required String value}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: AppTheme.caption.copyWith(
-            fontWeight: FontWeight.w600,
-            color: AppTheme.textPrimary,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          value.trim().isEmpty ? '-' : value.trim(),
-          style: AppTheme.bodySmall.copyWith(color: AppTheme.textSecondary),
-        ),
-      ],
-    );
-  }
-
   Widget _buildActionButtons() {
     return Obx(() {
       final selectedRow = _selectedVisibleRow(_visibleRows);
       final isBusy = rmC.isLoading.value || rmC.isDeleting.value;
 
-      return Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.grey.shade200),
-        ),
-        child: Row(
-          children: [
-            ElevatedButton.icon(
-              onPressed: isBusy
-                  ? null
-                  : () async {
-                      rmC.clearSelection();
-                      await rmC.refreshRows();
-                    },
-              icon: const Icon(Icons.refresh, size: 16),
-              label: const Text('Refresh'),
-              style: AppTheme.secondaryButtonStyle,
-            ),
-            const Spacer(),
-            ElevatedButton.icon(
-              onPressed: selectedRow == null || isBusy ? null : _deleteRow,
-              icon: rmC.isDeleting.value
-                  ? const SizedBox(
-                      width: 14,
-                      height: 14,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Icon(Icons.delete_outline, size: 16),
-              label: const Text('Delete'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.errorColor,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 10,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(6),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            ElevatedButton.icon(
-              onPressed: selectedRow == null || isBusy ? null : _selectRow,
-              icon: const Icon(Icons.check_circle, size: 16),
-              label: const Text('Select'),
-              style: AppTheme.primaryButtonStyle,
-            ),
-          ],
-        ),
+      return Row(
+        children: [
+          _actionButton(
+            label: 'Clear All',
+            width: 128,
+            onPressed: isBusy ? null : _clearAll,
+          ),
+          const Spacer(),
+          _actionButton(
+            label: 'Search',
+            width: 128,
+            onPressed: isBusy ? null : _search,
+          ),
+          const Spacer(),
+          _actionButton(
+            label: 'Delete',
+            width: 96,
+            onPressed: selectedRow == null || isBusy ? null : _deleteRow,
+            foreground: AppTheme.errorColor,
+          ),
+          const SizedBox(width: 8),
+          _actionButton(
+            label: 'Select',
+            width: 96,
+            onPressed: selectedRow == null || isBusy ? null : _selectRow,
+          ),
+          const SizedBox(width: 8),
+          _actionButton(
+            label: 'Close',
+            width: 96,
+            onPressed: isBusy ? null : dashboardC.closeOverlay,
+          ),
+        ],
       );
     });
   }
 
-  Widget _sectionHeader({required IconData icon, required String title}) {
-    return Container(
-      height: 40,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: AppTheme.tableHeadColor,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(8),
-          topRight: Radius.circular(8),
+  Widget _actionButton({
+    required String label,
+    required VoidCallback? onPressed,
+    double width = 96,
+    Color? foreground,
+  }) {
+    return SizedBox(
+      width: width,
+      height: 38,
+      child: OutlinedButton(
+        onPressed: onPressed,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: foreground ?? AppTheme.textPrimary,
+          side: BorderSide(color: Colors.grey.shade500),
+          shape: const RoundedRectangleBorder(),
+          backgroundColor: Colors.white,
         ),
-        border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 16, color: Colors.white),
-          const SizedBox(width: 8),
-          Text(
-            title,
-            style: AppTheme.bodySmall.copyWith(
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
-            ),
+        child: Text(
+          label,
+          style: AppTheme.bodySmall.copyWith(
+            fontWeight: FontWeight.w500,
+            color: onPressed == null
+                ? Colors.grey
+                : (foreground ?? AppTheme.textPrimary),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -865,13 +657,13 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
   DataColumn _dataColumn(String label) {
     return DataColumn(
       label: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 6),
         child: Obx(
           () => Text(
             AppUnits.label(label),
             style: AppTheme.caption.copyWith(
               fontWeight: FontWeight.w600,
-              color: Colors.white,
+              color: AppTheme.textPrimary,
             ),
           ),
         ),
@@ -880,6 +672,7 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
   }
 
   DataCell _textCell(
+    ReportManagerRow row,
     String value, {
     bool center = false,
     bool alignRight = false,
@@ -888,19 +681,24 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
     final text = value.trim().isEmpty ? '-' : value.trim();
 
     return DataCell(
-      Container(
-        alignment: center
-            ? Alignment.center
-            : alignRight
-            ? Alignment.centerRight
-            : Alignment.centerLeft,
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        child: Text(
-          text,
-          overflow: TextOverflow.ellipsis,
-          style: AppTheme.caption.copyWith(
-            color: AppTheme.textPrimary,
-            fontWeight: bold ? FontWeight.w600 : FontWeight.w400,
+      GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => rmC.selectRow(row.reportId),
+        onSecondaryTapDown: (details) => _openRowMenu(row, details),
+        child: Container(
+          alignment: center
+              ? Alignment.center
+              : alignRight
+              ? Alignment.centerRight
+              : Alignment.centerLeft,
+          padding: const EdgeInsets.symmetric(horizontal: 6),
+          child: Text(
+            text,
+            overflow: TextOverflow.ellipsis,
+            style: AppTheme.caption.copyWith(
+              color: AppTheme.textPrimary,
+              fontWeight: bold ? FontWeight.w600 : FontWeight.w400,
+            ),
           ),
         ),
       ),
@@ -909,7 +707,7 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
 
   List<ReportManagerRow> get _visibleRows {
     final source = rmC.rows.toList(growable: false);
-    if (!hasSearched) return source;
+    if (!hasSearched) return const <ReportManagerRow>[];
     return source.where(_matchesAllEnabledCriteria).toList(growable: false);
   }
 
@@ -981,7 +779,9 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
     rmC.clearSelection();
   }
 
-  void _search() {
+  Future<void> _search() async {
+    await rmC.refreshRows();
+    if (!mounted) return;
     setState(() {
       hasSearched = true;
     });
@@ -991,6 +791,11 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
   Future<void> _deleteRow() async {
     final row = _selectedVisibleRow(_visibleRows);
     if (row == null) return;
+    await _deleteSpecificRow(row);
+  }
+
+  Future<void> _deleteSpecificRow(ReportManagerRow row) async {
+    rmC.selectRow(row.reportId);
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -1057,6 +862,43 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
     }
   }
 
+  Future<void> _openRowMenu(
+    ReportManagerRow row,
+    TapDownDetails details,
+  ) async {
+    rmC.selectRow(row.reportId);
+    final action = await showMenu<_ReportRowAction>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        details.globalPosition.dx,
+        details.globalPosition.dy,
+        details.globalPosition.dx,
+        details.globalPosition.dy,
+      ),
+      items: const [
+        PopupMenuItem(
+          value: _ReportRowAction.select,
+          child: Text('Select', style: TextStyle(fontSize: 11)),
+        ),
+        PopupMenuItem(
+          value: _ReportRowAction.delete,
+          child: Text('Delete', style: TextStyle(fontSize: 11)),
+        ),
+      ],
+    );
+
+    if (!mounted || action == null) return;
+
+    switch (action) {
+      case _ReportRowAction.select:
+        await _selectRow();
+        break;
+      case _ReportRowAction.delete:
+        await _deleteSpecificRow(row);
+        break;
+    }
+  }
+
   static String _displayDate(String value) {
     final parsed = _tryParseDate(value);
     if (parsed == null) {
@@ -1067,8 +909,24 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
 
   static String _formatNumber(double value) => value.toStringAsFixed(2);
 
-  static String _formatCurrency(double value) =>
-      '\$${value.toStringAsFixed(2)}';
+  String _formatCurrency(double value) =>
+      '${_currencyLabel()}${value.toStringAsFixed(2)}';
+
+  String _criteriaLabel(_CriteriaConfig item) {
+    switch (item.key) {
+      case 'md':
+        return AppUnits.label('Depth (ft)');
+      case 'mw':
+        return AppUnits.label('MW (ppg)');
+      default:
+        return item.label;
+    }
+  }
+
+  String _currencyLabel() {
+    final raw = companyC.currencySymbol.value.trim();
+    return raw.isEmpty ? '\$' : raw;
+  }
 
   static DateTime? _tryParseDate(String value) {
     final trimmed = value.trim();
@@ -1083,6 +941,8 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
     return DateTime.tryParse(trimmed);
   }
 }
+
+enum _ReportRowAction { select, delete }
 
 enum _CriteriaKind { text, number, date }
 

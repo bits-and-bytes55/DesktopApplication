@@ -106,18 +106,19 @@ class NozzleController extends GetxController {
     for (final entry in entries) {
       if (entry.size32.value > 0) {
         final diameter = entry.size32.value / 32.0;
-        final area = (3.141592653589793 * diameter * diameter) / 4.0;
+        final rawArea = (3.141592653589793 * diameter * diameter) / 4.0;
+        final area = double.parse(rawArea.toStringAsFixed(3));
         final totalArea = area * entry.count.value;
 
         entry.diameterInch.value = double.parse(diameter.toStringAsFixed(4));
-        entry.area.value = double.parse(area.toStringAsFixed(4));
+        entry.area.value = area;
         total += totalArea;
       } else {
         entry.diameterInch.value = 0;
         entry.area.value = 0;
       }
     }
-    tfa.value = double.parse(total.toStringAsFixed(4));
+    tfa.value = double.parse(total.toStringAsFixed(3));
   }
 
   // Called on every cell change
