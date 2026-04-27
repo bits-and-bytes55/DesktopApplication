@@ -26,9 +26,9 @@ class NozzleController extends GetxController {
   static const int _minRows = 3;
 
   Map<String, String> get _headers => {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      };
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+  };
 
   Uri _buildScopedUri(String path) {
     final queryParameters = <String, String>{};
@@ -144,6 +144,78 @@ class NozzleController extends GetxController {
     }
   }
 
+  void clearRow(int rowIndex) {
+    if (rowIndex < 0 || rowIndex >= entries.length) return;
+    entries[rowIndex].count.value = 1;
+    entries[rowIndex].size32.value = 0;
+    entries[rowIndex].diameterInch.value = 0;
+    entries[rowIndex].area.value = 0;
+    recalculateTfa();
+    _ensureExtraRow();
+    entries.refresh();
+    _scheduleAutoSave();
+  }
+
+  Future<void> deleteRow(int rowIndex) async {
+    if (rowIndex < 0 || rowIndex >= entries.length) return;
+    entries.removeAt(rowIndex);
+    while (entries.length < _minRows) {
+      entries.add(NozzleEntry());
+    }
+    _ensureExtraRow();
+    recalculateTfa();
+    entries.refresh();
+    await _saveToServer();
+  }
+
+  void moveRowToTop(int rowIndex) {
+    if (rowIndex <= 0 || rowIndex >= entries.length) return;
+    final entry = entries.removeAt(rowIndex);
+    entries.insert(0, entry);
+    _ensureExtraRow();
+    recalculateTfa();
+    entries.refresh();
+    _scheduleAutoSave();
+  }
+
+  void moveRowToBottom(int rowIndex) {
+    if (rowIndex < 0 || rowIndex >= entries.length) return;
+    final entry = entries.removeAt(rowIndex);
+    final targetIndex = entries.isNotEmpty && !entries.last.hasData
+        ? entries.length - 1
+        : entries.length;
+    entries.insert(targetIndex.clamp(0, entries.length), entry);
+    _ensureExtraRow();
+    recalculateTfa();
+    entries.refresh();
+    _scheduleAutoSave();
+  }
+
+  List<String> copyRow(int rowIndex) {
+    final entry = entries[rowIndex];
+    return [
+      entry.count.value.toString(),
+      entry.size32.value == 0 ? '' : entry.size32.value.toString(),
+    ];
+  }
+
+  void pasteRow(int rowIndex, List<String> values) {
+    while (entries.length <= rowIndex) {
+      entries.add(NozzleEntry());
+    }
+    final entry = entries[rowIndex];
+    final data = List<String>.from(values);
+    while (data.length < 2) {
+      data.add('');
+    }
+    entry.count.value = int.tryParse(data[0]) ?? 1;
+    entry.size32.value = int.tryParse(data[1]) ?? 0;
+    recalculateTfa();
+    _ensureExtraRow();
+    entries.refresh();
+    _scheduleAutoSave();
+  }
+
   // ─── DEBOUNCED AUTO-SAVE (800ms after last change) ──────────────
   void _scheduleAutoSave() {
     _debounceTimer?.cancel();
@@ -221,11 +293,13 @@ class NozzleController extends GetxController {
     try {
       isSaving.value = true;
 
-      final body = jsonEncode(_withScope({
-        'bitType': bitType.value.trim(),
-        'bitModel': bitModel.value.trim(),
-        'nozzles': nozzlesWithData.map((e) => e.toJson()).toList(),
-      }));
+      final body = jsonEncode(
+        _withScope({
+          'bitType': bitType.value.trim(),
+          'bitModel': bitModel.value.trim(),
+          'nozzles': nozzlesWithData.map((e) => e.toJson()).toList(),
+        }),
+      );
 
       http.Response response;
 

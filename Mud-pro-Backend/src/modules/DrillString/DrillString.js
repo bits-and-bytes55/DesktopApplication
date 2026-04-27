@@ -52,7 +52,13 @@ const drillStringSchema = new mongoose.Schema(
     length: {         // Individual length
       type: Number,
       default: 0
-    }
+    },
+
+    sortOrder: {
+      type: Number,
+      default: 0,
+      index: true,
+    },
   },
   { timestamps: true }
 );

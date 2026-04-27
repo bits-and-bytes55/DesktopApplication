@@ -12,6 +12,11 @@ const buildFilter = ({ wellId, reportId }) => {
   return { wellId };
 };
 
+const toSortOrder = (value) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
 export const getAllCasings = async (req, res) => {
   try {
     const wellId = getWellId(req);
@@ -25,7 +30,11 @@ export const getAllCasings = async (req, res) => {
     }
 
     const filter = buildFilter({ wellId, reportId });
-    const casings = await Casing.find(filter).sort({ createdAt: 1, _id: 1 });
+    const casings = await Casing.find(filter).sort({
+      sortOrder: 1,
+      createdAt: 1,
+      _id: 1,
+    });
     res.status(200).json({ success: true, data: casings });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -48,6 +57,7 @@ export const addCasing = async (req, res) => {
       ...req.body,
       wellId,
       reportId,
+      sortOrder: toSortOrder(req.body.sortOrder),
     });
 
     res.status(201).json({ success: true, data: newCasing });
@@ -76,6 +86,7 @@ export const updateCasing = async (req, res) => {
       {
         ...req.body,
         wellId,
+        sortOrder: toSortOrder(req.body.sortOrder),
         ...(req.body.reportId !== undefined || reportId
           ? { reportId: toText(req.body.reportId ?? reportId) }
           : {}),

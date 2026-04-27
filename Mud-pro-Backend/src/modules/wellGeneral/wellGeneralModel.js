@@ -8,6 +8,16 @@ const timeDistributionRowSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const openHoleRowSchema = new mongoose.Schema(
+  {
+    description: { type: String, default: "" },
+    id: { type: String, default: "" },
+    md: { type: String, default: "" },
+    washout: { type: String, default: "" },
+  },
+  { _id: false }
+);
+
 const wellGeneralSchema = new mongoose.Schema({
   wellId: {
     type: String,
@@ -48,12 +58,22 @@ const wellGeneralSchema = new mongoose.Schema({
   bitMft: { type: String, default: "" },
   bitType: { type: String, default: "" },
   bitSize: { type: String, default: "" },
+  bitCount: { type: String, default: "" },
+  bitDepthIn: { type: String, default: "" },
+  bitDepth: { type: String, default: "" },
   additionalFootage: { type: Number, default: 0 },
   nptTime: { type: Number, default: 0 },
   nptCost: { type: Number, default: 0 },
   depthDrilled: { type: Number, default: 0 },
+  cementPlugEnabled: { type: Boolean, default: false },
+  cementPlugVolume: { type: String, default: "" },
+  cementPlugTop: { type: String, default: "" },
   timeDistributionRows: {
     type: [timeDistributionRowSchema],
+    default: [],
+  },
+  openHoleRows: {
+    type: [openHoleRowSchema],
     default: [],
   },
 }, { timestamps: true });

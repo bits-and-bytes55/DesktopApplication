@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/controller/engineers_controller.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/controller/others_controller.dart';
@@ -7,7 +8,6 @@ import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_contro
 import 'package:mudpro_desktop_app/modules/dashboard/controller/drill_string_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/nozzle_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/well_general_controller.dart';
-import 'package:mudpro_desktop_app/modules/dashboard/widgets/tabular_database.dart';
 import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/controller/UG_ST_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/model/UG_ST_model.dart';
@@ -17,9 +17,120 @@ import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/cased_hole_controller.dart';
 
-const double _kRowH = 22.0;
-const double _kHeaderH = 28.0;
-const double _kFooterH = 28.0;
+const double _kRowH = 20.0;
+const double _kHeaderH = 24.0;
+const double _kFooterH = 18.0;
+const double _kSectionGap = 4.0;
+const Color _kWellPanelBorder = Color(0xFFD5DCE6);
+
+enum _WellRowMenuAction { cut, copy, paste, delete, clear, toTop, toBottom }
+
+class _WellRowClipboard {
+  static String? _section;
+  static List<String>? _values;
+
+  static bool canPaste(String section) =>
+      _section == section && _values != null && _values!.isNotEmpty;
+
+  static Future<void> copy(String section, List<String> values) async {
+    _section = section;
+    _values = List<String>.from(values);
+    await Clipboard.setData(ClipboardData(text: values.join('\t')));
+  }
+
+  static Future<List<String>?> paste(String section) async {
+    if (!canPaste(section)) return null;
+    return List<String>.from(_values!);
+  }
+}
+
+Widget _wellPanel({required Widget child}) => Container(
+  decoration: BoxDecoration(
+    color: Colors.white,
+    border: Border.all(color: _kWellPanelBorder),
+  ),
+  child: child,
+);
+
+Widget _sectionTitle(String title) => Container(
+  height: _kHeaderH,
+  width: double.infinity,
+  padding: const EdgeInsets.symmetric(horizontal: 8),
+  decoration: BoxDecoration(
+    color: AppTheme.primaryColor.withOpacity(0.08),
+    border: const Border(bottom: BorderSide(color: _kWellPanelBorder)),
+  ),
+  alignment: Alignment.centerLeft,
+  child: Text(
+    title,
+    style: TextStyle(
+      fontSize: 10,
+      fontWeight: FontWeight.w600,
+      color: AppTheme.primaryColor,
+    ),
+  ),
+);
+
+Widget _rowMenuTarget({
+  required Widget child,
+  required ValueChanged<TapDownDetails> onSecondaryTapDown,
+}) => GestureDetector(
+  behavior: HitTestBehavior.opaque,
+  onSecondaryTapDown: onSecondaryTapDown,
+  child: child,
+);
+
+Future<_WellRowMenuAction?> _showWellRowMenu(
+  BuildContext context,
+  TapDownDetails details, {
+  required bool canPaste,
+  bool canDelete = true,
+  bool canMove = true,
+}) {
+  return showMenu<_WellRowMenuAction>(
+    context: context,
+    position: RelativeRect.fromLTRB(
+      details.globalPosition.dx,
+      details.globalPosition.dy,
+      details.globalPosition.dx,
+      details.globalPosition.dy,
+    ),
+    items: [
+      const PopupMenuItem(
+        value: _WellRowMenuAction.cut,
+        child: Text('Cut', style: TextStyle(fontSize: 11)),
+      ),
+      const PopupMenuItem(
+        value: _WellRowMenuAction.copy,
+        child: Text('Copy', style: TextStyle(fontSize: 11)),
+      ),
+      PopupMenuItem(
+        value: _WellRowMenuAction.paste,
+        enabled: canPaste,
+        child: const Text('Paste', style: TextStyle(fontSize: 11)),
+      ),
+      PopupMenuItem(
+        value: _WellRowMenuAction.delete,
+        enabled: canDelete,
+        child: const Text('Delete', style: TextStyle(fontSize: 11)),
+      ),
+      const PopupMenuItem(
+        value: _WellRowMenuAction.clear,
+        child: Text('Clear', style: TextStyle(fontSize: 11)),
+      ),
+      PopupMenuItem(
+        value: _WellRowMenuAction.toTop,
+        enabled: canMove,
+        child: const Text('To the Top', style: TextStyle(fontSize: 11)),
+      ),
+      PopupMenuItem(
+        value: _WellRowMenuAction.toBottom,
+        enabled: canMove,
+        child: const Text('To the Bottom', style: TextStyle(fontSize: 11)),
+      ),
+    ],
+  );
+}
 
 const List<String> _kTimeSlots = [
   '00:00',
@@ -154,16 +265,16 @@ class WellTabContent extends StatelessWidget {
               color: AppTheme.backgroundColor,
               child: SingleChildScrollView(
                 child: Padding(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(6),
                   child: Column(
                     children: [
                       SizedBox(
                         height: constraints.maxHeight,
                         child: LeftPortion(),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: _kSectionGap),
                       MiddlePortion(),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: _kSectionGap),
                       RightPortion(),
                     ],
                   ),
@@ -174,15 +285,15 @@ class WellTabContent extends StatelessWidget {
           return Container(
             color: AppTheme.backgroundColor,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+              padding: const EdgeInsets.fromLTRB(4, 4, 4, 4),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  SizedBox(width: 310, child: LeftPortion()),
-                  const SizedBox(width: 6),
+                  SizedBox(width: 300, child: LeftPortion()),
+                  const SizedBox(width: _kSectionGap),
                   Expanded(child: MiddlePortion()),
-                  const SizedBox(width: 6),
-                  SizedBox(width: 260, child: RightPortion()),
+                  const SizedBox(width: _kSectionGap),
+                  SizedBox(width: 240, child: RightPortion()),
                 ],
               ),
             ),
@@ -625,86 +736,72 @@ class _GeneralSectionState extends State<GeneralSection> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-              color: AppTheme.primaryColor.withOpacity(0.1),
-              child: Text(
-                "General",
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.primaryColor,
-                ),
+    return _wellPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionTitle("General"),
+          Expanded(
+            child: SingleChildScrollView(
+              child: Table(
+                border: TableBorder.all(color: Colors.grey.shade300, width: 1),
+                defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+                columnWidths: const {
+                  0: FlexColumnWidth(2),
+                  1: FlexColumnWidth(2),
+                  2: FlexColumnWidth(1),
+                },
+                children: [
+                  _tfRow("Report #", "Report #", ""),
+                  _tfRow("User Report #", "User Report #", ""),
+                  _dateRow(),
+                  _timeRow(),
+                  _engRow("Engineer", selectedEngId, (v) {
+                    setState(() => selectedEngId = v);
+                    _sync();
+                  }),
+                  _engRow("Engineer 2", selectedEng2Id, (v) {
+                    setState(() => selectedEng2Id = v);
+                    _sync();
+                  }),
+                  _tfRow("Operator Rep.", "Operator Rep.", ""),
+                  _tfRow("Contractor Rep.", "Contractor Rep.", ""),
+                  _ddRow("Activity", selectedActivity, activityOptions, (v) {
+                    setState(() => selectedActivity = v!);
+                    _sync();
+                  }),
+                  _tfRow("MD", "MD", "ft"),
+                  _tfRow("TVD", "TVD", "ft"),
+                  _tfRow("Inc", "Inc", "°"),
+                  _tfRow("Azi", "Azi", "°"),
+                  _tfRow("WOB", "WOB", "lbf"),
+                  _tfRow("Rot. Wt.", "Rot. Wt.", "lbf"),
+                  _tfRow("S/O Wt.", "S/O Wt.", "lbf"),
+                  _tfRow("P/U Wt.", "P/U Wt.", "lbf"),
+                  _tfRow("RPM", "RPM", "rpm"),
+                  _tfRow("ROP", "ROP", "ft/hr"),
+                  _tfRow("Off-bottom TQ", "Off-bottom TQ", "ft-lb"),
+                  _tfRow("On-bottom TQ", "On-bottom TQ", "ft-lb"),
+                  _tfRow("Suction T.", "Suction T.", "°F"),
+                  _tfRow("Bottom T.", "Bottom T.", "°F"),
+                  _ddRow("Interval", selectedInterval, dynamicIntervalOptions, (
+                    v,
+                  ) {
+                    setState(() => selectedInterval = v!);
+                    _sync();
+                  }),
+                  _tfRow("FIT", "FIT", "ppg"),
+                  _tfRow("Formation", "Formation", ""),
+                  _tfRow("Additional Footage", "Additional Footage", "ft"),
+                  _tfRow("NPT Time", "NPT Time", "hr"),
+                  _tfRow("NPT Cost", "NPT Cost", "\$"),
+                  _tfRow("Depth Drilled", "Depth Drilled", "ft"),
+                ],
               ),
             ),
-            const Spacer(),
-          ],
-        ),
-        Expanded(
-          child: SingleChildScrollView(
-            child: Table(
-              border: TableBorder.all(color: Colors.grey.shade300, width: 1),
-              defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-              columnWidths: const {
-                0: FlexColumnWidth(2),
-                1: FlexColumnWidth(2),
-                2: FlexColumnWidth(1),
-              },
-              children: [
-                _tfRow("Report #", "Report #", ""),
-                _tfRow("User Report #", "User Report #", ""),
-                _dateRow(),
-                _timeRow(),
-                _engRow("Engineer", selectedEngId, (v) {
-                  setState(() => selectedEngId = v);
-                  _sync();
-                }),
-                _engRow("Engineer 2", selectedEng2Id, (v) {
-                  setState(() => selectedEng2Id = v);
-                  _sync();
-                }),
-                _tfRow("Operator Rep.", "Operator Rep.", ""),
-                _tfRow("Contractor Rep.", "Contractor Rep.", ""),
-                _ddRow("Activity", selectedActivity, activityOptions, (v) {
-                  setState(() => selectedActivity = v!);
-                  _sync();
-                }),
-                _tfRow("MD", "MD", "ft"),
-                _tfRow("TVD", "TVD", "ft"),
-                _tfRow("Inc", "Inc", "°"),
-                _tfRow("Azi", "Azi", "°"),
-                _tfRow("WOB", "WOB", "lbf"),
-                _tfRow("Rot. Wt.", "Rot. Wt.", "lbf"),
-                _tfRow("S/O Wt.", "S/O Wt.", "lbf"),
-                _tfRow("P/U Wt.", "P/U Wt.", "lbf"),
-                _tfRow("RPM", "RPM", "rpm"),
-                _tfRow("ROP", "ROP", "ft/hr"),
-                _tfRow("Off-bottom TQ", "Off-bottom TQ", "ft-lb"),
-                _tfRow("On-bottom TQ", "On-bottom TQ", "ft-lb"),
-                _tfRow("Suction T.", "Suction T.", "°F"),
-                _tfRow("Bottom T.", "Bottom T.", "°F"),
-                _ddRow("Interval", selectedInterval, dynamicIntervalOptions, (
-                  v,
-                ) {
-                  setState(() => selectedInterval = v!);
-                  _sync();
-                }),
-                _tfRow("FIT", "FIT", "ppg"),
-                _tfRow("Formation", "Formation", ""),
-                _tfRow("Additional Footage", "Additional Footage", "ft"),
-                _tfRow("NPT Time", "NPT Time", "hr"),
-                _tfRow("NPT Cost", "NPT Cost", "\$"),
-                _tfRow("Depth Drilled", "Depth Drilled", "ft"),
-              ],
-            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -753,31 +850,32 @@ class _GeneralSectionState extends State<GeneralSection> {
         _lbl(label),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-          child: Obx(
-            () => c.isLocked.value
-                ? _lockedText(ctrl.text)
-                : SizedBox(
-                    height: _kRowH,
-                    child: TextField(
-                      controller: ctrl,
-                      onChanged: (val) => _sync(),
-                      style: const TextStyle(fontSize: 10),
-                      textAlign: TextAlign.center,
-                      decoration: const InputDecoration(
-                        isDense: true,
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: 4,
-                          vertical: 3,
-                        ),
-                        border: InputBorder.none,
-                        enabledBorder: InputBorder.none,
-                        focusedBorder: InputBorder.none,
-                        fillColor: Colors.white,
-                        filled: true,
-                      ),
-                    ),
+          child: Obx(() {
+            if (c.isLocked.value) {
+              return _lockedText(ctrl.text);
+            }
+            return SizedBox(
+              height: _kRowH,
+              child: TextField(
+                controller: ctrl,
+                onChanged: (val) => _sync(),
+                style: const TextStyle(fontSize: 10),
+                textAlign: TextAlign.center,
+                decoration: const InputDecoration(
+                  isDense: true,
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 3,
                   ),
-          ),
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  fillColor: Colors.white,
+                  filled: true,
+                ),
+              ),
+            );
+          }),
         ),
         _unit(unit),
       ],
@@ -1097,12 +1195,17 @@ class MiddlePortion extends StatefulWidget {
 
 class _MiddlePortionState extends State<MiddlePortion> {
   final c = Get.find<DashboardController>();
+  final wellGenCtrl = Get.isRegistered<WellGeneralController>()
+      ? Get.find<WellGeneralController>()
+      : Get.put(WellGeneralController(), permanent: true);
   bool cementPlug = false;
   final _cemCtrl = TextEditingController();
   final _plugCtrl = TextEditingController();
   final List<Worker> _unitWorkers = <Worker>[];
+  final List<Worker> _wellWorkers = <Worker>[];
   late String _lengthUnit;
   late String _volumeUnit;
+  bool _isApplyingCementState = false;
 
   @override
   void initState() {
@@ -1117,6 +1220,20 @@ class _MiddlePortionState extends State<MiddlePortion> {
       ),
       ever(AppUnits.controller.customUnits, (_) => _handleUnitChange()),
     ]);
+    _cemCtrl.addListener(() {
+      if (_isApplyingCementState) return;
+      wellGenCtrl.cementPlugVolume.value = _cemCtrl.text;
+    });
+    _plugCtrl.addListener(() {
+      if (_isApplyingCementState) return;
+      wellGenCtrl.cementPlugTop.value = _plugCtrl.text;
+    });
+    _wellWorkers.addAll([
+      ever<bool>(wellGenCtrl.cementPlugEnabled, (_) => _loadCementState()),
+      ever<String>(wellGenCtrl.cementPlugVolume, (_) => _loadCementState()),
+      ever<String>(wellGenCtrl.cementPlugTop, (_) => _loadCementState()),
+    ]);
+    _loadCementState();
   }
 
   @override
@@ -1126,7 +1243,23 @@ class _MiddlePortionState extends State<MiddlePortion> {
     for (final worker in _unitWorkers) {
       worker.dispose();
     }
+    for (final worker in _wellWorkers) {
+      worker.dispose();
+    }
     super.dispose();
+  }
+
+  void _loadCementState() {
+    _isApplyingCementState = true;
+    cementPlug = wellGenCtrl.cementPlugEnabled.value;
+    if (_cemCtrl.text != wellGenCtrl.cementPlugVolume.value) {
+      _cemCtrl.text = wellGenCtrl.cementPlugVolume.value;
+    }
+    if (_plugCtrl.text != wellGenCtrl.cementPlugTop.value) {
+      _plugCtrl.text = wellGenCtrl.cementPlugTop.value;
+    }
+    _isApplyingCementState = false;
+    if (mounted) setState(() {});
   }
 
   void _handleUnitChange() {
@@ -1167,7 +1300,7 @@ class _MiddlePortionState extends State<MiddlePortion> {
     return LayoutBuilder(
       builder: (ctx, bc) {
         const double cementRowH = 28.0;
-        const double gap = 2.0;
+        const double gap = _kSectionGap;
         const double bottomPad = 4.0;
         final double availableHeight = bc.maxHeight.isFinite
             ? bc.maxHeight
@@ -1206,7 +1339,10 @@ class _MiddlePortionState extends State<MiddlePortion> {
             value: cementPlug,
             onChanged: c.isLocked.value
                 ? null
-                : (v) => setState(() => cementPlug = v ?? false),
+                : (v) {
+                    setState(() => cementPlug = v ?? false);
+                    wellGenCtrl.cementPlugEnabled.value = cementPlug;
+                  },
             visualDensity: VisualDensity.compact,
             activeColor: AppTheme.primaryColor,
           ),
@@ -1289,204 +1425,217 @@ class _CasedHoleSectionState extends State<CasedHoleSection> {
     super.dispose();
   }
 
-  void _addCasingRow() {
-    if (_selectedCasing == null) {
-      final hasCasings = _casingCtrl.casings.any(
-        (casing) => casing.description.value.trim().isNotEmpty,
-      );
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            hasCasings
-                ? 'Select a casing first.'
-                : 'No saved casing found for the selected well/report.',
-          ),
-          duration: const Duration(seconds: 2),
-        ),
-      );
-      return;
-    }
-    uiCtrl.addRowFromCasing(_selectedCasing!);
+  Future<void> _handleRowMenu(int rowIndex, TapDownDetails details) async {
+    setState(() => selectedRowIndex = rowIndex);
+    final action = await _showWellRowMenu(
+      context,
+      details,
+      canPaste: _WellRowClipboard.canPaste('cased-hole'),
+    );
+    if (action == null) return;
 
-    // Successfully added, reset selection dropdown
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) setState(() => _selectedCasing = null);
-    });
+    switch (action) {
+      case _WellRowMenuAction.cut:
+        await _WellRowClipboard.copy('cased-hole', uiCtrl.copyRow(rowIndex));
+        await uiCtrl.deleteRow(rowIndex);
+        break;
+      case _WellRowMenuAction.copy:
+        await _WellRowClipboard.copy('cased-hole', uiCtrl.copyRow(rowIndex));
+        break;
+      case _WellRowMenuAction.paste:
+        final values = await _WellRowClipboard.paste('cased-hole');
+        if (values != null) {
+          uiCtrl.pasteRow(rowIndex, values);
+        }
+        break;
+      case _WellRowMenuAction.delete:
+        await uiCtrl.deleteRow(rowIndex);
+        break;
+      case _WellRowMenuAction.clear:
+        uiCtrl.clearRow(rowIndex);
+        break;
+      case _WellRowMenuAction.toTop:
+        uiCtrl.moveRowToTop(rowIndex);
+        break;
+      case _WellRowMenuAction.toBottom:
+        uiCtrl.moveRowToBottom(rowIndex);
+        break;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // ── HEADER (only the dropdown source changed) ─────────────
-        SizedBox(
-          height: _kHeaderH,
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                color: AppTheme.primaryColor.withOpacity(0.1),
-                child: Text(
+    return _wellPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── HEADER (only the dropdown source changed) ─────────────
+          Container(
+            height: _kHeaderH,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryColor.withOpacity(0.08),
+              border: const Border(
+                bottom: BorderSide(color: _kWellPanelBorder),
+              ),
+            ),
+            child: Row(
+              children: [
+                Text(
                   "Cased Hole",
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 10,
                     fontWeight: FontWeight.w600,
                     color: AppTheme.primaryColor,
                   ),
                 ),
-              ),
-              const Spacer(),
-              const Text("Add New Casing", style: TextStyle(fontSize: 9)),
-              const SizedBox(width: 6),
+                const Spacer(),
+                const Text("Add New Casing", style: TextStyle(fontSize: 9)),
 
-              // ── Dynamic dropdown from API ──────────────────────────
-              Obx(() {
-                final casings = _casingCtrl.casings;
-                final isLoading = _casingCtrl.isLoading.value;
+                // ── Dynamic dropdown from API ──────────────────────────
+                Obx(() {
+                  final casings = _casingCtrl.casings;
+                  final isLoading = _casingCtrl.isLoading.value;
 
-                // Keep _selectedCasing synced with the latest casing objects.
-                if (_selectedCasing != null) {
-                  final matchingCasing = casings.cast<CasingRow?>().firstWhere(
-                    (c) => c?.dbId == _selectedCasing!.dbId,
-                    orElse: () => null,
-                  );
-                  if (matchingCasing == null) {
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (mounted) setState(() => _selectedCasing = null);
-                    });
-                  } else if (!identical(matchingCasing, _selectedCasing)) {
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (mounted)
-                        setState(() => _selectedCasing = matchingCasing);
-                    });
+                  // Keep _selectedCasing synced with the latest casing objects.
+                  if (_selectedCasing != null) {
+                    final matchingCasing = casings
+                        .cast<CasingRow?>()
+                        .firstWhere(
+                          (c) => c?.dbId == _selectedCasing!.dbId,
+                          orElse: () => null,
+                        );
+                    if (matchingCasing == null) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (mounted) setState(() => _selectedCasing = null);
+                      });
+                    } else if (!identical(matchingCasing, _selectedCasing)) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (mounted)
+                          setState(() => _selectedCasing = matchingCasing);
+                      });
+                    }
                   }
-                }
 
-                return Container(
-                  height: 22,
-                  padding: const EdgeInsets.symmetric(horizontal: 6),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade300),
-                  ),
-                  child: isLoading
-                      ? const Center(
-                          child: SizedBox(
-                            width: 10,
-                            height: 10,
-                            child: CircularProgressIndicator(strokeWidth: 1.5),
-                          ),
-                        )
-                      : DropdownButtonHideUnderline(
-                          child: DropdownButton<CasingRow>(
-                            value: _selectedCasing,
-                            hint: Text(
-                              "Select Casing",
-                              style: TextStyle(
-                                fontSize: 9,
-                                color: Colors.grey.shade500,
+                  return Container(
+                    width: 150,
+                    height: 20,
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: isLoading
+                        ? const Center(
+                            child: SizedBox(
+                              width: 10,
+                              height: 10,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 1.5,
                               ),
                             ),
-                            icon: const Icon(Icons.arrow_drop_down, size: 13),
-                            style: const TextStyle(
-                              fontSize: 9,
-                              color: Colors.black,
-                            ),
-                            menuMaxHeight: 200,
-                            onChanged: (v) =>
-                                setState(() => _selectedCasing = v),
-                            items: casings
-                                .where(
-                                  (csg) => csg.description.value.isNotEmpty,
-                                )
-                                .map(
-                                  (csg) => DropdownMenuItem<CasingRow>(
-                                    value: csg,
-                                    child: Text(
-                                      csg.description.value,
-                                      style: const TextStyle(fontSize: 9),
-                                      overflow: TextOverflow.ellipsis,
+                          )
+                        : DropdownButtonHideUnderline(
+                            child: DropdownButton<CasingRow>(
+                              value: _selectedCasing,
+                              hint: Text(
+                                "Select",
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  color: Colors.grey.shade500,
+                                ),
+                              ),
+                              icon: const Icon(Icons.arrow_drop_down, size: 13),
+                              style: const TextStyle(
+                                fontSize: 9,
+                                color: Colors.black,
+                              ),
+                              menuMaxHeight: 200,
+                              onChanged: c.isLocked.value
+                                  ? null
+                                  : (value) {
+                                      if (value == null) return;
+                                      uiCtrl.addRowFromCasing(value);
+                                      setState(() => _selectedCasing = null);
+                                    },
+                              items: casings
+                                  .where(
+                                    (csg) =>
+                                        csg.description.value.trim().isNotEmpty,
+                                  )
+                                  .map(
+                                    (csg) => DropdownMenuItem<CasingRow>(
+                                      value: csg,
+                                      child: Text(
+                                        csg.description.value,
+                                        style: const TextStyle(fontSize: 9),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
                                     ),
-                                  ),
-                                )
-                                .toList(),
+                                  )
+                                  .toList(),
+                            ),
                           ),
-                        ),
-                );
-              }),
+                  );
+                }),
 
-              const SizedBox(width: 6),
+                const SizedBox(width: 6),
 
-              // ── Add button ────────────────────────────────────────
-              InkWell(
-                onTap: _addCasingRow,
-                child: Icon(
-                  Icons.add_box,
-                  color: AppTheme.primaryColor,
-                  size: 16,
-                ),
-              ),
-              const SizedBox(width: 4),
-            ],
+                // ── Add button ────────────────────────────────────────
+              ],
+            ),
           ),
-        ),
 
-        const SizedBox(height: 2),
-
-        // ── TABLE (completely unchanged) ──────────────────────────
-        Expanded(
-          child: LayoutBuilder(
-            builder: (ctx, bc) {
-              final double avail = bc.maxWidth - 28;
-              final double cw = avail / 7;
-              return SingleChildScrollView(
-                scrollDirection: Axis.vertical,
-                child: Obx(
-                  () => Table(
-                    border: TableBorder.all(
-                      color: Colors.grey.shade300,
-                      width: 1,
-                    ),
-                    defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-                    columnWidths: {
-                      0: const FixedColumnWidth(28),
-                      1: FixedColumnWidth(cw),
-                      2: FixedColumnWidth(cw),
-                      3: FixedColumnWidth(cw),
-                      4: FixedColumnWidth(cw),
-                      5: FixedColumnWidth(cw),
-                      6: FixedColumnWidth(cw),
-                      7: FixedColumnWidth(cw),
-                    },
-                    children: [
-                      TableRow(
-                        decoration: BoxDecoration(
-                          color: AppTheme.primaryColor.withOpacity(0.15),
-                        ),
-                        children: [
-                          'No.',
-                          'Description',
-                          'OD\n${AppUnits.unitText('in')}',
-                          'Wt.\n${AppUnits.unitText('lb/ft')}',
-                          'ID\n${AppUnits.unitText('in')}',
-                          'Top\n${AppUnits.unitText('ft')}',
-                          'Shoe\n${AppUnits.unitText('ft')}',
-                          'Len.\n${AppUnits.unitText('ft')}',
-                        ].map((h) => _hCell(h, AppTheme.primaryColor)).toList(),
+          // ── TABLE (completely unchanged) ──────────────────────────
+          Expanded(
+            child: LayoutBuilder(
+              builder: (ctx, bc) {
+                final double avail = bc.maxWidth - 28;
+                final double cw = avail / 7;
+                return SingleChildScrollView(
+                  scrollDirection: Axis.vertical,
+                  child: Obx(
+                    () => Table(
+                      border: TableBorder.all(
+                        color: Colors.grey.shade300,
+                        width: 1,
                       ),
-                      ...uiCtrl.entries.asMap().entries.map((entry) {
-                        final idx = entry.key;
-                        final e = entry.value;
-                        final bool sel = selectedRowIndex == idx;
-                        return TableRow(
+                      defaultVerticalAlignment:
+                          TableCellVerticalAlignment.middle,
+                      columnWidths: {
+                        0: const FixedColumnWidth(28),
+                        1: FixedColumnWidth(cw),
+                        2: FixedColumnWidth(cw),
+                        3: FixedColumnWidth(cw),
+                        4: FixedColumnWidth(cw),
+                        5: FixedColumnWidth(cw),
+                        6: FixedColumnWidth(cw),
+                        7: FixedColumnWidth(cw),
+                      },
+                      children: [
+                        TableRow(
                           decoration: BoxDecoration(
-                            color: sel
-                                ? AppTheme.primaryColor.withOpacity(0.1)
-                                : (idx % 2 == 0
-                                      ? Colors.white
-                                      : Colors.grey.shade50),
+                            color: AppTheme.primaryColor.withOpacity(0.15),
                           ),
-                          children: [
+                          children:
+                              [
+                                    'No.',
+                                    'Description',
+                                    'OD\n${AppUnits.unitText('in')}',
+                                    'Wt.\n${AppUnits.unitText('lb/ft')}',
+                                    'ID\n${AppUnits.unitText('in')}',
+                                    'Top\n${AppUnits.unitText('ft')}',
+                                    'Shoe\n${AppUnits.unitText('ft')}',
+                                    'Len.\n${AppUnits.unitText('ft')}',
+                                  ]
+                                  .map((h) => _hCell(h, AppTheme.primaryColor))
+                                  .toList(),
+                        ),
+                        ...uiCtrl.entries.asMap().entries.map((entry) {
+                          final idx = entry.key;
+                          final e = entry.value;
+                          final bool sel = selectedRowIndex == idx;
+                          final rowChildren = <Widget>[
                             GestureDetector(
                               onTap: () => setState(
                                 () => selectedRowIndex = sel ? null : idx,
@@ -1528,25 +1677,43 @@ class _CasedHoleSectionState extends State<CasedHoleSection> {
                               onChanged: (v) => uiCtrl.checkAndAddRow(idx),
                             ),
                             _eCell(e.length, c, readOnly: true),
-                          ],
-                        );
-                      }).toList(),
-                    ],
+                          ];
+                          return TableRow(
+                            decoration: BoxDecoration(
+                              color: sel
+                                  ? AppTheme.primaryColor.withOpacity(0.1)
+                                  : (idx % 2 == 0
+                                        ? Colors.white
+                                        : Colors.grey.shade50),
+                            ),
+                            children: rowChildren
+                                .map(
+                                  (child) => _rowMenuTarget(
+                                    onSecondaryTapDown: (details) =>
+                                        _handleRowMenu(idx, details),
+                                    child: child,
+                                  ),
+                                )
+                                .toList(),
+                          );
+                        }).toList(),
+                      ],
+                    ),
                   ),
-                ),
-              );
-            },
+                );
+              },
+            ),
           ),
-        ),
 
-        SizedBox(
-          height: _kFooterH,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            color: AppTheme.primaryColor.withOpacity(0.05),
+          SizedBox(
+            height: _kFooterH,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              color: AppTheme.primaryColor.withOpacity(0.05),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -1571,6 +1738,7 @@ class _OpenHoleSectionState extends State<OpenHoleSection> {
   late final List<List<TextEditingController>> _cellControllers;
   List<String> _lastAutoFirstRow = const ['', '', '', ''];
   final List<Worker> _unitWorkers = <Worker>[];
+  Worker? _openHoleWorker;
   late String _lengthUnit;
   late String _diameterUnit;
 
@@ -1594,7 +1762,13 @@ class _OpenHoleSectionState extends State<OpenHoleSection> {
       ),
       ever(AppUnits.controller.customUnits, (_) => _handleUnitChange()),
     ]);
-    _syncAutoValues(force: true);
+    _openHoleWorker = ever<int>(wellGenCtrl.openHoleRevision, (_) {
+      if (!mounted) return;
+      _loadRowsFromController();
+      setState(() {});
+    });
+    _loadRowsFromController(force: true);
+    _syncAutoValues();
   }
 
   @override
@@ -1607,6 +1781,7 @@ class _OpenHoleSectionState extends State<OpenHoleSection> {
     for (final worker in _unitWorkers) {
       worker.dispose();
     }
+    _openHoleWorker?.dispose();
     super.dispose();
   }
 
@@ -1632,6 +1807,7 @@ class _OpenHoleSectionState extends State<OpenHoleSection> {
     _diameterUnit = nextDiameterUnit;
     _lastAutoFirstRow = const ['', '', '', ''];
     _syncAutoValues(force: true);
+    _commitRows();
     if (mounted) setState(() {});
   }
 
@@ -1689,10 +1865,165 @@ class _OpenHoleSectionState extends State<OpenHoleSection> {
     _lastAutoFirstRow = autoRow;
   }
 
+  void _setControllerText(
+    TextEditingController controller,
+    String value, {
+    bool force = false,
+  }) {
+    if (force || controller.text != value) {
+      controller.text = value;
+    }
+  }
+
+  void _loadRowsFromController({bool force = false}) {
+    final rows = wellGenCtrl.openHoleRowsForUi;
+    for (var rowIndex = 0; rowIndex < _cellControllers.length; rowIndex++) {
+      final row = rowIndex < rows.length
+          ? rows[rowIndex]
+          : const <String, String>{};
+      _setControllerText(
+        _cellControllers[rowIndex][0],
+        row['description'] ?? '',
+        force: force,
+      );
+      _setControllerText(
+        _cellControllers[rowIndex][1],
+        row['id'] ?? '',
+        force: force,
+      );
+      _setControllerText(
+        _cellControllers[rowIndex][2],
+        row['md'] ?? '',
+        force: force,
+      );
+      _setControllerText(
+        _cellControllers[rowIndex][3],
+        row['washout'] ?? '',
+        force: force,
+      );
+    }
+  }
+
+  List<Map<String, String>> _rowsForController() => _cellControllers
+      .map(
+        (row) => {
+          'description': row[0].text.trim(),
+          'id': row[1].text.trim(),
+          'md': row[2].text.trim(),
+          'washout': row[3].text.trim(),
+        },
+      )
+      .toList();
+
+  List<String> _copyableRowValues(int rowIndex) =>
+      _cellControllers[rowIndex].map((controller) => controller.text).toList();
+
+  void _commitRows() {
+    wellGenCtrl.hydrateOpenHoleRows(_rowsForController());
+  }
+
+  void _syncRowToController(int rowIndex) {
+    final row = _cellControllers[rowIndex];
+    wellGenCtrl.updateOpenHoleRow(
+      rowIndex,
+      description: row[0].text,
+      id: row[1].text,
+      md: row[2].text,
+      washout: row[3].text,
+    );
+  }
+
+  void _clearRow(int rowIndex) {
+    for (final controller in _cellControllers[rowIndex]) {
+      controller.clear();
+    }
+    _commitRows();
+    _syncAutoValues(force: true);
+    setState(() {});
+  }
+
+  void _deleteRow(int rowIndex) {
+    final rows = _rowsForController();
+    rows.removeAt(rowIndex);
+    while (rows.length < 3) {
+      rows.add({'description': '', 'id': '', 'md': '', 'washout': ''});
+    }
+    wellGenCtrl.hydrateOpenHoleRows(rows);
+    _syncAutoValues(force: true);
+  }
+
+  void _moveRowToTop(int rowIndex) {
+    if (rowIndex <= 0) return;
+    final rows = _rowsForController();
+    final row = rows.removeAt(rowIndex);
+    rows.insert(0, row);
+    wellGenCtrl.hydrateOpenHoleRows(rows);
+  }
+
+  void _moveRowToBottom(int rowIndex) {
+    if (rowIndex < 0 || rowIndex >= _cellControllers.length) return;
+    final rows = _rowsForController();
+    final row = rows.removeAt(rowIndex);
+    rows.add(row);
+    wellGenCtrl.hydrateOpenHoleRows(rows);
+  }
+
+  void _pasteRow(int rowIndex, List<String> values) {
+    final data = List<String>.from(values);
+    while (data.length < 4) {
+      data.add('');
+    }
+    for (var i = 0; i < 4; i++) {
+      _cellControllers[rowIndex][i].text = data[i];
+    }
+    _commitRows();
+    _syncAutoValues(force: true);
+    setState(() {});
+  }
+
+  Future<void> _handleRowMenu(int rowIndex, TapDownDetails details) async {
+    setState(() => selectedRowIndex = rowIndex);
+    final action = await _showWellRowMenu(
+      context,
+      details,
+      canPaste: _WellRowClipboard.canPaste('open-hole'),
+    );
+    if (action == null) return;
+
+    switch (action) {
+      case _WellRowMenuAction.cut:
+        await _WellRowClipboard.copy('open-hole', _copyableRowValues(rowIndex));
+        _deleteRow(rowIndex);
+        break;
+      case _WellRowMenuAction.copy:
+        await _WellRowClipboard.copy('open-hole', _copyableRowValues(rowIndex));
+        break;
+      case _WellRowMenuAction.paste:
+        final values = await _WellRowClipboard.paste('open-hole');
+        if (values != null) {
+          _pasteRow(rowIndex, values);
+        }
+        break;
+      case _WellRowMenuAction.delete:
+        _deleteRow(rowIndex);
+        break;
+      case _WellRowMenuAction.clear:
+        _clearRow(rowIndex);
+        break;
+      case _WellRowMenuAction.toTop:
+        _moveRowToTop(rowIndex);
+        break;
+      case _WellRowMenuAction.toBottom:
+        _moveRowToBottom(rowIndex);
+        break;
+    }
+  }
+
   Widget _editableOpenHoleCell(
     TextEditingController controller, {
     required bool enabled,
     TextInputType keyboardType = TextInputType.text,
+    ValueChanged<String>? onChanged,
   }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
@@ -1703,6 +2034,7 @@ class _OpenHoleSectionState extends State<OpenHoleSection> {
           enabled: enabled,
           keyboardType: keyboardType,
           textAlign: TextAlign.center,
+          onChanged: onChanged,
           decoration: const InputDecoration(
             border: InputBorder.none,
             isDense: true,
@@ -1717,23 +2049,31 @@ class _OpenHoleSectionState extends State<OpenHoleSection> {
   List<Widget> _buildRowCells(
     List<TextEditingController> controllers, {
     required bool enabled,
+    required int rowIndex,
   }) {
     return [
-      _editableOpenHoleCell(controllers[0], enabled: enabled),
+      _editableOpenHoleCell(
+        controllers[0],
+        enabled: enabled,
+        onChanged: (_) => _syncRowToController(rowIndex),
+      ),
       _editableOpenHoleCell(
         controllers[1],
         enabled: enabled,
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        onChanged: (_) => _syncRowToController(rowIndex),
       ),
       _editableOpenHoleCell(
         controllers[2],
         enabled: enabled,
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        onChanged: (_) => _syncRowToController(rowIndex),
       ),
       _editableOpenHoleCell(
         controllers[3],
         enabled: enabled,
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        onChanged: (_) => _syncRowToController(rowIndex),
       ),
     ];
   }
@@ -1744,73 +2084,53 @@ class _OpenHoleSectionState extends State<OpenHoleSection> {
       _syncAutoValues();
       final isLocked = c.isLocked.value;
 
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            height: _kHeaderH,
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              color: AppTheme.primaryColor.withOpacity(0.1),
-              alignment: Alignment.centerLeft,
-              child: Text(
-                "Open Hole",
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.primaryColor,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 2),
-          Expanded(
-            child: LayoutBuilder(
-              builder: (ctx, bc) {
-                final double avail = bc.maxWidth - 28;
-                final double cw = avail / 4;
-                return SingleChildScrollView(
-                  scrollDirection: Axis.vertical,
-                  child: Table(
-                    border: TableBorder.all(
-                      color: Colors.grey.shade300,
-                      width: 1,
-                    ),
-                    defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-                    columnWidths: {
-                      0: const FixedColumnWidth(28),
-                      1: FixedColumnWidth(cw),
-                      2: FixedColumnWidth(cw),
-                      3: FixedColumnWidth(cw),
-                      4: FixedColumnWidth(cw),
-                    },
-                    children: [
-                      TableRow(
-                        decoration: BoxDecoration(
-                          color: AppTheme.primaryColor.withOpacity(0.15),
-                        ),
-                        children: [
-                          'No.',
-                          'Description',
-                          'ID\n${AppUnits.unitText('in')}',
-                          'MD\n${AppUnits.unitText('ft')}',
-                          'Washout\n(%)',
-                        ].map((h) => _hCell(h, AppTheme.primaryColor)).toList(),
+      return _wellPanel(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _sectionTitle("Open Hole"),
+            Expanded(
+              child: LayoutBuilder(
+                builder: (ctx, bc) {
+                  final double avail = bc.maxWidth - 28;
+                  final double cw = avail / 4;
+                  return SingleChildScrollView(
+                    scrollDirection: Axis.vertical,
+                    child: Table(
+                      border: TableBorder.all(
+                        color: Colors.grey.shade300,
+                        width: 1,
                       ),
-                      ..._cellControllers.asMap().entries.map((entry) {
-                        final idx = entry.key;
-                        final rowControllers = entry.value;
-                        final sel = selectedRowIndex == idx;
-                        return TableRow(
+                      defaultVerticalAlignment:
+                          TableCellVerticalAlignment.middle,
+                      columnWidths: {
+                        0: const FixedColumnWidth(28),
+                        1: FixedColumnWidth(cw),
+                        2: FixedColumnWidth(cw),
+                        3: FixedColumnWidth(cw),
+                        4: FixedColumnWidth(cw),
+                      },
+                      children: [
+                        TableRow(
                           decoration: BoxDecoration(
-                            color: sel
-                                ? AppTheme.primaryColor.withOpacity(0.1)
-                                : (idx % 2 == 0
-                                      ? Colors.white
-                                      : Colors.grey.shade50),
+                            color: AppTheme.primaryColor.withOpacity(0.15),
                           ),
-                          children: [
+                          children:
+                              [
+                                    'No.',
+                                    'Description',
+                                    'ID\n${AppUnits.unitText('in')}',
+                                    'MD\n${AppUnits.unitText('ft')}',
+                                    'Washout\n(%)',
+                                  ]
+                                  .map((h) => _hCell(h, AppTheme.primaryColor))
+                                  .toList(),
+                        ),
+                        ..._cellControllers.asMap().entries.map((entry) {
+                          final idx = entry.key;
+                          final rowControllers = entry.value;
+                          final sel = selectedRowIndex == idx;
+                          final rowChildren = <Widget>[
                             GestureDetector(
                               onTap: () => setState(
                                 () => selectedRowIndex = sel ? null : idx,
@@ -1824,24 +2144,40 @@ class _OpenHoleSectionState extends State<OpenHoleSection> {
                             ..._buildRowCells(
                               rowControllers,
                               enabled: !isLocked,
+                              rowIndex: idx,
                             ),
-                          ],
-                        );
-                      }).toList(),
-                    ],
-                  ),
-                );
-              },
+                          ];
+                          return TableRow(
+                            decoration: BoxDecoration(
+                              color: sel
+                                  ? AppTheme.primaryColor.withOpacity(0.1)
+                                  : (idx % 2 == 0
+                                        ? Colors.white
+                                        : Colors.grey.shade50),
+                            ),
+                            children: rowChildren
+                                .map(
+                                  (child) => _rowMenuTarget(
+                                    onSecondaryTapDown: (details) =>
+                                        _handleRowMenu(idx, details),
+                                    child: child,
+                                  ),
+                                )
+                                .toList(),
+                          );
+                        }).toList(),
+                      ],
+                    ),
+                  );
+                },
+              ),
             ),
-          ),
-          SizedBox(
-            height: _kFooterH,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            Container(
+              height: _kFooterH,
               color: AppTheme.primaryColor.withOpacity(0.05),
             ),
-          ),
-        ],
+          ],
+        ),
       );
     });
   }
@@ -1862,222 +2198,221 @@ class _DrillStringSectionState extends State<DrillStringSection> {
       : Get.put(DrillStringController());
   int? selectedRowIndex;
 
+  Future<void> _handleRowMenu(int rowIndex, TapDownDetails details) async {
+    setState(() => selectedRowIndex = rowIndex);
+    final action = await _showWellRowMenu(
+      context,
+      details,
+      canPaste: _WellRowClipboard.canPaste('drill-string'),
+    );
+    if (action == null) return;
+
+    switch (action) {
+      case _WellRowMenuAction.cut:
+        await _WellRowClipboard.copy('drill-string', ds.copyRow(rowIndex));
+        await ds.deleteRow(rowIndex);
+        break;
+      case _WellRowMenuAction.copy:
+        await _WellRowClipboard.copy('drill-string', ds.copyRow(rowIndex));
+        break;
+      case _WellRowMenuAction.paste:
+        final values = await _WellRowClipboard.paste('drill-string');
+        if (values != null) {
+          ds.pasteRow(rowIndex, values);
+        }
+        break;
+      case _WellRowMenuAction.delete:
+        await ds.deleteRow(rowIndex);
+        break;
+      case _WellRowMenuAction.clear:
+        ds.clearRow(rowIndex);
+        break;
+      case _WellRowMenuAction.toTop:
+        ds.moveRowToTop(rowIndex);
+        break;
+      case _WellRowMenuAction.toBottom:
+        ds.moveRowToBottom(rowIndex);
+        break;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          height: _kHeaderH,
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                color: AppTheme.primaryColor.withOpacity(0.1),
-                child: Text(
+    return _wellPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            height: _kHeaderH,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryColor.withOpacity(0.08),
+              border: const Border(
+                bottom: BorderSide(color: _kWellPanelBorder),
+              ),
+            ),
+            child: Row(
+              children: [
+                Text(
                   "Drill String",
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 10,
                     fontWeight: FontWeight.w600,
                     color: AppTheme.primaryColor,
                   ),
                 ),
-              ),
-              const Spacer(),
-              Tooltip(
-                onTriggered: () => Get.to(() => TabularDatabaseView()),
-                message: 'Tabular Database',
-                child: Icon(
-                  Icons.table_chart,
-                  color: AppTheme.primaryColor,
-                  size: 16,
+                const Spacer(),
+                Obx(
+                  () => ds.isLoading.value || ds.isSaving.value
+                      ? const SizedBox(
+                          width: 10,
+                          height: 10,
+                          child: CircularProgressIndicator(strokeWidth: 1.5),
+                        )
+                      : const SizedBox.shrink(),
                 ),
-              ),
-              const SizedBox(width: 4),
-              const Tooltip(
-                message: 'Adjust length',
-                child: Icon(Icons.tune, color: Colors.blue, size: 16),
-              ),
-              const SizedBox(width: 4),
-              Obx(
-                () => ds.isLoading.value
-                    ? const SizedBox(
-                        width: 14,
-                        height: 14,
-                        child: CircularProgressIndicator(strokeWidth: 1.5),
-                      )
-                    : InkWell(
-                        onTap: ds.fetchDrillStrings,
-                        child: Icon(
-                          Icons.refresh,
-                          color: AppTheme.primaryColor,
-                          size: 16,
-                        ),
-                      ),
-              ),
-              const SizedBox(width: 6),
-              Obx(
-                () => ds.isSaving.value
-                    ? const SizedBox(
-                        width: 14,
-                        height: 14,
-                        child: CircularProgressIndicator(strokeWidth: 1.5),
-                      )
-                    : InkWell(
-                        onTap: ds.saveAll,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppTheme.primaryColor,
-                            borderRadius: BorderRadius.circular(3),
-                          ),
-                          child: const Text(
-                            'Save All',
-                            style: TextStyle(
-                              fontSize: 9,
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ),
-              ),
-              const SizedBox(width: 4),
-            ],
+              ],
+            ),
           ),
-        ),
-        const SizedBox(height: 3),
-        Expanded(
-          child: Obx(() {
-            if (ds.isLoading.value)
-              return const Center(child: CircularProgressIndicator());
-            return LayoutBuilder(
-              builder: (ctx, bc) {
-                final double avail = bc.maxWidth - 28;
-                final double cw = avail / 6;
-                return SingleChildScrollView(
-                  scrollDirection: Axis.vertical,
-                  child: Obx(
-                    () => Table(
-                      border: TableBorder.all(
-                        color: Colors.grey.shade300,
-                        width: 1,
-                      ),
-                      defaultVerticalAlignment:
-                          TableCellVerticalAlignment.middle,
-                      columnWidths: {
-                        0: const FixedColumnWidth(28),
-                        1: FixedColumnWidth(cw),
-                        2: FixedColumnWidth(cw),
-                        3: FixedColumnWidth(cw),
-                        4: FixedColumnWidth(cw),
-                        5: FixedColumnWidth(cw),
-                        6: FixedColumnWidth(cw),
-                      },
-                      children: [
-                        TableRow(
-                          decoration: BoxDecoration(
-                            color: AppTheme.primaryColor.withOpacity(0.15),
+          Expanded(
+            child: Obx(() {
+              if (ds.isLoading.value)
+                return const Center(child: CircularProgressIndicator());
+              return LayoutBuilder(
+                builder: (ctx, bc) {
+                  final double avail = bc.maxWidth - 28;
+                  final double cw = avail / 6;
+                  return SingleChildScrollView(
+                    scrollDirection: Axis.vertical,
+                    child: Obx(
+                      () => Table(
+                        border: TableBorder.all(
+                          color: Colors.grey.shade300,
+                          width: 1,
+                        ),
+                        defaultVerticalAlignment:
+                            TableCellVerticalAlignment.middle,
+                        columnWidths: {
+                          0: const FixedColumnWidth(28),
+                          1: FixedColumnWidth(cw),
+                          2: FixedColumnWidth(cw),
+                          3: FixedColumnWidth(cw),
+                          4: FixedColumnWidth(cw),
+                          5: FixedColumnWidth(cw),
+                          6: FixedColumnWidth(cw),
+                        },
+                        children: [
+                          TableRow(
+                            decoration: BoxDecoration(
+                              color: AppTheme.primaryColor.withOpacity(0.15),
+                            ),
+                            children:
+                                [
+                                      'No.',
+                                      'Description',
+                                      'OD\n${AppUnits.unitText('in')}',
+                                      'Wt.\n${AppUnits.unitText('lb/ft')}',
+                                      'ID\n${AppUnits.unitText('in')}',
+                                      'Grade',
+                                      'Len.\n${AppUnits.unitText('ft')}',
+                                    ]
+                                    .map(
+                                      (h) => _hCell(h, AppTheme.primaryColor),
+                                    )
+                                    .toList(),
                           ),
-                          children:
-                              [
-                                    'No.',
-                                    'Description',
-                                    'OD\n${AppUnits.unitText('in')}',
-                                    'Wt.\n${AppUnits.unitText('lb/ft')}',
-                                    'ID\n${AppUnits.unitText('in')}',
-                                    'Grade',
-                                    'Len.\n${AppUnits.unitText('ft')}',
-                                  ]
-                                  .map((h) => _hCell(h, AppTheme.primaryColor))
-                                  .toList(),
-                        ),
-                        ...ds.entries
-                            .asMap()
-                            .entries
-                            .map((e) => _dsRow(e.key, e.value))
-                            .toList(),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            );
-          }),
-        ),
-        Obx(
-          () => SizedBox(
-            height: _kFooterH,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              color: AppTheme.primaryColor.withOpacity(0.05),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    "Total String Length < Well Depth",
-                    style: TextStyle(fontSize: 9, color: Colors.black54),
-                  ),
-                  Row(
-                    children: [
-                      Text(
-                        AppUnits.label("Total Length (ft)"),
-                        style: const TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w600,
-                        ),
+                          ...ds.entries
+                              .asMap()
+                              .entries
+                              .map((e) => _dsRow(e.key, e.value))
+                              .toList(),
+                        ],
                       ),
-                      const SizedBox(width: 6),
-                      Container(
-                        width: 70,
-                        height: 20,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey.shade300),
-                          color: Colors.white,
-                        ),
-                        child: Text(
-                          ds.totalLength.value.toStringAsFixed(1),
+                    ),
+                  );
+                },
+              );
+            }),
+          ),
+          Obx(
+            () => SizedBox(
+              height: _kFooterH,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                color: AppTheme.primaryColor.withOpacity(0.05),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      "Total String Length < Well Depth",
+                      style: TextStyle(fontSize: 9, color: Colors.black54),
+                    ),
+                    Row(
+                      children: [
+                        Text(
+                          AppUnits.label("Total Length (ft)"),
                           style: const TextStyle(
                             fontSize: 9,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                ],
+                        const SizedBox(width: 6),
+                        Container(
+                          width: 70,
+                          height: 20,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey.shade300),
+                            color: Colors.white,
+                          ),
+                          child: Text(
+                            ds.totalLength.value.toStringAsFixed(1),
+                            style: const TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
   TableRow _dsRow(int rowIdx, DrillStringEntry entry) {
     bool sel = selectedRowIndex == rowIdx;
+    final rowChildren = <Widget>[
+      GestureDetector(
+        onTap: () => setState(() => selectedRowIndex = sel ? null : rowIdx),
+        child: _noCell(rowIdx + 1, sel, AppTheme.primaryColor),
+      ),
+      _dsCell(entry.description, rowIdx),
+      _dsCell(entry.od, rowIdx),
+      _dsCell(entry.weightPpf, rowIdx),
+      _dsCell(entry.idCtrl, rowIdx),
+      _dsCell(entry.grade, rowIdx),
+      _dsCell(entry.length, rowIdx),
+    ];
     return TableRow(
       decoration: BoxDecoration(
         color: sel
             ? AppTheme.primaryColor.withOpacity(0.1)
             : (rowIdx % 2 == 0 ? Colors.white : Colors.grey.shade50),
       ),
-      children: [
-        GestureDetector(
-          onTap: () => setState(() => selectedRowIndex = sel ? null : rowIdx),
-          child: _noCell(rowIdx + 1, sel, AppTheme.primaryColor),
-        ),
-        _dsCell(entry.description, rowIdx),
-        _dsCell(entry.od, rowIdx),
-        _dsCell(entry.weightPpf, rowIdx),
-        _dsCell(entry.idCtrl, rowIdx),
-        _dsCell(entry.grade, rowIdx),
-        _dsCell(entry.length, rowIdx),
-      ],
+      children: rowChildren
+          .map(
+            (child) => _rowMenuTarget(
+              onSecondaryTapDown: (details) => _handleRowMenu(rowIdx, details),
+              child: child,
+            ),
+          )
+          .toList(),
     );
   }
 
@@ -2182,10 +2517,10 @@ class _BitSectionState extends State<BitSection> {
   final Map<String, TextEditingController> bc = {
     'Mft': TextEditingController(),
     'Type': TextEditingController(),
-    'No. of Bits': TextEditingController(text: '1'),
+    'No. of Bits': TextEditingController(),
     'Size': TextEditingController(),
     'Depth-in': TextEditingController(),
-    'Depth': TextEditingController(text: '8982.0'),
+    'Depth': TextEditingController(),
   };
   final List<Worker> _unitWorkers = <Worker>[];
   final List<Worker> _bitWorkers = <Worker>[];
@@ -2209,6 +2544,12 @@ class _BitSectionState extends State<BitSection> {
       ever<String>(wellGenCtrl.bitMft, (_) => _loadBitFieldsFromController()),
       ever<String>(wellGenCtrl.bitType, (_) => _loadBitFieldsFromController()),
       ever<String>(wellGenCtrl.bitSize, (_) => _loadBitFieldsFromController()),
+      ever<String>(wellGenCtrl.bitCount, (_) => _loadBitFieldsFromController()),
+      ever<String>(
+        wellGenCtrl.bitDepthIn,
+        (_) => _loadBitFieldsFromController(),
+      ),
+      ever<String>(wellGenCtrl.bitDepth, (_) => _loadBitFieldsFromController()),
     ]);
     _loadBitFieldsFromController();
   }
@@ -2230,7 +2571,10 @@ class _BitSectionState extends State<BitSection> {
   void _loadBitFieldsFromController() {
     _setTextIfChanged('Mft', wellGenCtrl.bitMft.value);
     _setTextIfChanged('Type', wellGenCtrl.bitType.value);
+    _setTextIfChanged('No. of Bits', wellGenCtrl.bitCount.value);
     _setTextIfChanged('Size', _displayBitSize(wellGenCtrl.bitSize.value));
+    _setTextIfChanged('Depth-in', wellGenCtrl.bitDepthIn.value);
+    _setTextIfChanged('Depth', wellGenCtrl.bitDepth.value);
   }
 
   void _setTextIfChanged(String key, String value) {
@@ -2248,8 +2592,17 @@ class _BitSectionState extends State<BitSection> {
       case 'Type':
         wellGenCtrl.bitType.value = value;
         break;
+      case 'No. of Bits':
+        wellGenCtrl.bitCount.value = value;
+        break;
       case 'Size':
         wellGenCtrl.bitSize.value = _storeBitSize(value);
+        break;
+      case 'Depth-in':
+        wellGenCtrl.bitDepthIn.value = value;
+        break;
+      case 'Depth':
+        wellGenCtrl.bitDepth.value = value;
         break;
     }
   }
@@ -2306,6 +2659,8 @@ class _BitSectionState extends State<BitSection> {
     _lengthUnit = nextLengthUnit;
     _diameterUnit = nextDiameterUnit;
     _syncBitField('Size', bc['Size']!.text);
+    _syncBitField('Depth-in', bc['Depth-in']!.text);
+    _syncBitField('Depth', bc['Depth']!.text);
     if (mounted) setState(() {});
   }
 
@@ -2329,56 +2684,38 @@ class _BitSectionState extends State<BitSection> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          height: _kHeaderH,
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            color: AppTheme.primaryColor.withOpacity(0.1),
-            alignment: Alignment.centerLeft,
-            child: Text(
-              "Bit",
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: AppTheme.primaryColor,
+    return _wellPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionTitle("Bit"),
+          Expanded(
+            child: SingleChildScrollView(
+              child: Table(
+                border: TableBorder.all(color: Colors.grey.shade300, width: 1),
+                defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+                columnWidths: const {
+                  0: FlexColumnWidth(2),
+                  1: FlexColumnWidth(2),
+                  2: FlexColumnWidth(1),
+                },
+                children: [
+                  _bRow("Mft", "Mft", ""),
+                  _bRow("Type", "Type", ""),
+                  _bRow("No. of Bits", "No. of Bits", ""),
+                  _bRow("Size", "Size", "(in)"),
+                  _bRow("Depth-in", "Depth-in", "(ft)"),
+                  _bRow("Depth", "Depth", "(ft)"),
+                ],
               ),
             ),
           ),
-        ),
-        const SizedBox(height: 3),
-        Expanded(
-          child: SingleChildScrollView(
-            child: Table(
-              border: TableBorder.all(color: Colors.grey.shade300, width: 1),
-              defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-              columnWidths: const {
-                0: FlexColumnWidth(2),
-                1: FlexColumnWidth(2),
-                2: FlexColumnWidth(1),
-              },
-              children: [
-                _bRow("Mft", "Mft", ""),
-                _bRow("Type", "Type", ""),
-                _bRow("No. of Bits", "No. of Bits", ""),
-                _bRow("Size", "Size", "(in)"),
-                _bRow("Depth-in", "Depth-in", "(ft)"),
-                _bRow("Depth", "Depth", "(ft)"),
-              ],
-            ),
-          ),
-        ),
-        SizedBox(
-          height: _kFooterH,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          Container(
+            height: _kFooterH,
             color: AppTheme.primaryColor.withOpacity(0.05),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -2402,43 +2739,41 @@ class _BitSectionState extends State<BitSection> {
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-          child: Obx(
-            () => c.isLocked.value
-                ? SizedBox(
-                    height: _kRowH,
-                    child: Center(
-                      child: Text(
-                        ctrl.text,
-                        style: TextStyle(
-                          fontSize: 9,
-                          color: AppTheme.textPrimary,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  )
-                : SizedBox(
-                    height: _kRowH,
-                    child: TextField(
-                      controller: ctrl,
-                      style: const TextStyle(fontSize: 9),
-                      textAlign: TextAlign.center,
-                      onChanged: (value) => _syncBitField(key, value),
-                      decoration: const InputDecoration(
-                        isDense: true,
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: 4,
-                          vertical: 3,
-                        ),
-                        border: InputBorder.none,
-                        enabledBorder: InputBorder.none,
-                        focusedBorder: InputBorder.none,
-                        fillColor: Colors.white,
-                        filled: true,
-                      ),
-                    ),
+          child: Obx(() {
+            if (c.isLocked.value) {
+              return SizedBox(
+                height: _kRowH,
+                child: Center(
+                  child: Text(
+                    ctrl.text,
+                    style: TextStyle(fontSize: 9, color: AppTheme.textPrimary),
+                    textAlign: TextAlign.center,
                   ),
-          ),
+                ),
+              );
+            }
+            return SizedBox(
+              height: _kRowH,
+              child: TextField(
+                controller: ctrl,
+                style: const TextStyle(fontSize: 9),
+                textAlign: TextAlign.center,
+                onChanged: (value) => _syncBitField(key, value),
+                decoration: const InputDecoration(
+                  isDense: true,
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 3,
+                  ),
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  fillColor: Colors.white,
+                  filled: true,
+                ),
+              ),
+            );
+          }),
         ),
         Container(
           height: _kRowH,
@@ -2506,6 +2841,44 @@ class _NozzleSectionState extends State<NozzleSection> {
     ctrl.text = text;
   }
 
+  Future<void> _handleRowMenu(int rowIndex, TapDownDetails details) async {
+    setState(() => selectedRowIndex = rowIndex);
+    final action = await _showWellRowMenu(
+      context,
+      details,
+      canPaste: _WellRowClipboard.canPaste('nozzle'),
+    );
+    if (action == null) return;
+
+    switch (action) {
+      case _WellRowMenuAction.cut:
+        await _WellRowClipboard.copy('nozzle', nc.copyRow(rowIndex));
+        await nc.deleteRow(rowIndex);
+        break;
+      case _WellRowMenuAction.copy:
+        await _WellRowClipboard.copy('nozzle', nc.copyRow(rowIndex));
+        break;
+      case _WellRowMenuAction.paste:
+        final values = await _WellRowClipboard.paste('nozzle');
+        if (values != null) {
+          nc.pasteRow(rowIndex, values);
+        }
+        break;
+      case _WellRowMenuAction.delete:
+        await nc.deleteRow(rowIndex);
+        break;
+      case _WellRowMenuAction.clear:
+        nc.clearRow(rowIndex);
+        break;
+      case _WellRowMenuAction.toTop:
+        nc.moveRowToTop(rowIndex);
+        break;
+      case _WellRowMenuAction.toBottom:
+        nc.moveRowToBottom(rowIndex);
+        break;
+    }
+  }
+
   @override
   void dispose() {
     for (final c in _countCtrls.values) c.dispose();
@@ -2517,82 +2890,61 @@ class _NozzleSectionState extends State<NozzleSection> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          height: _kHeaderH,
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            color: AppTheme.primaryColor.withOpacity(0.1),
-            alignment: Alignment.centerLeft,
-            child: Text(
-              "Nozzle (1/32in)",
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: AppTheme.primaryColor,
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 2),
-        Expanded(
-          child: Obx(() {
-            final entries = nc.entries;
-            for (int i = 0; i < entries.length; i++) {
-              final countText = entries[i].count.value.toString();
-              final sizeText = entries[i].size32.value == 0
-                  ? ''
-                  : entries[i].size32.value.toString();
+    return _wellPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionTitle("Nozzle (1/32in)"),
+          Expanded(
+            child: Obx(() {
+              final entries = nc.entries;
+              for (int i = 0; i < entries.length; i++) {
+                final countText = entries[i].count.value.toString();
+                final sizeText = entries[i].size32.value == 0
+                    ? ''
+                    : entries[i].size32.value.toString();
 
-              if (!_countCtrls.containsKey(i)) {
-                _countCtrls[i] = TextEditingController(text: countText);
-              } else {
-                _syncCtrl(_countCtrls[i]!, _countFocusNode(i), countText);
+                if (!_countCtrls.containsKey(i)) {
+                  _countCtrls[i] = TextEditingController(text: countText);
+                } else {
+                  _syncCtrl(_countCtrls[i]!, _countFocusNode(i), countText);
+                }
+                if (!_sizeCtrls.containsKey(i)) {
+                  _sizeCtrls[i] = TextEditingController(text: sizeText);
+                } else {
+                  _syncCtrl(_sizeCtrls[i]!, _sizeFocusNode(i), sizeText);
+                }
               }
-              if (!_sizeCtrls.containsKey(i)) {
-                _sizeCtrls[i] = TextEditingController(text: sizeText);
-              } else {
-                _syncCtrl(_sizeCtrls[i]!, _sizeFocusNode(i), sizeText);
-              }
-            }
 
-            return SingleChildScrollView(
-              scrollDirection: Axis.vertical,
-              child: Table(
-                border: TableBorder.all(color: Colors.grey.shade300, width: 1),
-                defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-                columnWidths: const {
-                  0: FixedColumnWidth(28),
-                  1: FlexColumnWidth(1),
-                  2: FlexColumnWidth(1),
-                },
-                children: [
-                  TableRow(
-                    decoration: BoxDecoration(
-                      color: AppTheme.primaryColor.withOpacity(0.15),
-                    ),
-                    children: [
-                      'No.',
-                      'No.',
-                      'Size\n(1/32in)',
-                    ].map((h) => _hCell(h, AppTheme.primaryColor)).toList(),
+              return SingleChildScrollView(
+                scrollDirection: Axis.vertical,
+                child: Table(
+                  border: TableBorder.all(
+                    color: Colors.grey.shade300,
+                    width: 1,
                   ),
-                  ...entries.asMap().entries.map((entry) {
-                    final idx = entry.key;
-                    final nozzle = entry.value;
-                    final bool sel = selectedRowIndex == idx;
-                    return TableRow(
+                  defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+                  columnWidths: const {
+                    0: FixedColumnWidth(28),
+                    1: FlexColumnWidth(1),
+                    2: FlexColumnWidth(1),
+                  },
+                  children: [
+                    TableRow(
                       decoration: BoxDecoration(
-                        color: sel
-                            ? AppTheme.primaryColor.withOpacity(0.1)
-                            : (idx % 2 == 0
-                                  ? Colors.white
-                                  : Colors.grey.shade50),
+                        color: AppTheme.primaryColor.withOpacity(0.15),
                       ),
                       children: [
+                        'No.',
+                        'No.',
+                        'Size\n(1/32in)',
+                      ].map((h) => _hCell(h, AppTheme.primaryColor)).toList(),
+                    ),
+                    ...entries.asMap().entries.map((entry) {
+                      final idx = entry.key;
+                      final nozzle = entry.value;
+                      final bool sel = selectedRowIndex == idx;
+                      final rowChildren = <Widget>[
                         GestureDetector(
                           onTap: () => setState(
                             () => selectedRowIndex = sel ? null : idx,
@@ -2609,63 +2961,81 @@ class _NozzleSectionState extends State<NozzleSection> {
                           nozzle.size32.value = int.tryParse(val) ?? 0;
                           nc.onCellChanged(idx);
                         }),
+                      ];
+                      return TableRow(
+                        decoration: BoxDecoration(
+                          color: sel
+                              ? AppTheme.primaryColor.withOpacity(0.1)
+                              : (idx % 2 == 0
+                                    ? Colors.white
+                                    : Colors.grey.shade50),
+                        ),
+                        children: rowChildren
+                            .map(
+                              (child) => _rowMenuTarget(
+                                onSecondaryTapDown: (details) =>
+                                    _handleRowMenu(idx, details),
+                                child: child,
+                              ),
+                            )
+                            .toList(),
+                      );
+                    }).toList(),
+                  ],
+                ),
+              );
+            }),
+          ),
+          Obx(
+            () => SizedBox(
+              height: _kFooterH,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                color: AppTheme.primaryColor.withOpacity(0.05),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        const Text(
+                          "TFA (in²)",
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        if (nc.isSaving.value)
+                          const SizedBox(
+                            width: 10,
+                            height: 10,
+                            child: CircularProgressIndicator(strokeWidth: 1.5),
+                          ),
                       ],
-                    );
-                  }).toList(),
-                ],
-              ),
-            );
-          }),
-        ),
-        Obx(
-          () => SizedBox(
-            height: _kFooterH,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              color: AppTheme.primaryColor.withOpacity(0.05),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      const Text(
-                        "TFA (in²)",
-                        style: TextStyle(
+                    ),
+                    Container(
+                      width: 60,
+                      height: 20,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.shade300),
+                        color: Colors.white,
+                      ),
+                      child: Text(
+                        nc.tfa.value.toStringAsFixed(4),
+                        style: const TextStyle(
                           fontSize: 9,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      const SizedBox(width: 4),
-                      if (nc.isSaving.value)
-                        const SizedBox(
-                          width: 10,
-                          height: 10,
-                          child: CircularProgressIndicator(strokeWidth: 1.5),
-                        ),
-                    ],
-                  ),
-                  Container(
-                    width: 60,
-                    height: 20,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade300),
-                      color: Colors.white,
                     ),
-                    child: Text(
-                      nc.tfa.value.toStringAsFixed(4),
-                      style: const TextStyle(
-                        fontSize: 9,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -2798,6 +3168,117 @@ class _TimeDistributionSectionState extends State<TimeDistributionSection> {
     );
   }
 
+  List<String> _copyableRowValues(int idx) {
+    final row = tableData[idx];
+    final timeCtrl = row['time'] as TextEditingController;
+    return [(row['activity'] ?? '').toString(), timeCtrl.text];
+  }
+
+  void _commitRows(List<Map<String, String>> rows) {
+    wellGenCtrl.hydrateTimeDistributionRows(rows);
+  }
+
+  List<Map<String, String>> _rowsForController() => tableData
+      .map(
+        (row) => {
+          'activity': (row['activity'] ?? '').toString(),
+          'time': (row['time'] as TextEditingController).text,
+        },
+      )
+      .toList();
+
+  void _clearRow(int idx) {
+    if (idx < 0 || idx >= tableData.length) return;
+    final timeCtrl = tableData[idx]['time'] as TextEditingController;
+    setState(() {
+      tableData[idx]['activity'] = '';
+      timeCtrl.clear();
+    });
+    _syncRowToController(idx);
+  }
+
+  void _deleteRow(int idx) {
+    if (idx < 0 || idx >= tableData.length) return;
+    final rows = _rowsForController();
+    rows.removeAt(idx);
+    _commitRows(rows);
+  }
+
+  void _moveRowToTop(int idx) {
+    if (idx <= 0 || idx >= tableData.length) return;
+    final rows = _rowsForController();
+    final row = rows.removeAt(idx);
+    rows.insert(0, row);
+    _commitRows(rows);
+  }
+
+  void _moveRowToBottom(int idx) {
+    if (idx < 0 || idx >= tableData.length) return;
+    final rows = _rowsForController();
+    final row = rows.removeAt(idx);
+    rows.add(row);
+    _commitRows(rows);
+  }
+
+  void _pasteRow(int idx, List<String> values) {
+    final data = List<String>.from(values);
+    while (data.length < 2) {
+      data.add('');
+    }
+    if (idx >= tableData.length) return;
+    final timeCtrl = tableData[idx]['time'] as TextEditingController;
+    setState(() {
+      tableData[idx]['activity'] = data[0];
+      timeCtrl.text = data[1];
+    });
+    _syncRowToController(idx);
+    _checkAndAddRow(idx);
+  }
+
+  Future<void> _handleRowMenu(int rowIndex, TapDownDetails details) async {
+    setState(() => selectedRowIndex = rowIndex);
+    final action = await _showWellRowMenu(
+      context,
+      details,
+      canPaste: _WellRowClipboard.canPaste('time-distribution'),
+    );
+    if (action == null) return;
+
+    switch (action) {
+      case _WellRowMenuAction.cut:
+        await _WellRowClipboard.copy(
+          'time-distribution',
+          _copyableRowValues(rowIndex),
+        );
+        _deleteRow(rowIndex);
+        break;
+      case _WellRowMenuAction.copy:
+        await _WellRowClipboard.copy(
+          'time-distribution',
+          _copyableRowValues(rowIndex),
+        );
+        break;
+      case _WellRowMenuAction.paste:
+        final values = await _WellRowClipboard.paste('time-distribution');
+        if (values != null) {
+          _pasteRow(rowIndex, values);
+        }
+        break;
+      case _WellRowMenuAction.delete:
+        _deleteRow(rowIndex);
+        break;
+      case _WellRowMenuAction.clear:
+        _clearRow(rowIndex);
+        break;
+      case _WellRowMenuAction.toTop:
+        _moveRowToTop(rowIndex);
+        break;
+      case _WellRowMenuAction.toBottom:
+        _moveRowToBottom(rowIndex);
+        break;
+    }
+  }
+
   Future<void> _fetchActivities() async {
     try {
       final acts = await widget.activityController.getActivities();
@@ -2855,62 +3336,39 @@ class _TimeDistributionSectionState extends State<TimeDistributionSection> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          height: _kHeaderH,
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            color: AppTheme.primaryColor.withOpacity(0.1),
-            alignment: Alignment.centerLeft,
-            child: Text(
-              "Time Distribution",
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: AppTheme.primaryColor,
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 2),
-        Expanded(
-          child: SingleChildScrollView(
-            child: Table(
-              border: TableBorder.all(color: Colors.grey.shade300, width: 1),
-              defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-              columnWidths: const {
-                0: FixedColumnWidth(28),
-                1: FlexColumnWidth(3),
-                2: FixedColumnWidth(50),
-              },
-              children: [
-                TableRow(
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryColor.withOpacity(0.15),
-                  ),
-                  children: [
-                    'No.',
-                    'Activity',
-                    'Time\n(hr)',
-                  ].map((h) => _hCell(h, AppTheme.primaryColor)).toList(),
-                ),
-                ...tableData.asMap().entries.map((entry) {
-                  final idx = entry.key;
-                  final row = entry.value;
-                  final timeCtrl = row['time'] as TextEditingController;
-                  final currentActivity = row['activity'] as String;
-                  final bool sel = selectedRowIndex == idx;
-
-                  return TableRow(
+    return _wellPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionTitle("Time Distribution"),
+          Expanded(
+            child: SingleChildScrollView(
+              child: Table(
+                border: TableBorder.all(color: Colors.grey.shade300, width: 1),
+                defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+                columnWidths: const {
+                  0: FixedColumnWidth(28),
+                  1: FlexColumnWidth(3),
+                  2: FixedColumnWidth(50),
+                },
+                children: [
+                  TableRow(
                     decoration: BoxDecoration(
-                      color: sel
-                          ? AppTheme.primaryColor.withOpacity(0.1)
-                          : (idx % 2 == 0 ? Colors.white : Colors.grey.shade50),
+                      color: AppTheme.primaryColor.withOpacity(0.15),
                     ),
                     children: [
+                      'No.',
+                      'Activity',
+                      'Time\n(hr)',
+                    ].map((h) => _hCell(h, AppTheme.primaryColor)).toList(),
+                  ),
+                  ...tableData.asMap().entries.map((entry) {
+                    final idx = entry.key;
+                    final row = entry.value;
+                    final timeCtrl = row['time'] as TextEditingController;
+                    final currentActivity = row['activity'] as String;
+                    final bool sel = selectedRowIndex == idx;
+                    final rowChildren = <Widget>[
                       GestureDetector(
                         onTap: () =>
                             setState(() => selectedRowIndex = sel ? null : idx),
@@ -3057,21 +3515,37 @@ class _TimeDistributionSectionState extends State<TimeDistributionSection> {
                                 ),
                         ),
                       ),
-                    ],
-                  );
-                }).toList(),
-              ],
+                    ];
+
+                    return TableRow(
+                      decoration: BoxDecoration(
+                        color: sel
+                            ? AppTheme.primaryColor.withOpacity(0.1)
+                            : (idx % 2 == 0
+                                  ? Colors.white
+                                  : Colors.grey.shade50),
+                      ),
+                      children: rowChildren
+                          .map(
+                            (child) => _rowMenuTarget(
+                              onSecondaryTapDown: (details) =>
+                                  _handleRowMenu(idx, details),
+                              child: child,
+                            ),
+                          )
+                          .toList(),
+                    );
+                  }).toList(),
+                ],
+              ),
             ),
           ),
-        ),
-        SizedBox(
-          height: _kFooterH,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          Container(
+            height: _kFooterH,
             color: AppTheme.primaryColor.withOpacity(0.05),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

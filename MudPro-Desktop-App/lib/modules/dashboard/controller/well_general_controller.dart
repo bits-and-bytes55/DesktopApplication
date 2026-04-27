@@ -12,6 +12,7 @@ import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart
 class WellGeneralController extends GetxController {
   final String baseUrl = ApiEndpoint.baseUrl;
   static const int _minTimeDistributionRows = 5;
+  static const int _minOpenHoleRows = 3;
 
   var isLoading = false.obs;
   var isSaving = false.obs;
@@ -47,12 +48,20 @@ class WellGeneralController extends GetxController {
   var bitMft = ''.obs;
   var bitType = ''.obs;
   var bitSize = ''.obs;
+  var bitCount = ''.obs;
+  var bitDepthIn = ''.obs;
+  var bitDepth = ''.obs;
   var additionalFootage = ''.obs;
   var nptTime = ''.obs;
   var nptCost = ''.obs;
   var depthDrilled = ''.obs;
+  final cementPlugEnabled = false.obs;
+  var cementPlugVolume = ''.obs;
+  var cementPlugTop = ''.obs;
   final timeDistributionRows = <Map<String, String>>[].obs;
   final timeDistributionRevision = 0.obs;
+  final openHoleRows = <Map<String, String>>[].obs;
+  final openHoleRevision = 0.obs;
   Worker? _wellWorker;
   Worker? _reportWorker;
   final List<Worker> _autoSaveWorkers = <Worker>[];
@@ -89,10 +98,15 @@ class WellGeneralController extends GetxController {
     bitMft,
     bitType,
     bitSize,
+    bitCount,
+    bitDepthIn,
+    bitDepth,
     additionalFootage,
     nptTime,
     nptCost,
     depthDrilled,
+    cementPlugVolume,
+    cementPlugTop,
   ];
 
   @override
@@ -109,7 +123,13 @@ class WellGeneralController extends GetxController {
       _autoSaveWorkers.add(ever<String>(field, (_) => _scheduleAutoSave()));
     }
     _autoSaveWorkers.add(
+      ever<bool>(cementPlugEnabled, (_) => _scheduleAutoSave()),
+    );
+    _autoSaveWorkers.add(
       ever<int>(timeDistributionRevision, (_) => _scheduleAutoSave()),
+    );
+    _autoSaveWorkers.add(
+      ever<int>(openHoleRevision, (_) => _scheduleAutoSave()),
     );
     fetchLatest();
   }
@@ -128,7 +148,9 @@ class WellGeneralController extends GetxController {
   bool get _hasMeaningfulData {
     return savedId.value.isNotEmpty ||
         _autoSaveFields.any((field) => field.value.trim().isNotEmpty) ||
-        _serializeTimeDistributionRows().isNotEmpty;
+        cementPlugEnabled.value ||
+        _serializeTimeDistributionRows().isNotEmpty ||
+        _serializeOpenHoleRows().isNotEmpty;
   }
 
   void _scheduleAutoSave() {
@@ -152,6 +174,13 @@ class WellGeneralController extends GetxController {
   Map<String, String> _blankTimeDistributionRow() => {
     'activity': '',
     'time': '',
+  };
+
+  Map<String, String> _blankOpenHoleRow() => {
+    'description': '',
+    'id': '',
+    'md': '',
+    'washout': '',
   };
 
   String _formatTimeDistributionValue(dynamic value) {
@@ -194,10 +223,40 @@ class WellGeneralController extends GetxController {
     return normalized;
   }
 
+  List<Map<String, String>> _normalizeOpenHoleRows(dynamic rawRows) {
+    final normalized = <Map<String, String>>[];
+
+    if (rawRows is List) {
+      for (final item in rawRows) {
+        if (item is Map) {
+          normalized.add({
+            'description': (item['description'] ?? '').toString().trim(),
+            'id': (item['id'] ?? '').toString().trim(),
+            'md': (item['md'] ?? '').toString().trim(),
+            'washout': (item['washout'] ?? '').toString().trim(),
+          });
+        }
+      }
+    }
+
+    while (normalized.length < _minOpenHoleRows) {
+      normalized.add(_blankOpenHoleRow());
+    }
+
+    return normalized;
+  }
+
   void _setTimeDistributionRows(dynamic rawRows, {bool notify = true}) {
     timeDistributionRows.assignAll(_normalizeTimeDistributionRows(rawRows));
     if (notify) {
       timeDistributionRevision.value++;
+    }
+  }
+
+  void _setOpenHoleRows(dynamic rawRows, {bool notify = true}) {
+    openHoleRows.assignAll(_normalizeOpenHoleRows(rawRows));
+    if (notify) {
+      openHoleRevision.value++;
     }
   }
 
@@ -213,6 +272,21 @@ class WellGeneralController extends GetxController {
 
   void hydrateTimeDistributionRows(dynamic rawRows, {bool notify = true}) {
     _setTimeDistributionRows(rawRows, notify: notify);
+  }
+
+  List<Map<String, String>> get openHoleRowsForUi => openHoleRows
+      .map(
+        (row) => {
+          'description': row['description'] ?? '',
+          'id': row['id'] ?? '',
+          'md': row['md'] ?? '',
+          'washout': row['washout'] ?? '',
+        },
+      )
+      .toList();
+
+  void hydrateOpenHoleRows(dynamic rawRows, {bool notify = true}) {
+    _setOpenHoleRows(rawRows, notify: notify);
   }
 
   void updateTimeDistributionRow(
@@ -237,6 +311,36 @@ class WellGeneralController extends GetxController {
     _setTimeDistributionRows(rows, notify: notify);
   }
 
+  void updateOpenHoleRow(
+    int index, {
+    String? description,
+    String? id,
+    String? md,
+    String? washout,
+    bool notify = true,
+  }) {
+    final rows = openHoleRowsForUi;
+    while (rows.length <= index) {
+      rows.add(_blankOpenHoleRow());
+    }
+
+    final current = Map<String, String>.from(rows[index]);
+    if (description != null) {
+      current['description'] = description;
+    }
+    if (id != null) {
+      current['id'] = id;
+    }
+    if (md != null) {
+      current['md'] = md;
+    }
+    if (washout != null) {
+      current['washout'] = washout;
+    }
+    rows[index] = current;
+    _setOpenHoleRows(rows, notify: notify);
+  }
+
   List<Map<String, dynamic>> _serializeTimeDistributionRows() {
     final serialized = <Map<String, dynamic>>[];
 
@@ -250,6 +354,28 @@ class WellGeneralController extends GetxController {
       serialized.add({
         'description': activity,
         'hours': double.tryParse(time) ?? 0,
+      });
+    }
+
+    return serialized;
+  }
+
+  List<Map<String, String>> _serializeOpenHoleRows() {
+    final serialized = <Map<String, String>>[];
+
+    for (final row in openHoleRows) {
+      final description = (row['description'] ?? '').trim();
+      final id = (row['id'] ?? '').trim();
+      final md = (row['md'] ?? '').trim();
+      final washout = (row['washout'] ?? '').trim();
+      if (description.isEmpty && id.isEmpty && md.isEmpty && washout.isEmpty) {
+        continue;
+      }
+      serialized.add({
+        'description': description,
+        'id': id,
+        'md': md,
+        'washout': washout,
       });
     }
 
@@ -293,11 +419,18 @@ class WellGeneralController extends GetxController {
     'bitMft': bitMft.value,
     'bitType': bitType.value,
     'bitSize': bitSize.value,
+    'bitCount': bitCount.value,
+    'bitDepthIn': bitDepthIn.value,
+    'bitDepth': bitDepth.value,
     'additionalFootage': double.tryParse(additionalFootage.value) ?? 0,
     'nptTime': double.tryParse(nptTime.value) ?? 0,
     'nptCost': double.tryParse(nptCost.value) ?? 0,
     'depthDrilled': double.tryParse(depthDrilled.value) ?? 0,
+    'cementPlugEnabled': cementPlugEnabled.value,
+    'cementPlugVolume': cementPlugVolume.value,
+    'cementPlugTop': cementPlugTop.value,
     'timeDistributionRows': _serializeTimeDistributionRows(),
+    'openHoleRows': _serializeOpenHoleRows(),
   };
 
   void _fromJson(Map<String, dynamic> d) {
@@ -331,11 +464,18 @@ class WellGeneralController extends GetxController {
     bitMft.value = d['bitMft']?.toString() ?? '';
     bitType.value = d['bitType']?.toString() ?? '';
     bitSize.value = d['bitSize']?.toString() ?? '';
+    bitCount.value = d['bitCount']?.toString() ?? '';
+    bitDepthIn.value = d['bitDepthIn']?.toString() ?? '';
+    bitDepth.value = d['bitDepth']?.toString() ?? '';
     additionalFootage.value = (d['additionalFootage'] ?? '').toString();
     nptTime.value = (d['nptTime'] ?? '').toString();
     nptCost.value = (d['nptCost'] ?? '').toString();
     depthDrilled.value = (d['depthDrilled'] ?? '').toString();
+    cementPlugEnabled.value = d['cementPlugEnabled'] == true;
+    cementPlugVolume.value = d['cementPlugVolume']?.toString() ?? '';
+    cementPlugTop.value = d['cementPlugTop']?.toString() ?? '';
     _setTimeDistributionRows(d['timeDistributionRows']);
+    _setOpenHoleRows(d['openHoleRows']);
   }
 
   void _clearFields() {
@@ -369,11 +509,18 @@ class WellGeneralController extends GetxController {
     bitMft.value = '';
     bitType.value = '';
     bitSize.value = '';
+    bitCount.value = '';
+    bitDepthIn.value = '';
+    bitDepth.value = '';
     additionalFootage.value = '';
     nptTime.value = '';
     nptCost.value = '';
     depthDrilled.value = '';
+    cementPlugEnabled.value = false;
+    cementPlugVolume.value = '';
+    cementPlugTop.value = '';
     _setTimeDistributionRows(const []);
+    _setOpenHoleRows(const []);
   }
 
   void _applySelectedReportMetadata() {

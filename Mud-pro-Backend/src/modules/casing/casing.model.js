@@ -20,6 +20,7 @@ const casingSchema = new mongoose.Schema({
   shoe: { type: String, default: '' },
   bit: { type: String, default: '' },
   toc: { type: String, default: '' },
+  sortOrder: { type: Number, default: 0, index: true },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 }, {

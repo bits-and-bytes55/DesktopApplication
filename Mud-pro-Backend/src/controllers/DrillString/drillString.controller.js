@@ -23,6 +23,11 @@ const resolveScope = (req, existing = {}) => {
   return { wellId, reportId, reportNo };
 };
 
+const toSortOrder = (value) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
 const emptyFieldFilter = (field) => ({
   $or: [{ [field]: { $exists: false } }, { [field]: null }, { [field]: "" }],
 });
@@ -42,14 +47,14 @@ const loadScopedDrillStrings = async (wellId, reportId) => {
   }
 
   return DrillString.find({ wellId, reportId })
-    .sort({ createdAt: 1, _id: 1 })
+    .sort({ sortOrder: 1, createdAt: 1, _id: 1 })
     .lean();
 };
 
 const loadLegacyDrillStrings = async (wellId) => {
   if (wellId) {
     const wellScoped = await DrillString.find(legacyWellFilter(wellId))
-      .sort({ createdAt: 1, _id: 1 })
+      .sort({ sortOrder: 1, createdAt: 1, _id: 1 })
       .lean();
 
     if (wellScoped.length > 0) {
@@ -58,7 +63,7 @@ const loadLegacyDrillStrings = async (wellId) => {
   }
 
   return DrillString.find(legacyGlobalFilter())
-    .sort({ createdAt: 1, _id: 1 })
+    .sort({ sortOrder: 1, createdAt: 1, _id: 1 })
     .lean();
 };
 
@@ -77,12 +82,12 @@ const loadDisplayDrillStrings = async ({ wellId, reportId }) => {
 
   if (reportId) {
     return DrillString.find({ reportId })
-      .sort({ createdAt: 1, _id: 1 })
+      .sort({ sortOrder: 1, createdAt: 1, _id: 1 })
       .lean();
   }
 
   return DrillString.find({})
-    .sort({ createdAt: 1, _id: 1 })
+    .sort({ sortOrder: 1, createdAt: 1, _id: 1 })
     .lean();
 };
 
@@ -92,7 +97,8 @@ const loadDisplayDrillStrings = async ({ wellId, reportId }) => {
 export const createDrillString = async (req, res) => {
   try {
     const { wellId, reportId, reportNo } = resolveScope(req);
-    const { description, od, weightPpf, id, grade, length } = req.body;
+    const { description, od, weightPpf, id, grade, length, sortOrder } =
+      req.body;
 
     const drill = await DrillString.create({
       wellId: wellId || null,
@@ -103,7 +109,8 @@ export const createDrillString = async (req, res) => {
       weightPpf: Number(weightPpf || 0),
       id: Number(id || 0),
       grade,
-      length: Number(length || 0)
+      length: Number(length || 0),
+      sortOrder: toSortOrder(sortOrder),
     });
 
     res.status(201).json({
@@ -186,7 +193,8 @@ export const updateDrillString = async (req, res) => {
     }
 
     const { wellId, reportId, reportNo } = resolveScope(req, existing);
-    const { description, od, weightPpf, id, grade, length } = req.body;
+    const { description, od, weightPpf, id, grade, length, sortOrder } =
+      req.body;
 
     existing.wellId = wellId || null;
     existing.reportId = reportId || null;
@@ -197,6 +205,7 @@ export const updateDrillString = async (req, res) => {
     existing.id = Number(id || 0);
     existing.grade = grade;
     existing.length = Number(length || 0);
+    existing.sortOrder = toSortOrder(sortOrder);
 
     const drill = await existing.save();
 

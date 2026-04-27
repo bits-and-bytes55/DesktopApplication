@@ -6,13 +6,15 @@ import 'package:http/http.dart' as http;
 import 'package:mudpro_desktop_app/api_endpoint/api_endpoint.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/model/UG_ST_model.dart';
-import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart' show kControllerWellId;
+import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart'
+    show kControllerWellId;
 import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 
 class CasedHoleEntry {
   final String? id;
+  int sortOrder;
   TextEditingController description;
   TextEditingController od;
   TextEditingController wt;
@@ -23,6 +25,7 @@ class CasedHoleEntry {
 
   CasedHoleEntry({
     this.id,
+    this.sortOrder = 0,
     String desc = '',
     String odVal = '',
     String wtVal = '',
@@ -30,13 +33,13 @@ class CasedHoleEntry {
     String topVal = '',
     String shoeVal = '',
     String lenVal = '',
-  })  : description = TextEditingController(text: desc),
-        od = TextEditingController(text: odVal),
-        wt = TextEditingController(text: wtVal),
-        idCtrl = TextEditingController(text: idVal),
-        top = TextEditingController(text: topVal),
-        shoe = TextEditingController(text: shoeVal),
-        length = TextEditingController(text: lenVal);
+  }) : description = TextEditingController(text: desc),
+       od = TextEditingController(text: odVal),
+       wt = TextEditingController(text: wtVal),
+       idCtrl = TextEditingController(text: idVal),
+       top = TextEditingController(text: topVal),
+       shoe = TextEditingController(text: shoeVal),
+       length = TextEditingController(text: lenVal);
 
   void dispose() {
     description.dispose();
@@ -57,17 +60,18 @@ class CasedHoleEntry {
       shoe.text.trim().isNotEmpty;
 
   Map<String, dynamic> toJson() => {
-        if (id != null && id!.isNotEmpty) 'recordId': id,
-        'description': description.text,
-        'od': od.text,
-        'wt': wt.text,
-        'id': idCtrl.text,
-        'top': top.text,
-        'shoe': shoe.text,
-        'type': '',
-        'bit': '',
-        'toc': '',
-      };
+    if (id != null && id!.isNotEmpty) 'recordId': id,
+    'sortOrder': sortOrder,
+    'description': description.text,
+    'od': od.text,
+    'wt': wt.text,
+    'id': idCtrl.text,
+    'top': top.text,
+    'shoe': shoe.text,
+    'type': '',
+    'bit': '',
+    'toc': '',
+  };
 }
 
 class CasedHoleUIController extends GetxController {
@@ -87,9 +91,9 @@ class CasedHoleUIController extends GetxController {
   late String _lineDensityUnit;
 
   Map<String, String> get _headers => {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      };
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+  };
 
   @override
   void onInit() {
@@ -129,8 +133,28 @@ class CasedHoleUIController extends GetxController {
   }
 
   bool get _hasSavableRows => entries.any(
-        (entry) => entry.hasContent && entry.idCtrl.text.trim().isNotEmpty,
-      );
+    (entry) => entry.hasContent && entry.idCtrl.text.trim().isNotEmpty,
+  );
+
+  void _ensureMinimumRows() {
+    while (entries.length < 3) {
+      final entry = CasedHoleEntry(sortOrder: entries.length);
+      _attachListeners(entry);
+      entries.add(entry);
+    }
+
+    if (entries.isEmpty || entries.last.hasContent) {
+      final entry = CasedHoleEntry(sortOrder: entries.length);
+      _attachListeners(entry);
+      entries.add(entry);
+    }
+  }
+
+  void _reindexRows() {
+    for (var i = 0; i < entries.length; i++) {
+      entries[i].sortOrder = i;
+    }
+  }
 
   void _scheduleAutoSave() {
     if (_isApplyingState || isLoading.value || !_hasSavableRows) return;
@@ -156,13 +180,31 @@ class CasedHoleUIController extends GetxController {
     }
 
     for (final entry in entries) {
-      entry.od.text = _convertText(entry.od.text, _diameterUnit, nextDiameterUnit);
-      entry.wt.text =
-          _convertText(entry.wt.text, _lineDensityUnit, nextLineDensityUnit);
-      entry.idCtrl.text =
-          _convertText(entry.idCtrl.text, _diameterUnit, nextDiameterUnit);
-      entry.top.text = _convertText(entry.top.text, _lengthUnit, nextLengthUnit);
-      entry.shoe.text = _convertText(entry.shoe.text, _lengthUnit, nextLengthUnit);
+      entry.od.text = _convertText(
+        entry.od.text,
+        _diameterUnit,
+        nextDiameterUnit,
+      );
+      entry.wt.text = _convertText(
+        entry.wt.text,
+        _lineDensityUnit,
+        nextLineDensityUnit,
+      );
+      entry.idCtrl.text = _convertText(
+        entry.idCtrl.text,
+        _diameterUnit,
+        nextDiameterUnit,
+      );
+      entry.top.text = _convertText(
+        entry.top.text,
+        _lengthUnit,
+        nextLengthUnit,
+      );
+      entry.shoe.text = _convertText(
+        entry.shoe.text,
+        _lengthUnit,
+        nextLengthUnit,
+      );
       recalcLength(entry);
     }
     entries.refresh();
@@ -193,7 +235,7 @@ class CasedHoleUIController extends GetxController {
 
   void _initEmptyRows() {
     for (int i = 0; i < 3; i++) {
-      final entry = CasedHoleEntry();
+      final entry = CasedHoleEntry(sortOrder: entries.length);
       _attachListeners(entry);
       entries.add(entry);
     }
@@ -229,14 +271,15 @@ class CasedHoleUIController extends GetxController {
   void checkAndAddRow(int rowIndex) {
     if (rowIndex == entries.length - 1) {
       final last = entries[rowIndex];
-      final hasContent = last.description.text.isNotEmpty ||
+      final hasContent =
+          last.description.text.isNotEmpty ||
           last.od.text.isNotEmpty ||
           last.wt.text.isNotEmpty ||
           last.idCtrl.text.isNotEmpty ||
           last.top.text.isNotEmpty ||
           last.shoe.text.isNotEmpty;
       if (hasContent) {
-        final e = CasedHoleEntry();
+        final e = CasedHoleEntry(sortOrder: entries.length);
         _attachListeners(e);
         entries.add(e);
       }
@@ -246,6 +289,7 @@ class CasedHoleUIController extends GetxController {
 
   void addRowFromCasing(CasingRow casing) {
     final entry = CasedHoleEntry(
+      sortOrder: entries.length,
       desc: casing.description.value,
       odVal: _convertText(casing.od.value, '(in)', _diameterUnit),
       wtVal: _convertText(casing.wt.value, '(lb/ft)', _lineDensityUnit),
@@ -254,13 +298,15 @@ class CasedHoleUIController extends GetxController {
       shoeVal: _convertText(casing.shoe.value, '(ft)', _lengthUnit),
     );
 
-    final emptyIndex = entries.indexWhere((e) =>
-        e.description.text.isEmpty &&
-        e.od.text.isEmpty &&
-        e.wt.text.isEmpty &&
-        e.idCtrl.text.isEmpty &&
-        e.top.text.isEmpty &&
-        e.shoe.text.isEmpty);
+    final emptyIndex = entries.indexWhere(
+      (e) =>
+          e.description.text.isEmpty &&
+          e.od.text.isEmpty &&
+          e.wt.text.isEmpty &&
+          e.idCtrl.text.isEmpty &&
+          e.top.text.isEmpty &&
+          e.shoe.text.isEmpty,
+    );
 
     _attachListeners(entry);
     recalcLength(entry);
@@ -273,10 +319,11 @@ class CasedHoleUIController extends GetxController {
     }
 
     if (entries.last.hasContent) {
-      final empty = CasedHoleEntry();
+      final empty = CasedHoleEntry(sortOrder: entries.length);
       _attachListeners(empty);
       entries.add(empty);
     }
+    _reindexRows();
     entries.refresh();
   }
 
@@ -308,6 +355,7 @@ class CasedHoleUIController extends GetxController {
 
           final entry = CasedHoleEntry(
             id: item['_id'],
+            sortOrder: (item['sortOrder'] as num?)?.toInt() ?? entries.length,
             desc: item['description']?.toString() ?? '',
             odVal: item['od']?.toString() ?? '',
             wtVal: item['wt']?.toString() ?? '',
@@ -325,11 +373,8 @@ class CasedHoleUIController extends GetxController {
           entries.add(entry);
         }
         if (entries.isEmpty) _initEmptyRows();
-        if (entries.last.hasContent) {
-          final e = CasedHoleEntry();
-          _attachListeners(e);
-          entries.add(e);
-        }
+        _ensureMinimumRows();
+        _reindexRows();
       }
     } catch (e) {
       print('CasedHole fetch error: $e');
@@ -349,8 +394,10 @@ class CasedHoleUIController extends GetxController {
     int successCount = 0;
     try {
       final authRepo = AuthRepository();
-      final List<CasedHoleEntry> allRows =
-          entries.where((e) => e.hasContent && e.idCtrl.text.trim().isNotEmpty).toList();
+      final List<CasedHoleEntry> allRows = entries
+          .where((e) => e.hasContent && e.idCtrl.text.trim().isNotEmpty)
+          .toList();
+      _reindexRows();
 
       for (final entry in allRows) {
         final payload = entry.toJson();
@@ -370,6 +417,7 @@ class CasedHoleUIController extends GetxController {
 
             final updated = CasedHoleEntry(
               id: newId,
+              sortOrder: entry.sortOrder,
               desc: entry.description.text,
               odVal: entry.od.text,
               wtVal: entry.wt.text,
@@ -379,7 +427,8 @@ class CasedHoleUIController extends GetxController {
             );
             final t = double.tryParse(updated.top.text);
             final s = double.tryParse(updated.shoe.text);
-            if (t != null && s != null) updated.length.text = (s - t).toStringAsFixed(1);
+            if (t != null && s != null)
+              updated.length.text = (s - t).toStringAsFixed(1);
 
             _attachListeners(updated);
             entry.dispose();
@@ -393,15 +442,19 @@ class CasedHoleUIController extends GetxController {
         }
       }
 
+      _ensureMinimumRows();
       entries.refresh();
 
       if (errors.isEmpty) {
-        return {'success': true, 'message': 'Casing data saved successfully ($successCount items)'};
+        return {
+          'success': true,
+          'message': 'Casing data saved successfully ($successCount items)',
+        };
       } else {
         return {
           'success': successCount > 0,
           'message': 'Casing: $successCount saved, ${errors.length} failed',
-          'errors': errors
+          'errors': errors,
         };
       }
     } catch (e) {
@@ -412,4 +465,106 @@ class CasedHoleUIController extends GetxController {
     }
   }
 
+  List<String> copyRow(int rowIndex) {
+    final entry = entries[rowIndex];
+    return [
+      entry.description.text,
+      entry.od.text,
+      entry.wt.text,
+      entry.idCtrl.text,
+      entry.top.text,
+      entry.shoe.text,
+    ];
+  }
+
+  void pasteRow(int rowIndex, List<String> values) {
+    while (entries.length <= rowIndex) {
+      final entry = CasedHoleEntry(sortOrder: entries.length);
+      _attachListeners(entry);
+      entries.add(entry);
+    }
+
+    final entry = entries[rowIndex];
+    final data = List<String>.from(values);
+    while (data.length < 6) {
+      data.add('');
+    }
+
+    entry.description.text = data[0];
+    entry.od.text = data[1];
+    entry.wt.text = data[2];
+    entry.idCtrl.text = data[3];
+    entry.top.text = data[4];
+    entry.shoe.text = data[5];
+    recalcLength(entry);
+    checkAndAddRow(rowIndex);
+    _reindexRows();
+    entries.refresh();
+    _scheduleAutoSave();
+  }
+
+  void clearRow(int rowIndex) {
+    final entry = entries[rowIndex];
+    entry.description.clear();
+    entry.od.clear();
+    entry.wt.clear();
+    entry.idCtrl.clear();
+    entry.top.clear();
+    entry.shoe.clear();
+    entry.length.clear();
+    _ensureMinimumRows();
+    entries.refresh();
+    _scheduleAutoSave();
+  }
+
+  Future<void> deleteRow(int rowIndex) async {
+    if (rowIndex < 0 || rowIndex >= entries.length) return;
+    final entry = entries[rowIndex];
+    final rowId = entry.id;
+    if (rowId != null && rowId.isNotEmpty && kControllerWellId.isNotEmpty) {
+      try {
+        await http.delete(
+          Uri.parse('${baseUrl}casing/$kControllerWellId/$rowId').replace(
+            queryParameters: {
+              if (reportContext.selectedReportId.value.isNotEmpty)
+                'reportId': reportContext.selectedReportId.value,
+            },
+          ),
+          headers: _headers,
+        );
+      } catch (e) {
+        print('CasedHole delete error: $e');
+      }
+    }
+
+    entry.dispose();
+    entries.removeAt(rowIndex);
+    _ensureMinimumRows();
+    _reindexRows();
+    entries.refresh();
+    _scheduleAutoSave();
+  }
+
+  void moveRowToTop(int rowIndex) {
+    if (rowIndex <= 0 || rowIndex >= entries.length) return;
+    final entry = entries.removeAt(rowIndex);
+    entries.insert(0, entry);
+    _ensureMinimumRows();
+    _reindexRows();
+    entries.refresh();
+    _scheduleAutoSave();
+  }
+
+  void moveRowToBottom(int rowIndex) {
+    if (rowIndex < 0 || rowIndex >= entries.length) return;
+    final entry = entries.removeAt(rowIndex);
+    final targetIndex = entries.isNotEmpty && !entries.last.hasContent
+        ? entries.length - 1
+        : entries.length;
+    entries.insert(targetIndex.clamp(0, entries.length), entry);
+    _ensureMinimumRows();
+    _reindexRows();
+    entries.refresh();
+    _scheduleAutoSave();
+  }
 }

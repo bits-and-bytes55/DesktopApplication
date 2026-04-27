@@ -10,6 +10,7 @@ import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart
 
 class DrillStringEntry {
   final String? id;
+  int sortOrder;
   TextEditingController description;
   TextEditingController od;
   TextEditingController weightPpf;
@@ -19,18 +20,19 @@ class DrillStringEntry {
 
   DrillStringEntry({
     this.id,
+    this.sortOrder = 0,
     String desc = '',
     String odVal = '',
     String wt = '',
     String idVal = '',
     String gr = '',
     String len = '',
-  })  : description = TextEditingController(text: desc),
-        od = TextEditingController(text: odVal),
-        weightPpf = TextEditingController(text: wt),
-        idCtrl = TextEditingController(text: idVal),
-        grade = TextEditingController(text: gr),
-        length = TextEditingController(text: len);
+  }) : description = TextEditingController(text: desc),
+       od = TextEditingController(text: odVal),
+       weightPpf = TextEditingController(text: wt),
+       idCtrl = TextEditingController(text: idVal),
+       grade = TextEditingController(text: gr),
+       length = TextEditingController(text: len);
 
   void dispose() {
     description.dispose();
@@ -50,13 +52,14 @@ class DrillStringEntry {
       length.text.trim().isNotEmpty;
 
   Map<String, dynamic> toJson() => {
-        'description': description.text,
-        'od': double.tryParse(od.text) ?? 0,
-        'weightPpf': double.tryParse(weightPpf.text) ?? 0,
-        'id': double.tryParse(idCtrl.text) ?? 0,
-        'grade': grade.text,
-        'length': double.tryParse(length.text) ?? 0,
-      };
+    'description': description.text,
+    'od': double.tryParse(od.text) ?? 0,
+    'weightPpf': double.tryParse(weightPpf.text) ?? 0,
+    'id': double.tryParse(idCtrl.text) ?? 0,
+    'grade': grade.text,
+    'length': double.tryParse(length.text) ?? 0,
+    'sortOrder': sortOrder,
+  };
 }
 
 class DrillStringController extends GetxController {
@@ -74,9 +77,9 @@ class DrillStringController extends GetxController {
   late String _lineDensityUnit;
 
   Map<String, String> get _headers => {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      };
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+  };
 
   Uri _buildScopedUri(String path) {
     final queryParameters = <String, String>{};
@@ -109,6 +112,25 @@ class DrillStringController extends GetxController {
   }
 
   bool get _hasSavableRows => entries.any((entry) => entry.hasContent);
+
+  void _ensureTrailingRows() {
+    while (entries.length < 5) {
+      final entry = DrillStringEntry(sortOrder: entries.length);
+      _attachListeners(entry);
+      entries.add(entry);
+    }
+    if (entries.isEmpty || entries.last.hasContent) {
+      final entry = DrillStringEntry(sortOrder: entries.length);
+      _attachListeners(entry);
+      entries.add(entry);
+    }
+  }
+
+  void _reindexRows() {
+    for (var i = 0; i < entries.length; i++) {
+      entries[i].sortOrder = i;
+    }
+  }
 
   void _scheduleAutoSave() {
     if (_isApplyingState || isLoading.value || !_hasSavableRows) return;
@@ -154,17 +176,26 @@ class DrillStringController extends GetxController {
     }
 
     for (final entry in entries) {
-      entry.od.text =
-          _convertText(entry.od.text, _diameterUnit, nextDiameterUnit);
-      entry.idCtrl.text =
-          _convertText(entry.idCtrl.text, _diameterUnit, nextDiameterUnit);
+      entry.od.text = _convertText(
+        entry.od.text,
+        _diameterUnit,
+        nextDiameterUnit,
+      );
+      entry.idCtrl.text = _convertText(
+        entry.idCtrl.text,
+        _diameterUnit,
+        nextDiameterUnit,
+      );
       entry.weightPpf.text = _convertText(
         entry.weightPpf.text,
         _lineDensityUnit,
         nextLineDensityUnit,
       );
-      entry.length.text =
-          _convertText(entry.length.text, _lengthUnit, nextLengthUnit);
+      entry.length.text = _convertText(
+        entry.length.text,
+        _lengthUnit,
+        nextLengthUnit,
+      );
     }
 
     _lengthUnit = nextLengthUnit;
@@ -195,7 +226,7 @@ class DrillStringController extends GetxController {
 
   void _initEmptyRows() {
     for (int i = 0; i < 5; i++) {
-      final entry = DrillStringEntry();
+      final entry = DrillStringEntry(sortOrder: entries.length);
       _attachListeners(entry);
       entries.add(entry);
     }
@@ -223,7 +254,8 @@ class DrillStringController extends GetxController {
   void onCellChanged(int rowIndex) {
     if (rowIndex == entries.length - 1) {
       final last = entries[rowIndex];
-      final hasContent = last.description.text.isNotEmpty ||
+      final hasContent =
+          last.description.text.isNotEmpty ||
           last.od.text.isNotEmpty ||
           last.weightPpf.text.isNotEmpty ||
           last.idCtrl.text.isNotEmpty ||
@@ -238,7 +270,7 @@ class DrillStringController extends GetxController {
   }
 
   void addEmptyRow() {
-    final entry = DrillStringEntry();
+    final entry = DrillStringEntry(sortOrder: entries.length);
     _attachListeners(entry);
     entries.add(entry);
   }
@@ -282,6 +314,7 @@ class DrillStringController extends GetxController {
           for (final item in items) {
             final entry = DrillStringEntry(
               id: item['_id'],
+              sortOrder: (item['sortOrder'] as num?)?.toInt() ?? entries.length,
               desc: item['description'] ?? '',
               odVal: (item['od'] ?? 0).toString(),
               wt: (item['weightPpf'] ?? 0).toString(),
@@ -292,18 +325,10 @@ class DrillStringController extends GetxController {
             _attachListeners(entry);
             entries.add(entry);
           }
-          // Always ensure at least 5 rows visible
-          while (entries.length < 5) {
-            final e = DrillStringEntry();
-            _attachListeners(e);
-            entries.add(e);
-          }
-          // Add one empty row at end for input
-          final e = DrillStringEntry();
-          _attachListeners(e);
-          entries.add(e);
+          _ensureTrailingRows();
         }
 
+        _reindexRows();
         totalLength.value = json['totalLength']?.toDouble() ?? 0.0;
       }
     } catch (e) {
@@ -356,6 +381,7 @@ class DrillStringController extends GetxController {
 
     final updated = DrillStringEntry(
       id: savedId,
+      sortOrder: entry.sortOrder,
       desc: entry.description.text,
       odVal: entry.od.text,
       wt: entry.weightPpf.text,
@@ -373,8 +399,11 @@ class DrillStringController extends GetxController {
 
   Future<Map<String, dynamic>> saveAll() async {
     _autoSaveTimer?.cancel();
-    final candidates =
-        entries.asMap().entries.where((e) => e.value.hasContent).toList();
+    final candidates = entries
+        .asMap()
+        .entries
+        .where((e) => e.value.hasContent)
+        .toList();
     if (candidates.isEmpty) {
       return {'success': true, 'message': 'No Drill String rows to save'};
     }
@@ -382,6 +411,7 @@ class DrillStringController extends GetxController {
     int successCount = 0;
     final errors = <String>[];
     try {
+      _reindexRows();
       for (final entry in candidates) {
         final rowIndex = entry.key;
         final saved = await _saveEntry(rowIndex, entry.value);
@@ -392,6 +422,7 @@ class DrillStringController extends GetxController {
         }
       }
       entries.refresh();
+      _ensureTrailingRows();
       _recalcTotal();
       return {
         'success': errors.isEmpty,
@@ -423,8 +454,84 @@ class DrillStringController extends GetxController {
     }
     entry.dispose();
     entries.removeAt(rowIndex);
-    if (entries.isEmpty) _initEmptyRows();
+    _ensureTrailingRows();
+    _reindexRows();
     _recalcTotal();
+    _scheduleAutoSave();
+  }
+
+  List<String> copyRow(int rowIndex) {
+    final entry = entries[rowIndex];
+    return [
+      entry.description.text,
+      entry.od.text,
+      entry.weightPpf.text,
+      entry.idCtrl.text,
+      entry.grade.text,
+      entry.length.text,
+    ];
+  }
+
+  void pasteRow(int rowIndex, List<String> values) {
+    while (entries.length <= rowIndex) {
+      addEmptyRow();
+    }
+
+    final entry = entries[rowIndex];
+    final data = List<String>.from(values);
+    while (data.length < 6) {
+      data.add('');
+    }
+    entry.description.text = data[0];
+    entry.od.text = data[1];
+    entry.weightPpf.text = data[2];
+    entry.idCtrl.text = data[3];
+    entry.grade.text = data[4];
+    entry.length.text = data[5];
+    onCellChanged(rowIndex);
+    _reindexRows();
+    entries.refresh();
+    _scheduleAutoSave();
+  }
+
+  void clearRow(int rowIndex) {
+    final entry = entries[rowIndex];
+    entry.description.clear();
+    entry.od.clear();
+    entry.weightPpf.clear();
+    entry.idCtrl.clear();
+    entry.grade.clear();
+    entry.length.clear();
+    _ensureTrailingRows();
+    _reindexRows();
+    _recalcTotal();
+    entries.refresh();
+    _scheduleAutoSave();
+  }
+
+  void moveRowToTop(int rowIndex) {
+    if (rowIndex <= 0 || rowIndex >= entries.length) return;
+    final entry = entries.removeAt(rowIndex);
+    entries.insert(0, entry);
+    _ensureTrailingRows();
+    _reindexRows();
+    _recalcTotal();
+    entries.refresh();
+    _scheduleAutoSave();
+  }
+
+  void moveRowToBottom(int rowIndex) {
+    if (rowIndex < 0 || rowIndex >= entries.length) return;
+    final entry = entries.removeAt(rowIndex);
+    final targetIndex = entries.isNotEmpty && !entries.last.hasContent
+        ? entries.length - 1
+        : entries.length;
+    entries.insert(targetIndex.clamp(0, entries.length), entry);
+    _ensureTrailingRows();
+    _reindexRows();
+    _recalcTotal();
+    entries.refresh();
+    _scheduleAutoSave();
   }
 
   @override
