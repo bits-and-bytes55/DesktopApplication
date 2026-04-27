@@ -1,18 +1,12 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// options_controller.dart  (FIXED)
-// – getUnit() now properly matches "US" / "SI" with built-in fallbacks
-// – per-parameter unit lists exposed via getUnitsForParam()
-// – convertValue() wired through UnitConversionService
-// – parameters list updated to match original software (53 params)
-// ─────────────────────────────────────────────────────────────────────────────
-
 import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 
-import 'package:mudpro_desktop_app/modules/options/services/unit_system_api_service.dart';
 import 'package:mudpro_desktop_app/modules/options/model/unit_system_model.dart';
+import 'package:mudpro_desktop_app/modules/options/services/unit_system_api_service.dart';
 import 'package:mudpro_desktop_app/modules/options/unit_conversion_service.dart';
+import 'package:mudpro_desktop_app/modules/options/unit_definitions.dart';
 
 const Duration _kDebounce = Duration(milliseconds: 600);
 
@@ -20,191 +14,26 @@ class OptionsController extends GetxController {
   final _api = UnitSystemApiService();
   final _conv = UnitConversionService.instance;
 
-  // ── Main page radio ──────────────────────────────────────────────────────
   final selectedTab = 0.obs;
   final unitSystem = UnitSystem.us.obs;
 
-  // ── Selected custom system ───────────────────────────────────────────────
   final selectedCustomSystemId = ''.obs;
   final selectedCustomSystem = 'Pegasus Default 1'.obs;
 
-  // ── Systems list ─────────────────────────────────────────────────────────
   final unitSystems = <UnitSystemModel>[].obs;
   final unitSystemNames = <String>[].obs;
-
-  // ── Active units map: paramNumber → unit string ──────────────────────────
   final customUnits = <String, String>{}.obs;
 
-  // ── Flags ─────────────────────────────────────────────────────────────────
   final isLoadingSystems = false.obs;
   final isSavingSystem = false.obs;
   final errorMessage = ''.obs;
 
-  // ── Debounce timers ───────────────────────────────────────────────────────
   final _debounceTimers = <String, Timer>{};
 
-  // ════════════════════════════════════════════════════════════════════════════
-  // PARAMETER LIST — matches original software (screenshots 6–13)
-  // ════════════════════════════════════════════════════════════════════════════
-  static const List<Map<String, String>> parameters = [
-    {'number': '1', 'name': 'Length'},
-    {'number': '2', 'name': 'Pipe diameter'},
-    {'number': '3', 'name': 'Nozzle diameter'},
-    {'number': '4', 'name': 'Surface area'},
-    {'number': '5', 'name': 'Cross section'},
-    {'number': '6', 'name': 'Fluid volume'},
-    {'number': '7', 'name': 'Pipe capacity (volume/length)'},
-    {'number': '8', 'name': 'Pipe capacity (length/volume)'},
-    {'number': '9', 'name': 'Solid volume'},
-    {'number': '10', 'name': 'Small volume'},
-    {'number': '11', 'name': 'Stroke displacement'},
-    {'number': '12', 'name': 'Gas volume'},
-    {'number': '13', 'name': 'Velocity'},
-    {'number': '14', 'name': 'Nozzle velocity'},
-    {'number': '15', 'name': 'ROP'},
-    {'number': '16', 'name': 'Rotation'},
-    {'number': '17', 'name': 'Liquid flow rate for drilling'},
-    {'number': '18', 'name': 'Liquid flow rate for cementing'},
-    {'number': '19', 'name': 'Stroke rate'},
-    {'number': '20', 'name': 'Force'},
-    {'number': '21', 'name': 'Torque'},
-    {'number': '22', 'name': 'Pressure'},
-    {'number': '23', 'name': 'Pressure gradient'},
-    {'number': '24', 'name': 'Stress'},
-    {'number': '25', 'name': 'Yield point'},
-    {'number': '26', 'name': 'Power'},
-    {'number': '27', 'name': 'Viscosity'},
-    {'number': '28', 'name': 'Consistency'},
-    {'number': '29', 'name': 'Weight'},
-    {'number': '30', 'name': 'Mass rate'},
-    {'number': '31', 'name': 'Line density'},
-    {'number': '32', 'name': 'Density'},
-    {'number': '33', 'name': 'Mud weight'},
-    {'number': '34', 'name': 'Temperature'},
-    {'number': '35', 'name': 'Temperature gradient'},
-    {'number': '36', 'name': 'Schedule time'},
-    {'number': '37', 'name': 'Dogleg'},
-    {'number': '38', 'name': 'Degree'},
-    {'number': '39', 'name': 'Mass - volume ratio'},
-    {'number': '40', 'name': 'Volume - volume ratio'},
-    {'number': '41', 'name': 'Cement/solid additive Wt/sk'},
-    {'number': '42', 'name': 'Cement slurry yield'},
-    {'number': '43', 'name': 'Cement liquid additive/water requirement'},
-    {'number': '44', 'name': 'Concentration'},
-    {'number': '45', 'name': 'Conductivity'},
-    {'number': '46', 'name': 'Heat Capacity'},
-    {'number': '47', 'name': 'Heat transfer coefficient'},
-    {'number': '48', 'name': 'Temperature Drop'},
-    {'number': '49', 'name': 'Funnel viscosity'},
-  ];
-
-  static const Map<String, String> _usDefaults = {
-    '1': '(ft)',
-    '2': '(in)',
-    '3': '(in)',
-    '4': '(ft²)',
-    '5': '(in²)',
-    '6': '(bbl)',
-    '7': '(bbl/ft)',
-    '8': '(ft/bbl)',
-    '9': '(ft³)',
-    '10': '(in³)',
-    '11': '(bbl/stk)',
-    '12': '(scf)',
-    '13': '(ft/min)',
-    '14': '(ft/s)',
-    '15': '(ft/hr)',
-    '16': '(rpm)',
-    '17': '(gpm)',
-    '18': '(bpm)',
-    '19': '(stk/min)',
-    '20': '(lbf)',
-    '21': '(ft-lb)',
-    '22': '(psi)',
-    '23': '(psi/ft)',
-    '24': '(kPa)',
-    '25': '(lbf/100ft²)',
-    '26': '(HP)',
-    '27': '(cP)',
-    '28': '(lbf-s^n/100ft²)',
-    '29': '(lbm)',
-    '30': '(lbm/min)',
-    '31': '(lb/ft)',
-    '32': '(lb/ft³)',
-    '33': '(ppg)',
-    '34': '(°F)',
-    '35': '(°C/100m)',
-    '36': '(min)',
-    '37': '(°/100ft)',
-    '38': '(°)',
-    '39': '(lb/bbl)',
-    '40': '(gal/bbl)',
-    '41': '(lb/sk)',
-    '42': '(ft³/sk)',
-    '43': '(gal/sk)',
-    '44': '(mg/L)',
-    '45': '(Btu/hr/ft/°F)',
-    '46': '(Btu/lbm/°F)',
-    '47': '(Btu/hr/ft²/°F)',
-    '48': '(°F)',
-    '49': '(sec/qt)',
-  };
-
-  static const Map<String, String> _siDefaults = {
-    '1': '(m)',
-    '2': '(mm)',
-    '3': '(mm)',
-    '4': '(m²)',
-    '5': '(mm²)',
-    '6': '(m³)',
-    '7': '(m³/m)',
-    '8': '(m/m³)',
-    '9': '(m³)',
-    '10': '(L)',
-    '11': '(m³/stk)',
-    '12': '(m³)',
-    '13': '(m/min)',
-    '14': '(m/s)',
-    '15': '(m/hr)',
-    '16': '(rpm)',
-    '17': '(m³/min)',
-    '18': '(m³/min)',
-    '19': '(stk/min)',
-    '20': '(N)',
-    '21': '(N-m)',
-    '22': '(kPa)',
-    '23': '(kPa/m)',
-    '24': '(kPa)',
-    '25': '(Pa)',
-    '26': '(KW)',
-    '27': '(cP)',
-    '28': '(Pa-s^n)',
-    '29': '(kg)',
-    '30': '(kg/min)',
-    '31': '(kg/m)',
-    '32': '(kg/m³)',
-    '33': '(kg/m³)',
-    '34': '(°C)',
-    '35': '(°C/100m)',
-    '36': '(min)',
-    '37': '(°/30m)',
-    '38': '(°)',
-    '39': '(kg/m³)',
-    '40': '(gal/bbl)',
-    '41': '(kg/sk)',
-    '42': '(m³/sk)',
-    '43': '(m³/sk)',
-    '44': '(mg/L)',
-    '45': '(W/m/K)',
-    '46': '(J/kg/°C)',
-    '47': '(W/m²/K)',
-    '48': '(°C)',
-    '49': '(sec/L)',
-  };
-
-  // ════════════════════════════════════════════════════════════════════════════
-  // LIFECYCLE
-  // ════════════════════════════════════════════════════════════════════════════
+  static const List<Map<String, String>> parameters =
+      UnitDefinitions.parameters;
+  static const Map<String, String> _usDefaults = UnitDefinitions.usDefaults;
+  static const Map<String, String> _siDefaults = UnitDefinitions.siDefaults;
 
   @override
   void onInit() {
@@ -214,16 +43,12 @@ class OptionsController extends GetxController {
 
   @override
   void onClose() {
-    for (final t in _debounceTimers.values) {
-      t.cancel();
+    for (final timer in _debounceTimers.values) {
+      timer.cancel();
     }
     _debounceTimers.clear();
     super.onClose();
   }
-
-  // ════════════════════════════════════════════════════════════════════════════
-  // FETCH
-  // ════════════════════════════════════════════════════════════════════════════
 
   Future<void> fetchAllUnitSystems() async {
     isLoadingSystems.value = true;
@@ -232,31 +57,34 @@ class OptionsController extends GetxController {
     final response = await _api.fetchAll();
     isLoadingSystems.value = false;
 
-    if (response.success) {
-      unitSystems.value = response.data;
-      unitSystemNames.value = response.data
-          .map((s) => s.name)
-          .toList()
-          .cast<String>();
-
-      if (selectedCustomSystemId.isEmpty && response.data.isNotEmpty) {
-        _selectSystem(response.data.first);
-      }
-    } else {
+    if (!response.success) {
       errorMessage.value = response.message ?? 'Failed to load unit systems';
       debugPrint('[OptionsCtrl] fetchAll error: ${response.message}');
+      return;
+    }
+
+    final normalizedSystems = _normalizeSystems(response.data);
+    unitSystems.value = normalizedSystems;
+    unitSystemNames.value = normalizedSystems
+        .map((system) => system.name)
+        .toList()
+        .cast<String>();
+
+    if (selectedCustomSystemId.isEmpty && normalizedSystems.isNotEmpty) {
+      _selectSystem(normalizedSystems.first);
     }
   }
-
-  // ════════════════════════════════════════════════════════════════════════════
-  // SELECT
-  // ════════════════════════════════════════════════════════════════════════════
 
   void selectUnitSystem(UnitSystemModel system) => _selectSystem(system);
 
   void selectUnitSystemByName(String name) {
-    final found = unitSystems.firstWhereOrNull((s) => s.name == name);
-    if (found != null) _selectSystem(found);
+    final lower = name.trim().toLowerCase();
+    final found = unitSystems.firstWhereOrNull(
+      (system) => system.name.trim().toLowerCase() == lower,
+    );
+    if (found != null) {
+      _selectSystem(found);
+    }
   }
 
   void _selectSystem(UnitSystemModel system) {
@@ -267,46 +95,111 @@ class OptionsController extends GetxController {
 
   void _loadUnitsFromSystem(UnitSystemModel system) {
     final map = <String, String>{};
-    for (final p in system.parameters) {
-      map[p.number] = p.unit;
+    for (final parameter in parameters) {
+      final number = parameter['number']!;
+      final existing = system.parameters.firstWhereOrNull(
+        (entry) => entry.number == number,
+      );
+      map[number] = _validatedUnitForSystem(
+        system,
+        number,
+        existing?.unit ?? '',
+      );
     }
     customUnits.value = map;
   }
 
-  // ════════════════════════════════════════════════════════════════════════════
-  // GET UNIT (FIXED)
-  // Tries DB first, falls back to built-in defaults — table always shows units.
-  // ════════════════════════════════════════════════════════════════════════════
+  List<UnitSystemModel> _normalizeSystems(List<UnitSystemModel> systems) {
+    return systems.map(_normalizeSystem).toList();
+  }
+
+  UnitSystemModel _normalizeSystem(UnitSystemModel system) {
+    final rawUnits = <String, String>{};
+    for (final parameter in system.parameters) {
+      rawUnits[parameter.number] = parameter.unit;
+    }
+
+    final normalizedParameters = parameters
+        .map(
+          (parameter) => ParameterUnit(
+            number: parameter['number']!,
+            name: parameter['name']!,
+            unit: _validatedUnitForSystem(
+              system,
+              parameter['number']!,
+              rawUnits[parameter['number']!] ?? '',
+            ),
+          ),
+        )
+        .toList();
+
+    return UnitSystemModel(
+      id: system.id,
+      name: system.name,
+      baseTemplate: system.baseTemplate,
+      parameters: normalizedParameters,
+      sortOrder: system.sortOrder,
+    );
+  }
+
+  String _validatedUnitForSystem(
+    UnitSystemModel system,
+    String paramNumber,
+    String rawUnit,
+  ) {
+    final knownDefaults = UnitDefinitions.templateDefaultsForName(system.name);
+    if (knownDefaults != null) {
+      return knownDefaults[paramNumber] ??
+          UnitDefinitions.defaultUnitFor(
+            paramNumber,
+            baseTemplate: system.baseTemplate,
+            systemName: system.name,
+          );
+    }
+
+    final canonical = UnitDefinitions.canonicalizeDisplayUnit(rawUnit);
+    if (UnitDefinitions.isAllowedUnit(paramNumber, canonical)) {
+      return canonical;
+    }
+
+    return UnitDefinitions.defaultUnitFor(
+      paramNumber,
+      baseTemplate: system.baseTemplate,
+      systemName: system.name,
+    );
+  }
 
   String getUnit(int index) {
     final number = parameters[index]['number']!;
 
     switch (unitSystem.value) {
       case UnitSystem.customized:
-        return customUnits[number] ?? '-';
+        return customUnits[number] ??
+            UnitDefinitions.defaultUnitFor(
+              number,
+              systemName: selectedCustomSystem.value,
+            );
 
       case UnitSystem.us:
-        // Try DB system named "US" (case-insensitive, multiple aliases)
-        final sys = _findSystemByAny(['us', 'us oil field', 'usoilfield']);
-        if (sys != null) {
-          final u = sys.unitFor(number);
-          if (u.isNotEmpty) return u;
-        }
-        // Always fall back to built-in so table is never empty
-        return _usDefaults[number] ?? '-';
+        final system = _findSystemByAny([
+          'us',
+          'us oil field',
+          'pegasus default',
+        ]);
+        final unit = system?.unitFor(number) ?? '';
+        return unit.isNotEmpty ? unit : (_usDefaults[number] ?? '-');
 
       case UnitSystem.si:
-        final sys = _findSystemByAny(['si', 'metric', 'si metric']);
-        if (sys != null) {
-          final u = sys.unitFor(number);
-          if (u.isNotEmpty) return u;
-        }
-        return _siDefaults[number] ?? '-';
+        final system = _findSystemByAny(['si', 'metric', 'si metric']);
+        final unit = system?.unitFor(number) ?? '';
+        return unit.isNotEmpty ? unit : (_siDefaults[number] ?? '-');
     }
   }
 
   String unitForNumber(String paramNumber) {
-    final index = parameters.indexWhere((p) => p['number'] == paramNumber);
+    final index = parameters.indexWhere(
+      (item) => item['number'] == paramNumber,
+    );
     if (index == -1) {
       return '-';
     }
@@ -336,48 +229,47 @@ class OptionsController extends GetxController {
   }
 
   UnitSystemModel? _findSystemByAny(List<String> lowerNames) {
-    for (final s in unitSystems) {
-      if (lowerNames.contains(s.name.toLowerCase())) return s;
+    for (final system in unitSystems) {
+      final name = system.name.trim().toLowerCase();
+      if (lowerNames.contains(name)) {
+        return system;
+      }
     }
     return null;
   }
 
-  // ════════════════════════════════════════════════════════════════════════════
-  // PER-PARAMETER UNIT OPTIONS (for popup dropdowns)
-  // ════════════════════════════════════════════════════════════════════════════
-
   List<String> getUnitsForParam(String paramNumber) =>
-      UnitConversionService.parameterUnits[paramNumber] ?? [];
-
-  // ════════════════════════════════════════════════════════════════════════════
-  // CONVERT VALUE when unit changes
-  // ════════════════════════════════════════════════════════════════════════════
+      UnitDefinitions.parameterUnits[paramNumber] ?? [];
 
   String convertValue({
     required String rawValue,
     required String fromUnit,
     required String toUnit,
   }) {
-    if (fromUnit == toUnit) return rawValue;
-    final val = double.tryParse(rawValue);
-    if (val == null) return rawValue;
+    if (fromUnit == toUnit) {
+      return rawValue;
+    }
+    final value = double.tryParse(rawValue);
+    if (value == null) {
+      return rawValue;
+    }
 
-    final result = _conv.convertValue(val, fromUnit, toUnit);
-    if (result == null) return rawValue;
+    final result = _conv.convertValue(value, fromUnit, toUnit);
+    if (result == null) {
+      return rawValue;
+    }
     return _fmt(result);
   }
 
-  String _fmt(double v) {
-    if (v == v.truncate()) return v.truncate().toString();
-    return v
+  String _fmt(double value) {
+    if (value == value.truncate()) {
+      return value.truncate().toString();
+    }
+    return value
         .toStringAsFixed(4)
         .replaceAll(RegExp(r'0+$'), '')
         .replaceAll(RegExp(r'\.$'), '');
   }
-
-  // ════════════════════════════════════════════════════════════════════════════
-  // ON UNIT CHANGED — optimistic + debounced PATCH
-  // ════════════════════════════════════════════════════════════════════════════
 
   void onUnitChanged({
     required String systemId,
@@ -390,15 +282,19 @@ class OptionsController extends GetxController {
       );
       return;
     }
-    customUnits[paramNumber] = newUnit;
+
+    final canonicalUnit = UnitDefinitions.canonicalizeDisplayUnit(newUnit);
+    customUnits[paramNumber] = canonicalUnit;
     customUnits.refresh();
 
-    final system = unitSystems.firstWhereOrNull((s) => s.id == systemId);
+    final system = unitSystems.firstWhereOrNull((item) => item.id == systemId);
     if (system != null) {
-      final param = system.parameters.firstWhereOrNull(
-        (p) => p.number == paramNumber,
+      final parameter = system.parameters.firstWhereOrNull(
+        (item) => item.number == paramNumber,
       );
-      if (param != null) param.unit = newUnit;
+      if (parameter != null) {
+        parameter.unit = canonicalUnit;
+      }
     }
 
     final key = '${systemId}_$paramNumber';
@@ -407,86 +303,99 @@ class OptionsController extends GetxController {
       _api.patchParameterUnit(
         systemId: systemId,
         paramNumber: paramNumber,
-        unit: newUnit,
+        unit: canonicalUnit,
       );
     });
   }
-
-  // ════════════════════════════════════════════════════════════════════════════
-  // CREATE / SAVE / DELETE
-  // ════════════════════════════════════════════════════════════════════════════
 
   Future<UnitSystemModel?> createNewUnitSystem({
     required String name,
     required String baseTemplate,
   }) async {
-    final r = await _api.create(name: name, baseTemplate: baseTemplate);
-    if (r.success && r.data != null) {
-      unitSystems.add(r.data!);
-      unitSystemNames.add(r.data!.name);
-      unitSystemNames.refresh();
-      return r.data;
+    final response = await _api.create(name: name, baseTemplate: baseTemplate);
+    if (!response.success || response.data == null) {
+      return null;
     }
-    return null;
+
+    final normalized = _normalizeSystem(response.data!);
+    unitSystems.add(normalized);
+    unitSystemNames.add(normalized.name);
+    unitSystemNames.refresh();
+    return normalized;
   }
 
   Future<bool> saveAllChanges(String systemId) async {
     isSavingSystem.value = true;
-    final params = parameters
+    final payload = parameters
         .map(
-          (p) => {
-            'number': p['number']!,
-            'name': p['name']!,
-            'unit': customUnits[p['number']!] ?? '',
+          (parameter) => {
+            'number': parameter['number']!,
+            'name': parameter['name']!,
+            'unit':
+                customUnits[parameter['number']!] ??
+                UnitDefinitions.defaultUnitFor(
+                  parameter['number']!,
+                  systemName: selectedCustomSystem.value,
+                ),
           },
         )
         .toList();
-    final r = await _api.updateAll(id: systemId, parameters: params);
+    final response = await _api.updateAll(id: systemId, parameters: payload);
     isSavingSystem.value = false;
-    return r.success;
+    return response.success;
   }
 
   Future<bool> deleteUnitSystem(String systemId) async {
     final ok = await _api.delete(systemId);
-    if (ok) {
-      unitSystems.removeWhere((s) => s.id == systemId);
-      unitSystemNames.value = unitSystems
-          .map((s) => s.name)
-          .toList()
-          .cast<String>();
-      if (selectedCustomSystemId.value == systemId) {
-        if (unitSystems.isNotEmpty) {
-          _selectSystem(unitSystems.first);
-        } else {
-          selectedCustomSystemId.value = '';
-          selectedCustomSystem.value = '';
-          customUnits.clear();
-        }
+    if (!ok) {
+      return false;
+    }
+
+    unitSystems.removeWhere((system) => system.id == systemId);
+    unitSystemNames.value = unitSystems
+        .map((system) => system.name)
+        .toList()
+        .cast<String>();
+
+    if (selectedCustomSystemId.value == systemId) {
+      if (unitSystems.isNotEmpty) {
+        _selectSystem(unitSystems.first);
+      } else {
+        selectedCustomSystemId.value = '';
+        selectedCustomSystem.value = '';
+        customUnits.clear();
       }
     }
-    return ok;
+
+    return true;
   }
 
   Future<void> seedDefaults() async {
     isLoadingSystems.value = true;
-    final r = await _api.seedDefaultSystems();
+    final response = await _api.seedDefaultSystems();
     isLoadingSystems.value = false;
 
-    if (r.success) {
-      unitSystems.value = r.data;
-      unitSystemNames.value = r.data.map((s) => s.name).toList().cast<String>();
-      if (unitSystems.isNotEmpty) {
-        _selectSystem(unitSystems.first);
-      }
-    } else {
-      errorMessage.value = r.message ?? 'Failed to seed defaults';
+    if (!response.success) {
+      errorMessage.value = response.message ?? 'Failed to seed defaults';
+      return;
+    }
+
+    final normalizedSystems = _normalizeSystems(response.data);
+    unitSystems.value = normalizedSystems;
+    unitSystemNames.value = normalizedSystems
+        .map((system) => system.name)
+        .toList()
+        .cast<String>();
+    if (normalizedSystems.isNotEmpty) {
+      _selectSystem(normalizedSystems.first);
     }
   }
 
-  // ── Helpers ──────────────────────────────────────────────────────────────
-  UnitSystemModel? get selectedSystem =>
-      unitSystems.firstWhereOrNull((s) => s.id == selectedCustomSystemId.value);
+  UnitSystemModel? get selectedSystem => unitSystems.firstWhereOrNull(
+    (system) => system.id == selectedCustomSystemId.value,
+  );
 
-  int get selectedSystemIndex =>
-      unitSystems.indexWhere((s) => s.id == selectedCustomSystemId.value);
+  int get selectedSystemIndex => unitSystems.indexWhere(
+    (system) => system.id == selectedCustomSystemId.value,
+  );
 }

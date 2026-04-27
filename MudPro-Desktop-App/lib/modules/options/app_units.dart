@@ -1,6 +1,8 @@
 import 'package:get/get.dart';
+
 import 'package:mudpro_desktop_app/modules/dashboard/controller/options_controller.dart';
 import 'package:mudpro_desktop_app/modules/options/unit_conversion_service.dart';
+import 'package:mudpro_desktop_app/modules/options/unit_definitions.dart';
 
 class AppUnits {
   AppUnits._();
@@ -13,27 +15,12 @@ class AppUnits {
       ? Get.find<OptionsController>()
       : Get.put(OptionsController(), permanent: true);
 
-  static String clean(String unit) => unit.replaceAll('Â', '');
+  static String clean(String unit) => UnitDefinitions.normalizeText(unit);
 
-  static String normalizedText(String unit) => clean(unit)
-      .replaceAll('Â²', '2')
-      .replaceAll('Â³', '3')
-      .replaceAll('²', '2')
-      .replaceAll('³', '3')
-      .replaceAll('Â°', '°');
+  static String normalizedText(String unit) => clean(unit);
 
-  static String _canonicalUnit(String unit) {
-    final normalized = normalizedText(unit)
-        .replaceAll('Â', '')
-        .replaceAll('²', '2')
-        .replaceAll('³', '3')
-        .trim();
-    if (normalized.isEmpty || normalized == '-') return normalized;
-    if (normalized.startsWith('(') && normalized.endsWith(')')) {
-      return normalized;
-    }
-    return '($normalized)';
-  }
+  static String _canonicalUnit(String unit) =>
+      UnitDefinitions.canonicalizeDisplayUnit(unit);
 
   static String strip(String unit) =>
       normalizedText(unit).replaceAll(RegExp(r'[()]'), '');
@@ -41,7 +28,8 @@ class AppUnits {
   static String rawUnit(String paramNumber) =>
       controller.unitForNumber(paramNumber);
 
-  static String unit(String paramNumber) => _canonicalUnit(rawUnit(paramNumber));
+  static String unit(String paramNumber) =>
+      _canonicalUnit(rawUnit(paramNumber));
 
   static String get signature => controller.activeUnitSignature;
 
@@ -105,461 +93,261 @@ class AppUnits {
     );
   }
 
+  static const Map<String, String> _preferredParameterByUnit = {
+    '(ft)': '1',
+    '(m)': '1',
+    '(in)': '2',
+    '(mm)': '2',
+    '(cm)': '2',
+    '(dm)': '2',
+    '(1/32in)': '3',
+    '(ft2)': '5',
+    '(m2)': '5',
+    '(in2)': '5',
+    '(mm2)': '5',
+    '(cm2)': '5',
+    '(dm2)': '5',
+    '(bbl)': '6',
+    '(m3)': '6',
+    '(L)': '6',
+    '(mL)': '6',
+    '(in3)': '10',
+    '(ft3)': '9',
+    '(pt)': '10',
+    '(qt)': '6',
+    '(oz)': '6',
+    '(gal)': '6',
+    '(bbl/ft)': '7',
+    '(m3/m)': '7',
+    '(ft3/m)': '7',
+    '(bbl/m)': '7',
+    '(L/m)': '7',
+    '(gal/ft)': '7',
+    '(ft/bbl)': '8',
+    '(m/m3)': '8',
+    '(ft/gal)': '8',
+    '(m/bbl)': '8',
+    '(m/ft3)': '8',
+    '(m/L)': '8',
+    '(bbl/stk)': '11',
+    '(m3/stk)': '11',
+    '(L/stk)': '11',
+    '(gal/stk)': '11',
+    '(scf)': '12',
+    '(Mscf)': '12',
+    '(MMscf)': '12',
+    '(ft/min)': '13',
+    '(m/min)': '13',
+    '(m/d)': '13',
+    '(m/h)': '13',
+    '(ft/d)': '13',
+    '(ft/h)': '13',
+    '(ft/s)': '14',
+    '(m/s)': '14',
+    '(ft/hr)': '15',
+    '(m/hr)': '15',
+    '(ft/day)': '15',
+    '(m/day)': '15',
+    '(rpm)': '16',
+    '(gpm)': '17',
+    '(m3/min)': '17',
+    '(bbl/min)': '17',
+    '(gal/h)': '17',
+    '(L/min)': '17',
+    '(bbl/hr)': '17',
+    '(L/h)': '17',
+    '(m3/h)': '17',
+    '(ft3/min)': '17',
+    '(bpm)': '18',
+    '(stk/min)': '19',
+    '(lbf)': '20',
+    '(N)': '20',
+    '(ton)': '20',
+    '(Kip)': '20',
+    '(kN)': '20',
+    '(T)': '20',
+    '(daN)': '20',
+    '(ft-lb)': '21',
+    '(N-m)': '21',
+    '(kg-m)': '21',
+    '(kN-m)': '21',
+    '(Kip-ft)': '21',
+    '(psi)': '22',
+    '(kPa)': '22',
+    '(MPa)': '22',
+    '(bar)': '22',
+    '(kpsi)': '22',
+    '(ATM)': '22',
+    '(psi/ft)': '23',
+    '(kPa/m)': '23',
+    '(Pa/m)': '23',
+    '(bar/10m)': '23',
+    '(lbf/100ft2)': '25',
+    '(dyne/cm2)': '25',
+    '(HP)': '26',
+    '(KW)': '26',
+    '(W)': '26',
+    '(ft-lb/sec)': '26',
+    '(Btu/sec)': '26',
+    '(ft-lb/min)': '26',
+    '(kg-m/min)': '26',
+    '(Btu/min)': '26',
+    '(cP)': '27',
+    '(dyne-s/cm2)': '27',
+    '(kPa-s)': '27',
+    '(lbf-s/ft2)': '27',
+    '(Pa-s)': '27',
+    '(lbf-s^n/100ft2)': '28',
+    '(Pa-s^n)': '28',
+    '(dyne-s^n/cm2)': '28',
+    '(eq.cp)': '28',
+    '(lbm)': '29',
+    '(kg)': '29',
+    '(mg)': '29',
+    '(g)': '29',
+    '(lbm/min)': '30',
+    '(kg/min)': '30',
+    '(lbm/s)': '30',
+    '(lbm/d)': '30',
+    '(kg/s)': '30',
+    '(kg/d)': '30',
+    '(lb/ft)': '31',
+    '(kg/m)': '31',
+    '(kg/cm)': '31',
+    '(lb/in)': '31',
+    '(lb/ft3)': '32',
+    '(kg/m3)': '32',
+    '(ppg)': '33',
+    '(psi/100ft)': '33',
+    '(S.G.)': '33',
+    '(kg/L)': '33',
+    '(g/cm3)': '33',
+    '(°F)': '34',
+    '(°C)': '34',
+    '(K)': '34',
+    '(R)': '34',
+    '(°F/100ft)': '35',
+    '(°C/100m)': '35',
+    '(°F/ft)': '35',
+    '(°C/m)': '35',
+    '(R/ft)': '35',
+    '(K/m)': '35',
+    '(min)': '36',
+    '(sec)': '36',
+    '(hour)': '36',
+    '(hr)': '36',
+    '(day)': '36',
+    '(year)': '36',
+    '(°/100ft)': '37',
+    '(°/30m)': '37',
+    '(°)': '38',
+    '(rad)': '38',
+    '(lb/bbl)': '39',
+    '(gal/bbl)': '40',
+    '(L/m3)': '40',
+    '(bbl/bbl)': '40',
+    '(m3/m3)': '40',
+    '(lb/sk)': '41',
+    '(kg/sk)': '41',
+    '(kg/kg)': '41',
+    '(kg/ton)': '41',
+    '(ft3/sk)': '42',
+    '(m3/sk)': '42',
+    '(m3/kg)': '42',
+    '(bbl/lb)': '42',
+    '(L/kg)': '42',
+    '(L/ton)': '42',
+    '(m3/ton)': '42',
+    '(gal/sk)': '43',
+    '(gal/lb)': '43',
+    '(ft3/lb)': '43',
+    '(L/sk)': '43',
+    '(gphs)': '43',
+    '(bbl/sk)': '43',
+    '(mg/L)': '44',
+    '(Btu/hr/ft/°F)': '45',
+    '(W/m/K)': '45',
+    '(Btu-in/hr/ft2/°F)': '45',
+    '(Cal/s/m/°C)': '45',
+    '(Cal/s/cm/°C)': '45',
+    '(Btu/lbm/°F)': '46',
+    '(KJ/kg/K)': '46',
+    '(Btu/lbm/°C)': '46',
+    '(Btu/lbm/R)': '46',
+    '(Cal/g/°C)': '46',
+    '(CHU/lbm/°C)': '46',
+    '(J/g/°C)': '46',
+    '(J/kg/K)': '46',
+    '(J/kg/°C)': '46',
+    '(KCal/kg/°C)': '46',
+    '(KJ/kg/°C)': '46',
+    '(Btu/hr/ft2/°F)': '47',
+    '(W/m2/K)': '47',
+    '(W/m2/°C)': '47',
+    '(J/s/m2/K)': '47',
+    '(Cal/s/cm2/°C)': '47',
+    '(KCal/hr/m2/°C)': '47',
+    '(KCal/hr/ft2/°C)': '47',
+    '(Btu/s/ft2/°F)': '47',
+    '(CHU/hr/ft2/°C)': '47',
+    '(sec/qt)': '49',
+    '(sec/L)': '49',
+    '(s/L)': '49',
+  };
+
   static String unitText(String rawUnit) {
-    final normalized = _canonicalUnit(rawUnit);
-    switch (normalized) {
-      case 'ft':
-      case 'm':
-      case '(ft)':
-      case '(m)':
-        return length;
-      case 'in':
-      case 'mm':
-      case 'cm':
-      case 'dm':
-      case '(in)':
-      case '(mm)':
-      case '(cm)':
-      case '(dm)':
-        return diameter;
-      case '(1/32in)':
-        return nozzleDiameter;
-      case 'bbl':
-      case 'm3':
-      case 'L':
-      case 'gal':
-      case '(bbl)':
-      case '(m3)':
-      case '(mL)':
-      case '(L)':
-      case '(in3)':
-      case '(ft3)':
-      case '(oz)':
-      case '(gal)':
-      case '(qt)':
-        return fluidVolume;
-      case 'bbl/stk':
-      case 'm3/stk':
-      case 'gal/stk':
-      case 'L/stk':
-      case '(bbl/stk)':
-      case '(m3/stk)':
-      case '(gal/stk)':
-      case '(L/stk)':
-        return strokeDisplacement;
-      case 'bbl/ft':
-      case 'm3/m':
-      case 'ft3/m':
-      case 'bbl/m':
-      case 'L/m':
-      case 'gal/ft':
-      case '(bbl/ft)':
-      case '(m3/m)':
-      case '(ft3/m)':
-      case '(bbl/m)':
-      case '(L/m)':
-      case '(gal/ft)':
-        return pipeCapacityVolumeLength;
-      case 'ft/bbl':
-      case 'm/m3':
-      case 'ft/gal':
-      case 'm/bbl':
-      case 'm/ft3':
-      case 'm/L':
-      case '(ft/bbl)':
-      case '(m/m3)':
-      case '(ft/gal)':
-      case '(m/bbl)':
-      case '(m/ft3)':
-      case '(m/L)':
-        return pipeCapacityLengthVolume;
-      case 'gpm':
-      case 'm3/min':
-      case 'L/min':
-      case 'L/s':
-      case '(gpm)':
-      case '(m3/min)':
-      case '(L/min)':
-      case '(L/s)':
-        return drillingFlowRate;
-      case 'bpm':
-      case '(bpm)':
-        return cementingFlowRate;
-      case 'stk/min':
-      case '(stk/min)':
-        return strokeRate;
-      case 'rpm':
-      case '(rpm)':
-        return rotation;
-      case 'ft/min':
-      case 'm/min':
-      case '(ft/min)':
-      case '(m/min)':
-        return velocity;
-      case 'ft/s':
-      case 'm/s':
-      case 'mph':
-      case 'km/h':
-      case '(ft/s)':
-      case '(m/s)':
-      case '(mph)':
-      case '(km/h)':
-        return nozzleVelocity;
-      case 'ft/hr':
-      case 'm/hr':
-      case 'm/day':
-      case 'ft/day':
-      case '(ft/hr)':
-      case '(m/hr)':
-      case '(m/day)':
-      case '(ft/day)':
-        return rop;
-      case 'ppg':
-      case 'kg/m3':
-      case 'g/cm3':
-      case 'lb/ft3':
-      case 'sg':
-      case '(ppg)':
-      case '(kg/m3)':
-      case '(g/cm3)':
-      case '(lb/ft3)':
-      case '(sg)':
-        return mudWeight;
-      case 'psi/ft':
-      case 'kPa/m':
-      case 'MPa/m':
-      case '(psi/ft)':
-      case '(kPa/m)':
-      case '(MPa/m)':
-        return pressureGradient;
-      case 'psi':
-      case 'kPa':
-      case 'MPa':
-      case 'bar':
-      case 'atm':
-      case 'kgf/cm2':
-      case '(psi)':
-      case '(kPa)':
-      case '(MPa)':
-      case '(bar)':
-      case '(atm)':
-      case '(kgf/cm2)':
-        return pressure;
-      case 'Pa':
-      case 'N/m2':
-      case '(Pa)':
-      case '(N/m2)':
-        return stress;
-      case 'lbf/100ft2':
-      case 'lbf/100ftÂ²':
-      case '(lb/100ft2)':
-      case '(lbs/100ft2)':
-      case '(lbf/100ft2)':
-      case '(lbf/100ftÂ²)':
-        return yieldPoint;
-      case 'cP':
-      case 'Pa-s':
-      case 'mPa-s':
-      case '(cP)':
-      case '(Pa-s)':
-      case '(mPa-s)':
-        return viscosity;
-      case 'lbf-s^n/100ft2':
-      case 'lbf-s^n/100ftÂ²':
-      case 'Pa-s^n':
-      case '(lbf-s^n/100ft2)':
-      case '(lbf-s^n/100ftÂ²)':
-      case '(Pa-s^n)':
-        return consistency;
-      case 'lbf':
-      case 'N':
-      case 'kN':
-      case '(lbf)':
-      case '(N)':
-      case '(kN)':
-        return force;
-      case 'ft-lb':
-      case 'N-m':
-      case 'J':
-      case '(ft-lb)':
-      case '(N-m)':
-      case '(J)':
-        return torque;
-      case 'HP':
-      case 'KW':
-      case 'W':
-      case '(HP)':
-      case '(KW)':
-      case '(W)':
-        return power;
-      case 'lbm':
-      case 'kg':
-      case 'g':
-      case '(lbm)':
-      case '(kg)':
-      case '(g)':
-        return weight;
-      case 'lbm/min':
-      case 'kg/min':
-      case 'kg/s':
-      case '(lbm/min)':
-      case '(kg/min)':
-      case '(kg/s)':
-        return massRate;
-      case 'lb/ft':
-      case 'kg/m':
-      case '(lb/ft)':
-      case '(kg/m)':
-        return lineDensity;
-      case 'lb/bbl':
-      case 'lb/gal':
-      case '(lb/bbl)':
-      case '(lb/gal)':
-        return massVolumeRatio;
-      case 'gal/bbl':
-      case 'L/m3':
-      case 'mL/m3':
-      case '(gal/bbl)':
-      case '(L/m3)':
-      case '(mL/m3)':
-        return volumeVolumeRatio;
-      case '°F':
-      case '°C':
-      case 'K':
-      case '(°F)':
-      case '(°C)':
-      case '(K)':
-        return temperature;
-      case 'Â°F/100ft':
-      case 'Â°C/100m':
-      case 'Â°C/m':
-      case '(Â°F/100ft)':
-      case '(Â°C/100m)':
-      case '(Â°C/m)':
-        return temperatureGradient;
-      case 'min':
-      case 'sec':
-      case 'hr':
-      case '(min)':
-      case '(sec)':
-      case '(hr)':
-        return scheduleTime;
-      case 'Â°/100ft':
-      case 'Â°/30m':
-      case 'Â°/10m':
-      case 'Â°/m':
-      case '(Â°/100ft)':
-      case '(Â°/30m)':
-      case '(Â°/10m)':
-      case '(Â°/m)':
-        return dogleg;
-      case 'Â°':
-      case '(Â°)':
-        return degree;
-      case 'lb/sk':
-      case 'kg/bag':
-      case 'kg/sk':
-      case '(lb/sk)':
-      case '(kg/bag)':
-      case '(kg/sk)':
-        return cementSolidAdditiveWeight;
-      case 'ft3/sk':
-      case 'm3/bag':
-      case 'L/sk':
-      case '(ft3/sk)':
-      case '(m3/bag)':
-      case '(L/sk)':
-        return cementSlurryYield;
-      case 'gal/sk':
-      case 'L/bag':
-      case 'm3/sk':
-      case '(gal/sk)':
-      case '(L/bag)':
-      case '(m3/sk)':
-        return cementLiquidAdditive;
-      case 'mg/L':
-      case 'ppm':
-      case '(mg/L)':
-      case '(ppm)':
-        return concentration;
-      case 'Btu/hr/ft/Â°F':
-      case 'W/m/K':
-      case 'kcal/hr/m/Â°C':
-      case '(Btu/hr/ft/Â°F)':
-      case '(W/m/K)':
-      case '(kcal/hr/m/Â°C)':
-        return conductivity;
-      case 'Btu/lbm/Â°F':
-      case 'J/kg/Â°C':
-      case 'kcal/kg/Â°C':
-      case '(Btu/lbm/Â°F)':
-      case '(J/kg/Â°C)':
-      case '(kcal/kg/Â°C)':
-        return heatCapacity;
-      case 'Btu/hr/ft2/Â°F':
-      case 'W/m2/K':
-      case '(Btu/hr/ft2/Â°F)':
-      case '(W/m2/K)':
-        return heatTransferCoefficient;
-      case 'sec/qt':
-      case 'sec/L':
-      case '(sec/qt)':
-      case '(sec/L)':
-        return funnelViscosity;
-      case '\u00B0/100ft':
-      case '\u00B0/30m':
-      case '\u00B0/10m':
-      case '\u00B0/m':
-      case '(\u00B0/100ft)':
-      case '(\u00B0/30m)':
-      case '(\u00B0/10m)':
-      case '(\u00B0/m)':
-        return dogleg;
-      case '\u00B0':
-      case '(\u00B0)':
-        return degree;
-      case '(ft2)':
-      case '(m2)':
-      case '(in2)':
-      case '(mm2)':
-      case '(cm2)':
-      case '(dm2)':
-        return crossSection;
-      default:
-        return normalizedText(rawUnit);
+    final canonical = _canonicalUnit(rawUnit);
+    final preferredParam = _preferredParameterByUnit[canonical];
+    if (preferredParam != null) {
+      return unit(preferredParam);
     }
+
+    for (final entry in UnitDefinitions.parameterUnits.entries) {
+      if (entry.value.contains(canonical)) {
+        return unit(entry.key);
+      }
+    }
+
+    return normalizedText(rawUnit);
   }
 
   static String unitSuffix(String rawUnit) => strip(unitText(rawUnit));
 
+  static Map<String, String> _labelReplacements() {
+    final replacements = <String, String>{};
+
+    for (final entry in UnitDefinitions.parameterUnits.entries) {
+      final activeUnit = unit(entry.key);
+      for (final option in entry.value) {
+        replacements[option] = activeUnit;
+      }
+    }
+
+    for (final entry in _preferredParameterByUnit.entries) {
+      replacements[entry.key] = unit(entry.value);
+    }
+
+    replacements['(Pa)'] = stress;
+    replacements['(kg/cm2)'] = stress;
+    replacements['(MPa)'] = pressure;
+    replacements['(kPa)'] = pressure;
+    replacements['(°F)'] = temperature;
+    replacements['(°C)'] = temperature;
+    replacements['(K)'] = temperature;
+    replacements['(R)'] = temperature;
+    return replacements;
+  }
+
   static String label(String text) {
     var output = normalizedText(text);
-    final replacements = <String, String>{
-      '(bbl/stk)': strokeDisplacement,
-      '(m3/stk)': strokeDisplacement,
-      '(gal/stk)': strokeDisplacement,
-      '(L/stk)': strokeDisplacement,
-      '(bbl/ft)': pipeCapacityVolumeLength,
-      '(m3/m)': pipeCapacityVolumeLength,
-      '(ft3/m)': pipeCapacityVolumeLength,
-      '(bbl/m)': pipeCapacityVolumeLength,
-      '(L/m)': pipeCapacityVolumeLength,
-      '(gal/ft)': pipeCapacityVolumeLength,
-      '(ft/bbl)': pipeCapacityLengthVolume,
-      '(m/m3)': pipeCapacityLengthVolume,
-      '(ft/gal)': pipeCapacityLengthVolume,
-      '(m/bbl)': pipeCapacityLengthVolume,
-      '(m/ft3)': pipeCapacityLengthVolume,
-      '(m/L)': pipeCapacityLengthVolume,
-      '(ft/min)': velocity,
-      '(m/min)': velocity,
-      '(ft/s)': nozzleVelocity,
-      '(m/s)': nozzleVelocity,
-      '(ft/hr)': rop,
-      '(m/hr)': rop,
-      '(m/day)': rop,
-      '(ft/day)': rop,
-      '(gpm)': drillingFlowRate,
-      '(m3/min)': drillingFlowRate,
-      '(L/min)': drillingFlowRate,
-      '(L/s)': drillingFlowRate,
-      '(bpm)': cementingFlowRate,
-      '(stk/min)': strokeRate,
-      '(rpm)': rotation,
-      '(ppg)': mudWeight,
-      '(kg/m3)': mudWeight,
-      '(lb/ft3)': mudWeight,
-      '(psi)': pressure,
-      '(kPa)': pressure,
-      '(MPa)': pressure,
-      '(bar)': pressure,
-      '(atm)': pressure,
-      '(kgf/cm2)': pressure,
-      '(psi/ft)': pressureGradient,
-      '(kPa/m)': pressureGradient,
-      '(MPa/m)': pressureGradient,
-      '(Pa)': stress,
-      '(N/m2)': stress,
-      '(lb/100ft2)': yieldPoint,
-      '(lbs/100ft2)': yieldPoint,
-      '(lbf/100ft2)': yieldPoint,
-      '(lbf/100ftÂ²)': yieldPoint,
-      '(cP)': viscosity,
-      '(Pa-s)': viscosity,
-      '(mPa-s)': viscosity,
-      '(lbf-s^n/100ft2)': consistency,
-      '(lbf-s^n/100ftÂ²)': consistency,
-      '(Pa-s^n)': consistency,
-      '(lbf)': force,
-      '(N)': force,
-      '(kN)': force,
-      '(ft-lb)': torque,
-      '(N-m)': torque,
-      '(HP)': power,
-      '(KW)': power,
-      '(W)': power,
-      '(lbm)': weight,
-      '(kg)': weight,
-      '(g)': weight,
-      '(lbm/min)': massRate,
-      '(kg/min)': massRate,
-      '(kg/s)': massRate,
-      '(lb/ft)': lineDensity,
-      '(kg/m)': lineDensity,
-      '(lb/bbl)': massVolumeRatio,
-      '(lb/gal)': massVolumeRatio,
-      '(gal/bbl)': volumeVolumeRatio,
-      '(L/m3)': volumeVolumeRatio,
-      '(mL/m3)': volumeVolumeRatio,
-      '(ft2)': crossSection,
-      '(m2)': crossSection,
-      '(in2)': crossSection,
-      '(mm2)': crossSection,
-      '(cm2)': crossSection,
-      '(dm2)': crossSection,
-      '(bbl)': fluidVolume,
-      '(m3)': fluidVolume,
-      '(L)': fluidVolume,
-      '(gal)': fluidVolume,
-      '(ft)': length,
-      '(m)': length,
-      '(in)': diameter,
-      '(mm)': diameter,
-      '(cm)': diameter,
-      '(dm)': diameter,
-      '(K)': temperature,
-      '(min)': scheduleTime,
-      '(sec)': scheduleTime,
-      '(hr)': scheduleTime,
-      '(\u00B0/100ft)': dogleg,
-      '(\u00B0/30m)': dogleg,
-      '(\u00B0/10m)': dogleg,
-      '(\u00B0/m)': dogleg,
-      '(\u00B0)': degree,
-      '(lb/sk)': cementSolidAdditiveWeight,
-      '(kg/bag)': cementSolidAdditiveWeight,
-      '(kg/sk)': cementSolidAdditiveWeight,
-      '(ft3/sk)': cementSlurryYield,
-      '(m3/bag)': cementSlurryYield,
-      '(L/sk)': cementSlurryYield,
-      '(gal/sk)': cementLiquidAdditive,
-      '(L/bag)': cementLiquidAdditive,
-      '(m3/sk)': cementLiquidAdditive,
-      '(mg/L)': concentration,
-      '(ppm)': concentration,
-      '(W/m/K)': conductivity,
-      '(W/m2/K)': heatTransferCoefficient,
-      '(sec/qt)': funnelViscosity,
-      '(sec/L)': funnelViscosity,
-      '(°F)': temperature,
-      '(°C)': temperature,
-    };
-
+    final replacements = _labelReplacements();
     final sortedKeys = replacements.keys.toList()
       ..sort((a, b) => b.length.compareTo(a.length));
+
     for (final key in sortedKeys) {
       output = output.replaceAll(key, replacements[key]!);
     }
+
     output = output.replaceAllMapped(
       RegExp(r'(?<![\w/])lb/bbl(?![\w/])'),
       (_) => strip(massVolumeRatio),
@@ -569,13 +357,18 @@ class AppUnits {
       (_) => strip(pressureGradient),
     );
     output = output.replaceAllMapped(
-      RegExp(r'(?<![\w/])lb[sf]?/100ft2(?![\w/])'),
+      RegExp(r'(?<![\w/])lbf/100ft2(?![\w/])'),
       (_) => strip(yieldPoint),
     );
     output = output.replaceAllMapped(
       RegExp(r'(?<![\w/])sec/qt(?![\w/])'),
       (_) => strip(funnelViscosity),
     );
+    output = output.replaceAllMapped(
+      RegExp(r'(?<![\w/])ppg(?![\w/])'),
+      (_) => strip(mudWeight),
+    );
+
     return output;
   }
 
@@ -584,11 +377,19 @@ class AppUnits {
     String fromUnit, {
     int? fractionDigits,
   }) {
-    if (value == null) return '';
+    if (value == null) {
+      return '';
+    }
+
     final raw = value.toString().trim();
-    if (raw.isEmpty) return '';
+    if (raw.isEmpty) {
+      return '';
+    }
+
     final parsed = double.tryParse(raw.replaceAll(',', ''));
-    if (parsed == null) return raw;
+    if (parsed == null) {
+      return raw;
+    }
 
     final toUnit = unitText(fromUnit);
     final converted = convertValue(parsed, fromUnit, toUnit) ?? parsed;

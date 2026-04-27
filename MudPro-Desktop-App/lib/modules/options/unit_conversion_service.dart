@@ -1,220 +1,143 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// unit_conversion_service.dart
-// Converts a numeric value from one unit to another.
-// Based on the conversion factors table (Excel screenshot).
-// ─────────────────────────────────────────────────────────────────────────────
+import 'package:mudpro_desktop_app/modules/options/unit_definitions.dart';
 
 class UnitConversionService {
   UnitConversionService._();
   static final UnitConversionService instance = UnitConversionService._();
 
-  static String _normalizeUnit(String unit) {
-    return unit
-        .trim()
-        .replaceAll('Â', '')
-        .replaceAll('²', '2')
-        .replaceAll('³', '3')
-        .replaceAll('°', 'deg')
-        .replaceAll('Â', '')
-        .replaceAll('²', '2')
-        .replaceAll('³', '3')
-        .replaceAll('°', 'deg')
-        .replaceAll('²', '2')
-        .replaceAll('³', '3')
-        .replaceAll('°', 'deg')
-        .replaceAll(RegExp(r'[()]'), '')
-        .replaceAll(' ', '')
-        .toLowerCase();
-  }
+  static const double _cementSackKg = 94.0 * 0.45359237;
+
+  static Map<String, List<String>> get parameterUnits =>
+      UnitDefinitions.parameterUnits;
+
+  static String _canonical(String unit) =>
+      UnitDefinitions.canonicalizeDisplayUnit(unit);
+
+  static String _normalized(String unit) =>
+      UnitDefinitions.normalizeUnitKey(unit);
 
   double? convertNormalizedTemp(double value, String fromUnit, String toUnit) {
-    final from = _normalizeUnit(fromUnit).replaceAll(RegExp(r'[()]'), '');
-    final to = _normalizeUnit(toUnit).replaceAll(RegExp(r'[()]'), '');
+    final from = _normalized(fromUnit);
+    final to = _normalized(toUnit);
 
-    if (from == to) return value;
-    if (from == 'degf' && to == 'degc') return (value - 32) * 5 / 9;
-    if (from == 'degc' && to == 'degf') return value * 9 / 5 + 32;
-    if (from == 'degf' && to == 'k') return (value - 32) * 5 / 9 + 273.15;
-    if (from == 'degc' && to == 'k') return value + 273.15;
-    if (from == 'k' && to == 'degc') return value - 273.15;
-    if (from == 'k' && to == 'degf') return (value - 273.15) * 9 / 5 + 32;
+    if (from == to) {
+      return value;
+    }
+
+    if (const {'degf', 'degc', 'k', 'r'}.contains(from) &&
+        const {'degf', 'degc', 'k', 'r'}.contains(to)) {
+      return _convertTemperature(value, from, to);
+    }
+
     return null;
   }
 
-  // ════════════════════════════════════════════════════════════════════════════
-  // PARAMETER-SPECIFIC UNIT OPTIONS
-  // Each parameter number maps to the list of units available in its dropdown.
-  // Derived from the original software screenshots (images 6–13).
-  // ════════════════════════════════════════════════════════════════════════════
-  static const Map<String, List<String>> parameterUnits = {
-    '1': ['(ft)', '(m)'], // Length
-    '2': ['(in)', '(mm)', '(cm)', '(dm)', '(m)', '(ft)'], // Pipe diameter
-    '3': ['(in)', '(mm)', '(1/32in)'], // Nozzle diameter
-    '4': ['(ft2)', '(m2)'], // Surface area
-    '5': ['(in2)', '(mm2)', '(cm2)', '(dm2)', '(m2)', '(ft2)'], // Cross section
-    '6': [
-      '(bbl)',
-      '(m3)',
-      '(mL)',
-      '(L)',
-      '(in3)',
-      '(ft3)',
-      '(oz)',
-      '(gal)',
-      '(qt)',
-    ], // Fluid volume
-    '7': [
-      '(bbl/ft)',
-      '(m3/m)',
-      '(ft3/m)',
-      '(bbl/m)',
-      '(L/m)',
-      '(gal/ft)',
-    ], // Pipe capacity (vol/len)
-    '8': [
-      '(ft/bbl)',
-      '(m/m3)',
-      '(ft/gal)',
-      '(m/bbl)',
-      '(m/ft3)',
-      '(m/L)',
-    ], // Pipe capacity (len/vol)
-    '9': ['(ft3)', '(in3)', '(m3)'], // Solid volume
-    '10': ['(in3)', '(m3)', '(L)'], // Small volume
-    '11': [
-      '(bbl/stk)',
-      '(m3/stk)',
-      '(gal/stk)',
-      '(L/stk)',
-    ], // Stroke displacement
-    '12': ['(scf)', '(m3)'], // Gas volume
-    '13': [
-      '(ft/min)',
-      '(m/min)',
-      '(ft/s)',
-      '(m/s)',
-      '(ft/hr)',
-      '(m/hr)',
-    ], // Velocity
-    '14': ['(ft/s)', '(m/s)', '(mph)', '(km/h)'], // Nozzle velocity
-    '15': ['(ft/hr)', '(m/hr)', '(m/day)', '(ft/day)'], // ROP
-    '16': ['(rpm)'], // Rotation
-    '17': [
-      '(gpm)',
-      '(m3/min)',
-      '(bpm)',
-      '(L/min)',
-      '(L/s)',
-    ], // Liquid flow rate for drilling
-    '18': [
-      '(bpm)',
-      '(gpm)',
-      '(m3/min)',
-      '(L/min)',
-    ], // Liquid flow rate for cementing
-    '19': ['(stk/min)'], // Stroke rate
-    '20': ['(lbf)', '(N)', '(kN)'], // Force
-    '21': ['(ft-lb)', '(J)', '(N-m)'], // Torque
-    '22': [
-      '(psi)',
-      '(kPa)',
-      '(MPa)',
-      '(bar)',
-      '(atm)',
-      '(kgf/cm2)',
-    ], // Pressure
-    '23': ['(psi/ft)', '(kPa/m)', '(MPa/m)'], // Pressure gradient
-    '24': ['(kPa)', '(MPa)', '(Pa)', '(psi)'], // Stress
-    '25': ['(lbf/100ft2)', '(Pa)', '(N/m2)'], // Yield point
-    '26': ['(HP)', '(KW)', '(W)'], // Power
-    '27': ['(cP)', '(Pa-s)', '(mPa-s)'], // Viscosity
-    '28': ['(lbf-s^n/100ft2)', '(Pa-s^n)'], // Consistency
-    '29': ['(lbm)', '(kg)', '(g)'], // Weight
-    '30': ['(lbm/min)', '(kg/min)', '(kg/s)'], // Mass rate
-    '31': ['(lb/ft)', '(kg/m)'], // Line density
-    '32': ['(lb/ft3)', '(kg/m3)', '(g/cm3)'], // Density
-    '33': ['(ppg)', '(kg/m3)', '(g/cm3)', '(lb/ft3)', '(sg)'], // Mud weight
-    '34': ['(°F)', '(°C)', '(K)'], // Temperature
-    '35': ['(°F/100ft)', '(°C/100m)', '(°C/m)'], // Temperature gradient
-    '36': ['(min)', '(sec)', '(hr)'], // Schedule time
-    '37': ['(°/100ft)', '(°/30m)', '(°/10m)', '(°/m)'], // Dogleg
-    '38': ['(°)'], // Degree
-    '39': [
-      '(lb/bbl)',
-      '(kg/m3)',
-      '(lb/gal)',
-      '(lb/ft3)',
-    ], // Mass - volume ratio
-    '40': ['(gal/bbl)', '(L/m3)', '(mL/m3)'], // Volume - volume ratio
-    '41': ['(lb/sk)', '(kg/bag)', '(kg/sk)'], // Cement/solid additive Wt/sk
-    '42': ['(ft3/sk)', '(m3/bag)', '(L/sk)', '(gal/sk)'], // Cement slurry yield
-    '43': [
-      '(gal/sk)',
-      '(L/bag)',
-      '(L/sk)',
-      '(m3/sk)',
-    ], // Cement liquid additive/water requirement
-    '44': ['(mg/L)', '(ppm)'], // Concentration
-    '45': ['(Btu/hr/ft/°F)', '(W/m/K)', '(kcal/hr/m/°C)'], // Conductivity
-    '46': ['(Btu/lbm/°F)', '(J/kg/°C)', '(kcal/kg/°C)'], // Heat Capacity
-    '47': ['(Btu/hr/ft2/°F)', '(W/m2/K)'], // Heat transfer coefficient
-    '48': ['(°F)', '(°C)'], // Temperature Drop
-    '49': ['(sec/qt)', '(sec/L)'], // Funnel viscosity
-  };
+  double? _convertTemperature(double value, String from, String to) {
+    double kelvin;
 
-  // ════════════════════════════════════════════════════════════════════════════
-  // CONVERSION — convert value from fromUnit to toUnit
-  // Returns null if conversion is not defined (unsupported pair).
-  // All conversions go through a base SI unit to allow any-to-any.
-  // ════════════════════════════════════════════════════════════════════════════
-
-  double? convert(double value, String fromUnit, String toUnit) {
-    if (fromUnit == toUnit) return value;
-
-    final normalizedFrom = _normalizeUnit(fromUnit);
-    final normalizedTo = _normalizeUnit(toUnit);
-    for (final entry in _conversionGroups.entries) {
-      final group = entry.value;
-      String? matchedFrom;
-      String? matchedTo;
-      for (final unit in group.keys) {
-        final normalized = _normalizeUnit(unit);
-        if (normalized == normalizedFrom) {
-          matchedFrom = unit;
-        }
-        if (normalized == normalizedTo) {
-          matchedTo = unit;
-        }
-      }
-      if (matchedFrom != null && matchedTo != null) {
-        final toBase = group[matchedFrom]!;
-        final fromBase = group[matchedTo]!;
-        return value * toBase / fromBase;
-      }
+    switch (from) {
+      case 'degf':
+        kelvin = (value - 32) * 5 / 9 + 273.15;
+        break;
+      case 'degc':
+        kelvin = value + 273.15;
+        break;
+      case 'k':
+        kelvin = value;
+        break;
+      case 'r':
+        kelvin = value * 5 / 9;
+        break;
+      default:
+        return null;
     }
 
-    // Find the group that contains both units
-    for (final entry in _conversionGroups.entries) {
-      final group = entry.value;
-      if (group.containsKey(fromUnit) && group.containsKey(toUnit)) {
-        // Convert fromUnit → base, then base → toUnit
-        final toBase = group[fromUnit]!;
-        final fromBase = group[toUnit]!;
-        return value * toBase / fromBase;
-      }
+    switch (to) {
+      case 'degf':
+        return (kelvin - 273.15) * 9 / 5 + 32;
+      case 'degc':
+        return kelvin - 273.15;
+      case 'k':
+        return kelvin;
+      case 'r':
+        return kelvin * 9 / 5;
+      default:
+        return null;
     }
-    return null; // no conversion defined
   }
 
-  // ════════════════════════════════════════════════════════════════════════════
-  // CONVERSION GROUPS
-  // Each group maps unit → factor to convert TO base (SI or logical base).
-  // To convert A → B: value * factor[A] / factor[B]
-  //
-  // Source: Excel "Conversion Factors" table from image 1 + standard SI.
-  // ════════════════════════════════════════════════════════════════════════════
+  double? convert(double value, String fromUnit, String toUnit) {
+    final from = _canonical(fromUnit);
+    final to = _canonical(toUnit);
+
+    if (from == to) {
+      return value;
+    }
+
+    final pressureGradientResult = _convertPressureGradient(value, from, to);
+    if (pressureGradientResult != null) {
+      return pressureGradientResult;
+    }
+
+    for (final group in _conversionGroups.values) {
+      final matchedFrom = _findMatchingKey(group, from);
+      final matchedTo = _findMatchingKey(group, to);
+      if (matchedFrom == null || matchedTo == null) {
+        continue;
+      }
+      return value * group[matchedFrom]! / group[matchedTo]!;
+    }
+
+    return null;
+  }
+
+  String? _findMatchingKey(Map<String, double> group, String unit) {
+    final normalizedUnit = _normalized(unit);
+    for (final key in group.keys) {
+      if (_normalized(key) == normalizedUnit) {
+        return key;
+      }
+    }
+    return null;
+  }
+
+  double? _convertPressureGradient(double value, String from, String to) {
+    final fromKey = _findMatchingKey(_pressureGradientUnits, from);
+    final toKey = _findMatchingKey(_pressureGradientUnits, to);
+    if (fromKey == null || toKey == null) {
+      return null;
+    }
+
+    final fromExclusive = _exclusivePressureGradientUnits.contains(fromKey);
+    final toExclusive = _exclusivePressureGradientUnits.contains(toKey);
+    if (!fromExclusive && !toExclusive) {
+      return null;
+    }
+
+    return value *
+        _pressureGradientUnits[fromKey]! /
+        _pressureGradientUnits[toKey]!;
+  }
+
+  static const Map<String, double> _pressureGradientUnits = {
+    '(psi/ft)': 22.620595449,
+    '(kPa/m)': 1.0,
+    '(MPa/m)': 1000.0,
+    '(Pa/m)': 0.001,
+    '(ppg)': 1.176270963,
+    '(S.G.)': 9.80665,
+    '(kg/L)': 9.80665,
+    '(bar/10m)': 10.0,
+  };
+
+  static const Set<String> _exclusivePressureGradientUnits = {
+    '(psi/ft)',
+    '(kPa/m)',
+    '(MPa/m)',
+    '(Pa/m)',
+    '(bar/10m)',
+  };
+
   static const Map<String, Map<String, double>> _conversionGroups = {
-    // ── LENGTH (base: m) ───────────────────────────────────────────────────
     'length': {
       '(ft)': 0.3048,
       '(m)': 1.0,
@@ -222,298 +145,310 @@ class UnitConversionService {
       '(mm)': 0.001,
       '(cm)': 0.01,
       '(dm)': 0.1,
-      '(1/32in)': 0.000793750, // 1/32 inch = 0.03125 in = 0.79375 mm
+      '(1/32in)': 0.00079375,
     },
-
-    // ── AREA (base: m²) ────────────────────────────────────────────────────
     'area': {
-      '(ft2)': 0.0929, // ft² → m²
+      '(ft2)': 0.09290304,
       '(m2)': 1.0,
-      '(in2)': 0.000645160, // in² → m²
+      '(in2)': 0.00064516,
       '(mm2)': 0.000001,
       '(cm2)': 0.0001,
       '(dm2)': 0.01,
     },
-
-    // ── VOLUME (base: m³) ──────────────────────────────────────────────────
     'volume': {
-      '(bbl)': 0.158987, // 1 bbl = 0.158987 m³
+      '(bbl)': 0.158987294928,
       '(m3)': 1.0,
-      '(ft3)': 0.0283168,
-      '(in3)': 0.0000163871,
-      '(gal)': 0.00378541,
-      '(L)': 0.001,
       '(mL)': 0.000001,
-      '(qt)': 0.000946353,
-      '(oz)': 0.0000295735, // fluid oz
-      '(scf)': 0.0283168, // standard cubic foot
+      '(L)': 0.001,
+      '(in3)': 0.000016387064,
+      '(ft3)': 0.028316846592,
+      '(oz)': 0.0000295735295625,
+      '(gal)': 0.003785411784,
+      '(qt)': 0.000946352946,
+      '(pt)': 0.000473176473,
+      '(scf)': 0.028316846592,
+      '(Mscf)': 28.316846592,
+      '(MMscf)': 28316.846592,
     },
-
-    // ── VELOCITY (base: m/s) ───────────────────────────────────────────────
+    'pipeCapacityVolumeLength': {
+      '(bbl/ft)': 0.5216118599999999,
+      '(m3/m)': 1.0,
+      '(ft3/m)': 0.028316846592,
+      '(bbl/m)': 0.158987294928,
+      '(L/m)': 0.001,
+      '(gal/ft)': 0.01241933065616798,
+    },
+    'pipeCapacityLengthVolume': {
+      '(ft/bbl)': 1.917126996,
+      '(m/m3)': 1.0,
+      '(ft/gal)': 80.51584041755888,
+      '(m/bbl)': 6.289810770432105,
+      '(m/ft3)': 35.31466672148859,
+      '(m/L)': 1000.0,
+    },
+    'strokeDisplacement': {
+      '(bbl/stk)': 0.158987294928,
+      '(m3/stk)': 1.0,
+      '(L/stk)': 0.001,
+      '(gal/stk)': 0.003785411784,
+    },
     'velocity': {
       '(ft/min)': 0.00508,
-      '(m/min)': 0.016667,
-      '(ft/s)': 0.3048,
+      '(m/min)': 1 / 60,
+      '(m/d)': 1 / 86400,
+      '(m/h)': 1 / 3600,
       '(m/s)': 1.0,
-      '(ft/hr)': 0.0000847,
-      '(m/hr)': 0.000278,
-      '(mph)': 0.44704,
-      '(km/h)': 0.27778,
-      '(knots)': 0.51444,
+      '(ft/d)': 0.3048 / 86400,
+      '(ft/h)': 0.3048 / 3600,
+      '(ft/s)': 0.3048,
     },
-
-    // ── PRESSURE (base: kPa) ──────────────────────────────────────────────
-    'pressure': {
-      '(psi)': 6.89476, // psi → kPa
-      '(kPa)': 1.0,
-      '(MPa)': 1000.0,
-      '(bar)': 100.0,
-      '(atm)': 101.325,
-      '(kgf/cm2)': 98.0665,
-      '(psi/ft)': 22.621, // pressure gradient — treated as pressure ratio
-      '(kPa/m)': 1.0,
-      '(MPa/m)': 1000.0,
-    },
-
-    // ── DENSITY / MUD WEIGHT (base: kg/m³) ────────────────────────────────
-    'density': {
-      '(ppg)': 119.826, // lb/gal → kg/m³
-      '(kg/m3)': 1.0,
-      '(g/cm3)': 1000.0,
-      '(lb/ft3)': 16.0185,
-      '(sg)': 1000.0, // SG × 1000 = kg/m³
-    },
-
-    // ── TEMPERATURE — handled specially (non-linear), see convertTemp() ───
-
-    // ── TEMPERATURE GRADIENT (base: °C/100m) ──────────────────────────────
-    'tempGradient': {
-      '(°F/100ft)': 1.8228, // °F/100ft → °C/100m  (×1.8/0.3048×100)
-      '(°C/100m)': 1.0,
-      '(°F/1000ft)': 0.18228,
-      '(°C/m)': 100.0,
-    },
-
-    // ── DOGLEG (base: °/100m) ─────────────────────────────────────────────
-    'dogleg': {
-      '(°/100ft)': 32.808, // °/100ft → °/100m  (÷0.3048)
-      '(°/100m)': 1.0,
-      '(°/30m)': 3.3333,
-      '(°/10m)': 10.0,
-      '(°/m)': 100.0,
-    },
-
-    // ── FLOW RATE (base: m³/min) ──────────────────────────────────────────
     'flowRate': {
-      '(gpm)': 0.00378541, // gal/min → m³/min
+      '(gpm)': 0.003785411784,
       '(m3/min)': 1.0,
-      '(bpm)': 0.158987, // bbl/min → m³/min
+      '(bbl/min)': 0.158987294928,
+      '(gal/h)': 0.003785411784 / 60,
       '(L/min)': 0.001,
-      '(L/s)': 0.06,
+      '(bbl/hr)': 0.158987294928 / 60,
+      '(L/h)': 0.001 / 60,
+      '(m3/h)': 1 / 60,
+      '(ft3/min)': 0.028316846592,
+      '(bpm)': 0.158987294928,
     },
-
-    // ── ROP (base: m/hr) ──────────────────────────────────────────────────
     'rop': {
       '(ft/hr)': 0.3048,
       '(m/hr)': 1.0,
-      '(m/day)': 0.041667,
-      '(ft/day)': 0.012700,
+      '(ft/day)': 0.0127,
+      '(m/day)': 1 / 24,
     },
-
-    // ── PIPE CAPACITY VOL/LEN (base: m³/m) ────────────────────────────────
-    'pipeCap_v_l': {
-      '(bbl/ft)': 0.52178, // bbl/ft → m³/m  (0.158987/0.3048)
-      '(m3/m)': 1.0,
-      '(ft3/m)': 0.0929,
-      '(bbl/m)': 0.158987,
-      '(L/m)': 0.001,
-      '(gal/ft)': 0.012419,
+    'pressure': {
+      '(psi)': 6.894757293168,
+      '(kPa)': 1.0,
+      '(MPa)': 1000.0,
+      '(bar)': 100.0,
+      '(kpsi)': 6894.757293168,
+      '(Pa)': 0.001,
+      '(kg/cm2)': 98.0665,
+      '(ATM)': 101.325,
     },
-
-    // ── PIPE CAPACITY LEN/VOL (base: m/m³) ────────────────────────────────
-    'pipeCap_l_v': {
-      '(ft/bbl)': 1.91713, // ft/bbl → m/m³  (0.3048/0.158987)
-      '(m/m3)': 1.0,
-      '(ft/gal)': 80.52,
-      '(m/bbl)': 6.28981,
-      '(m/ft3)': 35.3147,
-      '(m/L)': 1000.0,
+    'yieldPoint': {
+      '(lbf/100ft2)': 0.4788025898033584,
+      '(Pa)': 1.0,
+      '(dyne/cm2)': 0.1,
+      '(kPa)': 1000.0,
+      '(MPa)': 1000000.0,
+      '(lb/100ft2)': 0.4788025898033584,
+      '(lbs/100ft2)': 0.4788025898033584,
     },
-
-    // ── MASS-VOLUME (solid conc, base: kg/m³) ─────────────────────────────
-    'massVolume': {
-      '(lb/bbl)': 2.85301, // lb/bbl → kg/m³
+    'density': {
+      '(ppg)': 119.826427316,
       '(kg/m3)': 1.0,
-      '(lb/gal)': 119.826,
-      '(lb/ft3)': 16.0185,
+      '(kPa/m)': 101.9716212978,
+      '(lb/ft3)': 16.01846337396014,
+      '(psi/100ft)': 23.043543714615384,
+      '(S.G.)': 1000.0,
+      '(kg/L)': 1000.0,
+      '(g/cm3)': 1000.0,
+      '(bar/10m)': 1019.716212978,
+    },
+    'massVolumeRatio': {
+      '(lb/bbl)': 2.853010969,
+      '(kg/m3)': 1.0,
+      '(lb/gal)': 119.826427316,
+      '(lb/ft3)': 16.01846337396014,
       '(g/L)': 1.0,
     },
-
-    // ── VOL-VOL (base: L/m³) ──────────────────────────────────────────────
-    'viscosity': {'(cP)': 0.001, '(mPa-s)': 0.001, '(Pa-s)': 1.0},
-
-    'yieldPoint': {
-      '(lbf/100ft2)': 0.4788026,
-      '(lb/100ft2)': 0.4788026,
-      '(lbs/100ft2)': 0.4788026,
-      '(Pa)': 1.0,
-      '(N/m2)': 1.0,
+    'mass': {
+      '(lbm)': 0.45359237,
+      '(lb)': 0.45359237,
+      '(kg)': 1.0,
+      '(ton)': 1000.0,
+      '(oz)': 0.028349523125,
+      '(mg)': 0.000001,
+      '(g)': 0.001,
     },
-
-    'concentration': {'(mg/L)': 1.0, '(ppm)': 1.0},
-
-    'volVol': {
-      '(gal/bbl)': 23.8095, // gal/bbl → L/m³
+    'massRate': {
+      '(lbm/min)': 0.45359237,
+      '(kg/min)': 1.0,
+      '(lbm/s)': 27.2155422,
+      '(lbm/d)': 0.0003149947013888889,
+      '(kg/s)': 60.0,
+      '(kg/d)': 1 / 1440,
+    },
+    'lineDensity': {
+      '(lb/ft)': 1.4881639435695537,
+      '(kg/m)': 1.0,
+      '(kg/cm)': 100.0,
+      '(lb/in)': 17.857967322834646,
+    },
+    'force': {
+      '(lbf)': 4.44822161526,
+      '(N)': 1.0,
+      '(ton)': 8896.44323052,
+      '(Kip)': 4448.22161526,
+      '(kN)': 1000.0,
+      '(T)': 9806.65,
+      '(daN)': 10.0,
+      '(kg)': 9.80665,
+    },
+    'torque': {
+      '(ft-lb)': 1.3558179483314004,
+      '(N-m)': 1.0,
+      '(kg-m)': 9.80665,
+      '(kN-m)': 1000.0,
+      '(Kip-ft)': 1355.8179483314004,
+    },
+    'power': {
+      '(HP)': 745.6998715822701,
+      '(KW)': 1000.0,
+      '(ft-lb/sec)': 1.3558179483314004,
+      '(Btu/sec)': 1055.05585262,
+      '(ft-lb/min)': 0.02259696580552334,
+      '(W)': 1.0,
+      '(kg-m/min)': 0.16344416666666668,
+      '(Btu/min)': 17.584264210333334,
+    },
+    'viscosity': {
+      '(cP)': 0.001,
+      '(dyne-s/cm2)': 0.1,
+      '(kPa-s)': 1000.0,
+      '(lbf-s/ft2)': 47.88025898033584,
+      '(Pa-s)': 1.0,
+    },
+    'consistency': {
+      '(lbf-s^n/100ft2)': 0.4788025898033584,
+      '(Pa-s^n)': 1.0,
+      '(dyne-s^n/cm2)': 0.1,
+      '(eq.cp)': 0.001,
+    },
+    'time': {
+      '(min)': 1.0,
+      '(sec)': 1 / 60,
+      '(hour)': 60.0,
+      '(hr)': 60.0,
+      '(day)': 1440.0,
+      '(year)': 525600.0,
+    },
+    'dogleg': {
+      '(°/100ft)': 3.2808398950131235,
+      '(°/30m)': 3.3333333333333335,
+      '(°/10m)': 10.0,
+      '(°/m)': 100.0,
+      '(°/100m)': 1.0,
+    },
+    'degree': {'(°)': 1.0, '(rad)': 57.29577951308232},
+    'volumeVolumeRatio': {
+      '(gal/bbl)': 23.80952380951205,
       '(L/m3)': 1.0,
+      '(bbl/bbl)': 1000.0,
+      '(m3/m3)': 1000.0,
       '(mL/m3)': 0.001,
     },
-
-    // ── MASS (base: kg) ────────────────────────────────────────────────────
-    'mass': {
-      '(sk)': 42.6389, // 1 sk cement ≈ 94 lb = 42.638 kg
-      '(bag)': 42.6389,
-      '(kg)': 1.0,
-      '(lb)': 0.453592,
+    'perSk': {
+      '(lb/sk)': 0.45359237,
+      '(kg/sk)': 1.0,
+      '(kg/kg)': _cementSackKg,
+      '(kg/ton)': _cementSackKg / 1000,
+      '(kg/bag)': 1.0,
     },
-
-    'lineDensity': {'(lb/ft)': 1.48816, '(kg/m)': 1.0},
-
-    // ── ADDITIVE PER SK (base: kg/sk) ─────────────────────────────────────
-    'perSk': {'(lb/sk)': 0.453592, '(kg/bag)': 1.0, '(kg/sk)': 1.0},
-
-    // ── LIQUID PER SK (base: L/sk) ────────────────────────────────────────
-    'liqPerSk': {
-      '(gal/sk)': 3.78541,
-      '(L/bag)': 1.0,
-      '(L/sk)': 1.0,
-      '(mL/sk)': 0.001,
-    },
-
-    // ── SLURRY YIELD (base: m³/bag) ───────────────────────────────────────
     'slurryYield': {
-      '(ft3/sk)': 0.0283168,
-      '(m3/bag)': 1.0,
+      '(ft3/sk)': 0.028316846592,
+      '(m3/sk)': 1.0,
+      '(m3/kg)': _cementSackKg,
+      '(bbl/lb)': 14.944805723232001,
+      '(L/kg)': _cementSackKg * 0.001,
+      '(L/ton)': _cementSackKg / 1000000,
+      '(m3/ton)': _cementSackKg / 1000,
+      '(gal/sk)': 0.003785411784,
+      '(gal/lb)': 0.355828707696,
+      '(ft3/lb)': 2.661783559648,
       '(L/sk)': 0.001,
-      '(gal/sk)': 0.00378541,
+      '(gphs)': 0.00003785411784,
+      '(bbl/sk)': 0.158987294928,
+      '(m3/bag)': 1.0,
     },
-
-    // ── COST PER VOLUME (base: $/m³) ──────────────────────────────────────
-    'cost': {
-      r'($/bbl)': 6.28981, // $/bbl → $/m³
-      r'($/m3)': 1.0,
-      r'($/gal)': 264.172,
+    'liquidPerSk': {
+      '(gal/sk)': 0.003785411784,
+      '(m3/sk)': 1.0,
+      '(L/kg)': _cementSackKg * 0.001,
+      '(m3/kg)': _cementSackKg,
+      '(bbl/lb)': 14.944805723232001,
+      '(L/sk)': 0.001,
+      '(gphs)': 0.00003785411784,
+      '(bbl/sk)': 0.158987294928,
+      '(ft3/lb)': 2.661783559648,
+      '(ft3/sk)': 0.028316846592,
+      '(gal/lb)': 0.355828707696,
+      '(m3/ton)': _cementSackKg / 1000,
+      '(L/ton)': _cementSackKg / 1000000,
+      '(L/bag)': 0.001,
+      '(mL/sk)': 0.000001,
     },
-
-    // ── FORCE (base: N) ───────────────────────────────────────────────────
-    'force': {'(lbf)': 4.44822, '(N)': 1.0, '(kN)': 1000.0},
-
-    // ── TORQUE / ENERGY (base: J) ─────────────────────────────────────────
-    'torque': {'(ft-lb)': 1.35582, '(J)': 1.0, '(N-m)': 1.0},
-
-    // ── HEAT CAPACITY (base: J/kg/°C) ─────────────────────────────────────
-    'heatCapacity': {
-      '(Btu/lb/°F)': 4186.8,
-      '(J/kg/°C)': 1.0,
-      '(kcal/kg/°C)': 4186.8,
-    },
-
-    // ── THERMAL CONDUCTIVITY (base: W/m/K) ────────────────────────────────
-    'thermalConductivity': {
-      '(Btu/hr/ft/°F)': 1.73073,
+    'conductivity': {
+      '(Btu/hr/ft/°F)': 1.73073466637,
       '(W/m/K)': 1.0,
-      '(kcal/hr/m/°C)': 1.16279,
+      '(Btu-in/hr/ft2/°F)': 0.144227888864,
+      '(Cal/s/m/°C)': 4.1868,
+      '(Cal/s/cm/°C)': 418.68,
+      '(kcal/hr/m/°C)': 1.163,
     },
-
-    // ── THERMAL EXPANSION (base: 10⁻⁶/°C) ────────────────────────────────
-    'thermalExpansion': {
-      '(10-6/°F)': 1.8, // 1 per°F = 1.8 per°C
-      '(10-6/°C)': 1.0,
+    'heatCapacity': {
+      '(Btu/lbm/°F)': 4186.80058485,
+      '(KJ/kg/K)': 1000.0,
+      '(Btu/lbm/°C)': 2326.0003249166666,
+      '(Btu/lbm/R)': 4186.80058485,
+      '(Cal/g/°C)': 4186.8,
+      '(CHU/lbm/°C)': 4186.80058485,
+      '(J/g/°C)': 1000.0,
+      '(J/kg/K)': 1.0,
+      '(J/kg/°C)': 1.0,
+      '(KCal/kg/°C)': 4186.8,
+      '(KJ/kg/°C)': 1000.0,
+      '(Btu/lb/°F)': 4186.80058485,
     },
-
-    // ── ELASTIC MODULUS (base: MPa) ───────────────────────────────────────
-    'elasticity': {
-      '(MPa)': 1.0,
-      '(GPa)': 1000.0,
-      '(psi)': 0.00689476,
-      '(kPa)': 0.001,
+    'heatTransferCoefficient': {
+      '(Btu/hr/ft2/°F)': 5.678263337,
+      '(W/m2/K)': 1.0,
+      '(W/m2/°C)': 1.0,
+      '(J/s/m2/K)': 1.0,
+      '(Cal/s/cm2/°C)': 41868.0,
+      '(KCal/hr/m2/°C)': 1.163,
+      '(KCal/hr/ft2/°C)': 12.5184278204158,
+      '(Btu/s/ft2/°F)': 20441.7480132,
+      '(CHU/hr/ft2/°C)': 12.5184278204158,
     },
-
-    // ── LIQUID VOLUME (base: L) ───────────────────────────────────────────
-    'liquidVolume': {
-      '(gal)': 3.78541,
-      '(L)': 1.0,
-      '(bbl)': 158.987,
-      '(m3)': 1000.0,
-      '(qt)': 0.946353,
-      '(oz)': 0.0295735,
+    'temperatureGradient': {
+      '(°F/100ft)': 1.8228346456692914,
+      '(°C/100m)': 1.0,
+      '(°F/ft)': 182.28346456692915,
+      '(°C/m)': 100.0,
+      '(R/ft)': 182.28346456692915,
+      '(K/m)': 100.0,
     },
-
-    // ── FUNNEL VISCOSITY (base: sec/L) ────────────────────────────────────
-    'funnelVisc': {'(sec/qt)': 0.946353, '(sec/L)': 1.0, '(s/L)': 1.0},
-
-    // ── CUTTING TRANSPORT (base: tonne/h) ─────────────────────────────────
-    'cuttingTransport': {
-      '(US ton/h)': 0.907185,
-      '(tonne/h)': 1.0,
-      '(kg/h)': 0.001,
-      '(lb/h)': 0.000453592,
-    },
-
-    // ── STROKE DISPLACEMENT (base: m³/stk) ────────────────────────────────
-    'strokeDisp': {
-      '(bbl/stk)': 0.158987,
-      '(m3/stk)': 1.0,
-      '(gal/stk)': 0.00378541,
-      '(L/stk)': 0.001,
-    },
-
-    // ── SPRING CONSTANT (base: N/m) ────────────────────────────────────────
-    'springConst': {'(fbf/ft)': 14.5939, '(N/m)': 1.0, '(lbf/ft)': 14.5939},
+    'funnelViscosity': {'(sec/qt)': 0.946352946, '(sec/L)': 1.0, '(s/L)': 1.0},
+    'concentration': {'(mg/L)': 1.0, '(ppm)': 1.0},
   };
 
-  // ════════════════════════════════════════════════════════════════════════════
-  // TEMPERATURE — non-linear, handled separately
-  // ════════════════════════════════════════════════════════════════════════════
-
-  /// Returns converted temperature value, or null if not a temp pair.
   double? convertTemp(double value, String fromUnit, String toUnit) {
-    if (fromUnit == toUnit) return value;
-    // Normalize: strip brackets
-    final from = fromUnit.replaceAll(RegExp(r'[()]'), '');
-    final to = toUnit.replaceAll(RegExp(r'[()]'), '');
-
-    if (from == '°F' && to == '°C') return (value - 32) * 5 / 9;
-    if (from == '°C' && to == '°F') return value * 9 / 5 + 32;
-    if (from == '°F' && to == 'K') return (value - 32) * 5 / 9 + 273.15;
-    if (from == '°C' && to == 'K') return value + 273.15;
-    if (from == 'K' && to == '°C') return value - 273.15;
-    if (from == 'K' && to == '°F') return (value - 273.15) * 9 / 5 + 32;
-    return null;
+    return convertNormalizedTemp(value, fromUnit, toUnit);
   }
-
-  // ════════════════════════════════════════════════════════════════════════════
-  // MAIN ENTRY POINT
-  // Tries temperature first, then generic group-based conversion.
-  // ════════════════════════════════════════════════════════════════════════════
 
   double? convertValue(double value, String fromUnit, String toUnit) {
-    if (fromUnit == toUnit) return value;
+    final from = _canonical(fromUnit);
+    final to = _canonical(toUnit);
 
-    final normalizedTempResult = convertNormalizedTemp(value, fromUnit, toUnit);
-    if (normalizedTempResult != null) return normalizedTempResult;
+    if (from == to) {
+      return value;
+    }
 
-    // Temperature parameters (22 and 36)
-    final tempResult = convertTemp(value, fromUnit, toUnit);
-    if (tempResult != null) return tempResult;
+    final tempResult = convertNormalizedTemp(value, from, to);
+    if (tempResult != null) {
+      return tempResult;
+    }
 
-    // Generic group conversion
-    return convert(value, fromUnit, toUnit);
+    return convert(value, from, to);
   }
 
-  // ════════════════════════════════════════════════════════════════════════════
-  // Get allowed units for a parameter number
-  // ════════════════════════════════════════════════════════════════════════════
   List<String> getUnitsForParam(String paramNumber) {
-    return parameterUnits[paramNumber] ?? [];
+    return parameterUnits[paramNumber] ?? const [];
   }
 }
