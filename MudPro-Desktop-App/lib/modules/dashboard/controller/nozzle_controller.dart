@@ -104,7 +104,7 @@ class NozzleController extends GetxController {
   void recalculateTfa() {
     double total = 0;
     for (final entry in entries) {
-      if (entry.size32.value > 0) {
+      if (entry.size32.value > 0 && entry.count.value > 0) {
         final diameter = entry.size32.value / 32.0;
         final rawArea = (3.141592653589793 * diameter * diameter) / 4.0;
         final area = double.parse(rawArea.toStringAsFixed(3));
@@ -147,7 +147,7 @@ class NozzleController extends GetxController {
 
   void clearRow(int rowIndex) {
     if (rowIndex < 0 || rowIndex >= entries.length) return;
-    entries[rowIndex].count.value = 1;
+    entries[rowIndex].count.value = 0;
     entries[rowIndex].size32.value = 0;
     entries[rowIndex].diameterInch.value = 0;
     entries[rowIndex].area.value = 0;
@@ -209,7 +209,7 @@ class NozzleController extends GetxController {
     while (data.length < 2) {
       data.add('');
     }
-    entry.count.value = int.tryParse(data[0]) ?? 1;
+    entry.count.value = int.tryParse(data[0]) ?? 0;
     entry.size32.value = int.tryParse(data[1]) ?? 0;
     recalculateTfa();
     _ensureExtraRow();

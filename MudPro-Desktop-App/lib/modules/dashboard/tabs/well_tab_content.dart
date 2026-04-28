@@ -3450,7 +3450,9 @@ class _NozzleSectionState extends State<NozzleSection> {
 
   TextEditingController _countCtrl(int idx) {
     _countCtrls[idx] ??= TextEditingController(
-      text: nc.entries[idx].count.value.toString(),
+      text: nc.entries[idx].count.value <= 0
+          ? ''
+          : nc.entries[idx].count.value.toString(),
     );
     return _countCtrls[idx]!;
   }
@@ -3537,7 +3539,9 @@ class _NozzleSectionState extends State<NozzleSection> {
             child: Obx(() {
               final entries = nc.entries;
               for (int i = 0; i < entries.length; i++) {
-                final countText = entries[i].count.value.toString();
+                final countText = entries[i].count.value <= 0
+                    ? ''
+                    : entries[i].count.value.toString();
                 final sizeText = entries[i].size32.value == 0
                     ? ''
                     : entries[i].size32.value.toString();
@@ -3602,7 +3606,7 @@ class _NozzleSectionState extends State<NozzleSection> {
                             _nzEditCell(_countCtrl(idx), _countFocusNode(idx), (
                               val,
                             ) {
-                              nozzle.count.value = int.tryParse(val) ?? 1;
+                              nozzle.count.value = int.tryParse(val) ?? 0;
                               nc.onCellChanged(idx);
                             }),
                             _nzEditCell(_sizeCtrl(idx), _sizeFocusNode(idx), (

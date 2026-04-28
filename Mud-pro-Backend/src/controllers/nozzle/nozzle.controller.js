@@ -27,10 +27,9 @@ const cleanClone = (doc = {}) => {
 const calculateNozzleArea = (size32) => {
   const diameter = (Number(size32) || 0) / 32;
   const rawArea = (Math.PI * Math.pow(diameter, 2)) / 4;
-  // const area = Number(rawArea.toFixed(3));
   return {
     diameter: +diameter.toFixed(4),
-    area:+area.toFixed(4),
+    area: +rawArea.toFixed(3),
   };
 };
 

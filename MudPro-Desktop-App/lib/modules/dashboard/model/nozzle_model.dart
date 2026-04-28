@@ -7,26 +7,26 @@ class NozzleEntry {
   RxDouble area;
 
   NozzleEntry({
-    int count = 1,
+    int count = 0,
     int size32 = 0,
     double diameterInch = 0,
     double area = 0,
-  })  : count = count.obs,
-        size32 = size32.obs,
-        diameterInch = diameterInch.obs,
-        area = area.obs;
+  }) : count = count.obs,
+       size32 = size32.obs,
+       diameterInch = diameterInch.obs,
+       area = area.obs;
 
   factory NozzleEntry.fromJson(Map<String, dynamic> json) => NozzleEntry(
-        count: ((json['count'] ?? 1) as num).toInt(),
-        size32: ((json['size32'] ?? 0) as num).toInt(),
-        diameterInch: ((json['diameterInch'] ?? 0) as num).toDouble(),
-        area: ((json['area'] ?? 0) as num).toDouble(),
-      );
+    count: ((json['count'] ?? 0) as num).toInt(),
+    size32: ((json['size32'] ?? 0) as num).toInt(),
+    diameterInch: ((json['diameterInch'] ?? 0) as num).toDouble(),
+    area: ((json['area'] ?? 0) as num).toDouble(),
+  );
 
   Map<String, dynamic> toJson() => {
-        'count': count.value,
-        'size32': size32.value,
-      };
+    'count': count.value,
+    'size32': size32.value,
+  };
 
   bool get hasData => size32.value > 0;
 }
