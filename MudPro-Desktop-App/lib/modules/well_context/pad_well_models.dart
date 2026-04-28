@@ -20,6 +20,7 @@ class AppPad {
   final String chokeLineID;
   final String killLineID;
   final String boostLineID;
+  final String memo;
   final List<AppWell> wells;
 
   const AppPad({
@@ -44,6 +45,7 @@ class AppPad {
     required this.chokeLineID,
     required this.killLineID,
     required this.boostLineID,
+    required this.memo,
     required this.wells,
   });
 
@@ -73,14 +75,17 @@ class AppPad {
       chokeLineID: _text(json['chokeLineID']),
       killLineID: _text(json['killLineID']),
       boostLineID: _text(json['boostLineID']),
+      memo: _text(json['memo']),
       wells: wellsJson is List
           ? wellsJson
-              .whereType<Map>()
-              .map((well) => AppWell.fromJson(
+                .whereType<Map>()
+                .map(
+                  (well) => AppWell.fromJson(
                     Map<String, dynamic>.from(well),
                     fallbackPadId: id,
-                  ))
-              .toList()
+                  ),
+                )
+                .toList()
           : const <AppWell>[],
     );
   }
@@ -95,29 +100,30 @@ class AppPad {
   }
 
   AppPad copyWith({List<AppWell>? wells}) => AppPad(
-        id: id,
-        locationType: locationType,
-        fieldBlock: fieldBlock,
-        rig: rig,
-        countyParishOffshoreArea: countyParishOffshoreArea,
-        stateProvince: stateProvince,
-        country: country,
-        stockPoint: stockPoint,
-        phone: phone,
-        operator: operator,
-        operatorRep: operatorRep,
-        contractor: contractor,
-        contractorRep: contractorRep,
-        sl: sl,
-        airGap: airGap,
-        waterDepth: waterDepth,
-        riserOD: riserOD,
-        riserID: riserID,
-        chokeLineID: chokeLineID,
-        killLineID: killLineID,
-        boostLineID: boostLineID,
-        wells: wells ?? this.wells,
-      );
+    id: id,
+    locationType: locationType,
+    fieldBlock: fieldBlock,
+    rig: rig,
+    countyParishOffshoreArea: countyParishOffshoreArea,
+    stateProvince: stateProvince,
+    country: country,
+    stockPoint: stockPoint,
+    phone: phone,
+    operator: operator,
+    operatorRep: operatorRep,
+    contractor: contractor,
+    contractorRep: contractorRep,
+    sl: sl,
+    airGap: airGap,
+    waterDepth: waterDepth,
+    riserOD: riserOD,
+    riserID: riserID,
+    chokeLineID: chokeLineID,
+    killLineID: killLineID,
+    boostLineID: boostLineID,
+    memo: memo,
+    wells: wells ?? this.wells,
+  );
 }
 
 class AppWell {
@@ -205,12 +211,12 @@ class AppPadRef {
   });
 
   factory AppPadRef.fromJson(Map<String, dynamic> json) => AppPadRef(
-        id: _text(json['_id'] ?? json['id']),
-        fieldBlock: _text(json['fieldBlock']),
-        rig: _text(json['rig']),
-        operator: _text(json['operator']),
-        country: _text(json['country']),
-      );
+    id: _text(json['_id'] ?? json['id']),
+    fieldBlock: _text(json['fieldBlock']),
+    rig: _text(json['rig']),
+    operator: _text(json['operator']),
+    country: _text(json['country']),
+  );
 }
 
 String _text(dynamic value) => value?.toString().trim() ?? '';

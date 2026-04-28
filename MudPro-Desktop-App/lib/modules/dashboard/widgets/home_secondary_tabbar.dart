@@ -63,6 +63,7 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
   int _hoveredIndex = -1;
   final TextEditingController _dateController = TextEditingController();
   Worker? _reportWorker;
+  bool _isCreatingReport = false;
 
   final List<Map<String, dynamic>> tabs = [
     {"icon": Icons.add_circle_outline},
@@ -130,7 +131,8 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
       case 0:
         return padWellC.isSelectedPadReadyForWellCreation;
       case 5:
-        return padWellC.isSelectedWellReadyForReportCreation;
+        return padWellC.isSelectedWellReadyForReportCreation &&
+            !_isCreatingReport;
       default:
         return reportC.hasSelectedReport;
     }
@@ -141,6 +143,9 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
       case 0:
         return padWellC.padReadinessMessage;
       case 5:
+        if (_isCreatingReport) {
+          return 'Creating report...';
+        }
         return padWellC.wellReadinessMessage;
       default:
         if (!padWellC.isSelectedWellReadyForReportCreation) {
@@ -445,20 +450,21 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
     try {
       if (activeTab == 0) {
         // Well Tab
-        final wellEditorRes = await WellView.saveActiveWell()
-            .timeout(const Duration(seconds: 12), onTimeout: () {
-          return {
-            'success': false,
-            'message': 'Well save timed out (12s)',
-          };
-        });
+        final wellEditorRes = await WellView.saveActiveWell().timeout(
+          const Duration(seconds: 12),
+          onTimeout: () {
+            return {'success': false, 'message': 'Well save timed out (12s)'};
+          },
+        );
         if (wellEditorRes['success'] == true) {
           final message = wellEditorRes['message']?.toString() ?? '';
           if (shouldUseSectionSuccessMessage(message)) {
             successMessage = message;
           }
         } else {
-          errorMessages.add(wellEditorRes['message'] ?? 'Well page save failed');
+          errorMessages.add(
+            wellEditorRes['message'] ?? 'Well page save failed',
+          );
         }
 
         // ── 1. Save Well General ──────────────────────────────────────────
@@ -466,14 +472,15 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
             ? Get.find<WellGeneralController>()
             : null;
         if (wellGenCtrl != null) {
-          final res = await wellGenCtrl
-              .save()
-              .timeout(const Duration(seconds: 12), onTimeout: () {
-            return {
-              'success': false,
-              'message': 'Well General save timed out (12s)',
-            };
-          });
+          final res = await wellGenCtrl.save().timeout(
+            const Duration(seconds: 12),
+            onTimeout: () {
+              return {
+                'success': false,
+                'message': 'Well General save timed out (12s)',
+              };
+            },
+          );
           if (res['success'] == true) {
             final message = res['message']?.toString() ?? '';
             if (shouldUseSectionSuccessMessage(message)) {
@@ -489,14 +496,15 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
             ? Get.find<CasedHoleUIController>()
             : null;
         if (casedCtrl != null) {
-          final res = await casedCtrl
-              .saveAll()
-              .timeout(const Duration(seconds: 12), onTimeout: () {
-            return {
-              'success': false,
-              'message': 'Casing save timed out (12s)',
-            };
-          });
+          final res = await casedCtrl.saveAll().timeout(
+            const Duration(seconds: 12),
+            onTimeout: () {
+              return {
+                'success': false,
+                'message': 'Casing save timed out (12s)',
+              };
+            },
+          );
           if (res['success'] == true) {
             final message = res['message']?.toString() ?? '';
             if (shouldUseSectionSuccessMessage(message)) {
@@ -512,14 +520,15 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
             ? Get.find<DrillStringController>()
             : null;
         if (drillStrCtrl != null) {
-          final res = await drillStrCtrl
-              .saveAll()
-              .timeout(const Duration(seconds: 12), onTimeout: () {
-            return {
-              'success': false,
-              'message': 'Drill String save timed out (12s)',
-            };
-          });
+          final res = await drillStrCtrl.saveAll().timeout(
+            const Duration(seconds: 12),
+            onTimeout: () {
+              return {
+                'success': false,
+                'message': 'Drill String save timed out (12s)',
+              };
+            },
+          );
           if (res['success'] == true) {
             final message = res['message']?.toString() ?? '';
             if (shouldUseSectionSuccessMessage(message)) {
@@ -535,9 +544,7 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
             : null;
         if (nozzleCtrl != null) {
           try {
-            await nozzleCtrl
-                .saveNow()
-                .timeout(const Duration(seconds: 12));
+            await nozzleCtrl.saveNow().timeout(const Duration(seconds: 12));
           } catch (e) {
             errorMessages.add('Bit / Nozzle save failed: $e');
           }
@@ -548,9 +555,9 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
             : null;
         if (pitCtrl != null) {
           try {
-            await pitCtrl
-                .fetchVolumeNameData()
-                .timeout(const Duration(seconds: 12));
+            await pitCtrl.fetchVolumeNameData().timeout(
+              const Duration(seconds: 12),
+            );
           } catch (_) {}
         }
       } else if (activeTab == 1) {
@@ -594,7 +601,8 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
               } else {
                 final res = await consumeProductBridge.saveAll();
                 if (res['success'] == true) {
-                  successMessage = res['message']?.toString() ??
+                  successMessage =
+                      res['message']?.toString() ??
                       'Consume Product saved successfully';
                 } else {
                   errorMessages.add(
@@ -650,7 +658,8 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
               if (returnLostCtrl != null) {
                 final res = await returnLostCtrl.saveReturnLostMud();
                 if (res['success'] == true) {
-                  successMessage = res['message']?.toString() ??
+                  successMessage =
+                      res['message']?.toString() ??
                       'Return / Lost Mud saved successfully';
                 } else {
                   errorMessages.add(
@@ -661,12 +670,13 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
             } else if (selectedOp == OperationType.mudLossActiveSystem) {
               final mudLossCtrl =
                   Get.isRegistered<MudLossActiveSystemController>()
-                      ? Get.find<MudLossActiveSystemController>()
-                      : null;
+                  ? Get.find<MudLossActiveSystemController>()
+                  : null;
               if (mudLossCtrl != null) {
                 final res = await mudLossCtrl.save();
                 if (res['success'] == true) {
-                  successMessage = res['message']?.toString() ??
+                  successMessage =
+                      res['message']?.toString() ??
                       'Mud Loss - Active System saved successfully';
                 } else {
                   errorMessages.add(
@@ -677,12 +687,13 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
             } else if (selectedOp == OperationType.otherVolAddition) {
               final otherVolCtrl =
                   Get.isRegistered<OtherVolAdditionController>()
-                      ? Get.find<OtherVolAdditionController>()
-                      : null;
+                  ? Get.find<OtherVolAdditionController>()
+                  : null;
               if (otherVolCtrl != null) {
                 final res = await otherVolCtrl.save();
                 if (res['success'] == true) {
-                  successMessage = res['message']?.toString() ??
+                  successMessage =
+                      res['message']?.toString() ??
                       'Other Vol Addition saved successfully';
                 } else {
                   errorMessages.add(
@@ -693,12 +704,13 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
             } else if (selectedOp == OperationType.mudLossStorage) {
               final mudLossStorageCtrl =
                   Get.isRegistered<MudLossStorageController>()
-                      ? Get.find<MudLossStorageController>()
-                      : null;
+                  ? Get.find<MudLossStorageController>()
+                  : null;
               if (mudLossStorageCtrl != null) {
                 final res = await mudLossStorageCtrl.save();
                 if (res['success'] == true) {
-                  successMessage = res['message']?.toString() ??
+                  successMessage =
+                      res['message']?.toString() ??
                       'Mud Loss - Storage saved successfully';
                 } else {
                   errorMessages.add(
@@ -767,7 +779,7 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
         _carryOverPad(context);
         break;
       case 5:
-        _createNewReport(context);
+        await _createNewReport(context);
         break;
       case 6:
         _carryOver(context);
@@ -1498,7 +1510,7 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
     );
   }
 
-  void _createNewReport(BuildContext context) {
+  Future<void> _createNewReport(BuildContext context) async {
     if (!padWellC.isSelectedWellReadyForReportCreation) {
       _showDesktopAlert(
         context,
@@ -1507,196 +1519,46 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
       );
       return;
     }
+    if (_isCreatingReport) return;
 
-    final TextEditingController reportNoController = TextEditingController(
-      text: reportC.nextSuggestedReportNo,
-    );
-    final TextEditingController userReportNoController = TextEditingController(
-      text: reportC.nextSuggestedReportNo,
-    );
-    final TextEditingController reportTitleController = TextEditingController(
-      text: 'Report ${reportC.nextSuggestedReportNo}',
-    );
-    final TextEditingController reportDateController = TextEditingController(
-      text: DateFormat('MM/dd/yyyy').format(DateTime.now()),
-    );
+    setState(() => _isCreatingReport = true);
 
-    showDialog(
-      context: context,
-      builder: (dialogContext) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        elevation: 0,
-        backgroundColor: Colors.transparent,
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Colors.white, Color(0xffF8FAFC)],
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-            ),
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.15),
-                blurRadius: 25,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  gradient: AppTheme.primaryGradient,
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(16),
-                    topRight: Radius.circular(16),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.insert_drive_file, color: Colors.white),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'Create New Report',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  children: [
-                    _buildFormField(
-                      "Report Title",
-                      Icons.description_outlined,
-                      reportTitleController,
-                    ),
-                    const SizedBox(height: 16),
-                    _buildFormField(
-                      "Report Number",
-                      Icons.numbers,
-                      reportNoController,
-                    ),
-                    const SizedBox(height: 16),
-                    _buildFormField(
-                      "User Report #",
-                      Icons.tag,
-                      userReportNoController,
-                    ),
-                    const SizedBox(height: 16),
-                    _buildDateField(
-                      "Report Date",
-                      Icons.calendar_today,
-                      reportDateController,
-                      dialogContext,
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 16,
-                ),
-                decoration: BoxDecoration(
-                  border: Border(
-                    top: BorderSide(color: Colors.black.withOpacity(0.1)),
-                  ),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(dialogContext),
-                      child: Text(
-                        "Cancel",
-                        style: TextStyle(color: AppTheme.textSecondary),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    ElevatedButton.icon(
-                      onPressed: () async {
-                        if (reportNoController.text.trim().isEmpty) {
-                          _showDesktopAlert(
-                            context,
-                            "Report number is required",
-                            isSuccess: false,
-                          );
-                          return;
-                        }
+    final nextReportNo = reportC.nextSuggestedReportNo.trim();
+    final reportDate = DateFormat('MM/dd/yyyy').format(DateTime.now());
 
-                        try {
-                          final result = await reportC.createReport({
-                            'reportNo': reportNoController.text.trim(),
-                            'userReportNo': userReportNoController.text.trim(),
-                            'reportDate': reportDateController.text.trim(),
-                            'title': reportTitleController.text.trim(),
-                          });
+    try {
+      final result = await reportC.createReport({
+        'reportNo': nextReportNo,
+        'userReportNo': nextReportNo,
+        'reportDate': reportDate,
+        'title': 'Report $nextReportNo',
+      });
 
-                          final createdReportId = _dialogEntityId(
-                            result['data'],
-                          );
-                          if (createdReportId.isNotEmpty) {
-                            reportC.selectReport(createdReportId);
-                            controller.navigate('report:$createdReportId');
-                          }
+      final createdReportId = _dialogEntityId(result['data']);
+      if (createdReportId.isNotEmpty) {
+        reportC.selectReport(createdReportId);
+        controller.navigate('report:$createdReportId');
+      }
 
-                          _dateController.text = reportDateController.text
-                              .trim();
+      _dateController.text = reportDate;
 
-                          if (dialogContext.mounted) {
-                            Navigator.pop(dialogContext);
-                          }
-
-                          _showDesktopAlert(
-                            context,
-                            result['message']?.toString() ??
-                                "Report created successfully",
-                          );
-                        } catch (e) {
-                          _showDesktopAlert(
-                            context,
-                            e.toString().replaceFirst(
-                              RegExp(r'^Exception:\s*'),
-                              '',
-                            ),
-                            isSuccess: false,
-                          );
-                        }
-                      },
-                      icon: const Icon(Icons.add, size: 18),
-                      label: const Text("Create"),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.successColor,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 24,
-                          vertical: 12,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        elevation: 2,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+      _showDesktopAlert(
+        context,
+        result['message']?.toString() ?? "Report created successfully",
+      );
+    } catch (e) {
+      _showDesktopAlert(
+        context,
+        e.toString().replaceFirst(RegExp(r'^Exception:\s*'), ''),
+        isSuccess: false,
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isCreatingReport = false);
+      } else {
+        _isCreatingReport = false;
+      }
+    }
   }
 
   Widget _buildPadDropdownField({

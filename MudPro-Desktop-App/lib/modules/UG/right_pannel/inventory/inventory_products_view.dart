@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/UG_controller.dart';
@@ -20,10 +22,15 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
   final c = Get.find<UgController>();
   final _repository = AuthRepository();
   final padWellC = padWellContext;
+  static const int _minDisplayRows = 5;
 
   String get wellId => padWellC.selectedWellId.value;
 
   bool _isLoading = false;
+  Timer? _premixedCreateTimer;
+  Timer? _obmCreateTimer;
+  final Map<String, Timer> _premixedUpdateTimers = {};
+  final Map<String, Timer> _obmUpdateTimers = {};
 
   // Controllers for empty rows
   final Map<String, TextEditingController> _premixedControllers = {};
@@ -46,6 +53,14 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
 
   @override
   void dispose() {
+    _premixedCreateTimer?.cancel();
+    _obmCreateTimer?.cancel();
+    for (final timer in _premixedUpdateTimers.values) {
+      timer.cancel();
+    }
+    for (final timer in _obmUpdateTimers.values) {
+      timer.cancel();
+    }
     _mainVerticalScroll.dispose();
     _mainHorizontalScroll.dispose();
     _premixedVerticalScroll.dispose();
@@ -70,14 +85,6 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
   void _disposeControllers() {
     _premixedControllers.values.forEach((controller) => controller.dispose());
     _obmControllers.values.forEach((controller) => controller.dispose());
-  }
-
-  void _clearPremixedControllers() {
-    _premixedControllers.values.forEach((controller) => controller.clear());
-  }
-
-  void _clearObmControllers() {
-    _obmControllers.values.forEach((controller) => controller.clear());
   }
 
   Future<void> _loadData() async {
@@ -207,6 +214,202 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
     Future.delayed(const Duration(seconds: 3), () {
       overlayEntry.remove();
     });
+  }
+
+  bool get _hasPremixedDraftData {
+    return c.premixedDescController.text.trim().isNotEmpty &&
+        (c.premixedMwController.text.trim().isNotEmpty ||
+            c.premixedLeasingFeeController.text.trim().isNotEmpty ||
+            c.premixedMudTypeController.text.trim().isNotEmpty ||
+            c.premixedTaxNew.value);
+  }
+
+  bool get _hasObmDraftData {
+    return c.obmProductController.text.trim().isNotEmpty &&
+        (c.obmCodeController.text.trim().isNotEmpty ||
+            c.obmSgController.text.trim().isNotEmpty ||
+            c.obmConcController.text.trim().isNotEmpty ||
+            c.obmUnitController.text.trim().isNotEmpty);
+  }
+
+  void _schedulePremixedDraftSave() {
+    if (c.isLocked.value) return;
+    _premixedCreateTimer?.cancel();
+    _premixedCreateTimer = Timer(const Duration(milliseconds: 900), () async {
+      if (!_hasPremixedDraftData) return;
+      await _addPremixedFromDraft(silent: true);
+    });
+  }
+
+  void _scheduleObmDraftSave() {
+    if (c.isLocked.value) return;
+    _obmCreateTimer?.cancel();
+    _obmCreateTimer = Timer(const Duration(milliseconds: 900), () async {
+      if (!_hasObmDraftData) return;
+      await _addObmFromDraft(silent: true);
+    });
+  }
+
+  void _schedulePremixedUpdate(PremixModel premixed) {
+    final id = premixed.id?.trim() ?? '';
+    if (id.isEmpty || c.isLocked.value) return;
+    _premixedUpdateTimers[id]?.cancel();
+    _premixedUpdateTimers[id] = Timer(
+      const Duration(milliseconds: 800),
+      () async {
+        try {
+          final updated = await _repository.updatePremixed(id, premixed);
+          final index = c.premixed.indexWhere((item) => item.id == id);
+          if (index != -1) {
+            c.premixed[index] = updated;
+            c.premixed.refresh();
+          }
+        } catch (e) {
+          if (mounted) {
+            _showToast('Failed to update premixed', isError: true);
+          }
+        }
+      },
+    );
+  }
+
+  void _scheduleObmUpdate(ObmModel obm) {
+    final id = obm.id?.trim() ?? '';
+    if (id.isEmpty || c.isLocked.value) return;
+    _obmUpdateTimers[id]?.cancel();
+    _obmUpdateTimers[id] = Timer(const Duration(milliseconds: 800), () async {
+      try {
+        final updated = await _repository.updateObm(id, obm);
+        final index = c.obm.indexWhere((item) => item.id == id);
+        if (index != -1) {
+          c.obm[index] = updated;
+          c.obm.refresh();
+        }
+      } catch (e) {
+        if (mounted) {
+          _showToast('Failed to update OBM', isError: true);
+        }
+      }
+    });
+  }
+
+  Widget _withRowMenu({
+    required Widget child,
+    Future<void> Function()? onDelete,
+    Future<void> Function()? onAdd,
+  }) {
+    if (onDelete == null && onAdd == null) {
+      return child;
+    }
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onSecondaryTapDown: (details) async {
+        final action = await showMenu<String>(
+          context: context,
+          position: RelativeRect.fromLTRB(
+            details.globalPosition.dx,
+            details.globalPosition.dy,
+            details.globalPosition.dx,
+            details.globalPosition.dy,
+          ),
+          items: [
+            if (onAdd != null)
+              const PopupMenuItem<String>(
+                value: 'add',
+                child: Text('Add', style: TextStyle(fontSize: 11)),
+              ),
+            if (onDelete != null)
+              const PopupMenuItem<String>(
+                value: 'delete',
+                child: Text('Delete', style: TextStyle(fontSize: 11)),
+              ),
+          ],
+        );
+
+        if (!mounted || action == null) return;
+        if (action == 'add' && onAdd != null) {
+          await onAdd();
+        }
+        if (action == 'delete' && onDelete != null) {
+          await onDelete();
+        }
+      },
+      child: child,
+    );
+  }
+
+  TableRow _emptyInventoryRow({
+    required int columnCount,
+    Color? backgroundColor,
+  }) {
+    return TableRow(
+      decoration: BoxDecoration(color: backgroundColor ?? Colors.white),
+      children: List.generate(
+        columnCount,
+        (_) =>
+            SizedBox(height: 28, child: Container(color: Colors.transparent)),
+      ),
+    );
+  }
+
+  List<Widget> _wrapMenuCells(
+    List<Widget> cells, {
+    Future<void> Function()? onDelete,
+    Future<void> Function()? onAdd,
+  }) {
+    return cells
+        .map(
+          (cell) => _withRowMenu(child: cell, onDelete: onDelete, onAdd: onAdd),
+        )
+        .toList();
+  }
+
+  Widget _inventorySectionTitle(String text) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(6, 4, 6, 4),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Text(
+          text,
+          style: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
+            color: Color(0xFF2F2F2F),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _inventoryDraftCell({
+    required TextEditingController controller,
+    required String hint,
+    ValueChanged<String>? onChanged,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+      child: TextFormField(
+        controller: controller,
+        readOnly: c.isLocked.value,
+        onChanged: onChanged,
+        style: const TextStyle(fontSize: 10, color: Colors.black87),
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: TextStyle(fontSize: 9, color: Colors.grey.shade400),
+          isDense: true,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 4,
+            vertical: 2,
+          ),
+          filled: true,
+          fillColor: const Color(0xFFFFF9CC),
+          border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+        ),
+      ),
+    );
   }
 
   @override
@@ -782,61 +985,18 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
 
   // ================= PREMIXED MUD TABLE =================
   Widget _premixedMudTable() {
+    final fillerRows = _minDisplayRows > c.premixed.length + 1
+        ? _minDisplayRows - (c.premixed.length + 1)
+        : 0;
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(color: const Color(0xFFC9CDD3)),
       ),
       child: Column(
         children: [
-          Container(
-            height: 24,
-            decoration: BoxDecoration(
-              gradient: AppTheme.headerGradient,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(8),
-                topRight: Radius.circular(8),
-              ),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Row(
-              children: [
-                Icon(Icons.macro_off, size: 14, color: Colors.white),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Premixed Mud',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-                Obx(
-                  () => Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 1,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      '${c.premixed.length} items',
-                      style: const TextStyle(
-                        fontSize: 10,
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          _inventorySectionTitle('Pre-mixed Mud'),
           Expanded(
             child: Scrollbar(
               controller: _premixedVerticalScroll,
@@ -858,276 +1018,128 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                         0: FixedColumnWidth(40),
                         1: FixedColumnWidth(180),
                         2: FixedColumnWidth(80),
-                        3: FixedColumnWidth(100),
+                        3: FixedColumnWidth(110),
                         4: FixedColumnWidth(100),
                         5: FixedColumnWidth(60),
-                        6: FixedColumnWidth(90),
                       },
                       children: [
-                        // Header Row
                         TableRow(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                AppTheme.primaryColor.withOpacity(0.1),
-                                AppTheme.primaryColor.withOpacity(0.05),
-                              ],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFF3F3F3),
                           ),
                           children: [
                             _tableHeaderCell('#'),
                             _tableHeaderCell('Description'),
-                            _tableHeaderCell('MW'),
-                            _tableHeaderCell('Leasing Fee'),
+                            _tableHeaderCell('MW\n(ppg)'),
+                            _tableHeaderCell('Leasing Fee\n(Kwd/bbl)'),
                             _tableHeaderCell('Mud Type'),
                             _tableHeaderCell('Tax'),
-                            _tableHeaderCell('Actions'),
                           ],
                         ),
-                        // Data Rows
                         ...c.premixed.asMap().entries.map((entry) {
                           final index = entry.key;
                           final e = entry.value;
+                          final rowCells = [
+                            _tableCell((index + 1).toString()),
+                            _editableTableCell(
+                              e.description,
+                              key: ValueKey('${e.id}-description'),
+                              onChanged: (v) {
+                                e.description = v;
+                                _schedulePremixedUpdate(e);
+                              },
+                            ),
+                            _editableTableCell(
+                              e.mw,
+                              key: ValueKey('${e.id}-mw'),
+                              onChanged: (v) {
+                                e.mw = v;
+                                _schedulePremixedUpdate(e);
+                              },
+                            ),
+                            _editableTableCell(
+                              e.leasingFee,
+                              key: ValueKey('${e.id}-leasingFee'),
+                              onChanged: (v) {
+                                e.leasingFee = v;
+                                _schedulePremixedUpdate(e);
+                              },
+                            ),
+                            _editableTableCell(
+                              e.mudType,
+                              key: ValueKey('${e.id}-mudType'),
+                              onChanged: (v) {
+                                e.mudType = v;
+                                _schedulePremixedUpdate(e);
+                              },
+                            ),
+                            _checkboxCell(() => e.tax, (v) {
+                              e.tax = v;
+                              c.premixed.refresh();
+                              _schedulePremixedUpdate(e);
+                            }),
+                          ];
+
                           return TableRow(
                             decoration: BoxDecoration(
                               color: index.isEven
                                   ? Colors.white
-                                  : AppTheme.cardColor,
+                                  : const Color(0xFFFBFBFB),
                             ),
-                            children: [
-                              _tableCell((index + 1).toString()),
-                              _editableTableCell(
-                                e.description,
-                                key: ValueKey(e.id ?? e.description),
-                                onChanged: (v) {
-                                  e.description = v;
-                                  c.premixed.refresh();
-                                },
+                            children: _wrapMenuCells(
+                              rowCells,
+                              onDelete:
+                                  c.isLocked.value || (e.id?.isEmpty ?? true)
+                                  ? null
+                                  : () => _deletePremixed(e.id!),
+                            ),
+                          );
+                        }),
+                        TableRow(
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFFAFAFA),
+                          ),
+                          children: _wrapMenuCells(
+                            [
+                              _tableCell('${c.premixed.length + 1}'),
+                              _inventoryDraftCell(
+                                controller: c.premixedDescController,
+                                hint: '',
+                                onChanged: (_) => _schedulePremixedDraftSave(),
                               ),
-                              _editableTableCell(
-                                e.mw,
-                                key: ValueKey(e.id ?? e.mw),
-                                onChanged: (v) {
-                                  e.mw = v;
-                                  c.premixed.refresh();
-                                },
+                              _inventoryDraftCell(
+                                controller: c.premixedMwController,
+                                hint: '',
+                                onChanged: (_) => _schedulePremixedDraftSave(),
                               ),
-                              _editableTableCell(
-                                e.leasingFee,
-                                key: ValueKey(e.id ?? e.leasingFee),
-                                onChanged: (v) {
-                                  e.leasingFee = v;
-                                  c.premixed.refresh();
-                                },
+                              _inventoryDraftCell(
+                                controller: c.premixedLeasingFeeController,
+                                hint: '',
+                                onChanged: (_) => _schedulePremixedDraftSave(),
                               ),
-                              _editableTableCell(
-                                e.mudType,
-                                key: ValueKey(e.id ?? e.mudType),
-                                onChanged: (v) {
-                                  e.mudType = v;
-                                  c.premixed.refresh();
-                                },
+                              _inventoryDraftCell(
+                                controller: c.premixedMudTypeController,
+                                hint: '',
+                                onChanged: (_) => _schedulePremixedDraftSave(),
                               ),
-                              _checkboxCell(() => e.tax, (v) {
-                                e.tax = v;
-                                c.premixed.refresh();
-                              }),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 2,
-                                  horizontal: 2,
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    IconButton(
-                                      icon: Icon(
-                                        Icons.save,
-                                        size: 14,
-                                        color: Colors.blue,
-                                      ),
-                                      onPressed: c.isLocked.value
-                                          ? null
-                                          : () => _updatePremixed(e),
-                                      tooltip: 'Update',
-                                      padding: EdgeInsets.all(2),
-                                      constraints: BoxConstraints(),
-                                    ),
-                                    SizedBox(width: 2),
-                                    IconButton(
-                                      icon: Icon(
-                                        Icons.delete,
-                                        size: 14,
-                                        color: Colors.red,
-                                      ),
-                                      onPressed: c.isLocked.value
-                                          ? null
-                                          : () => _deletePremixed(e.id!),
-                                      tooltip: 'Delete',
-                                      padding: EdgeInsets.all(2),
-                                      constraints: BoxConstraints(),
-                                    ),
-                                  ],
+                              Obx(
+                                () => _checkboxCell(
+                                  () => c.premixedTaxNew.value,
+                                  (v) {
+                                    c.premixedTaxNew.value = v;
+                                    _schedulePremixedDraftSave();
+                                  },
                                 ),
                               ),
                             ],
-                          );
-                        }),
-                        // Empty row for adding new data
-                        TableRow(
-                          decoration: BoxDecoration(color: Colors.grey.shade50),
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.all(6.0),
-                              child: Icon(
-                                Icons.add,
-                                size: 14,
-                                color: Colors.green,
-                              ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 4,
-                                vertical: 1,
-                              ),
-                              child: TextFormField(
-                                controller: c.premixedDescController,
-                                readOnly: c.isLocked.value,
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color: Colors.black87,
-                                ),
-                                decoration: InputDecoration(
-                                  hintText: 'Enter description...',
-                                  hintStyle: TextStyle(
-                                    fontSize: 9,
-                                    color: Colors.grey.shade400,
-                                  ),
-                                  isDense: true,
-                                  contentPadding: EdgeInsets.symmetric(
-                                    horizontal: 4,
-                                    vertical: 2,
-                                  ),
-                                  border: InputBorder.none,
-                                  enabledBorder: InputBorder.none,
-                                  focusedBorder: InputBorder.none,
-                                ),
-                              ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 4,
-                                vertical: 1,
-                              ),
-                              child: TextFormField(
-                                controller: c.premixedMwController,
-                                readOnly: c.isLocked.value,
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color: Colors.black87,
-                                ),
-                                decoration: InputDecoration(
-                                  hintText: 'MW...',
-                                  hintStyle: TextStyle(
-                                    fontSize: 9,
-                                    color: Colors.grey.shade400,
-                                  ),
-                                  isDense: true,
-                                  contentPadding: EdgeInsets.symmetric(
-                                    horizontal: 4,
-                                    vertical: 2,
-                                  ),
-                                  border: InputBorder.none,
-                                  enabledBorder: InputBorder.none,
-                                  focusedBorder: InputBorder.none,
-                                ),
-                              ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 4,
-                                vertical: 1,
-                              ),
-                              child: TextFormField(
-                                controller: c.premixedLeasingFeeController,
-                                readOnly: c.isLocked.value,
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color: Colors.black87,
-                                ),
-                                decoration: InputDecoration(
-                                  hintText: 'Fee...',
-                                  hintStyle: TextStyle(
-                                    fontSize: 9,
-                                    color: Colors.grey.shade400,
-                                  ),
-                                  isDense: true,
-                                  contentPadding: EdgeInsets.symmetric(
-                                    horizontal: 4,
-                                    vertical: 2,
-                                  ),
-                                  border: InputBorder.none,
-                                  enabledBorder: InputBorder.none,
-                                  focusedBorder: InputBorder.none,
-                                ),
-                              ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 4,
-                                vertical: 1,
-                              ),
-                              child: TextFormField(
-                                controller: c.premixedMudTypeController,
-                                readOnly: c.isLocked.value,
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color: Colors.black87,
-                                ),
-                                decoration: InputDecoration(
-                                  hintText: 'Type...',
-                                  hintStyle: TextStyle(
-                                    fontSize: 9,
-                                    color: Colors.grey.shade400,
-                                  ),
-                                  isDense: true,
-                                  contentPadding: EdgeInsets.symmetric(
-                                    horizontal: 4,
-                                    vertical: 2,
-                                  ),
-                                  border: InputBorder.none,
-                                  enabledBorder: InputBorder.none,
-                                  focusedBorder: InputBorder.none,
-                                ),
-                              ),
-                            ),
-                            Obx(
-                              () => _checkboxCell(
-                                () => c.premixedTaxNew.value,
-                                (v) {
-                                  c.premixedTaxNew.value = v;
-                                },
-                              ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.all(2.0),
-                              child: IconButton(
-                                icon: Icon(
-                                  Icons.add_circle,
-                                  color: Colors.green,
-                                  size: 18,
-                                ),
-                                onPressed: c.isLocked.value
-                                    ? null
-                                    : _addPremixedFromEmptyRow,
-                                tooltip: 'Add',
-                                padding: EdgeInsets.all(2),
-                                constraints: BoxConstraints(),
-                              ),
-                            ),
-                          ],
+                            onAdd: c.isLocked.value
+                                ? null
+                                : () => _addPremixedFromDraft(),
+                          ),
+                        ),
+                        ...List.generate(
+                          fillerRows,
+                          (_) => _emptyInventoryRow(columnCount: 6),
                         ),
                       ],
                     ),
@@ -1143,61 +1155,18 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
 
   // ================= OBM TABLE =================
   Widget _obmTable() {
+    final fillerRows = _minDisplayRows > c.obm.length + 1
+        ? _minDisplayRows - (c.obm.length + 1)
+        : 0;
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(color: const Color(0xFFC9CDD3)),
       ),
       child: Column(
         children: [
-          Container(
-            height: 24,
-            decoration: BoxDecoration(
-              gradient: AppTheme.headerGradient,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(8),
-                topRight: Radius.circular(8),
-              ),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Row(
-              children: [
-                Icon(Icons.oil_barrel, size: 14, color: Colors.white),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    '8.0 ppg OBM (70/30) with Bar',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-                Obx(
-                  () => Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 1,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      '${c.obm.length} items',
-                      style: const TextStyle(
-                        fontSize: 10,
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          _inventorySectionTitle('8.0 ppg'),
           Expanded(
             child: Scrollbar(
               controller: _obmVerticalScroll,
@@ -1222,20 +1191,11 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                         3: FixedColumnWidth(80),
                         4: FixedColumnWidth(80),
                         5: FixedColumnWidth(80),
-                        6: FixedColumnWidth(90),
                       },
                       children: [
-                        // Header Row
                         TableRow(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                AppTheme.primaryColor.withOpacity(0.1),
-                                AppTheme.primaryColor.withOpacity(0.05),
-                              ],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFF3F3F3),
                           ),
                           children: [
                             _tableHeaderCell('#'),
@@ -1244,276 +1204,111 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                             _tableHeaderCell('SG'),
                             _tableHeaderCell('Conc'),
                             _tableHeaderCell('Unit'),
-                            _tableHeaderCell('Actions'),
                           ],
                         ),
-                        // Data Rows
                         ...c.obm.asMap().entries.map((entry) {
                           final index = entry.key;
                           final e = entry.value;
+                          final rowCells = [
+                            _tableCell((index + 1).toString()),
+                            _editableTableCell(
+                              e.product,
+                              key: ValueKey('${e.id}-product'),
+                              onChanged: (v) {
+                                e.product = v;
+                                _scheduleObmUpdate(e);
+                              },
+                            ),
+                            _editableTableCell(
+                              e.code,
+                              key: ValueKey('${e.id}-code'),
+                              onChanged: (v) {
+                                e.code = v;
+                                _scheduleObmUpdate(e);
+                              },
+                            ),
+                            _editableTableCell(
+                              e.sg,
+                              key: ValueKey('${e.id}-sg'),
+                              onChanged: (v) {
+                                e.sg = v;
+                                _scheduleObmUpdate(e);
+                              },
+                            ),
+                            _editableTableCell(
+                              e.conc,
+                              key: ValueKey('${e.id}-conc'),
+                              onChanged: (v) {
+                                e.conc = v;
+                                _scheduleObmUpdate(e);
+                              },
+                            ),
+                            _editableTableCell(
+                              e.unit,
+                              key: ValueKey('${e.id}-unit'),
+                              onChanged: (v) {
+                                e.unit = v;
+                                _scheduleObmUpdate(e);
+                              },
+                            ),
+                          ];
+
                           return TableRow(
                             decoration: BoxDecoration(
                               color: index.isEven
                                   ? Colors.white
-                                  : AppTheme.cardColor,
+                                  : const Color(0xFFFBFBFB),
                             ),
-                            children: [
-                              _tableCell((index + 1).toString()),
-                              _editableTableCell(
-                                e.product,
-                                key: ValueKey(e.id ?? e.product),
-                                onChanged: (v) {
-                                  e.product = v;
-                                  c.obm.refresh();
-                                },
-                              ),
-                              _editableTableCell(
-                                e.code,
-                                key: ValueKey(e.id ?? e.code),
-                                onChanged: (v) {
-                                  e.code = v;
-                                  c.obm.refresh();
-                                },
-                              ),
-                              _editableTableCell(
-                                e.sg,
-                                key: ValueKey(e.id ?? e.sg),
-                                onChanged: (v) {
-                                  e.sg = v;
-                                  c.obm.refresh();
-                                },
-                              ),
-                              _editableTableCell(
-                                e.conc,
-                                key: ValueKey(e.id ?? e.conc),
-                                onChanged: (v) {
-                                  e.conc = v;
-                                  c.obm.refresh();
-                                },
-                              ),
-                              _editableTableCell(
-                                e.unit,
-                                key: ValueKey(e.id ?? e.unit),
-                                onChanged: (v) {
-                                  e.unit = v;
-                                  c.obm.refresh();
-                                },
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 2,
-                                  horizontal: 2,
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    IconButton(
-                                      icon: Icon(
-                                        Icons.save,
-                                        size: 14,
-                                        color: Colors.blue,
-                                      ),
-                                      onPressed: c.isLocked.value
-                                          ? null
-                                          : () => _updateObm(e),
-                                      tooltip: 'Update',
-                                      padding: EdgeInsets.all(2),
-                                      constraints: BoxConstraints(),
-                                    ),
-                                    SizedBox(width: 2),
-                                    IconButton(
-                                      icon: Icon(
-                                        Icons.delete,
-                                        size: 14,
-                                        color: Colors.red,
-                                      ),
-                                      onPressed: c.isLocked.value
-                                          ? null
-                                          : () => _deleteObm(e.id!),
-                                      tooltip: 'Delete',
-                                      padding: EdgeInsets.all(2),
-                                      constraints: BoxConstraints(),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
+                            children: _wrapMenuCells(
+                              rowCells,
+                              onDelete:
+                                  c.isLocked.value || (e.id?.isEmpty ?? true)
+                                  ? null
+                                  : () => _deleteObm(e.id!),
+                            ),
                           );
                         }),
-                        // Empty row for adding new data
                         TableRow(
-                          decoration: BoxDecoration(color: Colors.grey.shade50),
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.all(6.0),
-                              child: Icon(
-                                Icons.add,
-                                size: 14,
-                                color: Colors.green,
-                              ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 4,
-                                vertical: 1,
-                              ),
-                              child: TextFormField(
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFFAFAFA),
+                          ),
+                          children: _wrapMenuCells(
+                            [
+                              _tableCell('${c.obm.length + 1}'),
+                              _inventoryDraftCell(
                                 controller: c.obmProductController,
-                                readOnly: c.isLocked.value,
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color: Colors.black87,
-                                ),
-                                decoration: InputDecoration(
-                                  hintText: 'Enter product...',
-                                  hintStyle: TextStyle(
-                                    fontSize: 9,
-                                    color: Colors.grey.shade400,
-                                  ),
-                                  isDense: true,
-                                  contentPadding: EdgeInsets.symmetric(
-                                    horizontal: 4,
-                                    vertical: 2,
-                                  ),
-                                  border: InputBorder.none,
-                                  enabledBorder: InputBorder.none,
-                                  focusedBorder: InputBorder.none,
-                                ),
+                                hint: '',
+                                onChanged: (_) => _scheduleObmDraftSave(),
                               ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 4,
-                                vertical: 1,
-                              ),
-                              child: TextFormField(
+                              _inventoryDraftCell(
                                 controller: c.obmCodeController,
-                                readOnly: c.isLocked.value,
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color: Colors.black87,
-                                ),
-                                decoration: InputDecoration(
-                                  hintText: 'Code...',
-                                  hintStyle: TextStyle(
-                                    fontSize: 9,
-                                    color: Colors.grey.shade400,
-                                  ),
-                                  isDense: true,
-                                  contentPadding: EdgeInsets.symmetric(
-                                    horizontal: 4,
-                                    vertical: 2,
-                                  ),
-                                  border: InputBorder.none,
-                                  enabledBorder: InputBorder.none,
-                                  focusedBorder: InputBorder.none,
-                                ),
+                                hint: '',
+                                onChanged: (_) => _scheduleObmDraftSave(),
                               ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 4,
-                                vertical: 1,
-                              ),
-                              child: TextFormField(
+                              _inventoryDraftCell(
                                 controller: c.obmSgController,
-                                readOnly: c.isLocked.value,
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color: Colors.black87,
-                                ),
-                                decoration: InputDecoration(
-                                  hintText: 'SG...',
-                                  hintStyle: TextStyle(
-                                    fontSize: 9,
-                                    color: Colors.grey.shade400,
-                                  ),
-                                  isDense: true,
-                                  contentPadding: EdgeInsets.symmetric(
-                                    horizontal: 4,
-                                    vertical: 2,
-                                  ),
-                                  border: InputBorder.none,
-                                  enabledBorder: InputBorder.none,
-                                  focusedBorder: InputBorder.none,
-                                ),
+                                hint: '',
+                                onChanged: (_) => _scheduleObmDraftSave(),
                               ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 4,
-                                vertical: 1,
-                              ),
-                              child: TextFormField(
+                              _inventoryDraftCell(
                                 controller: c.obmConcController,
-                                readOnly: c.isLocked.value,
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color: Colors.black87,
-                                ),
-                                decoration: InputDecoration(
-                                  hintText: 'Conc...',
-                                  hintStyle: TextStyle(
-                                    fontSize: 9,
-                                    color: Colors.grey.shade400,
-                                  ),
-                                  isDense: true,
-                                  contentPadding: EdgeInsets.symmetric(
-                                    horizontal: 4,
-                                    vertical: 2,
-                                  ),
-                                  border: InputBorder.none,
-                                  enabledBorder: InputBorder.none,
-                                  focusedBorder: InputBorder.none,
-                                ),
+                                hint: '',
+                                onChanged: (_) => _scheduleObmDraftSave(),
                               ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 4,
-                                vertical: 1,
-                              ),
-                              child: TextFormField(
+                              _inventoryDraftCell(
                                 controller: c.obmUnitController,
-                                readOnly: c.isLocked.value,
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color: Colors.black87,
-                                ),
-                                decoration: InputDecoration(
-                                  hintText: 'Unit...',
-                                  hintStyle: TextStyle(
-                                    fontSize: 9,
-                                    color: Colors.grey.shade400,
-                                  ),
-                                  isDense: true,
-                                  contentPadding: EdgeInsets.symmetric(
-                                    horizontal: 4,
-                                    vertical: 2,
-                                  ),
-                                  border: InputBorder.none,
-                                  enabledBorder: InputBorder.none,
-                                  focusedBorder: InputBorder.none,
-                                ),
+                                hint: '',
+                                onChanged: (_) => _scheduleObmDraftSave(),
                               ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.all(2.0),
-                              child: IconButton(
-                                icon: Icon(
-                                  Icons.add_circle,
-                                  color: Colors.green,
-                                  size: 18,
-                                ),
-                                onPressed: c.isLocked.value
-                                    ? null
-                                    : _addObmFromEmptyRow,
-                                tooltip: 'Add',
-                                padding: EdgeInsets.all(2),
-                                constraints: BoxConstraints(),
-                              ),
-                            ),
-                          ],
+                            ],
+                            onAdd: c.isLocked.value
+                                ? null
+                                : () => _addObmFromDraft(),
+                          ),
+                        ),
+                        ...List.generate(
+                          fillerRows,
+                          (_) => _emptyInventoryRow(columnCount: 6),
                         ),
                       ],
                     ),
@@ -1529,29 +1324,41 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
 
   // ================= PREMIXED CRUD OPERATIONS =================
 
-  Future<void> _addPremixedFromEmptyRow() async {
-    final res = await c.saveInventory();
-    if (res['success'] == true) {
-      if (res['message'] != 'No changes to save') {
-        _showToast(res['message']);
+  Future<void> _addPremixedFromDraft({bool silent = false}) async {
+    if (!_hasPremixedDraftData) return;
+    if (wellId.isEmpty) {
+      if (!silent && mounted) {
+        _showToast('No well selected', isError: true);
       }
-    } else {
-      _showToast(res['message'], isError: true);
-    }
-  }
-
-  Future<void> _updatePremixed(PremixModel premixed) async {
-    if (premixed.id == null || premixed.id!.isEmpty) {
-      _showToast('Invalid premixed ID', isError: true);
       return;
     }
 
+    _premixedCreateTimer?.cancel();
+
+    final draft = PremixModel(
+      description: c.premixedDescController.text.trim(),
+      mw: c.premixedMwController.text.trim(),
+      leasingFee: c.premixedLeasingFeeController.text.trim(),
+      mudType: c.premixedMudTypeController.text.trim(),
+      tax: c.premixedTaxNew.value,
+    );
+
     try {
-      await _repository.updatePremixed(premixed.id!, premixed);
+      final created = await _repository.createPremixed(wellId, draft);
+      c.premixed.add(created);
       c.premixed.refresh();
-      _showToast('Premixed updated successfully');
+      c.premixedDescController.clear();
+      c.premixedMwController.clear();
+      c.premixedLeasingFeeController.clear();
+      c.premixedMudTypeController.clear();
+      c.premixedTaxNew.value = false;
+      if (!silent && mounted) {
+        _showToast('Premixed added successfully');
+      }
     } catch (e) {
-      _showToast('Failed to update premixed', isError: true);
+      if (mounted) {
+        _showToast('Failed to save premixed', isError: true);
+      }
     }
   }
 
@@ -1560,6 +1367,8 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
     if (!confirm) return;
 
     try {
+      _premixedUpdateTimers[id]?.cancel();
+      _premixedUpdateTimers.remove(id);
       await _repository.deletePremixed(id);
       c.premixed.removeWhere((item) => item.id == id);
       _showToast('Premixed deleted successfully');
@@ -1570,29 +1379,41 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
 
   // ================= OBM CRUD OPERATIONS =================
 
-  Future<void> _addObmFromEmptyRow() async {
-    final res = await c.saveInventory();
-    if (res['success'] == true) {
-      if (res['message'] != 'No changes to save') {
-        _showToast(res['message']);
+  Future<void> _addObmFromDraft({bool silent = false}) async {
+    if (!_hasObmDraftData) return;
+    if (wellId.isEmpty) {
+      if (!silent && mounted) {
+        _showToast('No well selected', isError: true);
       }
-    } else {
-      _showToast(res['message'], isError: true);
-    }
-  }
-
-  Future<void> _updateObm(ObmModel obm) async {
-    if (obm.id == null || obm.id!.isEmpty) {
-      _showToast('Invalid OBM ID', isError: true);
       return;
     }
 
+    _obmCreateTimer?.cancel();
+
+    final draft = ObmModel(
+      product: c.obmProductController.text.trim(),
+      code: c.obmCodeController.text.trim(),
+      sg: c.obmSgController.text.trim(),
+      conc: c.obmConcController.text.trim(),
+      unit: c.obmUnitController.text.trim(),
+    );
+
     try {
-      await _repository.updateObm(obm.id!, obm);
+      final created = await _repository.createObm(wellId, draft);
+      c.obm.add(created);
       c.obm.refresh();
-      _showToast('OBM updated successfully');
+      c.obmProductController.clear();
+      c.obmCodeController.clear();
+      c.obmSgController.clear();
+      c.obmConcController.clear();
+      c.obmUnitController.clear();
+      if (!silent && mounted) {
+        _showToast('8.0 ppg item added successfully');
+      }
     } catch (e) {
-      _showToast('Failed to update OBM', isError: true);
+      if (mounted) {
+        _showToast('Failed to save 8.0 ppg item', isError: true);
+      }
     }
   }
 
@@ -1601,6 +1422,8 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
     if (!confirm) return;
 
     try {
+      _obmUpdateTimers[id]?.cancel();
+      _obmUpdateTimers.remove(id);
       await _repository.deleteObm(id);
       c.obm.removeWhere((item) => item.id == id);
       _showToast('OBM deleted successfully');
@@ -1648,7 +1471,8 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
     child: Text(
       text,
-      textAlign: TextAlign.left,
+      textAlign: TextAlign.center,
+      maxLines: 2,
       style: TextStyle(
         fontSize: 9,
         fontWeight: FontWeight.w600,

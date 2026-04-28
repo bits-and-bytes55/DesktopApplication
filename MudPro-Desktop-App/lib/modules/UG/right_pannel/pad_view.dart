@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/UG_controller.dart';
-import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_models.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
@@ -16,11 +15,10 @@ class PadView extends StatefulWidget {
 class _PadViewState extends State<PadView> {
   final UgController ugController = Get.find<UgController>();
   final PadWellController padWellC = padWellContext;
-  final DashboardController? dashboardC = Get.isRegistered<DashboardController>()
-      ? Get.find<DashboardController>()
-      : null;
 
-  final ScrollController _tableScrollController = ScrollController();
+  final ScrollController _leftScrollController = ScrollController();
+  final ScrollController _memoScrollController = ScrollController();
+
   Worker? _padWorker;
   bool _isCreatingNewPad = false;
   String _locationType = 'Land';
@@ -28,6 +26,7 @@ class _PadViewState extends State<PadView> {
   late final Map<String, TextEditingController> _controllers = {
     for (final field in _padFields) field.key: TextEditingController(),
   };
+  final TextEditingController _memoController = TextEditingController();
 
   @override
   void initState() {
@@ -43,10 +42,12 @@ class _PadViewState extends State<PadView> {
   @override
   void dispose() {
     _padWorker?.dispose();
-    _tableScrollController.dispose();
+    _leftScrollController.dispose();
+    _memoScrollController.dispose();
     for (final controller in _controllers.values) {
       controller.dispose();
     }
+    _memoController.dispose();
     super.dispose();
   }
 
@@ -65,6 +66,7 @@ class _PadViewState extends State<PadView> {
     for (final field in _padFields) {
       _controllers[field.key]!.text = _padValue(pad, field.key);
     }
+    _memoController.text = pad.memo;
 
     setState(() {
       _locationType = pad.locationType.isEmpty ? 'Land' : pad.locationType;
@@ -76,6 +78,7 @@ class _PadViewState extends State<PadView> {
     for (final controller in _controllers.values) {
       controller.clear();
     }
+    _memoController.clear();
   }
 
   void _startNewPad() {
@@ -97,6 +100,7 @@ class _PadViewState extends State<PadView> {
   Future<void> _savePad() async {
     final payload = <String, dynamic>{
       'locationType': _locationType,
+      'memo': _memoController.text.trim(),
       for (final field in _padFields)
         field.key: _controllers[field.key]!.text.trim(),
     };
@@ -165,81 +169,43 @@ class _PadViewState extends State<PadView> {
     return Obx(() {
       final isLocked = ugController.isLocked.value;
       final activePad = _activePad;
-      final wells = activePad == null ? const <AppWell>[] : padWellC.wellsForPad(activePad.id);
+      final wells = activePad == null
+          ? const <AppWell>[]
+          : padWellC.wellsForPad(activePad.id);
 
-      return Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      return Container(
+        color: Colors.white,
+        padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+        child: Column(
           children: [
+            _buildActionStrip(isLocked, activePad, wells.length),
+            const SizedBox(height: 8),
             Expanded(
-              flex: 3,
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
-                  color: Colors.white,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                  border: Border.all(color: Colors.grey.shade200, width: 1),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildHeader(
-                      title: _isCreatingNewPad
-                          ? 'Create Pad'
-                          : (activePad?.displayName ?? 'Pad Details'),
-                      subtitle: _isCreatingNewPad
-                          ? 'Enter pad information and save'
-                          : 'Selected pad data from backend',
-                      isLocked: isLocked,
-                    ),
-                    Expanded(
-                      child: Scrollbar(
-                        controller: _tableScrollController,
-                        thumbVisibility: true,
-                        child: SingleChildScrollView(
-                          controller: _tableScrollController,
-                          padding: const EdgeInsets.all(12),
-                          child: Table(
-                            border: TableBorder(
-                              horizontalInside: BorderSide(
-                                color: Colors.grey.shade100,
-                                width: 1,
-                              ),
-                              verticalInside: BorderSide(
-                                color: Colors.grey.shade100,
-                                width: 1,
-                              ),
-                            ),
-                            columnWidths: const {0: FixedColumnWidth(220)},
-                            children: [
-                              _buildLocationRow(isLocked),
-                              for (final field in _padFields)
-                                _buildFieldRow(field, isLocked),
-                            ],
-                          ),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final compact = constraints.maxWidth < 1180;
+                  final leftWidth = compact
+                      ? constraints.maxWidth * 0.54
+                      : constraints.maxWidth * 0.51;
+
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(
+                        width: leftWidth,
+                        child: _buildLeftPanel(isLocked),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: _buildRightPanel(
+                          isLocked: isLocked,
+                          activePad: activePad,
+                          linkedWellCount: wells.length,
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              flex: 2,
-              child: Column(
-                children: [
-                  _buildSummaryCard(activePad, wells),
-                  const SizedBox(height: 12),
-                  _buildWellsCard(wells),
-                ],
+                    ],
+                  );
+                },
               ),
             ),
           ],
@@ -248,84 +214,63 @@ class _PadViewState extends State<PadView> {
     });
   }
 
-  Widget _buildHeader({
-    required String title,
-    required String subtitle,
-    required bool isLocked,
-  }) {
+  Widget _buildActionStrip(bool isLocked, AppPad? activePad, int wellCount) {
     final canEdit = !isLocked;
-    final hasExistingPad = _activePad != null;
+    final hasExistingPad = activePad != null;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        gradient: AppTheme.headerGradient,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(8),
-          topRight: Radius.circular(8),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return SizedBox(
+      height: 28,
+      child: Row(
         children: [
-          Row(
-            children: [
-              const Icon(Icons.folder, color: Colors.white, size: 16),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: Colors.white.withOpacity(0.85),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              _headerButton(
-                icon: Icons.refresh,
-                tooltip: 'Reload pads',
-                onTap: padWellC.reloadData,
-              ),
-              const SizedBox(width: 6),
-              _headerButton(
-                icon: _isCreatingNewPad ? Icons.close : Icons.add,
-                tooltip: _isCreatingNewPad ? 'Cancel new pad' : 'Create pad',
-                onTap: canEdit ? (_isCreatingNewPad ? _cancelNewPad : _startNewPad) : null,
-              ),
-              const SizedBox(width: 6),
-              _headerButton(
-                icon: Icons.save,
-                tooltip: _isCreatingNewPad ? 'Create pad' : 'Save pad',
-                onTap: canEdit ? _savePad : null,
-              ),
-              const SizedBox(width: 6),
-              _headerButton(
-                icon: Icons.delete_outline,
-                tooltip: 'Delete pad',
-                onTap: canEdit && hasExistingPad && !_isCreatingNewPad ? _deletePad : null,
-              ),
-            ],
+          Text(
+            _isCreatingNewPad ? 'Pad - New Pad' : 'Pad',
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF2F2F2F),
+            ),
+          ),
+          const Spacer(),
+          if (!_isCreatingNewPad && activePad != null)
+            Text(
+              '${activePad.displayName}  |  Wells: $wellCount',
+              style: const TextStyle(fontSize: 10.5, color: Color(0xFF5F6B7A)),
+            ),
+          if (!_isCreatingNewPad && activePad != null)
+            const SizedBox(width: 12),
+          _stripButton(
+            icon: Icons.refresh,
+            tooltip: 'Reload pads',
+            onTap: padWellC.reloadData,
+          ),
+          const SizedBox(width: 4),
+          _stripButton(
+            icon: _isCreatingNewPad ? Icons.close : Icons.add,
+            tooltip: _isCreatingNewPad ? 'Cancel new pad' : 'Create pad',
+            onTap: canEdit
+                ? (_isCreatingNewPad ? _cancelNewPad : _startNewPad)
+                : null,
+          ),
+          const SizedBox(width: 4),
+          _stripButton(
+            icon: Icons.save_outlined,
+            tooltip: _isCreatingNewPad ? 'Create pad' : 'Save pad',
+            onTap: canEdit ? _savePad : null,
+          ),
+          const SizedBox(width: 4),
+          _stripButton(
+            icon: Icons.delete_outline,
+            tooltip: 'Delete pad',
+            onTap: canEdit && hasExistingPad && !_isCreatingNewPad
+                ? _deletePad
+                : null,
           ),
         ],
       ),
     );
   }
 
-  Widget _headerButton({
+  Widget _stripButton({
     required IconData icon,
     required String tooltip,
     required VoidCallback? onTap,
@@ -334,74 +279,130 @@ class _PadViewState extends State<PadView> {
       message: tooltip,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(6),
         child: Container(
-          padding: const EdgeInsets.all(6),
+          width: 24,
+          height: 24,
           decoration: BoxDecoration(
-            color: onTap == null
-                ? Colors.white.withOpacity(0.12)
-                : Colors.white.withOpacity(0.2),
-            borderRadius: BorderRadius.circular(6),
-            border: Border.all(color: Colors.white.withOpacity(0.18)),
+            border: Border.all(
+              color: onTap == null
+                  ? const Color(0xFFE2E5E9)
+                  : const Color(0xFFC9CDD3),
+            ),
+            color: Colors.white,
           ),
           child: Icon(
             icon,
             size: 15,
-            color: onTap == null ? Colors.white54 : Colors.white,
+            color: onTap == null
+                ? const Color(0xFFB6BDC7)
+                : const Color(0xFF2E74C9),
           ),
         ),
       ),
     );
   }
 
-  TableRow _buildLocationRow(bool isLocked) {
-    final enabled = !isLocked;
-    return TableRow(
-      decoration: const BoxDecoration(color: Color(0xfff8f9fa)),
+  Widget _buildLeftPanel(bool isLocked) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _labelCell('Location'),
-        Padding(
-          padding: const EdgeInsets.all(10),
-          child: Row(
-            children: [
-              _radioOption('Land', enabled),
-              const SizedBox(width: 20),
-              _radioOption('Offshore', enabled),
-            ],
+        _buildLocationBar(isLocked),
+        const SizedBox(height: 6),
+        Expanded(
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border.all(color: const Color(0xFFC9CDD3)),
+              color: Colors.white,
+            ),
+            child: Scrollbar(
+              controller: _leftScrollController,
+              thumbVisibility: true,
+              child: SingleChildScrollView(
+                controller: _leftScrollController,
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final labelWidth = constraints.maxWidth > 650
+                        ? 360.0
+                        : constraints.maxWidth * 0.54;
+                    final unitWidth = 88.0;
+
+                    return Table(
+                      defaultVerticalAlignment:
+                          TableCellVerticalAlignment.middle,
+                      border: TableBorder.all(
+                        color: const Color(0xFFD5D9DE),
+                        width: 1,
+                      ),
+                      columnWidths: {
+                        0: FixedColumnWidth(labelWidth),
+                        1: FlexColumnWidth(),
+                        2: FixedColumnWidth(unitWidth),
+                      },
+                      children: [
+                        for (final field in _padFields)
+                          _buildFieldRow(field, isLocked),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ),
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildLocationBar(bool isLocked) {
+    final enabled = !isLocked;
+    return SizedBox(
+      height: 24,
+      child: Row(
+        children: [
+          const SizedBox(
+            width: 94,
+            child: Text(
+              'Location',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF2F2F2F),
+              ),
+            ),
+          ),
+          _radioOption('Land', enabled),
+          const SizedBox(width: 26),
+          _radioOption('Offshore', enabled),
+        ],
+      ),
     );
   }
 
   TableRow _buildFieldRow(_PadField field, bool isLocked) {
     final controller = _controllers[field.key]!;
     return TableRow(
-      decoration: const BoxDecoration(color: Colors.white),
       children: [
         _labelCell(field.label),
         isLocked
             ? _readOnlyValueCell(controller.text)
             : _editableValueCell(controller, field.hint),
+        _unitCell(field.unit),
       ],
     );
   }
 
   Widget _labelCell(String text) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xfff8f9fa),
-        border: Border(
-          right: BorderSide(color: Colors.grey.shade200, width: 1),
-        ),
-      ),
+      height: 31,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      alignment: Alignment.centerLeft,
+      color: const Color(0xFFF8F8F8),
       child: Text(
         text,
         style: const TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: AppTheme.textPrimary,
+          fontSize: 10.8,
+          fontWeight: FontWeight.w400,
+          color: Color(0xFF2F2F2F),
         ),
       ),
     );
@@ -409,43 +410,63 @@ class _PadViewState extends State<PadView> {
 
   Widget _readOnlyValueCell(String value) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+      height: 31,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      alignment: Alignment.centerLeft,
+      color: Colors.white,
       child: Text(
-        value.isEmpty ? '-' : value,
-        style: TextStyle(
-          fontSize: 11,
-          color: value.isEmpty ? Colors.grey.shade400 : AppTheme.textSecondary,
+        value,
+        style: const TextStyle(fontSize: 10.8, color: Color(0xFF2F2F2F)),
+      ),
+    );
+  }
+
+  Widget _editableValueCell(TextEditingController controller, String hint) {
+    return Container(
+      height: 31,
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      alignment: Alignment.center,
+      color: Colors.white,
+      child: TextField(
+        controller: controller,
+        style: const TextStyle(fontSize: 10.8, color: Color(0xFF2F2F2F)),
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: TextStyle(fontSize: 10.5, color: Colors.grey.shade400),
+          isDense: true,
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 4,
+            vertical: 7,
+          ),
         ),
       ),
     );
   }
 
-  Widget _editableValueCell(
-    TextEditingController controller,
-    String hint,
-  ) {
+  Widget _unitCell(String unit) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: TextField(
-        controller: controller,
-        style: const TextStyle(fontSize: 11, color: AppTheme.textPrimary),
-        decoration: InputDecoration(
-          isDense: true,
-          hintText: hint,
-          hintStyle: TextStyle(fontSize: 11, color: Colors.grey.shade400),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
-        ),
+      height: 31,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      alignment: Alignment.centerLeft,
+      color: const Color(0xFFF8F8F8),
+      child: Text(
+        unit,
+        style: const TextStyle(fontSize: 10.5, color: Color(0xFF2F2F2F)),
       ),
     );
   }
 
   Widget _radioOption(String value, bool enabled) {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(4),
-        color: Colors.white.withOpacity(0.12),
-      ),
+    return InkWell(
+      onTap: enabled
+          ? () {
+              setState(() {
+                _locationType = value;
+                ugController.location.value = value;
+              });
+            }
+          : null,
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -462,18 +483,14 @@ class _PadViewState extends State<PadView> {
                   }
                 : null,
             visualDensity: VisualDensity.compact,
-            activeColor: Colors.white,
-            fillColor: WidgetStateProperty.resolveWith<Color?>(
-              (states) => states.contains(WidgetState.disabled)
-                  ? Colors.white54
-                  : Colors.white,
-            ),
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            activeColor: const Color(0xFF2E74C9),
           ),
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: Text(
-              value,
-              style: const TextStyle(fontSize: 11, color: Colors.white),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 10.8,
+              color: enabled ? const Color(0xFF2F2F2F) : Colors.grey.shade500,
             ),
           ),
         ],
@@ -481,193 +498,93 @@ class _PadViewState extends State<PadView> {
     );
   }
 
-  Widget _buildSummaryCard(AppPad? pad, List<AppWell> wells) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
+  Widget _buildRightPanel({
+    required bool isLocked,
+    required AppPad? activePad,
+    required int linkedWellCount,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 250,
+          height: 190,
+          decoration: BoxDecoration(
+            border: Border.all(color: const Color(0xFF8E959D)),
+            color: Colors.white,
           ),
-        ],
-        border: Border.all(color: Colors.grey.shade200, width: 1),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.analytics_outlined, color: AppTheme.primaryColor),
-              const SizedBox(width: 8),
-              Text(
-                'Pad Summary',
-                style: AppTheme.bodyLarge.copyWith(fontWeight: FontWeight.w600),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          _summaryRow('Name', _isCreatingNewPad ? 'New pad' : (pad?.displayName ?? '-')),
-          _summaryRow('Operator', pad?.operator ?? '-'),
-          _summaryRow('Rig', pad?.rig ?? '-'),
-          _summaryRow('Country', pad?.country ?? '-'),
-          _summaryRow('Location', _locationType),
-          _summaryRow('Linked Wells', '${wells.length}'),
-        ],
-      ),
-    );
-  }
-
-  Widget _summaryRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 90,
-            child: Text(
-              label,
-              style: AppTheme.caption.copyWith(
-                fontWeight: FontWeight.w600,
-                color: AppTheme.textSecondary,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value.isEmpty ? '-' : value,
-              style: AppTheme.bodySmall.copyWith(color: AppTheme.textPrimary),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildWellsCard(List<AppWell> wells) {
-    return Expanded(
-      child: Container(
-        width: double.infinity,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            ),
-          ],
-          border: Border.all(color: Colors.grey.shade200, width: 1),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xffF8FAFC), Color(0xffEEF2F7)],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.image_outlined,
+                  size: 28,
+                  color: Colors.grey.shade400,
                 ),
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(8),
-                  topRight: Radius.circular(8),
+                const SizedBox(height: 8),
+                Text(
+                  activePad?.displayName ?? 'Pad Preview',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
                 ),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.location_on, color: AppTheme.primaryColor, size: 16),
-                  const SizedBox(width: 8),
+                if (activePad != null) ...[
+                  const SizedBox(height: 2),
                   Text(
-                    'Wells Under This Pad',
-                    style: AppTheme.bodyLarge.copyWith(fontWeight: FontWeight.w600),
+                    'Linked Wells: $linkedWellCount',
+                    style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
                   ),
                 ],
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 18),
+        const Padding(
+          padding: EdgeInsets.only(left: 2, bottom: 6),
+          child: Text(
+            'Memo',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF2F2F2F),
+            ),
+          ),
+        ),
+        Expanded(
+          child: Container(
+            width: double.infinity,
+            decoration: BoxDecoration(
+              border: Border.all(color: const Color(0xFFC9CDD3)),
+              color: Colors.white,
+            ),
+            child: Scrollbar(
+              controller: _memoScrollController,
+              thumbVisibility: true,
+              child: TextField(
+                controller: _memoController,
+                readOnly: isLocked,
+                maxLines: null,
+                expands: true,
+                scrollController: _memoScrollController,
+                style: const TextStyle(
+                  fontSize: 10.8,
+                  color: Color(0xFF2F2F2F),
+                ),
+                decoration: InputDecoration(
+                  hintText: isLocked ? '' : 'Enter memo...',
+                  hintStyle: TextStyle(
+                    fontSize: 10.5,
+                    color: Colors.grey.shade400,
+                  ),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.all(8),
+                ),
               ),
             ),
-            Expanded(
-              child: wells.isEmpty
-                  ? Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Text(
-                          _isCreatingNewPad
-                              ? 'Save the pad first, then create wells.'
-                              : 'No wells linked to this pad yet.',
-                          textAlign: TextAlign.center,
-                          style: AppTheme.bodySmall.copyWith(
-                            color: AppTheme.textSecondary,
-                          ),
-                        ),
-                      ),
-                    )
-                  : ListView.separated(
-                      padding: const EdgeInsets.all(10),
-                      itemCount: wells.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 6),
-                      itemBuilder: (context, index) {
-                        final well = wells[index];
-                        final selected = padWellC.selectedWellId.value == well.id;
-                        return InkWell(
-                          onTap: () {
-                            padWellC.selectWell(well.id);
-                            dashboardC?.navigate('well:${well.id}');
-                          },
-                          borderRadius: BorderRadius.circular(8),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 10,
-                            ),
-                            decoration: BoxDecoration(
-                              color: selected
-                                  ? AppTheme.primaryColor.withValues(alpha: 0.12)
-                                  : const Color(0xffF8FAFC),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: selected
-                                    ? AppTheme.primaryColor.withValues(alpha: 0.3)
-                                    : Colors.grey.shade200,
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.place_outlined,
-                                  size: 15,
-                                  color: selected
-                                      ? AppTheme.primaryColor
-                                      : AppTheme.textSecondary,
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    well.displayName,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: AppTheme.bodySmall.copyWith(
-                                      color: selected
-                                          ? AppTheme.primaryColor
-                                          : AppTheme.textPrimary,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-            ),
-          ],
+          ),
         ),
-      ),
+      ],
     );
   }
 
@@ -744,11 +661,13 @@ class _PadField {
   final String key;
   final String label;
   final String hint;
+  final String unit;
 
   const _PadField({
     required this.key,
     required this.label,
     required this.hint,
+    this.unit = '',
   });
 }
 
@@ -769,19 +688,58 @@ const List<_PadField> _padFields = [
   _PadField(key: 'stockPoint', label: 'Stock Point', hint: 'Enter stock point'),
   _PadField(key: 'phone', label: 'Phone', hint: 'Enter phone'),
   _PadField(key: 'operator', label: 'Operator', hint: 'Enter operator'),
-  _PadField(key: 'operatorRep', label: 'Operator Rep.', hint: 'Enter operator representative'),
+  _PadField(
+    key: 'operatorRep',
+    label: 'Operator Rep.',
+    hint: 'Enter operator representative',
+  ),
   _PadField(key: 'contractor', label: 'Contractor', hint: 'Enter contractor'),
   _PadField(
     key: 'contractorRep',
     label: 'Contractor Rep.',
     hint: 'Enter contractor representative',
   ),
-  _PadField(key: 'sl', label: 'SL', hint: 'Enter SL'),
-  _PadField(key: 'airGap', label: 'Air Gap', hint: 'Enter air gap'),
-  _PadField(key: 'waterDepth', label: 'Water Depth', hint: 'Enter water depth'),
-  _PadField(key: 'riserOD', label: 'Riser OD', hint: 'Enter riser OD'),
-  _PadField(key: 'riserID', label: 'Riser ID', hint: 'Enter riser ID'),
-  _PadField(key: 'chokeLineID', label: 'Choke Line ID', hint: 'Enter choke line ID'),
-  _PadField(key: 'killLineID', label: 'Kill Line ID', hint: 'Enter kill line ID'),
-  _PadField(key: 'boostLineID', label: 'Boost Line ID', hint: 'Enter boost line ID'),
+  _PadField(key: 'sl', label: 'S/L', hint: 'Enter S/L'),
+  _PadField(
+    key: 'airGap',
+    label: 'Air Gap',
+    hint: 'Enter air gap',
+    unit: '(ft)',
+  ),
+  _PadField(
+    key: 'waterDepth',
+    label: 'Water Depth',
+    hint: 'Enter water depth',
+    unit: '(ft)',
+  ),
+  _PadField(
+    key: 'riserOD',
+    label: 'Riser OD',
+    hint: 'Enter riser OD',
+    unit: '(mm)',
+  ),
+  _PadField(
+    key: 'riserID',
+    label: 'Riser ID',
+    hint: 'Enter riser ID',
+    unit: '(mm)',
+  ),
+  _PadField(
+    key: 'chokeLineID',
+    label: 'Choke Line ID',
+    hint: 'Enter choke line ID',
+    unit: '(mm)',
+  ),
+  _PadField(
+    key: 'killLineID',
+    label: 'Kill Line ID',
+    hint: 'Enter kill line ID',
+    unit: '(mm)',
+  ),
+  _PadField(
+    key: 'boostLineID',
+    label: 'Boost Line ID',
+    hint: 'Enter boost line ID',
+    unit: '(mm)',
+  ),
 ];

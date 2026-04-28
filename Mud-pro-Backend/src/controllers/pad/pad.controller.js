@@ -33,6 +33,7 @@ const buildPadPayload = (body = {}) => ({
   chokeLineID: toNumber(body.chokeLineID),
   killLineID: toNumber(body.killLineID),
   boostLineID: toNumber(body.boostLineID),
+  memo: toText(body.memo),
 });
 
 const buildPadUpdate = (body = {}) => {
@@ -59,6 +60,7 @@ const buildPadUpdate = (body = {}) => {
     "contractor",
     "contractorRep",
     "sl",
+    "memo",
   ];
 
   if (body.locationType !== undefined) {

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/controller/service_controller.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/model/service_model.dart';
-import 'package:mudpro_desktop_app/theme/app_theme.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/inventory_store/inventory_store.dart';
 
@@ -29,12 +28,18 @@ class _ServicesPageState extends State<ServicesPickupPage> {
   List<ServiceItem> existingServices = [];
   List<EngineeringItem> existingEngineering = [];
 
-  final List<List<TextEditingController>> packageControllers = _generateControllers();
-  final List<List<TextEditingController>> servicesControllers = _generateControllers();
-  final List<List<TextEditingController>> engineeringControllers = _generateControllers();
+  final List<List<TextEditingController>> packageControllers =
+      _generateControllers();
+  final List<List<TextEditingController>> servicesControllers =
+      _generateControllers();
+  final List<List<TextEditingController>> engineeringControllers =
+      _generateControllers();
 
   static List<List<TextEditingController>> _generateControllers() {
-    return List.generate(5, (_) => List.generate(4, (_) => TextEditingController()));
+    return List.generate(
+      5,
+      (_) => List.generate(4, (_) => TextEditingController()),
+    );
   }
 
   @override
@@ -46,11 +51,7 @@ class _ServicesPageState extends State<ServicesPickupPage> {
   Future<void> _loadAllData() async {
     setState(() => _isLoading = true);
     try {
-      await Future.wait([
-        _loadPackages(),
-        _loadServices(),
-        _loadEngineering(),
-      ]);
+      await Future.wait([_loadPackages(), _loadServices(), _loadEngineering()]);
     } catch (e) {
       _showError('Failed to load data: $e');
     } finally {
@@ -98,9 +99,15 @@ class _ServicesPageState extends State<ServicesPickupPage> {
   }
 
   void _applySelectedServices() {
-    final selectedPkgs = selectedPackageIndices.map((i) => existingPackages[i]).toList();
-    final selectedSrvs = selectedServiceIndices.map((i) => existingServices[i]).toList();
-    final selectedEngs = selectedEngineeringIndices.map((i) => existingEngineering[i]).toList();
+    final selectedPkgs = selectedPackageIndices
+        .map((i) => existingPackages[i])
+        .toList();
+    final selectedSrvs = selectedServiceIndices
+        .map((i) => existingServices[i])
+        .toList();
+    final selectedEngs = selectedEngineeringIndices
+        .map((i) => existingEngineering[i])
+        .toList();
 
     Get.find<InventoryServicesStore>().setSelectedServices(
       packages: selectedPkgs,
@@ -125,12 +132,14 @@ class _ServicesPageState extends State<ServicesPickupPage> {
       List<PackageItem> newPackages = [];
       for (var row in packageControllers) {
         if (row[0].text.trim().isNotEmpty) {
-          newPackages.add(PackageItem(
-            name: row[0].text.trim(),
-            code: row[1].text.trim(),
-            unit: row[2].text.trim(),
-            price: double.tryParse(row[3].text) ?? 0.0,
-          ));
+          newPackages.add(
+            PackageItem(
+              name: row[0].text.trim(),
+              code: row[1].text.trim(),
+              unit: row[2].text.trim(),
+              price: double.tryParse(row[3].text) ?? 0.0,
+            ),
+          );
         }
       }
 
@@ -141,16 +150,16 @@ class _ServicesPageState extends State<ServicesPickupPage> {
       }
 
       final result = await controller.addPackages(newPackages);
-      
+
       if (result['success'] == true) {
         _showSuccess(result['message'] ?? 'Packages saved successfully!');
-        
+
         for (var row in packageControllers) {
           for (var ctrl in row) {
             ctrl.clear();
           }
         }
-        
+
         await _loadPackages();
       } else {
         _showError(result['message'] ?? 'Failed to save packages');
@@ -168,12 +177,14 @@ class _ServicesPageState extends State<ServicesPickupPage> {
       List<ServiceItem> newServices = [];
       for (var row in servicesControllers) {
         if (row[0].text.trim().isNotEmpty) {
-          newServices.add(ServiceItem(
-            name: row[0].text.trim(),
-            code: row[1].text.trim(),
-            unit: row[2].text.trim(),
-            price: double.tryParse(row[3].text) ?? 0.0,
-          ));
+          newServices.add(
+            ServiceItem(
+              name: row[0].text.trim(),
+              code: row[1].text.trim(),
+              unit: row[2].text.trim(),
+              price: double.tryParse(row[3].text) ?? 0.0,
+            ),
+          );
         }
       }
 
@@ -184,16 +195,16 @@ class _ServicesPageState extends State<ServicesPickupPage> {
       }
 
       final result = await controller.addServices(newServices);
-      
+
       if (result['success'] == true) {
         _showSuccess(result['message'] ?? 'Services saved successfully!');
-        
+
         for (var row in servicesControllers) {
           for (var ctrl in row) {
             ctrl.clear();
           }
         }
-        
+
         await _loadServices();
       } else {
         _showError(result['message'] ?? 'Failed to save services');
@@ -211,12 +222,14 @@ class _ServicesPageState extends State<ServicesPickupPage> {
       List<EngineeringItem> newEngineering = [];
       for (var row in engineeringControllers) {
         if (row[0].text.trim().isNotEmpty) {
-          newEngineering.add(EngineeringItem(
-            name: row[0].text.trim(),
-            code: row[1].text.trim(),
-            unit: row[2].text.trim(),
-            price: double.tryParse(row[3].text) ?? 0.0,
-          ));
+          newEngineering.add(
+            EngineeringItem(
+              name: row[0].text.trim(),
+              code: row[1].text.trim(),
+              unit: row[2].text.trim(),
+              price: double.tryParse(row[3].text) ?? 0.0,
+            ),
+          );
         }
       }
 
@@ -227,16 +240,18 @@ class _ServicesPageState extends State<ServicesPickupPage> {
       }
 
       final result = await controller.addEngineering(newEngineering);
-      
+
       if (result['success'] == true) {
-        _showSuccess(result['message'] ?? 'Engineering items saved successfully!');
-        
+        _showSuccess(
+          result['message'] ?? 'Engineering items saved successfully!',
+        );
+
         for (var row in engineeringControllers) {
           for (var ctrl in row) {
             ctrl.clear();
           }
         }
-        
+
         await _loadEngineering();
       } else {
         _showError(result['message'] ?? 'Failed to save engineering');
@@ -313,7 +328,11 @@ class _ServicesPageState extends State<ServicesPickupPage> {
 
   @override
   void dispose() {
-    for (var table in [packageControllers, servicesControllers, engineeringControllers]) {
+    for (var table in [
+      packageControllers,
+      servicesControllers,
+      engineeringControllers,
+    ]) {
       for (var row in table) {
         for (var ctrl in row) {
           ctrl.dispose();
@@ -326,28 +345,29 @@ class _ServicesPageState extends State<ServicesPickupPage> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: AppTheme.backgroundColor,
+      color: Colors.white,
       child: Stack(
         children: [
           Padding(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.fromLTRB(8, 8, 8, 6),
             child: Column(
               children: [
                 Expanded(
                   child: LayoutBuilder(
                     builder: (context, constraints) {
-                      if (constraints.maxWidth < 1200) {
-                        return SingleChildScrollView(
+                      final sectionWidth = constraints.maxWidth < 1180
+                          ? 360.0
+                          : (constraints.maxWidth - 16) / 3;
+                      return Scrollbar(
+                        thumbVisibility: true,
+                        child: SingleChildScrollView(
                           scrollDirection: Axis.horizontal,
                           child: Row(
-                            children: _buildTableSections(constraints),
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: _buildTableSections(sectionWidth),
                           ),
-                        );
-                      } else {
-                        return Row(
-                          children: _buildTableSections(constraints),
-                        );
-                      }
+                        ),
+                      );
                     },
                   ),
                 ),
@@ -369,42 +389,39 @@ class _ServicesPageState extends State<ServicesPickupPage> {
     );
   }
 
-  List<Widget> _buildTableSections(BoxConstraints constraints) {
+  List<Widget> _buildTableSections(double sectionWidth) {
     return [
-      _tableSection(
-        title: 'Package',
-        existingData: existingPackages,
-        controllers: packageControllers,
-        icon: Icons.inventory,
-        gradient: AppTheme.primaryGradient,
-        constraints: constraints,
-        onSave: _savePackages,
-        selectedIndices: selectedPackageIndices,
-        isPackage: true,
+      SizedBox(
+        width: sectionWidth,
+        child: _tableSection(
+          title: 'Package',
+          existingData: existingPackages,
+          controllers: packageControllers,
+          onSave: _savePackages,
+          selectedIndices: selectedPackageIndices,
+        ),
       ),
-      const SizedBox(width: 12),
-      _tableSection(
-        title: 'Services',
-        existingData: existingServices,
-        controllers: servicesControllers,
-        icon: Icons.miscellaneous_services,
-        gradient: AppTheme.secondaryGradient,
-        constraints: constraints,
-        onSave: _saveServices,
-        selectedIndices: selectedServiceIndices,
-        isService: true,
+      const SizedBox(width: 8),
+      SizedBox(
+        width: sectionWidth,
+        child: _tableSection(
+          title: 'Services',
+          existingData: existingServices,
+          controllers: servicesControllers,
+          onSave: _saveServices,
+          selectedIndices: selectedServiceIndices,
+        ),
       ),
-      const SizedBox(width: 12),
-      _tableSection(
-        title: 'Engineering',
-        existingData: existingEngineering,
-        controllers: engineeringControllers,
-        icon: Icons.engineering,
-        gradient: AppTheme.accentGradient,
-        constraints: constraints,
-        onSave: _saveEngineering,
-        selectedIndices: selectedEngineeringIndices,
-        isEngineering: true,
+      const SizedBox(width: 8),
+      SizedBox(
+        width: sectionWidth,
+        child: _tableSection(
+          title: 'Engineering',
+          existingData: existingEngineering,
+          controllers: engineeringControllers,
+          onSave: _saveEngineering,
+          selectedIndices: selectedEngineeringIndices,
+        ),
       ),
     ];
   }
@@ -413,102 +430,57 @@ class _ServicesPageState extends State<ServicesPickupPage> {
     required String title,
     required List<dynamic> existingData,
     required List<List<TextEditingController>> controllers,
-    required IconData icon,
-    required Gradient gradient,
-    required BoxConstraints constraints,
     required VoidCallback onSave,
     required Set<int> selectedIndices,
-    bool isPackage = false,
-    bool isService = false,
-    bool isEngineering = false,
   }) {
-    final isSmallScreen = constraints.maxWidth < 400;
-    final widths = isSmallScreen
-        ? [25.0, 100.0, 50.0, 40.0, 50.0]
-        : [35.0, 150.0, 75.0, 65.0, 75.0];
+    const widths = [30.0, 138.0, 72.0, 64.0, 78.0];
 
-    return Expanded(
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 6,
-              offset: const Offset(0, 3),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: const Color(0xFFC7CBD2)),
+      ),
+      child: Column(
+        children: [
+          _sectionHeader(title, selectedIndices.length),
+          _tableHeader(widths),
+          Container(height: 1, color: const Color(0xFFC7CBD2)),
+          Expanded(
+            child: _tableRows(
+              existingData,
+              controllers,
+              widths,
+              selectedIndices,
             ),
-          ],
-        ),
-        child: Column(
-          children: [
-            _sectionHeader(title, icon, gradient, selectedIndices.length),
-            _tableHeader(widths),
-            Container(height: 1, color: Colors.grey.shade300),
-            Expanded(
-              child: _tableRows(
-                existingData,
-                controllers,
-                widths,
-                selectedIndices,
-              ),
-            ),
-            _tableSaveButton(onSave, title),
-          ],
-        ),
+          ),
+          _tableSaveButton(onSave, title),
+        ],
       ),
     );
   }
 
-  Widget _sectionHeader(String title, IconData icon, Gradient gradient, int selectedCount) {
+  Widget _sectionHeader(String title, int selectedCount) {
     return Container(
-      height: 36,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: BoxDecoration(
-        gradient: gradient,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(8),
-          topRight: Radius.circular(8),
-        ),
-      ),
+      height: 28,
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      alignment: Alignment.centerLeft,
       child: Row(
         children: [
-          Container(
-            width: 24,
-            height: 24,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.white.withOpacity(0.2),
-            ),
-            child: Icon(icon, size: 14, color: Colors.white),
-          ),
-          const SizedBox(width: 8),
           Expanded(
             child: Text(
               title,
               style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-                letterSpacing: 0.3,
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF2F2F2F),
               ),
             ),
           ),
           if (selectedCount > 0)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.3),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                'Selected: $selectedCount',
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+            Text(
+              '$selectedCount selected',
+              style: const TextStyle(fontSize: 10, color: Color(0xFF5F6B7A)),
             ),
         ],
       ),
@@ -517,15 +489,8 @@ class _ServicesPageState extends State<ServicesPickupPage> {
 
   Widget _tableHeader(List<double> widths) {
     return Container(
-      height: 32,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppTheme.tableHeadColor.withOpacity(0.9),
-            AppTheme.tableHeadColor.withOpacity(0.8),
-          ],
-        ),
-      ),
+      height: 30,
+      color: const Color(0xFFF3F3F3),
       child: Row(
         children: [
           _HeaderCell(width: widths[0], text: ''),
@@ -551,7 +516,7 @@ class _ServicesPageState extends State<ServicesPickupPage> {
         itemBuilder: (_, index) {
           final isExisting = index < existingData.length;
           final isSelected = selectedIndices.contains(index);
-          
+
           return InkWell(
             onTap: isExisting
                 ? () {
@@ -568,12 +533,10 @@ class _ServicesPageState extends State<ServicesPickupPage> {
               height: 28,
               decoration: BoxDecoration(
                 color: isSelected
-                    ? AppTheme.primaryColor.withOpacity(0.2)
-                    : (isExisting
-                        ? const Color(0xffF3F4F6)
-                        : (index % 2 == 0 ? Colors.white : AppTheme.cardColor)),
+                    ? const Color(0xFFDCE9F9)
+                    : (isExisting ? Colors.white : const Color(0xFFFFF9CC)),
                 border: Border(
-                  bottom: BorderSide(color: Colors.grey.shade200, width: 0.5),
+                  bottom: BorderSide(color: Colors.grey.shade300, width: 0.6),
                 ),
               ),
               child: Material(
@@ -581,23 +544,66 @@ class _ServicesPageState extends State<ServicesPickupPage> {
                 child: Row(
                   children: [
                     _numberCell(index + 1, widths[0], isExisting, isSelected),
-                    Container(width: 1, height: double.infinity, color: Colors.grey.shade300),
+                    Container(
+                      width: 1,
+                      height: double.infinity,
+                      color: Colors.grey.shade300,
+                    ),
                     if (isExisting) ...[
                       _lockedCell(widths[1], existingData[index].name),
-                      Container(width: 1, height: double.infinity, color: Colors.grey.shade300),
+                      Container(
+                        width: 1,
+                        height: double.infinity,
+                        color: Colors.grey.shade300,
+                      ),
                       _lockedCell(widths[2], existingData[index].code),
-                      Container(width: 1, height: double.infinity, color: Colors.grey.shade300),
+                      Container(
+                        width: 1,
+                        height: double.infinity,
+                        color: Colors.grey.shade300,
+                      ),
                       _lockedCell(widths[3], existingData[index].unit),
-                      Container(width: 1, height: double.infinity, color: Colors.grey.shade300),
-                      _lockedCell(widths[4], existingData[index].price.toString()),
+                      Container(
+                        width: 1,
+                        height: double.infinity,
+                        color: Colors.grey.shade300,
+                      ),
+                      _lockedCell(
+                        widths[4],
+                        existingData[index].price.toString(),
+                      ),
                     ] else ...[
-                      _editCell(widths[1], controllers[index - existingData.length][0]),
-                      Container(width: 1, height: double.infinity, color: Colors.grey.shade300),
-                      _editCell(widths[2], controllers[index - existingData.length][1]),
-                      Container(width: 1, height: double.infinity, color: Colors.grey.shade300),
-                      _editCell(widths[3], controllers[index - existingData.length][2]),
-                      Container(width: 1, height: double.infinity, color: Colors.grey.shade300),
-                      _editCell(widths[4], controllers[index - existingData.length][3]),
+                      _editCell(
+                        widths[1],
+                        controllers[index - existingData.length][0],
+                      ),
+                      Container(
+                        width: 1,
+                        height: double.infinity,
+                        color: Colors.grey.shade300,
+                      ),
+                      _editCell(
+                        widths[2],
+                        controllers[index - existingData.length][1],
+                      ),
+                      Container(
+                        width: 1,
+                        height: double.infinity,
+                        color: Colors.grey.shade300,
+                      ),
+                      _editCell(
+                        widths[3],
+                        controllers[index - existingData.length][2],
+                      ),
+                      Container(
+                        width: 1,
+                        height: double.infinity,
+                        color: Colors.grey.shade300,
+                      ),
+                      _editCell(
+                        widths[4],
+                        controllers[index - existingData.length][3],
+                      ),
                     ],
                   ],
                 ),
@@ -617,34 +623,20 @@ class _ServicesPageState extends State<ServicesPickupPage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             if (isLocked)
-              Padding(
-                padding: const EdgeInsets.only(right: 4),
-                child: Icon(
-                  isSelected ? Icons.check_circle : Icons.lock,
-                  size: 10,
-                  color: isSelected ? AppTheme.primaryColor : Colors.grey,
-                ),
+              Icon(
+                isSelected ? Icons.check_circle : Icons.chevron_right,
+                size: 11,
+                color: isSelected ? const Color(0xFF2E74C9) : Colors.grey,
               ),
-            Container(
-              width: 20,
-              height: 20,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
+            const SizedBox(width: 2),
+            Text(
+              '$number',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w500,
                 color: isSelected
-                    ? AppTheme.primaryColor.withOpacity(0.3)
-                    : (isLocked
-                        ? Colors.grey.withOpacity(0.3)
-                        : AppTheme.secondaryColor.withOpacity(0.2)),
-              ),
-              child: Center(
-                child: Text(
-                  '$number',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: isSelected ? AppTheme.primaryColor : AppTheme.textPrimary,
-                  ),
-                ),
+                    ? const Color(0xFF2E74C9)
+                    : const Color(0xFF2F2F2F),
               ),
             ),
           ],
@@ -660,10 +652,7 @@ class _ServicesPageState extends State<ServicesPickupPage> {
       alignment: Alignment.centerLeft,
       child: Text(
         value,
-        style: TextStyle(
-          fontSize: 11,
-          color: AppTheme.textSecondary,
-        ),
+        style: const TextStyle(fontSize: 10.5, color: Color(0xFF2F2F2F)),
         overflow: TextOverflow.ellipsis,
       ),
     );
@@ -675,11 +664,11 @@ class _ServicesPageState extends State<ServicesPickupPage> {
       padding: const EdgeInsets.symmetric(horizontal: 6),
       child: TextField(
         controller: controller,
-        style: TextStyle(fontSize: 11, color: AppTheme.textPrimary),
+        style: const TextStyle(fontSize: 10.5, color: Color(0xFF2F2F2F)),
         decoration: const InputDecoration(
           border: InputBorder.none,
           isDense: true,
-          contentPadding: EdgeInsets.symmetric(vertical: 8),
+          contentPadding: EdgeInsets.symmetric(vertical: 7),
         ),
       ),
     );
@@ -687,28 +676,23 @@ class _ServicesPageState extends State<ServicesPickupPage> {
 
   Widget _tableSaveButton(VoidCallback onSave, String title) {
     return Container(
-      height: 48,
+      height: 42,
       width: double.infinity,
       decoration: BoxDecoration(
         border: Border(top: BorderSide(color: Colors.grey.shade300)),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: ElevatedButton(
+        padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
+        child: OutlinedButton(
           onPressed: _isLoading ? null : onSave,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppTheme.primaryColor,
-            foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(6),
-            ),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: const Color(0xFF2E74C9),
+            side: const BorderSide(color: Color(0xFF9BBBEA)),
+            shape: const RoundedRectangleBorder(),
           ),
           child: Text(
             'Save $title',
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-            ),
+            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
           ),
         ),
       ),
@@ -716,24 +700,18 @@ class _ServicesPageState extends State<ServicesPickupPage> {
   }
 
   Widget _footerButtons() {
-    final totalSelected = selectedPackageIndices.length +
+    final totalSelected =
+        selectedPackageIndices.length +
         selectedServiceIndices.length +
         selectedEngineeringIndices.length;
 
     return Container(
-      height: 52,
-      margin: const EdgeInsets.only(top: 12),
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      height: 42,
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        border: Border.all(color: const Color(0xFFC7CBD2)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
@@ -742,11 +720,11 @@ class _ServicesPageState extends State<ServicesPickupPage> {
             Padding(
               padding: const EdgeInsets.only(right: 12),
               child: Text(
-                'Total Selected: $totalSelected',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.primaryColor,
+                'Selected: $totalSelected',
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF2E74C9),
                 ),
               ),
             ),
@@ -755,24 +733,27 @@ class _ServicesPageState extends State<ServicesPickupPage> {
               Navigator.pop(context);
             },
             style: OutlinedButton.styleFrom(
-              side: BorderSide(color: AppTheme.errorColor),
-              foregroundColor: AppTheme.errorColor,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+              side: const BorderSide(color: Color(0xFFC7CBD2)),
+              foregroundColor: const Color(0xFF2F2F2F),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              shape: const RoundedRectangleBorder(),
             ),
             child: const Text('Close'),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 8),
           ElevatedButton(
             onPressed: totalSelected == 0 ? null : _applySelectedServices,
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor,
+              backgroundColor: const Color(0xFF2E74C9),
               foregroundColor: Colors.white,
               disabledBackgroundColor: Colors.grey.shade300,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              shape: const RoundedRectangleBorder(),
             ),
-            child: const Text('Apply Selected'),
+            child: const Text(
+              'Apply',
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
+            ),
           ),
         ],
       ),
@@ -793,7 +774,7 @@ class _HeaderCell extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 6),
       decoration: BoxDecoration(
         border: Border(
-          right: BorderSide(color: Colors.white.withOpacity(0.3), width: 1),
+          right: BorderSide(color: Colors.grey.shade300, width: 1),
         ),
       ),
       child: Row(
@@ -803,10 +784,9 @@ class _HeaderCell extends StatelessWidget {
             child: Text(
               text,
               style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-                letterSpacing: 0.3,
+                fontSize: 10.5,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF2F2F2F),
               ),
               textAlign: TextAlign.center,
               overflow: TextOverflow.ellipsis,
@@ -817,5 +797,3 @@ class _HeaderCell extends StatelessWidget {
     );
   }
 }
-
-
