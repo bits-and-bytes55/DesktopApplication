@@ -60,6 +60,16 @@ class SurveyController extends GetxController {
   bool get hasStationClipboard => _stationClipboard != null;
   bool get hasAnnotationClipboard => _annotationClipboard != null;
 
+  static const List<String> annotationSymbols = [
+    '',
+    'circle_open',
+    'circle_filled',
+    'square_cross',
+    'square_filled',
+    'square_grid',
+    'triangle',
+  ];
+
   Map<String, String> get _queryParams => {
     if (reportContext.selectedReportId.value.trim().isNotEmpty)
       'reportId': reportContext.selectedReportId.value.trim(),
@@ -237,6 +247,11 @@ class SurveyController extends GetxController {
     scheduleAutosave();
   }
 
+  void calculateSurvey() {
+    _recalculateAllRows();
+    scheduleAutosave();
+  }
+
   void setAnnotationEnabled(bool value) {
     annotationEnabled.value = value;
     annotations.refresh();
@@ -300,12 +315,19 @@ class SurveyController extends GetxController {
     scheduleAutosave();
   }
 
+  void setAnnotationSymbol(int index, String symbol) {
+    if (index < 0 || index >= annotations.length || isLocked) return;
+    annotations[index].symbol = symbol;
+    annotations.refresh();
+    scheduleAutosave();
+  }
+
   void cycleAnnotationSymbol(int index) {
     if (index < 0 || index >= annotations.length || isLocked) return;
     final current = annotations[index].symbol.trim();
-    const sequence = ['', 'square', 'circle'];
-    final nextIndex = (sequence.indexOf(current) + 1) % sequence.length;
-    annotations[index].symbol = sequence[nextIndex];
+    final nextIndex = (annotationSymbols.indexOf(current) + 1) %
+        annotationSymbols.length;
+    annotations[index].symbol = annotationSymbols[nextIndex];
     annotations.refresh();
     scheduleAutosave();
   }
@@ -397,6 +419,41 @@ class SurveyController extends GetxController {
     stations.add(row);
     _padStations();
     selectedStationIndex.value = stations.length - 1;
+    _recalculateAllRows();
+    scheduleAutosave();
+  }
+
+  void removeEmptyRows() {
+    if (isLocked) return;
+    final compact = stations.where((row) => row.hasAnyData).map((e) => e.clone()).toList();
+    _replaceStations(compact);
+    _recalculateAllRows();
+    scheduleAutosave();
+  }
+
+  void adjustAziAngle(double delta) {
+    if (isLocked) return;
+    for (final row in stations) {
+      if (!row.hasEditableData || row.azi.trim().isEmpty) continue;
+      final current = _toDouble(row.azi);
+      var adjusted = current + delta;
+      while (adjusted < 0) {
+        adjusted += 360;
+      }
+      while (adjusted >= 360) {
+        adjusted -= 360;
+      }
+      row.azi = adjusted.toStringAsFixed(2);
+      row.syncEditableControllers();
+    }
+    _recalculateAllRows();
+    scheduleAutosave();
+  }
+
+  void importSurveyRows(List<SurveyStationRow> importedRows) {
+    if (isLocked) return;
+    final next = importedRows.map((row) => row.clone()).toList();
+    _replaceStations(next);
     _recalculateAllRows();
     scheduleAutosave();
   }
@@ -544,6 +601,44 @@ class SurveyController extends GetxController {
       }
     }
     return match;
+  }
+
+  SurveyPlotPoint pointAtMd(double md) {
+    final points = plotPoints;
+    if (points.isEmpty) {
+      return const SurveyPlotPoint(
+        md: 0,
+        inc: 0,
+        azi: 0,
+        tvd: 0,
+        vsec: 0,
+        northSouth: 0,
+        eastWest: 0,
+        dogleg: 0,
+      );
+    }
+    if (md <= points.first.md) return points.first;
+    if (md >= points.last.md) return points.last;
+
+    for (var i = 1; i < points.length; i++) {
+      final previous = points[i - 1];
+      final current = points[i];
+      if (md <= current.md) {
+        final span = current.md - previous.md;
+        final t = span <= 0 ? 0.0 : (md - previous.md) / span;
+        return SurveyPlotPoint(
+          md: md,
+          inc: _lerp(previous.inc, current.inc, t),
+          azi: _lerp(previous.azi, current.azi, t),
+          tvd: _lerp(previous.tvd, current.tvd, t),
+          vsec: _lerp(previous.vsec, current.vsec, t),
+          northSouth: _lerp(previous.northSouth, current.northSouth, t),
+          eastWest: _lerp(previous.eastWest, current.eastWest, t),
+          dogleg: _lerp(previous.dogleg, current.dogleg, t),
+        );
+      }
+    }
+    return points.last;
   }
 
   void _replaceStations(List<SurveyStationRow> next) {
@@ -706,6 +801,8 @@ class SurveyController extends GetxController {
   double _toDouble(String value) => double.tryParse(value.trim()) ?? 0.0;
 
   double _degreesToRadians(double value) => value * math.pi / 180;
+
+  double _lerp(double a, double b, double t) => a + ((b - a) * t);
 
   String _format(double value, int digits) => value.toStringAsFixed(digits);
 }

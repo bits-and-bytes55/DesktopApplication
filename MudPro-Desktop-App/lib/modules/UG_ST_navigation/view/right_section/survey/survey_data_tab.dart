@@ -1,7 +1,11 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/model/survey_model.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/survey/controller/survey_controller.dart';
+import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/survey/survey_import_dialog.dart';
+import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/survey/survey_point_calculation_dialog.dart';
 
 class SurveyDataTab extends StatelessWidget {
   SurveyDataTab({super.key});
@@ -15,39 +19,86 @@ class SurveyDataTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(8),
-      child: Column(
-        children: [
-          Expanded(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(child: _surveyTable()),
-                      const SizedBox(height: 8),
-                      _projectAziRow(),
-                    ],
-                  ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const toolbarWidth = 42.0;
+        const gap = 8.0;
+        const targetTableWidth = 860.0;
+        const minAnnotationWidth = 360.0;
+        const maxAnnotationWidth = 560.0;
+
+        var annotationWidth = (constraints.maxWidth * 0.33).clamp(
+          minAnnotationWidth,
+          maxAnnotationWidth,
+        );
+        var tableWidth =
+            constraints.maxWidth - annotationWidth - toolbarWidth - (gap * 2);
+
+        if (tableWidth < targetTableWidth) {
+          final reduceBy = targetTableWidth - tableWidth;
+          annotationWidth = math.max(
+            minAnnotationWidth,
+            annotationWidth - reduceBy,
+          );
+          tableWidth =
+              constraints.maxWidth - annotationWidth - toolbarWidth - (gap * 2);
+        }
+
+        final leftWidths = _fitWidths(tableWidth - 2, const [
+          36,
+          84,
+          84,
+          84,
+          80,
+          80,
+          86,
+          86,
+          104,
+        ]);
+        final annotationWidths = _fitWidths(annotationWidth - 2, const [
+          42,
+          112,
+          198,
+          102,
+        ]);
+
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(8, 8, 8, 10),
+          child: Column(
+            children: [
+              Expanded(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      width: tableWidth,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(child: _surveyTable(leftWidths)),
+                          const SizedBox(height: 8),
+                          _projectAziRow(),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: gap),
+                    _surveyToolbar(context),
+                    const SizedBox(width: gap),
+                    SizedBox(
+                      width: annotationWidth,
+                      child: _annotationPanel(annotationWidths),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 6),
-                _surveyToolbar(),
-                const SizedBox(width: 6),
-                SizedBox(width: 540, child: _annotationPanel()),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  Widget _surveyTable() {
-    const widths = <double>[38, 94, 94, 94, 90, 90, 96, 96, 110];
-    final totalWidth = widths.reduce((a, b) => a + b);
+  Widget _surveyTable(List<double> widths) {
     return Container(
       decoration: BoxDecoration(
         border: Border.all(color: _gridBorder),
@@ -61,13 +112,13 @@ class SurveyDataTab extends StatelessWidget {
             cells: const [
               '',
               'MD\n(ft)',
-              'Inc\n(°)',
-              'Azi\n(°)',
+              'Inc\n(deg)',
+              'Azi\n(deg)',
               'TVD\n(ft)',
               'Vsec\n(ft)',
               'N+/S-\n(ft)',
               'E+/W-\n(ft)',
-              'Dogleg\n(°/100ft)',
+              'Dogleg\n(deg/100ft)',
             ],
           ),
           Expanded(
@@ -75,17 +126,14 @@ class SurveyDataTab extends StatelessWidget {
               () => Scrollbar(
                 thumbVisibility: true,
                 child: SingleChildScrollView(
-                  child: SizedBox(
-                    width: totalWidth,
-                    child: Column(
-                      children: List.generate(
-                        controller.stations.length,
-                        (index) => _stationRow(
-                          context: Get.context!,
-                          index: index,
-                          row: controller.stations[index],
-                          widths: widths,
-                        ),
+                  child: Column(
+                    children: List.generate(
+                      controller.stations.length,
+                      (index) => _stationRow(
+                        context: Get.context!,
+                        index: index,
+                        row: controller.stations[index],
+                        widths: widths,
                       ),
                     ),
                   ),
@@ -157,25 +205,66 @@ class SurveyDataTab extends StatelessWidget {
     });
   }
 
-  Widget _surveyToolbar() {
+  Widget _surveyToolbar(BuildContext context) {
     return Obx(() {
       final canEdit = !controller.isLocked;
       return Container(
-        width: 34,
+        width: 42,
         decoration: BoxDecoration(
           border: Border.all(color: _gridBorder),
           color: Colors.white,
         ),
         child: Column(
           children: [
+            const SizedBox(height: 4),
+            _toolButton(
+              icon: Icons.calculate_outlined,
+              tooltip: 'Calculate',
+              enabled: true,
+              onTap: controller.calculateSurvey,
+            ),
+            _toolButton(
+              icon: Icons.show_chart_outlined,
+              tooltip: 'Point Calculation',
+              enabled: true,
+              onTap: () => showDialog(
+                context: context,
+                builder: (_) => const SurveyPointCalculationDialog(),
+              ),
+            ),
+            _toolButton(
+              icon: Icons.file_upload_outlined,
+              tooltip: 'Survey Import',
+              enabled: true,
+              onTap: () => showDialog(
+                context: context,
+                builder: (_) => const SurveyImportDialog(),
+              ),
+            ),
+            _toolButton(
+              icon: Icons.delete_sweep_outlined,
+              tooltip: 'Remove Empty Row',
+              enabled: canEdit,
+              onTap: controller.removeEmptyRows,
+            ),
+            _toolButton(
+              icon: Icons.explore_outlined,
+              tooltip: 'Adjust Azi Angle',
+              enabled: canEdit,
+              onTap: () => _showAdjustAziDialog(context),
+            ),
+            const SizedBox(height: 6),
+            Container(height: 1, color: _gridBorder),
             const SizedBox(height: 6),
             _toolButton(
               icon: Icons.content_copy,
+              tooltip: 'Copy',
               enabled: controller.hasStationSelection,
               onTap: controller.copySelectedStation,
             ),
             _toolButton(
               icon: Icons.content_paste,
+              tooltip: 'Paste',
               enabled:
                   canEdit &&
                   controller.hasStationSelection &&
@@ -184,6 +273,7 @@ class SurveyDataTab extends StatelessWidget {
             ),
             _toolButton(
               icon: Icons.add_box_outlined,
+              tooltip: 'Add Row',
               enabled: canEdit,
               onTap: () => controller.insertStationAfter(
                 controller.hasStationSelection
@@ -193,40 +283,31 @@ class SurveyDataTab extends StatelessWidget {
             ),
             _toolButton(
               icon: Icons.delete_outline,
+              tooltip: 'Delete Row',
               enabled: canEdit && controller.hasStationSelection,
               onTap: controller.deleteSelectedStation,
-            ),
-            _toolButton(
-              icon: Icons.arrow_circle_up_outlined,
-              enabled: canEdit && controller.hasStationSelection,
-              onTap: controller.moveSelectedStationUp,
-            ),
-            _toolButton(
-              icon: Icons.arrow_circle_down_outlined,
-              enabled: canEdit && controller.hasStationSelection,
-              onTap: controller.moveSelectedStationDown,
             ),
             const Spacer(),
             _toolButton(
               icon: Icons.vertical_align_top,
+              tooltip: 'To the Top',
               enabled: canEdit && controller.hasStationSelection,
               onTap: controller.moveSelectedStationToTop,
             ),
             _toolButton(
               icon: Icons.vertical_align_bottom,
+              tooltip: 'To the Bottom',
               enabled: canEdit && controller.hasStationSelection,
               onTap: controller.moveSelectedStationToBottom,
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 4),
           ],
         ),
       );
     });
   }
 
-  Widget _annotationPanel() {
-    const widths = <double>[38, 116, 260, 110];
-    final totalWidth = widths.reduce((a, b) => a + b);
+  Widget _annotationPanel(List<double> widths) {
     return Container(
       decoration: BoxDecoration(
         border: Border.all(color: _gridBorder),
@@ -235,7 +316,7 @@ class SurveyDataTab extends StatelessWidget {
       child: Column(
         children: [
           SizedBox(
-            height: 28,
+            height: 42,
             child: Obx(
               () => Row(
                 children: [
@@ -263,17 +344,14 @@ class SurveyDataTab extends StatelessWidget {
               () => Scrollbar(
                 thumbVisibility: true,
                 child: SingleChildScrollView(
-                  child: SizedBox(
-                    width: totalWidth,
-                    child: Column(
-                      children: List.generate(
-                        controller.annotations.length,
-                        (index) => _annotationRow(
-                          context: Get.context!,
-                          index: index,
-                          row: controller.annotations[index],
-                          widths: widths,
-                        ),
+                  child: Column(
+                    children: List.generate(
+                      controller.annotations.length,
+                      (index) => _annotationRow(
+                        context: Get.context!,
+                        index: index,
+                        row: controller.annotations[index],
+                        widths: widths,
                       ),
                     ),
                   ),
@@ -340,7 +418,7 @@ class SurveyDataTab extends StatelessWidget {
 
   Widget _projectAziRow() {
     return SizedBox(
-      height: 28,
+      height: 30,
       child: Obx(() {
         final enabled =
             !controller.isLocked && controller.projectAziEnabled.value;
@@ -358,7 +436,7 @@ class SurveyDataTab extends StatelessWidget {
             const Text('Project Azi', style: TextStyle(fontSize: 12)),
             const SizedBox(width: 10),
             Container(
-              width: 90,
+              width: 108,
               height: 24,
               decoration: BoxDecoration(
                 color: controller.isLocked
@@ -383,7 +461,7 @@ class SurveyDataTab extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 6),
-            const Text('(°)', style: TextStyle(fontSize: 12)),
+            const Text('(deg)', style: TextStyle(fontSize: 12)),
           ],
         );
       }),
@@ -397,7 +475,7 @@ class SurveyDataTab extends StatelessWidget {
     bool selected = false,
   }) {
     return Container(
-      height: header ? 44 : 34,
+      height: header ? 42 : 34,
       color: header
           ? _headerBg
           : (selected ? const Color(0xFFEAF1FF) : Colors.white),
@@ -434,11 +512,8 @@ class SurveyDataTab extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Icon(
-          selected ? Icons.play_arrow : Icons.circle,
-          size: selected ? 10 : 0,
-          color: const Color(0xFF585858),
-        ),
+        if (selected)
+          const Icon(Icons.play_arrow, size: 10, color: Color(0xFF585858)),
         if (selected) const SizedBox(width: 2),
         Text(
           '${index + 1}',
@@ -488,25 +563,51 @@ class SurveyDataTab extends StatelessWidget {
   }
 
   Widget _symbolCell(int index, SurveyAnnotationRow row, bool enabled) {
-    return InkWell(
-      onTap: enabled ? () => controller.cycleAnnotationSymbol(index) : null,
-      child: Container(
-        color: controller.isLocked ? _lockedBg : Colors.white,
-        alignment: Alignment.center,
-        child: _symbolWidget(row.symbol),
+    return Container(
+      color: controller.isLocked ? _lockedBg : Colors.white,
+      alignment: Alignment.center,
+      child: SizedBox(
+        width: 38,
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<String>(
+            value: row.symbol.isEmpty ? '' : row.symbol,
+            isExpanded: true,
+            isDense: true,
+            menuMaxHeight: 240,
+            icon: enabled
+                ? const Icon(Icons.arrow_drop_down, size: 14)
+                : const SizedBox.shrink(),
+            onChanged: enabled
+                ? (value) => controller.setAnnotationSymbol(index, value ?? '')
+                : null,
+            items: SurveyController.annotationSymbols.map((symbol) {
+              return DropdownMenuItem<String>(
+                value: symbol,
+                child: Align(
+                  alignment: Alignment.center,
+                  child: _symbolWidget(symbol),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
       ),
     );
   }
 
   Widget _symbolWidget(String symbol) {
     switch (symbol) {
-      case 'square':
-        return SizedBox(
+      case 'circle_open':
+        return Container(
           width: 18,
           height: 18,
-          child: CustomPaint(painter: _SquareCrossPainter()),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: const Color(0xFF7A7A7A), width: 1.3),
+          ),
         );
       case 'circle':
+      case 'circle_filled':
         return Container(
           width: 18,
           height: 18,
@@ -515,6 +616,27 @@ class SurveyDataTab extends StatelessWidget {
             color: Color(0xFF8C8C8C),
           ),
         );
+      case 'square':
+      case 'square_cross':
+        return SizedBox(
+          width: 18,
+          height: 18,
+          child: CustomPaint(painter: _SquareCrossPainter()),
+        );
+      case 'square_filled':
+        return Container(width: 18, height: 18, color: const Color(0xFF8C8C8C));
+      case 'square_grid':
+        return SizedBox(
+          width: 18,
+          height: 18,
+          child: CustomPaint(painter: _SquareGridPainter()),
+        );
+      case 'triangle':
+        return SizedBox(
+          width: 18,
+          height: 18,
+          child: CustomPaint(painter: _TrianglePainter()),
+        );
       default:
         return const SizedBox.shrink();
     }
@@ -522,20 +644,75 @@ class SurveyDataTab extends StatelessWidget {
 
   Widget _toolButton({
     required IconData icon,
+    required String tooltip,
     required bool enabled,
     required VoidCallback onTap,
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
-      child: InkWell(
-        onTap: enabled ? onTap : null,
-        child: Icon(
-          icon,
-          size: 18,
-          color: enabled ? const Color(0xFF2780E3) : const Color(0xFFBFC7D1),
+      child: Tooltip(
+        message: tooltip,
+        child: InkWell(
+          onTap: enabled ? onTap : null,
+          child: SizedBox(
+            width: 28,
+            height: 28,
+            child: Icon(
+              icon,
+              size: 17,
+              color: enabled
+                  ? const Color(0xFF2780E3)
+                  : const Color(0xFFBFC7D1),
+            ),
+          ),
         ),
       ),
     );
+  }
+
+  List<double> _fitWidths(double targetWidth, List<double> base) {
+    final sum = base.fold<double>(0, (a, b) => a + b);
+    final scale = sum == 0 ? 1.0 : targetWidth / sum;
+    return base.map((value) => value * scale).toList();
+  }
+
+  Future<void> _showAdjustAziDialog(BuildContext context) async {
+    final field = TextEditingController(text: '0');
+    await showDialog<void>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Adjust Azi Angle'),
+          content: TextField(
+            controller: field,
+            keyboardType: const TextInputType.numberWithOptions(
+              decimal: true,
+              signed: true,
+            ),
+            decoration: const InputDecoration(
+              labelText: 'Angle Offset (deg)',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Close'),
+            ),
+            FilledButton(
+              onPressed: () {
+                controller.adjustAziAngle(
+                  double.tryParse(field.text.trim()) ?? 0,
+                );
+                Navigator.of(context).pop();
+              },
+              child: const Text('Apply'),
+            ),
+          ],
+        );
+      },
+    );
+    field.dispose();
   }
 
   Future<String?> _showCrudMenu({
@@ -651,7 +828,6 @@ class _SquareCrossPainter extends CustomPainter {
     final line = Paint()
       ..color = const Color(0xFF7A7A7A)
       ..strokeWidth = 1;
-
     canvas.drawRect(Offset.zero & size, border);
     canvas.drawLine(
       const Offset(3, 3),
@@ -663,6 +839,46 @@ class _SquareCrossPainter extends CustomPainter {
       Offset(3, size.height - 3),
       line,
     );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _SquareGridPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final border = Paint()
+      ..color = const Color(0xFF7A7A7A)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+    canvas.drawRect(Offset.zero & size, border);
+    canvas.drawLine(
+      Offset(size.width / 2, 0),
+      Offset(size.width / 2, size.height),
+      border,
+    );
+    canvas.drawLine(
+      Offset(0, size.height / 2),
+      Offset(size.width, size.height / 2),
+      border,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _TrianglePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = const Color(0xFF7A7A7A);
+    final path = Path()
+      ..moveTo(2, size.height - 2)
+      ..lineTo(2, 2)
+      ..lineTo(size.width - 2, size.height - 2)
+      ..close();
+    canvas.drawPath(path, paint);
   }
 
   @override

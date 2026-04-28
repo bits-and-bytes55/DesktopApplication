@@ -49,7 +49,20 @@ void drawSurveyText(
 
 void drawSurveyMarker(Canvas canvas, Offset center, String symbol) {
   switch (symbol) {
+    case 'circle_open':
+      final border = Paint()
+        ..color = const Color(0xFF7A7A7A)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5;
+      canvas.drawCircle(center, 8, border);
+      break;
+    case 'circle':
+    case 'circle_filled':
+      final circlePaint = Paint()..color = const Color(0xFF8C8C8C);
+      canvas.drawCircle(center, 8, circlePaint);
+      break;
     case 'square':
+    case 'square_cross':
       final rect = Rect.fromCenter(center: center, width: 18, height: 18);
       final border = Paint()
         ..color = const Color(0xFF7A7A7A)
@@ -70,9 +83,42 @@ void drawSurveyMarker(Canvas canvas, Offset center, String symbol) {
         line,
       );
       break;
-    case 'circle':
-      final paint = Paint()..color = const Color(0xFF8C8C8C);
-      canvas.drawCircle(center, 8, paint);
+    case 'square_filled':
+      final squareFill = Paint()..color = const Color(0xFF8C8C8C);
+      canvas.drawRect(
+        Rect.fromCenter(center: center, width: 16, height: 16),
+        squareFill,
+      );
+      break;
+    case 'square_grid':
+      final rect = Rect.fromCenter(center: center, width: 18, height: 18);
+      final border = Paint()
+        ..color = const Color(0xFF7A7A7A)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1;
+      final line = Paint()
+        ..color = const Color(0xFF7A7A7A)
+        ..strokeWidth = 1;
+      canvas.drawRect(rect, border);
+      canvas.drawLine(
+        Offset(rect.center.dx, rect.top),
+        Offset(rect.center.dx, rect.bottom),
+        line,
+      );
+      canvas.drawLine(
+        Offset(rect.left, rect.center.dy),
+        Offset(rect.right, rect.center.dy),
+        line,
+      );
+      break;
+    case 'triangle':
+      final path = Path()
+        ..moveTo(center.dx - 6, center.dy + 8)
+        ..lineTo(center.dx - 6, center.dy - 8)
+        ..lineTo(center.dx + 8, center.dy + 8)
+        ..close();
+      final triPaint = Paint()..color = const Color(0xFF7A7A7A);
+      canvas.drawPath(path, triPaint);
       break;
   }
 }

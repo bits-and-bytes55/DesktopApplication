@@ -7,6 +7,8 @@ import 'package:mudpro_desktop_app/modules/dashboard/tabs/mud/solid_analysis_pag
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
+enum _MudPropertyMenuAction { cut, copy, paste, delete, top, bottom }
+
 class MudView extends StatefulWidget {
   const MudView({super.key});
 
@@ -15,6 +17,10 @@ class MudView extends StatefulWidget {
 }
 
 class _MudViewState extends State<MudView> {
+  static const double _kMudPropertyWidth = 138;
+  static const double _kMudHeaderHeight = 28;
+  static const double _kMudRowHeight = 28;
+
   late MudController c;
   late DashboardController dashboard;
 
@@ -107,7 +113,7 @@ class _MudViewState extends State<MudView> {
 
   Widget _buildDesktopLayout() {
     return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      SizedBox(width: 550, child: _leftPanel()),
+      SizedBox(width: 515, child: _leftPanel()),
       VerticalDivider(width: 1, color: Colors.grey.shade300),
       Expanded(child: _rightPanel()),
     ]);
@@ -116,10 +122,10 @@ class _MudViewState extends State<MudView> {
   Widget _buildMobileLayout() {
     return SingleChildScrollView(
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(8),
         child: Column(children: [
           _leftPanel(),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           _rightPanel(),
         ]),
       ),
@@ -131,7 +137,7 @@ class _MudViewState extends State<MudView> {
   // ═══════════════════════════════════════════════════════════════════════════
   Widget _topControls() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
@@ -142,13 +148,13 @@ class _MudViewState extends State<MudView> {
                 fontWeight: FontWeight.w600,
                 color: AppTheme.textPrimary,
                 fontSize: 11)),
-        const SizedBox(width: 10),
+        const SizedBox(width: 8),
         Container(
-          width: 200,
-          height: 28,
+          width: 172,
+          height: 26,
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(3),
+            borderRadius: BorderRadius.circular(2),
             border: Border.all(color: Colors.grey.shade300),
           ),
           child: TextField(
@@ -159,23 +165,23 @@ class _MudViewState extends State<MudView> {
               isDense: true,
               border: InputBorder.none,
               contentPadding:
-                  EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                  EdgeInsets.symmetric(horizontal: 8, vertical: 7),
             ),
           ),
         ),
-        const SizedBox(width: 20),
+        const SizedBox(width: 12),
         Text('Fluid Type',
             style: AppTheme.caption.copyWith(
                 fontWeight: FontWeight.w600,
                 color: AppTheme.textPrimary,
                 fontSize: 11)),
-        const SizedBox(width: 10),
+        const SizedBox(width: 8),
         Obx(() => Container(
-              height: 28,
+              height: 26,
               padding: const EdgeInsets.symmetric(horizontal: 8),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(3),
+                borderRadius: BorderRadius.circular(2),
                 border: Border.all(color: Colors.grey.shade300),
               ),
               child: DropdownButtonHideUnderline(
@@ -204,7 +210,7 @@ class _MudViewState extends State<MudView> {
                 ),
               ),
             )),
-        const SizedBox(width: 20),
+        const SizedBox(width: 12),
         Obx(() => Row(children: [
               Transform.scale(
                   scale: 0.8,
@@ -245,7 +251,7 @@ class _MudViewState extends State<MudView> {
   // ═══════════════════════════════════════════════════════════════════════════
   Widget _leftPanel() {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border(right: BorderSide(color: Colors.grey.shade300)),
@@ -253,22 +259,22 @@ class _MudViewState extends State<MudView> {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         // Header
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
           decoration: BoxDecoration(
             color: AppTheme.primaryColor,
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(3),
           ),
           child: Row(children: [
-            const Icon(Icons.science, size: 14, color: Colors.white),
-            const SizedBox(width: 6),
+            const Icon(Icons.science, size: 13, color: Colors.white),
+            const SizedBox(width: 4),
             Text('Mud Properties',
                 style: AppTheme.caption.copyWith(
                     fontWeight: FontWeight.w600,
                     color: Colors.white,
-                    fontSize: 11)),
+                    fontSize: 10.5)),
           ]),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
 
         // Table
         Expanded(
@@ -281,7 +287,7 @@ class _MudViewState extends State<MudView> {
             return Container(
               decoration: BoxDecoration(
                 border: Border.all(color: Colors.grey.shade200),
-                borderRadius: BorderRadius.circular(4),
+                borderRadius: BorderRadius.circular(3),
               ),
               child: Column(children: [
                 _tableHeader(),
@@ -309,7 +315,7 @@ class _MudViewState extends State<MudView> {
           }),
         ),
 
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
 
         // Footer
         Row(children: [
@@ -320,36 +326,36 @@ class _MudViewState extends State<MudView> {
                 context: context,
                 builder: (_) => const SolidAnalysisDialog(),
               ),
-              borderRadius: BorderRadius.circular(4),
+              borderRadius: BorderRadius.circular(3),
               child: Container(
-                width: 28,
-                height: 28,
+                width: 24,
+                height: 24,
                 decoration: BoxDecoration(
                   color: AppTheme.primaryColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(4),
+                  borderRadius: BorderRadius.circular(3),
                   border:
                       Border.all(color: AppTheme.primaryColor.withOpacity(0.3)),
                 ),
                 child: Icon(Icons.camera_alt_outlined,
-                    size: 15, color: AppTheme.primaryColor),
+                    size: 14, color: AppTheme.primaryColor),
               ),
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Text('*Required',
               style: AppTheme.caption
                   .copyWith(color: Colors.red.shade400, fontSize: 10)),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Text('Sample for Calculation',
               style: AppTheme.caption
                   .copyWith(color: AppTheme.textSecondary, fontSize: 10)),
           const SizedBox(width: 8),
           Obx(() => Container(
-                height: 24,
+                height: 22,
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 decoration: BoxDecoration(
                   border: Border.all(color: Colors.grey.shade300),
-                  borderRadius: BorderRadius.circular(3),
+                  borderRadius: BorderRadius.circular(2),
                 ),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
@@ -374,15 +380,15 @@ class _MudViewState extends State<MudView> {
 
   Widget _tableHeader() {
     return Container(
-      height: 32,
+      height: _kMudHeaderHeight,
       decoration: BoxDecoration(
         color: Colors.grey.shade50,
         border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
         borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(4), topRight: Radius.circular(4)),
+            topLeft: Radius.circular(3), topRight: Radius.circular(3)),
       ),
       child: Row(children: [
-        _headerCell('Property', width: 150),
+        _headerCell('Property', width: _kMudPropertyWidth),
         ...c.samples.map((s) => Expanded(child: _headerCell(s, center: true))),
       ]),
     );
@@ -610,6 +616,82 @@ class _MudViewState extends State<MudView> {
         .toStringAsFixed(4)
         .replaceAll(RegExp(r'0+$'), '')
         .replaceAll(RegExp(r'\.$'), '');
+  }
+
+  Widget _menuLabel(String label, String shortcut) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: AppTheme.caption.copyWith(
+              color: AppTheme.textPrimary,
+              fontSize: 10.5,
+            ),
+          ),
+        ),
+        Text(
+          shortcut,
+          style: AppTheme.caption.copyWith(
+            color: AppTheme.textSecondary,
+            fontSize: 10,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _showPropertyRowMenu(
+    TapDownDetails details,
+    String name,
+  ) async {
+    final isRemovable = c.isPropertyRemovable(name);
+    final selected = await showMenu<_MudPropertyMenuAction>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        details.globalPosition.dx,
+        details.globalPosition.dy,
+        details.globalPosition.dx,
+        details.globalPosition.dy,
+      ),
+      items: [
+        PopupMenuItem<_MudPropertyMenuAction>(
+          value: _MudPropertyMenuAction.cut,
+          enabled: false,
+          child: _menuLabel('Cut', 'Ctrl+X'),
+        ),
+        PopupMenuItem<_MudPropertyMenuAction>(
+          value: _MudPropertyMenuAction.copy,
+          enabled: false,
+          child: _menuLabel('Copy', 'Ctrl+C'),
+        ),
+        PopupMenuItem<_MudPropertyMenuAction>(
+          value: _MudPropertyMenuAction.paste,
+          enabled: false,
+          child: _menuLabel('Paste', 'Ctrl+V'),
+        ),
+        PopupMenuItem<_MudPropertyMenuAction>(
+          value: _MudPropertyMenuAction.delete,
+          enabled: isRemovable,
+          child: _menuLabel('Delete', 'Delete'),
+        ),
+        PopupMenuItem<_MudPropertyMenuAction>(
+          value: _MudPropertyMenuAction.top,
+          enabled: false,
+          child: _menuLabel('To the Top', 'Ctrl+Up'),
+        ),
+        PopupMenuItem<_MudPropertyMenuAction>(
+          value: _MudPropertyMenuAction.bottom,
+          enabled: false,
+          child: _menuLabel('To the Bottom', 'Ctrl+Down'),
+        ),
+      ],
+    );
+
+    if (!mounted || selected == null) return;
+    if (selected == _MudPropertyMenuAction.delete && isRemovable) {
+      c.removeAddedPropertyRow(name);
+    }
   }
 
   Widget _propertyRow(String name, List<RxString> values, bool isLast) {
