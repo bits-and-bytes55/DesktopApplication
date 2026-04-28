@@ -191,8 +191,21 @@ class _PlanPageViewState extends State<PlanPageView> {
     );
   }
 
+  int _nextSummaryTargetRow() {
+    for (var index = 0; index < c.planData.length; index++) {
+      final row = c.planData[index];
+      final md = row.isNotEmpty ? row[0].trim() : '';
+      final days = row.length > 1 ? row[1].trim() : '';
+      final cost = row.length > 2 ? row[2].trim() : '';
+      if (md.isEmpty && days.isEmpty && cost.isEmpty) {
+        return index;
+      }
+    }
+    return c.planData.isEmpty ? 0 : c.planData.length - 1;
+  }
+
   void _applySummaryToRow() {
-    final targetRow = _selectedRowIndex >= 0 ? _selectedRowIndex : 0;
+    final targetRow = _nextSummaryTargetRow();
     c.updatePlanData(
       targetRow,
       0,

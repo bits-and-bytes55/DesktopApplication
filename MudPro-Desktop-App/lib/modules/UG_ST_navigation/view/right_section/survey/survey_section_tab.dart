@@ -1,372 +1,186 @@
-import 'package:fl_chart/fl_chart.dart';
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
-import 'package:mudpro_desktop_app/modules/UG_ST_navigation/model/UG_ST_model.dart';
-import 'package:mudpro_desktop_app/theme/app_theme.dart';
-import 'package:mudpro_desktop_app/modules/options/app_units.dart';
+import 'package:get/get.dart';
+import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/survey/controller/survey_controller.dart';
+import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/survey/survey_graph_utils.dart';
 
-class SectionViewChart extends StatelessWidget {
-  final List<SectionPoint> points;
+class SurveySectionTab extends StatelessWidget {
+  SurveySectionTab({super.key});
 
-  const SectionViewChart({
-    super.key,
-    required this.points,
-  });
-
-  // Demo data for the chart
-  static final List<SectionPoint> demoPoints = [
-    SectionPoint(0, 0),
-    SectionPoint(1000, 500),
-    SectionPoint(2000, 1200),
-    SectionPoint(3000, 2100),
-    SectionPoint(4000, 3200),
-    SectionPoint(5000, 4500),
-    SectionPoint(6000, 6000),
-    SectionPoint(7000, 7700),
-    SectionPoint(8000, 9600),
-    SectionPoint(9000, 11700),
-    SectionPoint(10000, 14000),
-  ];
+  final SurveyController controller = Get.find<SurveyController>();
 
   @override
   Widget build(BuildContext context) {
-    AppUnits.signature;
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isSmallScreen = constraints.maxWidth < 600;
-        
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey.shade300),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 6,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: SingleChildScrollView(
-            controller: ScrollController(),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // ================= HEADER =================
-                Row(
-                  children: [
-                    Icon(Icons.show_chart, size: 20, color: AppTheme.primaryColor),
-                    const SizedBox(width: 8),
-                    Text(
-                      "Section View",
-                      style: AppTheme.bodyLarge.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.primaryColor,
-                      ),
-                    ),
-                    const Spacer(),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: AppTheme.primaryColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        "${(points.isNotEmpty ? points : demoPoints).length} points",
-                        style: AppTheme.caption.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.primaryColor,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+    return Obx(() {
+      final points = controller.plotPoints;
+      final markers = controller.annotationMarkers
+          .map((marker) {
+            final point = controller.pointForAnnotationMd(marker.md);
+            if (point == null) return null;
+            return _SectionMarker(
+              x: point.vsec,
+              y: point.tvd,
+              label: marker.label,
+              symbol: marker.symbol,
+            );
+          })
+          .whereType<_SectionMarker>()
+          .toList();
 
-                const SizedBox(height: 12),
-
-                // ================= CHART INFO =================
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppTheme.cardColor,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 12,
-                        height: 3,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [AppTheme.primaryColor, AppTheme.accentColor],
-                          ),
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          "Well Trajectory: Horizontal Displacement vs True Vertical Depth",
-                          style: AppTheme.caption.copyWith(
-                            color: AppTheme.textSecondary,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-
-                // ================= CHART CONTAINER =================
-                Container(
-                  height: isSmallScreen ? 300 : 400, // Smaller height for chart
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.grey.shade200),
-                  ),
-                  padding: const EdgeInsets.all(12),
-                  child: LineChart(
-                    _chartData(isSmallScreen: isSmallScreen),
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-
-                // ================= LEGEND =================
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppTheme.cardColor,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Legend",
-                        style: AppTheme.bodySmall.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.primaryColor,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Container(
-                            width: 20,
-                            height: 3,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [AppTheme.primaryColor, AppTheme.accentColor],
-                              ),
-                              borderRadius: BorderRadius.circular(2),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              "Well Path",
-                              style: AppTheme.caption.copyWith(
-                                color: AppTheme.textSecondary,
-                              ),
-                            ),
-                          ),
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: BoxDecoration(
-                              color: AppTheme.successColor,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            "Target Depth",
-                            style: AppTheme.caption.copyWith(
-                              color: AppTheme.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+      return Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          children: [
+            const Text(
+              'Section View',
+              style: TextStyle(fontSize: 18, color: Colors.black87),
             ),
-          ),
-        );
-      },
+            const SizedBox(height: 8),
+            Expanded(
+              child: Row(
+                children: [
+                  RotatedBox(
+                    quarterTurns: 3,
+                    child: const Text(
+                      'TVD (ft)',
+                      style: TextStyle(fontSize: 14),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: CustomPaint(
+                      painter: _SectionGraphPainter(
+                        points: points,
+                        markers: markers,
+                      ),
+                      child: const SizedBox.expand(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Horizontal Displacement (ft)',
+              style: TextStyle(fontSize: 14),
+            ),
+          ],
+        ),
+      );
+    });
+  }
+}
+
+class _SectionMarker {
+  const _SectionMarker({
+    required this.x,
+    required this.y,
+    required this.label,
+    required this.symbol,
+  });
+
+  final double x;
+  final double y;
+  final String label;
+  final String symbol;
+}
+
+class _SectionGraphPainter extends CustomPainter {
+  _SectionGraphPainter({required this.points, required this.markers});
+
+  final List<dynamic> points;
+  final List<_SectionMarker> markers;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final plot = Rect.fromLTWH(56, 18, size.width - 74, size.height - 50);
+    final border = Paint()
+      ..color = const Color(0xFF303030)
+      ..strokeWidth = 1
+      ..style = PaintingStyle.stroke;
+    final grid = Paint()
+      ..color = const Color(0xFF444444)
+      ..strokeWidth = 1;
+    final line = Paint()
+      ..color = Colors.red
+      ..strokeWidth = 6
+      ..style = PaintingStyle.stroke
+      ..strokeJoin = StrokeJoin.round;
+
+    canvas.drawRect(plot, border);
+    for (var i = 0; i <= 10; i++) {
+      final x = plot.left + (plot.width * i / 10);
+      drawDashedLine(canvas, Offset(x, plot.top), Offset(x, plot.bottom), grid);
+      final y = plot.top + (plot.height * i / 10);
+      drawDashedLine(canvas, Offset(plot.left, y), Offset(plot.right, y), grid);
+    }
+
+    if (points.isEmpty) {
+      drawSurveyText(
+        canvas,
+        'No survey data',
+        Offset(plot.center.dx - 34, plot.center.dy - 8),
+      );
+      return;
+    }
+
+    final maxTvd = math.max(
+      1,
+      points.map((e) => e.tvd as double).reduce(math.max),
     );
+    final minX = math.min(
+      0,
+      points.map((e) => e.vsec as double).reduce(math.min),
+    );
+    final maxX = math.max(
+      0.5,
+      points.map((e) => e.vsec as double).reduce(math.max),
+    );
+    final xRange = (maxX - minX).abs() < 0.001 ? 1.0 : (maxX - minX);
+
+    final path = Path();
+    for (var i = 0; i < points.length; i++) {
+      final point = points[i];
+      final px = plot.left + ((point.vsec - minX) / xRange) * plot.width;
+      final py = plot.top + (point.tvd / maxTvd) * plot.height;
+      if (i == 0) {
+        path.moveTo(px, py);
+      } else {
+        path.lineTo(px, py);
+      }
+    }
+    canvas.drawPath(path, line);
+
+    for (final marker in markers) {
+      final px = plot.left + ((marker.x - minX) / xRange) * plot.width;
+      final py = plot.top + (marker.y / maxTvd) * plot.height;
+      drawSurveyMarker(canvas, Offset(px, py), marker.symbol);
+      drawSurveyText(canvas, marker.label, Offset(px + 8, py - 10));
+    }
+
+    for (var i = 0; i <= 5; i++) {
+      final value = maxTvd * i / 5;
+      final py = plot.top + (plot.height * i / 5);
+      drawSurveyText(
+        canvas,
+        value.toStringAsFixed(0),
+        Offset(plot.left - 24, py - 7),
+      );
+    }
+    for (var i = 0; i <= 5; i++) {
+      final value = minX + (xRange * i / 5);
+      final px = plot.left + (plot.width * i / 5);
+      drawSurveyText(
+        canvas,
+        value.toStringAsFixed(0),
+        Offset(px - 8, plot.bottom + 8),
+      );
+    }
   }
 
-  LineChartData _chartData({bool isSmallScreen = false}) {
-    return LineChartData(
-      backgroundColor: Colors.white,
-
-      // ================= GRID =================
-      gridData: FlGridData(
-        show: true,
-        drawVerticalLine: true,
-        drawHorizontalLine: true,
-        getDrawingHorizontalLine: (value) =>
-            FlLine(color: Colors.grey.shade200, strokeWidth: 0.5),
-        getDrawingVerticalLine: (value) =>
-            FlLine(color: Colors.grey.shade200, strokeWidth: 0.5),
-        horizontalInterval: isSmallScreen ? 2000 : 2500,
-        verticalInterval: isSmallScreen ? 2000 : 2500,
-      ),
-
-      // ================= AXIS =================
-      titlesData: FlTitlesData(
-        leftTitles: AxisTitles(
-          axisNameWidget: Padding(
-            padding: const EdgeInsets.only(bottom: 4),
-            child: Text(
-              AppUnits.label("TVD (ft)"),
-              style: AppTheme.caption.copyWith(
-                fontWeight: FontWeight.w600,
-                color: AppTheme.textPrimary,
-              ),
-            ),
-          ),
-          axisNameSize: 20,
-          sideTitles: SideTitles(
-            showTitles: true,
-            reservedSize: isSmallScreen ? 30 : 40,
-            interval: isSmallScreen ? 2000 : 2500,
-            getTitlesWidget: (value, meta) {
-              return Padding(
-                padding: const EdgeInsets.only(right: 4),
-                child: Text(
-                  value.toInt().toString(),
-                  style: AppTheme.caption.copyWith(
-                    color: AppTheme.textSecondary,
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-        bottomTitles: AxisTitles(
-          axisNameWidget: Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Text(
-              AppUnits.label("Horizontal Displacement (ft)"),
-              style: AppTheme.caption.copyWith(
-                fontWeight: FontWeight.w600,
-                color: AppTheme.textPrimary,
-              ),
-            ),
-          ),
-          axisNameSize: 20,
-          sideTitles: SideTitles(
-            showTitles: true,
-            reservedSize: isSmallScreen ? 28 : 32,
-            interval: isSmallScreen ? 2000 : 2500,
-            getTitlesWidget: (value, meta) {
-              return Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Text(
-                  value.toInt().toString(),
-                  style: AppTheme.caption.copyWith(
-                    color: AppTheme.textSecondary,
-                  ),
-                )
-              );
-            },
-          ),
-        ),
-        rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-        topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-      ),
-
-      // ================= BOUNDS =================
-      minX: 0,
-      maxX: 10000,
-      minY: 0,
-      maxY: 15000,
-
-      // ================= BORDER =================
-      borderData: FlBorderData(
-        show: true,
-        border: Border.all(
-          color: Colors.grey.shade300,
-          width: 1,
-        ),
-      ),
-
-      // ================= LINE =================
-      lineBarsData: [
-        LineChartBarData(
-          spots: (points.isNotEmpty ? points : demoPoints)
-              .map((e) => FlSpot(e.hd, e.tvd))
-              .toList(),
-          isCurved: true,
-          gradient: LinearGradient(
-            colors: [AppTheme.primaryColor, AppTheme.accentColor],
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
-          ),
-          barWidth: 2.5,
-          dotData: FlDotData(
-            show: true,
-            getDotPainter: (spot, percent, barData, index) {
-              return FlDotCirclePainter(
-                radius: 3,
-                color: AppTheme.primaryColor,
-                strokeWidth: 1,
-                strokeColor: Colors.white,
-              );
-            },
-          ),
-          belowBarData: BarAreaData(
-            show: true,
-            gradient: LinearGradient(
-              colors: [
-                AppTheme.primaryColor.withOpacity(0.1),
-                AppTheme.accentColor.withOpacity(0.05),
-              ],
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-            ),
-          ),
-        ),
-        
-        // Target depth indicator
-        LineChartBarData(
-          spots: [
-            FlSpot(0, 12000),
-            FlSpot(10000, 12000),
-          ],
-          isCurved: false,
-          color: AppTheme.successColor.withOpacity(0.5),
-          barWidth: 1,
-          dashArray: [5, 5],
-          dotData: const FlDotData(show: false),
-        ),
-      ],
-
-      // ================= EXTRA LINES =================
-      lineTouchData: LineTouchData(
-        enabled: true,
-        touchTooltipData: LineTouchTooltipData(
-          getTooltipColor: (spot) => AppTheme.primaryColor.withOpacity(0.8),
-          getTooltipItems: (touchedSpots) {
-            return touchedSpots.map((touchedSpot) {
-              return LineTooltipItem(
-                'HD: ${touchedSpot.x.toInt()} ft\nTVD: ${touchedSpot.y.toInt()} ft',
-                const TextStyle(
-                  color: Colors.white,
-                  fontSize: 10,
-                ),
-              );
-            }).toList();
-          },
-        ),
-      ),
-    );
+  @override
+  bool shouldRepaint(covariant _SectionGraphPainter oldDelegate) {
+    return oldDelegate.points != points || oldDelegate.markers != markers;
   }
 }

@@ -79,6 +79,7 @@ import operationRoutes from "./routes/operation/operation.routes.js";
 import reportRoutes from "./routes/report/report.routes.js";
 import formationRoutes from "./routes/formation/formation.routes.js";
 import wellPlanRoutes from "./routes/wellPlan/wellPlan.routes.js";
+import surveyRoutes from "./routes/survey/survey.routes.js";
 
 
 
@@ -208,6 +209,7 @@ app.use("/api/operations", operationRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/formation", formationRoutes);
 app.use("/api/well-plan", wellPlanRoutes);
+app.use("/api/survey", surveyRoutes);
 
 
 // Error handler (ALWAYS LAST)

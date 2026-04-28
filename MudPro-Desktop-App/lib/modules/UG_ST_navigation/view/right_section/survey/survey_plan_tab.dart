@@ -1,445 +1,189 @@
-import 'package:fl_chart/fl_chart.dart';
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
-import 'package:mudpro_desktop_app/modules/UG_ST_navigation/model/UG_ST_model.dart';
-import 'package:mudpro_desktop_app/theme/app_theme.dart';
-import 'package:mudpro_desktop_app/modules/options/app_units.dart';
+import 'package:get/get.dart';
+import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/survey/controller/survey_controller.dart';
+import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/survey/survey_graph_utils.dart';
 
-class PlanViewChart extends StatelessWidget {
-  final List<PlanPoint> points;
+class SurveyPlanTab extends StatelessWidget {
+  SurveyPlanTab({super.key});
 
-  const PlanViewChart({
-    super.key,
-    required this.points,
-  });
-
-  // Sample data if points are empty
-  static final List<PlanPoint> demoPoints = [
-    PlanPoint(-800, -1000),
-    PlanPoint(-600, -800),
-    PlanPoint(-400, -650),
-    PlanPoint(-200, -550),
-    PlanPoint(0, -500),
-    PlanPoint(100, -480),
-    PlanPoint(200, -460),
-    PlanPoint(200, -300),
-    PlanPoint(150, -150),
-    PlanPoint(100, 0),
-  ];
+  final SurveyController controller = Get.find<SurveyController>();
 
   @override
   Widget build(BuildContext context) {
-    AppUnits.signature;
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isSmallScreen = constraints.maxWidth < 800;
-        final isMediumScreen = constraints.maxWidth < 1200;
-        
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey.shade300),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 6,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: SingleChildScrollView(
-            controller: ScrollController(),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // ================= HEADER =================
-                Row(
-                  children: [
-                    Icon(Icons.map, size: 20, color: AppTheme.primaryColor),
-                    const SizedBox(width: 8),
-                    Text(
-                      "Plan View - Well Trajectory",
-                      style: AppTheme.bodyLarge.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.primaryColor,
-                      ),
-                    ),
-                    const Spacer(),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: AppTheme.primaryColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        "${(points.isNotEmpty ? points : demoPoints).length} points",
-                        style: AppTheme.caption.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.primaryColor,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+    return Obx(() {
+      final points = controller.plotPoints;
+      final markers = controller.annotationMarkers
+          .map((marker) {
+            final point = controller.pointForAnnotationMd(marker.md);
+            if (point == null) return null;
+            return _PlanMarker(
+              x: point.eastWest,
+              y: point.northSouth,
+              label: marker.label,
+              symbol: marker.symbol,
+            );
+          })
+          .whereType<_PlanMarker>()
+          .toList();
 
-                const SizedBox(height: 12),
-
-                // ================= CHART INFO =================
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppTheme.cardColor,
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: Colors.grey.shade200),
-                ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.info_outline, size: 14, color: AppTheme.infoColor),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          "East-West vs North-South coordinates of well trajectory",
-                          style: AppTheme.caption.copyWith(
-                            color: AppTheme.textSecondary,
-                          ),
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(color: Colors.grey.shade300),
-                        ),
-                        child: Text(
-                          "Scale: 1:2000",
-                          style: AppTheme.caption.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: AppTheme.textPrimary,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-
-                // ================= CHART CONTAINER =================
-                Container(
-                  height: isSmallScreen
-                      ? 350
-                      : isMediumScreen
-                        ? 450
-                        : 500,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.grey.shade200),
-                  ),
-                  padding: const EdgeInsets.all(16),
-                  child: LineChart(
-                    _chartData(
-                      isSmallScreen: isSmallScreen,
-                      isMediumScreen: isMediumScreen,
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-
-                // ================= COORDINATE LEGEND =================
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade50,
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: Colors.grey.shade200),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _coordinateInfo("Start Point", "-800, -1000"),
-                      Container(
-                        height: 20,
-                        width: 1,
-                        color: Colors.grey.shade300,
-                      ),
-                      _coordinateInfo("Kick-off Point", "-400, -650"),
-                      Container(
-                        height: 20,
-                        width: 1,
-                        color: Colors.grey.shade300,
-                      ),
-                      _coordinateInfo("Target", "100, 0"),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 12),
-
-                // ================= QUADRANT INDICATOR =================
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppTheme.infoColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: AppTheme.infoColor.withOpacity(0.3)),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.compass_calibration, size: 16, color: AppTheme.infoColor),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          "Coordinates: E+/W- (East-West), N+/S- (North-South)",
-                          style: AppTheme.caption.copyWith(
-                            color: AppTheme.infoColor,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+      return Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          children: [
+            const Text(
+              'Plan View',
+              style: TextStyle(fontSize: 18, color: Colors.black87),
             ),
-          ),
-        );
-      },
+            const SizedBox(height: 8),
+            Expanded(
+              child: Row(
+                children: [
+                  RotatedBox(
+                    quarterTurns: 3,
+                    child: const Text(
+                      'N+/S- (ft)',
+                      style: TextStyle(fontSize: 14),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: CustomPaint(
+                      painter: _PlanGraphPainter(
+                        points: points,
+                        markers: markers,
+                      ),
+                      child: const SizedBox.expand(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 6),
+            const Text('E+/W- (ft)', style: TextStyle(fontSize: 14)),
+          ],
+        ),
+      );
+    });
+  }
+}
+
+class _PlanMarker {
+  const _PlanMarker({
+    required this.x,
+    required this.y,
+    required this.label,
+    required this.symbol,
+  });
+
+  final double x;
+  final double y;
+  final String label;
+  final String symbol;
+}
+
+class _PlanGraphPainter extends CustomPainter {
+  _PlanGraphPainter({required this.points, required this.markers});
+
+  final List<dynamic> points;
+  final List<_PlanMarker> markers;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final plot = Rect.fromLTWH(56, 18, size.width - 74, size.height - 50);
+    final border = Paint()
+      ..color = const Color(0xFF303030)
+      ..strokeWidth = 1
+      ..style = PaintingStyle.stroke;
+    final grid = Paint()
+      ..color = const Color(0xFF444444)
+      ..strokeWidth = 1;
+    final line = Paint()
+      ..color = Colors.red
+      ..strokeWidth = 6
+      ..style = PaintingStyle.stroke
+      ..strokeJoin = StrokeJoin.round;
+
+    canvas.drawRect(plot, border);
+    for (var i = 0; i <= 10; i++) {
+      final x = plot.left + (plot.width * i / 10);
+      drawDashedLine(canvas, Offset(x, plot.top), Offset(x, plot.bottom), grid);
+      final y = plot.top + (plot.height * i / 10);
+      drawDashedLine(canvas, Offset(plot.left, y), Offset(plot.right, y), grid);
+    }
+
+    if (points.isEmpty) {
+      drawSurveyText(
+        canvas,
+        'No survey data',
+        Offset(plot.center.dx - 34, plot.center.dy - 8),
+      );
+      return;
+    }
+
+    final minX = math.min(
+      0,
+      points.map((e) => e.eastWest as double).reduce(math.min),
     );
+    final maxX = math.max(
+      0.5,
+      points.map((e) => e.eastWest as double).reduce(math.max),
+    );
+    final minY = math.min(
+      0,
+      points.map((e) => e.northSouth as double).reduce(math.min),
+    );
+    final maxY = math.max(
+      0.5,
+      points.map((e) => e.northSouth as double).reduce(math.max),
+    );
+    final xRange = (maxX - minX).abs() < 0.001 ? 1.0 : (maxX - minX);
+    final yRange = (maxY - minY).abs() < 0.001 ? 1.0 : (maxY - minY);
+
+    final path = Path();
+    for (var i = 0; i < points.length; i++) {
+      final point = points[i];
+      final px = plot.left + ((point.eastWest - minX) / xRange) * plot.width;
+      final py =
+          plot.bottom - ((point.northSouth - minY) / yRange) * plot.height;
+      if (i == 0) {
+        path.moveTo(px, py);
+      } else {
+        path.lineTo(px, py);
+      }
+    }
+    canvas.drawPath(path, line);
+
+    for (final marker in markers) {
+      final px = plot.left + ((marker.x - minX) / xRange) * plot.width;
+      final py = plot.bottom - ((marker.y - minY) / yRange) * plot.height;
+      drawSurveyMarker(canvas, Offset(px, py), marker.symbol);
+      drawSurveyText(canvas, marker.label, Offset(px + 8, py - 10));
+    }
+
+    for (var i = 0; i <= 5; i++) {
+      final value = minY + (yRange * i / 5);
+      final py = plot.bottom - (plot.height * i / 5);
+      drawSurveyText(
+        canvas,
+        value.toStringAsFixed(1),
+        Offset(plot.left - 28, py - 7),
+      );
+    }
+    for (var i = 0; i <= 5; i++) {
+      final value = minX + (xRange * i / 5);
+      final px = plot.left + (plot.width * i / 5);
+      drawSurveyText(
+        canvas,
+        value.toStringAsFixed(1),
+        Offset(px - 10, plot.bottom + 8),
+      );
+    }
   }
 
-  Widget _coordinateInfo(String label, String coordinates) {
-    return Column(
-      children: [
-        Text(
-          label,
-          style: AppTheme.caption.copyWith(
-            fontWeight: FontWeight.w600,
-            color: AppTheme.textPrimary,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          coordinates,
-          style: AppTheme.caption.copyWith(
-            color: AppTheme.textSecondary,
-          ),
-        ),
-      ],
-    );
-  }
-
-  LineChartData _chartData({
-    bool isSmallScreen = false,
-    bool isMediumScreen = false,
-  }) {
-    final currentPoints = points.isNotEmpty ? points : demoPoints;
-    
-    return LineChartData(
-      backgroundColor: Colors.white,
-
-      // ================= GRID =================
-      gridData: FlGridData(
-        show: true,
-        drawVerticalLine: true,
-        drawHorizontalLine: true,
-        getDrawingVerticalLine: (value) =>
-            FlLine(color: Colors.grey.shade200, strokeWidth: 0.5),
-        getDrawingHorizontalLine: (value) =>
-            FlLine(color: Colors.grey.shade200, strokeWidth: 0.5),
-        horizontalInterval: isSmallScreen ? 200 : 250,
-        verticalInterval: isSmallScreen ? 200 : 250,
-      ),
-
-      // ================= AXES =================
-      titlesData: FlTitlesData(
-        leftTitles: AxisTitles(
-          axisNameWidget: Padding(
-            padding: const EdgeInsets.only(bottom: 4),
-            child: Text(
-              AppUnits.label("N+/S- (ft)"),
-              style: AppTheme.caption.copyWith(
-                fontWeight: FontWeight.w600,
-                color: AppTheme.textPrimary,
-              ),
-            ),
-          ),
-          axisNameSize: 20,
-          sideTitles: SideTitles(
-            showTitles: true,
-            interval: isSmallScreen ? 200 : 250,
-            reservedSize: isSmallScreen ? 30 : 40,
-            getTitlesWidget: (value, meta) {
-              return Padding(
-                padding: const EdgeInsets.only(right: 4),
-                child: Text(
-                  value.toInt().toString(),
-                  style: AppTheme.caption.copyWith(
-                    color: AppTheme.textSecondary,
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-        bottomTitles: AxisTitles(
-          axisNameWidget: Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Text(
-              AppUnits.label("E+/W- (ft)"),
-              style: AppTheme.caption.copyWith(
-                fontWeight: FontWeight.w600,
-                color: AppTheme.textPrimary,
-              ),
-            ),
-          ),
-          axisNameSize: 20,
-          sideTitles: SideTitles(
-            showTitles: true,
-            interval: isSmallScreen ? 200 : 250,
-            reservedSize: isSmallScreen ? 28 : 32,
-            getTitlesWidget: (value, meta) {
-              return Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Text(
-                  value.toInt().toString(),
-                  style: AppTheme.caption.copyWith(
-                    color: AppTheme.textSecondary,
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-        topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-        rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-      ),
-
-      // ================= BORDER =================
-      borderData: FlBorderData(
-        show: true,
-        border: Border.all(
-          color: Colors.grey.shade300,
-          width: 1,
-        ),
-      ),
-
-      // ================= LIMITS =================
-      minX: -900,
-      maxX: 300,
-      minY: -1100,
-      maxY: 100,
-
-      // ================= LINES =================
-      lineBarsData: [
-        // Main well trajectory line
-        LineChartBarData(
-          spots: currentPoints.map((e) => FlSpot(e.ew, e.ns)).toList(),
-          isCurved: true,
-          gradient: LinearGradient(
-            colors: [AppTheme.primaryColor, AppTheme.secondaryColor],
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
-          ),
-          barWidth: isSmallScreen ? 2.5 : 3,
-          dotData: FlDotData(
-            show: true,
-            getDotPainter: (spot, percent, barData, index) {
-              final isKeyPoint = index == 0 || 
-                               index == currentPoints.length ~/ 2 || 
-                               index == currentPoints.length - 1;
-              
-              return FlDotCirclePainter(
-                radius: isKeyPoint ? 4 : 3,
-                color: isKeyPoint ? AppTheme.primaryColor : AppTheme.secondaryColor,
-                strokeWidth: 1.5,
-                strokeColor: Colors.white,
-              );
-            },
-          ),
-          belowBarData: BarAreaData(
-            show: true,
-            gradient: LinearGradient(
-              colors: [
-                AppTheme.primaryColor.withOpacity(0.15),
-                AppTheme.secondaryColor.withOpacity(0.05),
-              ],
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-            ),
-          ),
-        ),
-
-        // Reference lines (optional)
-        LineChartBarData(
-          spots: [
-            FlSpot(-900, 0),
-            FlSpot(300, 0),
-          ],
-          isCurved: false,
-          color: Colors.grey.shade400,
-          barWidth: 0.5,
-          dashArray: [3, 3],
-          dotData: const FlDotData(show: false),
-        ),
-        LineChartBarData(
-          spots: [
-            FlSpot(0, -1100),
-            FlSpot(0, 100),
-          ],
-          isCurved: false,
-          color: Colors.grey.shade400,
-          barWidth: 0.5,
-          dashArray: [3, 3],
-          dotData: const FlDotData(show: false),
-        ),
-      ],
-
-      // ================= INTERACTION =================
-      lineTouchData: LineTouchData(
-        enabled: true,
-        touchTooltipData: LineTouchTooltipData(
-          getTooltipColor:(spot) => AppTheme.primaryColor.withOpacity(0.8),
-          getTooltipItems: (touchedSpots) {
-            return touchedSpots.map((touchedSpot) {
-              return LineTooltipItem(
-                'E/W: ${touchedSpot.x.toInt()} ft\nN/S: ${touchedSpot.y.toInt()} ft',
-                const TextStyle(
-                  color: Colors.white,
-                  fontSize: 10,
-                  height: 1.4,
-                ),
-                textAlign: TextAlign.center,
-              );
-            }).toList();
-          },
-        ),
-        touchCallback: (FlTouchEvent event, LineTouchResponse? touchResponse) {
-          // Handle touch interactions if needed
-        },
-      ),
-
-      // ================= EXTRA POINTS =================
-      extraLinesData: ExtraLinesData(
-        verticalLines: [
-          VerticalLine(
-            x: 0,
-            color: Colors.grey.shade400,
-            strokeWidth: 0.5,
-            dashArray: [3, 3],
-          ),
-        ],
-        horizontalLines: [
-          HorizontalLine(
-            y: 0,
-            color: Colors.grey.shade400,
-            strokeWidth: 0.5,
-            dashArray: [3, 3],
-          ),
-        ],
-      ),
-    );
+  @override
+  bool shouldRepaint(covariant _PlanGraphPainter oldDelegate) {
+    return oldDelegate.points != points || oldDelegate.markers != markers;
   }
 }

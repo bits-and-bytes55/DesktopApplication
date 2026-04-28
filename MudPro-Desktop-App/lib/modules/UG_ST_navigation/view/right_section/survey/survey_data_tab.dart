@@ -1,199 +1,92 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:mudpro_desktop_app/theme/app_theme.dart';
-import 'package:mudpro_desktop_app/modules/options/app_units.dart';
+import 'package:mudpro_desktop_app/modules/UG_ST_navigation/model/survey_model.dart';
+import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/survey/controller/survey_controller.dart';
 
 class SurveyDataTab extends StatelessWidget {
   SurveyDataTab({super.key});
 
-  final RxBool isLocked = true.obs;
-  final ScrollController _horizontalScrollController = ScrollController();
-  final ScrollController _verticalScrollController = ScrollController();
+  final SurveyController controller = Get.find<SurveyController>();
 
-  final headers = const [
-    "#",
-    "MD\n(ft)",
-    "Inc\n(°)",
-    "Azi\n(°)",
-    "TVD\n(ft)",
-    "Vsec\n(ft)",
-    "N+/S-\n(ft)",
-    "E+/W-\n(ft)",
-    "Dogleg\n(°/100ft)",
-  ];
-
-  final List<List<String>> data = [
-    ["1", "0.0", "0.00", "0.00", "0.0", "0.0", "0.0", "0.0", "0.06"],
-    ["2", "1090.0", "0.63", "239.27", "1090.0", "6.0", "-3.1", "-5.2", "0.06"],
-    ["3", "1167.0", "2.17", "245.94", "1167.0", "7.9", "-3.9", "-6.8", "2.01"],
-    ["4", "1271.0", "4.31", "247.65", "1270.8", "13.7", "-6.2", "-12.3", "2.06"],
-    ["5", "1369.0", "5.36", "250.22", "1368.4", "22.0", "-9.1", "-20.0", "1.09"],
-    ["6", "1462.0", "6.32", "252.93", "1460.9", "31.4", "-12.1", "-29.0", "1.07"],
-    ["7", "1565.0", "7.25", "255.78", "1559.8", "41.8", "-15.2", "-40.0", "1.06"],
-    ["8", "1668.0", "8.17", "258.77", "1658.7", "53.2", "-18.5", "-52.1", "1.05"],
-    ["9", "1771.0", "9.08", "261.90", "1757.6", "65.4", "-22.0", "-65.3", "1.04"],
-    ["10", "1874.0", "9.98", "265.16", "1856.5", "78.5", "-25.6", "-79.5", "1.03"],
-  ];
+  static const _headerBg = Color(0xFFF4F4F4);
+  static const _gridBorder = Color(0xFFC8CED6);
+  static const _readOnlyBg = Color(0xFFFFF8C9);
+  static const _lockedBg = Color(0xFFFFF1A6);
 
   @override
   Widget build(BuildContext context) {
-    AppUnits.signature;
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        if (constraints.maxWidth < 800) {
-          return Column(
-            children: [
-              _headerSection(),
-              Expanded(child: _table()),
-              const SizedBox(height: 12),
-              _sidePanel(),
-            ],
-          );
-        } else {
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(child: _table()),
-              _toolButtons(),
-              _annotationPanel(),
-            ],
-          );
-        }
-      },
-    );
-  }
-
-  Widget _headerSection() {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          bottom: BorderSide(color: Colors.grey.shade300),
-        ),
-      ),
-      child: Row(
+    return Padding(
+      padding: const EdgeInsets.all(8),
+      child: Column(
         children: [
-          Icon(Icons.table_chart, size: 18, color: AppTheme.primaryColor),
-          const SizedBox(width: 8),
-          Text(
-            "Survey Data",
-            style: AppTheme.bodyLarge.copyWith(
-              fontWeight: FontWeight.w600,
-              color: AppTheme.primaryColor,
-            ),
-          ),
-          const Spacer(),
-          Obx(() => Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: isLocked.value 
-                  ? AppTheme.errorColor.withOpacity(0.1)
-                  : AppTheme.successColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(
-                color: isLocked.value 
-                    ? AppTheme.errorColor.withOpacity(0.3)
-                    : AppTheme.successColor.withOpacity(0.3),
-              ),
-            ),
+          Expanded(
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(
-                  isLocked.value ? Icons.lock : Icons.lock_open,
-                  size: 14,
-                  color: isLocked.value ? AppTheme.errorColor : AppTheme.successColor,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  isLocked.value ? "Locked" : "Editing",
-                  style: AppTheme.caption.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: isLocked.value ? AppTheme.errorColor : AppTheme.successColor,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(child: _surveyTable()),
+                      const SizedBox(height: 8),
+                      _projectAziRow(),
+                    ],
                   ),
                 ),
+                const SizedBox(width: 6),
+                _surveyToolbar(),
+                const SizedBox(width: 6),
+                SizedBox(width: 540, child: _annotationPanel()),
               ],
             ),
-          )),
-          const SizedBox(width: 12),
-          Obx(() => ElevatedButton(
-            onPressed: () => isLocked.value = !isLocked.value,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: isLocked.value ? AppTheme.primaryColor : Colors.grey.shade300,
-              foregroundColor: isLocked.value ? Colors.white : AppTheme.textPrimary,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(6),
-              ),
-            ),
-            child: Text(
-              isLocked.value ? "Unlock" : "Lock",
-              style: AppTheme.caption.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          )),
+          ),
         ],
       ),
     );
   }
 
-  // ================= TABLE =================
-  Widget _table() {
+  Widget _surveyTable() {
+    const widths = <double>[38, 94, 94, 94, 90, 90, 96, 96, 110];
+    final totalWidth = widths.reduce((a, b) => a + b);
     return Container(
-      margin: const EdgeInsets.all(12),
       decoration: BoxDecoration(
+        border: Border.all(color: _gridBorder),
         color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade300),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
       ),
       child: Column(
         children: [
-          // TABLE HEADER
-          Scrollbar(
-            thumbVisibility: true,
-            controller: _horizontalScrollController,
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              controller: _horizontalScrollController,
-              child: Container(
-                height: 44,
-                decoration: BoxDecoration(
-                  gradient: AppTheme.headerGradient,
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(8),
-                    topRight: Radius.circular(8),
-                  ),
-                ),
-                child: Row(
-                  children: headers.map(_headerCell).toList(),
-                ),
-              ),
-            ),
+          _gridRow(
+            widths: widths,
+            header: true,
+            cells: const [
+              '',
+              'MD\n(ft)',
+              'Inc\n(°)',
+              'Azi\n(°)',
+              'TVD\n(ft)',
+              'Vsec\n(ft)',
+              'N+/S-\n(ft)',
+              'E+/W-\n(ft)',
+              'Dogleg\n(°/100ft)',
+            ],
           ),
-
-          // TABLE CONTENT
           Expanded(
-            child: Scrollbar(
-              controller: _verticalScrollController,
-              thumbVisibility: true,
-              child: SingleChildScrollView(
-                controller: _verticalScrollController,
-                scrollDirection: Axis.vertical,
+            child: Obx(
+              () => Scrollbar(
+                thumbVisibility: true,
                 child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  controller: _horizontalScrollController,
-                  child: Column(
-                    children: List.generate(
-                      data.length,
-                      (i) => _dataRow(data[i], i),
+                  child: SizedBox(
+                    width: totalWidth,
+                    child: Column(
+                      children: List.generate(
+                        controller.stations.length,
+                        (index) => _stationRow(
+                          context: Get.context!,
+                          index: index,
+                          row: controller.stations[index],
+                          widths: widths,
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -205,313 +98,573 @@ class SurveyDataTab extends StatelessWidget {
     );
   }
 
-  Widget _dataRow(List<String> row, int rowIndex) {
-    return Container(
-      height: 40,
-      decoration: BoxDecoration(
-        color: rowIndex.isEven ? Colors.white : AppTheme.cardColor,
-        border: Border(
-          bottom: BorderSide(color: Colors.grey.shade200),
+  Widget _stationRow({
+    required BuildContext context,
+    required int index,
+    required SurveyStationRow row,
+    required List<double> widths,
+  }) {
+    return Obx(() {
+      final selected = controller.selectedStationIndex.value == index;
+      return GestureDetector(
+        onTap: () => controller.selectStation(index),
+        onSecondaryTapDown: (details) async {
+          controller.selectStation(index);
+          final action = await _showCrudMenu(
+            context: context,
+            position: details.globalPosition,
+            allowPaste: controller.hasStationClipboard,
+            canDelete: !controller.isLocked && row.hasAnyData,
+            canMoveTop: !controller.isLocked && row.hasAnyData && index > 0,
+            canMoveBottom:
+                !controller.isLocked &&
+                row.hasAnyData &&
+                index < controller.stations.length - 1,
+          );
+          _runStationAction(action, index);
+        },
+        child: _gridRow(
+          widths: widths,
+          selected: selected,
+          cells: [
+            _rowIndexCell(index, selected),
+            _editableCell(
+              row.mdController,
+              enabled: !controller.isLocked,
+              onChanged: (value) =>
+                  controller.updateStationField(index, 'md', value),
+            ),
+            _editableCell(
+              row.incController,
+              enabled: !controller.isLocked,
+              onChanged: (value) =>
+                  controller.updateStationField(index, 'inc', value),
+            ),
+            _editableCell(
+              row.aziController,
+              enabled: !controller.isLocked,
+              onChanged: (value) =>
+                  controller.updateStationField(index, 'azi', value),
+            ),
+            _readonlyCell(row.tvd),
+            _readonlyCell(row.vsec),
+            _readonlyCell(row.northSouth),
+            _readonlyCell(row.eastWest),
+            _readonlyCell(row.dogleg),
+          ],
         ),
+      );
+    });
+  }
+
+  Widget _surveyToolbar() {
+    return Obx(() {
+      final canEdit = !controller.isLocked;
+      return Container(
+        width: 34,
+        decoration: BoxDecoration(
+          border: Border.all(color: _gridBorder),
+          color: Colors.white,
+        ),
+        child: Column(
+          children: [
+            const SizedBox(height: 6),
+            _toolButton(
+              icon: Icons.content_copy,
+              enabled: controller.hasStationSelection,
+              onTap: controller.copySelectedStation,
+            ),
+            _toolButton(
+              icon: Icons.content_paste,
+              enabled:
+                  canEdit &&
+                  controller.hasStationSelection &&
+                  controller.hasStationClipboard,
+              onTap: controller.pasteStationIntoSelected,
+            ),
+            _toolButton(
+              icon: Icons.add_box_outlined,
+              enabled: canEdit,
+              onTap: () => controller.insertStationAfter(
+                controller.hasStationSelection
+                    ? controller.selectedStationIndex.value
+                    : controller.stations.length - 1,
+              ),
+            ),
+            _toolButton(
+              icon: Icons.delete_outline,
+              enabled: canEdit && controller.hasStationSelection,
+              onTap: controller.deleteSelectedStation,
+            ),
+            _toolButton(
+              icon: Icons.arrow_circle_up_outlined,
+              enabled: canEdit && controller.hasStationSelection,
+              onTap: controller.moveSelectedStationUp,
+            ),
+            _toolButton(
+              icon: Icons.arrow_circle_down_outlined,
+              enabled: canEdit && controller.hasStationSelection,
+              onTap: controller.moveSelectedStationDown,
+            ),
+            const Spacer(),
+            _toolButton(
+              icon: Icons.vertical_align_top,
+              enabled: canEdit && controller.hasStationSelection,
+              onTap: controller.moveSelectedStationToTop,
+            ),
+            _toolButton(
+              icon: Icons.vertical_align_bottom,
+              enabled: canEdit && controller.hasStationSelection,
+              onTap: controller.moveSelectedStationToBottom,
+            ),
+            const SizedBox(height: 6),
+          ],
+        ),
+      );
+    });
+  }
+
+  Widget _annotationPanel() {
+    const widths = <double>[38, 116, 260, 110];
+    final totalWidth = widths.reduce((a, b) => a + b);
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(color: _gridBorder),
+        color: Colors.white,
       ),
+      child: Column(
+        children: [
+          SizedBox(
+            height: 28,
+            child: Obx(
+              () => Row(
+                children: [
+                  Checkbox(
+                    value: controller.annotationEnabled.value,
+                    onChanged: controller.isLocked
+                        ? null
+                        : (value) =>
+                              controller.setAnnotationEnabled(value ?? false),
+                    visualDensity: VisualDensity.compact,
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  const Text('Annotation', style: TextStyle(fontSize: 12)),
+                ],
+              ),
+            ),
+          ),
+          _gridRow(
+            widths: widths,
+            header: true,
+            cells: const ['', 'MD (ft)', 'Annotation', 'Symbol'],
+          ),
+          Expanded(
+            child: Obx(
+              () => Scrollbar(
+                thumbVisibility: true,
+                child: SingleChildScrollView(
+                  child: SizedBox(
+                    width: totalWidth,
+                    child: Column(
+                      children: List.generate(
+                        controller.annotations.length,
+                        (index) => _annotationRow(
+                          context: Get.context!,
+                          index: index,
+                          row: controller.annotations[index],
+                          widths: widths,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _annotationRow({
+    required BuildContext context,
+    required int index,
+    required SurveyAnnotationRow row,
+    required List<double> widths,
+  }) {
+    return Obx(() {
+      final selected = controller.selectedAnnotationIndex.value == index;
+      final enabled =
+          !controller.isLocked && controller.annotationEnabled.value;
+      return GestureDetector(
+        onTap: () => controller.selectAnnotation(index),
+        onSecondaryTapDown: (details) async {
+          controller.selectAnnotation(index);
+          final action = await _showCrudMenu(
+            context: context,
+            position: details.globalPosition,
+            allowPaste: controller.hasAnnotationClipboard,
+            canDelete: enabled && row.hasData,
+            canMoveTop: enabled && row.hasData && index > 0,
+            canMoveBottom:
+                enabled &&
+                row.hasData &&
+                index < controller.annotations.length - 1,
+          );
+          _runAnnotationAction(action, index);
+        },
+        child: _gridRow(
+          widths: widths,
+          selected: selected,
+          cells: [
+            _rowIndexCell(index, selected),
+            _editableCell(
+              row.mdController,
+              enabled: enabled,
+              onChanged: (value) =>
+                  controller.updateAnnotationField(index, 'md', value),
+            ),
+            _editableCell(
+              row.annotationController,
+              enabled: enabled,
+              onChanged: (value) =>
+                  controller.updateAnnotationField(index, 'annotation', value),
+              textAlign: TextAlign.left,
+            ),
+            _symbolCell(index, row, enabled),
+          ],
+        ),
+      );
+    });
+  }
+
+  Widget _projectAziRow() {
+    return SizedBox(
+      height: 28,
+      child: Obx(() {
+        final enabled =
+            !controller.isLocked && controller.projectAziEnabled.value;
+        return Row(
+          children: [
+            Checkbox(
+              value: controller.projectAziEnabled.value,
+              onChanged: controller.isLocked
+                  ? null
+                  : (value) => controller.setProjectAziEnabled(value ?? false),
+              visualDensity: VisualDensity.compact,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            const SizedBox(width: 2),
+            const Text('Project Azi', style: TextStyle(fontSize: 12)),
+            const SizedBox(width: 10),
+            Container(
+              width: 90,
+              height: 24,
+              decoration: BoxDecoration(
+                color: controller.isLocked
+                    ? _lockedBg
+                    : (enabled ? Colors.white : _readOnlyBg),
+                border: Border.all(color: _gridBorder),
+              ),
+              child: TextField(
+                controller: controller.projectAziController,
+                enabled: enabled,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 12),
+                decoration: const InputDecoration(
+                  border: InputBorder.none,
+                  isDense: true,
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 6,
+                  ),
+                ),
+                onChanged: controller.updateProjectAzi,
+              ),
+            ),
+            const SizedBox(width: 6),
+            const Text('(°)', style: TextStyle(fontSize: 12)),
+          ],
+        );
+      }),
+    );
+  }
+
+  Widget _gridRow({
+    required List<double> widths,
+    required List<dynamic> cells,
+    bool header = false,
+    bool selected = false,
+  }) {
+    return Container(
+      height: header ? 44 : 34,
+      color: header
+          ? _headerBg
+          : (selected ? const Color(0xFFEAF1FF) : Colors.white),
       child: Row(
-        children: List.generate(row.length, (i) {
-          return _cell(row[i], index: i);
+        children: List.generate(widths.length, (index) {
+          return Container(
+            width: widths[index],
+            height: double.infinity,
+            alignment: Alignment.center,
+            decoration: const BoxDecoration(
+              border: Border(
+                right: BorderSide(color: _gridBorder),
+                bottom: BorderSide(color: _gridBorder),
+              ),
+            ),
+            child: cells[index] is Widget
+                ? cells[index] as Widget
+                : Text(
+                    cells[index].toString(),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: header ? 11.5 : 12,
+                      fontWeight: header ? FontWeight.w600 : FontWeight.normal,
+                      color: const Color(0xFF2F2F2F),
+                    ),
+                  ),
+          );
         }),
       ),
     );
   }
 
-  // ================= CELLS =================
-  Widget _headerCell(String t) {
+  Widget _rowIndexCell(int index, bool selected) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(
+          selected ? Icons.play_arrow : Icons.circle,
+          size: selected ? 10 : 0,
+          color: const Color(0xFF585858),
+        ),
+        if (selected) const SizedBox(width: 2),
+        Text(
+          '${index + 1}',
+          style: const TextStyle(fontSize: 12, color: Color(0xFF2F2F2F)),
+        ),
+      ],
+    );
+  }
+
+  Widget _editableCell(
+    TextEditingController controllerField, {
+    required bool enabled,
+    required ValueChanged<String> onChanged,
+    TextAlign textAlign = TextAlign.center,
+  }) {
+    return Obx(() {
+      final bg = controller.isLocked
+          ? _lockedBg
+          : (enabled ? Colors.white : _readOnlyBg);
+      return Container(
+        color: bg,
+        child: TextField(
+          controller: controllerField,
+          enabled: enabled,
+          textAlign: textAlign,
+          style: const TextStyle(fontSize: 12, color: Color(0xFF2F2F2F)),
+          decoration: const InputDecoration(
+            isDense: true,
+            border: InputBorder.none,
+            contentPadding: EdgeInsets.symmetric(horizontal: 5, vertical: 8),
+          ),
+          onChanged: onChanged,
+        ),
+      );
+    });
+  }
+
+  Widget _readonlyCell(String value) {
     return Container(
-      width: 100,
+      color: _readOnlyBg,
       alignment: Alignment.center,
       child: Text(
-        AppUnits.label(t),
-        textAlign: TextAlign.center,
-        style: AppTheme.caption.copyWith(
-          fontWeight: FontWeight.w600,
-          color: Colors.white,
+        value,
+        style: const TextStyle(fontSize: 12, color: Color(0xFF2F2F2F)),
+      ),
+    );
+  }
+
+  Widget _symbolCell(int index, SurveyAnnotationRow row, bool enabled) {
+    return InkWell(
+      onTap: enabled ? () => controller.cycleAnnotationSymbol(index) : null,
+      child: Container(
+        color: controller.isLocked ? _lockedBg : Colors.white,
+        alignment: Alignment.center,
+        child: _symbolWidget(row.symbol),
+      ),
+    );
+  }
+
+  Widget _symbolWidget(String symbol) {
+    switch (symbol) {
+      case 'square':
+        return SizedBox(
+          width: 18,
+          height: 18,
+          child: CustomPaint(painter: _SquareCrossPainter()),
+        );
+      case 'circle':
+        return Container(
+          width: 18,
+          height: 18,
+          decoration: const BoxDecoration(
+            shape: BoxShape.circle,
+            color: Color(0xFF8C8C8C),
+          ),
+        );
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
+  Widget _toolButton({
+    required IconData icon,
+    required bool enabled,
+    required VoidCallback onTap,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: InkWell(
+        onTap: enabled ? onTap : null,
+        child: Icon(
+          icon,
+          size: 18,
+          color: enabled ? const Color(0xFF2780E3) : const Color(0xFFBFC7D1),
         ),
       ),
     );
   }
 
-  Widget _cell(String value, {required int index}) {
-    final displayValue = _displayValueForIndex(value, index);
-    return Container(
-      width: index == 0 ? 60 : 100,
-      alignment: Alignment.center,
-      child: Obx(
-        () => isLocked.value
-            ? Text(
-                displayValue,
-                style: AppTheme.caption.copyWith(
-                  color: AppTheme.textPrimary,
-                ),
-              )
-            : Container(
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade300),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                child: TextField(
-                  controller: TextEditingController(text: displayValue),
-                  textAlign: TextAlign.center,
-                  style: AppTheme.caption.copyWith(
-                    color: AppTheme.textPrimary,
-                  ),
-                  decoration: const InputDecoration(
-                    isDense: true,
-                    contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-                    border: InputBorder.none,
-                  ),
-                ),
-              ),
+  Future<String?> _showCrudMenu({
+    required BuildContext context,
+    required Offset position,
+    required bool allowPaste,
+    required bool canDelete,
+    required bool canMoveTop,
+    required bool canMoveBottom,
+  }) {
+    return showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        position.dx,
+        position.dy,
+        position.dx,
+        position.dy,
       ),
+      items: [
+        const PopupMenuItem(value: 'cut', child: Text('Cut')),
+        const PopupMenuItem(value: 'copy', child: Text('Copy')),
+        PopupMenuItem(
+          value: allowPaste ? 'paste' : null,
+          enabled: allowPaste,
+          child: const Text('Paste'),
+        ),
+        const PopupMenuDivider(),
+        PopupMenuItem(
+          value: canDelete ? 'delete' : null,
+          enabled: canDelete,
+          child: const Text('Delete'),
+        ),
+        PopupMenuItem(
+          value: canMoveTop ? 'top' : null,
+          enabled: canMoveTop,
+          child: const Text('To the Top'),
+        ),
+        PopupMenuItem(
+          value: canMoveBottom ? 'bottom' : null,
+          enabled: canMoveBottom,
+          child: const Text('To the Bottom'),
+        ),
+      ],
     );
   }
 
-  String _displayValueForIndex(String value, int index) {
-    switch (index) {
-      case 1:
-      case 4:
-      case 5:
-      case 6:
-      case 7:
-        return AppUnits.formatValue(value, '(ft)');
-      default:
-        return value;
+  void _runStationAction(String? action, int index) {
+    switch (action) {
+      case 'cut':
+        controller.selectStation(index);
+        controller.cutSelectedStation();
+        break;
+      case 'copy':
+        controller.selectStation(index);
+        controller.copySelectedStation();
+        break;
+      case 'paste':
+        controller.selectStation(index);
+        controller.pasteStationIntoSelected();
+        break;
+      case 'delete':
+        controller.selectStation(index);
+        controller.deleteSelectedStation();
+        break;
+      case 'top':
+        controller.selectStation(index);
+        controller.moveSelectedStationToTop();
+        break;
+      case 'bottom':
+        controller.selectStation(index);
+        controller.moveSelectedStationToBottom();
+        break;
     }
   }
 
-  // ================= TOOL BUTTONS =================
-  Widget _toolButtons() {
-    return Container(
-      width: 48,
-      margin: const EdgeInsets.only(top: 12, bottom: 12, right: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade300),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          const SizedBox(height: 12),
-          _ToolIcon(Icons.arrow_upward, "Move Up"),
-          const SizedBox(height: 8),
-          _ToolIcon(Icons.arrow_downward, "Move Down"),
-          const SizedBox(height: 8),
-          _ToolIcon(Icons.add, "Add Row"),
-          const SizedBox(height: 8),
-          _ToolIcon(Icons.remove, "Remove Row"),
-          const SizedBox(height: 8),
-          _ToolIcon(Icons.copy, "Duplicate"),
-          const Spacer(),
-          Container(
-            height: 1,
-            color: Colors.grey.shade200,
-          ),
-          const SizedBox(height: 8),
-          _ToolIcon(Icons.save, "Save"),
-        ],
-      ),
-    );
-  }
-
-  // ================= ANNOTATION PANEL =================
-  Widget _annotationPanel() {
-    return Container(
-      width: 280,
-      margin: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade300),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // HEADER
-          Container(
-            height: 44,
-            decoration: BoxDecoration(
-              gradient: AppTheme.secondaryGradient,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(8),
-                topRight: Radius.circular(8),
-              ),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                Icon(Icons.note_add, size: 18, color: Colors.white),
-                const SizedBox(width: 8),
-                Text(
-                  "Annotations",
-                  style: AppTheme.bodySmall.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // CONTENT
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "Survey Point Notes",
-                    style: AppTheme.bodySmall.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.primaryColor,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Obx(() => Expanded(
-                    child: isLocked.value
-                        ? Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.grey.shade50,
-                              borderRadius: BorderRadius.circular(6),
-                              border: Border.all(color: Colors.grey.shade200),
-                            ),
-                            child: Center(
-                              child: Text(
-                                "Unlock to add annotations",
-                                style: AppTheme.caption.copyWith(
-                                  color: Colors.grey.shade500,
-                                  fontStyle: FontStyle.italic,
-                                ),
-                              ),
-                            ),
-                          )
-                        : Container(
-                            decoration: BoxDecoration(
-                              border: Border.all(color: Colors.grey.shade300),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: TextField(
-                              maxLines: null,
-                              expands: true,
-                              style: AppTheme.bodySmall.copyWith(
-                                color: AppTheme.textPrimary,
-                              ),
-                              decoration: InputDecoration(
-                                border: InputBorder.none,
-                                contentPadding: const EdgeInsets.all(12),
-                                hintText: 'Add notes about survey points...\n• Well trajectory\n• Formation changes\n• Survey quality\n• Additional observations',
-                                hintStyle: AppTheme.caption.copyWith(
-                                  color: Colors.grey.shade400,
-                                ),
-                              ),
-                            ),
-                          ),
-                  )),
-                  const SizedBox(height: 16),
-                  Text(
-                    "Selected Point: Row 1",
-                    style: AppTheme.caption.copyWith(
-                      color: AppTheme.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _sidePanel() {
-    return Container(
-      margin: const EdgeInsets.all(12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade300),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            "Tools & Annotations",
-            style: AppTheme.bodySmall.copyWith(
-              fontWeight: FontWeight.w600,
-              color: AppTheme.primaryColor,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _ToolIcon(Icons.arrow_upward, "Up"),
-              _ToolIcon(Icons.arrow_downward, "Down"),
-              _ToolIcon(Icons.add, "Add"),
-              _ToolIcon(Icons.remove, "Remove"),
-              _ToolIcon(Icons.copy, "Copy"),
-              _ToolIcon(Icons.save, "Save"),
-            ],
-          ),
-        ],
-      ),
-    );
+  void _runAnnotationAction(String? action, int index) {
+    switch (action) {
+      case 'cut':
+        controller.selectAnnotation(index);
+        controller.cutSelectedAnnotation();
+        break;
+      case 'copy':
+        controller.selectAnnotation(index);
+        controller.copySelectedAnnotation();
+        break;
+      case 'paste':
+        controller.selectAnnotation(index);
+        controller.pasteAnnotationIntoSelected();
+        break;
+      case 'delete':
+        controller.selectAnnotation(index);
+        controller.deleteSelectedAnnotation();
+        break;
+      case 'top':
+        controller.selectAnnotation(index);
+        controller.moveSelectedAnnotationToTop();
+        break;
+      case 'bottom':
+        controller.selectAnnotation(index);
+        controller.moveSelectedAnnotationToBottom();
+        break;
+    }
   }
 }
 
-// ================= TOOL ICON =================
-class _ToolIcon extends StatelessWidget {
-  final IconData icon;
-  final String tooltip;
-
-  const _ToolIcon(this.icon, this.tooltip);
-
+class _SquareCrossPainter extends CustomPainter {
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 40,
-      height: 40,
-      decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: Tooltip(
-        message: tooltip,
-        child: Icon(icon, size: 18, color: AppTheme.textSecondary),
-      ),
+  void paint(Canvas canvas, Size size) {
+    final border = Paint()
+      ..color = const Color(0xFF7A7A7A)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+    final line = Paint()
+      ..color = const Color(0xFF7A7A7A)
+      ..strokeWidth = 1;
+
+    canvas.drawRect(Offset.zero & size, border);
+    canvas.drawLine(
+      const Offset(3, 3),
+      Offset(size.width - 3, size.height - 3),
+      line,
+    );
+    canvas.drawLine(
+      Offset(size.width - 3, 3),
+      Offset(3, size.height - 3),
+      line,
     );
   }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
