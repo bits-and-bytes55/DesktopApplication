@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/interval/controller/interval_controller.dart';
-import 'package:mudpro_desktop_app/theme/app_theme.dart';
+import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
+
+const Color _ivlBorder = Color(0xFFC9CED6);
+const Color _ivlHeader = Color(0xFFF3F3F3);
 
 class IntervalLeftPanel extends StatelessWidget {
   const IntervalLeftPanel({super.key});
@@ -11,226 +14,210 @@ class IntervalLeftPanel extends StatelessWidget {
     final c = Get.find<IntervalController>();
 
     return Container(
-      width: 240,
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade300),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        border: Border(right: BorderSide(color: _ivlBorder)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ── HEADER ──────────────────────────────────────────────
-          Container(
-            height: 36,
-            decoration: BoxDecoration(
-              gradient: AppTheme.headerGradient,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(8),
-                topRight: Radius.circular(8),
-              ),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            child: Row(
-              children: [
-                const Icon(Icons.layers, size: 15, color: Colors.white),
-                const SizedBox(width: 6),
-                Text(
-                  "Intervals",
-                  style: AppTheme.bodySmall.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                  ),
+      padding: const EdgeInsets.fromLTRB(6, 6, 6, 6),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onSecondaryTapDown: (details) => _showRootMenu(context, details, c),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Container(
+                decoration: BoxDecoration(
+                  border: Border.all(color: _ivlBorder),
                 ),
-                const Spacer(),
-                Obx(() => Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    "${c.intervals.length} items",
-                    style: const TextStyle(
-                      fontSize: 10,
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
+                child: Column(
+                  children: [
+                    _rootHeader(),
+                    Expanded(
+                      child: Obx(() {
+                        if (c.isLoading.value) {
+                          return const Center(
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          );
+                        }
+
+                        final nodes = c.flatList;
+                        if (nodes.isEmpty) {
+                          return const Center(
+                            child: Text(
+                              'No intervals',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Color(0xFF7A7A7A),
+                              ),
+                            ),
+                          );
+                        }
+
+                        return ListView.builder(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 6,
+                          ),
+                          itemCount: nodes.length,
+                          itemBuilder: (_, i) {
+                            final node = nodes[i];
+                            return node.isGroup
+                                ? _GroupTile(group: node.group!, c: c)
+                                : _IntervalTile(iv: node.interval!, c: c);
+                          },
+                        );
+                      }),
                     ),
-                  ),
-                )),
-              ],
-            ),
-          ),
-
-          // ── LIST ────────────────────────────────────────────────
-          Expanded(
-            child: Obx(() {
-              if (c.isLoading.value) {
-                return const Center(child: CircularProgressIndicator(strokeWidth: 2));
-              }
-              final nodes = c.flatList;
-              if (nodes.isEmpty) {
-                return Center(
-                  child: Text("No intervals",
-                      style: TextStyle(fontSize: 11, color: Colors.grey.shade400)),
-                );
-              }
-              return ListView.builder(
-                padding: const EdgeInsets.all(6),
-                itemCount: nodes.length,
-                itemBuilder: (_, i) {
-                  final node = nodes[i];
-                  return node.isGroup
-                      ? _GroupTile(group: node.group!, c: c)
-                      : _IntervalTile(iv: node.interval!, c: c);
-                },
-              );
-            }),
-          ),
-
-          // ── ICON BUTTON BAR ─────────────────────────────────────
-          Container(
-            height: 40,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade50,
-              borderRadius: const BorderRadius.only(
-                bottomLeft: Radius.circular(8),
-                bottomRight: Radius.circular(8),
+                  ],
+                ),
               ),
-              border: Border(top: BorderSide(color: Colors.grey.shade200)),
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 6),
-            child: Obx(() => Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _iconBtn(
-                  icon: Icons.vertical_align_top,
-                  tooltip: "Insert Before",
-                  onTap: c.isSaving.value ? null : c.insertBefore,
-                ),
-                _iconBtn(
-                  icon: Icons.vertical_align_bottom,
-                  tooltip: "Insert After",
-                  onTap: c.isSaving.value ? null : c.insertAfter,
-                ),
-                _iconBtn(
-                  icon: Icons.delete_outline,
-                  tooltip: "Remove Selected",
-                  color: AppTheme.errorColor,
-                  onTap: (c.isSaving.value || c.selected.value == null)
-                      ? null
-                      : c.removeSelected,
-                ),
-                _iconBtn(
-                  icon: Icons.folder_outlined,
-                  tooltip: "Group Intervals",
-                  onTap: c.isSaving.value
-                      ? null
-                      : () => _showGroupDialog(context, c),
-                ),
-              ],
-            )),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── compact icon button ──────────────────────────────────────────
-  Widget _iconBtn({
-    required IconData icon,
-    required String tooltip,
-    VoidCallback? onTap,
-    Color? color,
-  }) {
-    final col = color ?? AppTheme.primaryColor;
-    return Tooltip(
-      message: tooltip,
-      waitDuration: const Duration(milliseconds: 400),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(6),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(6),
-          child: Icon(
-            icon,
-            size: 18,
-            color: onTap == null ? Colors.grey.shade400 : col,
-          ),
+          ],
         ),
       ),
     );
   }
 
-  // ── Group Interval Dialog ────────────────────────────────────────
+  Widget _rootHeader() {
+    return Container(
+      height: 26,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: const BoxDecoration(
+        color: _ivlHeader,
+        border: Border(bottom: BorderSide(color: _ivlBorder)),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.account_tree_outlined,
+            size: 13,
+            color: Color(0xFF5B6470),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Obx(
+              () => Text(
+                padWellContext.selectedWellName.isEmpty
+                    ? 'Well'
+                    : padWellContext.selectedWellName,
+                style: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF2F2F2F),
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showRootMenu(
+    BuildContext context,
+    TapDownDetails details,
+    IntervalController c,
+  ) async {
+    final action = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        details.globalPosition.dx,
+        details.globalPosition.dy,
+        details.globalPosition.dx,
+        details.globalPosition.dy,
+      ),
+      items: [
+        _menuItem('add_after', 'Add Interval', enabled: !c.isSaving.value),
+        _menuItem('group', 'Group Intervals', enabled: !c.isSaving.value),
+        const PopupMenuDivider(),
+        _menuItem('copy', 'Copy', enabled: false),
+        _menuItem('paste', 'Paste', enabled: false),
+        _menuItem('delete', 'Delete', enabled: false),
+        _menuItem('top', 'To the Top', enabled: false),
+        _menuItem('bottom', 'To the Bottom', enabled: false),
+      ],
+    );
+
+    if (!context.mounted) return;
+    switch (action) {
+      case 'add_after':
+        await c.insertAfter();
+        break;
+      case 'group':
+        _showGroupDialog(context, c);
+        break;
+    }
+  }
+
   void _showGroupDialog(BuildContext context, IntervalController c) {
-    final nameCtrl   = TextEditingController();
-    final selected   = <String>{}.obs;
+    final nameCtrl = TextEditingController();
+    final selected = <String>{}.obs;
 
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text("Group Intervals", style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-        contentPadding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+        title: const Text(
+          'Group Intervals',
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+        ),
         content: SizedBox(
-          width: 360,
+          width: 320,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Group name field
-              const Text("Group Name", style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500)),
-              const SizedBox(height: 4),
-              SizedBox(
-                height: 34,
-                child: TextField(
-                  controller: nameCtrl,
-                  style: const TextStyle(fontSize: 12),
-                  decoration: InputDecoration(
-                    isDense: true,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(6),
-                      borderSide: BorderSide(color: Colors.grey.shade300),
-                    ),
-                    hintText: "Enter group name",
-                    hintStyle: const TextStyle(fontSize: 11),
+              const Text(
+                'Group Name',
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
+              ),
+              const SizedBox(height: 6),
+              TextField(
+                controller: nameCtrl,
+                style: const TextStyle(fontSize: 11),
+                decoration: const InputDecoration(
+                  isDense: true,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.zero),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 8,
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
-              const Text("Select interval(s) to Group",
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500)),
+              const SizedBox(height: 10),
+              const Text(
+                'Select interval(s) to Group',
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
+              ),
               const SizedBox(height: 6),
-              // Interval checkboxes
               SizedBox(
-                height: 200,
-                child: Obx(() => ListView(
-                  children: c.intervals.map((iv) {
-                    return Obx(() => CheckboxListTile(
-                      dense: true,
-                      visualDensity: VisualDensity.compact,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-                      title: Text(iv.name, style: const TextStyle(fontSize: 11)),
-                      value: selected.contains(iv.id),
-                      activeColor: AppTheme.primaryColor,
-                      onChanged: (v) {
-                        if (v == true) {
-                          selected.add(iv.id);
-                        } else {
-                          selected.remove(iv.id);
-                        }
-                      },
-                    ));
-                  }).toList(),
-                )),
+                height: 180,
+                child: Obx(
+                  () => ListView(
+                    children: c.intervals.map((iv) {
+                      return Obx(
+                        () => CheckboxListTile(
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                          visualDensity: VisualDensity.compact,
+                          title: Text(
+                            iv.name,
+                            style: const TextStyle(fontSize: 10),
+                          ),
+                          value: selected.contains(iv.id),
+                          onChanged: (checked) {
+                            if (checked == true) {
+                              selected.add(iv.id);
+                            } else {
+                              selected.remove(iv.id);
+                            }
+                          },
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
               ),
             ],
           ),
@@ -238,21 +225,20 @@ class IntervalLeftPanel extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text("Cancel", style: TextStyle(fontSize: 12)),
+            child: const Text('Cancel', style: TextStyle(fontSize: 11)),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-            ),
             onPressed: () async {
               if (nameCtrl.text.trim().isEmpty || selected.isEmpty) return;
               Navigator.pop(context);
               await c.createGroup(nameCtrl.text.trim(), selected.toList());
             },
-            child: const Text("Save", style: TextStyle(fontSize: 12)),
+            style: ElevatedButton.styleFrom(
+              shape: const RoundedRectangleBorder(
+                borderRadius: BorderRadius.zero,
+              ),
+            ),
+            child: const Text('Save', style: TextStyle(fontSize: 11)),
           ),
         ],
       ),
@@ -260,12 +246,10 @@ class IntervalLeftPanel extends StatelessWidget {
   }
 }
 
-// ════════════════════════════════════════════════════════════════════
-//  INTERVAL TILE — double-tap to rename
-// ════════════════════════════════════════════════════════════════════
 class _IntervalTile extends StatefulWidget {
-  final IntervalItem       iv;
+  final IntervalItem iv;
   final IntervalController c;
+
   const _IntervalTile({required this.iv, required this.c});
 
   @override
@@ -274,7 +258,7 @@ class _IntervalTile extends StatefulWidget {
 
 class _IntervalTileState extends State<_IntervalTile> {
   bool _editing = false;
-  late TextEditingController _nameCtrl;
+  late final TextEditingController _nameCtrl;
 
   @override
   void initState() {
@@ -283,117 +267,142 @@ class _IntervalTileState extends State<_IntervalTile> {
   }
 
   @override
-  void didUpdateWidget(_IntervalTile old) {
-    super.didUpdateWidget(old);
-    if (old.iv.id != widget.iv.id) {
+  void didUpdateWidget(covariant _IntervalTile oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.iv.id != widget.iv.id || !_editing) {
       _nameCtrl.text = widget.iv.name;
     }
   }
 
   @override
-  void dispose() { _nameCtrl.dispose(); super.dispose(); }
+  void dispose() {
+    _nameCtrl.dispose();
+    super.dispose();
+  }
 
-  void _submit() {
-    final newName = _nameCtrl.text.trim();
-    if (newName.isNotEmpty && newName != widget.iv.name) {
-      widget.c.renameInterval(widget.iv, newName);
+  void _submitRename() {
+    final next = _nameCtrl.text.trim();
+    if (next.isNotEmpty && next != widget.iv.name) {
+      widget.c.renameInterval(widget.iv, next);
     }
     setState(() => _editing = false);
   }
 
+  Future<void> _showMenu(TapDownDetails details) async {
+    widget.c.selectInterval(widget.iv);
+    final action = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        details.globalPosition.dx,
+        details.globalPosition.dy,
+        details.globalPosition.dx,
+        details.globalPosition.dy,
+      ),
+      items: [
+        _menuItem('before', 'Add Before', enabled: !widget.c.isSaving.value),
+        _menuItem('after', 'Add After', enabled: !widget.c.isSaving.value),
+        _menuItem('rename', 'Rename', enabled: !widget.c.isSaving.value),
+        _menuItem(
+          'delete',
+          'Delete',
+          enabled: !widget.c.isSaving.value,
+          danger: true,
+        ),
+        _menuItem(
+          'group',
+          'Group Intervals',
+          enabled: !widget.c.isSaving.value,
+        ),
+        const PopupMenuDivider(),
+        _menuItem('copy', 'Copy', enabled: false),
+        _menuItem('paste', 'Paste', enabled: false),
+        _menuItem('top', 'To the Top', enabled: false),
+        _menuItem('bottom', 'To the Bottom', enabled: false),
+      ],
+    );
+
+    if (!mounted) return;
+    switch (action) {
+      case 'before':
+        await widget.c.insertBefore();
+        break;
+      case 'after':
+        await widget.c.insertAfter();
+        break;
+      case 'rename':
+        setState(() => _editing = true);
+        break;
+      case 'delete':
+        await widget.c.removeSelected();
+        break;
+      case 'group':
+        const panel = IntervalLeftPanel();
+        // ignore: use_build_context_synchronously
+        panel._showGroupDialog(context, widget.c);
+        break;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final c        = widget.c;
-    final iv       = widget.iv;
+    final c = widget.c;
+    final iv = widget.iv;
     final isInGroup = iv.groupId != null;
 
     return Obx(() {
       final isSelected = c.selected.value?.id == iv.id;
       return GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onTap: () => c.selectInterval(iv),
         onDoubleTap: () => setState(() {
-          _editing  = true;
+          _editing = true;
           _nameCtrl.text = iv.name;
         }),
+        onSecondaryTapDown: _showMenu,
         child: Container(
-          margin: EdgeInsets.only(
-            left: isInGroup ? 14 : 0,
-            bottom: 2,
-          ),
-          padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 8),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? AppTheme.primaryColor.withOpacity(0.1)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(6),
-            border: Border.all(
-              color: isSelected ? AppTheme.primaryColor : Colors.transparent,
-              width: 1.2,
-            ),
-          ),
+          height: 24,
+          margin: EdgeInsets.only(left: isInGroup ? 18 : 0),
+          color: isSelected ? const Color(0xFFD9E7F8) : Colors.transparent,
           child: Row(
             children: [
-              // Index badge
-              Container(
-                width: 18,
-                height: 18,
-                decoration: BoxDecoration(
-                  color: isSelected ? AppTheme.primaryColor : Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  '${c.intervals.indexOf(iv) + 1}',
-                  style: TextStyle(
-                    fontSize: 9,
-                    color: isSelected ? Colors.white : Colors.grey.shade600,
-                    fontWeight: FontWeight.w700,
+              const SizedBox(width: 8),
+              if (isInGroup)
+                const Padding(
+                  padding: EdgeInsets.only(right: 4),
+                  child: Icon(
+                    Icons.subdirectory_arrow_right,
+                    size: 11,
+                    color: Color(0xFF6E6E6E),
                   ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              // Name / edit field
               Expanded(
                 child: _editing
                     ? TextField(
                         controller: _nameCtrl,
                         autofocus: true,
-                        style: const TextStyle(fontSize: 11),
+                        style: const TextStyle(fontSize: 10),
                         decoration: const InputDecoration(
                           isDense: true,
-                          contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                          border: OutlineInputBorder(),
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.zero,
                         ),
-                        onSubmitted: (_) => _submit(),
-                        onEditingComplete: _submit,
+                        onSubmitted: (_) => _submitRename(),
+                        onEditingComplete: _submitRename,
                       )
                     : Text(
                         iv.name,
                         style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                          color: isSelected ? AppTheme.primaryColor : AppTheme.textPrimary,
+                          fontSize: 10,
+                          color: isSelected
+                              ? const Color(0xFF1D4F91)
+                              : const Color(0xFF2F2F2F),
+                          fontWeight: isSelected
+                              ? FontWeight.w600
+                              : FontWeight.w400,
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
               ),
-              if (_editing)
-                InkWell(
-                  onTap: _submit,
-                  child: Icon(Icons.check, size: 14, color: AppTheme.primaryColor),
-                )
-              else ...[
-                if (isSelected)
-                  Icon(Icons.check_circle, size: 13, color: AppTheme.primaryColor),
-                const SizedBox(width: 6),
-                InkWell(
-                  onTap: () => setState(() {
-                    _editing = true;
-                    _nameCtrl.text = iv.name;
-                  }),
-                  child: Icon(Icons.edit, size: 13, color: Colors.grey.shade600),
-                ),
-              ],
             ],
           ),
         ),
@@ -402,97 +411,111 @@ class _IntervalTileState extends State<_IntervalTile> {
   }
 }
 
-// ════════════════════════════════════════════════════════════════════
-//  GROUP TILE — collapse / expand + delete
-// ════════════════════════════════════════════════════════════════════
 class _GroupTile extends StatelessWidget {
-  final IntervalGroup      group;
+  final IntervalGroup group;
   final IntervalController c;
+
   const _GroupTile({required this.group, required this.c});
+
+  Future<void> _showMenu(BuildContext context, TapDownDetails details) async {
+    final action = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        details.globalPosition.dx,
+        details.globalPosition.dy,
+        details.globalPosition.dx,
+        details.globalPosition.dy,
+      ),
+      items: [
+        _menuItem(
+          'toggle',
+          group.collapsed ? 'Expand' : 'Collapse',
+          enabled: !c.isSaving.value,
+        ),
+        _menuItem('group', 'Group Intervals', enabled: !c.isSaving.value),
+        _menuItem(
+          'delete',
+          'Delete Group',
+          enabled: !c.isSaving.value,
+          danger: true,
+        ),
+        const PopupMenuDivider(),
+        _menuItem('copy', 'Copy', enabled: false),
+        _menuItem('paste', 'Paste', enabled: false),
+        _menuItem('top', 'To the Top', enabled: false),
+        _menuItem('bottom', 'To the Bottom', enabled: false),
+      ],
+    );
+
+    if (!context.mounted) return;
+    switch (action) {
+      case 'toggle':
+        await c.toggleGroupCollapse(group);
+        break;
+      case 'delete':
+        await c.deleteGroup(group.id);
+        break;
+      case 'group':
+        const panel = IntervalLeftPanel();
+        // ignore: use_build_context_synchronously
+        panel._showGroupDialog(context, c);
+        break;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Obx(() {
-      final collapsed = group.collapsed;
-      return Column(
-        children: [
-          GestureDetector(
-            onTap: () => c.toggleGroupCollapse(group),
-            child: Container(
-              margin: const EdgeInsets.only(bottom: 2),
-              padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 8),
-              decoration: BoxDecoration(
-                color: AppTheme.primaryColor.withOpacity(0.06),
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(
-                  color: AppTheme.primaryColor.withOpacity(0.25),
-                  width: 1,
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => c.toggleGroupCollapse(group),
+      onSecondaryTapDown: (details) => _showMenu(context, details),
+      child: Container(
+        height: 24,
+        color: const Color(0xFFF6F8FB),
+        child: Row(
+          children: [
+            const SizedBox(width: 8),
+            Icon(
+              group.collapsed
+                  ? Icons.add_box_outlined
+                  : Icons.indeterminate_check_box_outlined,
+              size: 12,
+              color: const Color(0xFF4A5F7A),
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                group.name,
+                style: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF2F2F2F),
                 ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    collapsed ? Icons.add_box_outlined : Icons.indeterminate_check_box_outlined,
-                    size: 15,
-                    color: AppTheme.primaryColor,
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      group.name,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.primaryColor,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  // Delete group button
-                  Tooltip(
-                    message: "Remove Group",
-                    child: InkWell(
-                      onTap: () => _confirmDeleteGroup(context),
-                      child: Icon(Icons.close, size: 13, color: Colors.grey.shade500),
-                    ),
-                  ),
-                ],
+                overflow: TextOverflow.ellipsis,
               ),
             ),
-          ),
-        ],
-      );
-    });
-  }
-
-  void _confirmDeleteGroup(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text("Remove Group", style: TextStyle(fontSize: 13)),
-        content: Text(
-          "Remove group \"${group.name}\"? The intervals inside will remain.",
-          style: const TextStyle(fontSize: 12),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("Cancel", style: TextStyle(fontSize: 12)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.errorColor,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-            ),
-            onPressed: () {
-              Navigator.pop(context);
-              c.deleteGroup(group.id);
-            },
-            child: const Text("Remove", style: TextStyle(fontSize: 12)),
-          ),
-        ],
       ),
     );
   }
+}
+
+PopupMenuItem<String> _menuItem(
+  String value,
+  String label, {
+  required bool enabled,
+  bool danger = false,
+}) {
+  final color = !enabled
+      ? const Color(0xFF9EA4AD)
+      : danger
+      ? const Color(0xFFC62828)
+      : const Color(0xFF2F2F2F);
+  return PopupMenuItem<String>(
+    value: value,
+    enabled: enabled,
+    height: 28,
+    child: Text(label, style: TextStyle(fontSize: 11, color: color)),
+  );
 }

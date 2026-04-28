@@ -15,9 +15,9 @@ class FormationView extends StatefulWidget {
 }
 
 class _FormationViewState extends State<FormationView> {
-  static const double _rowHeight = 30;
-  static const double _headerTopHeight = 28;
-  static const double _headerBottomHeight = 28;
+  static const double _rowHeight = 27;
+  static const double _headerTopHeight = 34;
+  static const double _headerBottomHeight = 24;
   static const Color _borderColor = Color(0xFFC9CED6);
   static const Color _headerColor = Color(0xFFF3F3F3);
   static const Color _highlightColor = Color(0xFFFFF6C7);
@@ -39,6 +39,24 @@ class _FormationViewState extends State<FormationView> {
   bool get _isLocked => ugController.isLocked.value;
 
   bool _rowHasData(FormationRow row) => row.hasData;
+
+  _FormationLayout _layoutFor(double totalWidth, bool showGraph) {
+    final desiredGraphWidth = showGraph
+        ? (totalWidth * 0.20).clamp(220.0, 284.0)
+        : 0.0;
+    final graphWidth = showGraph
+        ? math.min(desiredGraphWidth, math.max(0.0, totalWidth - 24))
+        : 0.0;
+    return _FormationLayout(
+      gap: showGraph ? 8 : 0,
+      graphWidth: graphWidth,
+      indexWidth: 54,
+      descriptionWidth: 196,
+      tvdWidth: 132,
+      dataWidth: 88,
+      lithologyWidth: 124,
+    );
+  }
 
   bool _isModeEditable(String field) {
     switch (controller.mode.value) {
@@ -86,6 +104,9 @@ class _FormationViewState extends State<FormationView> {
   Future<void> _showRowMenu(TapDownDetails details, int index) async {
     final row = controller.rows[index];
     final hasData = _rowHasData(row);
+    final canMoveToTop = !_isLocked && hasData && index > 0;
+    final canMoveToBottom =
+        !_isLocked && hasData && index < controller.rows.length - 1;
     final action = await showMenu<String>(
       context: context,
       position: RelativeRect.fromLTRB(
@@ -105,8 +126,13 @@ class _FormationViewState extends State<FormationView> {
         ),
         _menuItem('delete', 'Delete', 'Delete', enabled: !_isLocked && hasData),
         const PopupMenuDivider(),
-        _menuItem('top', 'To the Top', 'Ctrl+Up', enabled: false),
-        _menuItem('bottom', 'To the Bottom', 'Ctrl+Down', enabled: false),
+        _menuItem('top', 'To the Top', 'Ctrl+Up', enabled: canMoveToTop),
+        _menuItem(
+          'bottom',
+          'To the Bottom',
+          'Ctrl+Down',
+          enabled: canMoveToBottom,
+        ),
       ],
     );
 
@@ -127,6 +153,12 @@ class _FormationViewState extends State<FormationView> {
       case 'delete':
         controller.clearRow(index);
         break;
+      case 'top':
+        controller.moveRowToTop(index);
+        break;
+      case 'bottom':
+        controller.moveRowToBottom(index);
+        break;
     }
   }
 
@@ -140,7 +172,7 @@ class _FormationViewState extends State<FormationView> {
       width: width,
       height: height,
       alignment: Alignment.center,
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
       decoration: const BoxDecoration(
         color: _headerColor,
         border: Border(
@@ -151,8 +183,9 @@ class _FormationViewState extends State<FormationView> {
       child: Text(
         text,
         textAlign: textAlign,
+        maxLines: 2,
         style: const TextStyle(
-          fontSize: 11,
+          fontSize: 10,
           fontWeight: FontWeight.w500,
           color: Color(0xFF2F2F2F),
         ),
@@ -160,12 +193,12 @@ class _FormationViewState extends State<FormationView> {
     );
   }
 
-  Widget _indexCell(FormationRow row, int index) {
+  Widget _indexCell(FormationRow row, int index, _FormationLayout layout) {
     return Container(
-      width: 60,
+      width: layout.indexWidth,
       height: _rowHeight,
       alignment: Alignment.centerLeft,
-      padding: const EdgeInsets.symmetric(horizontal: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 5),
       decoration: const BoxDecoration(
         color: Colors.white,
         border: Border(
@@ -186,7 +219,7 @@ class _FormationViewState extends State<FormationView> {
           Expanded(
             child: Text(
               '${index + 1}',
-              style: const TextStyle(fontSize: 11, color: Color(0xFF404040)),
+              style: const TextStyle(fontSize: 10, color: Color(0xFF404040)),
             ),
           ),
         ],
@@ -208,7 +241,7 @@ class _FormationViewState extends State<FormationView> {
       width: width,
       height: _rowHeight,
       alignment: Alignment.center,
-      padding: const EdgeInsets.symmetric(horizontal: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 4),
       decoration: BoxDecoration(
         color: _cellColor(
           editableWhenUnlocked: editableWhenUnlocked,
@@ -221,16 +254,15 @@ class _FormationViewState extends State<FormationView> {
       ),
       child: isEditable
           ? TextFormField(
-              key: ValueKey('$width-$value-$editableWhenUnlocked'),
               initialValue: value,
               onChanged: onChanged,
               textAlign: textAlign,
               inputFormatters: inputFormatters,
-              style: const TextStyle(fontSize: 11, color: Color(0xFF2F2F2F)),
+              style: const TextStyle(fontSize: 10, color: Color(0xFF2F2F2F)),
               decoration: const InputDecoration(
                 isDense: true,
                 border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(vertical: 7),
+                contentPadding: EdgeInsets.symmetric(vertical: 5),
               ),
             )
           : Align(
@@ -241,7 +273,7 @@ class _FormationViewState extends State<FormationView> {
                 value,
                 textAlign: textAlign,
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: 10,
                   color: value.isEmpty
                       ? const Color(0xFFB2B7BF)
                       : const Color(0xFF2F2F2F),
@@ -251,15 +283,15 @@ class _FormationViewState extends State<FormationView> {
     );
   }
 
-  Widget _lithologyCell(FormationRow row) {
+  Widget _lithologyCell(FormationRow row, _FormationLayout layout) {
     final text = row.lithology.value.trim().isEmpty
         ? 'No image data'
         : row.lithology.value;
     return Container(
-      width: 150,
+      width: layout.lithologyWidth,
       height: _rowHeight,
       alignment: Alignment.centerLeft,
-      padding: const EdgeInsets.symmetric(horizontal: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 4),
       decoration: BoxDecoration(
         color: _isLocked ? _highlightColor : Colors.white,
         border: const Border(
@@ -270,7 +302,7 @@ class _FormationViewState extends State<FormationView> {
       child: Text(
         text,
         style: TextStyle(
-          fontSize: 11,
+          fontSize: 10,
           color: row.lithology.value.trim().isEmpty
               ? const Color(0xFF4A4F57)
               : const Color(0xFF2F2F2F),
@@ -280,24 +312,24 @@ class _FormationViewState extends State<FormationView> {
     );
   }
 
-  Widget _buildRow(FormationRow row, int index) {
+  Widget _buildRow(FormationRow row, int index, _FormationLayout layout) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onSecondaryTapDown: (details) => _showRowMenu(details, index),
       child: Row(
         children: [
-          _indexCell(row, index),
+          _indexCell(row, index, layout),
           _editableTextCell(
             value: row.description.value,
             onChanged: (value) => controller.updateDescription(index, value),
-            width: 210,
+            width: layout.descriptionWidth,
             editableWhenUnlocked: true,
             textAlign: TextAlign.left,
           ),
           _editableTextCell(
             value: row.tvd.value,
             onChanged: (value) => controller.updateTvd(index, value),
-            width: 150,
+            width: layout.tvdWidth,
             editableWhenUnlocked: true,
             textAlign: TextAlign.right,
             inputFormatters: [
@@ -308,7 +340,7 @@ class _FormationViewState extends State<FormationView> {
             value: row.porePpg.value,
             onChanged: (value) =>
                 controller.updateValue(index, 'porePpg', value),
-            width: 105,
+            width: layout.dataWidth,
             editableWhenUnlocked: _isModeEditable('porePpg'),
             textAlign: TextAlign.right,
             inputFormatters: [
@@ -319,7 +351,7 @@ class _FormationViewState extends State<FormationView> {
             value: row.poreGrad.value,
             onChanged: (value) =>
                 controller.updateValue(index, 'poreGrad', value),
-            width: 105,
+            width: layout.dataWidth,
             editableWhenUnlocked: _isModeEditable('poreGrad'),
             textAlign: TextAlign.right,
             inputFormatters: [
@@ -330,7 +362,7 @@ class _FormationViewState extends State<FormationView> {
             value: row.porePsi.value,
             onChanged: (value) =>
                 controller.updateValue(index, 'porePsi', value),
-            width: 105,
+            width: layout.dataWidth,
             editableWhenUnlocked: _isModeEditable('porePsi'),
             textAlign: TextAlign.right,
             inputFormatters: [
@@ -341,7 +373,7 @@ class _FormationViewState extends State<FormationView> {
             value: row.fracPpg.value,
             onChanged: (value) =>
                 controller.updateValue(index, 'fracPpg', value),
-            width: 105,
+            width: layout.dataWidth,
             editableWhenUnlocked: _isModeEditable('fracPpg'),
             textAlign: TextAlign.right,
             inputFormatters: [
@@ -352,7 +384,7 @@ class _FormationViewState extends State<FormationView> {
             value: row.fracGrad.value,
             onChanged: (value) =>
                 controller.updateValue(index, 'fracGrad', value),
-            width: 105,
+            width: layout.dataWidth,
             editableWhenUnlocked: _isModeEditable('fracGrad'),
             textAlign: TextAlign.right,
             inputFormatters: [
@@ -363,14 +395,14 @@ class _FormationViewState extends State<FormationView> {
             value: row.fracPsi.value,
             onChanged: (value) =>
                 controller.updateValue(index, 'fracPsi', value),
-            width: 105,
+            width: layout.dataWidth,
             editableWhenUnlocked: _isModeEditable('fracPsi'),
             textAlign: TextAlign.right,
             inputFormatters: [
               FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,0}$')),
             ],
           ),
-          _lithologyCell(row),
+          _lithologyCell(row, layout),
         ],
       ),
     );
@@ -379,7 +411,7 @@ class _FormationViewState extends State<FormationView> {
   Widget _topControls() {
     return Obx(
       () => Container(
-        height: 34,
+        height: 28,
         padding: const EdgeInsets.symmetric(horizontal: 2),
         child: Row(
           children: [
@@ -391,19 +423,24 @@ class _FormationViewState extends State<FormationView> {
               materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
               visualDensity: const VisualDensity(horizontal: -4, vertical: -4),
             ),
-            const SizedBox(width: 6),
-            const Text(
-              'Pore and Fracture (from top down)',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-                color: Color(0xFF2F2F2F),
+            const SizedBox(width: 4),
+            const Expanded(
+              child: Text(
+                'Pore and Fracture (from top down)',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF2F2F2F),
+                ),
               ),
             ),
-            const SizedBox(width: 18),
+            const SizedBox(width: 6),
             Container(
-              height: 28,
-              padding: const EdgeInsets.symmetric(horizontal: 8),
+              width: 92,
+              height: 24,
+              padding: const EdgeInsets.symmetric(horizontal: 6),
               decoration: BoxDecoration(
                 color: _isLocked ? _highlightColor : Colors.white,
                 border: Border.all(color: _borderColor),
@@ -426,17 +463,17 @@ class _FormationViewState extends State<FormationView> {
                       ? null
                       : (value) => controller.setMode(value ?? 'Gradient'),
                   style: const TextStyle(
-                    fontSize: 11,
+                    fontSize: 10,
                     color: Color(0xFF2F2F2F),
                   ),
-                  icon: const Icon(Icons.arrow_drop_down, size: 16),
+                  icon: const Icon(Icons.arrow_drop_down, size: 14),
                 ),
               ),
             ),
-            const Spacer(),
+            const SizedBox(width: 6),
             Container(
-              width: 28,
-              height: 28,
+              width: 22,
+              height: 22,
               decoration: BoxDecoration(
                 color: controller.isGraphVisible.value
                     ? const Color(0xFFE9F2FF)
@@ -445,7 +482,7 @@ class _FormationViewState extends State<FormationView> {
               ),
               child: IconButton(
                 padding: EdgeInsets.zero,
-                iconSize: 16,
+                iconSize: 13,
                 tooltip: 'Graph',
                 onPressed: controller.toggleGraph,
                 icon: const Icon(Icons.show_chart, color: Color(0xFF2265A8)),
@@ -457,38 +494,58 @@ class _FormationViewState extends State<FormationView> {
     );
   }
 
-  Widget _tableHeader() {
+  Widget _tableHeader(_FormationLayout layout) {
     return Column(
       children: [
         Row(
           children: [
-            _headerCell('', width: 60, height: _headerTopHeight),
-            _headerCell('Description', width: 210, height: _headerTopHeight),
-            _headerCell('Btm TVD\n(ft)', width: 150, height: _headerTopHeight),
-            _headerCell('Pore', width: 315, height: _headerTopHeight),
-            _headerCell('Frac.', width: 315, height: _headerTopHeight),
-            _headerCell('Lithology', width: 150, height: _headerTopHeight),
+            _headerCell('', width: layout.indexWidth, height: _headerTopHeight),
+            _headerCell(
+              'Description',
+              width: layout.descriptionWidth,
+              height: _headerTopHeight,
+            ),
+            _headerCell(
+              'Btm TVD\n(ft)',
+              width: layout.tvdWidth,
+              height: _headerTopHeight,
+            ),
+            _headerCell(
+              'Pore',
+              width: layout.dataWidth * 3,
+              height: _headerTopHeight,
+            ),
+            _headerCell(
+              'Frac.',
+              width: layout.dataWidth * 3,
+              height: _headerTopHeight,
+            ),
+            _headerCell(
+              'Lithology',
+              width: layout.lithologyWidth,
+              height: _headerTopHeight,
+            ),
           ],
         ),
         Row(
           children: [
-            _headerCell('', width: 60),
-            _headerCell('', width: 210),
-            _headerCell('', width: 150),
-            _headerCell('(ppg)', width: 105),
-            _headerCell('(psi/ft)', width: 105),
-            _headerCell('(psi)', width: 105),
-            _headerCell('(ppg)', width: 105),
-            _headerCell('(psi/ft)', width: 105),
-            _headerCell('(psi)', width: 105),
-            _headerCell('', width: 150),
+            _headerCell('', width: layout.indexWidth),
+            _headerCell('', width: layout.descriptionWidth),
+            _headerCell('', width: layout.tvdWidth),
+            _headerCell('(ppg)', width: layout.dataWidth),
+            _headerCell('(psi/ft)', width: layout.dataWidth),
+            _headerCell('(psi)', width: layout.dataWidth),
+            _headerCell('(ppg)', width: layout.dataWidth),
+            _headerCell('(psi/ft)', width: layout.dataWidth),
+            _headerCell('(psi)', width: layout.dataWidth),
+            _headerCell('', width: layout.lithologyWidth),
           ],
         ),
       ],
     );
   }
 
-  Widget _tableBody() {
+  Widget _tableBody(_FormationLayout layout) {
     return Obx(
       () => Scrollbar(
         controller: _scrollController,
@@ -497,15 +554,18 @@ class _FormationViewState extends State<FormationView> {
         child: ListView.builder(
           controller: _scrollController,
           itemCount: controller.rows.length,
-          itemBuilder: (_, index) => _buildRow(controller.rows[index], index),
+          itemBuilder: (_, index) =>
+              _buildRow(controller.rows[index], index, layout),
         ),
       ),
     );
   }
 
-  Widget _formationTable() {
-    return Expanded(
+  Widget _formationTable(_FormationLayout layout) {
+    return SizedBox(
+      width: layout.tableWidth,
       child: Container(
+        clipBehavior: Clip.hardEdge,
         decoration: BoxDecoration(
           color: Colors.white,
           border: Border.all(color: _borderColor),
@@ -513,18 +573,18 @@ class _FormationViewState extends State<FormationView> {
         child: Column(
           children: [
             _topControls(),
-            _tableHeader(),
-            Expanded(child: _tableBody()),
+            _tableHeader(layout),
+            Expanded(child: _tableBody(layout)),
             Container(
-              height: 34,
+              height: 28,
               alignment: Alignment.centerLeft,
-              padding: const EdgeInsets.symmetric(horizontal: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 6),
               decoration: const BoxDecoration(
                 border: Border(top: BorderSide(color: _borderColor)),
               ),
               child: const Text(
                 'Formation properties below the last entered depth are constant.',
-                style: TextStyle(fontSize: 11, color: Color(0xFF3E5D7A)),
+                style: TextStyle(fontSize: 10, color: Color(0xFF3E5D7A)),
               ),
             ),
           ],
@@ -533,16 +593,16 @@ class _FormationViewState extends State<FormationView> {
     );
   }
 
-  Widget _graphPanel() {
+  Widget _graphPanel(_FormationLayout layout) {
     return Obx(() {
       if (!controller.isGraphVisible.value) {
         return const SizedBox.shrink();
       }
 
       return Container(
-        width: 325,
-        margin: const EdgeInsets.only(left: 14),
-        padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
+        width: layout.graphWidth,
+        margin: EdgeInsets.only(left: layout.gap),
+        padding: const EdgeInsets.fromLTRB(8, 8, 8, 10),
         decoration: BoxDecoration(
           color: Colors.white,
           border: Border.all(color: _borderColor),
@@ -552,12 +612,12 @@ class _FormationViewState extends State<FormationView> {
             const Text(
               'Formation P.',
               style: TextStyle(
-                fontSize: 13,
+                fontSize: 12,
                 fontWeight: FontWeight.w500,
                 color: Color(0xFF2F2F2F),
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 6),
             Expanded(
               child: CustomPaint(
                 painter: _FormationGraphPainter(
@@ -571,7 +631,7 @@ class _FormationViewState extends State<FormationView> {
                 child: const SizedBox.expand(),
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 6),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -588,9 +648,9 @@ class _FormationViewState extends State<FormationView> {
                 ),
                 const Text(
                   'Pore',
-                  style: TextStyle(fontSize: 11, color: Color(0xFF2F2F2F)),
+                  style: TextStyle(fontSize: 10, color: Color(0xFF2F2F2F)),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 10),
                 Checkbox(
                   value: controller.showFracGraph.value,
                   onChanged: (value) =>
@@ -604,7 +664,7 @@ class _FormationViewState extends State<FormationView> {
                 ),
                 const Text(
                   'Frac',
-                  style: TextStyle(fontSize: 11, color: Color(0xFF2F2F2F)),
+                  style: TextStyle(fontSize: 10, color: Color(0xFF2F2F2F)),
                 ),
               ],
             ),
@@ -618,19 +678,64 @@ class _FormationViewState extends State<FormationView> {
   Widget build(BuildContext context) {
     return Container(
       color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
-      child: Obx(() {
-        if (controller.isLoading.value) {
-          return const Center(child: CircularProgressIndicator());
-        }
+      padding: const EdgeInsets.fromLTRB(4, 4, 4, 4),
+      child: LayoutBuilder(
+        builder: (context, constraints) => Obx(() {
+          if (controller.isLoading.value) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [_formationTable(), _graphPanel()],
-        );
-      }),
+          final layout = _layoutFor(
+            constraints.maxWidth,
+            controller.isGraphVisible.value,
+          );
+
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Align(
+                    alignment: Alignment.topLeft,
+                    child: _formationTable(layout),
+                  ),
+                ),
+              ),
+              _graphPanel(layout),
+            ],
+          );
+        }),
+      ),
     );
   }
+}
+
+class _FormationLayout {
+  final double gap;
+  final double graphWidth;
+  final double indexWidth;
+  final double descriptionWidth;
+  final double tvdWidth;
+  final double dataWidth;
+  final double lithologyWidth;
+  double get tableWidth =>
+      indexWidth +
+      descriptionWidth +
+      tvdWidth +
+      (dataWidth * 6) +
+      lithologyWidth +
+      4;
+
+  const _FormationLayout({
+    required this.gap,
+    required this.graphWidth,
+    required this.indexWidth,
+    required this.descriptionWidth,
+    required this.tvdWidth,
+    required this.dataWidth,
+    required this.lithologyWidth,
+  });
 }
 
 class _FormationGraphPainter extends CustomPainter {
@@ -756,15 +861,12 @@ class _FormationGraphPainter extends CustomPainter {
   ) {
     if (points.isEmpty) return;
     final path = Path();
+    path.moveTo(rect.left, rect.top);
     for (int i = 0; i < points.length; i++) {
       final point = points[i];
       final x = rect.left + (point.gradient / maxGrad) * rect.width;
       final y = rect.top + (point.tvd / maxTvd) * rect.height;
-      if (i == 0) {
-        path.moveTo(x, y);
-      } else {
-        path.lineTo(x, y);
-      }
+      path.lineTo(x, y);
     }
     final paint = Paint()
       ..color = color

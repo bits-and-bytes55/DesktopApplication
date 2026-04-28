@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:mudpro_desktop_app/modules/dashboard/controller/mud_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
-import 'package:mudpro_desktop_app/modules/dashboard/tabs/mud/apply_rheology_page.dart';
-import 'package:mudpro_desktop_app/theme/app_theme.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/mud_controller.dart';
+
+const Color _impBorder = Color(0xFFC9CED6);
+const Color _impHeader = Color(0xFFF3F3F3);
+const Color _impCell = Color(0xFFFFF6C7);
 
 class IntervalMudPlanTab extends StatefulWidget {
   const IntervalMudPlanTab({super.key});
@@ -13,20 +15,20 @@ class IntervalMudPlanTab extends StatefulWidget {
 }
 
 class _IntervalMudPlanTabState extends State<IntervalMudPlanTab> {
-  late MudController c;
-  late DashboardController dashboard;
+  late final MudController c;
+  late final DashboardController dashboard;
+  final ScrollController _propertyScrollCtrl = ScrollController();
+  final ScrollController _rheologyScrollCtrl = ScrollController();
 
-  final _propertyScrollCtrl = ScrollController();
-  final _rheologyScrollCtrl = ScrollController();
-
-  // Only show Plan-L (index 3) and Plan-H (index 4) columns
-  static const _planSamples = ['Plan-L', 'Plan-H'];
+  static const _planSamples = ['L', 'H'];
   static const _planIndices = [3, 4];
 
   @override
   void initState() {
     super.initState();
-    c = Get.put(MudController());
+    c = Get.isRegistered<MudController>()
+        ? Get.find<MudController>()
+        : Get.put(MudController());
     dashboard = Get.find<DashboardController>();
   }
 
@@ -39,619 +41,586 @@ class _IntervalMudPlanTabState extends State<IntervalMudPlanTab> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(children: [
-      _topControls(),
-      Divider(height: 1, color: Colors.grey.shade300),
-      Expanded(
-        child: _buildDesktopLayout(),
-      ),
-    ]);
-  }
+    return Obx(() {
+      final locked = dashboard.isLocked.value;
 
-  Widget _buildDesktopLayout() {
-    return Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      Expanded(child: _leftPanel()),
-      VerticalDivider(width: 1, color: Colors.grey.shade300),
-      Expanded(child: _rightPanel()),
-    ]);
-  }
-
-  Widget _buildMobileLayout() {
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(children: [
-          SizedBox(height: 500, child: _leftPanel()),
-          const SizedBox(height: 16),
-          SizedBox(height: 450, child: _rightPanel()),
-        ]),
-      ),
-    );
-  }
-
-  // ═══════════════════════════════════════════════════════════
-  // TOP CONTROLS
-  // ═══════════════════════════════════════════════════════════
-  Widget _topControls() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
-      ),
-      child: Row(children: [
-        Text('Fluid Name',
-            style: AppTheme.caption.copyWith(
-                fontWeight: FontWeight.w600, color: AppTheme.textPrimary, fontSize: 11)),
-        const SizedBox(width: 10),
-        Container(
-          width: 200, height: 28,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(3),
-            border: Border.all(color: Colors.grey.shade300),
-          ),
-          child: TextField(
-            controller: c.fluidnameController,
-            style: AppTheme.caption.copyWith(color: AppTheme.textPrimary, fontSize: 11),
-            decoration: const InputDecoration(
-              isDense: true, border: InputBorder.none,
-              contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-            ),
-          ),
-        ),
-        const SizedBox(width: 20),
-        Text('Fluid Type',
-            style: AppTheme.caption.copyWith(
-                fontWeight: FontWeight.w600, color: AppTheme.textPrimary, fontSize: 11)),
-        const SizedBox(width: 10),
-        Obx(() => Container(
-              height: 28,
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(3),
-                border: Border.all(color: Colors.grey.shade300),
+      return Padding(
+        padding: const EdgeInsets.all(8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.only(bottom: 4),
+              child: Text(
+                'Mud Properties',
+                style: TextStyle(fontSize: 10, color: Color(0xFF2F2F2F)),
               ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: c.selectedFluidType.value,
-                  items: const [
-                    DropdownMenuItem(value: 'Water-based', child: Text('Water-based', style: TextStyle(fontSize: 11))),
-                    DropdownMenuItem(value: 'Oil-based',   child: Text('Oil-based',   style: TextStyle(fontSize: 11))),
-                    DropdownMenuItem(value: 'Synthetic',   child: Text('Synthetic',   style: TextStyle(fontSize: 11))),
+            ),
+            Row(
+              children: [
+                const Text(
+                  'Fluid Type',
+                  style: TextStyle(fontSize: 10, color: Color(0xFF2F2F2F)),
+                ),
+                const SizedBox(width: 8),
+                _dropdownShell(
+                  width: 128,
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: c.selectedFluidType.value,
+                      isDense: true,
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'Water-based',
+                          child: Text(
+                            'Water-based',
+                            style: TextStyle(fontSize: 10),
+                          ),
+                        ),
+                        DropdownMenuItem(
+                          value: 'Oil-based',
+                          child: Text(
+                            'Oil-based',
+                            style: TextStyle(fontSize: 10),
+                          ),
+                        ),
+                        DropdownMenuItem(
+                          value: 'Synthetic',
+                          child: Text(
+                            'Synthetic',
+                            style: TextStyle(fontSize: 10),
+                          ),
+                        ),
+                      ],
+                      onChanged: locked ? null : (v) => c.changeFluidType(v!),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Row(
+                  children: [
+                    Checkbox(
+                      value: c.isWeightedMud.value,
+                      onChanged: locked
+                          ? null
+                          : (v) => c.isWeightedMud.value = v ?? false,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    const Text(
+                      'Weighted Mud',
+                      style: TextStyle(fontSize: 10, color: Color(0xFF2F2F2F)),
+                    ),
                   ],
-                  onChanged: dashboard.isLocked.value ? null : (v) => c.changeFluidType(v!),
-                  style: AppTheme.caption.copyWith(color: AppTheme.textPrimary, fontSize: 11),
-                  isDense: true,
                 ),
-              ),
-            )),
-        const SizedBox(width: 20),
-        Obx(() => Row(children: [
-              Transform.scale(scale: 0.8,
-                child: Checkbox(
-                  value: c.isCompletionFluid.value,
-                  onChanged: dashboard.isLocked.value ? null : (v) => c.isCompletionFluid.value = v ?? false,
-                  activeColor: AppTheme.primaryColor,
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                )),
-              Text('Completion Fluid',
-                  style: AppTheme.caption.copyWith(color: AppTheme.textSecondary, fontSize: 11)),
-            ])),
-        const SizedBox(width: 12),
-        Obx(() => Row(children: [
-              Transform.scale(scale: 0.8,
-                child: Checkbox(
-                  value: c.isWeightedMud.value,
-                  onChanged: dashboard.isLocked.value ? null : (v) => c.isWeightedMud.value = v ?? false,
-                  activeColor: AppTheme.primaryColor,
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                )),
-              Text('Weighted Mud',
-                  style: AppTheme.caption.copyWith(color: AppTheme.textSecondary, fontSize: 11)),
-            ])),
-      ]),
-    );
-  }
-
-  // ═══════════════════════════════════════════════════════════
-  // LEFT PANEL
-  // ═══════════════════════════════════════════════════════════
-  Widget _leftPanel() {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(right: BorderSide(color: Colors.grey.shade300)),
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        // Header
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-          decoration: BoxDecoration(
-            color: AppTheme.primaryColor,
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: Row(children: [
-            const Icon(Icons.science, size: 14, color: Colors.white),
-            const SizedBox(width: 6),
-            Text('Mud Properties',
-                style: AppTheme.caption.copyWith(
-                    fontWeight: FontWeight.w600, color: Colors.white, fontSize: 11)),
-          ]),
-        ),
-        const SizedBox(height: 10),
-
-        // Table
-        Expanded(
-          child: Obx(() {
-            if (c.isLoading.value) {
-              return Center(child: CircularProgressIndicator(
-                  color: AppTheme.primaryColor, strokeWidth: 2));
-            }
-            return Container(
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.shade200),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Column(children: [
-                // Header row
-                _tableHeader(),
-                // Data rows + add row
-                Expanded(
-                  child: Scrollbar(
-                    controller: _propertyScrollCtrl,
-                    thumbVisibility: true,
-                    child: SingleChildScrollView(
-                      controller: _propertyScrollCtrl,
-                        child: Column(children: [
-                          // Existing rows from propertyTable map
-                          ...c.propertyTable.entries.map((entry) {
-                            final name   = entry.key;
-                            final values = entry.value;
-                            final isLast = entry.key == c.propertyTable.keys.last;
-                            return _propertyRow(name, values, isLast);
-                          }),
-                          // Dynamic add-property row (dropdown)
-                          _DynamicAddRows(c: c),
-                        ]),
-                    ),
-                  ),
+                const Spacer(),
+                const Text(
+                  'Model',
+                  style: TextStyle(fontSize: 10, color: Color(0xFF2F2F2F)),
                 ),
-              ]),
-            );
-          }),
-        ),
-
-      
-      ]),
-    );
-  }
-
-  Widget _tableHeader() {
-    return Container(
-      height: 28,
-      decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(4), topRight: Radius.circular(4)),
-      ),
-      child: Row(children: [
-        _headerCell('Property', width: 100),
-        ..._planSamples.map((s) => Expanded(child: _headerCell(s, center: true))),
-      ]),
-    );
-  }
-
-  Widget _propertyRow(String name, List<RxString> values, bool isLast) {
-    return Container(
-      height: 26,
-      decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(
-          color: isLast ? Colors.transparent : Colors.grey.shade100)),
-      ),
-      child: Row(children: [
-        // Property name
-        Container(
-          width: 100,
-          padding: const EdgeInsets.symmetric(horizontal: 6),
-          decoration: BoxDecoration(
-            border: Border(right: BorderSide(color: Colors.grey.shade200))),
-          child: Text(name,
-              style: AppTheme.caption.copyWith(color: AppTheme.textSecondary, fontSize: 9),
-              overflow: TextOverflow.ellipsis),
-        ),
-        // Only Plan-L and Plan-H cells
-        ..._planIndices.asMap().entries.map((e) {
-          final colIdx = e.key;
-          final dataIdx = e.value;
-          final isLastCol = colIdx == _planIndices.length - 1;
-          final cell = values[dataIdx];
-          return Expanded(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 2),
-              decoration: BoxDecoration(
-                border: Border(right: BorderSide(
-                  color: isLastCol ? Colors.transparent : Colors.grey.shade200))),
-              child: Obx(() => TextField(
-                    key: ValueKey('${name}_$dataIdx'),
-                    controller: TextEditingController(text: cell.value)
-                      ..selection = TextSelection.collapsed(
-                          offset: cell.value.length),
-                    onChanged: (v) => cell.value = v,
-                    style: AppTheme.caption.copyWith(color: AppTheme.textPrimary, fontSize: 9),
-                    decoration: const InputDecoration(
-                      isDense: true, border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 5),
-                    ),
-                    textAlign: TextAlign.center,
-                  )),
-            ),
-          );
-        }),
-      ]),
-    );
-  }
-
-  // ═══════════════════════════════════════════════════════════
-  // RIGHT PANEL
-  // ═══════════════════════════════════════════════════════════
-  Widget _rightPanel() {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        // Rheology model row
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            border: Border.all(color: Colors.grey.shade300),
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: Row(children: [
-            Text('Rheology Model',
-                style: AppTheme.caption.copyWith(
-                    fontWeight: FontWeight.w600, color: AppTheme.textPrimary, fontSize: 11)),
-            const SizedBox(width: 10),
-            Obx(() => Container(
-                  height: 28,
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(3),
-                    border: Border.all(color: Colors.grey.shade300),
-                  ),
+                const SizedBox(width: 8),
+                _dropdownShell(
+                  width: 148,
                   child: DropdownButtonHideUnderline(
                     child: DropdownButton<String>(
                       value: c.rheologyModel.value,
-                      items: const [
-                        DropdownMenuItem(value: 'Bingham',   child: Text('Bingham',   style: TextStyle(fontSize: 11))),
-                        DropdownMenuItem(value: 'Power Law', child: Text('Power Law', style: TextStyle(fontSize: 11))),
-                        DropdownMenuItem(value: 'HB',        child: Text('HB',        style: TextStyle(fontSize: 11))),
-                      ],
-                      onChanged: dashboard.isLocked.value ? null : (v) => c.changeModel(v!),
-                      style: AppTheme.caption.copyWith(color: AppTheme.textPrimary, fontSize: 11),
                       isDense: true,
-                    ),
-                  ),
-                )),
-          ]),
-        ),
-        const SizedBox(height: 10),
-
-        // Rheology table
-        Expanded(
-          flex: 3,
-          child: Obx(() => Container(
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade200),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Column(children: [
-                  // Header
-                  Container(
-                    height: 28,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade50,
-                      border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(4), topRight: Radius.circular(4)),
-                    ),
-                    child: Row(children: [
-                      _headerCell('RPM', width: 80),
-                      ..._planSamples.map((s) => Expanded(child: _headerCell(s, center: true))),
-                    ]),
-                  ),
-                  // Rows — only Plan-L and Plan-H columns
-                  Expanded(
-                    child: Scrollbar(
-                      controller: _rheologyScrollCtrl,
-                      thumbVisibility: true,
-                      child: SingleChildScrollView(
-                        controller: _rheologyScrollCtrl,
-                        child: Column(
-                          children: c.rheologyTable.entries.map((entry) {
-                            final isCalc = double.tryParse(entry.key) == null;
-                            final isLast = entry.key == c.rheologyTable.keys.last;
-                            return Container(
-                              height: 26,
-                              decoration: BoxDecoration(
-                                color: isCalc ? const Color(0xFFFFFDE7) : Colors.white,
-                                border: Border(bottom: BorderSide(
-                                  color: isLast ? Colors.transparent : Colors.grey.shade100)),
-                              ),
-                              child: Row(children: [
-                                Container(
-                                  width: 80,
-                                  padding: const EdgeInsets.symmetric(horizontal: 6),
-                                  decoration: BoxDecoration(
-                                    border: Border(right: BorderSide(color: Colors.grey.shade200))),
-                                  child: Text(entry.key,
-                                      style: AppTheme.caption.copyWith(
-                                          color: AppTheme.textSecondary, fontSize: 9),
-                                      overflow: TextOverflow.ellipsis),
-                                ),
-                                // Only Plan-L (index 3) and Plan-H (index 4)
-                                ..._planIndices.asMap().entries.map((e) {
-                                  final colIdx = e.key;
-                                  final dataIdx = e.value;
-                                  final isLastCol = colIdx == _planIndices.length - 1;
-                                  final cell = entry.value[dataIdx];
-                                  return Expanded(
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 2),
-                                      decoration: BoxDecoration(
-                                        border: Border(right: BorderSide(
-                                          color: isLastCol ? Colors.transparent : Colors.grey.shade200))),
-                                      child: isCalc
-                                          ? Obx(() => Center(
-                                                child: Text(
-                                                  cell.value.isEmpty ? '-' : cell.value,
-                                                  style: AppTheme.caption.copyWith(
-                                                      color: cell.value.isEmpty
-                                                          ? Colors.grey.shade400
-                                                          : AppTheme.textPrimary,
-                                                      fontSize: 9,
-                                                      fontWeight: FontWeight.w600),
-                                                  textAlign: TextAlign.center,
-                                                ),
-                                              ))
-                                          : Obx(() => TextField(
-                                                key: ValueKey('rheo_${entry.key}_$dataIdx'),
-                                                controller: TextEditingController(
-                                                    text: cell.value)
-                                                  ..selection = TextSelection.collapsed(
-                                                      offset: cell.value.length),
-                                                onChanged: (v) => cell.value = v,
-                                                style: AppTheme.caption.copyWith(
-                                                    color: AppTheme.textPrimary, fontSize: 9),
-                                                decoration: const InputDecoration(
-                                                  isDense: true, border: InputBorder.none,
-                                                  contentPadding: EdgeInsets.symmetric(
-                                                      horizontal: 4, vertical: 5),
-                                                ),
-                                                textAlign: TextAlign.center,
-                                                keyboardType: TextInputType.number,
-                                              )),
-                                    ),
-                                  );
-                                }),
-                              ]),
-                            );
-                          }).toList(),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'Bingham',
+                          child: Text(
+                            'Bingham',
+                            style: TextStyle(fontSize: 10),
+                          ),
                         ),
-                      ),
+                        DropdownMenuItem(
+                          value: 'Power Law',
+                          child: Text(
+                            'Power Law',
+                            style: TextStyle(fontSize: 10),
+                          ),
+                        ),
+                        DropdownMenuItem(
+                          value: 'HB',
+                          child: Text('HB', style: TextStyle(fontSize: 10)),
+                        ),
+                      ],
+                      onChanged: locked ? null : (v) => c.changeModel(v!),
                     ),
                   ),
-                ]),
-              )),
-        ),
-
-       
-      ]),
-    );
-  }
-
- 
-
-  Widget _sgRow(String label, TextEditingController controller) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-      decoration: BoxDecoration(border: Border(bottom: BorderSide(color: Colors.grey.shade200))),
-      child: Row(children: [
-        Expanded(child: Text(label,
-            style: AppTheme.caption.copyWith(color: AppTheme.textSecondary, fontSize: 10))),
-        Obx(() {
-          if (dashboard.isLocked.value) {
-            return Text(controller.text.isEmpty ? '-' : controller.text,
-                style: AppTheme.caption.copyWith(color: AppTheme.textPrimary, fontSize: 10));
-          }
-          return Container(
-            width: 70, height: 22,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(3),
-              border: Border.all(color: Colors.grey.shade300),
+                ),
+              ],
             ),
-            child: TextField(
-              controller: controller,
-              decoration: const InputDecoration(
-                isDense: true, border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+            const SizedBox(height: 10),
+            Expanded(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(flex: 3, child: _propertyTable(locked)),
+                  const SizedBox(width: 16),
+                  Expanded(flex: 2, child: _rheologyTable(locked)),
+                ],
               ),
-              style: AppTheme.caption.copyWith(color: AppTheme.textPrimary, fontSize: 10),
-              textAlign: TextAlign.right,
             ),
-          );
-        }),
-      ]),
+          ],
+        ),
+      );
+    });
+  }
+
+  Widget _dropdownShell({required double width, required Widget child}) {
+    return Container(
+      width: width,
+      height: 28,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: _impBorder),
+      ),
+      child: child,
     );
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // HELPERS
-  // ═══════════════════════════════════════════════════════════
-  Widget _headerCell(String text, {double? width, bool center = false}) {
-    Widget child = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: BoxDecoration(border: Border(right: BorderSide(color: Colors.grey.shade200))),
-      child: Align(
-        alignment: center ? Alignment.center : Alignment.centerLeft,
-        child: Text(text,
-            style: AppTheme.caption.copyWith(
-                fontWeight: FontWeight.w600, color: AppTheme.textPrimary, fontSize: 10),
-            overflow: TextOverflow.ellipsis),
+  Widget _propertyTable(bool locked) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: _impBorder),
+      ),
+      child: Column(
+        children: [
+          Container(
+            height: 28,
+            color: _impHeader,
+            child: Row(
+              children: [
+                _headerCell('Property', flex: 4),
+                for (final sample in _planSamples)
+                  _headerCell(sample, flex: 1, center: true),
+              ],
+            ),
+          ),
+          Expanded(
+            child: Obx(() {
+              if (c.isLoading.value) {
+                return const Center(
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                );
+              }
+              final entries = c.propertyTable.entries.toList();
+              return Scrollbar(
+                controller: _propertyScrollCtrl,
+                thumbVisibility: true,
+                child: ListView(
+                  controller: _propertyScrollCtrl,
+                  children: [
+                    ...entries.map((entry) {
+                      final label = _propertyLabel(
+                        entry.key,
+                        c.propertyUnits[entry.key] ?? '',
+                      );
+                      return _PropertyRow(
+                        label: label,
+                        rawKey: entry.key,
+                        values: entry.value,
+                        removable: c.isPropertyRemovable(entry.key),
+                        locked: locked,
+                        onRemove: () => c.removeAddedPropertyRow(entry.key),
+                      );
+                    }),
+                    _AddPropertyRow(controller: c, locked: locked),
+                  ],
+                ),
+              );
+            }),
+          ),
+        ],
       ),
     );
-    if (width != null) return SizedBox(width: width, child: child);
-    return child;
   }
 
-  Widget _snapHeaderCell(String text, {int flex = 1}) {
+  String _propertyLabel(String name, String unit) {
+    if (unit.trim().isEmpty) return name;
+    return '$name (${unit.trim()})';
+  }
+
+  Widget _rheologyTable(bool locked) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: _impBorder),
+      ),
+      child: Column(
+        children: [
+          Container(
+            height: 28,
+            color: _impHeader,
+            child: Row(
+              children: [
+                _headerCell('Rheology', flex: 2),
+                _headerCell('L', flex: 1, center: true),
+                _headerCell('H', flex: 1, center: true),
+              ],
+            ),
+          ),
+          Expanded(
+            child: Obx(
+              () => Scrollbar(
+                controller: _rheologyScrollCtrl,
+                thumbVisibility: true,
+                child: ListView(
+                  controller: _rheologyScrollCtrl,
+                  children: c.rheologyTable.entries.map((entry) {
+                    final isCalculated = double.tryParse(entry.key) == null;
+                    return Container(
+                      height: 28,
+                      decoration: BoxDecoration(
+                        border: const Border(
+                          bottom: BorderSide(color: _impBorder),
+                        ),
+                        color: isCalculated ? _impCell : Colors.white,
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            flex: 2,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                              ),
+                              decoration: const BoxDecoration(
+                                color: _impHeader,
+                                border: Border(
+                                  right: BorderSide(color: _impBorder),
+                                ),
+                              ),
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                entry.key,
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  color: Color(0xFF2F2F2F),
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ),
+                          ..._planIndices.map((index) {
+                            return Expanded(
+                              child: _RheoCell(
+                                value: entry.value[index],
+                                readOnly: locked || isCalculated,
+                                align: TextAlign.center,
+                              ),
+                            );
+                          }),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _headerCell(String text, {required int flex, bool center = false}) {
     return Expanded(
       flex: flex,
       child: Container(
+        decoration: const BoxDecoration(
+          border: Border(right: BorderSide(color: _impBorder)),
+        ),
+        alignment: center ? Alignment.center : Alignment.centerLeft,
         padding: const EdgeInsets.symmetric(horizontal: 8),
-        decoration: BoxDecoration(border: Border(right: BorderSide(color: Colors.grey.shade300))),
-        child: Text(text,
-            style: AppTheme.caption.copyWith(
-                fontWeight: FontWeight.w600, color: AppTheme.textPrimary, fontSize: 10),
-            overflow: TextOverflow.ellipsis),
+        child: Text(
+          text,
+          style: const TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w500,
+            color: Color(0xFF2F2F2F),
+          ),
+          overflow: TextOverflow.ellipsis,
+        ),
       ),
     );
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// DYNAMIC ADD ROW
-// - Single dropdown row always visible at bottom of table
-// - Select karo → propertyTable mein add, dropdown reset to null (ready for next)
-// - All items always shown in dropdown (no filtering of selected ones)
-// - Auto next row on every select
-// ═══════════════════════════════════════════════════════════════════
-class _DynamicAddRows extends StatefulWidget {
-  final MudController c;
-  const _DynamicAddRows({required this.c});
+class _PropertyRow extends StatelessWidget {
+  final String label;
+  final String rawKey;
+  final List<RxString> values;
+  final bool removable;
+  final bool locked;
+  final VoidCallback onRemove;
 
-  @override
-  State<_DynamicAddRows> createState() => _DynamicAddRowsState();
-}
+  const _PropertyRow({
+    required this.label,
+    required this.rawKey,
+    required this.values,
+    required this.removable,
+    required this.locked,
+    required this.onRemove,
+  });
 
-class _DynamicAddRowsState extends State<_DynamicAddRows> {
-  // Single null value — always shows empty dropdown
-  // No slot tracking needed — propertyTable handles which items are added
-  String? _currentPick;
+  Future<void> _showMenu(BuildContext context, TapDownDetails details) async {
+    final action = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        details.globalPosition.dx,
+        details.globalPosition.dy,
+        details.globalPosition.dx,
+        details.globalPosition.dy,
+      ),
+      items: [
+        _mudMenuItem('delete', 'Delete', enabled: removable && !locked),
+        const PopupMenuDivider(),
+        _mudMenuItem('copy', 'Copy', enabled: false),
+        _mudMenuItem('paste', 'Paste', enabled: false),
+        _mudMenuItem('top', 'To the Top', enabled: false),
+        _mudMenuItem('bottom', 'To the Bottom', enabled: false),
+      ],
+    );
 
-  void _onPicked(String? value) {
-    if (value == null) return;
-    // Add to property table only if not already there
-    widget.c.addPropertyRow(value);
-    // Reset dropdown to null — ready for next pick
-    setState(() => _currentPick = null);
+    if (action == 'delete') {
+      onRemove();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Obx(() {
-      final allOptions = widget.c.availableProperties.toList();
-      if (allOptions.isEmpty) return const SizedBox.shrink();
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onSecondaryTapDown: (details) => _showMenu(context, details),
+      child: Container(
+        height: 28,
+        decoration: const BoxDecoration(
+          border: Border(bottom: BorderSide(color: _impBorder)),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              flex: 4,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                decoration: const BoxDecoration(
+                  color: _impHeader,
+                  border: Border(right: BorderSide(color: _impBorder)),
+                ),
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: Color(0xFF2F2F2F),
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ),
+            ..._IntervalMudPlanTabState._planIndices.map((index) {
+              return Expanded(
+                child: _MudCell(
+                  value: values[index],
+                  readOnly: locked,
+                  align: TextAlign.center,
+                ),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
-      return _SingleDropdownRow(
-        allOptions: allOptions,
-        samples: widget.c.samples,
-        onPicked: _onPicked,
+class _AddPropertyRow extends StatefulWidget {
+  final MudController controller;
+  final bool locked;
+
+  const _AddPropertyRow({required this.controller, required this.locked});
+
+  @override
+  State<_AddPropertyRow> createState() => _AddPropertyRowState();
+}
+
+class _AddPropertyRowState extends State<_AddPropertyRow> {
+  String? _selected;
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.locked) {
+      return const SizedBox.shrink();
+    }
+
+    return Obx(() {
+      final options = widget.controller.availableProperties.toList();
+      if (options.isEmpty) return const SizedBox.shrink();
+
+      return Container(
+        height: 30,
+        decoration: const BoxDecoration(
+          border: Border(bottom: BorderSide(color: _impBorder)),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              flex: 4,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                decoration: const BoxDecoration(
+                  color: _impHeader,
+                  border: Border(right: BorderSide(color: _impBorder)),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _selected,
+                    hint: const Text(
+                      'Add property',
+                      style: TextStyle(fontSize: 10),
+                    ),
+                    isExpanded: true,
+                    isDense: true,
+                    items: options
+                        .map(
+                          (item) => DropdownMenuItem<String>(
+                            value: item,
+                            child: Text(
+                              item,
+                              style: const TextStyle(fontSize: 10),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) {
+                      if (value == null) return;
+                      widget.controller.addPropertyRow(value);
+                      setState(() => _selected = null);
+                    },
+                  ),
+                ),
+              ),
+            ),
+            const Expanded(
+              child: SizedBox(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: _impCell,
+                    border: Border(right: BorderSide(color: _impBorder)),
+                  ),
+                ),
+              ),
+            ),
+            const Expanded(
+              child: DecoratedBox(decoration: BoxDecoration(color: _impCell)),
+            ),
+          ],
+        ),
       );
     });
   }
 }
 
-class _SingleDropdownRow extends StatefulWidget {
-  final List<String> allOptions;
-  final List<String> samples;
-  final ValueChanged<String?> onPicked;
+class _MudCell extends StatefulWidget {
+  final RxString value;
+  final bool readOnly;
+  final TextAlign align;
 
-  const _SingleDropdownRow({
-    required this.allOptions,
-    required this.samples,
-    required this.onPicked,
+  const _MudCell({
+    required this.value,
+    required this.readOnly,
+    this.align = TextAlign.left,
   });
 
   @override
-  State<_SingleDropdownRow> createState() => _SingleDropdownRowState();
+  State<_MudCell> createState() => _MudCellState();
 }
 
-class _SingleDropdownRowState extends State<_SingleDropdownRow> {
-  String? _value; // always null after each pick (reset)
+class _MudCellState extends State<_MudCell> {
+  late final TextEditingController _controller;
 
   @override
-  void didUpdateWidget(_SingleDropdownRow oldWidget) {
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.value.value);
+  }
+
+  @override
+  void didUpdateWidget(covariant _MudCell oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Reset on widget update (after parent setState resets _currentPick)
-    _value = null;
+    final next = widget.value.value;
+    if (_controller.text != next) {
+      _controller.value = TextEditingValue(
+        text: next,
+        selection: TextSelection.collapsed(offset: next.length),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 30,
-      decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        border: Border(bottom: BorderSide(color: Colors.grey.shade100)),
-      ),
-      child: Row(children: [
-        // Property column — dropdown
-        Container(
-          width: 150,
-          decoration: BoxDecoration(
-            border: Border(right: BorderSide(color: Colors.grey.shade200))),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              isExpanded: true,
-              value: _value,
-              hint: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: Row(children: [
-                  Icon(Icons.add, size: 11, color: Colors.grey.shade400),
-                  const SizedBox(width: 4),
-                  Flexible(
-                    child: Text('Add property',
-                        style: TextStyle(fontSize: 10, color: Colors.grey.shade400),
-                        overflow: TextOverflow.ellipsis),
-                  ),
-                ]),
-              ),
-              items: widget.allOptions.map((p) => DropdownMenuItem(
-                    value: p,
-                    child: Text(p,
-                        style: TextStyle(fontSize: 10, color: AppTheme.textPrimary),
-                        overflow: TextOverflow.ellipsis),
-                  )).toList(),
-              onChanged: (v) {
-                if (v == null) return;
-                setState(() => _value = null); // reset immediately
-                widget.onPicked(v);
-              },
-              isDense: true,
-              icon: Icon(Icons.arrow_drop_down, size: 14, color: Colors.grey.shade400),
-              style: TextStyle(color: AppTheme.textPrimary, fontSize: 10),
-            ),
+    return Obx(() {
+      final next = widget.value.value;
+      if (_controller.text != next) {
+        _controller.value = TextEditingValue(
+          text: next,
+          selection: TextSelection.collapsed(offset: next.length),
+        );
+      }
+
+      return Container(
+        height: 28,
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        decoration: const BoxDecoration(
+          color: _impCell,
+          border: Border(right: BorderSide(color: _impBorder)),
+        ),
+        child: TextField(
+          controller: _controller,
+          readOnly: widget.readOnly,
+          textAlign: widget.align,
+          onChanged: (value) => widget.value.value = value,
+          style: const TextStyle(fontSize: 10, color: Color(0xFF2F2F2F)),
+          decoration: const InputDecoration(
+            isDense: true,
+            border: InputBorder.none,
+            contentPadding: EdgeInsets.symmetric(vertical: 8),
           ),
         ),
-        // Sample columns — empty cells matching table row style
-        ...widget.samples.asMap().entries.map((e) {
-          final isLast = e.key == widget.samples.length - 1;
-          return Expanded(
-            child: Container(
-              height: 30,
-              decoration: BoxDecoration(
-                border: Border(right: BorderSide(
-                  color: isLast ? Colors.transparent : Colors.grey.shade200))),
-            ),
-          );
-        }),
-      ]),
-    );
+      );
+    });
   }
+}
+
+class _RheoCell extends _MudCell {
+  const _RheoCell({required super.value, required super.readOnly, super.align});
+}
+
+PopupMenuItem<String> _mudMenuItem(
+  String value,
+  String label, {
+  required bool enabled,
+}) {
+  return PopupMenuItem<String>(
+    value: value,
+    enabled: enabled,
+    height: 28,
+    child: Text(
+      label,
+      style: TextStyle(
+        fontSize: 11,
+        color: enabled ? const Color(0xFF2F2F2F) : const Color(0xFF9EA4AD),
+      ),
+    ),
+  );
 }

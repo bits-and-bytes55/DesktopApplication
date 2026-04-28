@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/controller/UG_ST_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
@@ -17,10 +20,7 @@ class WellView extends StatefulWidget {
   }) async {
     final state = _viewKey.currentState;
     if (state == null) {
-      return {
-        'success': true,
-        'message': 'Well editor is not mounted.',
-      };
+      return {'success': true, 'message': 'Well editor is not mounted.'};
     }
 
     return state._saveWell(showFeedback: showFeedback);
@@ -41,6 +41,8 @@ class _WellViewState extends State<WellView> {
   final ScrollController _tableScrollCtrl = ScrollController();
   Worker? _wellWorker;
   String _selectedPadId = '';
+  Timer? _autosaveTimer;
+  Map<String, String>? _wellClipboard;
 
   late final Map<String, TextEditingController> _controllers = {
     for (final field in _wellFields) field.key: TextEditingController(),
@@ -60,6 +62,7 @@ class _WellViewState extends State<WellView> {
   @override
   void dispose() {
     _wellWorker?.dispose();
+    _autosaveTimer?.cancel();
     _tableScrollCtrl.dispose();
     for (final controller in _controllers.values) {
       controller.dispose();
@@ -94,7 +97,10 @@ class _WellViewState extends State<WellView> {
     }
   }
 
-  Future<Map<String, dynamic>> _saveWell({bool showFeedback = true}) async {
+  Future<Map<String, dynamic>> _saveWell({
+    bool showFeedback = true,
+    bool syncAfterSave = true,
+  }) async {
     if (_selectedPadId.isEmpty) {
       const message = 'Select a pad first.';
       if (showFeedback) {
@@ -121,13 +127,15 @@ class _WellViewState extends State<WellView> {
     try {
       final result = await padWellC
           .updateSelectedWell(payload)
-          .timeout(const Duration(seconds: 12), onTimeout: () {
-        return {
-          'success': false,
-          'message': 'Well save timed out (12s)',
-        };
-      });
-      _loadSelectedWell();
+          .timeout(
+            const Duration(seconds: 12),
+            onTimeout: () {
+              return {'success': false, 'message': 'Well save timed out (12s)'};
+            },
+          );
+      if (syncAfterSave) {
+        _loadSelectedWell();
+      }
       final wellId = _extractEntityId(result['data']);
       if (wellId.isNotEmpty) {
         padWellC.selectWell(wellId);
@@ -143,7 +151,8 @@ class _WellViewState extends State<WellView> {
       }
       return {
         'success': isSuccess,
-        'message': result['message']?.toString() ??
+        'message':
+            result['message']?.toString() ??
             (isSuccess ? 'Well saved successfully' : 'Well save failed'),
         'data': result['data'],
       };
@@ -156,6 +165,113 @@ class _WellViewState extends State<WellView> {
     }
   }
 
+  void _scheduleAutosave() {
+    if (ugStController.isLocked.value || _activeWell == null) return;
+    _autosaveTimer?.cancel();
+    _autosaveTimer = Timer(const Duration(milliseconds: 900), () {
+      _saveWell(showFeedback: false, syncAfterSave: false);
+    });
+  }
+
+  Map<String, String> _currentFormValues() {
+    return {
+      for (final field in _wellFields)
+        field.key: _controllers[field.key]!.text.trim(),
+    };
+  }
+
+  bool get _hasAnyFormData =>
+      _currentFormValues().values.any((value) => value.trim().isNotEmpty);
+
+  Future<void> _showWellMenu(TapDownDetails details) async {
+    final canEdit = !ugStController.isLocked.value;
+    final hasWell = _activeWell != null;
+    final action = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        details.globalPosition.dx,
+        details.globalPosition.dy,
+        details.globalPosition.dx,
+        details.globalPosition.dy,
+      ),
+      items: [
+        const PopupMenuItem<String>(
+          value: 'cut',
+          enabled: false,
+          child: _WellMenuRow(label: 'Cut', shortcut: 'Ctrl+X', enabled: false),
+        ),
+        PopupMenuItem<String>(
+          value: 'copy',
+          enabled: _hasAnyFormData,
+          child: _WellMenuRow(
+            label: 'Copy',
+            shortcut: 'Ctrl+C',
+            enabled: _hasAnyFormData,
+          ),
+        ),
+        PopupMenuItem<String>(
+          value: 'paste',
+          enabled: canEdit && _wellClipboard != null,
+          child: _WellMenuRow(
+            label: 'Paste',
+            shortcut: 'Ctrl+V',
+            enabled: canEdit && _wellClipboard != null,
+          ),
+        ),
+        PopupMenuItem<String>(
+          value: 'delete',
+          enabled: canEdit && hasWell,
+          child: _WellMenuRow(
+            label: 'Delete',
+            shortcut: 'Delete',
+            enabled: canEdit && hasWell,
+          ),
+        ),
+        const PopupMenuDivider(),
+        const PopupMenuItem<String>(
+          value: 'top',
+          enabled: false,
+          child: _WellMenuRow(
+            label: 'To the Top',
+            shortcut: 'Ctrl+Up',
+            enabled: false,
+          ),
+        ),
+        const PopupMenuItem<String>(
+          value: 'bottom',
+          enabled: false,
+          child: _WellMenuRow(
+            label: 'To the Bottom',
+            shortcut: 'Ctrl+Down',
+            enabled: false,
+          ),
+        ),
+      ],
+    );
+
+    if (!mounted || action == null) return;
+    switch (action) {
+      case 'copy':
+        _wellClipboard = _currentFormValues();
+        await Clipboard.setData(
+          ClipboardData(text: _wellClipboard!.values.join('\n')),
+        );
+        break;
+      case 'paste':
+        if (_wellClipboard == null) return;
+        for (final field in _wellFields) {
+          _controllers[field.key]!.text = _wellClipboard![field.key] ?? '';
+        }
+        setState(() {});
+        _scheduleAutosave();
+        break;
+      case 'delete':
+        await _deleteWell();
+        break;
+    }
+  }
+
+  // ignore: unused_element
   Future<void> _deleteWell() async {
     final activeWell = _activeWell;
     if (activeWell == null) {
@@ -198,94 +314,25 @@ class _WellViewState extends State<WellView> {
   Widget build(BuildContext context) {
     return Obx(() {
       final isLocked = ugStController.isLocked.value;
-      final activeWell = _activeWell;
       final activePad = _selectedPadId.isEmpty
           ? null
           : _firstWhereOrNull(padWellC.pads, (pad) => pad.id == _selectedPadId);
-      final siblingWells = activePad == null
-          ? const <AppWell>[]
-          : padWellC.wellsForPad(activePad.id);
 
       return SingleChildScrollView(
         child: Padding(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
           child: Align(
             alignment: Alignment.centerLeft,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 760,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.grey.shade300),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    children: [
-                      _buildHeader(
-                        title: activeWell?.displayName ?? 'Well Information',
-                        subtitle: activeWell == null
-                            ? 'Create a well from the top toolbar + button after pad setup is complete'
-                            : 'Selected well data from backend',
-                        isLocked: isLocked,
-                      ),
-                      ConstrainedBox(
-                        constraints: const BoxConstraints(maxHeight: 420),
-                        child: Scrollbar(
-                          controller: _tableScrollCtrl,
-                          thumbVisibility: true,
-                          child: SingleChildScrollView(
-                            controller: _tableScrollCtrl,
-                            padding: const EdgeInsets.all(12),
-                            child: Table(
-                              border: TableBorder(
-                                horizontalInside: BorderSide(
-                                  color: Colors.grey.shade200,
-                                  width: 1,
-                                ),
-                                verticalInside: BorderSide(
-                                  color: Colors.grey.shade200,
-                                  width: 1,
-                                ),
-                              ),
-                              columnWidths: const {0: FixedColumnWidth(240)},
-                              children: [
-                                _buildPadRow(isLocked),
-                                for (final field in _wellFields)
-                                  _buildFieldRow(field, isLocked),
-                                _buildReadOnlyRow(
-                                  'Operator',
-                                  activePad?.operator ?? '',
-                                ),
-                                _buildReadOnlyRow('Rig', activePad?.rig ?? ''),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: _buildWellSummaryCard(activeWell, activePad),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(child: _buildPadWellsCard(siblingWells)),
-                  ],
-                ),
-              ],
+            child: SizedBox(
+              width: 780,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildClassicWellTable(isLocked: isLocked),
+                  const SizedBox(height: 12),
+                  _buildClassicMemoPanel(activePad?.memo ?? ''),
+                ],
+              ),
             ),
           ),
         ),
@@ -293,412 +340,146 @@ class _WellViewState extends State<WellView> {
     });
   }
 
-  Widget _buildHeader({
-    required String title,
-    required String subtitle,
+  Widget _buildClassicWellTable({required bool isLocked}) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onSecondaryTapDown: _showWellMenu,
+      child: Container(
+        width: 604,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border.all(color: const Color(0xFFBFC4CC)),
+        ),
+        child: Table(
+          border: const TableBorder(
+            horizontalInside: BorderSide(color: Color(0xFFD4D8DE)),
+            verticalInside: BorderSide(color: Color(0xFFD4D8DE)),
+          ),
+          columnWidths: const {
+            0: FixedColumnWidth(360),
+            1: FixedColumnWidth(152),
+            2: FixedColumnWidth(90),
+          },
+          defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+          children: [
+            for (final field in _wellFields)
+              _buildClassicFieldRow(
+                field: field,
+                isLocked: isLocked,
+                valueController: _controllers[field.key]!,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  TableRow _buildClassicFieldRow({
+    required _WellField field,
     required bool isLocked,
+    required TextEditingController valueController,
   }) {
-    final canEdit = !isLocked;
-    final hasExistingWell = _activeWell != null;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        gradient: AppTheme.headerGradient,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(8),
-          topRight: Radius.circular(8),
-        ),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.oil_barrel, size: 18, color: Colors.white),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: AppTheme.bodyLarge.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: Colors.white.withOpacity(0.85),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          _headerButton(
-            icon: Icons.refresh,
-            tooltip: 'Reload wells',
-            onTap: padWellC.reloadData,
-          ),
-          const SizedBox(width: 6),
-          _headerButton(
-            icon: Icons.save,
-            tooltip: 'Save well',
-            onTap: canEdit && hasExistingWell
-                ? () {
-                    _saveWell(showFeedback: true);
-                  }
-                : null,
-          ),
-          const SizedBox(width: 6),
-          _headerButton(
-            icon: Icons.delete_outline,
-            tooltip: 'Delete well',
-            onTap: canEdit && hasExistingWell ? _deleteWell : null,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _headerButton({
-    required IconData icon,
-    required String tooltip,
-    required VoidCallback? onTap,
-  }) {
-    return Tooltip(
-      message: tooltip,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(6),
-        child: Container(
-          padding: const EdgeInsets.all(6),
-          decoration: BoxDecoration(
-            color: onTap == null
-                ? Colors.white.withOpacity(0.12)
-                : Colors.white.withOpacity(0.2),
-            borderRadius: BorderRadius.circular(6),
-            border: Border.all(color: Colors.white.withOpacity(0.18)),
-          ),
-          child: Icon(
-            icon,
-            size: 15,
-            color: onTap == null ? Colors.white54 : Colors.white,
-          ),
-        ),
-      ),
-    );
-  }
-
-  TableRow _buildPadRow(bool isLocked) {
     return TableRow(
-      decoration: const BoxDecoration(color: Color(0xfff8f9fa)),
       children: [
-        _labelCell('Pad'),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-          child: isLocked
-              ? Text(
-                  padWellC.selectedPadName.isEmpty
-                      ? '-'
-                      : padWellC.selectedPadName,
-                  style: AppTheme.bodySmall.copyWith(
-                    color: AppTheme.textPrimary,
-                  ),
-                )
-              : DropdownButtonFormField<String>(
-                  value: _selectedPadId.isEmpty ? null : _selectedPadId,
-                  isExpanded: true,
-                  items: padWellC.pads
-                      .map(
-                        (pad) => DropdownMenuItem<String>(
-                          value: pad.id,
-                          child: Text(
-                            pad.displayName,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppTheme.bodySmall.copyWith(
-                              color: AppTheme.textPrimary,
-                            ),
-                          ),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (value) {
-                    if (value == null) return;
-                    setState(() {
-                      _selectedPadId = value;
-                    });
-                  },
-                  decoration: const InputDecoration(
-                    isDense: true,
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 8,
-                    ),
-                  ),
-                ),
+        _classicLabelCell(field.label),
+        _classicValueCell(
+          controller: valueController,
+          readOnly: isLocked,
+          hint: field.hint,
         ),
+        _classicUnitCell(field.unit),
       ],
     );
   }
 
-  TableRow _buildFieldRow(_WellField field, bool isLocked) {
-    final controller = _controllers[field.key]!;
-    return TableRow(
-      decoration: const BoxDecoration(color: Colors.white),
-      children: [
-        _labelCell(field.label),
-        isLocked
-            ? _readOnlyValueCell(controller.text)
-            : _editableValueCell(controller, field.hint),
-      ],
-    );
-  }
-
-  TableRow _buildReadOnlyRow(String label, String value) {
-    return TableRow(
-      decoration: const BoxDecoration(color: Color(0xfffcfcfc)),
-      children: [_labelCell(label), _readOnlyValueCell(value)],
-    );
-  }
-
-  Widget _labelCell(String text) {
+  Widget _classicLabelCell(String text) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      color: const Color(0xfff8f9fa),
+      height: 31,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      alignment: Alignment.centerLeft,
+      color: Colors.white,
       child: Text(
         text,
-        style: AppTheme.bodySmall.copyWith(
-          fontWeight: FontWeight.w600,
-          color: AppTheme.textPrimary,
-        ),
+        style: const TextStyle(fontSize: 10, color: Color(0xFF2F2F2F)),
       ),
     );
   }
 
-  Widget _readOnlyValueCell(String value) {
+  Widget _classicValueCell({
+    required TextEditingController controller,
+    required bool readOnly,
+    required String hint,
+  }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      child: Text(
-        value.isEmpty ? '-' : value,
-        style: AppTheme.bodySmall.copyWith(
-          color: value.isEmpty ? Colors.grey.shade400 : AppTheme.textPrimary,
-        ),
-      ),
-    );
-  }
-
-  Widget _editableValueCell(TextEditingController controller, String hint) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      height: 31,
+      color: const Color(0xFFFFF6C7),
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      alignment: Alignment.centerLeft,
       child: TextField(
         controller: controller,
-        style: AppTheme.bodySmall.copyWith(color: AppTheme.textPrimary),
-        decoration: InputDecoration(
+        readOnly: readOnly,
+        onChanged: (_) => _scheduleAutosave(),
+        style: const TextStyle(fontSize: 10, color: Color(0xFF2F2F2F)),
+        decoration: const InputDecoration(
           isDense: true,
           border: InputBorder.none,
-          hintText: hint,
-          hintStyle: AppTheme.caption.copyWith(color: Colors.grey.shade400),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 6,
-            vertical: 8,
-          ),
+          contentPadding: EdgeInsets.symmetric(vertical: 8),
         ),
       ),
     );
   }
 
-  Widget _buildWellSummaryCard(AppWell? well, AppPad? pad) {
+  Widget _classicUnitCell(String unit) {
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade300),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
+      height: 31,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      alignment: Alignment.centerLeft,
+      color: Colors.white,
+      child: Text(
+        unit,
+        style: const TextStyle(fontSize: 10, color: Color(0xFF4A4F57)),
       ),
+    );
+  }
+
+  Widget _buildClassicMemoPanel(String memoText) {
+    return SizedBox(
+      width: 724,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(Icons.info_outline, size: 18, color: AppTheme.primaryColor),
-              const SizedBox(width: 8),
-              Text(
-                'Well Summary',
-                style: AppTheme.bodyLarge.copyWith(fontWeight: FontWeight.w600),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          _summaryRow('Well', well?.displayName ?? '-'),
-          _summaryRow(
-            'API',
-            well?.apiWellNo ?? _controllers['apiWellNo']!.text,
-          ),
-          _summaryRow('Pad', pad?.displayName ?? '-'),
-          _summaryRow('Operator', pad?.operator ?? '-'),
-          _summaryRow('Rig', pad?.rig ?? '-'),
-          _summaryRow(
-            'Spud Date',
-            well?.spudDate ?? _controllers['spudDate']!.text,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _summaryRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 90,
+          const Padding(
+            padding: EdgeInsets.only(left: 2, bottom: 6),
             child: Text(
-              label,
-              style: AppTheme.caption.copyWith(
-                fontWeight: FontWeight.w600,
-                color: AppTheme.textSecondary,
-              ),
+              'Memo',
+              style: TextStyle(fontSize: 10, color: Color(0xFF2F2F2F)),
             ),
           ),
-          Expanded(
-            child: Text(
-              value.isEmpty ? '-' : value,
-              style: AppTheme.bodySmall.copyWith(color: AppTheme.textPrimary),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPadWellsCard(List<AppWell> wells) {
-    return Container(
-      constraints: const BoxConstraints(minHeight: 180),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade300),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xffF8FAFC), Color(0xffEEF2F7)],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-              ),
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(8),
-                topRight: Radius.circular(8),
-              ),
+            height: 208,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border.all(color: const Color(0xFFBFC4CC)),
             ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.account_tree,
-                  size: 18,
-                  color: AppTheme.primaryColor,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Other Wells In Pad',
-                  style: AppTheme.bodyLarge.copyWith(
-                    fontWeight: FontWeight.w600,
+            child: Scrollbar(
+              controller: _tableScrollCtrl,
+              thumbVisibility: true,
+              child: SingleChildScrollView(
+                controller: _tableScrollCtrl,
+                padding: const EdgeInsets.all(8),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: Text(
+                    memoText,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: Color(0xFF2F2F2F),
+                    ),
                   ),
                 ),
-              ],
+              ),
             ),
           ),
-          if (wells.isEmpty)
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(
-                'No wells found for this pad.',
-                style: AppTheme.bodySmall.copyWith(
-                  color: AppTheme.textSecondary,
-                ),
-              ),
-            )
-          else
-            ListView.separated(
-              padding: const EdgeInsets.all(10),
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: wells.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 6),
-              itemBuilder: (context, index) {
-                final well = wells[index];
-                final selected = padWellC.selectedWellId.value == well.id;
-                return InkWell(
-                  onTap: () {
-                    padWellC.selectWell(well.id);
-                    dashboardC?.navigate('well:${well.id}');
-                  },
-                  borderRadius: BorderRadius.circular(8),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: selected
-                          ? AppTheme.primaryColor.withValues(alpha: 0.12)
-                          : const Color(0xffF8FAFC),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: selected
-                            ? AppTheme.primaryColor.withValues(alpha: 0.3)
-                            : Colors.grey.shade200,
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.place_outlined,
-                          size: 15,
-                          color: selected
-                              ? AppTheme.primaryColor
-                              : AppTheme.textSecondary,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            well.displayName,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppTheme.bodySmall.copyWith(
-                              color: selected
-                                  ? AppTheme.primaryColor
-                                  : AppTheme.textPrimary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
         ],
       ),
     );
@@ -718,6 +499,31 @@ class _WellViewState extends State<WellView> {
 
   String _cleanError(Object error) {
     return error.toString().replaceFirst(RegExp(r'^Exception:\s*'), '');
+  }
+}
+
+class _WellMenuRow extends StatelessWidget {
+  final String label;
+  final String shortcut;
+  final bool enabled;
+
+  const _WellMenuRow({
+    required this.label,
+    required this.shortcut,
+    required this.enabled,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = enabled ? const Color(0xFF2F2F2F) : const Color(0xFF9EA4AD);
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: TextStyle(fontSize: 11, color: color)),
+        const SizedBox(width: 20),
+        Text(shortcut, style: TextStyle(fontSize: 11, color: color)),
+      ],
+    );
   }
 }
 
@@ -750,11 +556,13 @@ class _WellField {
   final String key;
   final String label;
   final String hint;
+  final String unit;
 
   const _WellField({
     required this.key,
     required this.label,
     required this.hint,
+    this.unit = '',
   });
 }
 
@@ -777,12 +585,13 @@ const List<_WellField> _wellFields = [
   ),
   _WellField(key: 'longitude', label: 'Longitude', hint: 'Enter longitude'),
   _WellField(key: 'latitude', label: 'Latitude', hint: 'Enter latitude'),
-  _WellField(key: 'kop', label: 'KOP', hint: 'Enter KOP'),
-  _WellField(key: 'lp', label: 'LP', hint: 'Enter LP'),
+  _WellField(key: 'kop', label: 'KOP', hint: 'Enter KOP', unit: '(ft)'),
+  _WellField(key: 'lp', label: 'LP', hint: 'Enter LP', unit: '(ft)'),
   _WellField(
     key: 'bulkTankSetupFee',
     label: 'Bulk Tank Setup Fee',
     hint: 'Enter bulk tank setup fee',
+    unit: '(Kwd)',
   ),
 ];
 

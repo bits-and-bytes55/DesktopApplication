@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -10,25 +11,25 @@ import 'package:mudpro_desktop_app/api_endpoint/api_endpoint.dart';
 
 /// One interval item (leaf node in the list)
 class IntervalItem {
-  final String  id;
-  String        name;
-  int           order;
-  String?       groupId;
+  final String id;
+  String name;
+  int order;
+  String? groupId;
 
   // General tab — table fields
-  String formation      = '';
-  String bitSize        = '';
-  String casing         = '';
-  String intervalFIT    = '';
+  String formation = '';
+  String bitSize = '';
+  String casing = '';
+  String intervalFIT = '';
   String mudDescription = '';
-  String mudType        = '';
+  String mudType = '';
 
   // General tab — text areas
-  String intervalSummary      = '';
-  String solidControl         = '';
-  String intervalConclusion   = '';
-  String sweeps               = '';
-  String labTesting           = '';
+  String intervalSummary = '';
+  String solidControl = '';
+  String intervalConclusion = '';
+  String sweeps = '';
+  String labTesting = '';
   String endOfIntervalConclusion = '';
 
   IntervalItem({
@@ -36,63 +37,63 @@ class IntervalItem {
     required this.name,
     required this.order,
     this.groupId,
-    this.formation      = '',
-    this.bitSize        = '',
-    this.casing         = '',
-    this.intervalFIT    = '',
+    this.formation = '',
+    this.bitSize = '',
+    this.casing = '',
+    this.intervalFIT = '',
     this.mudDescription = '',
-    this.mudType        = '',
-    this.intervalSummary      = '',
-    this.solidControl         = '',
-    this.intervalConclusion   = '',
-    this.sweeps               = '',
-    this.labTesting           = '',
+    this.mudType = '',
+    this.intervalSummary = '',
+    this.solidControl = '',
+    this.intervalConclusion = '',
+    this.sweeps = '',
+    this.labTesting = '',
     this.endOfIntervalConclusion = '',
   });
 
   factory IntervalItem.fromJson(Map<String, dynamic> j) => IntervalItem(
-    id:             j['_id']            ?? '',
-    name:           j['name']           ?? 'New Interval',
-    order:          j['order']          ?? 0,
-    groupId:        j['groupId']?.toString(),
-    formation:      j['formation']      ?? '',
-    bitSize:        j['bitSize']        ?? '',
-    casing:         j['casing']         ?? '',
-    intervalFIT:    j['intervalFIT']    ?? '',
+    id: j['_id'] ?? '',
+    name: j['name'] ?? 'New Interval',
+    order: j['order'] ?? 0,
+    groupId: j['groupId']?.toString(),
+    formation: j['formation'] ?? '',
+    bitSize: j['bitSize'] ?? '',
+    casing: j['casing'] ?? '',
+    intervalFIT: j['intervalFIT'] ?? '',
     mudDescription: j['mudDescription'] ?? '',
-    mudType:        j['mudType']        ?? '',
-    intervalSummary:      j['intervalSummary']       ?? '',
-    solidControl:         j['solidControl']           ?? '',
-    intervalConclusion:   j['intervalConclusion']     ?? '',
-    sweeps:               j['sweeps']                 ?? '',
-    labTesting:           j['labTesting']             ?? '',
+    mudType: j['mudType'] ?? '',
+    intervalSummary: j['intervalSummary'] ?? '',
+    solidControl: j['solidControl'] ?? '',
+    intervalConclusion: j['intervalConclusion'] ?? '',
+    sweeps: j['sweeps'] ?? '',
+    labTesting: j['labTesting'] ?? '',
     endOfIntervalConclusion: j['endOfIntervalConclusion'] ?? '',
   );
 
   Map<String, dynamic> toJson() => {
-    'name':           name,
-    'formation':      formation,
-    'bitSize':        bitSize,
-    'casing':         casing,
-    'intervalFIT':    intervalFIT,
+    'name': name,
+    'formation': formation,
+    'bitSize': bitSize,
+    'casing': casing,
+    'intervalFIT': intervalFIT,
     'mudDescription': mudDescription,
-    'mudType':        mudType,
-    'intervalSummary':         intervalSummary,
-    'solidControl':            solidControl,
-    'intervalConclusion':      intervalConclusion,
-    'sweeps':                  sweeps,
-    'labTesting':              labTesting,
+    'mudType': mudType,
+    'intervalSummary': intervalSummary,
+    'solidControl': solidControl,
+    'intervalConclusion': intervalConclusion,
+    'sweeps': sweeps,
+    'labTesting': labTesting,
     'endOfIntervalConclusion': endOfIntervalConclusion,
   };
 }
 
 /// A group node that contains multiple IntervalItems
 class IntervalGroup {
-  final String        id;
-  String              name;
-  int                 order;
-  List<String>        intervalIds;
-  bool                collapsed;
+  final String id;
+  String name;
+  int order;
+  List<String> intervalIds;
+  bool collapsed;
 
   IntervalGroup({
     required this.id,
@@ -103,22 +104,24 @@ class IntervalGroup {
   });
 
   factory IntervalGroup.fromJson(Map<String, dynamic> j) => IntervalGroup(
-    id:          j['_id']       ?? '',
-    name:        j['name']      ?? 'Group',
-    order:       j['order']     ?? 0,
-    intervalIds: List<String>.from((j['intervalIds'] ?? []).map((e) => e.toString())),
-    collapsed:   j['collapsed'] ?? false,
+    id: j['_id'] ?? '',
+    name: j['name'] ?? 'Group',
+    order: j['order'] ?? 0,
+    intervalIds: List<String>.from(
+      (j['intervalIds'] ?? []).map((e) => e.toString()),
+    ),
+    collapsed: j['collapsed'] ?? false,
   );
 }
 
 /// A union type for the flat list (either a group header or a standalone interval)
 class ListNode {
-  final bool          isGroup;
+  final bool isGroup;
   final IntervalItem? interval;
   final IntervalGroup? group;
 
   const ListNode.interval(this.interval) : isGroup = false, group = null;
-  const ListNode.group(this.group)       : isGroup = true,  interval = null;
+  const ListNode.group(this.group) : isGroup = true, interval = null;
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -127,6 +130,7 @@ class ListNode {
 
 class IntervalController extends GetxController {
   final String baseUrl = ApiEndpoint.baseUrl;
+  static const Duration _generalSaveDebounce = Duration(milliseconds: 850);
 
   Map<String, String> get _headers => {
     'Content-Type': 'application/json',
@@ -134,29 +138,39 @@ class IntervalController extends GetxController {
   };
 
   // ── Reactive state ───────────────────────────────────────────────
-  final RxList<IntervalItem>  intervals = <IntervalItem>[].obs;
-  final RxList<IntervalGroup> groups    = <IntervalGroup>[].obs;
-  final Rx<IntervalItem?>     selected  = Rx<IntervalItem?>(null);
-  final RxBool  isLoading = false.obs;
-  final RxBool  isSaving  = false.obs;
-  final RxString wellId   = ''.obs;
+  final RxList<IntervalItem> intervals = <IntervalItem>[].obs;
+  final RxList<IntervalGroup> groups = <IntervalGroup>[].obs;
+  final Rx<IntervalItem?> selected = Rx<IntervalItem?>(null);
+  final RxBool isLoading = false.obs;
+  final RxBool isSaving = false.obs;
+  final RxString wellId = ''.obs;
+  Timer? _generalSaveTimer;
+  IntervalItem? _pendingGeneralSave;
+  bool _isHydratingControllers = false;
 
   // TextEditingControllers for the General tab (updated when selection changes)
-  final formationCtrl      = TextEditingController();
-  final bitSizeCtrl        = TextEditingController();
-  final casingCtrl         = TextEditingController();
-  final intervalFITCtrl    = TextEditingController();
-  final mudDescCtrl        = TextEditingController();
-  final mudTypeCtrl        = TextEditingController();
-  final intervalSummaryCtrl    = TextEditingController();
-  final solidControlCtrl       = TextEditingController();
+  final formationCtrl = TextEditingController();
+  final bitSizeCtrl = TextEditingController();
+  final casingCtrl = TextEditingController();
+  final intervalFITCtrl = TextEditingController();
+  final mudDescCtrl = TextEditingController();
+  final mudTypeCtrl = TextEditingController();
+  final intervalSummaryCtrl = TextEditingController();
+  final solidControlCtrl = TextEditingController();
   final intervalConclusionCtrl = TextEditingController();
-  final sweepsCtrl             = TextEditingController();
-  final labTestingCtrl         = TextEditingController();
-  final endOfIntervalCtrl      = TextEditingController();
+  final sweepsCtrl = TextEditingController();
+  final labTestingCtrl = TextEditingController();
+  final endOfIntervalCtrl = TextEditingController();
+
+  @override
+  void onInit() {
+    super.onInit();
+    _attachGeneralAutosaveListeners();
+  }
 
   @override
   void onClose() {
+    _generalSaveTimer?.cancel();
     formationCtrl.dispose();
     bitSizeCtrl.dispose();
     casingCtrl.dispose();
@@ -172,13 +186,69 @@ class IntervalController extends GetxController {
     super.onClose();
   }
 
+  void _attachGeneralAutosaveListeners() {
+    for (final controller in [
+      formationCtrl,
+      bitSizeCtrl,
+      casingCtrl,
+      intervalFITCtrl,
+      mudDescCtrl,
+      mudTypeCtrl,
+      intervalSummaryCtrl,
+      solidControlCtrl,
+      intervalConclusionCtrl,
+      sweepsCtrl,
+      labTestingCtrl,
+      endOfIntervalCtrl,
+    ]) {
+      controller.addListener(_handleGeneralFieldChanged);
+    }
+  }
+
+  void _handleGeneralFieldChanged() {
+    if (_isHydratingControllers || isLoading.value) return;
+    final iv = selected.value;
+    if (iv == null) return;
+
+    _syncIntervalFromControllers(iv);
+    _pendingGeneralSave = iv;
+    _generalSaveTimer?.cancel();
+    _generalSaveTimer = Timer(_generalSaveDebounce, () async {
+      final pending = _pendingGeneralSave;
+      if (pending == null) return;
+      if (isSaving.value) {
+        _generalSaveTimer = Timer(
+          const Duration(milliseconds: 250),
+          _handleGeneralFieldChanged,
+        );
+        return;
+      }
+      await saveGeneralData(target: pending);
+    });
+  }
+
+  void _syncIntervalFromControllers(IntervalItem iv) {
+    iv.formation = formationCtrl.text;
+    iv.bitSize = bitSizeCtrl.text;
+    iv.casing = casingCtrl.text;
+    iv.intervalFIT = intervalFITCtrl.text;
+    iv.mudDescription = mudDescCtrl.text;
+    iv.mudType = mudTypeCtrl.text;
+    iv.intervalSummary = intervalSummaryCtrl.text;
+    iv.solidControl = solidControlCtrl.text;
+    iv.intervalConclusion = intervalConclusionCtrl.text;
+    iv.sweeps = sweepsCtrl.text;
+    iv.labTesting = labTestingCtrl.text;
+    iv.endOfIntervalConclusion = endOfIntervalCtrl.text;
+    intervals.refresh();
+    selected.refresh();
+  }
+
   // ── Computed flat list for the sidebar ──────────────────────────
   /// Returns the merged, ordered list of groups + standalone intervals.
   List<ListNode> get flatList {
     final List<ListNode> result = [];
-    final Set<String> grouped = groups
-        .expand((g) => g.intervalIds)
-        .toSet();
+    final Set<String> grouped = groups.expand((g) => g.intervalIds).toSet();
 
     // Build a map: order → node
     final Map<int, ListNode> byOrder = {};
@@ -198,10 +268,11 @@ class IntervalController extends GetxController {
       result.add(entry.value);
       // If it's a group and not collapsed, insert its member intervals
       if (entry.value.isGroup && !(entry.value.group!.collapsed)) {
-        final members = intervals
-            .where((iv) => entry.value.group!.intervalIds.contains(iv.id))
-            .toList()
-          ..sort((a, b) => a.order.compareTo(b.order));
+        final members =
+            intervals
+                .where((iv) => entry.value.group!.intervalIds.contains(iv.id))
+                .toList()
+              ..sort((a, b) => a.order.compareTo(b.order));
         for (final m in members) {
           result.add(ListNode.interval(m));
         }
@@ -231,7 +302,7 @@ class IntervalController extends GetxController {
         final body = jsonDecode(res.body);
         final List data = body['data'] ?? [];
 
-        final List<IntervalItem>  ivList = [];
+        final List<IntervalItem> ivList = [];
         final List<IntervalGroup> grList = [];
 
         for (final item in data) {
@@ -284,18 +355,20 @@ class IntervalController extends GetxController {
   }
 
   void _populateControllers(IntervalItem iv) {
-    formationCtrl.text      = iv.formation;
-    bitSizeCtrl.text        = iv.bitSize;
-    casingCtrl.text         = iv.casing;
-    intervalFITCtrl.text    = iv.intervalFIT;
-    mudDescCtrl.text        = iv.mudDescription;
-    mudTypeCtrl.text        = iv.mudType;
-    intervalSummaryCtrl.text    = iv.intervalSummary;
-    solidControlCtrl.text       = iv.solidControl;
+    _isHydratingControllers = true;
+    formationCtrl.text = iv.formation;
+    bitSizeCtrl.text = iv.bitSize;
+    casingCtrl.text = iv.casing;
+    intervalFITCtrl.text = iv.intervalFIT;
+    mudDescCtrl.text = iv.mudDescription;
+    mudTypeCtrl.text = iv.mudType;
+    intervalSummaryCtrl.text = iv.intervalSummary;
+    solidControlCtrl.text = iv.solidControl;
     intervalConclusionCtrl.text = iv.intervalConclusion;
-    sweepsCtrl.text             = iv.sweeps;
-    labTestingCtrl.text         = iv.labTesting;
-    endOfIntervalCtrl.text      = iv.endOfIntervalConclusion;
+    sweepsCtrl.text = iv.sweeps;
+    labTestingCtrl.text = iv.labTesting;
+    endOfIntervalCtrl.text = iv.endOfIntervalConclusion;
+    _isHydratingControllers = false;
   }
 
   // ════════════════════════════════════════════════════════════════
@@ -312,7 +385,10 @@ class IntervalController extends GetxController {
     }
     // insertAfterOrder = selected.order - 1 (i.e., just before selected)
     final insertAfterOrder = selected.value!.order - 1;
-    await _postInterval('New Interval', insertAfterOrder < 0 ? null : insertAfterOrder);
+    await _postInterval(
+      'New Interval',
+      insertAfterOrder < 0 ? null : insertAfterOrder,
+    );
   }
 
   Future<void> insertAfter() async {
@@ -323,10 +399,7 @@ class IntervalController extends GetxController {
   Future<void> _postInterval(String name, int? insertAfterOrder) async {
     isSaving.value = true;
     try {
-      final body = <String, dynamic>{
-        'wellId': wellId.value,
-        'name':   name,
-      };
+      final body = <String, dynamic>{'wellId': wellId.value, 'name': name};
       if (insertAfterOrder != null) {
         body['insertAfterOrder'] = insertAfterOrder;
       }
@@ -402,24 +475,18 @@ class IntervalController extends GetxController {
   // ════════════════════════════════════════════════════════════════
   //  SAVE GENERAL TAB DATA
   // ════════════════════════════════════════════════════════════════
-  Future<void> saveGeneralData() async {
-    if (selected.value == null) return;
+  Future<void> saveGeneralData({
+    IntervalItem? target,
+    bool refreshAfterSave = false,
+    bool showToast = false,
+  }) async {
+    final iv = target ?? selected.value;
+    if (iv == null) return;
     isSaving.value = true;
     try {
-      final iv = selected.value!;
-      // Update local model
-      iv.formation      = formationCtrl.text;
-      iv.bitSize        = bitSizeCtrl.text;
-      iv.casing         = casingCtrl.text;
-      iv.intervalFIT    = intervalFITCtrl.text;
-      iv.mudDescription = mudDescCtrl.text;
-      iv.mudType        = mudTypeCtrl.text;
-      iv.intervalSummary         = intervalSummaryCtrl.text;
-      iv.solidControl            = solidControlCtrl.text;
-      iv.intervalConclusion      = intervalConclusionCtrl.text;
-      iv.sweeps                  = sweepsCtrl.text;
-      iv.labTesting              = labTestingCtrl.text;
-      iv.endOfIntervalConclusion = endOfIntervalCtrl.text;
+      if (selected.value?.id == iv.id) {
+        _syncIntervalFromControllers(iv);
+      }
 
       final res = await http.put(
         Uri.parse('${baseUrl}intervals/${iv.id}'),
@@ -427,10 +494,22 @@ class IntervalController extends GetxController {
         body: jsonEncode(iv.toJson()),
       );
       if (res.statusCode == 200) {
-        await fetchAll();
-        Get.snackbar('Saved', 'Interval data saved',
+        if (refreshAfterSave) {
+          await fetchAll();
+        } else {
+          intervals.refresh();
+          if (selected.value?.id == iv.id) {
+            selected.refresh();
+          }
+        }
+        if (showToast) {
+          Get.snackbar(
+            'Saved',
+            'Interval data saved',
             duration: const Duration(seconds: 1),
-            snackPosition: SnackPosition.BOTTOM);
+            snackPosition: SnackPosition.BOTTOM,
+          );
+        }
       }
     } catch (e) {
       debugPrint('IntervalController saveGeneralData error: $e');
@@ -450,8 +529,8 @@ class IntervalController extends GetxController {
         Uri.parse('${baseUrl}intervals/groups'),
         headers: _headers,
         body: jsonEncode({
-          'wellId':      wellId.value,
-          'name':        groupName,
+          'wellId': wellId.value,
+          'name': groupName,
           'intervalIds': intervalIds,
         }),
       );

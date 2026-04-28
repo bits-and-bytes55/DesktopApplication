@@ -11,6 +11,35 @@ import 'package:mudpro_desktop_app/modules/report_context/report_context_control
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
+const int _planColumnCount = 31;
+const int _planMinimumRows = 18;
+
+List<Map<String, String>> _defaultPlanSummary() => [
+  {'type': 'TD', 'amount': '', 'unit': '(ft)'},
+  {'type': 'Days', 'amount': '', 'unit': '(-)'},
+  {'type': 'Total Cost', 'amount': '', 'unit': '(Kwd)'},
+];
+
+List<String> _normalizePlanRow(List<dynamic>? values) {
+  final row = List<String>.filled(_planColumnCount, '');
+  if (values == null) return row;
+  final limit = values.length < _planColumnCount
+      ? values.length
+      : _planColumnCount;
+  for (var i = 0; i < limit; i++) {
+    row[i] = (values[i] ?? '').toString();
+  }
+  return row;
+}
+
+List<List<String>> _padPlanRows(List<List<String>> rows) {
+  final padded = rows.map((row) => _normalizePlanRow(row)).toList();
+  while (padded.length < _planMinimumRows) {
+    padded.add(List<String>.filled(_planColumnCount, ''));
+  }
+  return padded;
+}
+
 class UgStController extends GetxController {
   var selectedWellTab = 0.obs; // 0 = Well
   var selectedWellId = Rx<String?>(null);
@@ -20,12 +49,15 @@ class UgStController extends GetxController {
   Worker? _dashboardLockWorker;
   Worker? _reportWorker;
   Timer? _casingAutoSaveTimer;
+  Timer? _planAutoSaveTimer;
   CasingRow? _pendingCasingAutoSave;
   bool _isSavingCasing = false;
+  bool _isSavingPlan = false;
   final selectedCasingDeleteKey = ''.obs;
 
   final casingVerticalScroll = ScrollController();
   final casingHorizontalScroll = ScrollController();
+  final isPlanLoading = false.obs;
 
   @override
   void onInit() {
@@ -47,11 +79,14 @@ class UgStController extends GetxController {
     _selectedWellWorker = ever<String>(context.selectedWellId, (wellId) {
       selectedWellId.value = wellId.isEmpty ? null : wellId;
       fetchCasings();
+      fetchPlan();
     });
     _reportWorker = ever<String>(reportContext.selectedReportId, (_) {
       fetchCasings();
+      fetchPlan();
     });
     fetchCasings();
+    fetchPlan();
     super.onInit();
   }
 
@@ -60,6 +95,7 @@ class UgStController extends GetxController {
     casingVerticalScroll.dispose();
     casingHorizontalScroll.dispose();
     _casingAutoSaveTimer?.cancel();
+    _planAutoSaveTimer?.cancel();
     _selectedWellWorker?.dispose();
     _dashboardLockWorker?.dispose();
     _reportWorker?.dispose();
@@ -67,159 +103,10 @@ class UgStController extends GetxController {
   }
 
   // Summary table data
-  var summaryData = [
-    {'type': 'TD', 'amount': '3139.75', 'unit': '(m)'},
-    {'type': 'Days', 'amount': '30', 'unit': '(days)'},
-    {'type': 'Total Cost', 'amount': '29,967.35', 'unit': '(\$)'},
-  ].obs;
+  final summaryData = _defaultPlanSummary().obs;
 
   // Big plan table data
-  var planData = <List<String>>[
-    [
-      "1",
-      "2377.44",
-      "5",
-      "0.00",
-      "8.30",
-      "8.40",
-      "65",
-      "75",
-      "15",
-      "22",
-      "28",
-      "12",
-      "16",
-      "25",
-      "30",
-      "9.5",
-    ],
-    [
-      "2",
-      "2742.60",
-      "10",
-      "18,641.34",
-      "10.60",
-      "11.00",
-      "68",
-      "78",
-      "18",
-      "25",
-      "30",
-      "14",
-      "18",
-      "28",
-      "32",
-      "9.8",
-    ],
-    [
-      "3",
-      "3139.75",
-      "30",
-      "29,967.35",
-      "12.50",
-      "13.00",
-      "72",
-      "82",
-      "20",
-      "28",
-      "32",
-      "15",
-      "20",
-      "30",
-      "35",
-      "10.0",
-    ],
-    [
-      "4",
-      "3500.00",
-      "45",
-      "45,231.20",
-      "13.20",
-      "13.80",
-      "75",
-      "85",
-      "22",
-      "30",
-      "35",
-      "16",
-      "22",
-      "32",
-      "38",
-      "10.2",
-    ],
-    [
-      "5",
-      "4000.00",
-      "60",
-      "68,945.50",
-      "14.00",
-      "14.50",
-      "78",
-      "88",
-      "24",
-      "32",
-      "38",
-      "18",
-      "24",
-      "35",
-      "40",
-      "10.5",
-    ],
-    [
-      "6",
-      "4500.00",
-      "75",
-      "92,345.75",
-      "14.80",
-      "15.20",
-      "80",
-      "90",
-      "26",
-      "35",
-      "40",
-      "20",
-      "26",
-      "38",
-      "42",
-      "10.8",
-    ],
-    [
-      "7",
-      "5000.00",
-      "90",
-      "125,678.90",
-      "15.50",
-      "16.00",
-      "82",
-      "92",
-      "28",
-      "38",
-      "42",
-      "22",
-      "28",
-      "40",
-      "45",
-      "11.0",
-    ],
-    [
-      "8",
-      "5500.00",
-      "105",
-      "158,234.10",
-      "16.20",
-      "16.80",
-      "85",
-      "95",
-      "30",
-      "40",
-      "45",
-      "24",
-      "30",
-      "42",
-      "48",
-      "11.2",
-    ],
-  ].obs;
+  final planData = <List<String>>[].obs;
 
   final casings = <CasingRow>[].obs;
 
@@ -284,6 +171,13 @@ class UgStController extends GetxController {
       'reportId': reportContext.selectedReportId.value.trim(),
   };
 
+  Map<String, String> get _planQueryParams => {
+    if (reportContext.selectedReportId.value.trim().isNotEmpty)
+      'reportId': reportContext.selectedReportId.value.trim(),
+    if (reportContext.selectedReportNumber.trim().isNotEmpty)
+      'reportNo': reportContext.selectedReportNumber.trim(),
+  };
+
   Future<void> fetchCasings() async {
     final wellId = _selectedWellId;
     if (wellId.isEmpty) {
@@ -311,6 +205,249 @@ class UgStController extends GetxController {
     } finally {
       isLoading.value = false;
     }
+  }
+
+  bool _hasPlanDataRow(List<String> row) =>
+      row.any((value) => value.trim().isNotEmpty);
+
+  List<List<String>> _trimmedPlanRows() {
+    final rows = planData.map((row) => _normalizePlanRow(row)).toList();
+    while (rows.isNotEmpty && !_hasPlanDataRow(rows.last)) {
+      rows.removeLast();
+    }
+    return rows;
+  }
+
+  List<Map<String, String>> _normalizedSummaryPayload() {
+    final defaults = _defaultPlanSummary();
+    return List<Map<String, String>>.generate(defaults.length, (index) {
+      final existing = index < summaryData.length
+          ? summaryData[index]
+          : <String, String>{};
+      return {
+        'type': existing['type']?.trim().isNotEmpty == true
+            ? existing['type']!.trim()
+            : defaults[index]['type']!,
+        'amount': existing['amount']?.trim() ?? '',
+        'unit': existing['unit']?.trim().isNotEmpty == true
+            ? existing['unit']!.trim()
+            : defaults[index]['unit']!,
+      };
+    });
+  }
+
+  Future<void> fetchPlan() async {
+    final wellId = _selectedWellId;
+    if (wellId.isEmpty) {
+      summaryData.assignAll(_defaultPlanSummary());
+      planData.assignAll(_padPlanRows([]));
+      return;
+    }
+
+    isPlanLoading.value = true;
+    try {
+      final response = await http.get(
+        Uri.parse(
+          '${ApiEndpoint.baseUrl}well-plan/$wellId',
+        ).replace(queryParameters: _planQueryParams),
+      );
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> body = json.decode(response.body);
+        if (body['success'] == true) {
+          final data = Map<String, dynamic>.from(body['data'] ?? {});
+          final rawSummary = (data['summary'] as List?) ?? const [];
+          final defaults = _defaultPlanSummary();
+          final nextSummary = List<Map<String, String>>.generate(
+            defaults.length,
+            (index) {
+              final entry = index < rawSummary.length
+                  ? Map<String, dynamic>.from(rawSummary[index] as Map)
+                  : <String, dynamic>{};
+              return {
+                'type': (entry['type'] ?? defaults[index]['type'] ?? '')
+                    .toString(),
+                'amount': (entry['amount'] ?? '').toString(),
+                'unit': (entry['unit'] ?? defaults[index]['unit'] ?? '')
+                    .toString(),
+              };
+            },
+          );
+          final rawRows = (data['rows'] as List?) ?? const [];
+          final nextRows = rawRows.map((entry) {
+            final map = Map<String, dynamic>.from(entry as Map);
+            final values = (map['values'] as List?) ?? const [];
+            return _normalizePlanRow(values);
+          }).toList();
+          summaryData.assignAll(nextSummary);
+          planData.assignAll(_padPlanRows(nextRows));
+          return;
+        }
+      }
+    } catch (e) {
+      print('Error fetching plan: $e');
+    } finally {
+      isPlanLoading.value = false;
+    }
+
+    summaryData.assignAll(_defaultPlanSummary());
+    planData.assignAll(_padPlanRows([]));
+  }
+
+  Future<bool> savePlan({bool refreshAfterSave = false}) async {
+    final wellId = _selectedWellId;
+    if (wellId.isEmpty) return false;
+
+    final payload = {
+      'wellId': wellId,
+      if (reportContext.selectedReportId.value.trim().isNotEmpty)
+        'reportId': reportContext.selectedReportId.value.trim(),
+      if (reportContext.selectedReportNumber.trim().isNotEmpty)
+        'reportNo': reportContext.selectedReportNumber.trim(),
+      'summary': _normalizedSummaryPayload(),
+      'rows': _trimmedPlanRows().asMap().entries.map((entry) {
+        return {
+          'rowNumber': entry.key + 1,
+          'values': _normalizePlanRow(entry.value),
+        };
+      }).toList(),
+    };
+
+    try {
+      final response = await http.put(
+        Uri.parse(
+          '${ApiEndpoint.baseUrl}well-plan/$wellId',
+        ).replace(queryParameters: _planQueryParams),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(payload),
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        if (refreshAfterSave) {
+          await fetchPlan();
+        }
+        return true;
+      }
+    } catch (e) {
+      print('Error saving plan: $e');
+    }
+    return false;
+  }
+
+  void schedulePlanAutoSave() {
+    if (isLocked.value || isPlanLoading.value || _selectedWellId.isEmpty)
+      return;
+    _planAutoSaveTimer?.cancel();
+    _planAutoSaveTimer = Timer(const Duration(milliseconds: 900), () async {
+      if (isLocked.value || isPlanLoading.value || _selectedWellId.isEmpty)
+        return;
+      if (_isSavingPlan) {
+        schedulePlanAutoSave();
+        return;
+      }
+      _isSavingPlan = true;
+      try {
+        await savePlan();
+      } finally {
+        _isSavingPlan = false;
+      }
+    });
+  }
+
+  void updateSummaryData(
+    int index,
+    String key,
+    String value, {
+    bool notify = false,
+    bool autoSave = true,
+  }) {
+    if (index < 0 || index >= summaryData.length) return;
+    summaryData[index][key] = value;
+    if (notify) summaryData.refresh();
+    if (autoSave) schedulePlanAutoSave();
+  }
+
+  void updatePlanData(
+    int row,
+    int col,
+    String value, {
+    bool notify = false,
+    bool autoSave = true,
+  }) {
+    if (row < 0 || col < 0) return;
+    while (planData.length <= row) {
+      planData.add(List<String>.filled(_planColumnCount, ''));
+    }
+    final current = _normalizePlanRow(planData[row]);
+    current[col] = value;
+    planData[row] = current;
+    if (notify) planData.refresh();
+    if (autoSave) schedulePlanAutoSave();
+  }
+
+  void insertPlanRow(int index, {List<String>? values}) {
+    final row = _normalizePlanRow(values);
+    final safeIndex = index < 0
+        ? 0
+        : (index > planData.length ? planData.length : index);
+    planData.insert(safeIndex, row);
+    while (planData.length < _planMinimumRows) {
+      planData.add(List<String>.filled(_planColumnCount, ''));
+    }
+    planData.refresh();
+    schedulePlanAutoSave();
+  }
+
+  void replacePlanRow(int index, List<String> values) {
+    if (index < 0) return;
+    while (planData.length <= index) {
+      planData.add(List<String>.filled(_planColumnCount, ''));
+    }
+    planData[index] = _normalizePlanRow(values);
+    planData.refresh();
+    schedulePlanAutoSave();
+  }
+
+  void deletePlanRow(int index) {
+    if (index < 0 || index >= planData.length) return;
+    planData.removeAt(index);
+    while (planData.length < _planMinimumRows) {
+      planData.add(List<String>.filled(_planColumnCount, ''));
+    }
+    planData.refresh();
+    schedulePlanAutoSave();
+  }
+
+  void movePlanRowToTop(int index) {
+    final rows = _trimmedPlanRows();
+    if (index <= 0 || index >= rows.length) return;
+    final row = rows.removeAt(index);
+    rows.insert(0, _normalizePlanRow(row));
+    planData.assignAll(_padPlanRows(rows));
+    schedulePlanAutoSave();
+  }
+
+  void movePlanRowToBottom(int index) {
+    final rows = _trimmedPlanRows();
+    if (index < 0 || index >= rows.length) return;
+    final row = rows.removeAt(index);
+    rows.add(_normalizePlanRow(row));
+    planData.assignAll(_padPlanRows(rows));
+    schedulePlanAutoSave();
+  }
+
+  void refreshPlanSummaryFromRows() {
+    final trimmed = _trimmedPlanRows();
+    if (trimmed.isEmpty) {
+      for (var i = 0; i < summaryData.length; i++) {
+        summaryData[i]['amount'] = '';
+      }
+    } else {
+      final last = trimmed.last;
+      summaryData[0]['amount'] = last[0];
+      summaryData[1]['amount'] = last[1];
+      summaryData[2]['amount'] = last[2];
+    }
+    summaryData.refresh();
+    schedulePlanAutoSave();
   }
 
   Future<bool> addCasing(CasingRow casing, {bool refresh = true}) async {
@@ -496,15 +633,5 @@ class UgStController extends GetxController {
         dashboardController.isLocked.value = next;
       }
     }
-  }
-
-  void updateSummaryData(int index, String key, String value) {
-    summaryData[index][key] = value;
-    summaryData.refresh();
-  }
-
-  void updatePlanData(int row, int col, String value) {
-    planData[row][col] = value;
-    planData.refresh();
   }
 }

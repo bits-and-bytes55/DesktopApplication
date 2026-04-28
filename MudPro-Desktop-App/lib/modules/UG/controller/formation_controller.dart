@@ -9,7 +9,8 @@ import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart
 
 class FormationController extends GetxController {
   static const int rowCount = 23;
-  static const double _psiPerFootPerPpg = 0.052;
+  static const double _ppgPerPsiPerFoot = 19.24;
+  static const double _psiPerFootPerPpg = 1 / _ppgPerPsiPerFoot;
 
   final UgController ugController = Get.find<UgController>();
   final AuthRepository _repository = AuthRepository();
@@ -186,6 +187,28 @@ class FormationController extends GetxController {
     if (!_validIndex(index)) return;
     rows[index] = source.clone();
     _recalculateRow(rows[index]);
+    rows.refresh();
+    _syncUgController();
+    scheduleAutosave();
+  }
+
+  void moveRowToTop(int index) {
+    if (!_validIndex(index) || !rows[index].hasData || index == 0) return;
+    final row = rows.removeAt(index);
+    rows.insert(0, row);
+    rows.refresh();
+    _syncUgController();
+    scheduleAutosave();
+  }
+
+  void moveRowToBottom(int index) {
+    if (!_validIndex(index) ||
+        !rows[index].hasData ||
+        index == rows.length - 1) {
+      return;
+    }
+    final row = rows.removeAt(index);
+    rows.add(row);
     rows.refresh();
     _syncUgController();
     scheduleAutosave();

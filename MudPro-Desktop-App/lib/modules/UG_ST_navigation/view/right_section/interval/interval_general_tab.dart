@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/interval/controller/interval_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/controller/UG_ST_controller.dart';
-import 'package:mudpro_desktop_app/theme/app_theme.dart';
+import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/interval/controller/interval_controller.dart';
+
+const Color _igBorder = Color(0xFFC9CED6);
+const Color _igHeader = Color(0xFFF3F3F3);
+const Color _igCell = Color(0xFFFFF6C7);
 
 class IntervalGeneralTab extends StatelessWidget {
   const IntervalGeneralTab({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final c    = Get.find<IntervalController>();
+    final c = Get.find<IntervalController>();
     final ugSt = Get.find<UgStController>();
 
     return Obx(() {
@@ -19,32 +22,49 @@ class IntervalGeneralTab extends StatelessWidget {
 
       final iv = c.selected.value;
 
-      return SingleChildScrollView(
-        padding: const EdgeInsets.all(10),
+      return Padding(
+        padding: const EdgeInsets.all(8),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── LEFT COLUMN ──────────────────────────────────────
             Expanded(
-              child: Column(children: [
-                _tableCard(c, ugSt, iv),
-                const SizedBox(height: 10),
-                _textCard("Interval Summary",    c.intervalSummaryCtrl, ugSt),
-                const SizedBox(height: 10),
-                _textCard("Solid Control",       c.solidControlCtrl, ugSt),
-              ]),
+              child: Column(
+                children: [
+                  _generalTable(iv?.name ?? '-', c, ugSt),
+                  const SizedBox(height: 8),
+                  _textArea(
+                    'Interval Summary',
+                    c.intervalSummaryCtrl,
+                    ugSt.isLocked.value,
+                  ),
+                  const SizedBox(height: 8),
+                  _textArea(
+                    'Solid Control',
+                    c.solidControlCtrl,
+                    ugSt.isLocked.value,
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(width: 10),
-            // ── RIGHT COLUMN ─────────────────────────────────────
+            const SizedBox(width: 14),
             Expanded(
-              child: Column(children: [
-                _textCard("Interval Conclusion and Recommendations",
-                    c.intervalConclusionCtrl, ugSt),
-                const SizedBox(height: 10),
-                _textCard("Sweeps",      c.sweepsCtrl,      ugSt),
-                const SizedBox(height: 10),
-                _textCard("Lab Testing", c.labTestingCtrl,  ugSt),
-              ]),
+              child: Column(
+                children: [
+                  _textArea(
+                    'Interval Conclusion and Recommendations',
+                    c.intervalConclusionCtrl,
+                    ugSt.isLocked.value,
+                  ),
+                  const SizedBox(height: 8),
+                  _textArea('Sweeps', c.sweepsCtrl, ugSt.isLocked.value),
+                  const SizedBox(height: 8),
+                  _textArea(
+                    'Lab Testing',
+                    c.labTestingCtrl,
+                    ugSt.isLocked.value,
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -52,248 +72,164 @@ class IntervalGeneralTab extends StatelessWidget {
     });
   }
 
-  // ── TABLE CARD (heading = selected interval name) ────────────────
-  Widget _tableCard(
+  Widget _generalTable(
+    String heading,
     IntervalController c,
     UgStController ugSt,
-    IntervalItem? iv,
   ) {
-    final heading = iv?.name ?? "—";
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade300),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(children: [
-        // Header
-        Container(
-          height: 34,
-          decoration: BoxDecoration(
-            gradient: AppTheme.primaryGradient,
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(8),
-              topRight: Radius.circular(8),
-            ),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Row(children: [
-            const Icon(Icons.table_chart, size: 15, color: Colors.white),
-            const SizedBox(width: 6),
-            Expanded(
-              child: Text(
-                heading,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            // Save button
-            Obx(() => c.isSaving.value
-                ? const SizedBox(
-                    width: 14,
-                    height: 14,
-                    child: CircularProgressIndicator(strokeWidth: 1.5, color: Colors.white))
-                : InkWell(
-                    onTap: ugSt.isLocked.value ? null : c.saveGeneralData,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.25),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: const Text("Save",
-                          style: TextStyle(
-                              fontSize: 10,
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600)),
-                    ),
-                  )),
-          ]),
-        ),
-
-        // Rows
-        Table(
-          border: TableBorder.all(color: Colors.grey.shade200, width: 0.8),
-          columnWidths: const {
-            0: FixedColumnWidth(140),
-            1: FlexColumnWidth(),
-            2: FixedColumnWidth(48),
-          },
-          defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-          children: [
-            _tRow("Formation",      c.formationCtrl,   "",      ugSt),
-            _tRow("Bit Size",       c.bitSizeCtrl,     "(in)",  ugSt),
-            _tRow("Casing",         c.casingCtrl,      "(in)",  ugSt),
-            _tRow("Interval FIT",   c.intervalFITCtrl, "(ppg)", ugSt),
-            _tRow("Mud Description",c.mudDescCtrl,     "",      ugSt),
-            _tRow("Mud Type",       c.mudTypeCtrl,     "",      ugSt),
-          ],
-        ),
-      ]),
-    );
-  }
-
-  // ── TABLE ROW ────────────────────────────────────────────────────
-  TableRow _tRow(
-    String label,
-    TextEditingController ctrl,
-    String suffix,
-    UgStController ugSt,
-  ) {
-    return TableRow(
-      decoration: BoxDecoration(
-        color: label.hashCode.isEven ? Colors.white : const Color(0xffF8FAFC),
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Label
-        Container(
-          height: 30,
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          alignment: Alignment.centerLeft,
-          child: Text(label,
-              style: const TextStyle(
-                  fontSize: 11, fontWeight: FontWeight.w500, color: Color(0xff374151))),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 4),
+          child: Text(
+            heading,
+            style: const TextStyle(fontSize: 10, color: Color(0xFF2F2F2F)),
+          ),
         ),
-        // Input
-        Obx(() => Container(
-          height: 30,
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-          child: ugSt.isLocked.value
-              ? Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(ctrl.text,
-                      style: const TextStyle(fontSize: 11, color: Color(0xff6B7280))),
-                )
-              : TextField(
-                  controller: ctrl,
-                  style: const TextStyle(fontSize: 11, color: Color(0xff111827)),
-                  decoration: InputDecoration(
-                    isDense: true,
-                    contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(4),
-                      borderSide: BorderSide(color: Colors.grey.shade300),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(4),
-                      borderSide: BorderSide(color: Colors.grey.shade300),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(4),
-                      borderSide: BorderSide(color: AppTheme.primaryColor, width: 1.2),
-                    ),
-                    filled: true,
-                    fillColor: Colors.white,
-                  ),
-                ),
-        )),
-        // Suffix
         Container(
-          height: 30,
-          alignment: Alignment.center,
-          child: Text(suffix,
-              style: const TextStyle(fontSize: 10, color: Color(0xff9CA3AF))),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border.all(color: _igBorder),
+          ),
+          child: Table(
+            border: const TableBorder(
+              horizontalInside: BorderSide(color: _igBorder),
+              verticalInside: BorderSide(color: _igBorder),
+            ),
+            columnWidths: const {
+              0: FixedColumnWidth(168),
+              1: FlexColumnWidth(),
+              2: FixedColumnWidth(78),
+            },
+            defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+            children: [
+              _tableRow('Formation', c.formationCtrl, '', ugSt.isLocked.value),
+              _tableRow('Bit Size', c.bitSizeCtrl, '(mm)', ugSt.isLocked.value),
+              _tableRow('Casing', c.casingCtrl, '(mm)', ugSt.isLocked.value),
+              _tableRow(
+                'Interval FIT',
+                c.intervalFITCtrl,
+                '(ppg)',
+                ugSt.isLocked.value,
+              ),
+              _tableRow(
+                'Mud Discription',
+                c.mudDescCtrl,
+                '',
+                ugSt.isLocked.value,
+              ),
+              _tableRow('Mud Type', c.mudTypeCtrl, '', ugSt.isLocked.value),
+            ],
+          ),
         ),
       ],
     );
   }
 
-  // ── TEXT AREA CARD ───────────────────────────────────────────────
-  Widget _textCard(
-    String title,
-    TextEditingController ctrl,
-    UgStController ugSt,
+  TableRow _tableRow(
+    String label,
+    TextEditingController controller,
+    String unit,
+    bool locked,
   ) {
+    return TableRow(
+      children: [
+        _labelCell(label),
+        _valueCell(controller, locked),
+        _unitCell(unit),
+      ],
+    );
+  }
+
+  Widget _labelCell(String text) {
     return Container(
-      height: 130,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade300),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
+      height: 28,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      alignment: Alignment.centerLeft,
+      color: _igHeader,
+      child: Text(
+        text,
+        style: const TextStyle(fontSize: 10, color: Color(0xFF2F2F2F)),
+      ),
+    );
+  }
+
+  Widget _valueCell(TextEditingController controller, bool locked) {
+    return Container(
+      height: 28,
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      color: _igCell,
+      child: TextField(
+        controller: controller,
+        readOnly: locked,
+        style: const TextStyle(fontSize: 10, color: Color(0xFF2F2F2F)),
+        decoration: const InputDecoration(
+          isDense: true,
+          border: InputBorder.none,
+          contentPadding: EdgeInsets.symmetric(vertical: 8),
+        ),
+      ),
+    );
+  }
+
+  Widget _unitCell(String text) {
+    return Container(
+      height: 28,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      alignment: Alignment.centerLeft,
+      color: _igHeader,
+      child: Text(
+        text,
+        style: const TextStyle(fontSize: 10, color: Color(0xFF2F2F2F)),
+      ),
+    );
+  }
+
+  Widget _textArea(
+    String title,
+    TextEditingController controller,
+    bool locked,
+  ) {
+    return Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Text(
+              title,
+              style: const TextStyle(fontSize: 10, color: Color(0xFF2F2F2F)),
+            ),
+          ),
+          Expanded(
+            child: TextField(
+              controller: controller,
+              readOnly: locked,
+              expands: true,
+              maxLines: null,
+              style: const TextStyle(fontSize: 10, color: Color(0xFF2F2F2F)),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: locked ? _igCell : Colors.white,
+                border: const OutlineInputBorder(
+                  borderRadius: BorderRadius.zero,
+                  borderSide: BorderSide(color: _igBorder),
+                ),
+                enabledBorder: const OutlineInputBorder(
+                  borderRadius: BorderRadius.zero,
+                  borderSide: BorderSide(color: _igBorder),
+                ),
+                focusedBorder: const OutlineInputBorder(
+                  borderRadius: BorderRadius.zero,
+                  borderSide: BorderSide(color: _igBorder),
+                ),
+                contentPadding: const EdgeInsets.all(8),
+              ),
+            ),
           ),
         ],
       ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        // Header
-        Container(
-          height: 34,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [AppTheme.primaryColor, AppTheme.primaryColor],
-            ),
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(8),
-              topRight: Radius.circular(8),
-            ),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          child: Row(children: [
-            const Icon(Icons.notes, size: 14, color: Colors.white),
-            const SizedBox(width: 6),
-            Expanded(
-              child: Text(title,
-                  style: const TextStyle(
-                      fontSize: 11, fontWeight: FontWeight.w600, color: Colors.white),
-                  overflow: TextOverflow.ellipsis),
-            ),
-          ]),
-        ),
-        // Body
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.all(6),
-            child: Obx(() => ugSt.isLocked.value
-                ? Container(
-                    padding: const EdgeInsets.all(8),
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade50,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      ctrl.text.isEmpty ? "—" : ctrl.text,
-                      style: const TextStyle(fontSize: 11, color: Color(0xff6B7280)),
-                    ),
-                  )
-                : Container(
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade200),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: TextField(
-                      controller: ctrl,
-                      maxLines: null,
-                      expands: true,
-                      style: const TextStyle(fontSize: 11, color: Color(0xff111827)),
-                      decoration: InputDecoration(
-                        border: InputBorder.none,
-                        contentPadding: const EdgeInsets.all(8),
-                        hintText: 'Enter $title...',
-                        hintStyle: const TextStyle(fontSize: 11, color: Color(0xffD1D5DB)),
-                      ),
-                    ),
-                  )),
-          ),
-        ),
-      ]),
     );
   }
 }

@@ -1,34 +1,25 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/controller/UG_ST_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/model/UG_ST_model.dart';
-import 'package:mudpro_desktop_app/modules/dashboard/widgets/tabular_database.dart';
-import 'package:mudpro_desktop_app/theme/app_theme.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/widgets/compact_tabular_database_dialog.dart';
 
-// ── Column widths ─────────────────────────────────────────────
-const double _wIdx = 36.0;
-const double _wDesc = 150.0;
-const double _wType = 90.0;
-const double _wStd = 76.0; // OD, Wt, ID, Top, Shoe, Bit, TOC  (7 cols)
-const double _wAct = 90.0;
-const double _totalW = _wIdx + _wDesc + _wType + (_wStd * 7) + _wAct + 12;
+const double _cIdx = 52.0;
+const double _cDesc = 180.0;
+const double _cType = 148.0;
+const double _cStd = 112.0;
+const double _cRowH = 31.0;
+const double _cHeadTopH = 25.0;
+const int _minVisibleRows = 20;
 
-const double _rowH = 30.0;
-const double _headH = 36.0;
-const int _emptyRows = 10;
+const Color _cBorder = Color(0xFFC9CED6);
+const Color _cHeader = Color(0xFFF3F3F3);
+const Color _cLocked = Color(0xFFFFF6C7);
 
-// ── No-border input decoration ────────────────────────────────
-const InputDecoration _noBorder = InputDecoration(
-  isDense: true,
-  contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-  border: InputBorder.none,
-  enabledBorder: InputBorder.none,
-  focusedBorder: InputBorder.none,
-  errorBorder: InputBorder.none,
-  disabledBorder: InputBorder.none,
-);
+double get _casingTableWidth => _cIdx + _cDesc + _cType + (_cStd * 7) + 4;
 
 class CasingView extends StatefulWidget {
   const CasingView({super.key});
@@ -39,7 +30,9 @@ class CasingView extends StatefulWidget {
 
 class _CasingViewState extends State<CasingView> {
   late final UgStController c;
-  final _vScroll = ScrollController();
+  final ScrollController _vScroll = ScrollController();
+  Map<String, String>? _clipboard;
+  int _selectedEmptyIndex = -1;
 
   @override
   void initState() {
@@ -53,39 +46,104 @@ class _CasingViewState extends State<CasingView> {
     super.dispose();
   }
 
+  bool get _isLocked => c.isLocked.value;
+
+  CasingRow? get _selectedSavedRow {
+    final selectedKey = c.selectedCasingDeleteKey.value.trim();
+    if (selectedKey.isEmpty) return null;
+    return _firstWhereOrNull<CasingRow>(
+      c.casings,
+      (row) => c.casingRowKey(row) == selectedKey,
+    );
+  }
+
+  void _selectSavedRow(CasingRow row) {
+    c.selectCasingForDelete(row);
+    if (_selectedEmptyIndex != -1) {
+      setState(() => _selectedEmptyIndex = -1);
+    }
+  }
+
+  void _selectEmptyRow(int index) {
+    c.selectedCasingDeleteKey.value = '';
+    setState(() => _selectedEmptyIndex = index);
+  }
+
+  Future<void> _openTubularDatabase() async {
+    if (_isLocked) return;
+
+    final result = await showDialog<Map<String, String>>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const CompactTabularDatabaseDialog(),
+    );
+
+    if (result == null) return;
+
+    final selectedRow = _selectedSavedRow;
+    if (selectedRow != null) {
+      selectedRow.description.value = selectedRow.description.value.isEmpty
+          ? (result['type'] ?? '')
+          : selectedRow.description.value;
+      selectedRow.od.value = result['odMm'] ?? selectedRow.od.value;
+      selectedRow.wt.value = result['weightLbFt'] ?? selectedRow.wt.value;
+      selectedRow.id.value = result['idMm'] ?? selectedRow.id.value;
+      c.casings.refresh();
+      c.scheduleCasingAutoSave(selectedRow);
+      return;
+    }
+
+    final newRow = CasingRow(
+      description: result['type'] ?? '',
+      od: result['odMm'] ?? '',
+      wt: result['weightLbFt'] ?? '',
+      id: result['idMm'] ?? '',
+    );
+    await c.addCasing(newRow);
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _toolbar(),
-          const SizedBox(height: 8),
-          Expanded(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              primary: false,
-              child: SizedBox(
-                width: _totalW,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.grey.shade300),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
+    return Obx(
+      () => Padding(
+        padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              height: 24,
+              child: Row(
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.only(left: 4),
+                    child: Text(
+                      'Casing',
+                      style: TextStyle(fontSize: 10, color: Color(0xFF2F2F2F)),
+                    ),
                   ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
+                  const Spacer(),
+                  _iconButton(
+                    tooltip: 'Tabular Database',
+                    onTap: _isLocked ? null : _openTubularDatabase,
+                    icon: Icons.table_chart_outlined,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 4),
+            Expanded(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: SizedBox(
+                  width: _casingTableWidth,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      border: Border.all(color: _cBorder),
+                    ),
                     child: Column(
                       children: [
-                        _headerRow(),
+                        _header(),
                         Expanded(child: _body()),
                       ],
                     ),
@@ -93,143 +151,86 @@ class _CasingViewState extends State<CasingView> {
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  // ── TOOLBAR ────────────────────────────────────────────────
-  Widget _toolbar() {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+  Widget _iconButton({
+    required String tooltip,
+    required VoidCallback? onTap,
+    required IconData icon,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          width: 24,
+          height: 24,
           decoration: BoxDecoration(
-            gradient: AppTheme.headerGradient,
-            borderRadius: BorderRadius.circular(6),
+            color: Colors.white,
+            border: Border.all(color: _cBorder),
           ),
-          child: Row(
-            children: [
-              const Icon(Icons.bubble_chart, size: 16, color: Colors.white),
-              const SizedBox(width: 6),
-              Text(
-                "Casing Configuration",
-                style: AppTheme.bodySmall.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Obx(
-                () => Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.25),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    "${c.casings.length} casings",
-                    style: AppTheme.caption.copyWith(
-                      color: Colors.white,
-                      fontSize: 10,
-                    ),
-                  ),
-                ),
-              ),
-            ],
+          child: Icon(
+            icon,
+            size: 14,
+            color: onTap == null
+                ? const Color(0xFF9EA4AD)
+                : const Color(0xFF1976D2),
           ),
         ),
-        const Spacer(),
-        Tooltip(
-          message: "Tubular Database",
-          child: InkWell(
-            borderRadius: BorderRadius.circular(6),
-            onTap: () => Get.to(() => TabularDatabaseView()),
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.grey.shade300),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
-                    blurRadius: 4,
-                  ),
-                ],
-              ),
-              child: Icon(
-                Icons.table_chart_outlined,
-                size: 20,
-                color: AppTheme.primaryColor,
-              ),
-            ),
-          ),
+      ),
+    );
+  }
+
+  Widget _header() {
+    return Column(
+      children: [
+        Row(
+          children: [
+            _headCell('', _cIdx, _cHeadTopH),
+            _headCell('Description', _cDesc, _cHeadTopH),
+            _headCell('Type', _cType, _cHeadTopH),
+            _headCell('OD\n(mm)', _cStd, _cHeadTopH),
+            _headCell('Wt.\n(lb/ft)', _cStd, _cHeadTopH),
+            _headCell('ID\n(mm)', _cStd, _cHeadTopH),
+            _headCell('Top\n(ft)', _cStd, _cHeadTopH),
+            _headCell('Shoe\n(ft)', _cStd, _cHeadTopH),
+            _headCell('Bit\n(mm)', _cStd, _cHeadTopH),
+            _headCell('TOC\n(ft)', _cStd, _cHeadTopH),
+          ],
         ),
       ],
     );
   }
 
-  // ── HEADER ─────────────────────────────────────────────────
-  Widget _headerRow() {
+  Widget _headCell(String text, double width, double height) {
     return Container(
-      height: _headH,
-      decoration: BoxDecoration(gradient: AppTheme.headerGradient),
-      child: Row(
-        children: [
-          _hc('#', _wIdx),
-          _hDiv(),
-          _hc('Description', _wDesc),
-          _hDiv(),
-          _hc('Type', _wType),
-          _hDiv(),
-          _hc('OD\n(in)', _wStd),
-          _hDiv(),
-          _hc('Wt.\n(lb/ft)', _wStd),
-          _hDiv(),
-          _hc('ID\n(in)', _wStd),
-          _hDiv(),
-          _hc('Top\n(m)', _wStd),
-          _hDiv(),
-          _hc('Shoe\n(m)', _wStd),
-          _hDiv(),
-          _hc('Bit\n(in)', _wStd),
-          _hDiv(),
-          _hc('TOC\n(m)', _wStd),
-          _hDiv(),
-          _hc('Actions', _wAct),
-        ],
+      width: width,
+      height: height,
+      alignment: Alignment.center,
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      decoration: const BoxDecoration(
+        color: _cHeader,
+        border: Border(
+          right: BorderSide(color: _cBorder),
+          bottom: BorderSide(color: _cBorder),
+        ),
+      ),
+      child: Text(
+        text,
+        textAlign: TextAlign.center,
+        style: const TextStyle(
+          fontSize: 10,
+          color: Color(0xFF2F2F2F),
+          fontWeight: FontWeight.w500,
+        ),
       ),
     );
   }
 
-  Widget _hc(String label, double w) => SizedBox(
-    width: w,
-    child: Center(
-      child: Text(
-        label,
-        textAlign: TextAlign.center,
-        style: AppTheme.caption.copyWith(
-          color: Colors.white,
-          fontWeight: FontWeight.w700,
-          fontSize: 11,
-          height: 1.3,
-        ),
-      ),
-    ),
-  );
-
-  Widget _hDiv() => Container(
-    width: 1,
-    height: _headH,
-    color: Colors.white.withOpacity(0.25),
-  );
-
-  // ── BODY ───────────────────────────────────────────────────
   Widget _body() {
     return Scrollbar(
       controller: _vScroll,
@@ -239,29 +240,39 @@ class _CasingViewState extends State<CasingView> {
           return const Center(child: CircularProgressIndicator());
         }
 
-        final db = c.casings;
-        final dbLen = db.length;
-        final total = dbLen + _emptyRows;
+        final totalRows = c.casings.length > _minVisibleRows
+            ? c.casings.length
+            : _minVisibleRows;
 
         return ListView.builder(
           controller: _vScroll,
-          itemCount: total,
-          itemExtent: _rowH,
-          itemBuilder: (context, i) {
-            if (i < dbLen) {
-              return _DataRow(
-                key: ValueKey(db[i].dbId ?? 'db_$i'),
-                index: i,
-                row: db[i],
-                isEven: i.isEven,
+          itemCount: totalRows,
+          itemExtent: _cRowH,
+          itemBuilder: (context, index) {
+            if (index < c.casings.length) {
+              final row = c.casings[index];
+              return _SavedCasingRow(
+                key: ValueKey(row.dbId ?? 'saved_$index'),
+                row: row,
+                index: index,
                 ctrl: c,
+                locked: _isLocked,
+                selected:
+                    c.selectedCasingDeleteKey.value == c.casingRowKey(row),
+                clipboard: _clipboard,
+                onCopied: (data) => _clipboard = data,
+                onSelected: () => _selectSavedRow(row),
               );
             }
-            return _EmptyRow(
-              key: ValueKey('empty_$i'),
-              index: i,
-              isEven: i.isEven,
+            return _DraftCasingRow(
+              key: ValueKey('draft_$index'),
+              index: index,
               ctrl: c,
+              locked: _isLocked,
+              selected: _selectedEmptyIndex == index,
+              clipboard: _clipboard,
+              onCopied: (data) => _clipboard = data,
+              onSelected: () => _selectEmptyRow(index),
             );
           },
         );
@@ -270,348 +281,347 @@ class _CasingViewState extends State<CasingView> {
   }
 }
 
-// ─────────────────────────────────────────────────────────────
-//  Shared cell helpers
-// ─────────────────────────────────────────────────────────────
-
-Widget _vDiv() =>
-    Container(width: 1, height: _rowH, color: Colors.grey.shade200);
-
-Widget _textCell(String text, double w, {bool grey = false}) => SizedBox(
-  width: w,
-  height: _rowH,
-  child: Center(
-    child: Text(
-      text,
-      textAlign: TextAlign.center,
-      style: AppTheme.caption.copyWith(
-        fontSize: 11,
-        color: grey ? Colors.grey.shade400 : AppTheme.textPrimary,
-      ),
-      overflow: TextOverflow.ellipsis,
-    ),
-  ),
-);
-
-Widget _lockedCell(double w) =>
-    Container(width: w, height: _rowH, color: const Color(0xFFF0F0F0));
-
-Widget _inputCell(
-  TextEditingController ctrl,
-  double w,
-  RxString rx, {
-  VoidCallback? onEdited,
-}) => SizedBox(
-  width: w,
-  height: _rowH,
-  child: TextField(
-    controller: ctrl,
-    onChanged: (v) {
-      rx.value = v;
-      onEdited?.call();
-    },
-    textAlign: TextAlign.center,
-    style: AppTheme.caption.copyWith(fontSize: 11, color: AppTheme.textPrimary),
-    decoration: _noBorder,
-  ),
-);
-
-Widget _inputCellPlain(TextEditingController ctrl, double w) => SizedBox(
-  width: w,
-  height: _rowH,
-  child: TextField(
-    controller: ctrl,
-    textAlign: TextAlign.center,
-    style: AppTheme.caption.copyWith(fontSize: 11, color: AppTheme.textPrimary),
-    decoration: _noBorder,
-  ),
-);
-
-// ─────────────────────────────────────────────────────────────
-//  _DataRow
-// ─────────────────────────────────────────────────────────────
-class _DataRow extends StatefulWidget {
-  final int index;
+class _SavedCasingRow extends StatefulWidget {
   final CasingRow row;
-  final bool isEven;
+  final int index;
   final UgStController ctrl;
+  final bool locked;
+  final bool selected;
+  final Map<String, String>? clipboard;
+  final ValueChanged<Map<String, String>> onCopied;
+  final VoidCallback onSelected;
 
-  const _DataRow({
+  const _SavedCasingRow({
     super.key,
-    required this.index,
     required this.row,
-    required this.isEven,
+    required this.index,
     required this.ctrl,
+    required this.locked,
+    required this.selected,
+    required this.clipboard,
+    required this.onCopied,
+    required this.onSelected,
   });
 
   @override
-  State<_DataRow> createState() => _DataRowState();
+  State<_SavedCasingRow> createState() => _SavedCasingRowState();
 }
 
-class _DataRowState extends State<_DataRow> {
-  late final TextEditingController _desc,
-      _od,
-      _wt,
-      _id,
-      _top,
-      _shoe,
-      _bit,
-      _toc;
+class _SavedCasingRowState extends State<_SavedCasingRow> {
+  late final TextEditingController _desc;
+  late final TextEditingController _od;
+  late final TextEditingController _wt;
+  late final TextEditingController _id;
+  late final TextEditingController _top;
+  late final TextEditingController _shoe;
+  late final TextEditingController _bit;
+  late final TextEditingController _toc;
 
   @override
   void initState() {
     super.initState();
-    final r = widget.row;
-    _desc = TextEditingController(text: r.description.value);
-    _od = TextEditingController(text: r.od.value);
-    _wt = TextEditingController(text: r.wt.value);
-    _id = TextEditingController(text: r.id.value);
-    _top = TextEditingController(text: r.top.value);
-    _shoe = TextEditingController(text: r.shoe.value);
-    _bit = TextEditingController(text: r.bit.value);
-    _toc = TextEditingController(text: r.toc.value);
+    _desc = TextEditingController(text: widget.row.description.value);
+    _od = TextEditingController(text: widget.row.od.value);
+    _wt = TextEditingController(text: widget.row.wt.value);
+    _id = TextEditingController(text: widget.row.id.value);
+    _top = TextEditingController(text: widget.row.top.value);
+    _shoe = TextEditingController(text: widget.row.shoe.value);
+    _bit = TextEditingController(text: widget.row.bit.value);
+    _toc = TextEditingController(text: widget.row.toc.value);
+  }
+
+  @override
+  void didUpdateWidget(covariant _SavedCasingRow oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _syncController(_desc, widget.row.description.value);
+    _syncController(_od, widget.row.od.value);
+    _syncController(_wt, widget.row.wt.value);
+    _syncController(_id, widget.row.id.value);
+    _syncController(_top, widget.row.top.value);
+    _syncController(_shoe, widget.row.shoe.value);
+    _syncController(_bit, widget.row.bit.value);
+    _syncController(_toc, widget.row.toc.value);
   }
 
   @override
   void dispose() {
-    for (final c in [_desc, _od, _wt, _id, _top, _shoe, _bit, _toc]) {
-      c.dispose();
-    }
+    _desc.dispose();
+    _od.dispose();
+    _wt.dispose();
+    _id.dispose();
+    _top.dispose();
+    _shoe.dispose();
+    _bit.dispose();
+    _toc.dispose();
     super.dispose();
+  }
+
+  void _syncController(TextEditingController controller, String value) {
+    if (controller.text == value) return;
+    controller.value = TextEditingValue(
+      text: value,
+      selection: TextSelection.collapsed(offset: value.length),
+    );
+  }
+
+  Map<String, String> _rowMap() => {
+    'description': _desc.text.trim(),
+    'type': widget.row.type.value.trim(),
+    'od': _od.text.trim(),
+    'wt': _wt.text.trim(),
+    'id': _id.text.trim(),
+    'top': _top.text.trim(),
+    'shoe': _shoe.text.trim(),
+    'bit': _bit.text.trim(),
+    'toc': _toc.text.trim(),
+  };
+
+  void _applyMap(Map<String, String> data) {
+    _desc.text = data['description'] ?? '';
+    widget.row.description.value = _desc.text;
+    widget.row.type.value = data['type'] ?? '';
+    _od.text = data['od'] ?? '';
+    widget.row.od.value = _od.text;
+    _wt.text = data['wt'] ?? '';
+    widget.row.wt.value = _wt.text;
+    _id.text = data['id'] ?? '';
+    widget.row.id.value = _id.text;
+    _top.text = data['top'] ?? '';
+    widget.row.top.value = _top.text;
+    _shoe.text = data['shoe'] ?? '';
+    widget.row.shoe.value = _shoe.text;
+    _bit.text = data['bit'] ?? '';
+    widget.row.bit.value = _bit.text;
+    _toc.text = data['toc'] ?? '';
+    widget.row.toc.value = _toc.text;
+    widget.ctrl.casings.refresh();
+    widget.ctrl.scheduleCasingAutoSave(widget.row);
+    setState(() {});
+  }
+
+  Future<void> _showMenu(TapDownDetails details) async {
+    widget.onSelected();
+    final hasData = _rowMap().values.any((value) => value.isNotEmpty);
+    final action = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        details.globalPosition.dx,
+        details.globalPosition.dy,
+        details.globalPosition.dx,
+        details.globalPosition.dy,
+      ),
+      items: [
+        _menuItem('cut', 'Cut', 'Ctrl+X', enabled: !widget.locked && hasData),
+        _menuItem('copy', 'Copy', 'Ctrl+C', enabled: hasData),
+        _menuItem(
+          'paste',
+          'Paste',
+          'Ctrl+V',
+          enabled: !widget.locked && widget.clipboard != null,
+        ),
+        _menuItem(
+          'delete',
+          'Delete',
+          'Delete',
+          enabled: !widget.locked && hasData,
+        ),
+        const PopupMenuDivider(),
+        _menuItem('top', 'To the Top', 'Ctrl+Up', enabled: false),
+        _menuItem('bottom', 'To the Bottom', 'Ctrl+Down', enabled: false),
+      ],
+    );
+
+    if (action == null) return;
+    switch (action) {
+      case 'cut':
+        widget.onCopied(_rowMap());
+        await Clipboard.setData(
+          ClipboardData(text: _rowMap().values.join('\n')),
+        );
+        if (widget.row.dbId != null && widget.row.dbId!.isNotEmpty) {
+          await widget.ctrl.deleteCasing(widget.row.dbId!);
+        }
+        break;
+      case 'copy':
+        widget.onCopied(_rowMap());
+        await Clipboard.setData(
+          ClipboardData(text: _rowMap().values.join('\n')),
+        );
+        break;
+      case 'paste':
+        if (widget.clipboard != null) {
+          _applyMap(widget.clipboard!);
+        }
+        break;
+      case 'delete':
+        if (widget.row.dbId != null && widget.row.dbId!.isNotEmpty) {
+          await widget.ctrl.deleteCasing(widget.row.dbId!);
+        }
+        break;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final r = widget.row;
-    final c = widget.ctrl;
-    final bg = widget.isEven ? Colors.white : const Color(0xFFF7F9FC);
-
-    return Obx(() {
-      final locked = c.isLocked.value;
-      final isLiner = r.type.value == 'Liner';
-
-      return Container(
-        height: _rowH,
-        color: bg,
-        foregroundDecoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(color: Colors.grey.shade200, width: 0.8),
-          ),
-        ),
-        child: Listener(
-          behavior: HitTestBehavior.translucent,
-          onPointerDown: (_) => c.selectCasingForDelete(r),
-          child: Row(
-            children: [
-              // #
-              SizedBox(
-                width: _wIdx,
-                child: Center(
-                  child: Text(
-                    '${widget.index + 1}',
-                    style: AppTheme.caption.copyWith(
-                      color: Colors.grey.shade500,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ),
-              _vDiv(),
-              locked
-                  ? _textCell(r.description.value, _wDesc)
-                  : _inputCell(
-                      _desc,
-                      _wDesc,
-                      r.description,
-                      onEdited: () => c.scheduleCasingAutoSave(r),
-                    ),
-              _vDiv(),
-              _typeCell(r, locked),
-              _vDiv(),
-              locked
-                  ? _textCell(r.od.value, _wStd)
-                  : _inputCell(
-                      _od,
-                      _wStd,
-                      r.od,
-                      onEdited: () => c.scheduleCasingAutoSave(r),
-                    ),
-              _vDiv(),
-              locked
-                  ? _textCell(r.wt.value, _wStd)
-                  : _inputCell(
-                      _wt,
-                      _wStd,
-                      r.wt,
-                      onEdited: () => c.scheduleCasingAutoSave(r),
-                    ),
-              _vDiv(),
-              locked
-                  ? _textCell(r.id.value, _wStd)
-                  : _inputCell(
-                      _id,
-                      _wStd,
-                      r.id,
-                      onEdited: () => c.scheduleCasingAutoSave(r),
-                    ),
-              _vDiv(),
-              // Top — editable only for Liner
-              if (locked)
-                _textCell(isLiner ? r.top.value : '', _wStd, grey: !isLiner)
-              else if (isLiner)
-                _inputCell(
-                  _top,
-                  _wStd,
-                  r.top,
-                  onEdited: () => c.scheduleCasingAutoSave(r),
-                )
-              else
-                _lockedCell(_wStd),
-              _vDiv(),
-              locked
-                  ? _textCell(r.shoe.value, _wStd)
-                  : _inputCell(
-                      _shoe,
-                      _wStd,
-                      r.shoe,
-                      onEdited: () => c.scheduleCasingAutoSave(r),
-                    ),
-              _vDiv(),
-              locked
-                  ? _textCell(r.bit.value, _wStd)
-                  : _inputCell(
-                      _bit,
-                      _wStd,
-                      r.bit,
-                      onEdited: () => c.scheduleCasingAutoSave(r),
-                    ),
-              _vDiv(),
-              locked
-                  ? _textCell(r.toc.value, _wStd)
-                  : _inputCell(
-                      _toc,
-                      _wStd,
-                      r.toc,
-                      onEdited: () => c.scheduleCasingAutoSave(r),
-                    ),
-              _vDiv(),
-              SizedBox(width: _wAct, child: _actionsCell(r, c)),
-            ],
-          ),
-        ),
-      );
-    });
-  }
-
-  Widget _typeCell(CasingRow r, bool locked) {
-    const opts = ['', 'Casing', 'Liner'];
-    final val = opts.contains(r.type.value) ? r.type.value : '';
-
-    if (locked) return _textCell(val, _wType);
-
-    return SizedBox(
-      width: _wType,
-      height: _rowH,
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: val,
-          isDense: true,
-          isExpanded: true,
-          icon: const Icon(Icons.arrow_drop_down, size: 16),
-          style: AppTheme.caption.copyWith(
-            fontSize: 11,
-            color: AppTheme.textPrimary,
-          ),
-          alignment: Alignment.center,
-          items: [
-            const DropdownMenuItem(value: '', child: SizedBox.shrink()),
-            ...['Casing', 'Liner'].map(
-              (o) => DropdownMenuItem(
-                value: o,
-                child: Center(
-                  child: Text(
-                    o,
-                    style: AppTheme.caption.copyWith(
-                      fontSize: 11,
-                      color: AppTheme.textPrimary,
-                    ),
-                  ),
-                ),
-              ),
+    final bg = widget.locked ? _cLocked : Colors.white;
+    return Container(
+      color: Colors.white,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: widget.onSelected,
+        onSecondaryTapDown: _showMenu,
+        child: Row(
+          children: [
+            _indexCell(widget.index, widget.selected),
+            _editCell(
+              controller: _desc,
+              width: _cDesc,
+              readOnly: widget.locked,
+              bg: bg,
+              onTap: widget.onSelected,
+              onChanged: (value) {
+                widget.row.description.value = value;
+                widget.ctrl.scheduleCasingAutoSave(widget.row);
+              },
+            ),
+            _typeCell(
+              width: _cType,
+              value: widget.row.type.value,
+              readOnly: widget.locked,
+              bg: bg,
+              onTap: widget.onSelected,
+              onChanged: (value) {
+                widget.row.type.value = value ?? '';
+                widget.ctrl.scheduleCasingAutoSave(widget.row);
+                setState(() {});
+              },
+            ),
+            _editCell(
+              controller: _od,
+              width: _cStd,
+              readOnly: widget.locked,
+              bg: bg,
+              align: TextAlign.right,
+              onTap: widget.onSelected,
+              onChanged: (value) {
+                widget.row.od.value = value;
+                widget.ctrl.scheduleCasingAutoSave(widget.row);
+              },
+            ),
+            _editCell(
+              controller: _wt,
+              width: _cStd,
+              readOnly: widget.locked,
+              bg: bg,
+              align: TextAlign.right,
+              onTap: widget.onSelected,
+              onChanged: (value) {
+                widget.row.wt.value = value;
+                widget.ctrl.scheduleCasingAutoSave(widget.row);
+              },
+            ),
+            _editCell(
+              controller: _id,
+              width: _cStd,
+              readOnly: widget.locked,
+              bg: bg,
+              align: TextAlign.right,
+              onTap: widget.onSelected,
+              onChanged: (value) {
+                widget.row.id.value = value;
+                widget.ctrl.scheduleCasingAutoSave(widget.row);
+              },
+            ),
+            _editCell(
+              controller: _top,
+              width: _cStd,
+              readOnly: widget.locked,
+              bg: bg,
+              align: TextAlign.right,
+              onTap: widget.onSelected,
+              onChanged: (value) {
+                widget.row.top.value = value;
+                widget.ctrl.scheduleCasingAutoSave(widget.row);
+              },
+            ),
+            _editCell(
+              controller: _shoe,
+              width: _cStd,
+              readOnly: widget.locked,
+              bg: bg,
+              align: TextAlign.right,
+              onTap: widget.onSelected,
+              onChanged: (value) {
+                widget.row.shoe.value = value;
+                widget.ctrl.scheduleCasingAutoSave(widget.row);
+              },
+            ),
+            _editCell(
+              controller: _bit,
+              width: _cStd,
+              readOnly: widget.locked,
+              bg: bg,
+              align: TextAlign.right,
+              onTap: widget.onSelected,
+              onChanged: (value) {
+                widget.row.bit.value = value;
+                widget.ctrl.scheduleCasingAutoSave(widget.row);
+              },
+            ),
+            _editCell(
+              controller: _toc,
+              width: _cStd,
+              readOnly: widget.locked,
+              bg: bg,
+              align: TextAlign.right,
+              onTap: widget.onSelected,
+              onChanged: (value) {
+                widget.row.toc.value = value;
+                widget.ctrl.scheduleCasingAutoSave(widget.row);
+              },
             ),
           ],
-          onChanged: (v) {
-            r.type.value = v ?? '';
-            if (v == 'Casing') {
-              r.top.value = '';
-              _top.clear();
-            }
-            widget.ctrl.scheduleCasingAutoSave(r);
-          },
         ),
       ),
     );
   }
-
-  Widget _actionsCell(CasingRow row, UgStController c) {
-    return Obx(() {
-      final selected = c.selectedCasingDeleteKey.value == c.casingRowKey(row);
-      if (!selected) return const SizedBox.shrink();
-
-      return Center(
-        child: Tooltip(
-          message: 'Delete',
-          child: InkWell(
-            borderRadius: BorderRadius.circular(4),
-            onTap: () => row.dbId != null
-                ? c.deleteCasing(row.dbId!)
-                : c.casings.remove(row),
-            child: Padding(
-              padding: const EdgeInsets.all(4),
-              child: Icon(
-                Icons.delete_outline,
-                size: 15,
-                color: Colors.red.shade400,
-              ),
-            ),
-          ),
-        ),
-      );
-    });
-  }
 }
 
-// ─────────────────────────────────────────────────────────────
-//  _EmptyRow
-// ─────────────────────────────────────────────────────────────
-class _EmptyRow extends StatefulWidget {
+class _DraftCasingRow extends StatefulWidget {
   final int index;
-  final bool isEven;
   final UgStController ctrl;
+  final bool locked;
+  final bool selected;
+  final Map<String, String>? clipboard;
+  final ValueChanged<Map<String, String>> onCopied;
+  final VoidCallback onSelected;
 
-  const _EmptyRow({
+  const _DraftCasingRow({
     super.key,
     required this.index,
-    required this.isEven,
     required this.ctrl,
+    required this.locked,
+    required this.selected,
+    required this.clipboard,
+    required this.onCopied,
+    required this.onSelected,
   });
 
   @override
-  State<_EmptyRow> createState() => _EmptyRowState();
+  State<_DraftCasingRow> createState() => _DraftCasingRowState();
 }
 
-class _EmptyRowState extends State<_EmptyRow> {
-  late final TextEditingController _desc,
-      _od,
-      _wt,
-      _id,
-      _top,
-      _shoe,
-      _bit,
-      _toc;
-  String _selType = '';
-  Timer? _autoSaveTimer;
+class _DraftCasingRowState extends State<_DraftCasingRow> {
+  late final TextEditingController _desc;
+  late final TextEditingController _od;
+  late final TextEditingController _wt;
+  late final TextEditingController _id;
+  late final TextEditingController _top;
+  late final TextEditingController _shoe;
+  late final TextEditingController _bit;
+  late final TextEditingController _toc;
+  String _type = '';
+  Timer? _timer;
   bool _isSaving = false;
 
   @override
@@ -625,164 +635,410 @@ class _EmptyRowState extends State<_EmptyRow> {
     _shoe = TextEditingController();
     _bit = TextEditingController();
     _toc = TextEditingController();
-    for (final c in [_desc, _od, _wt, _id, _top, _shoe, _bit, _toc]) {
-      c.addListener(_scheduleAutoSave);
-    }
   }
 
   @override
   void dispose() {
-    _autoSaveTimer?.cancel();
-    for (final c in [_desc, _od, _wt, _id, _top, _shoe, _bit, _toc]) {
-      c.dispose();
-    }
+    _timer?.cancel();
+    _desc.dispose();
+    _od.dispose();
+    _wt.dispose();
+    _id.dispose();
+    _top.dispose();
+    _shoe.dispose();
+    _bit.dispose();
+    _toc.dispose();
     super.dispose();
   }
 
   bool get _hasData =>
-      [_desc, _od, _wt, _id, _shoe, _bit, _toc].any((c) => c.text.isNotEmpty) ||
-      (_selType == 'Liner' && _top.text.isNotEmpty) ||
-      _selType.isNotEmpty;
+      _desc.text.trim().isNotEmpty ||
+      _type.trim().isNotEmpty ||
+      _od.text.trim().isNotEmpty ||
+      _wt.text.trim().isNotEmpty ||
+      _id.text.trim().isNotEmpty ||
+      _top.text.trim().isNotEmpty ||
+      _shoe.text.trim().isNotEmpty ||
+      _bit.text.trim().isNotEmpty ||
+      _toc.text.trim().isNotEmpty;
 
-  void _scheduleAutoSave() {
-    if (widget.ctrl.isLocked.value || !_hasData) return;
-    _autoSaveTimer?.cancel();
-    _autoSaveTimer = Timer(const Duration(milliseconds: 850), _save);
+  Map<String, String> _draftMap() => {
+    'description': _desc.text.trim(),
+    'type': _type.trim(),
+    'od': _od.text.trim(),
+    'wt': _wt.text.trim(),
+    'id': _id.text.trim(),
+    'top': _top.text.trim(),
+    'shoe': _shoe.text.trim(),
+    'bit': _bit.text.trim(),
+    'toc': _toc.text.trim(),
+  };
+
+  void _applyMap(Map<String, String> data) {
+    _desc.text = data['description'] ?? '';
+    _type = data['type'] ?? '';
+    _od.text = data['od'] ?? '';
+    _wt.text = data['wt'] ?? '';
+    _id.text = data['id'] ?? '';
+    _top.text = data['top'] ?? '';
+    _shoe.text = data['shoe'] ?? '';
+    _bit.text = data['bit'] ?? '';
+    _toc.text = data['toc'] ?? '';
+    setState(() {});
+    _scheduleSave();
+  }
+
+  void _scheduleSave() {
+    if (widget.locked || !_hasData || _isSaving) return;
+    _timer?.cancel();
+    _timer = Timer(const Duration(milliseconds: 850), _save);
   }
 
   Future<void> _save() async {
-    if (!_hasData || _isSaving || widget.ctrl.isLocked.value) return;
+    if (widget.locked || !_hasData || _isSaving) return;
     _isSaving = true;
     final saved = await widget.ctrl.addCasing(
       CasingRow(
-        description: _desc.text,
-        type: _selType,
-        od: _od.text,
-        wt: _wt.text,
-        id: _id.text,
-        top: _selType == 'Liner' ? _top.text : '',
-        shoe: _shoe.text,
-        bit: _bit.text,
-        toc: _toc.text,
+        description: _desc.text.trim(),
+        type: _type.trim(),
+        od: _od.text.trim(),
+        wt: _wt.text.trim(),
+        id: _id.text.trim(),
+        top: _top.text.trim(),
+        shoe: _shoe.text.trim(),
+        bit: _bit.text.trim(),
+        toc: _toc.text.trim(),
       ),
     );
     _isSaving = false;
     if (saved && mounted) {
-      _clearInputs();
+      _clear();
     }
   }
 
-  void _clearInputs() {
-    _autoSaveTimer?.cancel();
-    for (final c in [_desc, _od, _wt, _id, _top, _shoe, _bit, _toc]) {
-      c.clear();
+  void _clear() {
+    _timer?.cancel();
+    _desc.clear();
+    _od.clear();
+    _wt.clear();
+    _id.clear();
+    _top.clear();
+    _shoe.clear();
+    _bit.clear();
+    _toc.clear();
+    setState(() => _type = '');
+  }
+
+  Future<void> _showMenu(TapDownDetails details) async {
+    widget.onSelected();
+    final hasData = _hasData;
+    final action = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        details.globalPosition.dx,
+        details.globalPosition.dy,
+        details.globalPosition.dx,
+        details.globalPosition.dy,
+      ),
+      items: [
+        _menuItem('cut', 'Cut', 'Ctrl+X', enabled: !widget.locked && hasData),
+        _menuItem('copy', 'Copy', 'Ctrl+C', enabled: hasData),
+        _menuItem(
+          'paste',
+          'Paste',
+          'Ctrl+V',
+          enabled: !widget.locked && widget.clipboard != null,
+        ),
+        _menuItem(
+          'delete',
+          'Delete',
+          'Delete',
+          enabled: !widget.locked && hasData,
+        ),
+        const PopupMenuDivider(),
+        _menuItem('top', 'To the Top', 'Ctrl+Up', enabled: false),
+        _menuItem('bottom', 'To the Bottom', 'Ctrl+Down', enabled: false),
+      ],
+    );
+
+    if (action == null) return;
+    switch (action) {
+      case 'cut':
+        widget.onCopied(_draftMap());
+        await Clipboard.setData(
+          ClipboardData(text: _draftMap().values.join('\n')),
+        );
+        _clear();
+        break;
+      case 'copy':
+        widget.onCopied(_draftMap());
+        await Clipboard.setData(
+          ClipboardData(text: _draftMap().values.join('\n')),
+        );
+        break;
+      case 'paste':
+        if (widget.clipboard != null) {
+          _applyMap(widget.clipboard!);
+        }
+        break;
+      case 'delete':
+        _clear();
+        break;
     }
-    setState(() => _selType = '');
   }
 
   @override
   Widget build(BuildContext context) {
-    final c = widget.ctrl;
-    final bg = widget.isEven ? Colors.white : const Color(0xFFF7F9FC);
-
-    return Obx(() {
-      final locked = c.isLocked.value;
-      final isLiner = _selType == 'Liner';
-
-      return Container(
-        height: _rowH,
-        color: bg,
-        foregroundDecoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(color: Colors.grey.shade200, width: 0.8),
-          ),
-        ),
+    final bg = widget.locked ? _cLocked : Colors.white;
+    return Container(
+      color: Colors.white,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: widget.onSelected,
+        onSecondaryTapDown: _showMenu,
         child: Row(
           children: [
-            SizedBox(
-              width: _wIdx,
-              child: Center(
-                child: Text(
-                  '${widget.index + 1}',
-                  style: AppTheme.caption.copyWith(
-                    color: Colors.grey.shade400,
-                    fontSize: 11,
-                  ),
-                ),
-              ),
+            _indexCell(widget.index, widget.selected),
+            _editCell(
+              controller: _desc,
+              width: _cDesc,
+              readOnly: widget.locked,
+              bg: bg,
+              onTap: widget.onSelected,
+              onChanged: (_) => _scheduleSave(),
             ),
-            _vDiv(),
-            locked ? SizedBox(width: _wDesc) : _inputCellPlain(_desc, _wDesc),
-            _vDiv(),
-            _emptyTypeCell(locked),
-            _vDiv(),
-            locked ? SizedBox(width: _wStd) : _inputCellPlain(_od, _wStd),
-            _vDiv(),
-            locked ? SizedBox(width: _wStd) : _inputCellPlain(_wt, _wStd),
-            _vDiv(),
-            locked ? SizedBox(width: _wStd) : _inputCellPlain(_id, _wStd),
-            _vDiv(),
-            if (locked)
-              SizedBox(width: _wStd)
-            else if (isLiner)
-              _inputCellPlain(_top, _wStd)
-            else
-              _lockedCell(_wStd),
-            _vDiv(),
-            locked ? SizedBox(width: _wStd) : _inputCellPlain(_shoe, _wStd),
-            _vDiv(),
-            locked ? SizedBox(width: _wStd) : _inputCellPlain(_bit, _wStd),
-            _vDiv(),
-            locked ? SizedBox(width: _wStd) : _inputCellPlain(_toc, _wStd),
-            _vDiv(),
-            SizedBox(width: _wAct, child: const SizedBox.shrink()),
-          ],
-        ),
-      );
-    });
-  }
-
-  Widget _emptyTypeCell(bool locked) {
-    if (locked) return SizedBox(width: _wType);
-
-    return SizedBox(
-      width: _wType,
-      height: _rowH,
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: _selType,
-          isDense: true,
-          isExpanded: true,
-          icon: const Icon(Icons.arrow_drop_down, size: 16),
-          alignment: Alignment.center,
-          style: AppTheme.caption.copyWith(
-            fontSize: 11,
-            color: AppTheme.textPrimary,
-          ),
-          items: [
-            const DropdownMenuItem(value: '', child: SizedBox.shrink()),
-            ...['Casing', 'Liner'].map(
-              (o) => DropdownMenuItem(
-                value: o,
-                child: Center(
-                  child: Text(
-                    o,
-                    style: AppTheme.caption.copyWith(
-                      fontSize: 11,
-                      color: AppTheme.textPrimary,
-                    ),
-                  ),
-                ),
-              ),
+            _typeCell(
+              width: _cType,
+              value: _type,
+              readOnly: widget.locked,
+              bg: bg,
+              onTap: widget.onSelected,
+              onChanged: (value) {
+                _type = value ?? '';
+                _scheduleSave();
+                setState(() {});
+              },
+            ),
+            _editCell(
+              controller: _od,
+              width: _cStd,
+              readOnly: widget.locked,
+              bg: bg,
+              align: TextAlign.right,
+              onTap: widget.onSelected,
+              onChanged: (_) => _scheduleSave(),
+            ),
+            _editCell(
+              controller: _wt,
+              width: _cStd,
+              readOnly: widget.locked,
+              bg: bg,
+              align: TextAlign.right,
+              onTap: widget.onSelected,
+              onChanged: (_) => _scheduleSave(),
+            ),
+            _editCell(
+              controller: _id,
+              width: _cStd,
+              readOnly: widget.locked,
+              bg: bg,
+              align: TextAlign.right,
+              onTap: widget.onSelected,
+              onChanged: (_) => _scheduleSave(),
+            ),
+            _editCell(
+              controller: _top,
+              width: _cStd,
+              readOnly: widget.locked,
+              bg: bg,
+              align: TextAlign.right,
+              onTap: widget.onSelected,
+              onChanged: (_) => _scheduleSave(),
+            ),
+            _editCell(
+              controller: _shoe,
+              width: _cStd,
+              readOnly: widget.locked,
+              bg: bg,
+              align: TextAlign.right,
+              onTap: widget.onSelected,
+              onChanged: (_) => _scheduleSave(),
+            ),
+            _editCell(
+              controller: _bit,
+              width: _cStd,
+              readOnly: widget.locked,
+              bg: bg,
+              align: TextAlign.right,
+              onTap: widget.onSelected,
+              onChanged: (_) => _scheduleSave(),
+            ),
+            _editCell(
+              controller: _toc,
+              width: _cStd,
+              readOnly: widget.locked,
+              bg: bg,
+              align: TextAlign.right,
+              onTap: widget.onSelected,
+              onChanged: (_) => _scheduleSave(),
             ),
           ],
-          onChanged: (v) => setState(() {
-            _selType = v ?? '';
-            if (_selType == 'Casing') _top.clear();
-            _scheduleAutoSave();
-          }),
         ),
       ),
     );
   }
+}
+
+PopupMenuItem<String> _menuItem(
+  String value,
+  String label,
+  String shortcut, {
+  required bool enabled,
+}) {
+  final color = enabled ? const Color(0xFF2F2F2F) : const Color(0xFF9EA4AD);
+  return PopupMenuItem<String>(
+    value: value,
+    enabled: enabled,
+    height: 28,
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: TextStyle(fontSize: 11, color: color)),
+        const SizedBox(width: 20),
+        Text(shortcut, style: TextStyle(fontSize: 11, color: color)),
+      ],
+    ),
+  );
+}
+
+Widget _indexCell(int index, bool selected) {
+  return Container(
+    width: _cIdx,
+    height: _cRowH,
+    padding: const EdgeInsets.symmetric(horizontal: 6),
+    decoration: const BoxDecoration(
+      color: Colors.white,
+      border: Border(
+        right: BorderSide(color: _cBorder),
+        bottom: BorderSide(color: _cBorder),
+      ),
+    ),
+    child: Row(
+      children: [
+        SizedBox(
+          width: 12,
+          child: selected
+              ? const Icon(
+                  Icons.play_arrow_rounded,
+                  size: 11,
+                  color: Color(0xFF5B6470),
+                )
+              : null,
+        ),
+        Expanded(
+          child: Text(
+            '${index + 1}',
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 10, color: Color(0xFF404040)),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+Widget _editCell({
+  required TextEditingController controller,
+  required double width,
+  required bool readOnly,
+  required Color bg,
+  required VoidCallback onTap,
+  required ValueChanged<String> onChanged,
+  TextAlign align = TextAlign.left,
+}) {
+  return Container(
+    width: width,
+    height: _cRowH,
+    padding: const EdgeInsets.symmetric(horizontal: 6),
+    alignment: Alignment.center,
+    decoration: BoxDecoration(
+      color: bg,
+      border: const Border(
+        right: BorderSide(color: _cBorder),
+        bottom: BorderSide(color: _cBorder),
+      ),
+    ),
+    child: TextField(
+      controller: controller,
+      readOnly: readOnly,
+      onTap: onTap,
+      onChanged: onChanged,
+      textAlign: align,
+      style: const TextStyle(fontSize: 10, color: Color(0xFF2F2F2F)),
+      decoration: const InputDecoration(
+        isDense: true,
+        border: InputBorder.none,
+        contentPadding: EdgeInsets.symmetric(vertical: 8),
+      ),
+    ),
+  );
+}
+
+Widget _typeCell({
+  required double width,
+  required String value,
+  required bool readOnly,
+  required Color bg,
+  required VoidCallback onTap,
+  required ValueChanged<String?> onChanged,
+}) {
+  const options = ['', 'Casing', 'Liner'];
+  final selectedValue = options.contains(value) ? value : '';
+
+  return Container(
+    width: width,
+    height: _cRowH,
+    padding: const EdgeInsets.symmetric(horizontal: 6),
+    decoration: BoxDecoration(
+      color: bg,
+      border: const Border(
+        right: BorderSide(color: _cBorder),
+        bottom: BorderSide(color: _cBorder),
+      ),
+    ),
+    child: readOnly
+        ? Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              selectedValue,
+              style: const TextStyle(fontSize: 10, color: Color(0xFF2F2F2F)),
+            ),
+          )
+        : DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: selectedValue,
+              isDense: true,
+              isExpanded: true,
+              onTap: onTap,
+              icon: const Icon(Icons.arrow_drop_down, size: 16),
+              style: const TextStyle(fontSize: 10, color: Color(0xFF2F2F2F)),
+              items: options
+                  .map(
+                    (item) => DropdownMenuItem<String>(
+                      value: item,
+                      child: Text(item, style: const TextStyle(fontSize: 10)),
+                    ),
+                  )
+                  .toList(),
+              onChanged: onChanged,
+            ),
+          ),
+  );
+}
+
+T? _firstWhereOrNull<T>(Iterable<T> items, bool Function(T item) test) {
+  for (final item in items) {
+    if (test(item)) return item;
+  }
+  return null;
 }

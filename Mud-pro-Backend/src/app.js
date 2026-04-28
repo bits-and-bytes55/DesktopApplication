@@ -78,6 +78,7 @@ import emptyFluidActiveSystemRoutes from "./routes/emptyfluidactivesystem/emptyF
 import operationRoutes from "./routes/operation/operation.routes.js";
 import reportRoutes from "./routes/report/report.routes.js";
 import formationRoutes from "./routes/formation/formation.routes.js";
+import wellPlanRoutes from "./routes/wellPlan/wellPlan.routes.js";
 
 
 
@@ -206,6 +207,7 @@ app.use("/api/wells", wellRoutes);
 app.use("/api/operations", operationRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/formation", formationRoutes);
+app.use("/api/well-plan", wellPlanRoutes);
 
 
 // Error handler (ALWAYS LAST)
