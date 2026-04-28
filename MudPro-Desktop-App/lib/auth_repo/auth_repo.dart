@@ -212,7 +212,8 @@ class AuthRepository {
   }) async {
     try {
       final reportId =
-          reportIdOverride?.trim() ?? reportContext.selectedReportId.value.trim();
+          reportIdOverride?.trim() ??
+          reportContext.selectedReportId.value.trim();
       final uri = Uri.parse('${baseUrl}volume-name/$wellId').replace(
         queryParameters: {
           'strictScope': 'true',
@@ -1931,6 +1932,67 @@ class AuthRepository {
       return {
         'success': response.statusCode == 200,
         'message': data['message'] ?? 'Other SCE deleted successfully',
+      };
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> getFormationConfig(String wellId) async {
+    try {
+      final response = await http.get(
+        _uriWithReportId('${baseUrl}formation/$wellId'),
+        headers: _headers,
+      );
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200,
+        'data': data['data'] ?? {},
+        'message': data['message'] ?? '',
+      };
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> saveFormationConfig({
+    required String wellId,
+    required String mode,
+    required bool poreFromTop,
+    required List<Map<String, dynamic>> rows,
+  }) async {
+    try {
+      final payload = _payloadWithReportId({
+        'mode': mode,
+        'poreFromTop': poreFromTop,
+        'rows': rows,
+      });
+      final response = await http.put(
+        _uriWithReportId('${baseUrl}formation/$wellId'),
+        headers: _headers,
+        body: jsonEncode(payload),
+      );
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200 || response.statusCode == 201,
+        'data': data['data'] ?? {},
+        'message': data['message'] ?? '',
+      };
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> deleteFormationConfig(String wellId) async {
+    try {
+      final response = await http.delete(
+        _uriWithReportId('${baseUrl}formation/$wellId'),
+        headers: _headers,
+      );
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200,
+        'message': data['message'] ?? '',
       };
     } catch (e) {
       return {'success': false, 'message': e.toString()};

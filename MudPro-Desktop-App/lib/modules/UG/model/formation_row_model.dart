@@ -13,6 +13,7 @@ class FormationRow {
   RxString fracPpg;
   RxString fracGrad;
   RxString fracPsi;
+  RxString lithology;
 
   FormationRow({
     String description = '',
@@ -23,12 +24,78 @@ class FormationRow {
     String fracPpg = '',
     String fracGrad = '',
     String fracPsi = '',
-  })  : description = description.obs,
-        tvd = tvd.obs,
-        porePpg = porePpg.obs,
-        poreGrad = poreGrad.obs,
-        porePsi = porePsi.obs,
-        fracPpg = fracPpg.obs,
-        fracGrad = fracGrad.obs,
-        fracPsi = fracPsi.obs;
+    String lithology = '',
+  }) : description = description.obs,
+       tvd = tvd.obs,
+       porePpg = porePpg.obs,
+       poreGrad = poreGrad.obs,
+       porePsi = porePsi.obs,
+       fracPpg = fracPpg.obs,
+       fracGrad = fracGrad.obs,
+       fracPsi = fracPsi.obs,
+       lithology = lithology.obs;
+
+  factory FormationRow.fromJson(Map<String, dynamic> json) {
+    return FormationRow(
+      description: (json['description'] ?? '').toString(),
+      tvd: (json['tvd'] ?? '').toString(),
+      porePpg: (json['porePpg'] ?? '').toString(),
+      poreGrad: (json['poreGrad'] ?? '').toString(),
+      porePsi: (json['porePsi'] ?? '').toString(),
+      fracPpg: (json['fracPpg'] ?? '').toString(),
+      fracGrad: (json['fracGrad'] ?? '').toString(),
+      fracPsi: (json['fracPsi'] ?? '').toString(),
+      lithology: (json['lithology'] ?? '').toString(),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'description': description.value.trim(),
+    'tvd': tvd.value.trim(),
+    'porePpg': porePpg.value.trim(),
+    'poreGrad': poreGrad.value.trim(),
+    'porePsi': porePsi.value.trim(),
+    'fracPpg': fracPpg.value.trim(),
+    'fracGrad': fracGrad.value.trim(),
+    'fracPsi': fracPsi.value.trim(),
+    'lithology': lithology.value.trim(),
+  };
+
+  FormationRow clone() {
+    return FormationRow(
+      description: description.value,
+      tvd: tvd.value,
+      porePpg: porePpg.value,
+      poreGrad: poreGrad.value,
+      porePsi: porePsi.value,
+      fracPpg: fracPpg.value,
+      fracGrad: fracGrad.value,
+      fracPsi: fracPsi.value,
+      lithology: lithology.value,
+    );
+  }
+
+  bool get hasData {
+    return description.value.trim().isNotEmpty ||
+        tvd.value.trim().isNotEmpty ||
+        porePpg.value.trim().isNotEmpty ||
+        poreGrad.value.trim().isNotEmpty ||
+        porePsi.value.trim().isNotEmpty ||
+        fracPpg.value.trim().isNotEmpty ||
+        fracGrad.value.trim().isNotEmpty ||
+        fracPsi.value.trim().isNotEmpty ||
+        lithology.value.trim().isNotEmpty;
+  }
+
+  void clearRetainingReadOnlyDefaults() {
+    description.value = '';
+    tvd.value = '';
+    porePpg.value = '';
+    poreGrad.value = '';
+    porePsi.value = '';
+    fracPpg.value = '';
+    fracGrad.value = '';
+    fracPsi.value = '';
+    lithology.value = '';
+  }
 }

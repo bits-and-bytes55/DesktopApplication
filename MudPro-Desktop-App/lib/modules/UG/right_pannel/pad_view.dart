@@ -380,10 +380,12 @@ class _PadViewState extends State<PadView> {
 
   TableRow _buildFieldRow(_PadField field, bool isLocked) {
     final controller = _controllers[field.key]!;
+    final fieldReadOnly =
+        isLocked || (_locationType == 'Land' && field.offshoreOnly);
     return TableRow(
       children: [
         _labelCell(field.label),
-        isLocked
+        fieldReadOnly
             ? _readOnlyValueCell(controller.text)
             : _editableValueCell(controller, field.hint),
         _unitCell(field.unit),
@@ -662,12 +664,14 @@ class _PadField {
   final String label;
   final String hint;
   final String unit;
+  final bool offshoreOnly;
 
   const _PadField({
     required this.key,
     required this.label,
     required this.hint,
     this.unit = '',
+    this.offshoreOnly = false,
   });
 }
 
@@ -705,41 +709,48 @@ const List<_PadField> _padFields = [
     label: 'Air Gap',
     hint: 'Enter air gap',
     unit: '(ft)',
+    offshoreOnly: true,
   ),
   _PadField(
     key: 'waterDepth',
     label: 'Water Depth',
     hint: 'Enter water depth',
     unit: '(ft)',
+    offshoreOnly: true,
   ),
   _PadField(
     key: 'riserOD',
     label: 'Riser OD',
     hint: 'Enter riser OD',
     unit: '(mm)',
+    offshoreOnly: true,
   ),
   _PadField(
     key: 'riserID',
     label: 'Riser ID',
     hint: 'Enter riser ID',
     unit: '(mm)',
+    offshoreOnly: true,
   ),
   _PadField(
     key: 'chokeLineID',
     label: 'Choke Line ID',
     hint: 'Enter choke line ID',
     unit: '(mm)',
+    offshoreOnly: true,
   ),
   _PadField(
     key: 'killLineID',
     label: 'Kill Line ID',
     hint: 'Enter kill line ID',
     unit: '(mm)',
+    offshoreOnly: true,
   ),
   _PadField(
     key: 'boostLineID',
     label: 'Boost Line ID',
     hint: 'Enter boost line ID',
     unit: '(mm)',
+    offshoreOnly: true,
   ),
 ];

@@ -37,20 +37,20 @@ class ShakerModel {
     String? screen8,
     String? time,
     String? oocWt,
-  })  : shaker = (shaker ?? '').obs,
-        model = (model ?? '').obs,
-        screens = (screens ?? '').obs,
-        plot = (plot ?? false).obs,
-        screen1 = (screen1 ?? '').obs,
-        screen2 = (screen2 ?? '').obs,
-        screen3 = (screen3 ?? '').obs,
-        screen4 = (screen4 ?? '').obs,
-        screen5 = (screen5 ?? '').obs,
-        screen6 = (screen6 ?? '').obs,
-        screen7 = (screen7 ?? '').obs,
-        screen8 = (screen8 ?? '').obs,
-        time = (time ?? '').obs,
-        oocWt = (oocWt ?? '').obs;
+  }) : shaker = (shaker ?? '').obs,
+       model = (model ?? '').obs,
+       screens = (screens ?? '').obs,
+       plot = (plot ?? false).obs,
+       screen1 = (screen1 ?? '').obs,
+       screen2 = (screen2 ?? '').obs,
+       screen3 = (screen3 ?? '').obs,
+       screen4 = (screen4 ?? '').obs,
+       screen5 = (screen5 ?? '').obs,
+       screen6 = (screen6 ?? '').obs,
+       screen7 = (screen7 ?? '').obs,
+       screen8 = (screen8 ?? '').obs,
+       time = (time ?? '').obs,
+       oocWt = (oocWt ?? '').obs;
 
   // From JSON
   factory ShakerModel.fromJson(Map<String, dynamic> json) {
@@ -101,7 +101,19 @@ class ShakerModel {
 
   // Check if shaker has any data
   bool get hasData {
-    return model.value.isNotEmpty || screens.value.isNotEmpty;
+    return model.value.isNotEmpty ||
+        screens.value.isNotEmpty ||
+        plot.value ||
+        screen1.value.isNotEmpty ||
+        screen2.value.isNotEmpty ||
+        screen3.value.isNotEmpty ||
+        screen4.value.isNotEmpty ||
+        screen5.value.isNotEmpty ||
+        screen6.value.isNotEmpty ||
+        screen7.value.isNotEmpty ||
+        screen8.value.isNotEmpty ||
+        time.value.isNotEmpty ||
+        oocWt.value.isNotEmpty;
   }
 
   // Clone shaker
@@ -153,15 +165,15 @@ class OtherSceModel {
     String? of,
     String? time,
     String? oocWt,
-  })  : type = (type ?? '').obs,
-        model1 = (model1 ?? '').obs,
-        model2 = (model2 ?? '').obs,
-        model3 = (model3 ?? '').obs,
-        plot = (plot ?? false).obs,
-        uf = (uf ?? '').obs,
-        of = (of ?? '').obs,
-        time = (time ?? '').obs,
-        oocWt = (oocWt ?? '').obs;
+  }) : type = (type ?? '').obs,
+       model1 = (model1 ?? '').obs,
+       model2 = (model2 ?? '').obs,
+       model3 = (model3 ?? '').obs,
+       plot = (plot ?? false).obs,
+       uf = (uf ?? '').obs,
+       of = (of ?? '').obs,
+       time = (time ?? '').obs,
+       oocWt = (oocWt ?? '').obs;
 
   // From JSON
   factory OtherSceModel.fromJson(Map<String, dynamic> json) {
@@ -202,10 +214,14 @@ class OtherSceModel {
 
   // Check if SCE has any data
   bool get hasData {
-    return type.value.isNotEmpty ||
-        model1.value.isNotEmpty ||
+    return model1.value.isNotEmpty ||
         model2.value.isNotEmpty ||
-        model3.value.isNotEmpty;
+        model3.value.isNotEmpty ||
+        plot.value ||
+        uf.value.isNotEmpty ||
+        of.value.isNotEmpty ||
+        time.value.isNotEmpty ||
+        oocWt.value.isNotEmpty;
   }
 
   // Clone SCE

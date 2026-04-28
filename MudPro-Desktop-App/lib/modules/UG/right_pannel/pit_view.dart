@@ -1,472 +1,332 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
-import '../controller/ug_pit_controller.dart';
-import 'package:mudpro_desktop_app/theme/app_theme.dart';
+import 'package:mudpro_desktop_app/modules/UG/controller/UG_controller.dart';
+import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/pit_model.dart';
 
-class PitView extends StatelessWidget {
-  PitView({super.key});
+class PitView extends StatefulWidget {
+  const PitView({super.key});
 
-  final c = Get.put(PitController());
+  @override
+  State<PitView> createState() => _PitViewState();
+}
+
+class _PitViewState extends State<PitView> {
+  static const double _indexWidth = 60;
+  static const double _pitWidth = 180;
+  static const double _capacityWidth = 150;
+  static const double _activeWidth = 150;
+  static const double _rowHeight = 29;
+  static const Color _gridBorder = Color(0xFFC9CED6);
+  static const Color _headerColor = Color(0xFFF3F3F3);
+  static const Color _inputColor = Color(0xFFFFF6C7);
+
+  final PitController controller = Get.isRegistered<PitController>()
+      ? Get.find<PitController>()
+      : Get.put(PitController());
+  final UgController ugController = Get.find<UgController>();
+  final ScrollController _bodyScrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _bodyScrollController.dispose();
+    super.dispose();
+  }
+
+  bool _hasAnyContent(PitModel pit) {
+    return pit.pitName.trim().isNotEmpty ||
+        pit.capacity.value > 0 ||
+        pit.initialActive.value;
+  }
+
+  Future<void> _showRowMenu(
+    TapDownDetails details,
+    PitModel pit,
+    int index,
+  ) async {
+    final isLocked = ugController.isLocked.value || pit.isLocked;
+    if (isLocked) return;
+
+    final canAdd = pit.id == null && controller.isRowFilled(pit);
+    final canDelete = pit.id != null || _hasAnyContent(pit);
+
+    if (!canAdd && !canDelete) return;
+
+    final action = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        details.globalPosition.dx,
+        details.globalPosition.dy,
+        details.globalPosition.dx,
+        details.globalPosition.dy,
+      ),
+      items: [
+        if (canAdd)
+          const PopupMenuItem<String>(
+            value: 'add',
+            child: Text('Add', style: TextStyle(fontSize: 11)),
+          ),
+        if (canDelete)
+          const PopupMenuItem<String>(
+            value: 'delete',
+            child: Text('Delete', style: TextStyle(fontSize: 11)),
+          ),
+      ],
+    );
+
+    if (!mounted || action == null) return;
+    if (action == 'add') {
+      await controller.saveDraftPit(pit);
+      return;
+    }
+    if (pit.id != null) {
+      await controller.deletePit(pit);
+    } else {
+      controller.removeDraftPit(pit);
+    }
+  }
+
+  void _onPitNameChanged(PitModel pit, int index, String value) {
+    pit.pitName = value;
+    if (pit.id != null) {
+      controller.schedulePitConfigSave(pit);
+      return;
+    }
+    controller.onRowFilled(index);
+    controller.schedulePitAutoSave();
+  }
+
+  void _onCapacityChanged(PitModel pit, int index, String value) {
+    pit.capacity.value = double.tryParse(value.trim()) ?? 0.0;
+    if (pit.id != null) {
+      controller.schedulePitConfigSave(pit);
+      return;
+    }
+    controller.onRowFilled(index);
+    controller.schedulePitAutoSave();
+  }
+
+  void _onInitialActiveChanged(PitModel pit, int index, bool? value) {
+    pit.initialActive.value = value ?? false;
+    controller.pits.refresh();
+    if (pit.id != null) {
+      controller.schedulePitConfigSave(pit);
+      return;
+    }
+    controller.onRowFilled(index);
+    controller.schedulePitAutoSave();
+  }
+
+  String _capacityText(PitModel pit) {
+    if (pit.capacity.value <= 0) return '';
+    return pit.capacity.value.toStringAsFixed(2);
+  }
+
+  Widget _headerCell(
+    String text,
+    double width, {
+    TextAlign textAlign = TextAlign.center,
+  }) {
+    return Container(
+      width: width,
+      height: 44,
+      alignment: Alignment.center,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: const BoxDecoration(
+        color: _headerColor,
+        border: Border(
+          right: BorderSide(color: _gridBorder),
+          bottom: BorderSide(color: _gridBorder),
+        ),
+      ),
+      child: Text(
+        text,
+        textAlign: textAlign,
+        style: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          color: Color(0xFF2C2C2C),
+        ),
+      ),
+    );
+  }
+
+  Widget _frameCell({
+    required double width,
+    required Widget child,
+    Alignment alignment = Alignment.centerLeft,
+    Color? color,
+  }) {
+    return Container(
+      width: width,
+      height: _rowHeight,
+      alignment: alignment,
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      decoration: BoxDecoration(
+        color: color ?? Colors.white,
+        border: const Border(
+          right: BorderSide(color: _gridBorder),
+          bottom: BorderSide(color: _gridBorder),
+        ),
+      ),
+      child: child,
+    );
+  }
+
+  Widget _rowNumberCell(PitModel pit, int index) {
+    final hasContent = _hasAnyContent(pit);
+    return _frameCell(
+      width: _indexWidth,
+      alignment: Alignment.centerLeft,
+      child: Row(
+        children: [
+          SizedBox(
+            width: 10,
+            child: Text(
+              hasContent ? '▸' : '',
+              style: const TextStyle(fontSize: 9, color: Color(0xFF5B6470)),
+            ),
+          ),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Text(
+              '${index + 1}',
+              style: const TextStyle(fontSize: 11, color: Color(0xFF404040)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _pitNameCell(PitModel pit, int index) {
+    final isLocked = ugController.isLocked.value || pit.isLocked;
+    return _frameCell(
+      width: _pitWidth,
+      color: isLocked ? Colors.white : _inputColor,
+      child: TextFormField(
+        key: ValueKey('pit-name-${pit.id ?? 'draft-$index'}'),
+        initialValue: pit.pitName,
+        readOnly: isLocked,
+        style: const TextStyle(fontSize: 11, color: Color(0xFF2F2F2F)),
+        decoration: const InputDecoration(
+          isDense: true,
+          border: InputBorder.none,
+          contentPadding: EdgeInsets.symmetric(horizontal: 2, vertical: 7),
+        ),
+        onChanged: (value) => _onPitNameChanged(pit, index, value),
+      ),
+    );
+  }
+
+  Widget _capacityCell(PitModel pit, int index) {
+    final isLocked = ugController.isLocked.value || pit.isLocked;
+    return _frameCell(
+      width: _capacityWidth,
+      color: isLocked ? Colors.white : _inputColor,
+      alignment: Alignment.centerRight,
+      child: TextFormField(
+        key: ValueKey('pit-capacity-${pit.id ?? 'draft-$index'}'),
+        initialValue: _capacityText(pit),
+        readOnly: isLocked,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        inputFormatters: [
+          FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}$')),
+        ],
+        textAlign: TextAlign.right,
+        style: const TextStyle(fontSize: 11, color: Color(0xFF2F2F2F)),
+        decoration: const InputDecoration(
+          isDense: true,
+          border: InputBorder.none,
+          contentPadding: EdgeInsets.symmetric(horizontal: 2, vertical: 7),
+        ),
+        onChanged: (value) => _onCapacityChanged(pit, index, value),
+      ),
+    );
+  }
+
+  Widget _activeCell(PitModel pit, int index) {
+    final isLocked = ugController.isLocked.value || pit.isLocked;
+    return _frameCell(
+      width: _activeWidth,
+      alignment: Alignment.center,
+      child: Checkbox(
+        value: pit.initialActive.value,
+        onChanged: isLocked
+            ? null
+            : (value) => _onInitialActiveChanged(pit, index, value),
+        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        visualDensity: const VisualDensity(horizontal: -4, vertical: -4),
+        side: const BorderSide(color: Color(0xFF9EA4AD)),
+      ),
+    );
+  }
+
+  Widget _buildRow(PitModel pit, int index) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onSecondaryTapDown: (details) => _showRowMenu(details, pit, index),
+      child: Row(
+        children: [
+          _rowNumberCell(pit, index),
+          _pitNameCell(pit, index),
+          _capacityCell(pit, index),
+          _activeCell(pit, index),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTable() {
+    return Container(
+      width: _indexWidth + _pitWidth + _capacityWidth + _activeWidth + 2,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: _gridBorder),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              _headerCell('', _indexWidth),
+              _headerCell('Pit', _pitWidth),
+              _headerCell('Capacity\n(bbl)', _capacityWidth),
+              _headerCell('Initial Active', _activeWidth),
+            ],
+          ),
+          Expanded(
+            child: Obx(
+              () => Scrollbar(
+                controller: _bodyScrollController,
+                thumbVisibility: true,
+                trackVisibility: true,
+                child: ListView.builder(
+                  controller: _bodyScrollController,
+                  itemCount: controller.pits.length,
+                  itemBuilder: (context, index) {
+                    return _buildRow(controller.pits[index], index);
+                  },
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(12),
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: Container(
-          width: MediaQuery.of(context).size.width / 2,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
-            color: Colors.white,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 6,
-                offset: const Offset(0, 2),
-              ),
-            ],
-            border: Border.all(color: Colors.grey.shade200, width: 1),
-          ),
-          child: Column(
-            children: [
-              _buildHeader(),
-              _buildTableHeader(),
-              Expanded(child: _buildTableBody()),
-              _buildFooter(), // Save button
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ================= HEADER =================
-  Widget _buildHeader() {
     return Container(
-      height: 36,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        gradient: AppTheme.headerGradient,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(8),
-          topRight: Radius.circular(8),
-        ),
-      ),
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.water_damage, color: Colors.white, size: 18),
-          const SizedBox(width: 10),
-          const Text(
-            "Pit Configuration",
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
-            ),
-          ),
-          const Spacer(),
-          const Text(
-            "Total Capacity: ",
-            style: TextStyle(
-              fontSize: 11,
-              color: Colors.white,
-            ),
-          ),
-          Obx(() => Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(3),
-            ),
-            child: Text(
-              "${c.totalCapacity.value.toStringAsFixed(1)} bbl",
-              style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-              ),
-            ),
-          )),
-          const SizedBox(width: 10),
-        ],
-      ),
-    );
-  }
-
-  // ================= TABLE HEADER =================
-  Widget _buildTableHeader() {
-    return Container(
-      height: 32,
-      decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        border: Border(
-          bottom: BorderSide(color: Colors.grey.shade300, width: 1),
-        ),
-      ),
-      child: Row(
-        children: [
-          _headerCell("Pit/Tank", 180),
-          _headerCell("Capacity (BBL)", 120),
-          _headerCell("Initial Active", 90),
-          _headerCell("Actions", 80),
-        ],
-      ),
-    );
-  }
-
-  Widget _headerCell(String text, double width) {
-    return Container(
-      width: width,
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      alignment: Alignment.centerLeft,
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: AppTheme.textPrimary,
-        ),
-      ),
-    );
-  }
-
-  // ================= TABLE BODY =================
-  Widget _buildTableBody() {
-    return Obx(() {
-      if (c.isLoading.value) {
-        return const Center(
-          child: CircularProgressIndicator(),
-        );
-      }
-
-      return ListView.builder(
-        itemCount: c.pits.length,
-        physics: const AlwaysScrollableScrollPhysics(),
-        itemBuilder: (context, index) {
-          final pit = c.pits[index];
-          return _buildPitRow(pit, index);
-        },
-      );
-    });
-  }
-
-  // ================= PIT ROW =================
-  Widget _buildPitRow(PitModel pit, int index) {
-    final bool hasData = pit.id != null;
-    
-    return Container(
-      height: 36,
-      decoration: BoxDecoration(
-        color: index.isEven ? Colors.white : Colors.grey.shade50,
-        border: Border(
-          bottom: BorderSide(color: Colors.grey.shade100, width: 0.5),
-        ),
-      ),
-      child: Row(
-        children: [
-          // Pit/Tank Name Column
-          _buildNameCell(pit, index, hasData),
-          
-          // Capacity Column
-          _buildCapacityCell(pit, index, hasData),
-          
-          // Initial Active Column
-          _buildActiveCell(pit, hasData),
-          
-          // Actions Column
-          _buildActionsCell(pit, hasData),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNameCell(PitModel pit, int index, bool hasData) {
-    return Container(
-      width: 180,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      alignment: Alignment.centerLeft,
-      child: hasData
-          ? Text(
-              pit.pitName,
-              style: TextStyle(
-                fontSize: 11,
-                color: AppTheme.textPrimary,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            )
-          : Container(
-              height: 26,
-              padding: const EdgeInsets.symmetric(horizontal: 6),
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.shade300, width: 1),
-                borderRadius: BorderRadius.circular(3),
-              ),
-              child: TextFormField(
-                initialValue: pit.pitName,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: AppTheme.textPrimary,
-                ),
-                decoration: const InputDecoration(
-                  isDense: true,
-                  contentPadding: EdgeInsets.zero,
-                  border: InputBorder.none,
-                ),
-                onChanged: (value) {
-                  pit.pitName = value;
-                  if (c.isRowFilled(pit)) {
-                    c.onRowFilled(index);
-                  }
-                },
-              ),
-            ),
-    );
-  }
-
-  Widget _buildCapacityCell(PitModel pit, int index, bool hasData) {
-    return Container(
-      width: 120,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      alignment: Alignment.centerLeft,
-      child: hasData
-          ? Text(
-              "${pit.capacity.value.toStringAsFixed(1)} bbl",
-              style: TextStyle(
-                fontSize: 11,
-                color: AppTheme.textSecondary,
-              ),
-            )
-          : Container(
-              height: 26,
-              padding: const EdgeInsets.symmetric(horizontal: 6),
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.shade300, width: 1),
-                borderRadius: BorderRadius.circular(3),
-              ),
-              child: TextFormField(
-                initialValue: pit.capacity.value > 0 ? pit.capacity.value.toString() : '',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: AppTheme.textPrimary,
-                ),
-                decoration: const InputDecoration(
-                  isDense: true,
-                  contentPadding: EdgeInsets.zero,
-                  border: InputBorder.none,
-                  suffixText: 'bbl',
-                  suffixStyle: TextStyle(
-                    fontSize: 9,
-                    color: Colors.grey,
-                  ),
-                ),
-                keyboardType: TextInputType.number,
-                onChanged: (value) {
-                  final newCapacity = double.tryParse(value);
-                  if (newCapacity != null) {
-                    pit.capacity.value = newCapacity;
-                    if (c.isRowFilled(pit)) {
-                      c.onRowFilled(index);
-                    }
-                  }
-                },
-              ),
-            ),
-    );
-  }
-
-  Widget _buildActiveCell(PitModel pit, bool hasData) {
-    return Container(
-      width: 90,
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      alignment: Alignment.centerLeft,
-      child: SizedBox(
-        height: 24,
-        width: 24,
-        child: Obx(() => Checkbox(
-          value: pit.initialActive.value,
-          onChanged: hasData
-              ? (value) => c.togglePitActive(pit)
-              : (value) => pit.initialActive.value = value ?? false,
-          activeColor: AppTheme.successColor,
-          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          visualDensity: VisualDensity.compact,
-        )),
-      ),
-    );
-  }
-
-  Widget _buildActionsCell(PitModel pit, bool hasData) {
-    if (!hasData) {
-      return const SizedBox(width: 80);
-    }
-
-    return Container(
-      width: 80,
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Row(
-        children: [
-          // Edit button
-          IconButton(
-            onPressed: () => _showEditDialog(pit),
-            icon: const Icon(Icons.edit, size: 14),
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
-            tooltip: 'Edit',
-            color: AppTheme.primaryColor,
-          ),
-          const SizedBox(width: 8),
-          
-          // Delete button
-          IconButton(
-            onPressed: () => c.deletePit(pit),
-            icon: const Icon(Icons.delete, size: 14),
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
-            tooltip: 'Delete',
-            color: Colors.red,
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ================= FOOTER WITH SAVE BUTTON =================
-  Widget _buildFooter() {
-    return Container(
-      height: 50,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        border: Border(
-          top: BorderSide(color: Colors.grey.shade300, width: 1),
-        ),
-        borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(8),
-          bottomRight: Radius.circular(8),
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          Obx(() => ElevatedButton.icon(
-            onPressed: c.isSaving.value ? null : () => c.bulkSavePits(),
-            icon: c.isSaving.value
-                ? const SizedBox(
-                    width: 14,
-                    height: 14,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  )
-                : const Icon(Icons.save, size: 16),
-            label: Text(
-              c.isSaving.value ? 'Saving...' : 'Save New Pits',
-              style: const TextStyle(fontSize: 12),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-            ),
-          )),
-        ],
-      ),
-    );
-  }
-
-  // ================= EDIT DIALOG =================
-  void _showEditDialog(PitModel pit) {
-    final nameController = TextEditingController(text: pit.pitName);
-    final capacityController = TextEditingController(
-      text: pit.capacity.value.toStringAsFixed(1),
-    );
-    final isActive = pit.initialActive.value.obs;
-
-    Get.dialog(
-      AlertDialog(
-        title: const Text('Edit Pit', style: TextStyle(fontSize: 14)),
-        content: SizedBox(
-          width: 300,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Pit Name',
-                  border: OutlineInputBorder(),
-                  isDense: true,
-                ),
-                style: const TextStyle(fontSize: 12),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: capacityController,
-                decoration: const InputDecoration(
-                  labelText: 'Capacity (BBL)',
-                  border: OutlineInputBorder(),
-                  isDense: true,
-                ),
-                style: const TextStyle(fontSize: 12),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 12),
-              Obx(() => CheckboxListTile(
-                title: const Text('Active', style: TextStyle(fontSize: 12)),
-                value: isActive.value,
-                onChanged: (value) => isActive.value = value ?? false,
-                contentPadding: EdgeInsets.zero,
-                dense: true,
-              )),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final name = nameController.text.trim();
-              final capacityStr = capacityController.text.trim();
-
-              if (name.isEmpty || capacityStr.isEmpty) {
-                c.showError('Please fill all fields');
-                return;
-              }
-
-              final capacity = double.tryParse(capacityStr);
-              if (capacity == null) {
-                c.showError('Invalid capacity');
-                return;
-              }
-
-              if (pit.id != null) {
-                c.isLoading.value = true;
-                final result = await AuthRepository().updatePit(
-                  id: pit.id!,
-                  pitName: name,
-                  capacity: capacity,
-                  initialActive: isActive.value,
-                );
-
-                if (result['success'] == true) {
-                  Get.back();
-                  c.showSuccess('Updated successfully');
-                  await c.fetchAllPits(); // Auto refresh
-                } else {
-                  c.showError(result['message'] ?? 'Update failed');
-                }
-                c.isLoading.value = false;
-              }
-            },
-            child: const Text('Save'),
+          SizedBox(
+            width: _indexWidth + _pitWidth + _capacityWidth + _activeWidth + 2,
+            child: _buildTable(),
           ),
         ],
       ),

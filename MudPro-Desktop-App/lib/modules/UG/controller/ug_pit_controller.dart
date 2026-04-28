@@ -29,6 +29,8 @@ class TransferRowData {
 String get kControllerWellId => currentBackendWellId;
 
 class PitController extends GetxController {
+  static const int _minVisibleRows = 25;
+
   final isLoading = false.obs;
   final isSaving = false.obs;
   final pits = <PitModel>[].obs;
@@ -58,6 +60,7 @@ class PitController extends GetxController {
   Timer? _debounceTimer;
   Timer? _pitAutoSaveTimer;
   Timer? _transferAutoSaveTimer;
+  final Map<String, Timer> _pitConfigUpdateTimers = {};
   bool _isApplyingTransferState = false;
   Worker? _wellWorker;
   Worker? _reportWorker;
@@ -116,6 +119,26 @@ class PitController extends GetxController {
       fetchVolumeNameData();
       fetchTransferMud();
     }
+  }
+
+  @override
+  void onClose() {
+    _debounceTimer?.cancel();
+    _pitAutoSaveTimer?.cancel();
+    _transferAutoSaveTimer?.cancel();
+    for (final timer in _pitConfigUpdateTimers.values) {
+      timer.cancel();
+    }
+    _wellWorker?.dispose();
+    _reportWorker?.dispose();
+    for (final worker in _transferAutoSaveWorkers) {
+      worker.dispose();
+    }
+    for (final row in transferRows) {
+      row.volumeController.dispose();
+    }
+    _disposePitControllers();
+    super.onClose();
   }
 
   void _initializeTransferRows() {
@@ -591,6 +614,47 @@ class PitController extends GetxController {
     }
   }
 
+  void schedulePitConfigSave(PitModel pit) {
+    final pitId = pit.id?.trim() ?? '';
+    if (pitId.isEmpty) {
+      schedulePitAutoSave();
+      return;
+    }
+
+    _pitConfigUpdateTimers[pitId]?.cancel();
+    _pitConfigUpdateTimers[pitId] = Timer(
+      const Duration(milliseconds: 800),
+      () async {
+        try {
+          final authRepo = AuthRepository();
+          final result = await authRepo.updatePit(
+            id: pitId,
+            pitName: pit.pitName.trim(),
+            capacity: pit.capacity.value,
+            initialActive: pit.initialActive.value,
+            volume: pit.volume?.value,
+            density: pit.density?.value,
+            fluidType: pit.fluidType?.value,
+          );
+
+          if (result['success'] == true) {
+            final updated = result['data'];
+            if (updated is PitModel) {
+              final index = pits.indexWhere((item) => item.id == pitId);
+              if (index != -1) {
+                pits[index] = updated;
+              }
+            }
+            _updateSeparatedLists();
+            pits.refresh();
+          }
+        } catch (e) {
+          debugPrint('Error saving pit config: $e');
+        }
+      },
+    );
+  }
+
   // ================= DELETE OPERATIONS =================
 
   Future<void> deletePit(PitModel pit) async {
@@ -617,6 +681,8 @@ class PitController extends GetxController {
     if (confirmed != true) return;
 
     try {
+      _pitConfigUpdateTimers[pit.id!]?.cancel();
+      _pitConfigUpdateTimers.remove(pit.id!);
       final authRepo = AuthRepository();
       final result = await authRepo.deletePit(pit.id!);
 
@@ -692,28 +758,9 @@ class PitController extends GetxController {
   bool isDraftPit(PitModel pit) => pit.id == null;
 
   void _ensureDraftRows() {
-    final hasActiveDraft = pits.any(
-      (pit) => pit.id == null && pit.initialActive.value && _isBlankDraft(pit),
-    );
-    final hasStorageDraft = pits.any(
-      (pit) => pit.id == null && !pit.initialActive.value && _isBlankDraft(pit),
-    );
-
-    if (!hasActiveDraft) {
-      pits.add(PitModel(pitName: '', capacity: 0.0, initialActive: true));
-    }
-
-    if (!hasStorageDraft) {
+    while (pits.length < _minVisibleRows) {
       pits.add(PitModel(pitName: '', capacity: 0.0, initialActive: false));
     }
-  }
-
-  bool _isBlankDraft(PitModel pit) {
-    return pit.pitName.trim().isEmpty &&
-        pit.capacity.value == 0 &&
-        (pit.volume?.value ?? 0) == 0 &&
-        (pit.density?.value ?? 0) == 0 &&
-        (pit.fluidType?.value ?? '').trim().isEmpty;
   }
 
   bool _isDraftFilled(PitModel pit) {
@@ -758,14 +805,13 @@ class PitController extends GetxController {
   }
 
   void onRowFilled(int index) {
-    final pit = pits[index];
-    if (pit.id == null && pit.pitName.isNotEmpty && pit.capacity.value > 0) {
-      pits.add(PitModel(pitName: '', capacity: 0.0, initialActive: false));
-    }
+    if (index < 0 || index >= pits.length) return;
+    _ensureDraftRows();
+    pits.refresh();
   }
 
   bool isRowFilled(PitModel pit) {
-    return pit.pitName.isNotEmpty && pit.capacity.value > 0;
+    return pit.pitName.trim().isNotEmpty && pit.capacity.value > 0;
   }
 
   double _calculateDouble(dynamic value) {
@@ -849,6 +895,38 @@ class PitController extends GetxController {
     }
   }
 
+  Future<void> saveDraftPit(PitModel pit) async {
+    if (!_hasWellId || pit.id != null || !_isDraftFilled(pit)) return;
+
+    try {
+      final authRepo = AuthRepository();
+      final reportId = reportContext.selectedReportId.value.trim();
+      final result = await authRepo.addPit(
+        pitName: pit.pitName.trim(),
+        capacity: _draftCapacity(pit),
+        initialActive: pit.initialActive.value,
+        wellId: currentWellId!,
+        reportId: reportId.isEmpty ? null : reportId,
+      );
+
+      if (result['success'] == true) {
+        await fetchAllPits();
+      } else {
+        _showAlert(result['message'] ?? 'Failed to add pit', isError: true);
+      }
+    } catch (e) {
+      debugPrint('Error saving draft pit: $e');
+      _showAlert('Error saving pit', isError: true);
+    }
+  }
+
+  void removeDraftPit(PitModel pit) {
+    if (pit.id != null) return;
+    pits.remove(pit);
+    _ensureDraftRows();
+    pits.refresh();
+  }
+
   void normalizeTransferRowsForSource() {
     final allowedDestinations = transferDestinationOptions.toSet();
     var changed = false;
@@ -868,11 +946,11 @@ class PitController extends GetxController {
   }
 
   bool get _hasTransferData => transferRows.any(
-        (row) =>
-            (row.savedId ?? '').isNotEmpty ||
-            row.pitName.trim().isNotEmpty ||
-            row.volume.trim().isNotEmpty,
-      );
+    (row) =>
+        (row.savedId ?? '').isNotEmpty ||
+        row.pitName.trim().isNotEmpty ||
+        row.volume.trim().isNotEmpty,
+  );
 
   void scheduleTransferMudAutoSave() {
     if (_isApplyingTransferState ||
@@ -923,10 +1001,12 @@ class PitController extends GetxController {
 
     final authRepo = AuthRepository();
     final clearedSavedRows = transferRows
-        .where((r) =>
-            r.savedId != null &&
-            r.pitName.trim().isEmpty &&
-            r.volume.trim().isEmpty)
+        .where(
+          (r) =>
+              r.savedId != null &&
+              r.pitName.trim().isEmpty &&
+              r.volume.trim().isEmpty,
+        )
         .toList();
     final candidateRows = transferRows
         .where((r) => r.pitName.trim().isNotEmpty || r.volume.trim().isNotEmpty)
@@ -1065,22 +1145,5 @@ class PitController extends GetxController {
         transferRows.add(TransferRowData());
       }
     }
-  }
-
-  @override
-  void onClose() {
-    _debounceTimer?.cancel();
-    _pitAutoSaveTimer?.cancel();
-    _transferAutoSaveTimer?.cancel();
-    _wellWorker?.dispose();
-    _reportWorker?.dispose();
-    for (final worker in _transferAutoSaveWorkers) {
-      worker.dispose();
-    }
-    _disposePitControllers();
-    for (var row in transferRows) {
-      row.volumeController.dispose();
-    }
-    super.onClose();
   }
 }
