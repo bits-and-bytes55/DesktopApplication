@@ -3,8 +3,21 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 
-class DepthCostGraphTab extends StatelessWidget {
+class DepthCostGraphTab extends StatefulWidget {
   const DepthCostGraphTab({super.key});
+
+  @override
+  State<DepthCostGraphTab> createState() => _DepthCostGraphTabState();
+}
+
+class _DepthCostGraphTabState extends State<DepthCostGraphTab> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,15 +41,13 @@ class DepthCostGraphTab extends StatelessWidget {
       Color.fromARGB(255, 54, 237, 142),
     ];
 
-    final ScrollController scrollController = ScrollController();
-
     return Padding(
       padding: const EdgeInsets.all(20),
       child: Scrollbar(
-        controller: scrollController,
+        controller: _scrollController,
         thumbVisibility: true,
         child: SingleChildScrollView(
-          controller: scrollController,
+          controller: _scrollController,
           scrollDirection: Axis.horizontal,
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,

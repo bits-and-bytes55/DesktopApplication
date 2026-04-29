@@ -3,8 +3,21 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 
-class CumCostGraphTab extends StatelessWidget {
+class CumCostGraphTab extends StatefulWidget {
   const CumCostGraphTab({super.key});
+
+  @override
+  State<CumCostGraphTab> createState() => _CumCostGraphTabState();
+}
+
+class _CumCostGraphTabState extends State<CumCostGraphTab> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,15 +41,13 @@ class CumCostGraphTab extends StatelessWidget {
       Color.fromARGB(255, 54, 237, 142),
     ];
 
-    final ScrollController scrollController = ScrollController();
-
     return Padding(
       padding: const EdgeInsets.all(20),
       child: Scrollbar(
-        controller: scrollController,
+        controller: _scrollController,
         thumbVisibility: true,
         child: SingleChildScrollView(
-          controller: scrollController,
+          controller: _scrollController,
           scrollDirection: Axis.horizontal,
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,

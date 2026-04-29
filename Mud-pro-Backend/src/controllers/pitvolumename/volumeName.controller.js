@@ -76,6 +76,11 @@ const legacyScopeFilter = (wellId) => ({
   $or: [{ reportId: { $exists: false } }, { reportId: null }, { reportId: "" }],
 });
 
+const legacyObjectIdScopeFilter = (wellId) => ({
+  wellId,
+  $or: [{ reportId: { $exists: false } }, { reportId: null }],
+});
+
 const sortByCreatedAtAsc = (items = []) =>
   [...items].sort((left, right) => {
     const leftTime = new Date(left.createdAt ?? 0).getTime();
@@ -187,7 +192,7 @@ const findScopedDrillStrings = async ({ wellId, reportId }) => {
       return scopedDrillStrings;
     }
 
-    return DrillString.find(legacyScopeFilter(wellId))
+    return DrillString.find(legacyObjectIdScopeFilter(wellId))
       .sort({ createdAt: 1, _id: 1 })
       .limit(8)
       .lean();

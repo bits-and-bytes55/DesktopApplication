@@ -20,6 +20,8 @@ class _CostOfPadPageState extends State<CostOfPadPage> {
 
   final NumberFormat _currency = NumberFormat.currency(symbol: '\$');
   final NumberFormat _decimal = NumberFormat('#,##0.00');
+  final ScrollController _ledgerHorizontalController = ScrollController();
+  final ScrollController _ledgerVerticalController = ScrollController();
   String _selectedWellId = '';
 
   @override
@@ -28,6 +30,13 @@ class _CostOfPadPageState extends State<CostOfPadPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       controller.syncWithCurrentPad();
     });
+  }
+
+  @override
+  void dispose() {
+    _ledgerHorizontalController.dispose();
+    _ledgerVerticalController.dispose();
+    super.dispose();
   }
 
   @override
@@ -509,13 +518,16 @@ class _CostOfPadPageState extends State<CostOfPadPage> {
                         : 'The selected well has no report summaries to list.',
                   )
                 : Scrollbar(
+                    controller: _ledgerHorizontalController,
                     thumbVisibility: true,
                     child: SingleChildScrollView(
+                      controller: _ledgerHorizontalController,
                       padding: const EdgeInsets.all(12),
                       scrollDirection: Axis.horizontal,
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(minWidth: 980),
                         child: SingleChildScrollView(
+                          controller: _ledgerVerticalController,
                           child: DataTable(
                             headingRowHeight: 42,
                             dataRowMinHeight: 42,
