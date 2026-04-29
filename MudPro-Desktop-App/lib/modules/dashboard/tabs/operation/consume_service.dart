@@ -9,6 +9,7 @@ import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/controller/
 import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 import '../../controller/dashboard_controller.dart';
+import 'operation_desktop_ui.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class ConsumeServicesView extends StatefulWidget {
@@ -60,6 +61,9 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
   Timer? _inventorySnapshotRefreshTimer;
   Worker? _wellWorker;
   Worker? _reportWorker;
+  Map<String, dynamic>? _packageClipboard;
+  Map<String, dynamic>? _serviceClipboard;
+  Map<String, dynamic>? _engineeringClipboard;
 
   @override
   void initState() {
@@ -319,6 +323,395 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
         }
       },
     );
+  }
+
+  bool _hasPackageData(PackageRowData row) {
+    return row.savedId != null ||
+        row.selectedItem.trim().isNotEmpty ||
+        row.code.trim().isNotEmpty ||
+        row.unit.trim().isNotEmpty ||
+        row.initial.trim().isNotEmpty ||
+        row.used.trim().isNotEmpty ||
+        row.price > 0 ||
+        row.cost > 0;
+  }
+
+  bool _hasServiceData(ServiceRowData row) {
+    return row.savedId != null ||
+        row.selectedItem.trim().isNotEmpty ||
+        row.code.trim().isNotEmpty ||
+        row.unit.trim().isNotEmpty ||
+        row.usage.trim().isNotEmpty ||
+        row.price > 0 ||
+        row.cost > 0;
+  }
+
+  bool _hasEngineeringData(EngineeringRowData row) {
+    return row.savedId != null ||
+        row.selectedItem.trim().isNotEmpty ||
+        row.code.trim().isNotEmpty ||
+        row.unit.trim().isNotEmpty ||
+        row.usage.trim().isNotEmpty ||
+        row.price > 0 ||
+        row.cost > 0;
+  }
+
+  Map<String, dynamic> _packageSnapshot(PackageRowData row) => {
+    'selectedItem': row.selectedItem,
+    'code': row.code,
+    'unit': row.unit,
+    'price': row.price,
+    'initial': row.initial,
+    'used': row.used,
+    'finalValue': row.finalValue,
+    'cost': row.cost,
+  };
+
+  Map<String, dynamic> _serviceSnapshot(ServiceRowData row) => {
+    'selectedItem': row.selectedItem,
+    'code': row.code,
+    'unit': row.unit,
+    'price': row.price,
+    'usage': row.usage,
+    'cost': row.cost,
+  };
+
+  Map<String, dynamic> _engineeringSnapshot(EngineeringRowData row) => {
+    'selectedItem': row.selectedItem,
+    'code': row.code,
+    'unit': row.unit,
+    'price': row.price,
+    'usage': row.usage,
+    'cost': row.cost,
+  };
+
+  void _applyPackageSnapshot(PackageRowData row, Map<String, dynamic> data) {
+    row.savedId = null;
+    row.selectedItem = (data['selectedItem'] ?? '').toString();
+    row.code = (data['code'] ?? '').toString();
+    row.unit = (data['unit'] ?? '').toString();
+    row.price = (data['price'] as num?)?.toDouble() ?? 0.0;
+    row.initial = (data['initial'] ?? '').toString();
+    row.used = (data['used'] ?? '').toString();
+    row.finalValue = (data['finalValue'] ?? '').toString();
+    row.cost = (data['cost'] as num?)?.toDouble() ?? 0.0;
+  }
+
+  void _applyServiceSnapshot(ServiceRowData row, Map<String, dynamic> data) {
+    row.savedId = null;
+    row.selectedItem = (data['selectedItem'] ?? '').toString();
+    row.code = (data['code'] ?? '').toString();
+    row.unit = (data['unit'] ?? '').toString();
+    row.price = (data['price'] as num?)?.toDouble() ?? 0.0;
+    row.usage = (data['usage'] ?? '').toString();
+    row.cost = (data['cost'] as num?)?.toDouble() ?? 0.0;
+  }
+
+  void _applyEngineeringSnapshot(
+    EngineeringRowData row,
+    Map<String, dynamic> data,
+  ) {
+    row.savedId = null;
+    row.selectedItem = (data['selectedItem'] ?? '').toString();
+    row.code = (data['code'] ?? '').toString();
+    row.unit = (data['unit'] ?? '').toString();
+    row.price = (data['price'] as num?)?.toDouble() ?? 0.0;
+    row.usage = (data['usage'] ?? '').toString();
+    row.cost = (data['cost'] as num?)?.toDouble() ?? 0.0;
+  }
+
+  void _clearBaseRow(BaseRowData row) {
+    row.savedId = null;
+    row.selectedItem = '';
+    row.code = '';
+    row.unit = '';
+    row.price = 0.0;
+    row.initial = '';
+    row.used = '';
+    row.finalValue = '';
+    row.cost = 0.0;
+    if (row is EngineeringRowData) {
+      row.usage = '';
+    }
+  }
+
+  void _insertSectionRow<T extends BaseRowData>(
+    RxList<T> rows,
+    RxList<bool> loading,
+    RxList<bool> saving,
+    RxList<bool> deleting,
+    T row,
+    int index,
+  ) {
+    rows.insert(index, row);
+    loading.insert(index, false);
+    saving.insert(index, false);
+    deleting.insert(index, false);
+    rows.refresh();
+  }
+
+  void _moveSectionRow<T extends BaseRowData>(
+    RxList<T> rows,
+    RxList<bool> loading,
+    RxList<bool> saving,
+    RxList<bool> deleting,
+    int from,
+    int to,
+  ) {
+    if (from < 0 || from >= rows.length || to < 0 || to >= rows.length) return;
+    final row = rows.removeAt(from);
+    final load = loading.removeAt(from);
+    final save = saving.removeAt(from);
+    final del = deleting.removeAt(from);
+    rows.insert(to, row);
+    loading.insert(to, load);
+    saving.insert(to, save);
+    deleting.insert(to, del);
+    rows.refresh();
+  }
+
+  List<DataCell> _withRowMenu(
+    List<DataCell> cells,
+    Future<void> Function(TapDownDetails details) onMenu,
+  ) {
+    return cells
+        .map(
+          (cell) => DataCell(
+            GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onSecondaryTapDown: (details) {
+                onMenu(details);
+              },
+              child: cell.child,
+            ),
+          ),
+        )
+        .toList();
+  }
+
+  Future<void> _showPackageRowMenu(TapDownDetails details, int index) async {
+    if (index < 0 || index >= packageRows.length) return;
+    selectedPackageRow.value = index;
+    final row = packageRows[index];
+    final action = await showOperationRowMenu(
+      context: context,
+      details: details,
+      canEdit: !dashboardController.isLocked.value,
+      hasData: _hasPackageData(row),
+      canPaste: _packageClipboard != null,
+      canInsertRow: true,
+      canDeleteRow: true,
+      canMoveTop: index > 0,
+      canMoveBottom: index < packageRows.length - 1,
+    );
+    switch (action) {
+      case 'cut':
+        _packageClipboard = _packageSnapshot(row);
+        await _deletePackageRow(index);
+        break;
+      case 'copy':
+        _packageClipboard = _packageSnapshot(row);
+        break;
+      case 'paste':
+        if (_packageClipboard != null) {
+          _applyPackageSnapshot(row, _packageClipboard!);
+          packageRows.refresh();
+          _checkAndAddRow(
+            packageRows,
+            packageRowLoading,
+            packageRowSaving,
+            packageRowDeleting,
+          );
+          _autoSavePackage(index);
+        }
+        break;
+      case 'delete':
+      case 'clear':
+      case 'deleteRow':
+        await _deletePackageRow(index);
+        break;
+      case 'insertRow':
+        _insertSectionRow(
+          packageRows,
+          packageRowLoading,
+          packageRowSaving,
+          packageRowDeleting,
+          PackageRowData(),
+          index,
+        );
+        break;
+      case 'top':
+        _moveSectionRow(
+          packageRows,
+          packageRowLoading,
+          packageRowSaving,
+          packageRowDeleting,
+          index,
+          0,
+        );
+        break;
+      case 'bottom':
+        _moveSectionRow(
+          packageRows,
+          packageRowLoading,
+          packageRowSaving,
+          packageRowDeleting,
+          index,
+          packageRows.length - 1,
+        );
+        break;
+    }
+  }
+
+  Future<void> _showServiceRowMenu(TapDownDetails details, int index) async {
+    if (index < 0 || index >= serviceRows.length) return;
+    selectedServiceRow.value = index;
+    final row = serviceRows[index];
+    final action = await showOperationRowMenu(
+      context: context,
+      details: details,
+      canEdit: !dashboardController.isLocked.value,
+      hasData: _hasServiceData(row),
+      canPaste: _serviceClipboard != null,
+      canInsertRow: true,
+      canDeleteRow: true,
+      canMoveTop: index > 0,
+      canMoveBottom: index < serviceRows.length - 1,
+    );
+    switch (action) {
+      case 'cut':
+        _serviceClipboard = _serviceSnapshot(row);
+        await _deleteServiceRow(index);
+        break;
+      case 'copy':
+        _serviceClipboard = _serviceSnapshot(row);
+        break;
+      case 'paste':
+        if (_serviceClipboard != null) {
+          _applyServiceSnapshot(row, _serviceClipboard!);
+          serviceRows.refresh();
+          _checkAndAddRow(
+            serviceRows,
+            serviceRowLoading,
+            serviceRowSaving,
+            serviceRowDeleting,
+          );
+          _autoSaveService(index);
+        }
+        break;
+      case 'delete':
+      case 'clear':
+      case 'deleteRow':
+        await _deleteServiceRow(index);
+        break;
+      case 'insertRow':
+        _insertSectionRow(
+          serviceRows,
+          serviceRowLoading,
+          serviceRowSaving,
+          serviceRowDeleting,
+          ServiceRowData(),
+          index,
+        );
+        break;
+      case 'top':
+        _moveSectionRow(
+          serviceRows,
+          serviceRowLoading,
+          serviceRowSaving,
+          serviceRowDeleting,
+          index,
+          0,
+        );
+        break;
+      case 'bottom':
+        _moveSectionRow(
+          serviceRows,
+          serviceRowLoading,
+          serviceRowSaving,
+          serviceRowDeleting,
+          index,
+          serviceRows.length - 1,
+        );
+        break;
+    }
+  }
+
+  Future<void> _showEngineeringRowMenu(
+    TapDownDetails details,
+    int index,
+  ) async {
+    if (index < 0 || index >= engineeringRows.length) return;
+    selectedEngineeringRow.value = index;
+    final row = engineeringRows[index];
+    final action = await showOperationRowMenu(
+      context: context,
+      details: details,
+      canEdit: !dashboardController.isLocked.value,
+      hasData: _hasEngineeringData(row),
+      canPaste: _engineeringClipboard != null,
+      canInsertRow: true,
+      canDeleteRow: true,
+      canMoveTop: index > 0,
+      canMoveBottom: index < engineeringRows.length - 1,
+    );
+    switch (action) {
+      case 'cut':
+        _engineeringClipboard = _engineeringSnapshot(row);
+        await _deleteEngineeringRow(index);
+        break;
+      case 'copy':
+        _engineeringClipboard = _engineeringSnapshot(row);
+        break;
+      case 'paste':
+        if (_engineeringClipboard != null) {
+          _applyEngineeringSnapshot(row, _engineeringClipboard!);
+          engineeringRows.refresh();
+          _checkAndAddRow(
+            engineeringRows,
+            engineeringRowLoading,
+            engineeringRowSaving,
+            engineeringRowDeleting,
+          );
+          _autoSaveEngineering(index);
+        }
+        break;
+      case 'delete':
+      case 'clear':
+      case 'deleteRow':
+        await _deleteEngineeringRow(index);
+        break;
+      case 'insertRow':
+        _insertSectionRow(
+          engineeringRows,
+          engineeringRowLoading,
+          engineeringRowSaving,
+          engineeringRowDeleting,
+          EngineeringRowData(),
+          index,
+        );
+        break;
+      case 'top':
+        _moveSectionRow(
+          engineeringRows,
+          engineeringRowLoading,
+          engineeringRowSaving,
+          engineeringRowDeleting,
+          index,
+          0,
+        );
+        break;
+      case 'bottom':
+        _moveSectionRow(
+          engineeringRows,
+          engineeringRowLoading,
+          engineeringRowSaving,
+          engineeringRowDeleting,
+          index,
+          engineeringRows.length - 1,
+        );
+        break;
+    }
   }
 
   // ─────────────────────────────────────────────
@@ -900,12 +1293,11 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
                         "Package",
                         "Code",
                         "Unit",
-                        "Price (\$)",
+                        "Price (Kwd)",
                         "Initial",
                         "Used",
                         "Final",
-                        "Cost (\$)",
-                        "",
+                        "Cost (Kwd)",
                       ],
                       onDropdownChanged: (i, item) {
                         packageRows[i].selectedItem = '';
@@ -956,10 +1348,9 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
                         "Services",
                         "Code",
                         "Unit",
-                        "Price (\$)",
+                        "Price (Kwd)",
                         "Usage",
-                        "Cost (\$)",
-                        "",
+                        "Cost (Kwd)",
                       ],
 
                       onDropdownChanged: (i, item) {
@@ -1009,10 +1400,9 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
                             "Engineering",
                             "Code",
                             "Unit",
-                            "Price (\$)",
+                            "Price (Kwd)",
                             "Usage",
-                            "Cost (\$)",
-                            "",
+                            "Cost (Kwd)",
                           ],
                           onDropdownChanged: (i, item) {
                             // Clear old data first
@@ -1086,27 +1476,23 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
     return Container(
       decoration: BoxDecoration(
         border: Border.all(color: Colors.grey.shade300),
-        borderRadius: BorderRadius.circular(6),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start, // ✅ LEFT ALIGN
         children: [
           Container(
-            width: double.infinity, // ✅ full width header
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
-              color: color,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(6),
-                topRight: Radius.circular(6),
-              ),
+              color: Colors.white,
+              border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
             ),
             child: Text(
               title,
               style: AppTheme.bodySmall.copyWith(
-                fontWeight: FontWeight.w600,
-                fontSize: 11,
-                color: Colors.white,
+                fontWeight: FontWeight.w500,
+                fontSize: 12,
+                color: AppTheme.textPrimary,
               ),
             ),
           ),
@@ -1160,23 +1546,38 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
                       final deleting = i < rowDeleting.length
                           ? rowDeleting[i]
                           : false;
+                      final cells = cellBuilder(
+                        row,
+                        i,
+                        selected,
+                        dropdownItems,
+                        onDropdownChanged,
+                        () => selectedRowIndex.value = i,
+                        onCalculate,
+                        onSave,
+                        onDelete,
+                        saving,
+                        deleting,
+                      );
                       return DataRow(
                         color: MaterialStateProperty.all(
                           i % 2 == 0 ? Colors.white : Colors.grey.shade50,
                         ),
-                        cells: cellBuilder(
-                          row,
-                          i,
-                          selected,
-                          dropdownItems,
-                          onDropdownChanged,
-                          () => selectedRowIndex.value = i,
-                          onCalculate,
-                          onSave,
-                          onDelete,
-                          saving,
-                          deleting,
-                        ),
+                        cells: title == 'Package'
+                            ? _withRowMenu(
+                                cells,
+                                (details) => _showPackageRowMenu(details, i),
+                              )
+                            : title == 'Services'
+                            ? _withRowMenu(
+                                cells,
+                                (details) => _showServiceRowMenu(details, i),
+                              )
+                            : _withRowMenu(
+                                cells,
+                                (details) =>
+                                    _showEngineeringRowMenu(details, i),
+                              ),
                       );
                     }),
                   ),
@@ -1246,13 +1647,6 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
         bold: true,
         color: AppTheme.primaryColor,
       ),
-      DataCell(
-        _deleteButton(
-          index: index,
-          isDeleting: isDeleting,
-          onDelete: () => onDelete(index),
-        ),
-      ),
     ];
   }
 
@@ -1294,13 +1688,6 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
         bold: true,
         color: AppTheme.successColor,
       ),
-      DataCell(
-        _deleteButton(
-          index: index,
-          isDeleting: isDeleting,
-          onDelete: () => onDelete(index),
-        ),
-      ),
     ];
   }
 
@@ -1341,13 +1728,6 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
         rightAlign: true,
         bold: true,
         color: AppTheme.infoColor,
-      ),
-      DataCell(
-        _deleteButton(
-          index: index,
-          isDeleting: isDeleting,
-          onDelete: () => onDelete(index),
-        ),
       ),
     ];
   }
@@ -1483,40 +1863,6 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
     );
   }
 
-  Widget _deleteButton({
-    required int index,
-    required bool isDeleting,
-    required VoidCallback onDelete,
-  }) {
-    if (isDeleting) {
-      return const SizedBox(
-        width: 32,
-        child: Center(
-          child: SizedBox(
-            width: 12,
-            height: 12,
-            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.red),
-          ),
-        ),
-      );
-    }
-    return SizedBox(
-      width: 32,
-      child: IconButton(
-        icon: Icon(
-          Icons.delete_outline,
-          size: 15,
-          color: dashboardController.isLocked.value
-              ? Colors.grey.shade300
-              : Colors.red.shade300,
-        ),
-        padding: EdgeInsets.zero,
-        constraints: const BoxConstraints(),
-        onPressed: dashboardController.isLocked.value ? null : onDelete,
-      ),
-    );
-  }
-
   Widget _buildCompactRadio(String label, String value) {
     return Obx(
       () => InkWell(
@@ -1588,7 +1934,6 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
     if (h == 'Code') return 90;
     if (h == 'Unit') return 70;
     if (h.contains('Price') || h.contains('Cost')) return 90;
-    if (h == '') return 32;
     return 80;
   }
 

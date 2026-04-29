@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/mud_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
@@ -183,18 +184,27 @@ class _MudViewState extends State<MudView> {
               borderRadius: BorderRadius.circular(2),
               border: Border.all(color: Colors.grey.shade300),
             ),
-            child: TextField(
-              controller: c.fluidnameController,
-              style: AppTheme.caption.copyWith(
-                color: AppTheme.textPrimary,
-                fontSize: 11,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onSecondaryTapDown: (details) => _showValueMenu(
+                details,
+                currentValue: c.fluidnameController.text,
+                onValueChanged: (value) =>
+                    _setControllerValue(c.fluidnameController, value),
               ),
-              decoration: const InputDecoration(
-                isDense: true,
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 7,
+              child: TextField(
+                controller: c.fluidnameController,
+                style: AppTheme.caption.copyWith(
+                  color: AppTheme.textPrimary,
+                  fontSize: 11,
+                ),
+                decoration: const InputDecoration(
+                  isDense: true,
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 7,
+                  ),
                 ),
               ),
             ),
@@ -747,6 +757,85 @@ class _MudViewState extends State<MudView> {
     );
   }
 
+  void _setControllerValue(TextEditingController controller, String value) {
+    controller.value = controller.value.copyWith(
+      text: value,
+      selection: TextSelection.collapsed(offset: value.length),
+      composing: TextRange.empty,
+    );
+  }
+
+  Future<void> _showValueMenu(
+    TapDownDetails details, {
+    required String currentValue,
+    required ValueChanged<String> onValueChanged,
+    bool canEdit = true,
+  }) async {
+    final selected = await showMenu<_MudPropertyMenuAction>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        details.globalPosition.dx,
+        details.globalPosition.dy,
+        details.globalPosition.dx,
+        details.globalPosition.dy,
+      ),
+      items: [
+        PopupMenuItem<_MudPropertyMenuAction>(
+          value: _MudPropertyMenuAction.cut,
+          enabled: canEdit && currentValue.isNotEmpty,
+          child: _menuLabel('Cut', 'Ctrl+X'),
+        ),
+        PopupMenuItem<_MudPropertyMenuAction>(
+          value: _MudPropertyMenuAction.copy,
+          enabled: currentValue.isNotEmpty,
+          child: _menuLabel('Copy', 'Ctrl+C'),
+        ),
+        PopupMenuItem<_MudPropertyMenuAction>(
+          value: _MudPropertyMenuAction.paste,
+          enabled: canEdit,
+          child: _menuLabel('Paste', 'Ctrl+V'),
+        ),
+        PopupMenuItem<_MudPropertyMenuAction>(
+          value: _MudPropertyMenuAction.delete,
+          enabled: canEdit && currentValue.isNotEmpty,
+          child: _menuLabel('Delete', 'Delete'),
+        ),
+        PopupMenuItem<_MudPropertyMenuAction>(
+          value: _MudPropertyMenuAction.top,
+          enabled: false,
+          child: _menuLabel('To the Top', 'Ctrl+Up'),
+        ),
+        PopupMenuItem<_MudPropertyMenuAction>(
+          value: _MudPropertyMenuAction.bottom,
+          enabled: false,
+          child: _menuLabel('To the Bottom', 'Ctrl+Down'),
+        ),
+      ],
+    );
+
+    if (!mounted || selected == null) return;
+
+    switch (selected) {
+      case _MudPropertyMenuAction.cut:
+        await Clipboard.setData(ClipboardData(text: currentValue));
+        onValueChanged('');
+        break;
+      case _MudPropertyMenuAction.copy:
+        await Clipboard.setData(ClipboardData(text: currentValue));
+        break;
+      case _MudPropertyMenuAction.paste:
+        final data = await Clipboard.getData(Clipboard.kTextPlain);
+        if (data?.text != null) onValueChanged(data!.text!);
+        break;
+      case _MudPropertyMenuAction.delete:
+        onValueChanged('');
+        break;
+      case _MudPropertyMenuAction.top:
+      case _MudPropertyMenuAction.bottom:
+        break;
+    }
+  }
+
   Future<void> _showPropertyRowMenu(TapDownDetails details, String name) async {
     final isRemovable = c.isPropertyRemovable(name);
     final selected = await showMenu<_MudPropertyMenuAction>(
@@ -892,27 +981,36 @@ class _MudViewState extends State<MudView> {
                         )
                       // ── EDITABLE: normal TextField ─────────────────────────
                       : Obx(
-                          () => TextField(
-                            key: ValueKey('${name}_${cell.key}'),
-                            controller:
-                                TextEditingController(text: cell.value.value)
-                                  ..selection = TextSelection.collapsed(
-                                    offset: cell.value.value.length,
-                                  ),
-                            onChanged: (v) => cell.value.value = v,
-                            style: AppTheme.caption.copyWith(
-                              color: AppTheme.textPrimary,
-                              fontSize: 10,
+                          () => GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onSecondaryTapDown: (details) => _showValueMenu(
+                              details,
+                              currentValue: cell.value.value,
+                              onValueChanged: (value) =>
+                                  cell.value.value = value,
                             ),
-                            decoration: const InputDecoration(
-                              isDense: true,
-                              border: InputBorder.none,
-                              contentPadding: EdgeInsets.symmetric(
-                                horizontal: 4,
-                                vertical: 5,
+                            child: TextField(
+                              key: ValueKey('${name}_${cell.key}'),
+                              controller:
+                                  TextEditingController(text: cell.value.value)
+                                    ..selection = TextSelection.collapsed(
+                                      offset: cell.value.value.length,
+                                    ),
+                              onChanged: (v) => cell.value.value = v,
+                              style: AppTheme.caption.copyWith(
+                                color: AppTheme.textPrimary,
+                                fontSize: 10,
                               ),
+                              decoration: const InputDecoration(
+                                isDense: true,
+                                border: InputBorder.none,
+                                contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                  vertical: 5,
+                                ),
+                              ),
+                              textAlign: TextAlign.center,
                             ),
-                            textAlign: TextAlign.center,
                           ),
                         ),
                 ),
@@ -1128,45 +1226,64 @@ class _MudViewState extends State<MudView> {
                                                   ),
                                                 )
                                               : Obx(
-                                                  () => TextField(
-                                                    key: ValueKey(
-                                                      'rheo_${entry.key}_${cell.key}',
+                                                  () => GestureDetector(
+                                                    behavior:
+                                                        HitTestBehavior.opaque,
+                                                    onSecondaryTapDown:
+                                                        (
+                                                          details,
+                                                        ) => _showValueMenu(
+                                                          details,
+                                                          currentValue:
+                                                              cell.value.value,
+                                                          onValueChanged:
+                                                              (value) =>
+                                                                  cell
+                                                                          .value
+                                                                          .value =
+                                                                      value,
+                                                        ),
+                                                    child: TextField(
+                                                      key: ValueKey(
+                                                        'rheo_${entry.key}_${cell.key}',
+                                                      ),
+                                                      controller:
+                                                          TextEditingController(
+                                                              text: cell
+                                                                  .value
+                                                                  .value,
+                                                            )
+                                                            ..selection =
+                                                                TextSelection.collapsed(
+                                                                  offset: cell
+                                                                      .value
+                                                                      .value
+                                                                      .length,
+                                                                ),
+                                                      onChanged: (v) =>
+                                                          cell.value.value = v,
+                                                      style: AppTheme.caption
+                                                          .copyWith(
+                                                            color: AppTheme
+                                                                .textPrimary,
+                                                            fontSize: 10,
+                                                          ),
+                                                      decoration:
+                                                          const InputDecoration(
+                                                            isDense: true,
+                                                            border: InputBorder
+                                                                .none,
+                                                            contentPadding:
+                                                                EdgeInsets.symmetric(
+                                                                  horizontal: 4,
+                                                                  vertical: 5,
+                                                                ),
+                                                          ),
+                                                      textAlign:
+                                                          TextAlign.center,
+                                                      keyboardType:
+                                                          TextInputType.number,
                                                     ),
-                                                    controller:
-                                                        TextEditingController(
-                                                            text: cell
-                                                                .value
-                                                                .value,
-                                                          )
-                                                          ..selection =
-                                                              TextSelection.collapsed(
-                                                                offset: cell
-                                                                    .value
-                                                                    .value
-                                                                    .length,
-                                                              ),
-                                                    onChanged: (v) =>
-                                                        cell.value.value = v,
-                                                    style: AppTheme.caption
-                                                        .copyWith(
-                                                          color: AppTheme
-                                                              .textPrimary,
-                                                          fontSize: 10,
-                                                        ),
-                                                    decoration:
-                                                        const InputDecoration(
-                                                          isDense: true,
-                                                          border:
-                                                              InputBorder.none,
-                                                          contentPadding:
-                                                              EdgeInsets.symmetric(
-                                                                horizontal: 4,
-                                                                vertical: 5,
-                                                              ),
-                                                        ),
-                                                    textAlign: TextAlign.center,
-                                                    keyboardType:
-                                                        TextInputType.number,
                                                   ),
                                                 ),
                                         ),
@@ -1414,21 +1531,30 @@ class _MudViewState extends State<MudView> {
                 borderRadius: BorderRadius.circular(2),
                 border: Border.all(color: Colors.grey.shade300),
               ),
-              child: TextField(
-                controller: controller,
-                decoration: const InputDecoration(
-                  isDense: true,
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 3,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onSecondaryTapDown: (details) => _showValueMenu(
+                  details,
+                  currentValue: controller.text,
+                  onValueChanged: (value) =>
+                      _setControllerValue(controller, value),
+                ),
+                child: TextField(
+                  controller: controller,
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 3,
+                    ),
                   ),
+                  style: AppTheme.caption.copyWith(
+                    color: AppTheme.textPrimary,
+                    fontSize: 10,
+                  ),
+                  textAlign: TextAlign.right,
                 ),
-                style: AppTheme.caption.copyWith(
-                  color: AppTheme.textPrimary,
-                  fontSize: 10,
-                ),
-                textAlign: TextAlign.right,
               ),
             );
           }),

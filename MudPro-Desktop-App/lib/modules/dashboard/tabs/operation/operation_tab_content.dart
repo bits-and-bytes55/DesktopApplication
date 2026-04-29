@@ -19,6 +19,7 @@ import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/tabs/mud_tre
 import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/tabs/pit_review_page.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/tabs/vol_snapshot_page.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/transfer_mud.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_desktop_ui.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class OperationPage extends StatelessWidget {
@@ -31,7 +32,7 @@ class OperationPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(8.0),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -43,7 +44,7 @@ class OperationPage extends StatelessWidget {
               width: 1,
               height: double.infinity,
               color: Colors.grey.shade300,
-              margin: const EdgeInsets.symmetric(horizontal: 16),
+              margin: const EdgeInsets.symmetric(horizontal: 8),
             ),
 
             /// RIGHT PANEL - FULL PAGE CONTENT
@@ -85,35 +86,35 @@ class OperationPage extends StatelessWidget {
 
   Widget _buildLeftPanel(BuildContext context) {
     return Container(
-      width: 280,
+      width: 322,
       decoration: BoxDecoration(
-        color: AppTheme.cardColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200, width: 1),
+        color: Colors.white,
+        border: Border.all(color: Colors.grey.shade300, width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Panel Header with Icon Buttons
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
-              gradient: AppTheme.primaryGradient,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(12),
-                topRight: Radius.circular(12),
-              ),
+              color: Colors.white,
+              border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
             ),
             child: Row(
               children: [
-                Icon(Icons.list_alt_rounded, color: Colors.white, size: 16),
+                const Icon(
+                  Icons.help_outline,
+                  color: Color(0xFF3B82F6),
+                  size: 16,
+                ),
                 const SizedBox(width: 6),
                 Text(
-                  "Operations Menu",
-                  style: AppTheme.bodyLarge.copyWith(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
+                  "Operation",
+                  style: AppTheme.bodySmall.copyWith(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: AppTheme.textPrimary,
                   ),
                 ),
                 const Spacer(),
@@ -160,22 +161,11 @@ class OperationPage extends StatelessWidget {
           Expanded(
             child: Scrollbar(
               child: Obx(() {
-                // Calculate visible row count - start with 1, add more as selections are made
-                int visibleRowCount = 1;
-                for (int i = 0; i < controller.dropdownValues.length; i++) {
-                  if (controller.dropdownValues[i] != null) {
-                    visibleRowCount = i + 2; // Show next row after selection
-                  }
-                }
-                // Ensure visibleRowCount doesn't exceed the available dropdown values
-                visibleRowCount = visibleRowCount.clamp(
-                  1,
-                  controller.dropdownValues.length,
-                );
+                final visibleRowCount = controller.dropdownValues.length;
 
                 return ListView.separated(
                   controller: scrollController,
-                  padding: const EdgeInsets.all(8),
+                  padding: EdgeInsets.zero,
                   itemCount: visibleRowCount,
                   separatorBuilder: (_, __) => const Divider(
                     height: 1,
@@ -189,48 +179,50 @@ class OperationPage extends StatelessWidget {
                       final rowOperation = controller.dropdownValues[index];
                       final isDeleting =
                           controller.deletingOperationRowIndex.value == index;
+                      final hasData = rowOperation != null;
 
-                      return Container(
-                        height: 36,
-                        decoration: BoxDecoration(
+                      return GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () => controller.selectedRowIndex.value = index,
+                        onSecondaryTapDown: (details) async {
+                          controller.selectedRowIndex.value = index;
+                          final action = await showOperationRowMenu(
+                            context: context,
+                            details: details,
+                            canEdit: !isDeleting,
+                            hasData: hasData,
+                            canPaste: false,
+                            canInsertRow: false,
+                            canDeleteRow: true,
+                            canMoveTop: false,
+                            canMoveBottom: false,
+                          );
+                          if (action == 'deleteRow' ||
+                              action == 'delete' ||
+                              action == 'clear') {
+                            await _deleteOperationRow(context, index);
+                          }
+                        },
+                        child: Container(
+                          height: 34,
                           color: isSelected
-                              ? AppTheme.primaryColor.withOpacity(0.1)
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(6),
-                          border: isSelected
-                              ? Border.all(
-                                  color: AppTheme.primaryColor.withOpacity(0.3),
-                                  width: 1,
-                                )
-                              : null,
-                        ),
-                        margin: const EdgeInsets.symmetric(vertical: 0.5),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
+                              ? const Color(0xFFDCEBFA)
+                              : Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 6),
                           child: Row(
                             children: [
-                              // Row number instead of chevron
-                              Container(
+                              SizedBox(
                                 width: 24,
-                                height: 24,
-                                alignment: Alignment.center,
                                 child: Text(
                                   "${index + 1}",
+                                  textAlign: TextAlign.center,
                                   style: AppTheme.bodySmall.copyWith(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: isSelected
-                                        ? AppTheme.primaryColor
-                                        : AppTheme.textSecondary,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                    color: AppTheme.textPrimary,
                                   ),
                                 ),
                               ),
-                              const SizedBox(width: 4),
-
-                              // Always show dropdown
                               Expanded(
                                 child: DropdownButtonHideUnderline(
                                   child: DropdownButton<OperationType?>(
@@ -250,32 +242,17 @@ class OperationPage extends StatelessWidget {
                                       controller.dropdownValues[index] = v;
                                       controller.selectedRowIndex.value = index;
                                     },
-                                    menuMaxHeight: 200,
+                                    menuMaxHeight: 220,
                                     itemHeight: null,
-                                    hint: Text(
-                                      "",
-                                      style: AppTheme.bodySmall.copyWith(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w500,
-                                        color: AppTheme.textSecondary,
-                                      ),
-                                    ),
+                                    hint: const SizedBox.shrink(),
                                     style: AppTheme.bodySmall.copyWith(
                                       fontSize: 11,
-                                      fontWeight: FontWeight.w500,
                                       color: AppTheme.textPrimary,
                                     ),
                                     items: [
-                                      DropdownMenuItem<OperationType?>(
+                                      const DropdownMenuItem<OperationType?>(
                                         value: null,
-                                        child: Text(
-                                          "",
-                                          style: AppTheme.bodySmall.copyWith(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w500,
-                                            color: AppTheme.textPrimary,
-                                          ),
-                                        ),
+                                        child: SizedBox.shrink(),
                                       ),
                                       ...controller.dropdownItems.map(
                                         (e) => DropdownMenuItem(
@@ -284,7 +261,6 @@ class OperationPage extends StatelessWidget {
                                             controller.labelFor(e),
                                             style: AppTheme.bodySmall.copyWith(
                                               fontSize: 11,
-                                              fontWeight: FontWeight.w500,
                                               color: AppTheme.textPrimary,
                                             ),
                                             overflow: TextOverflow.ellipsis,
@@ -295,47 +271,15 @@ class OperationPage extends StatelessWidget {
                                   ),
                                 ),
                               ),
-
-                              // Selection Indicator
-                              if (isSelected)
-                                Container(
-                                  width: 6,
-                                  height: 6,
-                                  margin: const EdgeInsets.only(left: 6),
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
+                              if (isDeleting)
+                                SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
                                     color: AppTheme.primaryColor,
                                   ),
                                 ),
-                              if (rowOperation != null) ...[
-                                const SizedBox(width: 6),
-                                InkWell(
-                                  onTap: isDeleting
-                                      ? null
-                                      : () =>
-                                            _deleteOperationRow(context, index),
-                                  borderRadius: BorderRadius.circular(4),
-                                  child: Container(
-                                    width: 24,
-                                    height: 24,
-                                    alignment: Alignment.center,
-                                    child: isDeleting
-                                        ? SizedBox(
-                                            width: 12,
-                                            height: 12,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                              color: AppTheme.primaryColor,
-                                            ),
-                                          )
-                                        : Icon(
-                                            Icons.delete_outline,
-                                            size: 15,
-                                            color: Colors.red.shade400,
-                                          ),
-                                  ),
-                                ),
-                              ],
                             ],
                           ),
                         ),
@@ -349,16 +293,12 @@ class OperationPage extends StatelessWidget {
 
           // Panel Footer
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             decoration: BoxDecoration(
               border: Border(
                 top: BorderSide(color: Colors.grey.shade200, width: 1),
               ),
               color: Colors.white,
-              borderRadius: const BorderRadius.only(
-                bottomLeft: Radius.circular(12),
-                bottomRight: Radius.circular(12),
-              ),
             ),
             child: Obx(
               () => Row(
@@ -377,6 +317,7 @@ class OperationPage extends StatelessWidget {
                           ? "Backend sync failed. Static menu fallback active."
                           : "Operations menu is loaded from backend.",
                       style: AppTheme.caption.copyWith(
+                        fontSize: 10,
                         color: AppTheme.textSecondary,
                       ),
                       overflow: TextOverflow.ellipsis,
@@ -408,19 +349,16 @@ class OperationPage extends StatelessWidget {
       ),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(2),
         child: Container(
-          width: 24,
-          height: 24,
+          width: 22,
+          height: 22,
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.15),
-            borderRadius: BorderRadius.circular(4),
-            border: Border.all(
-              color: Colors.white.withOpacity(0.3),
-              width: 0.5,
-            ),
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(2),
+            border: Border.all(color: Colors.grey.shade400, width: 0.8),
           ),
-          child: Icon(icon, size: 14, color: Colors.white),
+          child: Icon(icon, size: 13, color: const Color(0xFF2563EB)),
         ),
       ),
     );
@@ -493,50 +431,29 @@ class OperationPage extends StatelessWidget {
   Widget _buildPlaceholderView() {
     return Container(
       color: Colors.white,
-      padding: const EdgeInsets.all(40),
+      padding: const EdgeInsets.all(20),
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  colors: [
-                    AppTheme.primaryColor.withOpacity(0.1),
-                    AppTheme.secondaryColor.withOpacity(0.1),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
-              child: Icon(
-                Icons.dashboard_customize_rounded,
-                size: 40,
-                color: AppTheme.textSecondary.withOpacity(0.5),
+            Icon(
+              Icons.list_alt_outlined,
+              size: 34,
+              color: Colors.grey.shade400,
+            ),
+            const SizedBox(height: 10),
+            Text(
+              "Select an operation",
+              style: AppTheme.bodyLarge.copyWith(
+                color: AppTheme.textPrimary,
+                fontWeight: FontWeight.w600,
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 6),
             Text(
-              "Operation View",
-              style: AppTheme.titleMedium.copyWith(color: AppTheme.textPrimary),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              "Select an operation from the menu to view its details",
+              "Choose a row from the left menu to open its details.",
               style: AppTheme.bodySmall.copyWith(color: AppTheme.textSecondary),
               textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () {},
-              style: AppTheme.secondaryButtonStyle,
-              child: Text(
-                "Coming Soon",
-                style: AppTheme.bodySmall.copyWith(fontWeight: FontWeight.w500),
-              ),
             ),
           ],
         ),

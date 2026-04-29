@@ -17,6 +17,7 @@ import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import '../../controller/operation_controller.dart';
 import '../../controller/dashboard_controller.dart';
+import 'operation_desktop_ui.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class ConsumeProductView extends StatefulWidget {
@@ -70,6 +71,8 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
   final Map<String, double> _receiveProductTotals = {};
   final Map<String, double> _returnProductTotals = {};
   final Map<int, Timer> _autoSaveProductTimers = {};
+  Map<String, dynamic>? _productRowClipboard;
+  Map<String, dynamic>? _distributeRowClipboard;
   Timer? _autoSaveDistributionTimer;
   Worker? _wellWorker;
   Worker? _reportWorker;
@@ -622,6 +625,221 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     operationController.totalVolume.value = total;
   }
 
+  bool _hasProductRowData(ProductRowData row) {
+    return row.savedId != null ||
+        row.productName.trim().isNotEmpty ||
+        row.selectedProduct.value != null ||
+        row.code.trim().isNotEmpty ||
+        row.sg.trim().isNotEmpty ||
+        row.unit.trim().isNotEmpty ||
+        row.initial.trim().isNotEmpty ||
+        row.adjust.trim().isNotEmpty ||
+        row.used.trim().isNotEmpty;
+  }
+
+  Map<String, dynamic> _productRowSnapshot(ProductRowData row) {
+    return {
+      'productName': row.productName,
+      'selectedProduct': row.selectedProduct.value,
+      'code': row.code,
+      'sg': row.sg,
+      'unit': row.unit,
+      'price': row.price,
+      'initial': row.initial,
+      'adjust': row.adjust,
+      'used': row.used,
+    };
+  }
+
+  void _applyProductRowSnapshot(ProductRowData row, Map<String, dynamic> data) {
+    final selected = data['selectedProduct'];
+    row.productName = (data['productName'] ?? '').toString();
+    row.selectedProduct.value = selected is ProductModel ? selected : null;
+    row.code = (data['code'] ?? '').toString();
+    row.sg = (data['sg'] ?? '').toString();
+    row.unit = (data['unit'] ?? '').toString();
+    row.price = (data['price'] as num?)?.toDouble() ?? 0.0;
+    row.initial = (data['initial'] ?? '').toString();
+    row.adjust = (data['adjust'] ?? '').toString();
+    row.used = (data['used'] ?? '').toString();
+    row.recalculate();
+  }
+
+  void _clearProductRowUi(ProductRowData row) {
+    row.savedId = null;
+    row.productName = '';
+    row.selectedProduct.value = null;
+    row.code = '';
+    row.sg = '';
+    row.unit = '';
+    row.price = 0.0;
+    row.initial = '';
+    row.adjust = '';
+    row.used = '';
+    row.recalculate();
+  }
+
+  void _insertProductRow(int index) {
+    productRows.insert(index, ProductRowData());
+    productRowSaving.insert(index, false);
+    productRowDeleting.insert(index, false);
+    productRows.refresh();
+  }
+
+  Future<void> _clearProductRow(int index) async {
+    if (index < 0 || index >= productRows.length) return;
+    final row = productRows[index];
+    if (row.savedId != null) {
+      await _deleteRow(index);
+      return;
+    }
+    _clearProductRowUi(row);
+    productRows.refresh();
+    _recalculateTotalVolume();
+  }
+
+  Future<void> _showProductRowMenu(TapDownDetails details, int index) async {
+    if (index < 0 || index >= productRows.length) return;
+    selectedProductRow.value = index;
+    final row = productRows[index];
+    final action = await showOperationRowMenu(
+      context: context,
+      details: details,
+      canEdit: !dashboardController.isLocked.value,
+      hasData: _hasProductRowData(row),
+      canPaste: _productRowClipboard != null,
+      canInsertRow: true,
+      canDeleteRow: true,
+      canMoveTop: false,
+      canMoveBottom: false,
+    );
+    switch (action) {
+      case 'cut':
+        _productRowClipboard = _productRowSnapshot(row);
+        await _clearProductRow(index);
+        break;
+      case 'copy':
+        _productRowClipboard = _productRowSnapshot(row);
+        break;
+      case 'paste':
+        if (_productRowClipboard != null) {
+          _applyProductRowSnapshot(row, _productRowClipboard!);
+          productRows.refresh();
+          _checkAndAddProductRow();
+          _recalculateTotalVolume();
+          _scheduleProductAutoSave(index);
+        }
+        break;
+      case 'delete':
+      case 'clear':
+        await _clearProductRow(index);
+        break;
+      case 'insertRow':
+        _insertProductRow(index);
+        break;
+      case 'deleteRow':
+        await _deleteRow(index);
+        break;
+    }
+  }
+
+  bool _hasDistributeRowData(DistributeRowData row) {
+    return row.pit.trim().isNotEmpty ||
+        row.volumeController.text.trim().isNotEmpty;
+  }
+
+  Map<String, dynamic> _distributeRowSnapshot(DistributeRowData row) {
+    return {'pit': row.pit, 'volume': row.volumeController.text.trim()};
+  }
+
+  void _applyDistributeRowSnapshot(
+    DistributeRowData row,
+    Map<String, dynamic> data,
+  ) {
+    row.pit = (data['pit'] ?? '').toString();
+    row.volume = (data['volume'] ?? '').toString();
+    row.volumeController.text = row.volume;
+  }
+
+  Future<void> _showDistributeRowMenu(TapDownDetails details, int index) async {
+    if (index < 0 || index >= distributeRows.length) return;
+    selectedDistributeRow.value = index;
+    final row = distributeRows[index];
+    final action = await showOperationRowMenu(
+      context: context,
+      details: details,
+      canEdit: !dashboardController.isLocked.value,
+      hasData: _hasDistributeRowData(row),
+      canPaste: _distributeRowClipboard != null,
+      canInsertRow: true,
+      canDeleteRow: true,
+      canMoveTop: false,
+      canMoveBottom: false,
+    );
+    switch (action) {
+      case 'cut':
+        _distributeRowClipboard = _distributeRowSnapshot(row);
+        _deleteDistributeRow(index);
+        _scheduleDistributionAutoSave();
+        break;
+      case 'copy':
+        _distributeRowClipboard = _distributeRowSnapshot(row);
+        break;
+      case 'paste':
+        if (_distributeRowClipboard != null) {
+          _applyDistributeRowSnapshot(row, _distributeRowClipboard!);
+          _scheduleDistributionAutoSave();
+        }
+        break;
+      case 'delete':
+      case 'clear':
+      case 'deleteRow':
+        _deleteDistributeRow(index);
+        _scheduleDistributionAutoSave();
+        break;
+      case 'insertRow':
+        _addDistributeRow(insertIndex: index);
+        _scheduleDistributionAutoSave();
+        break;
+    }
+  }
+
+  double _volumeGroupTotal(bool Function(ProductModel product) matcher) {
+    double total = 0.0;
+    for (final row in productRows) {
+      final product = row.selectedProduct.value;
+      if (product == null) continue;
+      if (!matcher(product)) continue;
+      total += row.calculatedVolume.value;
+    }
+    return total;
+  }
+
+  Future<void> _openVolumeByGroupDialog() {
+    final weightMaterial = _volumeGroupTotal(
+      (product) => product.group.toLowerCase().contains('weight'),
+    );
+    final baseFluid = _volumeGroupTotal(
+      (product) => product.group.toLowerCase().contains('base fluid'),
+    );
+    final water = addWater.value
+        ? (double.tryParse(waterVolumeController.text.trim()) ?? 0.0)
+        : 0.0;
+    final productsTotal = productRows.fold<double>(
+      0.0,
+      (sum, row) => sum + row.calculatedVolume.value,
+    );
+    final remainingProducts = (productsTotal - baseFluid - weightMaterial)
+        .clamp(0.0, double.infinity);
+    return showVolumeByGroupDialog(
+      context,
+      baseFluid: baseFluid,
+      weightMaterial: weightMaterial,
+      products: remainingProducts,
+      water: water,
+    );
+  }
+
   bool _isCostCalculated(ProductRowData row) {
     final usedVal = double.tryParse(row.used) ?? 0.0;
     return usedVal > 0 && row.price > 0;
@@ -702,9 +920,15 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
   // ─────────────────────────────────────────────
 
   /// Add a new distribute row
-  void _addDistributeRow({String initialPit = kEmpty}) {
+  void _addDistributeRow({String initialPit = kEmpty, int? insertIndex}) {
     final newRow = DistributeRowData(pit: initialPit);
-    distributeRows.add(newRow);
+    if (insertIndex != null &&
+        insertIndex >= 0 &&
+        insertIndex <= distributeRows.length) {
+      distributeRows.insert(insertIndex, newRow);
+    } else {
+      distributeRows.add(newRow);
+    }
     // Keep the Active System row aligned with Total Vol.
     _rebalanceDistributeVolumes();
   }
@@ -1135,14 +1359,13 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(4),
         border: Border.all(color: Colors.grey.shade300),
       ),
       child: Row(
         children: [
-          Expanded(flex: 2, child: _buildTopProductDropdown()),
+          Expanded(flex: 2, child: _buildSelectProductsButton()),
           const SizedBox(width: 10),
-          Expanded(flex: 2, child: _buildPreviousProductsDropdown()),
+          Expanded(flex: 2, child: _buildPreviousProductsButton()),
           const SizedBox(width: 12),
           Expanded(
             flex: 2,
@@ -1167,134 +1390,92 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     );
   }
 
-  Widget _buildTopProductDropdown() {
-    return Container(
+  Widget _buildSelectProductsButton() {
+    return SizedBox(
       height: 32,
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(3),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            Icons.inventory_2_outlined,
-            size: 14,
-            color: AppTheme.textSecondary,
+      child: OutlinedButton(
+        onPressed: dashboardController.isLocked.value
+            ? null
+            : () async {
+                final selected = await showSelectProductsDialog(
+                  context: context,
+                  products: products.toList(),
+                  title: 'Select Products',
+                );
+                if (selected == null || selected.isEmpty) return;
+                for (final product in selected) {
+                  _addProductFromTop(product);
+                }
+              },
+        style: OutlinedButton.styleFrom(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(2)),
+        ),
+        child: Text(
+          'Select Products ...',
+          style: AppTheme.bodySmall.copyWith(
+            fontSize: 11,
+            color: AppTheme.textPrimary,
           ),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Obx(
-              () => DropdownButtonHideUnderline(
-                child: DropdownButton<ProductModel>(
-                  value:
-                      selectedTopProduct.value != null &&
-                          products.any(
-                            (p) => p.id == selectedTopProduct.value?.id,
-                          )
-                      ? selectedTopProduct.value
-                      : null,
-                  hint: Text(
-                    "Select Products",
-                    style: AppTheme.bodySmall.copyWith(
-                      fontSize: 10,
-                      color: AppTheme.textSecondary,
-                    ),
-                  ),
-                  icon: const Icon(Icons.arrow_drop_down, size: 16),
-                  isExpanded: true,
-                  isDense: true,
-                  menuMaxHeight: 300,
-                  items: products
-                      .where((p) => p.id != null)
-                      .map(
-                        (p) => DropdownMenuItem(
-                          value: p,
-                          child: Text(
-                            p.product,
-                            style: AppTheme.bodySmall.copyWith(fontSize: 10),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: dashboardController.isLocked.value
-                      ? null
-                      : _addProductFromTop,
-                ),
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildPreviousProductsDropdown() {
+  Widget _buildPreviousProductsButton() {
     return Container(
       height: 32,
-      padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(3),
         border: Border.all(color: Colors.grey.shade300),
       ),
-      child: Row(
-        children: [
-          Icon(Icons.history, size: 14, color: AppTheme.textSecondary),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Obx(() {
-              final previousReports = _previousReports();
-              return DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value:
-                      selectedPreviousReportId.value.isNotEmpty &&
-                          previousReports.any(
-                            (r) => r.id == selectedPreviousReportId.value,
-                          )
-                      ? selectedPreviousReportId.value
-                      : null,
-                  hint: Text(
-                    isLoadingPreviousProducts.value
-                        ? "Loading Previous Products..."
-                        : "Load Previous Products",
-                    style: AppTheme.bodySmall.copyWith(
-                      fontSize: 10,
-                      color: AppTheme.textSecondary,
-                    ),
+      child: Obx(() {
+        final previousReports = _previousReports();
+        return PopupMenuButton<String>(
+          enabled:
+              !dashboardController.isLocked.value &&
+              !isLoadingPreviousProducts.value &&
+              previousReports.isNotEmpty,
+          tooltip: 'Load Previous Products',
+          itemBuilder: (context) => previousReports
+              .map<PopupMenuEntry<String>>(
+                (report) => PopupMenuItem<String>(
+                  value: report.id.toString(),
+                  child: Text(
+                    report.displayName.toString(),
+                    style: AppTheme.bodySmall.copyWith(fontSize: 11),
                   ),
-                  icon: const Icon(Icons.arrow_drop_down, size: 16),
-                  isExpanded: true,
-                  isDense: true,
-                  menuMaxHeight: 260,
-                  items: previousReports
-                      .map(
-                        (report) => DropdownMenuItem<String>(
-                          value: report.id,
-                          child: Text(
-                            report.displayName,
-                            style: AppTheme.bodySmall.copyWith(fontSize: 10),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      )
-                      .toList(),
-                  onChanged:
-                      dashboardController.isLocked.value ||
-                          isLoadingPreviousProducts.value
-                      ? null
-                      : (reportId) {
-                          selectedPreviousReportId.value = reportId ?? '';
-                          _loadPreviousReportProducts(reportId ?? '');
-                        },
                 ),
-              );
-            }),
+              )
+              .toList(),
+          onSelected: (reportId) {
+            selectedPreviousReportId.value = reportId;
+            _loadPreviousReportProducts(reportId);
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: Row(
+              children: [
+                Icon(Icons.history, size: 14, color: AppTheme.textSecondary),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    isLoadingPreviousProducts.value
+                        ? 'Loading Previous Products...'
+                        : 'Load Previous Products',
+                    style: AppTheme.bodySmall.copyWith(
+                      fontSize: 11,
+                      color: previousReports.isEmpty
+                          ? Colors.grey.shade400
+                          : AppTheme.textPrimary,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const Icon(Icons.arrow_drop_down, size: 16),
+              ],
+            ),
           ),
-        ],
-      ),
+        );
+      }),
     );
   }
 
@@ -1371,70 +1552,61 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       "Code",
       "SG",
       "Unit",
-      "Price (\$)",
+      "Price (Kwd)",
       "Initial",
       "Adjust",
       "Used",
       "Final",
-      "Cost (\$)",
+      "Cost (Kwd)",
       "Vol (bbl)",
-      "",
     ];
 
     return Container(
       decoration: BoxDecoration(
         border: Border.all(color: Colors.grey.shade300),
-        borderRadius: BorderRadius.circular(4),
       ),
       child: Column(
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
             decoration: BoxDecoration(
-              color: AppTheme.primaryColor,
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(4),
-              ),
+              color: Colors.white,
+              border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
             ),
-            child: Row(
-              children: [
-                const Icon(Icons.inventory_2, color: Colors.white, size: 16),
-                const SizedBox(width: 8),
-                Text(
-                  "Consume Product",
-                  style: AppTheme.bodySmall.copyWith(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 11,
-                    color: Colors.white,
-                  ),
-                ),
-              ],
+            child: Text(
+              "Consume Product",
+              style: AppTheme.bodySmall.copyWith(
+                fontWeight: FontWeight.w500,
+                fontSize: 12,
+                color: AppTheme.textPrimary,
+              ),
             ),
           ),
           SizedBox(
-            height: 220,
+            height: 232,
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: SingleChildScrollView(
                 scrollDirection: Axis.vertical,
                 child: Obx(
                   () => DataTable(
-                    headingRowHeight: 32,
-                    dataRowHeight: 38,
+                    headingRowHeight: 34,
+                    dataRowHeight: 34,
                     columnSpacing: 0,
                     horizontalMargin: 0,
                     dividerThickness: 0,
                     headingRowColor: MaterialStateProperty.all(
-                      Colors.grey.shade50,
+                      Colors.grey.shade100,
                     ),
                     border: TableBorder(
                       verticalInside: BorderSide(color: Colors.grey.shade300),
                       horizontalInside: BorderSide(color: Colors.grey.shade200),
                     ),
                     headingTextStyle: AppTheme.bodySmall.copyWith(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.primaryColor,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: AppTheme.textPrimary,
                     ),
                     dataTextStyle: AppTheme.bodySmall.copyWith(fontSize: 10),
                     columns: headers
@@ -1468,7 +1640,10 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                         color: MaterialStateProperty.all(
                           i % 2 == 0 ? Colors.white : Colors.grey.shade50,
                         ),
-                        cells: _buildRowCells(productRows[i], i),
+                        cells: _withProductRowMenu(
+                          _buildRowCells(productRows[i], i),
+                          i,
+                        ),
                       ),
                     ),
                   ),
@@ -1482,8 +1657,8 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
   }
 
   bool _isRightCol(String h) => const {
-    'Price (\$)',
-    'Cost (\$)',
+    'Price (Kwd)',
+    'Cost (Kwd)',
     'Initial',
     'Adjust',
     'Used',
@@ -1500,11 +1675,9 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       case 'SG':
       case 'Unit':
         return 70;
-      case 'Price (\$)':
-      case 'Cost (\$)':
+      case 'Price (Kwd)':
+      case 'Cost (Kwd)':
         return 90;
-      case '':
-        return 36;
       default:
         return 75;
     }
@@ -1749,41 +1922,6 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
           }),
         ),
       ),
-
-      // 12. Delete
-      DataCell(
-        Obx(() {
-          final del = i < productRowDeleting.length && productRowDeleting[i];
-          if (del) {
-            return const SizedBox(
-              width: 36,
-              child: Center(
-                child: SizedBox(
-                  width: 12,
-                  height: 12,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.red,
-                  ),
-                ),
-              ),
-            );
-          }
-          return SizedBox(
-            width: 36,
-            child: IconButton(
-              icon: Icon(
-                Icons.delete_outline,
-                size: 15,
-                color: locked ? Colors.grey.shade300 : Colors.red.shade300,
-              ),
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
-              onPressed: locked ? null : () => _deleteRow(i),
-            ),
-          );
-        }),
-      ),
     ];
   }
 
@@ -1832,6 +1970,21 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     );
   }
 
+  List<DataCell> _withProductRowMenu(List<DataCell> cells, int index) {
+    return cells
+        .map(
+          (cell) => DataCell(
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onSecondaryTapDown: (details) =>
+                  _showProductRowMenu(details, index),
+              child: cell.child,
+            ),
+          ),
+        )
+        .toList();
+  }
+
   // ══════════════════════════════════════════════════════════════════════════
   //  BOTTOM SECTION
   // ══════════════════════════════════════════════════════════════════════════
@@ -1851,7 +2004,6 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     return Container(
       decoration: BoxDecoration(
         border: Border.all(color: Colors.grey.shade300),
-        borderRadius: BorderRadius.circular(4),
       ),
       child: Column(
         children: [
@@ -1859,21 +2011,17 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
-              color: AppTheme.successColor,
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(4),
-              ),
+              color: Colors.white,
+              border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
             ),
             child: Row(
               children: [
-                const Icon(Icons.share, color: Colors.white, size: 14),
-                const SizedBox(width: 6),
                 Text(
                   "Distribute to",
                   style: AppTheme.bodySmall.copyWith(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 11,
-                    color: Colors.white,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 12,
+                    color: AppTheme.textPrimary,
                   ),
                 ),
                 const Spacer(),
@@ -1885,29 +2033,11 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                     onTap: dashboardController.isLocked.value
                         ? null
                         : _calculateDistribution,
+                    color: Colors.grey.shade100,
+                    iconColor: AppTheme.primaryColor,
                   ),
                 ),
                 const SizedBox(width: 4),
-                // Delete selected row button
-                Obx(
-                  () => _distributeHeaderBtn(
-                    icon: Icons.delete_outline,
-                    tooltip: 'Delete selected row',
-                    color: Colors.red.shade100,
-                    iconColor: Colors.red.shade700,
-                    onTap: dashboardController.isLocked.value
-                        ? null
-                        : (selectedDistributeRow.value >= 0 &&
-                                  selectedDistributeRow.value <
-                                      distributeRows.length
-                              ? () => _deleteDistributeRow(
-                                  selectedDistributeRow.value,
-                                )
-                              : null),
-                  ),
-                ),
-                const SizedBox(width: 4),
-                // Add row button
                 Obx(
                   () => _distributeHeaderBtn(
                     icon: Icons.add,
@@ -1918,6 +2048,8 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                             _addDistributeRow();
                             _scheduleDistributionAutoSave();
                           },
+                    color: Colors.grey.shade100,
+                    iconColor: AppTheme.primaryColor,
                   ),
                 ),
               ],
@@ -1927,7 +2059,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
           // ── Table header ──
           Container(
             decoration: BoxDecoration(
-              color: Colors.grey.shade50,
+              color: Colors.grey.shade100,
               border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
             ),
             child: Row(
@@ -1954,7 +2086,10 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                     final isSelected = selectedDistributeRow.value == i;
 
                     return GestureDetector(
+                      behavior: HitTestBehavior.opaque,
                       onTap: () => selectedDistributeRow.value = i,
+                      onSecondaryTapDown: (details) =>
+                          _showDistributeRowMenu(details, i),
                       child: Container(
                         decoration: BoxDecoration(
                           color: isSelected
@@ -2161,16 +2296,17 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
           height: 22,
           decoration: BoxDecoration(
             color: onTap == null
-                ? Colors.white.withOpacity(0.1)
-                : (color ?? Colors.white.withOpacity(0.2)),
+                ? Colors.grey.shade100
+                : (color ?? Colors.grey.shade100),
             borderRadius: BorderRadius.circular(3),
+            border: Border.all(color: Colors.grey.shade300),
           ),
           child: Icon(
             icon,
             size: 13,
             color: onTap == null
-                ? Colors.white.withOpacity(0.3)
-                : (iconColor ?? Colors.white),
+                ? Colors.grey.shade400
+                : (iconColor ?? AppTheme.textPrimary),
           ),
         ),
       ),
@@ -2287,7 +2423,19 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 6),
+              IconButton(
+                onPressed: _openVolumeByGroupDialog,
+                icon: Icon(
+                  Icons.help_outline,
+                  size: 16,
+                  color: AppTheme.primaryColor,
+                ),
+                tooltip: 'Volume By Group',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+              ),
+              const SizedBox(width: 8),
               Expanded(
                 child: Obx(
                   () => Container(

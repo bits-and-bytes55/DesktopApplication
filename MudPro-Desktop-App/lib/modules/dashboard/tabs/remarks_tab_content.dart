@@ -21,7 +21,6 @@ class RemarksView extends StatefulWidget {
 
 class _RemarksViewState extends State<RemarksView> {
   static const int _maxAttachmentBytes = 5 * 1024 * 1024;
-  static const Color _editorFill = Color(0xffFFFDE7);
 
   final DashboardController dashboard = Get.find<DashboardController>();
   final ReportContextController reports = reportContext;
@@ -74,17 +73,14 @@ class _RemarksViewState extends State<RemarksView> {
       return;
     }
     _autoSaveTimer?.cancel();
-    _autoSaveTimer = Timer(
-      const Duration(milliseconds: 800),
-      () {
-        if (!mounted) return;
-        if (_isSaving) {
-          _scheduleAutoSave();
-        } else {
-          _saveRemarks(silent: true);
-        }
-      },
-    );
+    _autoSaveTimer = Timer(const Duration(milliseconds: 800), () {
+      if (!mounted) return;
+      if (_isSaving) {
+        _scheduleAutoSave();
+      } else {
+        _saveRemarks(silent: true);
+      }
+    });
   }
 
   void _loadSelectedReport() {
@@ -179,7 +175,8 @@ class _RemarksViewState extends State<RemarksView> {
       }
 
       await reports.updateSelectedReport(payload);
-      final changedDuringSave = recommendedCtrl.text.trim() != recommended ||
+      final changedDuringSave =
+          recommendedCtrl.text.trim() != recommended ||
           remarksCtrl.text.trim() != remarks ||
           recapCtrl.text.trim() != recap ||
           internalCtrl.text.trim() != internal;
@@ -215,16 +212,6 @@ class _RemarksViewState extends State<RemarksView> {
     };
   }
 
-  Future<void> _reloadReport() async {
-    try {
-      await reports.reloadData();
-      _loadSelectedReport();
-      _showMessage('Remarks reloaded.');
-    } catch (e) {
-      _showMessage(_friendlyError(e), isError: true);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Obx(() {
@@ -234,109 +221,19 @@ class _RemarksViewState extends State<RemarksView> {
 
       return Container(
         color: AppTheme.backgroundColor,
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _buildToolbar(report, isLocked, isLoading),
-            const SizedBox(height: 10),
-            if (report == null)
-              Expanded(child: _buildEmptyState(isLoading))
-            else
-              Expanded(
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    if (constraints.maxWidth < 1050) {
-                      return _buildNarrowLayout(isLocked);
-                    }
-                    return _buildWideLayout(isLocked);
-                  },
-                ),
+        padding: const EdgeInsets.all(6),
+        child: report == null
+            ? _buildEmptyState(isLoading)
+            : LayoutBuilder(
+                builder: (context, constraints) {
+                  if (constraints.maxWidth < 1050) {
+                    return _buildNarrowLayout(isLocked);
+                  }
+                  return _buildWideLayout(isLocked);
+                },
               ),
-          ],
-        ),
       );
     });
-  }
-
-  Widget _buildToolbar(AppReport? report, bool isLocked, bool isLoading) {
-    final reportLabel = report == null
-        ? 'No report selected'
-        : report.userReportNo.isNotEmpty
-            ? 'Report ${report.userReportNo}'
-            : 'Report ${report.reportNo}';
-
-    return Container(
-      height: 46,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.notes, size: 18, color: AppTheme.tableHeadColor),
-          const SizedBox(width: 8),
-          Text(
-            'Remarks',
-            style: AppTheme.bodyLarge.copyWith(
-              fontWeight: FontWeight.w700,
-              color: AppTheme.textPrimary,
-            ),
-          ),
-          const SizedBox(width: 12),
-          _statusChip(reportLabel, AppTheme.primaryColor),
-          const SizedBox(width: 8),
-          if (_isDirty)
-            _statusChip('Unsaved changes', AppTheme.warningColor)
-          else
-            _statusChip('Saved', AppTheme.successColor),
-          const Spacer(),
-          TextButton.icon(
-            onPressed: isLoading ? null : _reloadReport,
-            icon: const Icon(Icons.refresh, size: 16),
-            label: const Text('Reload'),
-            style: TextButton.styleFrom(
-              foregroundColor: AppTheme.textSecondary,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            ),
-          ),
-          const SizedBox(width: 8),
-          ElevatedButton.icon(
-            onPressed:
-                isLocked || !_isDirty || _isSaving ? null : () => _saveRemarks(),
-            icon: _isSaving
-                ? const SizedBox(
-                    width: 14,
-                    height: 14,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.save_outlined, size: 16),
-            label: Text(_isSaving ? 'Saving' : 'Save'),
-            style: AppTheme.primaryButtonStyle,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _statusChip(String text, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.25)),
-      ),
-      child: Text(
-        text,
-        style: AppTheme.caption.copyWith(
-          color: color,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
   }
 
   Widget _buildWideLayout(bool isLocked) {
@@ -353,22 +250,36 @@ class _RemarksViewState extends State<RemarksView> {
             hintText: 'Recommended tour treatments',
           ),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: 12),
         Expanded(
           flex: 5,
           child: Column(
             children: [
               Expanded(
-                child: _buildMemoPanel(
-                  title: 'Remarks',
-                  controller: remarksCtrl,
-                  icon: Icons.forum_outlined,
-                  isLocked: isLocked,
-                  hintText: 'Operational comments',
+                flex: 11,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      child: _buildMemoPanel(
+                        title: 'Remarks',
+                        controller: remarksCtrl,
+                        icon: Icons.forum_outlined,
+                        isLocked: isLocked,
+                        hintText: 'Operational comments',
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    SizedBox(
+                      width: 250,
+                      child: _buildAttachmentPanel(isLocked),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               Expanded(
+                flex: 11,
                 child: _buildMemoPanel(
                   title: 'Recap Remarks',
                   controller: recapCtrl,
@@ -377,8 +288,9 @@ class _RemarksViewState extends State<RemarksView> {
                   hintText: 'Recap remarks',
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               Expanded(
+                flex: 12,
                 child: _buildMemoPanel(
                   title: 'Internal Notes',
                   controller: internalCtrl,
@@ -390,8 +302,6 @@ class _RemarksViewState extends State<RemarksView> {
             ],
           ),
         ),
-        const SizedBox(width: 10),
-        SizedBox(width: 270, child: _buildAttachmentPanel(isLocked)),
       ],
     );
   }
@@ -410,7 +320,7 @@ class _RemarksViewState extends State<RemarksView> {
               hintText: 'Recommended tour treatments',
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           SizedBox(
             height: 250,
             child: _buildMemoPanel(
@@ -421,7 +331,7 @@ class _RemarksViewState extends State<RemarksView> {
               hintText: 'Operational comments',
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           SizedBox(
             height: 250,
             child: _buildMemoPanel(
@@ -432,7 +342,7 @@ class _RemarksViewState extends State<RemarksView> {
               hintText: 'Recap remarks',
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           SizedBox(
             height: 250,
             child: _buildMemoPanel(
@@ -443,7 +353,7 @@ class _RemarksViewState extends State<RemarksView> {
               hintText: 'Internal notes',
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           SizedBox(height: 340, child: _buildAttachmentPanel(isLocked)),
         ],
       ),
@@ -457,54 +367,26 @@ class _RemarksViewState extends State<RemarksView> {
     required bool isLocked,
     required String hintText,
   }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Container(
-            height: 34,
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            decoration: BoxDecoration(
-              color: AppTheme.tableHeadColor,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(8),
-                topRight: Radius.circular(8),
-              ),
-            ),
-            child: Row(
-              children: [
-                Icon(icon, size: 16, color: Colors.white),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTheme.bodySmall.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-                ValueListenableBuilder<TextEditingValue>(
-                  valueListenable: controller,
-                  builder: (context, value, _) => Text(
-                    '${value.text.length}',
-                    style: AppTheme.caption.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 2, bottom: 6),
+          child: Text(
+            title,
+            style: AppTheme.bodySmall.copyWith(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: AppTheme.textPrimary,
             ),
           ),
-          Expanded(
+        ),
+        Expanded(
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border.all(color: Colors.grey.shade400),
+            ),
             child: TextField(
               controller: controller,
               readOnly: isLocked,
@@ -523,13 +405,13 @@ class _RemarksViewState extends State<RemarksView> {
                 ),
                 border: InputBorder.none,
                 filled: true,
-                fillColor: isLocked ? Colors.grey.shade100 : _editorFill,
+                fillColor: isLocked ? Colors.grey.shade100 : Colors.white,
                 contentPadding: const EdgeInsets.all(10),
               ),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -538,135 +420,61 @@ class _RemarksViewState extends State<RemarksView> {
     final fileName = _attachmentName();
     final fileSize = _attachmentSize();
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Container(
-            height: 34,
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            decoration: BoxDecoration(
-              color: AppTheme.tableHeadColor,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(8),
-                topRight: Radius.circular(8),
-              ),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.attach_file, size: 16, color: Colors.white),
-                const SizedBox(width: 8),
-                Text(
-                  'Attachment',
-                  style: AppTheme.bodySmall.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(10),
-              child: _buildPreviewArea(),
-            ),
-          ),
-          Container(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(
+          child: Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: AppTheme.cardColor,
-              border: Border(top: BorderSide(color: Colors.grey.shade200)),
-              borderRadius: const BorderRadius.only(
-                bottomLeft: Radius.circular(8),
-                bottomRight: Radius.circular(8),
-              ),
+              color: Colors.white,
+              border: Border.all(color: Colors.grey.shade400),
             ),
-            child: Column(
-              children: [
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.grey.shade200),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        hasAttachment
-                            ? Icons.insert_drive_file_outlined
-                            : Icons.info_outline,
-                        size: 16,
-                        color: hasAttachment
-                            ? AppTheme.tableHeadColor
-                            : AppTheme.textSecondary,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              hasAttachment ? fileName : 'No attachment',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: AppTheme.caption.copyWith(
-                                color: AppTheme.textPrimary,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            if (hasAttachment)
-                              Text(
-                                _formatBytes(fileSize),
-                                style: AppTheme.caption,
-                              ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: isLocked ? null : pickFile,
-                        icon: const Icon(Icons.upload_file, size: 16),
-                        label: const Text('Upload'),
-                        style: AppTheme.primaryButtonStyle,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: isLocked || !hasAttachment ? null : deleteFile,
-                        icon: const Icon(Icons.delete_outline, size: 16),
-                        label: const Text('Delete'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.errorColor,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+            child: _buildPreviewArea(),
+          ),
+        ),
+        const SizedBox(height: 8),
+        OutlinedButton(
+          onPressed: isLocked ? null : pickFile,
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size.fromHeight(38),
+            side: BorderSide(color: Colors.grey.shade400),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(0),
+            ),
+            foregroundColor: AppTheme.textPrimary,
+            backgroundColor: Colors.white,
+          ),
+          child: const Text('Upload'),
+        ),
+        const SizedBox(height: 8),
+        OutlinedButton(
+          onPressed: isLocked || !hasAttachment ? null : deleteFile,
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size.fromHeight(38),
+            side: BorderSide(color: Colors.grey.shade400),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(0),
+            ),
+            foregroundColor: AppTheme.textPrimary,
+            backgroundColor: Colors.white,
+          ),
+          child: const Text('Delete'),
+        ),
+        if (hasAttachment) ...[
+          const SizedBox(height: 8),
+          Text(
+            hasAttachment ? fileName : '',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTheme.caption.copyWith(
+              color: AppTheme.textPrimary,
+              fontWeight: FontWeight.w700,
             ),
           ),
+          Text(_formatBytes(fileSize), style: AppTheme.caption),
         ],
-      ),
+      ],
     );
   }
 
@@ -698,9 +506,8 @@ class _RemarksViewState extends State<RemarksView> {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: AppTheme.cardColor,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade200),
+        color: Colors.white,
+        border: Border.all(color: Colors.grey.shade300),
       ),
       child: Center(
         child: Text(
@@ -716,9 +523,8 @@ class _RemarksViewState extends State<RemarksView> {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: AppTheme.cardColor,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade200),
+        color: Colors.white,
+        border: Border.all(color: Colors.grey.shade300),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -747,8 +553,7 @@ class _RemarksViewState extends State<RemarksView> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: Colors.grey.shade300),
       ),
       child: Center(
         child: isLoading

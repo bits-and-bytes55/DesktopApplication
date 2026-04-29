@@ -2,14 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/mud_loss_active_system_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_desktop_ui.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class MudLossActiveSystemView extends StatelessWidget {
   MudLossActiveSystemView({super.key});
 
-  final MudLossActiveSystemController controller =
-      Get.put(MudLossActiveSystemController());
-  final DashboardController dashboardController = Get.find<DashboardController>();
+  final MudLossActiveSystemController controller = Get.put(
+    MudLossActiveSystemController(),
+  );
+  final DashboardController dashboardController =
+      Get.find<DashboardController>();
 
   final List<Map<String, String>> fixedRows = const [
     {'label': 'Cuttings/Retention', 'key': 'cuttingsRetention'},
@@ -84,11 +87,7 @@ class MudLossActiveSystemView extends StatelessWidget {
                       ...fixedRows.asMap().entries.map((entry) {
                         final index = entry.key;
                         final row = entry.value;
-                        return _fixedRow(
-                          index + 1,
-                          row['label']!,
-                          row['key']!,
-                        );
+                        return _fixedRow(index + 1, row['label']!, row['key']!);
                       }),
                       _extraLossRow(),
                       _blankRow(13),
@@ -108,22 +107,14 @@ class MudLossActiveSystemView extends StatelessWidget {
   TableRow _headerRow() {
     return TableRow(
       decoration: BoxDecoration(color: Colors.grey.shade100),
-      children: [
-        _headerCell(''),
-        _headerCell('Loss'),
-        _volumeHeaderCell(),
-      ],
+      children: [_headerCell(''), _headerCell('Loss'), _volumeHeaderCell()],
     );
   }
 
   TableRow _fixedRow(int number, String label, String fieldKey) {
     return TableRow(
       decoration: BoxDecoration(color: Colors.grey.shade50),
-      children: [
-        _numberCell(number),
-        _labelCell(label),
-        _volumeCell(fieldKey),
-      ],
+      children: [_numberCell(number), _labelCell(label), _volumeCell(fieldKey)],
     );
   }
 
@@ -353,31 +344,40 @@ class MudLossActiveSystemView extends StatelessWidget {
           _sideButton(
             icon: Icons.question_mark,
             color: AppTheme.primaryColor,
-            onPressed: () => _showInfoDialog(
-              context,
-              'Cuttings/Retention',
-              'Cuttings/Retention removes volume from the active system.',
-            ),
+            onPressed: dashboardController.isLocked.value
+                ? () {}
+                : () => showCuttingsRetentionDialog(
+                    context: context,
+                    initialValue:
+                        controller.fields['cuttingsRetention']?.text ?? '',
+                    onAccepted: (value) {
+                      controller.fields['cuttingsRetention']?.text = value;
+                    },
+                  ),
           ),
           const SizedBox(height: 124),
           _sideButton(
             icon: Icons.question_mark,
             color: AppTheme.primaryColor,
-            onPressed: () => _showInfoDialog(
-              context,
-              'Evaporation',
-              'Evaporation removes volume from the active system.',
-            ),
+            onPressed: dashboardController.isLocked.value
+                ? () {}
+                : () => showEvaporationDialog(
+                    context: context,
+                    initialValue: controller.fields['evaporation']?.text ?? '',
+                    onAccepted: (value) {
+                      controller.fields['evaporation']?.text = value;
+                    },
+                  ),
           ),
           const SizedBox(height: 34),
           _sideButton(
             icon: Icons.flash_on,
             color: Colors.deepOrange,
-            onPressed: () => _showInfoDialog(
-              context,
-              'Formation Loss',
-              'Use this row for formation-related active system losses.',
-            ),
+            onPressed: dashboardController.isLocked.value
+                ? () {}
+                : () {
+                    controller.fields['formation']?.text = '0.00';
+                  },
           ),
         ],
       ),
@@ -401,22 +401,6 @@ class MudLossActiveSystemView extends StatelessWidget {
           backgroundColor: Colors.grey.shade100,
         ),
         child: Icon(icon, size: 16, color: color),
-      ),
-    );
-  }
-
-  void _showInfoDialog(BuildContext context, String title, String message) {
-    showDialog<void>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(title),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('OK'),
-          ),
-        ],
       ),
     );
   }
