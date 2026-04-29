@@ -123,35 +123,26 @@ class OperationPage extends StatelessWidget {
                   icon: Icons.inventory_2_outlined,
                   tooltip: "Inventory Snapshot",
                   onTap: () {
-                    // Navigate to Inventory Snapshot page
-                    Get.to(() => DailyCostTableUsagePage());
+                    Get.to(() => const DailyCostTableUsagePage());
                   },
                 ),
                 const SizedBox(width: 4),
                 _buildIconButton(
                   icon: Icons.analytics_outlined,
                   tooltip: "Vol. Snapshot",
-                  onTap: () {
-                    // Navigate to Volume Snapshot page
-                    Get.to(() => VolumeSnapshotPage());
-                  },
+                  onTap: _openVolumeSnapshot,
                 ),
                 const SizedBox(width: 4),
                 _buildIconButton(
                   icon: Icons.water_drop_outlined,
                   tooltip: "Mud Treated",
-                  onTap: () {
-                    // Navigate to Mud Treated page
-                    Get.to(() => MudTreatedPage());
-                  },
+                  onTap: _openMudTreated,
                 ),
                 const SizedBox(width: 4),
                 _buildIconButton(
                   icon: Icons.rate_review_outlined,
                   tooltip: "Pit Review",
-                  onTap: () {
-                    Get.to(() => const PitReviewPage());
-                  },
+                  onTap: _openPitReview,
                 ),
               ],
             ),
@@ -333,6 +324,30 @@ class OperationPage extends StatelessWidget {
   }
 
   // Helper method to build icon buttons with tooltip
+  void _openVolumeSnapshot() {
+    final snapshotController = Get.isRegistered<VolumeSnapshotController>()
+        ? Get.find<VolumeSnapshotController>()
+        : Get.put(VolumeSnapshotController());
+    snapshotController.load();
+    Get.to(() => const VolumeSnapshotPage());
+  }
+
+  void _openMudTreated() {
+    final mudTreatedController = Get.isRegistered<MudTreatedController>()
+        ? Get.find<MudTreatedController>()
+        : Get.put(MudTreatedController());
+    mudTreatedController.load();
+    Get.to(() => const MudTreatedPage());
+  }
+
+  void _openPitReview() {
+    final pitReviewController = Get.isRegistered<PitReviewController>()
+        ? Get.find<PitReviewController>()
+        : Get.put(PitReviewController());
+    pitReviewController.load();
+    Get.to(() => const PitReviewPage());
+  }
+
   Widget _buildIconButton({
     required IconData icon,
     required String tooltip,

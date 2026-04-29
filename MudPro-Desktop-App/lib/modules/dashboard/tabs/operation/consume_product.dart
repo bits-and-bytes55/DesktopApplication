@@ -190,8 +190,9 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
 
     final savedAddWaterEnabled = state['addWaterEnabled'] == true;
     final savedAddWaterVolume = _toDouble(state['addWaterVolume']);
-    addWater.value = savedAddWaterEnabled && savedAddWaterVolume > 0;
-    waterVolumeController.text = addWater.value
+    addWater.value = savedAddWaterEnabled;
+    waterVolumeController.text =
+        savedAddWaterEnabled && savedAddWaterVolume > 0
         ? savedAddWaterVolume.toStringAsFixed(3)
         : '';
     _recalculateTotalVolume();

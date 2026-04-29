@@ -68,6 +68,14 @@ class PitController extends GetxController {
 
   bool get _hasWellId => currentWellId != null && currentWellId!.isNotEmpty;
 
+  List<PitModel> _filterPitsForSelectedReport(List<PitModel> source) {
+    final reportId = reportContext.selectedReportId.value.trim();
+    if (reportId.isEmpty) return source;
+    return source
+        .where((pit) => (pit.reportId ?? '').trim() == reportId)
+        .toList();
+  }
+
   List<PitModel> get activePitRows =>
       pits.where((pit) => pit.initialActive.value).toList();
 
@@ -175,7 +183,7 @@ class PitController extends GetxController {
                             PitModel.fromJson(item as Map<String, dynamic>),
                       )
                       .toList();
-            pits.value = allPits;
+            pits.value = _filterPitsForSelectedReport(allPits);
             _disposePitControllers();
           } else {
             pits.clear();
@@ -220,7 +228,7 @@ class PitController extends GetxController {
                       (item) => PitModel.fromJson(item as Map<String, dynamic>),
                     )
                     .toList();
-          selectedPits.value = allPits;
+          selectedPits.value = _filterPitsForSelectedReport(allPits);
         } else {
           selectedPits.clear();
         }
@@ -248,7 +256,7 @@ class PitController extends GetxController {
                       (item) => PitModel.fromJson(item as Map<String, dynamic>),
                     )
                     .toList();
-          unselectedPits.value = allPits;
+          unselectedPits.value = _filterPitsForSelectedReport(allPits);
         } else {
           unselectedPits.clear();
         }

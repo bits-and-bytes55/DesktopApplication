@@ -5,21 +5,88 @@ import '../../controller/operation_controller.dart';
 import '../../controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
-class AddWaterView extends StatelessWidget {
-  AddWaterView({super.key});
+class AddWaterView extends StatefulWidget {
+  const AddWaterView({super.key});
 
-  final OperationController controller = Get.find<OperationController>();
-  final DashboardController dashboardController = Get.find<DashboardController>();
-  final PitController pitController = Get.put(PitController());
+  @override
+  State<AddWaterView> createState() => _AddWaterViewState();
+}
+
+class _AddWaterViewState extends State<AddWaterView> {
+  late final OperationController controller;
+  late final DashboardController dashboardController;
+  late final PitController pitController;
+  late final TextEditingController _mainVolController;
+  final List<TextEditingController> _extraVolControllers = [];
+  final List<Worker> _workers = [];
 
   // Bind to OperationController for global state
   // selectedTo, addWaterMainVol, and addWaterExtraRows are now in operationController
 
   @override
-  Widget build(BuildContext context) {
-    // Fetch all pits (including unselected/storage) on init
+  void initState() {
+    super.initState();
+    controller = Get.find<OperationController>();
+    dashboardController = Get.find<DashboardController>();
+    pitController = Get.isRegistered<PitController>()
+        ? Get.find<PitController>()
+        : Get.put(PitController());
+    _mainVolController = TextEditingController(
+      text: controller.addWaterMainVol.value,
+    );
+    _syncExtraControllers();
+    _workers.addAll([
+      ever<String>(
+        controller.addWaterMainVol,
+        (value) => _setControllerText(_mainVolController, value),
+      ),
+      ever<List<String>>(
+        controller.addWaterExtraRows,
+        (_) => _syncExtraControllers(notify: true),
+      ),
+    ]);
     pitController.fetchAllPits();
+    controller.loadAddWater();
+  }
 
+  @override
+  void dispose() {
+    for (final worker in _workers) {
+      worker.dispose();
+    }
+    _mainVolController.dispose();
+    for (final textController in _extraVolControllers) {
+      textController.dispose();
+    }
+    super.dispose();
+  }
+
+  void _setControllerText(TextEditingController textController, String value) {
+    if (textController.text == value) return;
+    textController.value = TextEditingValue(
+      text: value,
+      selection: TextSelection.collapsed(offset: value.length),
+    );
+  }
+
+  void _syncExtraControllers({bool notify = false}) {
+    final values = controller.addWaterExtraRows;
+    while (_extraVolControllers.length < values.length) {
+      _extraVolControllers.add(TextEditingController());
+    }
+    while (_extraVolControllers.length > values.length) {
+      _extraVolControllers.removeLast().dispose();
+    }
+    for (var index = 0; index < values.length; index++) {
+      _setControllerText(_extraVolControllers[index], values[index]);
+    }
+    if (notify && mounted) {
+      setState(() {});
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(12),
       child: Column(
@@ -54,7 +121,9 @@ class AddWaterView extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: Obx(() => Column(
+                child: Obx(() {
+                  _syncExtraControllers();
+                  return Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         // ================= ROW 1: TO (Fixed Header) =================
@@ -284,9 +353,7 @@ class AddWaterView extends StatelessWidget {
                                       color: AppTheme.textPrimary,
                                       fontWeight: FontWeight.w500,
                                     ),
-                                    controller: TextEditingController(text: controller.addWaterMainVol.value)
-                                      ..selection = TextSelection.fromPosition(
-                                          TextPosition(offset: controller.addWaterMainVol.value.length)),
+                                    controller: _mainVolController,
                                     onChanged: (val) {
                                       controller.addWaterMainVol.value = val;
                                     },
@@ -348,11 +415,7 @@ class AddWaterView extends StatelessWidget {
                                     padding: const EdgeInsets.symmetric(
                                         horizontal: 8),
                                     child: TextField(
-                                      controller: TextEditingController(
-                                        text: controller.addWaterExtraRows[index],
-                                      )
-                                        ..selection = TextSelection.fromPosition(
-                                            TextPosition(offset: controller.addWaterExtraRows[index].length)),
+                                      controller: _extraVolControllers[index],
                                       enabled:
                                           !dashboardController.isLocked.value,
                                       decoration: InputDecoration(
@@ -385,7 +448,8 @@ class AddWaterView extends StatelessWidget {
                           ),
                         ),
                       ],
-                    )),
+                    );
+                }),
               ),
             ),
           ),

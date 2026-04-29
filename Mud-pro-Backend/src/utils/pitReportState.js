@@ -59,21 +59,11 @@ export const loadMergedPits = async ({ wellId, reportId, initialActive }) => {
     initialActive !== undefined ? { initialActive } : {};
 
   if (reportId) {
-    const scopedPits = await Pit.find({
+    return Pit.find({
       wellId,
       reportId,
       ...scopedExtra,
     }).sort({ createdAt: 1, _id: 1 });
-
-    const legacyPits = await Pit.find(
-      legacyPitFilter(wellId, scopedExtra)
-    ).sort({ createdAt: -1, _id: -1 });
-
-    if (scopedPits.length === 0) {
-      return dedupeLatestPits(legacyPits);
-    }
-
-    return mergeScopedWithLegacy(scopedPits, legacyPits);
   }
 
   return Pit.find({ wellId, ...scopedExtra }).sort({ createdAt: 1, _id: 1 });

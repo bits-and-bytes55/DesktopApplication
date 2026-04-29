@@ -201,21 +201,10 @@ const findScopedDrillStrings = async ({ wellId, reportId }) => {
 
 const findScopedPits = async ({ wellId, reportId }) => {
   if (reportId) {
-    const scopedPits = await Pit.find({ wellId, reportId }).sort({
+    return Pit.find({ wellId, reportId }).sort({
       createdAt: 1,
       _id: 1,
     });
-
-    const legacyPits = await Pit.find(legacyScopeFilter(wellId)).sort({
-      createdAt: -1,
-      _id: -1,
-    });
-
-    if (scopedPits.length === 0) {
-      return dedupeLatestPits(legacyPits);
-    }
-
-    return mergeScopedWithLegacy(scopedPits, legacyPits);
   }
 
   return Pit.find({ wellId }).sort({ createdAt: 1, _id: 1 });

@@ -538,6 +538,12 @@ class VolumeSnapshotPage extends StatelessWidget {
             ),
           ),
           IconButton(
+            onPressed: controller.isLoading.value ? null : controller.load,
+            icon: const Icon(Icons.refresh, color: Color(0xFF2E79C9), size: 20),
+            splashRadius: 18,
+            tooltip: 'Refresh',
+          ),
+          IconButton(
             onPressed: Get.back,
             icon: const Icon(Icons.close, color: Color(0xFF7A7A7A), size: 24),
             splashRadius: 18,

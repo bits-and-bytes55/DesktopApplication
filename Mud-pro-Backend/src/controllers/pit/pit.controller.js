@@ -54,22 +54,7 @@ const loadScopedPits = async ({ wellId, reportId, initialActive }) => {
   }
 
   if (reportId) {
-    const scopedPits = await Pit.find(scopedFilter).sort({ createdAt: 1, _id: 1 });
-    const fallbackFilter = legacyScopeFilter(wellId);
-    if (initialActive !== undefined) {
-      fallbackFilter.initialActive = initialActive;
-    }
-
-    const legacyPits = await Pit.find(fallbackFilter).sort({
-      createdAt: -1,
-      _id: -1,
-    });
-
-    if (scopedPits.length === 0) {
-      return dedupeLatestPits(legacyPits);
-    }
-
-    return mergeScopedWithLegacy(scopedPits, legacyPits);
+    return Pit.find(scopedFilter).sort({ createdAt: 1, _id: 1 });
   }
 
   return Pit.find(scopedFilter).sort({ createdAt: 1, _id: 1 });
