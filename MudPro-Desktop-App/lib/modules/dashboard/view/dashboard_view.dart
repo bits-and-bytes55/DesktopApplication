@@ -174,11 +174,7 @@ class DashboardView extends StatelessWidget {
                               case 4:
                                 return PitPage();
                               case 5:
-                                return const _PlainReportTab();
-                              case 6:
                                 return RemarksView();
-                              case 7:
-                                return const _PlainReportTab();
                               default:
                                 return WellTabContent();
                             }

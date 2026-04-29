@@ -12,9 +12,7 @@ class SectionNavBar extends StatelessWidget {
     'Pump',
     'Operation',
     'Pit',
-    'Safety',
     'Remarks',
-    'JSA',
   ];
   final c = Get.find<DashboardController>();
   final reportC = reportContext;

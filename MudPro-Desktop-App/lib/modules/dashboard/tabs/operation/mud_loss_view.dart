@@ -45,60 +45,68 @@ class MudLossActiveSystemView extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 10),
-          Obx(() {
-            if (controller.isLoading.value) {
-              return Container(
-                width: 438,
-                height: 452,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border.all(color: Colors.grey.shade400),
-                ),
-                child: SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: AppTheme.primaryColor,
+          Expanded(
+            child: Obx(() {
+              if (controller.isLoading.value) {
+                return Container(
+                  width: 438,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border.all(color: Colors.grey.shade400),
                   ),
+                  child: SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppTheme.primaryColor,
+                    ),
+                  ),
+                );
+              }
+
+              return SingleChildScrollView(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      width: 438,
+                      child: Table(
+                        border: TableBorder.all(
+                          color: Colors.grey.shade400,
+                          width: 1,
+                        ),
+                        columnWidths: const {
+                          0: FixedColumnWidth(60),
+                          1: FixedColumnWidth(224),
+                          2: FixedColumnWidth(152),
+                        },
+                        defaultVerticalAlignment:
+                            TableCellVerticalAlignment.middle,
+                        children: [
+                          _headerRow(),
+                          ...fixedRows.asMap().entries.map((entry) {
+                            final index = entry.key;
+                            final row = entry.value;
+                            return _fixedRow(
+                              index + 1,
+                              row['label']!,
+                              row['key']!,
+                            );
+                          }),
+                          _extraLossRow(),
+                          _blankRow(13),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    _sideActions(context),
+                  ],
                 ),
               );
-            }
-
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SizedBox(
-                  width: 438,
-                  child: Table(
-                    border: TableBorder.all(
-                      color: Colors.grey.shade400,
-                      width: 1,
-                    ),
-                    columnWidths: const {
-                      0: FixedColumnWidth(60),
-                      1: FixedColumnWidth(224),
-                      2: FixedColumnWidth(152),
-                    },
-                    defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-                    children: [
-                      _headerRow(),
-                      ...fixedRows.asMap().entries.map((entry) {
-                        final index = entry.key;
-                        final row = entry.value;
-                        return _fixedRow(index + 1, row['label']!, row['key']!);
-                      }),
-                      _extraLossRow(),
-                      _blankRow(13),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 6),
-                _sideActions(context),
-              ],
-            );
-          }),
+            }),
+          ),
         ],
       ),
     );

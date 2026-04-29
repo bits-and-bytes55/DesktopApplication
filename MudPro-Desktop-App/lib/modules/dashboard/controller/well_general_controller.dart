@@ -562,7 +562,6 @@ class WellGeneralController extends GetxController {
     required String reportId,
     required String reportNo,
     required String userReportNo,
-    required String reportDate,
   }) {
     final items = rawItems
         .whereType<Map>()
@@ -591,25 +590,45 @@ class WellGeneralController extends GetxController {
           (item) =>
               userReportNo.isNotEmpty &&
               (item['userReportNo']?.toString().trim() ?? '') == userReportNo,
-        ) ??
-        firstMatch(
-          (item) =>
-              reportDate.isNotEmpty &&
-              (item['date']?.toString().trim() ?? '') == reportDate,
         );
   }
 
-  Future<double?> _loadPreviousReportMd() async {
+  dynamic _previousReportForSelected() {
+    final selected = reportContext.selectedReport;
+    if (selected == null) return null;
+
     final reports = reportContext.reports.toList(growable: false);
+    final currentNo = int.tryParse(selected.reportNo.trim());
+    if (currentNo != null) {
+      final previousByNumber = reports
+          .where((report) {
+            if (report.id == selected.id) return false;
+            final reportNo = int.tryParse(report.reportNo.trim());
+            return reportNo != null && reportNo < currentNo;
+          })
+          .toList()
+        ..sort((a, b) {
+          final left = int.tryParse(a.reportNo.trim()) ?? 0;
+          final right = int.tryParse(b.reportNo.trim()) ?? 0;
+          return right.compareTo(left);
+        });
+      if (previousByNumber.isNotEmpty) {
+        return previousByNumber.first;
+      }
+    }
+
     final selectedReportId = reportContext.selectedReportId.value.trim();
     final currentIndex = reports.indexWhere(
       (item) => item.id == selectedReportId,
     );
-    if (currentIndex <= 0) {
-      return null;
-    }
+    if (currentIndex <= 0) return null;
+    return reports[currentIndex - 1];
+  }
 
-    final previousReport = reports[currentIndex - 1];
+  Future<double?> _loadPreviousReportMd() async {
+    final previousReport = _previousReportForSelected();
+    if (previousReport == null) return null;
+
     final response = await http.get(
       Uri.parse(
         '${baseUrl}well-general/$kControllerWellId',
@@ -628,7 +647,6 @@ class WellGeneralController extends GetxController {
       reportId: previousReport.id,
       reportNo: previousReport.reportNo,
       userReportNo: previousReport.userReportNo,
-      reportDate: previousReport.reportDate,
     );
 
     if (matched == null && previousReport.reportNo.trim().isNotEmpty) {
@@ -646,7 +664,6 @@ class WellGeneralController extends GetxController {
           reportId: previousReport.id,
           reportNo: previousReport.reportNo,
           userReportNo: previousReport.userReportNo,
-          reportDate: previousReport.reportDate,
         );
       }
     }
@@ -718,8 +735,6 @@ class WellGeneralController extends GetxController {
     final reportId = report.id.trim();
     final reportNo = report.reportNo.trim();
     final userReportNo = report.userReportNo.trim();
-    final reportDate = report.reportDate.trim();
-
     return firstMatch(
           (item) =>
               reportId.isNotEmpty &&
@@ -732,11 +747,6 @@ class WellGeneralController extends GetxController {
           (item) =>
               userReportNo.isNotEmpty &&
               (item['userReportNo']?.toString().trim() ?? '') == userReportNo,
-        ) ??
-        firstMatch(
-          (item) =>
-              reportDate.isNotEmpty &&
-              (item['date']?.toString().trim() ?? '') == reportDate,
         );
   }
 
@@ -790,19 +800,6 @@ class WellGeneralController extends GetxController {
           }
         }
 
-        if (matched == null &&
-            reportContext.selectedReportId.value.isNotEmpty) {
-          final fallbackResponse = await http.get(
-            Uri.parse('${baseUrl}well-general/$kControllerWellId'),
-            headers: _headers,
-          );
-          if (fallbackResponse.statusCode == 200) {
-            final fallbackJson = jsonDecode(fallbackResponse.body);
-            final List fallbackData = fallbackJson['data'] ?? [];
-            matched = _findMatchingRecord(fallbackData);
-          }
-        }
-
         if (matched != null) {
           _fromJson(matched);
         } else {
@@ -829,6 +826,7 @@ class WellGeneralController extends GetxController {
     if (kControllerWellId.isEmpty) {
       return {'success': false, 'message': 'No backend well selected'};
     }
+    await _refreshDepthDrilled(notifySave: false);
     isSaving.value = true;
     try {
       final authRepo = AuthRepository();

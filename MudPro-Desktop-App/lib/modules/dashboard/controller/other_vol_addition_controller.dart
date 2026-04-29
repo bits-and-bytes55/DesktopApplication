@@ -74,6 +74,13 @@ class OtherVolAdditionController extends GetxController {
     recordId.value = null;
   }
 
+  void clearLocalState() {
+    _autoSaveTimer?.cancel();
+    _isApplyingState = true;
+    _clearFields();
+    _isApplyingState = false;
+  }
+
   bool get _hasData =>
       recordId.value != null ||
       formationController.text.trim().isNotEmpty ||

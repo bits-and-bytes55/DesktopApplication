@@ -3,6 +3,9 @@ import 'dart:async';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/mud_loss_active_system_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/mud_loss_storage_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/other_vol_addition_controller.dart';
 import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
@@ -470,6 +473,38 @@ final RxList<String> returnLostDropdownValue =
         : index.clamp(0, selected.length - 1).toInt();
   }
 
+  void _clearLocalStateForOperation(OperationType operation, String wellId) {
+    switch (operation) {
+      case OperationType.addWater:
+        _resetAddWaterState();
+        _loadedAddWaterWellId = wellId;
+        _loadedAddWaterReportId = reportContext.selectedReportId.value.trim();
+        break;
+      case OperationType.transferMud:
+        if (Get.isRegistered<PitController>()) {
+          Get.find<PitController>().clearTransferMudLocalState();
+        }
+        break;
+      case OperationType.otherVolAddition:
+        if (Get.isRegistered<OtherVolAdditionController>()) {
+          Get.find<OtherVolAdditionController>().clearLocalState();
+        }
+        break;
+      case OperationType.mudLossActiveSystem:
+        if (Get.isRegistered<MudLossActiveSystemController>()) {
+          Get.find<MudLossActiveSystemController>().clearLocalState();
+        }
+        break;
+      case OperationType.mudLossStorage:
+        if (Get.isRegistered<MudLossStorageController>()) {
+          Get.find<MudLossStorageController>().clearLocalState();
+        }
+        break;
+      default:
+        break;
+    }
+  }
+
   Future<Map<String, dynamic>> deleteOperationRow(int index) async {
     if (index < 0 || index >= dropdownValues.length) {
       return {'success': false, 'message': 'Invalid operation row'};
@@ -493,11 +528,7 @@ final RxList<String> returnLostDropdownValue =
       );
 
       if (result['success'] == true) {
-        if (operation == OperationType.addWater) {
-          _resetAddWaterState();
-          _loadedAddWaterWellId = wellId;
-          _loadedAddWaterReportId = reportContext.selectedReportId.value.trim();
-        }
+        _clearLocalStateForOperation(operation, wellId);
         _removeOperationSelectionAt(index);
         await _refreshPitState();
       }

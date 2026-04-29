@@ -80,10 +80,29 @@ class PitController extends GetxController {
       pits.where((pit) => pit.initialActive.value).toList();
 
   List<PitModel> get storagePitRows =>
-      pits.where((pit) => !pit.initialActive.value).toList();
+      pits
+          .where((pit) => !pit.initialActive.value && _isVisibleStoragePit(pit))
+          .toList();
 
   bool get isTransferFromActiveSystem =>
       selectedFromPit.value.trim().toLowerCase() == 'active system';
+
+  bool _isVisibleStoragePit(PitModel pit) {
+    if (pit.id == null) {
+      return _isDraftFilled(pit);
+    }
+
+    final name = pit.pitName.trim();
+    if (name.isEmpty) return false;
+
+    final hasValues =
+        pit.capacity.value > 0 ||
+        (pit.volume?.value ?? 0) > 0 ||
+        (pit.density?.value ?? 0) > 0 ||
+        (pit.fluidType?.value.trim().isNotEmpty ?? false);
+
+    return name.toLowerCase() != 'pit' || hasValues;
+  }
 
   List<String> get transferDestinationOptions {
     if (isTransferFromActiveSystem) {
@@ -953,6 +972,22 @@ class PitController extends GetxController {
     }
   }
 
+  void clearTransferMudLocalState() {
+    _transferAutoSaveTimer?.cancel();
+    _isApplyingTransferState = true;
+    for (final row in transferRows) {
+      row.volumeController.dispose();
+    }
+    transferRows
+      ..clear()
+      ..addAll(List.generate(5, (_) => TransferRowData()));
+    selectedFromPit.value = 'Active System';
+    notTreatedMud.value = false;
+    selectedRowIndex.value = 0;
+    transferRows.refresh();
+    _isApplyingTransferState = false;
+  }
+
   bool get _hasTransferData => transferRows.any(
     (row) =>
         (row.savedId ?? '').isNotEmpty ||
@@ -1012,12 +1047,15 @@ class PitController extends GetxController {
         .where(
           (r) =>
               r.savedId != null &&
-              r.pitName.trim().isEmpty &&
-              r.volume.trim().isEmpty,
+              (r.pitName.trim().isEmpty || r.volume.trim().isEmpty),
         )
         .toList();
     final candidateRows = transferRows
-        .where((r) => r.pitName.trim().isNotEmpty || r.volume.trim().isNotEmpty)
+        .where(
+          (r) =>
+              !clearedSavedRows.contains(r) &&
+              (r.pitName.trim().isNotEmpty || r.volume.trim().isNotEmpty),
+        )
         .toList();
 
     if (candidateRows.isEmpty && clearedSavedRows.isEmpty) {
@@ -1037,6 +1075,9 @@ class PitController extends GetxController {
         if (deleteRes['success'] == true) {
           successCount++;
           row.savedId = null;
+          row.pitName = '';
+          row.volume = '';
+          row.volumeController.clear();
         } else {
           errors.add(deleteRes['message']?.toString() ?? 'Delete failed');
         }
@@ -1052,7 +1093,7 @@ class PitController extends GetxController {
         validRows.add(row);
       }
 
-      if (validRows.isEmpty) {
+      if (validRows.isEmpty && errors.isNotEmpty) {
         return {
           'success': false,
           'message': errors.join(' | '),

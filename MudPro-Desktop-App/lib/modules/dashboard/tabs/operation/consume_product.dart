@@ -77,6 +77,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
   Worker? _wellWorker;
   Worker? _reportWorker;
   Worker? _totalVolumeWorker;
+  bool _isApplyingDistributionState = false;
 
   // Special option constants
   static const String kActiveSystem = 'Active System';
@@ -101,9 +102,13 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
 
     waterVolumeController.addListener(_recalculateTotalVolume);
     addWater.listen((enabled) {
+      if (_isApplyingDistributionState) return;
       if (!enabled) {
         waterVolumeController.text = '';
         _recalculateTotalVolume();
+      } else {
+        _recalculateTotalVolume();
+        _rebalanceDistributeVolumes();
       }
       _scheduleDistributionAutoSave();
     });
@@ -162,10 +167,16 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     _recalculateTotalVolume();
   }
 
+  void _applyAddWaterState({required bool enabled, String volume = ''}) {
+    _isApplyingDistributionState = true;
+    addWater.value = enabled;
+    waterVolumeController.text = volume;
+    _isApplyingDistributionState = false;
+  }
+
   void _resetDistributionStateUi() {
     selectedMethod.value = 'Used';
-    addWater.value = false;
-    waterVolumeController.text = '';
+    _applyAddWaterState(enabled: false);
     totalVolumeDisplay.value = '0.000';
     operationController.totalVolume.value = 0.0;
     _replaceDistributeRows([DistributeRowData(pit: kActiveSystem)]);
@@ -175,8 +186,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
   void _hydrateDistributionStateFromPitData() {
     final raw = pitController.volumeNameData['consumeProductDistribution'];
     if (raw is! Map) {
-      addWater.value = false;
-      waterVolumeController.text = '';
+      _applyAddWaterState(enabled: false);
       _recalculateTotalVolume();
       _ensureDefaultDistributionRow();
       return;
@@ -190,11 +200,12 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
 
     final savedAddWaterEnabled = state['addWaterEnabled'] == true;
     final savedAddWaterVolume = _toDouble(state['addWaterVolume']);
-    addWater.value = savedAddWaterEnabled;
-    waterVolumeController.text =
-        savedAddWaterEnabled && savedAddWaterVolume > 0
-        ? savedAddWaterVolume.toStringAsFixed(3)
-        : '';
+    _applyAddWaterState(
+      enabled: savedAddWaterEnabled,
+      volume: savedAddWaterEnabled && savedAddWaterVolume > 0
+          ? savedAddWaterVolume.toStringAsFixed(3)
+          : '',
+    );
     _recalculateTotalVolume();
 
     final rawRows = state['distributions'];
@@ -1187,6 +1198,9 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       return {'success': false, 'message': 'No report selected'};
     }
 
+    _recalculateTotalVolume();
+    _rebalanceDistributeVolumes();
+
     final totalVolume = double.tryParse(totalVolumeDisplay.value) ?? 0.0;
     final candidateRows = distributeRows
         .where(
@@ -1222,13 +1236,15 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     if (errors.isNotEmpty) {
       return {'success': false, 'message': errors.join(' | ')};
     }
+    final addWaterVolume =
+        double.tryParse(waterVolumeController.text.trim()) ?? 0.0;
+
     return _authRepository.saveConsumeProductVolumeName({
       'wellId': wellId,
       'reportId': reportId,
       'inputMethod': selectedMethod.value,
       'addWater': addWater.value,
-      'addWaterVolume':
-          double.tryParse(waterVolumeController.text.trim()) ?? 0.0,
+      'addWaterVolume': addWater.value ? addWaterVolume : 0.0,
       'totalVolume': totalVolume,
       'distributions': distributions,
     });
@@ -2550,7 +2566,11 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                 ),
                 border: InputBorder.none,
               ),
-              onChanged: (_) => _scheduleDistributionAutoSave(),
+              onChanged: (_) {
+                _recalculateTotalVolume();
+                _rebalanceDistributeVolumes();
+                _scheduleDistributionAutoSave();
+              },
             ),
           ),
           Container(

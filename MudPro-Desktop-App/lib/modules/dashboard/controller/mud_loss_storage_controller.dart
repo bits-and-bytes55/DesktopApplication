@@ -163,6 +163,13 @@ class MudLossStorageController extends GetxController {
     _ensureMinimumRows();
   }
 
+  void clearLocalState() {
+    _autoSaveTimer?.cancel();
+    _isApplyingState = true;
+    _resetRows();
+    _isApplyingState = false;
+  }
+
   Future<void> load({bool force = false}) async {
     _autoSaveTimer?.cancel();
     if (wellId.isEmpty) {
