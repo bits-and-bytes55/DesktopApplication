@@ -156,6 +156,38 @@ class _ProductsPickupPageState extends State<ProductsPickupPage> {
             ),
           ),
           const SizedBox(width: 12),
+          TextButton.icon(
+            onPressed: controller.isSaving.value
+                ? null
+                : controller.importProductsFromExcel,
+            style: TextButton.styleFrom(
+              foregroundColor: AppTheme.primaryColor,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              minimumSize: const Size(0, 28),
+            ),
+            icon: const Icon(Icons.file_upload_outlined, size: 16),
+            label: const Text(
+              'Import',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+            ),
+          ),
+          const SizedBox(width: 6),
+          TextButton.icon(
+            onPressed: controller.isSaving.value
+                ? null
+                : controller.exportProductsToExcel,
+            style: TextButton.styleFrom(
+              foregroundColor: AppTheme.primaryColor,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              minimumSize: const Size(0, 28),
+            ),
+            icon: const Icon(Icons.file_download_outlined, size: 16),
+            label: const Text(
+              'Export',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+            ),
+          ),
+          const SizedBox(width: 6),
           TextButton(
             onPressed: controller.isSaving.value ? null : controller.saveProducts,
             style: TextButton.styleFrom(

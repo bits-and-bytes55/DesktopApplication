@@ -18,7 +18,7 @@ const productSchema = new mongoose.Schema(
     ========================== */
     Code: {
       type: String,
-      required: true,
+      default: "",
       trim: true
     },
 
@@ -28,7 +28,7 @@ const productSchema = new mongoose.Schema(
     ========================== */
     SG: {
       type: String,
-      required: true
+      default: ""
     },
 
     /* =========================
@@ -39,11 +39,11 @@ const productSchema = new mongoose.Schema(
     Unit: {
       Num: {
         type: String,
-        required: true
+        default: ""
       },
       Class: {
         type: String,
-        required: true,
+        default: "",
         trim: true
       }
     },
@@ -54,7 +54,7 @@ const productSchema = new mongoose.Schema(
     ========================== */
     Group: {
       type: String,
-      required: true,
+      default: "",
       trim: true
     },
 
@@ -64,8 +64,8 @@ const productSchema = new mongoose.Schema(
     ========================== */
     Retail: {
       type: String,
-      enum: ["Yes", "No"],
-      default: "No"
+      enum: ["", "Yes", "No"],
+      default: ""
     },
 
     /* =========================
@@ -96,7 +96,13 @@ const productSchema = new mongoose.Schema(
 ===================================== */
 productSchema.index(
   { Code: 1, isDeleted: 1 },
-  { unique: true }
+  {
+    unique: true,
+    partialFilterExpression: {
+      Code: { $type: "string", $ne: "" },
+      isDeleted: false
+    }
+  }
 );
 
 export default mongoose.model("Product", productSchema);

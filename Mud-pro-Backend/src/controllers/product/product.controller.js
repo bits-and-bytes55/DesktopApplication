@@ -3,11 +3,59 @@ import Product from "../../modules/product/product.model.js";
 import ActivityLog from "../../modules/product/activityLog.model.js";
 import { parseProductExcel } from "../../utils/excelParser.js";
 
+let productIndexReady;
+const ensureProductCodeIndex = async () => {
+  if (!productIndexReady) {
+    productIndexReady = (async () => {
+      try {
+        await Product.collection.dropIndex("Code_1_isDeleted_1");
+      } catch (error) {
+        if (error?.codeName !== "IndexNotFound" && error?.code !== 27) {
+          throw error;
+        }
+      }
+
+      await Product.collection.createIndex(
+        { Code: 1, isDeleted: 1 },
+        {
+          unique: true,
+          partialFilterExpression: {
+            Code: { $type: "string", $ne: "" },
+            isDeleted: false
+          }
+        }
+      );
+    })();
+  }
+
+  return productIndexReady;
+};
+
+const productPayload = (body) => ({
+  Product: body.Product,
+  Code: body.Code ?? "",
+  SG: body.SG ?? "",
+  Unit: {
+    Num: body.Unit?.Num ?? "",
+    Class: body.Unit?.Class ?? ""
+  },
+  Group: body.Group ?? "",
+  Retail: body.Retail ?? "",
+  A: body.A,
+  B: body.B,
+  C: body.C,
+  D: body.D,
+  E: body.E,
+  F: body.F
+});
+
 /* ======================================================
    1️⃣ ADD SINGLE PRODUCT (UI GRID – ONE ROW)
    ====================================================== */
 export const addProduct = async (req, res) => {
   try {
+    await ensureProductCodeIndex();
+
     const {
       Product: productName,
       Code,
@@ -20,28 +68,15 @@ export const addProduct = async (req, res) => {
 
     // ✅ Basic validation (only required fields)
     if (
-      !productName ||
-      !Code ||
-      SG === undefined || SG === "" ||
-      !Unit?.Num ||
-      !Unit?.Class ||
-      !Group
+      !productName
     ) {
       return res.status(400).json({
         success: false,
-        message: "Required fields are missing"
+        message: "Product is required"
       });
     }
 
-    const product = await Product.create({
-      Product: productName,
-      Code,
-      SG,
-      Unit,
-      Group,
-      Retail,
-      A, B, C, D, E, F
-    });
+    const product = await Product.create(productPayload(req.body));
 
     await ActivityLog.create({
       action: "CREATE",
@@ -67,6 +102,8 @@ export const addProduct = async (req, res) => {
    ====================================================== */
 export const bulkAddProducts = async (req, res) => {
   try {
+    await ensureProductCodeIndex();
+
     if (!Array.isArray(req.body)) {
       return res.status(400).json({
         success: false,
@@ -75,14 +112,9 @@ export const bulkAddProducts = async (req, res) => {
     }
 
     // ✅ Sirf filled rows hi uthao
-    const validRows = req.body.filter(row =>
-      row.Product &&
-      row.Code &&
-      row.SG !== undefined && row.SG !== "" &&
-      row.Unit?.Num !== undefined && row.Unit?.Num !== "" &&
-      row.Unit?.Class &&
-      row.Group
-    );
+    const validRows = req.body
+      .filter(row => row.Product)
+      .map(productPayload);
 
     if (!validRows.length) {
       return res.status(400).json({
@@ -118,6 +150,8 @@ export const bulkAddProducts = async (req, res) => {
    ====================================================== */
 export const uploadProductExcel = async (req, res) => {
   try {
+    await ensureProductCodeIndex();
+
     if (!req.file) {
       return res.status(400).json({
         success: false,
@@ -167,6 +201,8 @@ export const uploadProductExcel = async (req, res) => {
    ====================================================== */
 export const updateProduct = async (req, res) => {
   try {
+    await ensureProductCodeIndex();
+
     const { id } = req.params;
     const {
       Product: productName,
@@ -180,24 +216,22 @@ export const updateProduct = async (req, res) => {
 
     // ✅ Basic validation
     if (
-      !productName ||
-      !Code ||
-      SG === undefined || SG === "" ||
-      !Unit?.Num ||
-      !Unit?.Class ||
-      !Group
+      !productName
     ) {
       return res.status(400).json({
         success: false,
-        message: "Required fields are missing"
+        message: "Product is required"
       });
     }
 
-    const existing = await Product.findOne({
-      Code,
-      isDeleted: false,
-      _id: { $ne: id }   // 👈 exclude current product
-    });
+    const cleanCode = Code?.trim() ?? "";
+    const existing = cleanCode
+      ? await Product.findOne({
+          Code: cleanCode,
+          isDeleted: false,
+          _id: { $ne: id }
+        })
+      : null;
 
     if (existing) {
       return res.status(400).json({
@@ -209,15 +243,7 @@ export const updateProduct = async (req, res) => {
 
     const product = await Product.findByIdAndUpdate(
       id,
-      {
-        Product: productName,
-        Code,
-        SG,
-        Unit,
-        Group,
-        Retail,
-        A, B, C, D, E, F
-      },
+      productPayload(req.body),
       { new: true, runValidators: true }
     );
 

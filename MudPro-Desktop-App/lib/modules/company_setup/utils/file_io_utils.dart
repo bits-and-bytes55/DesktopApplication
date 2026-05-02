@@ -230,7 +230,7 @@ class FileIoUtils {
             return;
           }
           for (var row in table.rows) {
-            data.add(row.map((cell) => cell?.value?.toString() ?? '').toList());
+            data.add(row.map((cell) => _excelCellText(cell?.value)).toList());
           }
         } else if (path.endsWith('.txt')) {
           final lines = await File(path).readAsLines();
@@ -326,5 +326,19 @@ class FileIoUtils {
       default:
         return const [];
     }
+  }
+
+  static String _excelCellText(dynamic value) {
+    if (value == null) return '';
+    if (value is num) {
+      if (value == value.roundToDouble()) {
+        return value.toInt().toString();
+      }
+      return value
+          .toStringAsFixed(6)
+          .replaceFirst(RegExp(r'0+$'), '')
+          .replaceFirst(RegExp(r'\.$'), '');
+    }
+    return value.toString().trim();
   }
 }

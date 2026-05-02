@@ -295,6 +295,7 @@ class ProductsController extends GetxController {
 
     final byId = <String, ProductModel>{};
     final byCode = <String, ProductModel>{};
+    final byProduct = <String, ProductModel>{};
     for (final product in products) {
       final id = product.id?.trim();
       if (id != null && id.isNotEmpty) {
@@ -304,29 +305,30 @@ class ProductsController extends GetxController {
       if (codeKey.isNotEmpty) {
         byCode[codeKey] = product;
       }
+      final productKey = _normalizeKey(product.product);
+      if (productKey.isNotEmpty) {
+        byProduct[productKey] = product;
+      }
     }
 
     final newProducts = <ProductModel>[];
+    final newProductKeys = <String>{};
 
     for (final row in parsedRows) {
-      final importedProduct = ProductModel(
-        product: row.product,
-        code: row.code,
-        sg: row.sg,
-        unitNum: row.unitNum,
-        unitClass: row.unitClass,
-        group: row.group,
-        retail: row.retail,
-        a: row.a,
-        b: row.b,
-      );
+      if (row.product.trim().isEmpty && row.code.trim().isEmpty) {
+        errors.add('Row ${row.rowNumber}: Product or Code is required');
+        continue;
+      }
 
       final matchedProduct = _findExistingProduct(
         recordId: row.recordId,
         code: row.code,
+        product: row.product,
         byId: byId,
         byCode: byCode,
+        byProduct: byProduct,
       );
+      final importedProduct = _productFromImportRow(row, matchedProduct);
 
       if (matchedProduct?.id != null) {
         if (!_sameProductData(matchedProduct!, importedProduct)) {
@@ -343,19 +345,33 @@ class ProductsController extends GetxController {
           }
         }
       } else {
+        if (importedProduct.product.trim().isEmpty) {
+          errors.add('Row ${row.rowNumber}: Product is required');
+          continue;
+        }
+
+        final codeKey = _normalizeKey(importedProduct.code);
+        final productKey = _normalizeKey(importedProduct.product);
+        final duplicateKey = codeKey.isNotEmpty ? codeKey : productKey;
+        if (duplicateKey.isNotEmpty && !newProductKeys.add(duplicateKey)) {
+          errors.add('Row ${row.rowNumber}: duplicate row skipped');
+          continue;
+        }
+
         newProducts.add(importedProduct);
       }
     }
 
     if (newProducts.isNotEmpty) {
-      final result = newProducts.length == 1
-          ? await repository.addProduct(newProducts.first)
-          : await repository.bulkAddProducts(newProducts);
-
-      if (result['success'] == true) {
-        inserted += newProducts.length;
-      } else {
-        errors.add(result['message'] ?? 'Failed to add imported products');
+      for (final product in newProducts) {
+        final result = await repository.addProduct(product);
+        if (result['success'] == true) {
+          inserted += 1;
+        } else {
+          errors.add(
+            'Product ${product.product}: ${result['message'] ?? 'Add failed'}',
+          );
+        }
       }
     }
 
@@ -383,8 +399,10 @@ class ProductsController extends GetxController {
   ProductModel? _findExistingProduct({
     required String recordId,
     required String code,
+    required String product,
     required Map<String, ProductModel> byId,
     required Map<String, ProductModel> byCode,
+    required Map<String, ProductModel> byProduct,
   }) {
     final trimmedId = recordId.trim();
     if (trimmedId.isNotEmpty && byId.containsKey(trimmedId)) {
@@ -396,7 +414,31 @@ class ProductsController extends GetxController {
       return byCode[normalizedCode];
     }
 
+    final normalizedProduct = _normalizeKey(product);
+    if (normalizedProduct.isNotEmpty &&
+        byProduct.containsKey(normalizedProduct)) {
+      return byProduct[normalizedProduct];
+    }
+
     return null;
+  }
+
+  ProductModel _productFromImportRow(
+    _ImportedProductRow row,
+    ProductModel? existing,
+  ) {
+    return ProductModel(
+      id: existing?.id,
+      product: row.product.trim(),
+      code: row.code.trim(),
+      sg: row.sg.trim(),
+      unitNum: row.unitNum.trim(),
+      unitClass: row.unitClass.trim(),
+      group: row.group.trim(),
+      retail: _normalizeRetail(row.retail),
+      a: row.a.trim(),
+      b: row.b.trim(),
+    );
   }
 
   bool _sameProductData(ProductModel existing, ProductModel imported) {
@@ -414,52 +456,276 @@ class ProductsController extends GetxController {
   List<_ImportedProductRow> _parseImportedRows(List<List<String>> rows) {
     if (rows.isEmpty) return const [];
 
-    final header = rows.first.map((cell) => cell.trim().toLowerCase()).toList();
-    final hasRecordId = header.isNotEmpty && header.first == 'record id';
-    final startIndex = _looksLikeProductHeader(rows.first) ? 1 : 0;
+    final headerInfo = _findProductHeader(rows);
+    final headerIndexes = headerInfo?.indexes;
+    final startIndex = headerInfo == null ? 0 : headerInfo.rowIndex + 1;
+    final useMudCompanyTemplate = headerIndexes != null &&
+        _isMudCompanyProductTemplate(headerIndexes);
     final parsed = <_ImportedProductRow>[];
 
     for (int i = startIndex; i < rows.length; i += 1) {
       final row = List<String>.from(rows[i]);
-      final minimumLength = hasRecordId ? 10 : 9;
-      while (row.length < minimumLength) {
+      while (row.length < 10) {
         row.add('');
       }
 
-      if (_looksLikeProductHeader(row)) {
+      if (_hasProductHeaders(_headerIndexes(row))) {
         continue;
       }
 
-      final offset = hasRecordId ? 1 : 0;
-      final values = row.skip(offset).take(9).map((value) => value.trim()).toList();
-      if (values.every((value) => value.isEmpty)) {
+      final importedRow = useMudCompanyTemplate
+          ? _parseMudCompanyTemplateRow(row, i + 1)
+          : _parseStandardProductRow(row, headerIndexes, i + 1);
+
+      if (!importedRow.hasData) {
         continue;
       }
 
-      parsed.add(
-        _ImportedProductRow(
-          recordId: hasRecordId ? row[0].trim() : '',
-          product: values[0],
-          code: values[1],
-          sg: values[2],
-          unitNum: values[3],
-          unitClass: values[4],
-          group: values[5],
-          retail: values[6],
-          a: values[7],
-          b: values[8],
-        ),
-      );
+      parsed.add(importedRow);
     }
 
     return parsed;
   }
 
-  bool _looksLikeProductHeader(List<String> row) {
-    final normalized = row.map((cell) => cell.trim().toLowerCase()).toList();
-    return normalized.contains('product') &&
-        normalized.contains('code') &&
-        normalized.contains('sg');
+  _ImportedProductRow _parseStandardProductRow(
+    List<String> row,
+    Map<String, int>? headerIndexes,
+    int rowNumber,
+  ) {
+    return _ImportedProductRow(
+      rowNumber: rowNumber,
+      recordId: _cellValue(
+        row,
+        headerIndexes,
+        const ['record id', 'id'],
+        fallbackIndex: 0,
+      ),
+      product: _cellValue(
+        row,
+        headerIndexes,
+        const [
+          'product',
+          'product name',
+          'company brand name',
+          'brand name',
+          'item',
+          'item name',
+          'material',
+        ],
+        fallbackIndex: headerIndexes == null ? 0 : 1,
+      ),
+      code: _cellValue(
+        row,
+        headerIndexes,
+        const ['code', 'product code', 'item code'],
+        fallbackIndex: headerIndexes == null ? 1 : 2,
+      ),
+      sg: _cellValue(
+        row,
+        headerIndexes,
+        const ['sg', 's g', 'density', 'density sg', 'density s g', 'specific gravity'],
+        fallbackIndex: headerIndexes == null ? 2 : 3,
+      ),
+      unitNum: _cellValue(
+        row,
+        headerIndexes,
+        const ['unit num', 'unit number', 'qty', 'quantity', 'size', 'num'],
+        fallbackIndex: headerIndexes == null ? 3 : 4,
+      ),
+      unitClass: _cellValue(
+        row,
+        headerIndexes,
+        const ['unit class', 'class', 'unit'],
+        fallbackIndex: headerIndexes == null ? 4 : 5,
+      ),
+      group: _cellValue(
+        row,
+        headerIndexes,
+        const ['group', 'product category', 'category'],
+        fallbackIndex: headerIndexes == null ? 5 : 6,
+      ),
+      retail: _cellValue(
+        row,
+        headerIndexes,
+        const ['retail', 'retail price'],
+        fallbackIndex: headerIndexes == null ? 6 : 7,
+      ),
+      a: _cellValue(
+        row,
+        headerIndexes,
+        const ['a', 'sales price', 'price a', 'a price'],
+        fallbackIndex: headerIndexes == null ? 7 : 8,
+      ),
+      b: _cellValue(
+        row,
+        headerIndexes,
+        const ['b', 'cogs', 'price b', 'b price'],
+        fallbackIndex: headerIndexes == null ? 8 : 9,
+      ),
+    );
+  }
+
+  _ImportedProductRow _parseMudCompanyTemplateRow(
+    List<String> row,
+    int rowNumber,
+  ) {
+    final unitPair = _splitUnitText(_valueAt(row, 3));
+    final unitNum = _firstNotEmpty([_valueAt(row, 4), unitPair.num]);
+    final unitClass = _firstNotEmpty([_valueAt(row, 5), unitPair.unit]);
+
+    return _ImportedProductRow(
+      rowNumber: rowNumber,
+      recordId: '',
+      product: _valueAt(row, 2),
+      code: '',
+      sg: _valueAt(row, 7),
+      unitNum: unitNum,
+      unitClass: unitClass,
+      group: _valueAt(row, 8),
+      retail: 'No',
+      a: '',
+      b: '',
+    );
+  }
+
+  _ProductHeaderInfo? _findProductHeader(List<List<String>> rows) {
+    final scanCount = rows.length < 20 ? rows.length : 20;
+    for (int i = 0; i < scanCount; i += 1) {
+      final indexes = _headerIndexes(rows[i]);
+      if (_hasProductHeaders(indexes)) {
+        return _ProductHeaderInfo(rowIndex: i, indexes: indexes);
+      }
+    }
+    return null;
+  }
+
+  bool _hasProductHeaders(Map<String, int> headers) {
+    return headers.keys.any(_isProductHeaderKey);
+  }
+
+  bool _isProductHeaderKey(String key) {
+    return const {
+      'record id',
+      'id',
+      'product',
+      'product name',
+      'company brand name',
+      'brand name',
+      'item',
+      'item name',
+      'material',
+      'code',
+      'product code',
+      'item code',
+      'sg',
+      's g',
+      'density',
+      'density sg',
+      'density s g',
+      'specific gravity',
+      'unit num',
+      'unit number',
+      'qty',
+      'quantity',
+      'size',
+      'num',
+      'unit class',
+      'class',
+      'unit',
+      'group',
+      'product category',
+      'category',
+      'retail',
+      'retail price',
+      'a',
+      'sales price',
+      'price a',
+      'a price',
+      'b',
+      'cogs',
+      'price b',
+      'b price',
+    }.contains(key);
+  }
+
+  bool _isMudCompanyProductTemplate(Map<String, int> headers) {
+    return headers.containsKey('company brand name') ||
+        headers.containsKey('density s g') ||
+        headers.containsKey('product category');
+  }
+
+  Map<String, int> _headerIndexes(List<String> row) {
+    final indexes = <String, int>{};
+    for (int i = 0; i < row.length; i += 1) {
+      final key = _headerKey(row[i]);
+      if (key.isNotEmpty) {
+        indexes[key] = i;
+      }
+    }
+    return indexes;
+  }
+
+  String _cellValue(
+    List<String> row,
+    Map<String, int>? headerIndexes,
+    List<String> aliases, {
+    required int fallbackIndex,
+  }) {
+    if (headerIndexes != null) {
+      for (final alias in aliases) {
+        final index = headerIndexes[_headerKey(alias)];
+        if (index != null && index >= 0 && index < row.length) {
+          return row[index].trim();
+        }
+      }
+      return '';
+    }
+
+    return fallbackIndex >= 0 && fallbackIndex < row.length
+        ? row[fallbackIndex].trim()
+        : '';
+  }
+
+  String _normalizeRetail(String value) {
+    final normalized = value.trim().toLowerCase();
+    if (normalized.isEmpty) return '';
+    if (normalized == 'yes' || normalized == 'y' || normalized == 'true') {
+      return 'Yes';
+    }
+    if (normalized == 'no' || normalized == 'n' || normalized == 'false') {
+      return 'No';
+    }
+    return value.trim();
+  }
+
+  _SplitUnit _splitUnitText(String value) {
+    final match = RegExp(r'^([0-9]+(?:\.[0-9]+)?)\s*(.*)$')
+        .firstMatch(value.trim());
+    if (match == null) return const _SplitUnit('', '');
+    return _SplitUnit(
+      match.group(1)?.trim() ?? '',
+      match.group(2)?.trim() ?? '',
+    );
+  }
+
+  String _valueAt(List<String> row, int index) {
+    return index >= 0 && index < row.length ? row[index].trim() : '';
+  }
+
+  String _firstNotEmpty(List<String> values) {
+    for (final value in values) {
+      if (value.trim().isNotEmpty) return value.trim();
+    }
+    return '';
+  }
+
+  String _headerKey(String value) {
+    return value
+        .trim()
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9]+'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
   }
 
   String _normalizeKey(String value) => value.trim().toLowerCase();
@@ -575,6 +841,7 @@ class ProductsController extends GetxController {
 }
 
 class _ImportedProductRow {
+  final int rowNumber;
   final String recordId;
   final String product;
   final String code;
@@ -587,6 +854,7 @@ class _ImportedProductRow {
   final String b;
 
   const _ImportedProductRow({
+    required this.rowNumber,
     required this.recordId,
     required this.product,
     required this.code,
@@ -598,4 +866,34 @@ class _ImportedProductRow {
     required this.a,
     required this.b,
   });
+
+  bool get hasData {
+    return recordId.trim().isNotEmpty ||
+        product.trim().isNotEmpty ||
+        code.trim().isNotEmpty ||
+        sg.trim().isNotEmpty ||
+        unitNum.trim().isNotEmpty ||
+        unitClass.trim().isNotEmpty ||
+        group.trim().isNotEmpty ||
+        retail.trim().isNotEmpty ||
+        a.trim().isNotEmpty ||
+        b.trim().isNotEmpty;
+  }
+}
+
+class _ProductHeaderInfo {
+  final int rowIndex;
+  final Map<String, int> indexes;
+
+  const _ProductHeaderInfo({
+    required this.rowIndex,
+    required this.indexes,
+  });
+}
+
+class _SplitUnit {
+  final String num;
+  final String unit;
+
+  const _SplitUnit(this.num, this.unit);
 }

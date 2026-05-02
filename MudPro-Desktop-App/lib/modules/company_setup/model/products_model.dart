@@ -58,7 +58,7 @@ class ProductModel {
         'Class': unitClass.trim(),
       },
       'Group': group.trim(),
-      'Retail': retail.trim().isEmpty ? 'No' : retail.trim(),
+      'Retail': retail.trim(),
     };
 
     // Add optional fields only if they have values

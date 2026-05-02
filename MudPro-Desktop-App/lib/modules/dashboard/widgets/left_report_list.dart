@@ -108,7 +108,19 @@ class _LeftReportTreeState extends State<LeftReportTree> {
       return _backendMessage(
         Icons.folder_off,
         'No backend pads',
-        'Create pads and wells first, then refresh.',
+        'Create a new pad to start this installation.',
+        action: ElevatedButton.icon(
+          onPressed: () {
+            c.navigate('pads');
+          },
+          icon: const Icon(Icons.add, size: 14),
+          label: const Text('New Pad'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppTheme.primaryColor,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          ),
+        ),
       );
     }
 
@@ -458,7 +470,12 @@ class _LeftReportTreeState extends State<LeftReportTree> {
     );
   }
 
-  Widget _backendMessage(IconData icon, String title, String subtitle) {
+  Widget _backendMessage(
+    IconData icon,
+    String title,
+    String subtitle, {
+    Widget? action,
+  }) {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -484,6 +501,10 @@ class _LeftReportTreeState extends State<LeftReportTree> {
             style: TextStyle(fontSize: 10, color: AppTheme.textSecondary),
           ),
           const SizedBox(height: 12),
+          if (action != null) ...[
+            action,
+            const SizedBox(height: 8),
+          ],
           TextButton.icon(
             onPressed: () async {
               await padWellC.reloadData();
