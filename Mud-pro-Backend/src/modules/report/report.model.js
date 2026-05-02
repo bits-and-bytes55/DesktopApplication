@@ -97,6 +97,10 @@ const reportSchema = new mongoose.Schema(
       type: pumpRateAndPressureSchema,
       default: () => ({}),
     },
+    operationSelections: {
+      type: [String],
+      default: [],
+    },
   },
   { timestamps: true }
 );

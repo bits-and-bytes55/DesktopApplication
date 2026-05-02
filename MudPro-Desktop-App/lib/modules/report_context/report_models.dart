@@ -11,6 +11,7 @@ class AppReport {
   final String recapRemarks;
   final String internalNotes;
   final ReportAttachment? remarksAttachment;
+  final List<String> operationSelections;
   final String createdAt;
 
   const AppReport({
@@ -26,6 +27,7 @@ class AppReport {
     required this.recapRemarks,
     required this.internalNotes,
     this.remarksAttachment,
+    required this.operationSelections,
     required this.createdAt,
   });
 
@@ -42,6 +44,7 @@ class AppReport {
     recapRemarks: _text(json['recapRemarks']),
     internalNotes: _text(json['internalNotes']),
     remarksAttachment: ReportAttachment.fromJson(json['remarksAttachment']),
+    operationSelections: _stringList(json['operationSelections']),
     createdAt: _text(json['createdAt']),
   );
 
@@ -173,6 +176,18 @@ class ReportAttachment {
 }
 
 String _text(dynamic value) => value?.toString().trim() ?? '';
+
+List<String> _stringList(dynamic value) {
+  if (value is! List) return const <String>[];
+  final items = <String>[];
+  final seen = <String>{};
+  for (final item in value) {
+    final parsed = _text(item);
+    if (parsed.isEmpty || !seen.add(parsed)) continue;
+    items.add(parsed);
+  }
+  return items;
+}
 
 int _intValue(dynamic value) {
   if (value is int) return value;

@@ -230,8 +230,7 @@ class OperationPage extends StatelessWidget {
                                     dropdownColor: Colors.white,
                                     value: rowOperation,
                                     onChanged: (v) {
-                                      controller.dropdownValues[index] = v;
-                                      controller.selectedRowIndex.value = index;
+                                      controller.setOperationAt(index, v);
                                     },
                                     menuMaxHeight: 220,
                                     itemHeight: null,

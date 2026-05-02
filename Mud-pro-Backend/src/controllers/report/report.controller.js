@@ -54,6 +54,22 @@ const sanitizeRemarksAttachment = (value) => {
   };
 };
 
+const sanitizeOperationSelections = (value = []) => {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const seen = new Set();
+  const selections = [];
+  for (const item of value) {
+    const key = toText(item);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    selections.push(key);
+  }
+  return selections;
+};
+
 const hasPumpRateAndPressureInput = (value) =>
   value && typeof value === "object" && !Array.isArray(value);
 
@@ -553,6 +569,10 @@ export const createReport = async (req, res) => {
     )
       ? sanitizePumpRateAndPressure(req.body.pumpRateAndPressure)
       : sanitizePumpRateAndPressure(sourceReport?.pumpRateAndPressure);
+    const operationSelections =
+      req.body.operationSelections !== undefined
+        ? sanitizeOperationSelections(req.body.operationSelections)
+        : sanitizeOperationSelections(sourceReport?.operationSelections);
 
     const report = await Report.create({
       wellId,
@@ -567,6 +587,7 @@ export const createReport = async (req, res) => {
       internalNotes,
       remarksAttachment,
       pumpRateAndPressure,
+      operationSelections,
     });
 
     try {
@@ -862,6 +883,11 @@ export const updateReport = async (req, res) => {
     if (req.body.pumpRateAndPressure !== undefined) {
       report.pumpRateAndPressure = sanitizePumpRateAndPressure(
         req.body.pumpRateAndPressure
+      );
+    }
+    if (req.body.operationSelections !== undefined) {
+      report.operationSelections = sanitizeOperationSelections(
+        req.body.operationSelections
       );
     }
 

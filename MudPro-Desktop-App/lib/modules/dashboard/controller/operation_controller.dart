@@ -30,6 +30,8 @@ class OperationController extends GetxController {
   final AuthRepository _repository = AuthRepository();
   Worker? _wellWorker;
   Worker? _reportWorker;
+  Timer? _operationSelectionSaveTimer;
+  bool _isApplyingOperationSelectionState = false;
 
   RxBool isLocked = true.obs;
   RxInt selectedRowIndex = 0.obs;
@@ -460,36 +462,101 @@ final RxList<String> returnLostDropdownValue =
     return null;
   }
 
+  List<OperationType> _reportSelectionsForChoices(List<OperationType> choices) {
+    final saved =
+        reportContext.selectedReport?.operationSelections ?? const <String>[];
+    final selected = <OperationType>[];
+    for (final raw in saved) {
+      final match = _operationTypeFromName(raw);
+      if (match == null ||
+          !choices.contains(match) ||
+          selected.contains(match)) {
+        continue;
+      }
+      selected.add(match);
+    }
+    return selected;
+  }
+
+  OperationType? _operationTypeFromName(String name) {
+    for (final operation in OperationType.values) {
+      if (operation.name == name) return operation;
+    }
+    return null;
+  }
+
+  List<String> _operationSelectionPayload() {
+    final selected = <String>[];
+    final seen = <OperationType>{};
+    for (final operation in dropdownValues.whereType<OperationType>()) {
+      if (!seen.add(operation)) continue;
+      selected.add(operation.name);
+    }
+    return selected;
+  }
+
   void _applyAvailableOperations(List<OperationType> operations) {
     final choices = operations.isNotEmpty ? operations : _fallbackOperations;
-    final previousSelections = dropdownValues
-        .whereType<OperationType>()
-        .where(choices.contains)
-        .toList();
+    final reportSelections = _reportSelectionsForChoices(choices);
 
     final nextSelections = List<OperationType?>.filled(choices.length, null);
-    for (var i = 0; i < previousSelections.length && i < nextSelections.length; i++) {
-      nextSelections[i] = previousSelections[i];
+    for (
+      var i = 0;
+      i < reportSelections.length && i < nextSelections.length;
+      i++
+    ) {
+      nextSelections[i] = reportSelections[i];
     }
 
-    if (nextSelections.isNotEmpty && nextSelections.first == null) {
-      nextSelections[0] = choices.first;
-    }
-    if (nextSelections.length > 1 && nextSelections[1] == null) {
-      nextSelections[1] = choices.length > 1 ? choices[1] : null;
-    }
-
+    _isApplyingOperationSelectionState = true;
     availableOperations.assignAll(choices);
     dropdownValues.assignAll(nextSelections);
     isDropdownOpen.assignAll(List.generate(choices.length, (_) => false));
+    _isApplyingOperationSelectionState = false;
 
-    if (selectedRowIndex.value >= nextSelections.length) {
-      selectedRowIndex.value = 0;
+    final firstSelected = nextSelections.indexWhere((item) => item != null);
+    selectedRowIndex.value = firstSelected == -1 ? 0 : firstSelected;
+  }
+
+  void setOperationAt(int index, OperationType? operation) {
+    if (index < 0 || index >= dropdownValues.length) return;
+
+    final nextSelections = dropdownValues.toList();
+    if (operation != null) {
+      for (var i = 0; i < nextSelections.length; i++) {
+        if (i != index && nextSelections[i] == operation) {
+          nextSelections[i] = null;
+        }
+      }
     }
-    if (nextSelections.isNotEmpty &&
-        nextSelections[selectedRowIndex.value] == null) {
-      final firstSelected = nextSelections.indexWhere((item) => item != null);
-      selectedRowIndex.value = firstSelected == -1 ? 0 : firstSelected;
+    nextSelections[index] = operation;
+    dropdownValues.assignAll(nextSelections);
+    selectedRowIndex.value = index;
+    _scheduleOperationSelectionSave();
+  }
+
+  void _scheduleOperationSelectionSave() {
+    if (_isApplyingOperationSelectionState) return;
+    _operationSelectionSaveTimer?.cancel();
+    _operationSelectionSaveTimer = Timer(const Duration(milliseconds: 500), () {
+      _saveOperationSelectionsNow();
+    });
+  }
+
+  Future<void> _saveOperationSelectionsNow() async {
+    if (_isApplyingOperationSelectionState ||
+        reportContext.selectedReport == null) {
+      return;
+    }
+    _operationSelectionSaveTimer?.cancel();
+    try {
+      await reportContext.updateSelectedReport({
+        'operationSelections': _operationSelectionPayload(),
+      });
+    } catch (e) {
+      menuError.value = e
+          .toString()
+          .replaceFirst(RegExp(r'^Exception:\s*'), '');
     }
   }
 
@@ -500,7 +567,10 @@ final RxList<String> returnLostDropdownValue =
     rawSelections.removeAt(index);
     rawSelections.add(null);
     final selected = rawSelections.whereType<OperationType>().toList();
-    final nextSelections = List<OperationType?>.filled(dropdownItems.length, null);
+    final nextSelections = List<OperationType?>.filled(
+      dropdownItems.length,
+      null,
+    );
     for (var i = 0; i < selected.length && i < nextSelections.length; i++) {
       nextSelections[i] = selected[i];
     }
@@ -573,6 +643,7 @@ final RxList<String> returnLostDropdownValue =
       if (result['success'] == true) {
         _clearLocalStateForOperation(operation, wellId);
         _removeOperationSelectionAt(index);
+        await _saveOperationSelectionsNow();
         await _refreshPitState();
       }
 
@@ -653,6 +724,11 @@ final RxList<String> returnLostDropdownValue =
       loadAddWater(force: true);
     });
     _reportWorker = ever<String>(reportContext.selectedReportId, (_) {
+      _applyAvailableOperations(
+        availableOperations.isNotEmpty
+            ? availableOperations.toList()
+            : _fallbackOperations,
+      );
       _loadedAddWaterWellId = '';
       _loadedAddWaterReportId = '';
       loadAddWater(force: true);
@@ -662,6 +738,7 @@ final RxList<String> returnLostDropdownValue =
   @override
   void onClose() {
     _addWaterAutoSaveTimer?.cancel();
+    _operationSelectionSaveTimer?.cancel();
     _wellWorker?.dispose();
     _reportWorker?.dispose();
     for (final worker in _addWaterAutoSaveWorkers) {
