@@ -14,10 +14,7 @@ class AuthRepository {
   final String baseUrl = ApiEndpoint.baseUrl;
 
   // Default headers
-  Map<String, String> get _headers => {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-  };
+  Map<String, String> get _headers => ApiEndpoint.jsonHeaders;
 
   String get _selectedReportId => reportContext.selectedReportId.value.trim();
 
@@ -571,7 +568,7 @@ class AuthRepository {
 
       final response = await http.post(
         url,
-        headers: {'Content-Type': 'application/json'},
+        headers: ApiEndpoint.jsonHeaders,
         body: jsonEncode(engineer.toJson()),
       );
 
@@ -603,7 +600,7 @@ class AuthRepository {
 
       final response = await http.get(
         url,
-        headers: {'Content-Type': 'application/json'},
+        headers: ApiEndpoint.jsonHeaders,
       );
 
       final data = jsonDecode(response.body);
@@ -652,7 +649,7 @@ class AuthRepository {
       );
       final response = await http.put(
         url,
-        headers: {'Content-Type': 'application/json'},
+        headers: ApiEndpoint.jsonHeaders,
         body: jsonEncode(engineer.toJson()),
       );
 
@@ -686,7 +683,7 @@ class AuthRepository {
       );
       final response = await http.delete(
         url,
-        headers: {'Content-Type': 'application/json'},
+        headers: ApiEndpoint.jsonHeaders,
       );
 
       final data = jsonDecode(response.body);
@@ -720,7 +717,7 @@ class AuthRepository {
 
       final response = await http.post(
         url,
-        headers: {"Content-Type": "application/json"},
+        headers: ApiEndpoint.jsonHeaders,
         body: jsonEncode(payload),
       );
 
@@ -762,7 +759,7 @@ class AuthRepository {
       final response = await http
           .put(
             url,
-            headers: {"Content-Type": "application/json"},
+            headers: ApiEndpoint.jsonHeaders,
             body: jsonEncode(payload),
           )
           .timeout(
@@ -806,7 +803,7 @@ class AuthRepository {
 
       final response = await http.get(
         url,
-        headers: {'Content-Type': 'application/json'},
+        headers: ApiEndpoint.jsonHeaders,
       );
 
       final data = jsonDecode(response.body);
@@ -846,7 +843,7 @@ class AuthRepository {
     try {
       final response = await http.get(
         Uri.parse(ApiEndpoint.baseUrl + ApiEndpoint.getOperators),
-        headers: {"Content-Type": "application/json"},
+        headers: ApiEndpoint.jsonHeaders,
       );
 
       return jsonDecode(response.body);
@@ -862,7 +859,7 @@ class AuthRepository {
     try {
       final response = await http.post(
         Uri.parse(ApiEndpoint.baseUrl + ApiEndpoint.saveOperators),
-        headers: {"Content-Type": "application/json"},
+        headers: ApiEndpoint.jsonHeaders,
         body: jsonEncode(body),
       );
 
@@ -880,10 +877,7 @@ class AuthRepository {
     try {
       final response = await http.put(
         Uri.parse('${ApiEndpoint.baseUrl}${ApiEndpoint.updateOperator}/$id'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
+        headers: ApiEndpoint.jsonHeaders,
         body: jsonEncode(operatorData),
       );
 
@@ -913,10 +907,7 @@ class AuthRepository {
     try {
       final response = await http.delete(
         Uri.parse('${ApiEndpoint.baseUrl}${ApiEndpoint.deleteOperator}/$id'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
+        headers: ApiEndpoint.jsonHeaders,
       );
 
       final responseData = jsonDecode(response.body);
@@ -1236,7 +1227,7 @@ class AuthRepository {
     try {
       final response = await http.post(
         Uri.parse('${baseUrl}pit/add'),
-        headers: {'Content-Type': 'application/json'},
+        headers: ApiEndpoint.jsonHeaders,
         body: jsonEncode({
           'pitName': pitName,
           'capacity': capacity,
@@ -1273,7 +1264,7 @@ class AuthRepository {
       final reportId = _selectedReportId;
       final response = await http.post(
         Uri.parse('${baseUrl}pit/bulk-add'),
-        headers: {'Content-Type': 'application/json'},
+        headers: ApiEndpoint.jsonHeaders,
         body: jsonEncode({
           'pits': pits,
           'wellId': wellId,
@@ -1312,7 +1303,7 @@ class AuthRepository {
         Uri.parse('${baseUrl}pit/well/$wellId').replace(
           queryParameters: {if (reportId.isNotEmpty) 'reportId': reportId},
         ),
-        headers: {'Content-Type': 'application/json'},
+        headers: ApiEndpoint.jsonHeaders,
       );
 
       final data = jsonDecode(response.body);
@@ -1349,7 +1340,7 @@ class AuthRepository {
         Uri.parse('${baseUrl}pit/well/$wellId/selected').replace(
           queryParameters: {if (reportId.isNotEmpty) 'reportId': reportId},
         ),
-        headers: {'Content-Type': 'application/json'},
+        headers: ApiEndpoint.jsonHeaders,
       );
 
       final data = jsonDecode(response.body);
@@ -1383,7 +1374,7 @@ class AuthRepository {
         Uri.parse('${baseUrl}pit/well/$wellId/unselected').replace(
           queryParameters: {if (reportId.isNotEmpty) 'reportId': reportId},
         ),
-        headers: {'Content-Type': 'application/json'},
+        headers: ApiEndpoint.jsonHeaders,
       );
 
       final data = jsonDecode(response.body);
@@ -1431,7 +1422,7 @@ class AuthRepository {
       };
       final response = await http.put(
         Uri.parse('${baseUrl}pit/$id'),
-        headers: {'Content-Type': 'application/json'},
+        headers: ApiEndpoint.jsonHeaders,
         body: jsonEncode(body),
       );
 
@@ -1463,7 +1454,7 @@ class AuthRepository {
       );
       final response = await http.delete(
         uri,
-        headers: {'Content-Type': 'application/json'},
+        headers: ApiEndpoint.jsonHeaders,
       );
 
       final data = jsonDecode(response.body);

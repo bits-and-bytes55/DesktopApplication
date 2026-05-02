@@ -1,4 +1,5 @@
 import dotenv from "dotenv";  
+import "./src/plugins/installationScopePlugin.js";
 import app from "./src/app.js";
 import connectDB from "./src/config/db.js";
 

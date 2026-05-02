@@ -90,10 +90,7 @@ class CasedHoleUIController extends GetxController {
   late String _diameterUnit;
   late String _lineDensityUnit;
 
-  Map<String, String> get _headers => {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-  };
+  Map<String, String> get _headers => ApiEndpoint.jsonHeaders;
 
   @override
   void onInit() {

@@ -23,10 +23,7 @@ class RecapTimeDistributionController extends GetxController {
        _padWellController = padWellController ?? padWellContext,
        _reportContext = reportContextController ?? reportContext;
 
-  static const _headers = {
-    'Accept': 'application/json',
-    'Content-Type': 'application/json',
-  };
+  static Map<String, String> get _headers => ApiEndpoint.jsonHeaders;
 
   static const List<Color> _palette = [
     Color(0xFF8CBBD0),

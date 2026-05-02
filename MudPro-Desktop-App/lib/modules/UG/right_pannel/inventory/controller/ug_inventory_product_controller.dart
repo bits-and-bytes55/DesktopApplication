@@ -46,7 +46,7 @@ class InventoryProductsService {
 
     final response = await http.post(
       uri,
-      headers: {'Content-Type': 'application/json'},
+      headers: ApiEndpoint.jsonHeaders,
       body: body,
     );
 
@@ -66,7 +66,7 @@ class InventoryProductsService {
     print('🔵 [GET] Fetching inventory from URL: $url');
     final uri = Uri.parse(url);
 
-    final response = await http.get(uri, headers: {'Content-Type': 'application/json'});
+    final response = await http.get(uri, headers: ApiEndpoint.jsonHeaders);
 
     print('🟢 [GET] statusCode: ${response.statusCode}');
     print('🟢 [GET] responseBody: ${response.body}');
@@ -85,7 +85,7 @@ class InventoryProductsService {
   static Future<List<ProductInventoryModel>> fetchProducts(String wellId) async {
     final url = '${_baseUrl}ug-inventory/products/$wellId';
     print('🔵 [GET] Fetching products from URL: $url');
-    final response = await http.get(Uri.parse(url), headers: {'Content-Type': 'application/json'});
+    final response = await http.get(Uri.parse(url), headers: ApiEndpoint.jsonHeaders);
     print('🟢 [GET] statusCode: ${response.statusCode}');
     print('🟢 [GET] responseBody: ${response.body}');
     final json = jsonDecode(response.body);
@@ -98,7 +98,7 @@ class InventoryProductsService {
   static Future<List<PackageItem>> fetchPackages(String wellId) async {
     final url = '${_baseUrl}ug-inventory/packages/$wellId';
     print('🔵 [GET] Fetching packages from URL: $url');
-    final response = await http.get(Uri.parse(url), headers: {'Content-Type': 'application/json'});
+    final response = await http.get(Uri.parse(url), headers: ApiEndpoint.jsonHeaders);
     final json = jsonDecode(response.body);
     if (response.statusCode == 200 && json['success'] == true) {
       return (json['data'] as List).map((e) => PackageItem.fromJson(e)).toList();
@@ -109,7 +109,7 @@ class InventoryProductsService {
   static Future<List<ServiceItem>> fetchServices(String wellId) async {
     final url = '${_baseUrl}ug-inventory/services/$wellId';
     print('🔵 [GET] Fetching services from URL: $url');
-    final response = await http.get(Uri.parse(url), headers: {'Content-Type': 'application/json'});
+    final response = await http.get(Uri.parse(url), headers: ApiEndpoint.jsonHeaders);
     final json = jsonDecode(response.body);
     if (response.statusCode == 200 && json['success'] == true) {
       return (json['data'] as List).map((e) => ServiceItem.fromJson(e)).toList();
@@ -120,7 +120,7 @@ class InventoryProductsService {
   static Future<List<EngineeringItem>> fetchEngineering(String wellId) async {
     final url = '${_baseUrl}ug-inventory/engineering/$wellId';
     print('🔵 [GET] Fetching engineering from URL: $url');
-    final response = await http.get(Uri.parse(url), headers: {'Content-Type': 'application/json'});
+    final response = await http.get(Uri.parse(url), headers: ApiEndpoint.jsonHeaders);
     final json = jsonDecode(response.body);
     if (response.statusCode == 200 && json['success'] == true) {
       return (json['data'] as List).map((e) => EngineeringItem.fromJson(e)).toList();

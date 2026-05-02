@@ -9,10 +9,7 @@ import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart
 class InventorySnapshotController {
   final String baseUrl = ApiEndpoint.baseUrl;
 
-  Map<String, String> get _headers => {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-  };
+  Map<String, String> get _headers => ApiEndpoint.jsonHeaders;
 
   Uri _buildUri(String path, {String? wellId, String? reportIdOverride}) {
     final activeWellId = (wellId ?? currentBackendWellId).trim();

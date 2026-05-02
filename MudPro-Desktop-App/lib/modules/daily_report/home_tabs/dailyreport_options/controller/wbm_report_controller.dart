@@ -70,10 +70,10 @@ class ExportController {
 
     final response = await http.get(
       uri,
-      headers: {
+      headers: ApiEndpoint.withInstallationHeaders({
         'Accept':
             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      },
+      }),
     );
 
     if (response.statusCode != 200) {

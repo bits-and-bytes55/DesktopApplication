@@ -6,10 +6,7 @@ import 'package:mudpro_desktop_app/modules/company_setup/model/service_model.dar
 class ServiceController {
   final String baseUrl = ApiEndpoint.baseUrl;
 
-  Map<String, String> get _headers => {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-  };
+  Map<String, String> get _headers => ApiEndpoint.jsonHeaders;
 
   // ============ PACKAGE APIs ============
   

@@ -132,10 +132,7 @@ class IntervalController extends GetxController {
   final String baseUrl = ApiEndpoint.baseUrl;
   static const Duration _generalSaveDebounce = Duration(milliseconds: 850);
 
-  Map<String, String> get _headers => {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-  };
+  Map<String, String> get _headers => ApiEndpoint.jsonHeaders;
 
   // ── Reactive state ───────────────────────────────────────────────
   final RxList<IntervalItem> intervals = <IntervalItem>[].obs;

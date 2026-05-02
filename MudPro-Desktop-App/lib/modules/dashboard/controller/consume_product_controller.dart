@@ -7,10 +7,7 @@ import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart
 class ConsumeProductController {
   final String baseUrl = ApiEndpoint.baseUrl;
 
-  Map<String, String> get _headers => {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-  };
+  Map<String, String> get _headers => ApiEndpoint.jsonHeaders;
 
   Map<String, dynamic> _withReportScope(Map<String, dynamic> payload) {
     final reportId = reportContext.selectedReportId.value.trim();

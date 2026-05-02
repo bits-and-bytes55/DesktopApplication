@@ -4,6 +4,7 @@ import helmet from "helmet";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
+import { installationContextMiddleware } from "./utils/installationContext.js";
 
 import operatorRoutes from "./routes/operator/operator.route.js";
 
@@ -93,6 +94,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cors());
 app.use(helmet());
 app.use(express.json());
+app.use(installationContextMiddleware);
 
 // 🔹 Create uploads directory if it doesn't exist
 const uploadsDir = path.join(__dirname, "uploads", "company-logos");

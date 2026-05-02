@@ -1,5 +1,23 @@
+import 'package:mudpro_desktop_app/modules/installation/installation_identity.dart';
+
 class ApiEndpoint {
   static const String baseUrl = "https://desktopapplication-ytim.onrender.com/api/";
+  static const String installationHeader = "X-MudPro-Installation-Id";
+
+  static Map<String, String> get jsonHeaders => withInstallationHeaders({
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+  });
+
+  static Map<String, String> withInstallationHeaders(
+    Map<String, String> headers,
+  ) {
+    final id = InstallationIdentity.id.trim();
+    return {
+      ...headers,
+      if (id.isNotEmpty) installationHeader: id,
+    };
+  }
 
 
  static final String addEngineersData = "engineers/add-engineers";

@@ -221,7 +221,7 @@ class SurveyController extends GetxController {
         Uri.parse(
           '${ApiEndpoint.baseUrl}survey/$wellId',
         ).replace(queryParameters: _queryParams),
-        headers: {'Content-Type': 'application/json'},
+        headers: ApiEndpoint.jsonHeaders,
         body: json.encode(payload),
       );
     } finally {

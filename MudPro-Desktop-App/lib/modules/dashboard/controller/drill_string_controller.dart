@@ -76,10 +76,7 @@ class DrillStringController extends GetxController {
   late String _diameterUnit;
   late String _lineDensityUnit;
 
-  Map<String, String> get _headers => {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-  };
+  Map<String, String> get _headers => ApiEndpoint.jsonHeaders;
 
   Uri _buildScopedUri(String path) {
     final queryParameters = <String, String>{};

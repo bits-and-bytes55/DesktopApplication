@@ -8,10 +8,7 @@ import 'package:mudpro_desktop_app/modules/company_setup/model/others_model.dart
 class OthersController {
   final String baseUrl = ApiEndpoint.baseUrl;
 
-  Map<String, String> get _headers => {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-  };
+  Map<String, String> get _headers => ApiEndpoint.jsonHeaders;
 
   // ============ ACTIVITY APIs ============
   

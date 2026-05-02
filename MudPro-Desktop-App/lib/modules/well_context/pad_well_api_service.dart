@@ -7,10 +7,7 @@ import 'package:mudpro_desktop_app/modules/well_context/pad_well_models.dart';
 
 class PadWellApiService {
   static const String _localDevBaseUrl = 'http://localhost:3000/api/';
-  static const _headers = {
-    'Accept': 'application/json',
-    'Content-Type': 'application/json',
-  };
+  static Map<String, String> get _headers => ApiEndpoint.jsonHeaders;
 
   Future<List<AppPad>> fetchPads({bool includeWells = true}) async {
     final decoded = await _getObject(

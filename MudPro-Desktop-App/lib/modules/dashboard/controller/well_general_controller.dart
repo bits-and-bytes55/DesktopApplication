@@ -183,10 +183,7 @@ class WellGeneralController extends GetxController {
     });
   }
 
-  Map<String, String> get _headers => {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-  };
+  Map<String, String> get _headers => ApiEndpoint.jsonHeaders;
 
   Map<String, String> _blankTimeDistributionRow() => {
     'activity': '',

@@ -7,10 +7,7 @@ import 'package:mudpro_desktop_app/modules/report_context/report_models.dart';
 
 class ReportApiService {
   static const String _localDevBaseUrl = 'http://localhost:3000/api/';
-  static const _headers = {
-    'Accept': 'application/json',
-    'Content-Type': 'application/json',
-  };
+  static Map<String, String> get _headers => ApiEndpoint.jsonHeaders;
 
   Future<List<AppReport>> fetchReports(String wellId) async {
     final decoded = await _getObject(

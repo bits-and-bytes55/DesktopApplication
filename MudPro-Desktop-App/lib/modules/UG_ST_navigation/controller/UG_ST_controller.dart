@@ -192,6 +192,7 @@ class UgStController extends GetxController {
         Uri.parse(
           '${ApiEndpoint.baseUrl}casing/$wellId',
         ).replace(queryParameters: _casingQueryParams),
+        headers: ApiEndpoint.jsonHeaders,
       );
       if (response.statusCode == 200) {
         final Map<String, dynamic> body = json.decode(response.body);
@@ -260,6 +261,7 @@ class UgStController extends GetxController {
         Uri.parse(
           '${ApiEndpoint.baseUrl}well-plan/$wellId',
         ).replace(queryParameters: _planQueryParams),
+        headers: ApiEndpoint.jsonHeaders,
       );
       if (response.statusCode == 200) {
         final Map<String, dynamic> body = json.decode(response.body);
@@ -327,7 +329,7 @@ class UgStController extends GetxController {
         Uri.parse(
           '${ApiEndpoint.baseUrl}well-plan/$wellId',
         ).replace(queryParameters: _planQueryParams),
-        headers: {'Content-Type': 'application/json'},
+        headers: ApiEndpoint.jsonHeaders,
         body: json.encode(payload),
       );
       if (response.statusCode == 200 || response.statusCode == 201) {
@@ -469,7 +471,7 @@ class UgStController extends GetxController {
         Uri.parse(
           '${ApiEndpoint.baseUrl}casing',
         ).replace(queryParameters: _casingQueryParams),
-        headers: {'Content-Type': 'application/json'},
+        headers: ApiEndpoint.jsonHeaders,
         body: json.encode({
           ...casing.toJson(),
           'wellId': wellId,
@@ -500,7 +502,7 @@ class UgStController extends GetxController {
         Uri.parse(
           '${ApiEndpoint.baseUrl}casing/$wellId/${casing.dbId}',
         ).replace(queryParameters: _casingQueryParams),
-        headers: {'Content-Type': 'application/json'},
+        headers: ApiEndpoint.jsonHeaders,
         body: json.encode({
           ...casing.toJson(),
           'wellId': wellId,
@@ -527,6 +529,7 @@ class UgStController extends GetxController {
         Uri.parse(
           '${ApiEndpoint.baseUrl}casing/$wellId/$dbId',
         ).replace(queryParameters: _casingQueryParams),
+        headers: ApiEndpoint.jsonHeaders,
       );
       if (response.statusCode == 200) {
         selectedCasingDeleteKey.value = '';

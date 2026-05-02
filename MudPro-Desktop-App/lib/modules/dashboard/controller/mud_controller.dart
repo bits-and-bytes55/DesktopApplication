@@ -638,7 +638,10 @@ class MudController extends GetxController {
   Future<Map<String, dynamic>?> _fetchMudReportState() async {
     if (_wellId.isEmpty) return null;
     try {
-      final response = await http.get(_mudReportUri());
+      final response = await http.get(
+        _mudReportUri(),
+        headers: ApiEndpoint.jsonHeaders,
+      );
       if (response.statusCode != 200) return null;
       final decoded = jsonDecode(response.body);
       final data = decoded is Map ? decoded['data'] : null;
@@ -778,7 +781,7 @@ class MudController extends GetxController {
     try {
       await http.put(
         _mudReportUri(),
-        headers: {'Content-Type': 'application/json'},
+        headers: ApiEndpoint.jsonHeaders,
         body: jsonEncode(_buildMudReportPayload()),
       );
     } catch (e) {
@@ -1285,7 +1288,7 @@ class MudController extends GetxController {
       if (existingId == null) {
         response = await http.post(
           Uri.parse('${_kBaseUrl}solids'),
-          headers: {'Content-Type': 'application/json'},
+          headers: ApiEndpoint.jsonHeaders,
           body: body,
         );
         if (response.statusCode == 201) {
@@ -1296,7 +1299,7 @@ class MudController extends GetxController {
       } else {
         response = await http.put(
           Uri.parse('${_kBaseUrl}solids/$existingId'),
-          headers: {'Content-Type': 'application/json'},
+          headers: ApiEndpoint.jsonHeaders,
           body: body,
         );
         if (response.statusCode == 200) {
@@ -1438,7 +1441,7 @@ class MudController extends GetxController {
             if (includeReport && _reportId.isNotEmpty) 'reportId': _reportId,
           },
         );
-        final response = await http.get(uri);
+        final response = await http.get(uri, headers: ApiEndpoint.jsonHeaders);
         if (response.statusCode != 200) return [];
         final decoded = jsonDecode(response.body);
         final rawData = decoded is Map ? decoded['data'] : null;

@@ -11,7 +11,7 @@ class MudPropertiesController {
   Future<SelectedMudProperties> getSelectedMudProperties() async {
     final response = await http.get(
       Uri.parse('${_baseUrl}mud-properties/selected'),
-      headers: {'Content-Type': 'application/json'},
+      headers: ApiEndpoint.jsonHeaders,
     );
 
     print('GET Response Status: ${response.statusCode}');
@@ -34,7 +34,7 @@ class MudPropertiesController {
 
     final response = await http.post(
       Uri.parse('${_baseUrl}mud-properties/selected'),
-      headers: {'Content-Type': 'application/json'},
+      headers: ApiEndpoint.jsonHeaders,
       body: jsonEncode(body),
     );
 
