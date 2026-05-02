@@ -50,16 +50,14 @@ const installationScopePlugin = (schema) => {
     });
   }
 
-  schema.pre("validate", function setInstallationOnValidate(next) {
+  schema.pre("validate", function setInstallationOnValidate() {
     setDocumentInstallation(this);
-    next();
   });
 
-  schema.pre("insertMany", function setInstallationOnInsertMany(next, docs) {
+  schema.pre("insertMany", function setInstallationOnInsertMany(docs) {
     if (Array.isArray(docs)) {
       docs.forEach(setDocumentInstallation);
     }
-    next();
   });
 
   const scopedQueryOps = [
@@ -78,16 +76,14 @@ const installationScopePlugin = (schema) => {
   ];
 
   for (const op of scopedQueryOps) {
-    schema.pre(op, function scopeQuery(next) {
+    schema.pre(op, function scopeQuery() {
       applyInstallationFilter(this);
-      next();
     });
   }
 
-  schema.pre("aggregate", function scopeAggregate(next) {
+  schema.pre("aggregate", function scopeAggregate() {
     const installationId = currentInstallationId();
     if (!installationId || !schema.path("installationId")) {
-      next();
       return;
     }
 
@@ -98,7 +94,6 @@ const installationScopePlugin = (schema) => {
     } else {
       pipeline.unshift(stage);
     }
-    next();
   });
 };
 
