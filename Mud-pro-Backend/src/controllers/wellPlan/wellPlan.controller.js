@@ -89,9 +89,7 @@ const loadScopedDoc = (wellId, reportId) => {
 
 const loadDisplayDoc = async ({ wellId, reportId }) => {
   if (wellId && reportId) {
-    const scoped = await loadScopedDoc(wellId, reportId);
-    if (scoped) return scoped;
-    return loadLegacyDoc(wellId);
+    return loadScopedDoc(wellId, reportId);
   }
 
   if (wellId) {
@@ -105,23 +103,6 @@ const loadDisplayDoc = async ({ wellId, reportId }) => {
   }
 
   return null;
-};
-
-const ensureScopedDoc = async ({ wellId, reportId, reportNo }) => {
-  if (!wellId || !reportId) return null;
-  const scoped = await loadScopedDoc(wellId, reportId);
-  if (scoped) return scoped;
-
-  const legacy = await loadLegacyDoc(wellId);
-  if (!legacy) return null;
-
-  const created = await WellPlan.create({
-    ...cleanClone(legacy),
-    wellId,
-    reportId,
-    reportNo,
-  });
-  return created.toObject();
 };
 
 const blankResponse = () => ({
@@ -176,14 +157,6 @@ export const saveWellPlan = async (req, res) => {
     let existing = scope.reportId
       ? await loadScopedDoc(scope.wellId, scope.reportId)
       : await loadLegacyDoc(scope.wellId);
-
-    if (!existing && scope.reportId) {
-      existing = await ensureScopedDoc({
-        wellId: scope.wellId,
-        reportId: scope.reportId,
-        reportNo: scope.reportNo,
-      });
-    }
 
     const payload = buildPayload({
       body: req.body,

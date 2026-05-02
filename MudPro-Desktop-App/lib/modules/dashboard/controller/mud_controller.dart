@@ -1445,10 +1445,7 @@ class MudController extends GetxController {
         return rawData is List ? rawData : (rawData == null ? [] : [rawData]);
       }
 
-      var rows = await fetchRows(includeReport: true);
-      if (rows.isEmpty && _reportId.isNotEmpty) {
-        rows = await fetchRows(includeReport: false);
-      }
+      final rows = await fetchRows(includeReport: true);
       final latestBySample = <int, Map<String, dynamic>>{};
 
       for (final item in rows) {

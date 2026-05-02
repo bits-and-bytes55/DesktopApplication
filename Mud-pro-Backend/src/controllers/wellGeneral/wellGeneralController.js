@@ -156,6 +156,7 @@ export const getWellGeneralById = async (req, res) => {
 export const updateWellGeneral = async (req, res) => {
   try {
     const wellId = getWellId(req);
+    const reportId = getReportId(req);
 
     if (!wellId) {
       return res.status(400).json({
@@ -168,13 +169,14 @@ export const updateWellGeneral = async (req, res) => {
       {
         _id: req.params.id,
         wellId,
+        ...(reportId ? { reportId } : {}),
       },
       {
         ...req.body,
         wellId,
-        ...(req.body.reportId !== undefined && {
-          reportId: toText(req.body.reportId),
-        }),
+        ...(req.body.reportId !== undefined || reportId
+          ? { reportId: toText(req.body.reportId ?? reportId) }
+          : {}),
         ...(req.body.reportNo !== undefined && {
           reportNo: toText(req.body.reportNo),
         }),
@@ -205,6 +207,7 @@ export const updateWellGeneral = async (req, res) => {
 export const deleteWellGeneral = async (req, res) => {
   try {
     const wellId = getWellId(req);
+    const reportId = getReportId(req);
 
     if (!wellId) {
       return res.status(400).json({
@@ -216,6 +219,7 @@ export const deleteWellGeneral = async (req, res) => {
     const data = await WellGeneral.findOneAndDelete({
       _id: req.params.id,
       wellId,
+      ...(reportId ? { reportId } : {}),
     });
 
     if (!data) {

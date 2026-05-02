@@ -36,6 +36,16 @@ const buildPayload = (req, existing = {}) => {
   };
 };
 
+const scopedIdFilter = (req) => {
+  const wellId = readWellId(req);
+  const reportId = readReportId(req);
+  return {
+    _id: req.params.id,
+    ...(wellId ? { wellId } : {}),
+    ...(reportId ? { reportId } : {}),
+  };
+};
+
 export const createPackage = async (req, res) => {
   try {
     const newPackage = await Package.create(buildPayload(req));
@@ -99,7 +109,7 @@ export const getPackageById = async (req, res) => {
 
 export const updatePackage = async (req, res) => {
   try {
-    const existing = await Package.findById(req.params.id);
+    const existing = await Package.findOne(scopedIdFilter(req));
 
     if (!existing) {
       return res.status(404).json({
@@ -108,8 +118,8 @@ export const updatePackage = async (req, res) => {
       });
     }
 
-    const updatedPackage = await Package.findByIdAndUpdate(
-      req.params.id,
+    const updatedPackage = await Package.findOneAndUpdate(
+      scopedIdFilter(req),
       buildPayload(req, existing),
       { new: true }
     );
@@ -129,7 +139,7 @@ export const updatePackage = async (req, res) => {
 
 export const deletePackage = async (req, res) => {
   try {
-    const pkg = await Package.findByIdAndDelete(req.params.id);
+    const pkg = await Package.findOneAndDelete(scopedIdFilter(req));
 
     if (!pkg) {
       return res.status(404).json({

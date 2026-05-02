@@ -33,6 +33,16 @@ const buildPayload = (req, existing = {}) => {
   };
 };
 
+const scopedIdFilter = (req) => {
+  const wellId = readWellId(req);
+  const reportId = readReportId(req);
+  return {
+    _id: req.params.id,
+    ...(wellId ? { wellId } : {}),
+    ...(reportId ? { reportId } : {}),
+  };
+};
+
 export const createEngineering = async (req, res) => {
   try {
     const newEngineering = await Engineering.create(buildPayload(req));
@@ -96,7 +106,7 @@ export const getEngineeringById = async (req, res) => {
 
 export const updateEngineering = async (req, res) => {
   try {
-    const existing = await Engineering.findById(req.params.id);
+    const existing = await Engineering.findOne(scopedIdFilter(req));
 
     if (!existing) {
       return res.status(404).json({
@@ -105,8 +115,8 @@ export const updateEngineering = async (req, res) => {
       });
     }
 
-    const updatedRecord = await Engineering.findByIdAndUpdate(
-      req.params.id,
+    const updatedRecord = await Engineering.findOneAndUpdate(
+      scopedIdFilter(req),
       buildPayload(req, existing),
       { new: true }
     );
@@ -126,7 +136,7 @@ export const updateEngineering = async (req, res) => {
 
 export const deleteEngineering = async (req, res) => {
   try {
-    const record = await Engineering.findByIdAndDelete(req.params.id);
+    const record = await Engineering.findOneAndDelete(scopedIdFilter(req));
 
     if (!record) {
       return res.status(404).json({

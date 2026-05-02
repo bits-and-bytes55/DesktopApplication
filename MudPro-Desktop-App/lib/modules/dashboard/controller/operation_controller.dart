@@ -60,6 +60,25 @@ class OperationController extends GetxController {
   double _parseVolume(String value) =>
       double.tryParse(value.trim().replaceAll(',', '')) ?? 0.0;
 
+  Map<String, dynamic>? _extractEntity(dynamic value) {
+    if (value is Map && value['data'] is Map) {
+      return Map<String, dynamic>.from(value['data'] as Map);
+    }
+    if (value is Map && value['data'] is List) {
+      final items = value['data'] as List;
+      if (items.isNotEmpty && items.first is Map) {
+        return Map<String, dynamic>.from(items.first as Map);
+      }
+    }
+    if (value is List && value.isNotEmpty && value.first is Map) {
+      return Map<String, dynamic>.from(value.first as Map);
+    }
+    if (value is Map) {
+      return Map<String, dynamic>.from(value);
+    }
+    return null;
+  }
+
   void _resetAddWaterState() {
     addWaterTo.value = "Active System";
     addWaterMainVol.value = "";
@@ -211,7 +230,12 @@ class OperationController extends GetxController {
 
     if (_loadedAddWaterWellId != wellId ||
         _loadedAddWaterReportId != reportId) {
-      await loadAddWater(force: true);
+      if (enteredVolumes.isEmpty && addWaterRecordIds.isEmpty) {
+        await loadAddWater(force: true);
+      } else {
+        _loadedAddWaterWellId = wellId;
+        _loadedAddWaterReportId = reportId;
+      }
     }
 
     final currentIds = addWaterRecordIds.toList();
@@ -252,6 +276,17 @@ class OperationController extends GetxController {
           ? await _repository.updateAddWater(wellId, existingId, body)
           : await _repository.createAddWater(wellId, body);
       if (result['success'] == true) {
+        if (existingId.isEmpty) {
+          final savedData = _extractEntity(result['data']);
+          final savedId = (savedData?['_id'] ?? savedData?['id'])?.toString();
+          if (savedId != null && savedId.isNotEmpty) {
+            if (index < currentIds.length) {
+              currentIds[index] = savedId;
+            } else {
+              currentIds.add(savedId);
+            }
+          }
+        }
         successCount++;
       } else {
         errors.add('Row ${index + 1}: ${result['message']}');
@@ -268,7 +303,11 @@ class OperationController extends GetxController {
     }
 
     if (errors.isEmpty) {
-      await loadAddWater(force: true);
+      addWaterRecordIds.assignAll(
+        currentIds.take(enteredVolumes.length).where((id) => id.isNotEmpty),
+      );
+      _loadedAddWaterWellId = wellId;
+      _loadedAddWaterReportId = reportId;
       await _refreshPitState();
     }
 
@@ -518,6 +557,10 @@ final RxList<String> returnLostDropdownValue =
     final wellId = currentBackendWellId.trim();
     if (wellId.isEmpty) {
       return {'success': false, 'message': 'No backend well selected'};
+    }
+    final reportId = reportContext.selectedReportId.value.trim();
+    if (reportId.isEmpty) {
+      return {'success': false, 'message': 'No report selected'};
     }
 
     deletingOperationRowIndex.value = index;

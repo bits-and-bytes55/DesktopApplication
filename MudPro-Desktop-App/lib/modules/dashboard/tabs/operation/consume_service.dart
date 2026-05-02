@@ -52,6 +52,9 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
   final Set<int> _pkgSavingInProgress = {};
   final Set<int> _srvSavingInProgress = {};
   final Set<int> _engSavingInProgress = {};
+  final Map<int, Timer> _pkgAutosaveTimers = {};
+  final Map<int, Timer> _srvAutosaveTimers = {};
+  final Map<int, Timer> _engAutosaveTimers = {};
 
   final RxInt selectedPackageRow = 0.obs;
   final RxInt selectedServiceRow = 0.obs;
@@ -83,6 +86,15 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
   @override
   void dispose() {
     _inventorySnapshotRefreshTimer?.cancel();
+    for (final timer in _pkgAutosaveTimers.values) {
+      timer.cancel();
+    }
+    for (final timer in _srvAutosaveTimers.values) {
+      timer.cancel();
+    }
+    for (final timer in _engAutosaveTimers.values) {
+      timer.cancel();
+    }
     _wellWorker?.dispose();
     _reportWorker?.dispose();
     for (var r in packageRows) r.dispose();
@@ -301,6 +313,18 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
     _pkgSavingInProgress.clear();
     _srvSavingInProgress.clear();
     _engSavingInProgress.clear();
+    for (final timer in _pkgAutosaveTimers.values) {
+      timer.cancel();
+    }
+    for (final timer in _srvAutosaveTimers.values) {
+      timer.cancel();
+    }
+    for (final timer in _engAutosaveTimers.values) {
+      timer.cancel();
+    }
+    _pkgAutosaveTimers.clear();
+    _srvAutosaveTimers.clear();
+    _engAutosaveTimers.clear();
   }
 
   double _toDouble(dynamic v) =>
@@ -743,7 +767,6 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
     final used = double.tryParse(row.used) ?? 0.0;
     row.finalValue = (initial - used).toStringAsFixed(2);
     row.cost = used * row.price;
-    packageRows.refresh();
   }
 
   void _calculateService(int index) {
@@ -752,7 +775,6 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
     if (row.selectedItem.isEmpty) return;
     final usage = double.tryParse(row.usage) ?? 0.0;
     row.cost = usage * row.price;
-    serviceRows.refresh();
   }
 
   void _calculateEngineering(int index) {
@@ -761,7 +783,6 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
     if (row.selectedItem.isEmpty) return;
     final usage = double.tryParse(row.usage) ?? 0.0;
     row.cost = usage * row.price;
-    engineeringRows.refresh();
   }
 
   // ─────────────────────────────────────────────
@@ -773,7 +794,8 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
     if (row.selectedItem.isEmpty) return;
     _calculatePackage(index);
     // ✅ FIX: debounce 600ms, cost check se pehle save nahi
-    Future.delayed(const Duration(milliseconds: 600), () {
+    _pkgAutosaveTimers[index]?.cancel();
+    _pkgAutosaveTimers[index] = Timer(const Duration(milliseconds: 600), () {
       if (index < packageRows.length && _isPkgCostReady(packageRows[index])) {
         _savePackageRow(index);
       }
@@ -785,7 +807,8 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
     final row = serviceRows[index];
     if (row.selectedItem.isEmpty) return;
     _calculateService(index);
-    Future.delayed(const Duration(milliseconds: 600), () {
+    _srvAutosaveTimers[index]?.cancel();
+    _srvAutosaveTimers[index] = Timer(const Duration(milliseconds: 600), () {
       if (index < serviceRows.length && _isSrvCostReady(serviceRows[index])) {
         _saveServiceRow(index);
       }
@@ -797,7 +820,8 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
     final row = engineeringRows[index];
     if (row.selectedItem.isEmpty) return;
     _calculateEngineering(index);
-    Future.delayed(const Duration(milliseconds: 600), () {
+    _engAutosaveTimers[index]?.cancel();
+    _engAutosaveTimers[index] = Timer(const Duration(milliseconds: 600), () {
       if (index < engineeringRows.length &&
           _isEngCostReady(engineeringRows[index])) {
         _saveEngineeringRow(index);
@@ -824,11 +848,6 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
 
     _calculatePackage(index);
 
-    if (index < packageRowSaving.length) {
-      packageRowSaving[index] = true;
-      packageRowSaving.refresh();
-    }
-
     final initial = double.tryParse(row.initial) ?? 0.0;
     final used = double.tryParse(row.used) ?? 0.0;
 
@@ -848,7 +867,6 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
         if (result['success'] == true) {
           // ✅ FIX: savedId turant set karo
           row.savedId = result['data']?['_id']?.toString();
-          packageRows.refresh();
           _scheduleInventorySnapshotRefresh();
           print('✅ [PKG] Created — savedId=${row.savedId}');
         } else {
@@ -877,10 +895,6 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
       _showError('Error: $e');
     } finally {
       _pkgSavingInProgress.remove(index);
-      if (index < packageRowSaving.length) {
-        packageRowSaving[index] = false;
-        packageRowSaving.refresh();
-      }
     }
   }
 
@@ -903,11 +917,6 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
 
     _calculateService(index);
 
-    if (index < serviceRowSaving.length) {
-      serviceRowSaving[index] = true;
-      serviceRowSaving.refresh();
-    }
-
     final usage = double.tryParse(row.usage) ?? 0.0;
 
     try {
@@ -924,7 +933,6 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
         );
         if (result['success'] == true) {
           row.savedId = result['data']?['_id']?.toString();
-          serviceRows.refresh();
           _scheduleInventorySnapshotRefresh();
           print('✅ [SRV] Created — savedId=${row.savedId}');
         } else {
@@ -952,10 +960,6 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
       _showError('Error: $e');
     } finally {
       _srvSavingInProgress.remove(index);
-      if (index < serviceRowSaving.length) {
-        serviceRowSaving[index] = false;
-        serviceRowSaving.refresh();
-      }
     }
   }
 
@@ -978,11 +982,6 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
 
     _calculateEngineering(index);
 
-    if (index < engineeringRowSaving.length) {
-      engineeringRowSaving[index] = true;
-      engineeringRowSaving.refresh();
-    }
-
     final usage = double.tryParse(row.usage) ?? 0.0;
 
     try {
@@ -999,7 +998,6 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
         );
         if (result['success'] == true) {
           row.savedId = result['data']?['_id']?.toString();
-          engineeringRows.refresh();
           _scheduleInventorySnapshotRefresh();
           print('✅ [ENG] Created — savedId=${row.savedId}');
         } else {
@@ -1027,141 +1025,132 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
       _showError('Error: $e');
     } finally {
       _engSavingInProgress.remove(index);
-      if (index < engineeringRowSaving.length) {
-        engineeringRowSaving[index] = false;
-        engineeringRowSaving.refresh();
-      }
     }
   }
 
   // ─────────────────────────────────────────────
   //  DELETE
   // ─────────────────────────────────────────────
+  void _removePackageRowFromUi(int index) {
+    if (index < 0 || index >= packageRows.length) return;
+    _pkgAutosaveTimers.remove(index)?.cancel();
+    _pkgSavingInProgress.remove(index);
+    final row = packageRows[index];
+    if (packageRows.length > 1) {
+      row.dispose();
+      packageRows.removeAt(index);
+      if (index < packageRowLoading.length) packageRowLoading.removeAt(index);
+      if (index < packageRowSaving.length) packageRowSaving.removeAt(index);
+      if (index < packageRowDeleting.length) packageRowDeleting.removeAt(index);
+    } else {
+      row.dispose();
+      packageRows[index] = PackageRowData();
+    }
+  }
+
+  void _removeServiceRowFromUi(int index) {
+    if (index < 0 || index >= serviceRows.length) return;
+    _srvAutosaveTimers.remove(index)?.cancel();
+    _srvSavingInProgress.remove(index);
+    final row = serviceRows[index];
+    if (serviceRows.length > 1) {
+      row.dispose();
+      serviceRows.removeAt(index);
+      if (index < serviceRowLoading.length) serviceRowLoading.removeAt(index);
+      if (index < serviceRowSaving.length) serviceRowSaving.removeAt(index);
+      if (index < serviceRowDeleting.length) serviceRowDeleting.removeAt(index);
+    } else {
+      row.dispose();
+      serviceRows[index] = ServiceRowData();
+    }
+  }
+
+  void _removeEngineeringRowFromUi(int index) {
+    if (index < 0 || index >= engineeringRows.length) return;
+    _engAutosaveTimers.remove(index)?.cancel();
+    _engSavingInProgress.remove(index);
+    final row = engineeringRows[index];
+    if (engineeringRows.length > 1) {
+      row.dispose();
+      engineeringRows.removeAt(index);
+      if (index < engineeringRowLoading.length) {
+        engineeringRowLoading.removeAt(index);
+      }
+      if (index < engineeringRowSaving.length) {
+        engineeringRowSaving.removeAt(index);
+      }
+      if (index < engineeringRowDeleting.length) {
+        engineeringRowDeleting.removeAt(index);
+      }
+    } else {
+      row.dispose();
+      engineeringRows[index] = EngineeringRowData();
+    }
+  }
+
   Future<void> _deletePackageRow(int index) async {
     final row = packageRows[index];
     if (row.savedId != null) {
-      if (index < packageRowDeleting.length) {
-        packageRowDeleting[index] = true;
-        packageRowDeleting.refresh();
-      }
       try {
         final result = await consumeServiceController.deleteConsumePackage(
           row.savedId!,
         );
         if (result['success'] == true) {
-          _pkgSavingInProgress.remove(index);
+          _removePackageRowFromUi(index);
           _scheduleInventorySnapshotRefresh();
-          await _fetchAllData();
           _showSuccess('Package deleted');
         } else {
           _showError(result['message'] ?? 'Delete failed');
         }
       } catch (e) {
         _showError('Error: $e');
-      } finally {
-        if (index < packageRowDeleting.length) {
-          packageRowDeleting[index] = false;
-          packageRowDeleting.refresh();
-        }
       }
     } else {
-      if (packageRows.length > 1) {
-        packageRows[index].dispose();
-        packageRows.removeAt(index);
-        if (index < packageRowLoading.length) packageRowLoading.removeAt(index);
-        if (index < packageRowSaving.length) packageRowSaving.removeAt(index);
-        if (index < packageRowDeleting.length)
-          packageRowDeleting.removeAt(index);
-      } else {
-        packageRows[index] = PackageRowData();
-        packageRows.refresh();
-      }
+      _removePackageRowFromUi(index);
     }
   }
 
   Future<void> _deleteServiceRow(int index) async {
     final row = serviceRows[index];
     if (row.savedId != null) {
-      if (index < serviceRowDeleting.length) {
-        serviceRowDeleting[index] = true;
-        serviceRowDeleting.refresh();
-      }
       try {
         final result = await consumeServiceController.deleteConsumeService(
           row.savedId!,
         );
         if (result['success'] == true) {
-          _srvSavingInProgress.remove(index);
+          _removeServiceRowFromUi(index);
           _scheduleInventorySnapshotRefresh();
-          await _fetchAllData();
           _showSuccess('Service deleted');
         } else {
           _showError(result['message'] ?? 'Delete failed');
         }
       } catch (e) {
         _showError('Error: $e');
-      } finally {
-        if (index < serviceRowDeleting.length) {
-          serviceRowDeleting[index] = false;
-          serviceRowDeleting.refresh();
-        }
       }
     } else {
-      if (serviceRows.length > 1) {
-        serviceRows[index].dispose();
-        serviceRows.removeAt(index);
-        if (index < serviceRowLoading.length) serviceRowLoading.removeAt(index);
-        if (index < serviceRowSaving.length) serviceRowSaving.removeAt(index);
-        if (index < serviceRowDeleting.length)
-          serviceRowDeleting.removeAt(index);
-      } else {
-        serviceRows[index] = ServiceRowData();
-        serviceRows.refresh();
-      }
+      _removeServiceRowFromUi(index);
     }
   }
 
   Future<void> _deleteEngineeringRow(int index) async {
     final row = engineeringRows[index];
     if (row.savedId != null) {
-      if (index < engineeringRowDeleting.length) {
-        engineeringRowDeleting[index] = true;
-        engineeringRowDeleting.refresh();
-      }
       try {
         final result = await consumeServiceController.deleteConsumeEngineering(
           row.savedId!,
         );
         if (result['success'] == true) {
-          _engSavingInProgress.remove(index);
+          _removeEngineeringRowFromUi(index);
           _scheduleInventorySnapshotRefresh();
-          await _fetchAllData();
           _showSuccess('Engineering deleted');
         } else {
           _showError(result['message'] ?? 'Delete failed');
         }
       } catch (e) {
         _showError('Error: $e');
-      } finally {
-        if (index < engineeringRowDeleting.length) {
-          engineeringRowDeleting[index] = false;
-          engineeringRowDeleting.refresh();
-        }
       }
     } else {
-      if (engineeringRows.length > 1) {
-        engineeringRows[index].dispose();
-        engineeringRows.removeAt(index);
-        if (index < engineeringRowLoading.length)
-          engineeringRowLoading.removeAt(index);
-        if (index < engineeringRowSaving.length)
-          engineeringRowSaving.removeAt(index);
-        if (index < engineeringRowDeleting.length)
-          engineeringRowDeleting.removeAt(index);
-      } else {
-        engineeringRows[index] = EngineeringRowData();
-        engineeringRows.refresh();
-      }
+      _removeEngineeringRowFromUi(index);
     }
   }
 
@@ -1623,26 +1612,17 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
       _editCell(row.initialCtrl, 80, (v) => _autoSavePackage(index)),
       _editCell(row.usedCtrl, 80, (v) => _autoSavePackage(index)),
       // Final — read-only, negative = red
-      DataCell(
-        Container(
-          width: 80,
-          padding: const EdgeInsets.symmetric(horizontal: 6),
-          alignment: Alignment.centerRight,
-          child: Text(
-            row.finalValue,
-            style: AppTheme.bodySmall.copyWith(
-              fontSize: 9,
-              color: (double.tryParse(row.finalValue) ?? 0) < 0
-                  ? Colors.red
-                  : Colors.grey.shade700,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
+      _reactiveReadCell(
+        text: () => row.finalValue,
+        width: 80,
+        rightAlign: true,
+        bold: true,
+        colorForValue: (value) =>
+            (double.tryParse(value) ?? 0) < 0 ? Colors.red : Colors.grey.shade700,
       ),
-      _readCell(
-        row.cost > 0 ? row.cost.toStringAsFixed(2) : '',
-        90,
+      _reactiveReadCell(
+        text: () => row.cost > 0 ? row.cost.toStringAsFixed(2) : '',
+        width: 90,
         rightAlign: true,
         bold: true,
         color: AppTheme.primaryColor,
@@ -1681,9 +1661,9 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
       _editCell(row.unitCtrl, 70, (v) => {}),
       _editCell(row.priceCtrl, 90, (v) => _autoSaveService(index)),
       _editCell(row.usedCtrl, 80, (v) => _autoSaveService(index)),
-      _readCell(
-        row.cost > 0 ? row.cost.toStringAsFixed(2) : '',
-        90,
+      _reactiveReadCell(
+        text: () => row.cost > 0 ? row.cost.toStringAsFixed(2) : '',
+        width: 90,
         rightAlign: true,
         bold: true,
         color: AppTheme.successColor,
@@ -1722,9 +1702,9 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
       _editCell(row.unitCtrl, 70, (v) => {}),
       _editCell(row.priceCtrl, 90, (v) => _autoSaveEngineering(index)),
       _editCell(row.usageCtrl, 80, (v) => _autoSaveEngineering(index)),
-      _readCell(
-        row.cost > 0 ? row.cost.toStringAsFixed(2) : '',
-        90,
+      _reactiveReadCell(
+        text: () => row.cost > 0 ? row.cost.toStringAsFixed(2) : '',
+        width: 90,
         rightAlign: true,
         bold: true,
         color: AppTheme.infoColor,
@@ -1829,6 +1809,34 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
             color: color ?? Colors.grey.shade800,
           ),
         ),
+      ),
+    );
+  }
+
+  DataCell _reactiveReadCell({
+    required String Function() text,
+    required double width,
+    bool rightAlign = false,
+    bool bold = false,
+    Color? color,
+    Color Function(String value)? colorForValue,
+  }) {
+    return DataCell(
+      Container(
+        width: width,
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        alignment: rightAlign ? Alignment.centerRight : Alignment.centerLeft,
+        child: Obx(() {
+          final value = text();
+          return Text(
+            value,
+            style: AppTheme.bodySmall.copyWith(
+              fontSize: 9,
+              fontWeight: bold ? FontWeight.w600 : FontWeight.normal,
+              color: colorForValue?.call(value) ?? color ?? Colors.grey.shade800,
+            ),
+          );
+        }),
       ),
     );
   }
@@ -1975,8 +1983,14 @@ abstract class BaseRowData {
   String get used => usedCtrl.text;
   set used(String v) => usedCtrl.text = v;
 
-  double cost = 0.0;
-  String finalValue = '';
+  final RxDouble costRx = 0.0.obs;
+  final RxString finalValueRx = ''.obs;
+
+  double get cost => costRx.value;
+  set cost(double v) => costRx.value = v;
+
+  String get finalValue => finalValueRx.value;
+  set finalValue(String v) => finalValueRx.value = v;
 
   void dispose() {
     codeCtrl.dispose();

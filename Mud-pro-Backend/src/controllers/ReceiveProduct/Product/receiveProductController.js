@@ -1,7 +1,6 @@
 import ReceiveProduct from "../../../modules/ReceiveProduct/Product/ReceiveProduct.js";
 import {
   buildScopedFilter,
-  legacyReportScope,
   readReportId,
   readWellId,
   toText,
@@ -27,6 +26,16 @@ const buildPayload = (req, existing = {}) => ({
   wellId: readWellId(req) || toText(existing.wellId),
   reportId: readReportId(req) || toText(existing.reportId),
 });
+
+const scopedIdFilter = (req) => {
+  const wellId = readWellId(req);
+  const reportId = readReportId(req);
+  return {
+    _id: req.params.id,
+    ...(wellId ? { wellId } : {}),
+    ...(reportId ? { reportId } : {}),
+  };
+};
 
 /**
  * @desc    Create Receive Product
@@ -57,21 +66,11 @@ export const createReceiveProduct = async (req, res) => {
  */
 export const getAllReceiveProducts = async (req, res) => {
   try {
-    const { wellId, reportId, filter } = getScope(req);
-    let products = await ReceiveProduct.find(filter).sort({
+    const { filter } = getScope(req);
+    const products = await ReceiveProduct.find(filter).sort({
       createdAt: 1,
       _id: 1,
     });
-
-    if (wellId && reportId && products.length === 0) {
-      products = await ReceiveProduct.find({
-        wellId,
-        ...legacyReportScope(),
-      }).sort({
-        createdAt: 1,
-        _id: 1,
-      });
-    }
 
     res.status(200).json({
       success: true,
@@ -121,7 +120,7 @@ export const getReceiveProductById = async (req, res) => {
  */
 export const updateReceiveProduct = async (req, res) => {
   try {
-    const existing = await ReceiveProduct.findById(req.params.id);
+    const existing = await ReceiveProduct.findOne(scopedIdFilter(req));
 
     if (!existing) {
       return res.status(404).json({
@@ -130,8 +129,8 @@ export const updateReceiveProduct = async (req, res) => {
       });
     }
 
-    const updatedProduct = await ReceiveProduct.findByIdAndUpdate(
-      req.params.id,
+    const updatedProduct = await ReceiveProduct.findOneAndUpdate(
+      scopedIdFilter(req),
       buildPayload(req, existing),
       { new: true }
     );
@@ -156,7 +155,7 @@ export const updateReceiveProduct = async (req, res) => {
  */
 export const deleteReceiveProduct = async (req, res) => {
   try {
-    const deleted = await ReceiveProduct.findByIdAndDelete(req.params.id);
+    const deleted = await ReceiveProduct.findOneAndDelete(scopedIdFilter(req));
 
     if (!deleted) {
       return res.status(404).json({

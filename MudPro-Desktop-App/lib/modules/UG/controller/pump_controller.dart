@@ -64,6 +64,29 @@ class PumpController extends GetxController {
     }
   }
 
+  Map<String, dynamic>? _extractEntity(dynamic value) {
+    if (value is Map && value['data'] is Map) {
+      return Map<String, dynamic>.from(value['data'] as Map);
+    }
+    if (value is Map) {
+      return Map<String, dynamic>.from(value);
+    }
+    return null;
+  }
+
+  void _applySavedPump(PumpModel target, dynamic rawData) {
+    final data = _extractEntity(rawData);
+    if (data == null) return;
+
+    final savedId = (data['_id'] ?? data['id'])?.toString();
+    if (savedId != null && savedId.isNotEmpty) {
+      target.id = savedId;
+    }
+    target.displacement.value =
+        data['displacement']?.toString() ?? target.displacement.value;
+    target.rate.value = data['rate']?.toString() ?? target.rate.value;
+  }
+
   /// Called from view on every field change
   void onFieldChanged(int index) {
     checkAndAddNewRow();
@@ -195,8 +218,6 @@ class PumpController extends GetxController {
     }
 
     try {
-      isLoading.value = true;
-
       Map<String, dynamic> result;
       final pumpData = pump.toJson();
 
@@ -207,13 +228,13 @@ class PumpController extends GetxController {
       }
 
       if (result['success']) {
-        final updatedPump = PumpModel.fromJson(result['data']);
-        pumps[index] = updatedPump;
+        _applySavedPump(pump, result['data']);
         checkAndAddNewRow();
-        pumps.refresh();
-
-        // ✅ After save, refresh models so new model appears in dropdown
-        await loadPumps(currentWellId);
+        final modelText = pump.model.value.trim();
+        if (modelText.isNotEmpty && !availablePumpModels.contains(modelText)) {
+          availablePumpModels.add(modelText);
+          availablePumpModels.sort();
+        }
 
         // Get.snackbar(
         //   'Success',
@@ -236,8 +257,6 @@ class PumpController extends GetxController {
       //   colorText: Colors.white,
       // );
       rethrow;
-    } finally {
-      isLoading.value = false;
     }
   }
 
@@ -253,7 +272,6 @@ class PumpController extends GetxController {
     }
 
     try {
-      isLoading.value = true;
       int successCount = 0;
       int failCount = 0;
 
@@ -267,9 +285,6 @@ class PumpController extends GetxController {
           }
         }
       }
-
-      await loadPumps(currentWellId);
-
       // Get.snackbar(
       //   'Success',
       //   'Saved $successCount pumps${failCount > 0 ? ', $failCount failed' : ''}',
@@ -282,8 +297,6 @@ class PumpController extends GetxController {
       //     snackPosition: SnackPosition.BOTTOM,
       //     backgroundColor: Colors.red,
       //     colorText: Colors.white);
-    } finally {
-      isLoading.value = false;
     }
   }
 

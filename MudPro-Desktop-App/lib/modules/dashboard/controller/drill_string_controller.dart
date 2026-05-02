@@ -9,7 +9,7 @@ import 'package:mudpro_desktop_app/modules/report_context/report_context_control
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
 class DrillStringEntry {
-  final String? id;
+  String? id;
   int sortOrder;
   TextEditingController description;
   TextEditingController od;
@@ -347,7 +347,6 @@ class DrillStringController extends GetxController {
     isSaving.value = true;
     try {
       await _saveEntry(rowIndex, entry);
-      entries.refresh();
     } catch (e) {
       print('DrillString save error: $e');
     } finally {
@@ -360,12 +359,12 @@ class DrillStringController extends GetxController {
     final isUpdate = entry.id != null && entry.id!.isNotEmpty;
     final response = isUpdate
         ? await http.put(
-            Uri.parse('${baseUrl}drill-string/${entry.id}'),
+            _buildScopedUri('drill-string/${entry.id}'),
             headers: _headers,
             body: jsonEncode(_withScope(entry.toJson())),
           )
         : await http.post(
-            Uri.parse('${baseUrl}drill-string'),
+            _buildScopedUri('drill-string'),
             headers: _headers,
             body: jsonEncode(_withScope(entry.toJson())),
           );
@@ -377,22 +376,10 @@ class DrillStringController extends GetxController {
     final json = jsonDecode(response.body);
     final saved = json['data'];
     final savedId = (saved is Map ? saved['_id'] : null)?.toString();
-    if (savedId == null || savedId.isEmpty) return true;
-
-    final updated = DrillStringEntry(
-      id: savedId,
-      sortOrder: entry.sortOrder,
-      desc: entry.description.text,
-      odVal: entry.od.text,
-      wt: entry.weightPpf.text,
-      idVal: entry.idCtrl.text,
-      gr: entry.grade.text,
-      len: entry.length.text,
-    );
-    _attachListeners(updated);
-    entry.dispose();
-    if (rowIndex >= 0 && rowIndex < entries.length) {
-      entries[rowIndex] = updated;
+    if ((entry.id == null || entry.id!.isEmpty) &&
+        savedId != null &&
+        savedId.isNotEmpty) {
+      entry.id = savedId;
     }
     return true;
   }
@@ -421,7 +408,6 @@ class DrillStringController extends GetxController {
           errors.add('Row ${rowIndex + 1} failed');
         }
       }
-      entries.refresh();
       _ensureTrailingRows();
       _recalcTotal();
       return {
@@ -445,7 +431,7 @@ class DrillStringController extends GetxController {
     if (entry.id != null) {
       try {
         await http.delete(
-          Uri.parse('${baseUrl}drill-string/${entry.id}'),
+          _buildScopedUri('drill-string/${entry.id}'),
           headers: _headers,
         );
       } catch (e) {

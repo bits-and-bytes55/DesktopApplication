@@ -1,5 +1,7 @@
 import 'package:get/get.dart';
 
+const String kCasedHoleTocMarker = '__cased_hole__';
+
 class CasingRow {
   String? dbId;
   RxString description = ''.obs;

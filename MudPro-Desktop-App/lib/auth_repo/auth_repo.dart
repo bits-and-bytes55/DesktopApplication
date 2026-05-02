@@ -70,11 +70,18 @@ class AuthRepository {
       final recordId = (body['recordId'] ?? '').toString().trim();
       final payload = Map<String, dynamic>.from(body)..remove('recordId');
       final isUpdate = recordId.isNotEmpty;
+      final queryParameters = <String, String>{};
+      final reportId = (payload['reportId'] ?? _selectedReportId)
+          .toString()
+          .trim();
+      if (reportId.isNotEmpty) {
+        queryParameters['reportId'] = reportId;
+      }
       final uri = Uri.parse(
         isUpdate
             ? '${baseUrl}well-general/$wellId/$recordId'
             : '${baseUrl}well-general/$wellId',
-      );
+      ).replace(queryParameters: queryParameters);
       print('Hitting ${isUpdate ? 'PUT' : 'POST'} $uri');
       final response = isUpdate
           ? await http
@@ -104,9 +111,14 @@ class AuthRepository {
       final recordId = (body['recordId'] ?? '').toString().trim();
       final payload = Map<String, dynamic>.from(body)..remove('recordId');
       final isUpdate = recordId.isNotEmpty;
+      final queryParameters = <String, String>{};
+      final reportId = (payload['reportId'] ?? '').toString().trim();
+      if (reportId.isNotEmpty) {
+        queryParameters['reportId'] = reportId;
+      }
       final uri = Uri.parse(
         isUpdate ? '${baseUrl}casing/$wellId/$recordId' : '${baseUrl}casing',
-      );
+      ).replace(queryParameters: queryParameters);
       print('Hitting ${isUpdate ? 'PUT' : 'POST'} $uri');
       final response = isUpdate
           ? await http
@@ -1444,8 +1456,13 @@ class AuthRepository {
 
   Future<Map<String, dynamic>> deletePit(String id) async {
     try {
+      final uri = Uri.parse('${baseUrl}pit/$id').replace(
+        queryParameters: {
+          if (_selectedReportId.isNotEmpty) 'reportId': _selectedReportId,
+        },
+      );
       final response = await http.delete(
-        Uri.parse('${baseUrl}pit/$id'),
+        uri,
         headers: {'Content-Type': 'application/json'},
       );
 

@@ -551,9 +551,6 @@ class _ReturnProductViewState extends State<ReturnProductView> {
 
     if (row.selectedItem.isEmpty || row.amount.isEmpty) return;
 
-    productRows[index].isSaving = true;
-    productRows.refresh();
-
     try {
       Map<String, dynamic> result;
       if (row.savedId == null) {
@@ -590,11 +587,6 @@ class _ReturnProductViewState extends State<ReturnProductView> {
       }
     } catch (e) {
       _showAlert('Error: $e', isError: true);
-    } finally {
-      if (index < productRows.length) {
-        productRows[index].isSaving = false;
-        productRows.refresh();
-      }
     }
   }
 
@@ -610,12 +602,8 @@ class _ReturnProductViewState extends State<ReturnProductView> {
         productRows.removeAt(index);
       else
         productRows[index] = ProductRowData();
-      productRows.refresh();
       return;
     }
-
-    productRows[index].isDeleting = true;
-    productRows.refresh();
 
     try {
       final result = await _apiController.deleteReturnProduct(row.savedId!);
@@ -626,21 +614,12 @@ class _ReturnProductViewState extends State<ReturnProductView> {
         if (productRows.isEmpty || productRows.last.selectedItem.isNotEmpty) {
           productRows.add(ProductRowData());
         }
-        productRows.refresh();
         _showAlert('Deleted');
       } else {
         _showAlert(result['message'] ?? 'Delete failed', isError: true);
-        if (index < productRows.length) {
-          productRows[index].isDeleting = false;
-          productRows.refresh();
-        }
       }
     } catch (e) {
       _showAlert('Error: $e', isError: true);
-      if (index < productRows.length) {
-        productRows[index].isDeleting = false;
-        productRows.refresh();
-      }
     }
   }
 
@@ -652,9 +631,6 @@ class _ReturnProductViewState extends State<ReturnProductView> {
     row.amount = row.amountController.text;
 
     if (row.selectedItem.isEmpty || row.amount.isEmpty) return;
-
-    packageRows[index].isSaving = true;
-    packageRows.refresh();
 
     try {
       Map<String, dynamic> result;
@@ -692,11 +668,6 @@ class _ReturnProductViewState extends State<ReturnProductView> {
       }
     } catch (e) {
       _showAlert('Error: $e', isError: true);
-    } finally {
-      if (index < packageRows.length) {
-        packageRows[index].isSaving = false;
-        packageRows.refresh();
-      }
     }
   }
 
@@ -712,12 +683,8 @@ class _ReturnProductViewState extends State<ReturnProductView> {
         packageRows.removeAt(index);
       else
         packageRows[index] = PackageRowData();
-      packageRows.refresh();
       return;
     }
-
-    packageRows[index].isDeleting = true;
-    packageRows.refresh();
 
     try {
       final result = await _apiController.deleteReturnPackage(row.savedId!);
@@ -728,21 +695,12 @@ class _ReturnProductViewState extends State<ReturnProductView> {
         if (packageRows.isEmpty || packageRows.last.selectedItem.isNotEmpty) {
           packageRows.add(PackageRowData());
         }
-        packageRows.refresh();
         _showAlert('Deleted');
       } else {
         _showAlert(result['message'] ?? 'Delete failed', isError: true);
-        if (index < packageRows.length) {
-          packageRows[index].isDeleting = false;
-          packageRows.refresh();
-        }
       }
     } catch (e) {
       _showAlert('Error: $e', isError: true);
-      if (index < packageRows.length) {
-        packageRows[index].isDeleting = false;
-        packageRows.refresh();
-      }
     }
   }
 

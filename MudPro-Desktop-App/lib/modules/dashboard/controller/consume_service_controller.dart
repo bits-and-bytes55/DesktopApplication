@@ -15,6 +15,14 @@ class ConsumeServiceController {
 
   String get _wellId => currentBackendWellId.trim();
 
+  Map<String, String> get _queryScope {
+    final reportId = reportContext.selectedReportId.value.trim();
+    return {
+      if (_wellId.isNotEmpty) 'wellId': _wellId,
+      if (reportId.isNotEmpty) 'reportId': reportId,
+    };
+  }
+
   Map<String, dynamic> _withReportScope(Map<String, dynamic> payload) {
     final reportId = reportContext.selectedReportId.value.trim();
     if (reportId.isNotEmpty) payload['reportId'] = reportId;
@@ -119,7 +127,9 @@ class ConsumeServiceController {
   Future<Map<String, dynamic>> deleteConsumePackage(String id) async {
     try {
       final response = await http.delete(
-        Uri.parse('${baseUrl}cs/package/$id'),
+        Uri.parse(
+          '${baseUrl}cs/package/$id',
+        ).replace(queryParameters: _queryScope),
         headers: _headers,
       );
 
@@ -264,7 +274,9 @@ class ConsumeServiceController {
   Future<Map<String, dynamic>> deleteConsumeService(String id) async {
     try {
       final response = await http.delete(
-        Uri.parse('${baseUrl}cs/service/$id'),
+        Uri.parse(
+          '${baseUrl}cs/service/$id',
+        ).replace(queryParameters: _queryScope),
         headers: _headers,
       );
 
@@ -409,7 +421,9 @@ class ConsumeServiceController {
   Future<Map<String, dynamic>> deleteConsumeEngineering(String id) async {
     try {
       final response = await http.delete(
-        Uri.parse('${baseUrl}cs/engineering/$id'),
+        Uri.parse(
+          '${baseUrl}cs/engineering/$id',
+        ).replace(queryParameters: _queryScope),
         headers: _headers,
       );
 

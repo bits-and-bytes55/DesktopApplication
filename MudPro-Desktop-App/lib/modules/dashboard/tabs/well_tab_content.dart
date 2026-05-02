@@ -385,6 +385,7 @@ class _GeneralSectionState extends State<GeneralSection> {
   Worker? _wellWorker;
   Worker? _reportWorker;
   Worker? _intervalWorker;
+  Worker? _mdWorker;
   Worker? _depthDrilledWorker;
   final List<Worker> _unitWorkers = <Worker>[];
   late String _lengthUnit;
@@ -562,6 +563,14 @@ class _GeneralSectionState extends State<GeneralSection> {
       reportContext.selectedReportId,
       (_) => _loadFromApi(),
     );
+    _mdWorker = ever<String>(wellGenCtrl.md, (value) {
+      final controller = fc['MD'];
+      if (controller == null || controller.text == value) return;
+      controller.text = value;
+      if (mounted) {
+        setState(() {});
+      }
+    });
     _depthDrilledWorker = ever<String>(wellGenCtrl.depthDrilled, (value) {
       final controller = fc['Depth Drilled'];
       if (controller == null || controller.text == value) return;
@@ -789,6 +798,7 @@ class _GeneralSectionState extends State<GeneralSection> {
     _wellWorker?.dispose();
     _reportWorker?.dispose();
     _intervalWorker?.dispose();
+    _mdWorker?.dispose();
     _depthDrilledWorker?.dispose();
     for (final worker in _unitWorkers) {
       worker.dispose();
@@ -1855,7 +1865,9 @@ class _CasedHoleSectionState extends State<CasedHoleSection> {
                               items: casings
                                   .where(
                                     (csg) =>
-                                        csg.description.value.trim().isNotEmpty,
+                                        csg.description.value.trim().isNotEmpty &&
+                                        csg.toc.value.trim() !=
+                                            kCasedHoleTocMarker,
                                   )
                                   .map(
                                     (csg) => DropdownMenuItem<CasingRow>(

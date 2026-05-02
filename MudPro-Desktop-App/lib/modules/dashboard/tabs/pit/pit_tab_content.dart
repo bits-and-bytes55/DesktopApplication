@@ -882,25 +882,6 @@ class _PitPageState extends State<PitPage> {
   }
 
   String _storageCalculatedVol(PitModel pit) {
-    final rows = controller.volumeNameData['storageTable'];
-    if (rows is List) {
-      final match = rows.cast<dynamic>().firstWhereOrNull((row) {
-        if (row is! Map) return false;
-        final id = row['_id']?.toString() ?? '';
-        final name = row['pitName']?.toString() ?? '';
-        return (pit.id != null && id == pit.id) || name == pit.pitName;
-      });
-
-      if (match is Map) {
-        final value = double.tryParse(
-          (match['calculatedVol'] ?? 0).toString(),
-        );
-        if (value != null) {
-          return value.toStringAsFixed(2);
-        }
-      }
-    }
-
-    return '0.00';
+    return controller.storageCalculatedVolumeForPit(pit).toStringAsFixed(2);
   }
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart';
 import 'package:mudpro_desktop_app/modules/daily_report/home_tabs/dailyreport_options/controller/wbm_report_controller.dart';
 import 'package:mudpro_desktop_app/modules/daily_report/left_sidebar.dart';
 import 'package:mudpro_desktop_app/modules/daily_report/wellbore_dashboard.dart';
@@ -68,6 +69,24 @@ class _SubTabContentState extends State<SubTabContent> {
 
   Future<void> _downloadWbmReport() async {
     if (_wbmLoading) return;
+
+    try {
+      final canGenerate = await _confirmMeasuredVolumeBeforeReport();
+      if (!canGenerate) return;
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to check measured volume: ${e.toString()}'),
+            backgroundColor: Colors.red.shade600,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+      return;
+    }
+
+    if (!mounted) return;
     setState(() => _wbmLoading = true);
 
     // Show loading popup
@@ -115,6 +134,43 @@ class _SubTabContentState extends State<SubTabContent> {
     } finally {
       if (mounted) setState(() => _wbmLoading = false);
     }
+  }
+
+  Future<bool> _confirmMeasuredVolumeBeforeReport() async {
+    final pitController = Get.isRegistered<PitController>()
+        ? Get.find<PitController>()
+        : Get.put(PitController());
+
+    await pitController.prepareMeasuredVolumeReportCheck().timeout(
+      const Duration(seconds: 15),
+    );
+
+    if (!pitController.hasMeasuredVolumeReportWarning()) return true;
+    if (!mounted) return false;
+
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        title: const Text('Measured Vol Check'),
+        content: const Text(
+          'Measured Vol is missing or different. Generate report anyway?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('No'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Yes'),
+          ),
+        ],
+      ),
+    );
+
+    return result == true;
   }
 
   @override

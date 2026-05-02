@@ -358,10 +358,8 @@ class EmptyActiveSystemView extends StatelessWidget {
                                             child: isEnabled
                                                 ? TextField(
                                                     controller:
-                                                        TextEditingController(
-                                                      text: controller
-                                                          .volValues[index],
-                                                    ),
+                                                        controller
+                                                            .volControllers[index],
                                                     enabled: isEnabled,
                                                     decoration: InputDecoration(
                                                       border: InputBorder.none,
@@ -381,7 +379,7 @@ class EmptyActiveSystemView extends StatelessWidget {
                                                     keyboardType:
                                                         TextInputType.number,
                                                     onChanged: (val) => controller
-                                                        .volValues[index] = val,
+                                                        .setVolume(index, val),
                                                   )
                                                 : Container(
                                                     alignment:

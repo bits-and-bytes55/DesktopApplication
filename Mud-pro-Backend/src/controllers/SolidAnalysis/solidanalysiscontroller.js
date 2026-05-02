@@ -173,12 +173,18 @@ export const createSolidsAnalysis = async (req, res) => {
 export const updateSolidsAnalysis = async (req, res) => {
   try {
     const { id } = req.params;
+    const wellId = String(req.query.wellId ?? req.body.wellId ?? "").trim();
+    const reportId = String(req.query.reportId ?? req.body.reportId ?? "").trim();
     const computed = computeSolidsAnalysis(req.body);
     if (!computed) {
       return res.status(400).json({ success: false, message: "Mud Weight must be > 0" });
     }
-    const updated = await SolidsAnalysis.findByIdAndUpdate(
-      id,
+    const updated = await SolidsAnalysis.findOneAndUpdate(
+      {
+        _id: id,
+        ...(wellId ? { wellId } : {}),
+        ...(reportId ? { reportId } : {}),
+      },
       { $set: { ...computed, wellId: req.body.wellId ?? undefined, reportId: req.body.reportId ?? undefined, sampleIndex: req.body.sampleIndex ?? undefined } },
       { new: true, runValidators: true }
     );

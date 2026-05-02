@@ -90,11 +90,7 @@ const loadScopedNozzle = async (wellId, reportId) => {
 
 const loadDisplayNozzle = async ({ wellId, reportId }) => {
   if (wellId && reportId) {
-    const scoped = await loadScopedNozzle(wellId, reportId);
-    if (scoped) {
-      return scoped;
-    }
-    return loadLegacyNozzle(wellId);
+    return loadScopedNozzle(wellId, reportId);
   }
 
   if (wellId) {
@@ -106,31 +102,6 @@ const loadDisplayNozzle = async ({ wellId, reportId }) => {
   }
 
   return Nozzle.findOne({}).sort({ createdAt: -1, _id: -1 }).lean();
-};
-
-const ensureReportNozzleCopy = async ({ wellId, reportId, reportNo }) => {
-  if (!wellId || !reportId) {
-    return null;
-  }
-
-  const scoped = await loadScopedNozzle(wellId, reportId);
-  if (scoped) {
-    return scoped;
-  }
-
-  const legacy = await loadLegacyNozzle(wellId);
-  if (!legacy) {
-    return null;
-  }
-
-  const created = await Nozzle.create({
-    ...cleanClone(legacy),
-    wellId,
-    reportId,
-    reportNo,
-  });
-
-  return created.toObject();
 };
 
 const buildPayload = ({
@@ -257,45 +228,9 @@ export const updateNozzle = async (req, res) => {
     const { processedNozzles, totalTFA } = processNozzles(req.body.nozzles);
 
     if (scope.reportId && toText(existing.reportId) !== scope.reportId) {
-      const scopedCopy = await ensureReportNozzleCopy(scope);
-      const targetId = scopedCopy?._id || scopedCopy?.id;
-      const targetExisting = targetId
-        ? await Nozzle.findById(targetId)
-        : null;
-
-      if (targetExisting) {
-        const updated = await Nozzle.findByIdAndUpdate(
-          targetExisting._id,
-          buildPayload({
-            existing: targetExisting.toObject(),
-            processedNozzles,
-            totalTFA,
-            bitType: req.body.bitType,
-            bitModel: req.body.bitModel,
-            wellId: scope.wellId,
-            reportId: scope.reportId,
-            reportNo: scope.reportNo,
-          }),
-          { new: true, runValidators: true }
-        );
-
-        return res.status(200).json({ success: true, data: updated });
-      }
-
-      const created = await Nozzle.create(
-        buildPayload({
-          existing: existing.toObject(),
-          processedNozzles,
-          totalTFA,
-          bitType: req.body.bitType,
-          bitModel: req.body.bitModel,
-          wellId: scope.wellId,
-          reportId: scope.reportId,
-          reportNo: scope.reportNo,
-        })
-      );
-
-      return res.status(200).json({ success: true, data: created });
+      return res
+        .status(404)
+        .json({ success: false, message: "Nozzle not found for this report" });
     }
 
     const updated = await Nozzle.findByIdAndUpdate(

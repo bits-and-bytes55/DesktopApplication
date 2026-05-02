@@ -400,46 +400,48 @@ class OperationPage extends StatelessWidget {
   Widget _getViewForOperation(OperationType operation) {
     switch (operation) {
       case OperationType.consumeServices:
-        return ConsumeServicesView(key: UniqueKey());
+        return const ConsumeServicesView(key: ValueKey('consumeServices'));
 
       case OperationType.consumeProduct:
-        return ConsumeProductView(key: UniqueKey());
+        return const ConsumeProductView(key: ValueKey('consumeProduct'));
 
       case OperationType.mudLossActiveSystem:
-        return MudLossActiveSystemView(key: UniqueKey());
+        return MudLossActiveSystemView(key: const ValueKey('mudLossActiveSystem'));
 
       case OperationType.receiveProduct:
-        return ReceiveProductView(key: UniqueKey());
+        return const ReceiveProductView(key: ValueKey('receiveProduct'));
 
       case OperationType.returnProduct:
-        return ReturnProductView(key: UniqueKey());
+        return const ReturnProductView(key: ValueKey('returnProduct'));
 
       case OperationType.transferMud:
-        return TransferMudView(key: UniqueKey());
+        return const TransferMudView(key: ValueKey('transferMud'));
 
       case OperationType.receiveMud:
-        return ReceiveMudView();
+        return ReceiveMudView(key: const ValueKey('receiveMud'));
 
       case OperationType.addWater:
-        return AddWaterView();
+        return const AddWaterView(key: ValueKey('addWater'));
 
       case OperationType.otherVolAddition:
-        return OtherVolAdditionActiveSystemView();
+        return OtherVolAdditionActiveSystemView(
+          key: const ValueKey('otherVolAddition'),
+        );
 
       case OperationType.mudLossStorage:
-        return MudLossStorageView();
+        return const MudLossStorageView(key: ValueKey('mudLossStorage'));
 
       case OperationType.switchPit:
-        return SwitchPitView();
+        return const SwitchPitView(key: ValueKey('switchPit'));
 
       case OperationType.returnLostMud:
-        return ReturnLostMudView();
+        return ReturnLostMudView(key: const ValueKey('returnLostMud'));
 
       case OperationType.switchMudType:
-        return SwitchMudTypeView();
+        return SwitchMudTypeView(key: const ValueKey('switchMudType'));
 
       case OperationType.emptyActiveSystem:
-        return EmptyActiveSystemView();
+        return EmptyActiveSystemView(key: const ValueKey('emptyActiveSystem'));
     }
   }
 

@@ -130,6 +130,16 @@ class MudLossActiveSystemController extends GetxController {
   double _parseNumber(String value) =>
       double.tryParse(value.trim().replaceAll(',', '')) ?? 0;
 
+  Map<String, dynamic>? _extractEntity(dynamic value) {
+    if (value is Map && value['data'] is Map) {
+      return Map<String, dynamic>.from(value['data'] as Map);
+    }
+    if (value is Map) {
+      return Map<String, dynamic>.from(value);
+    }
+    return null;
+  }
+
   double _number(String key) {
     return _parseNumber(fields[key]!.text);
   }
@@ -229,7 +239,11 @@ class MudLossActiveSystemController extends GetxController {
         : await _repository.createMudLoss(wellId, body);
 
     if (result['success'] == true) {
-      await load(force: true);
+      final savedData = _extractEntity(result['data']);
+      final savedId = (savedData?['_id'] ?? savedData?['id'])?.toString();
+      if (savedId != null && savedId.isNotEmpty) {
+        recordId.value = savedId;
+      }
       await _refreshPitState();
     }
     return result;

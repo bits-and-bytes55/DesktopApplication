@@ -82,6 +82,7 @@ export const updateCasing = async (req, res) => {
       {
         _id: req.params.id,
         wellId,
+        ...(reportId ? { reportId } : {}),
       },
       {
         ...req.body,

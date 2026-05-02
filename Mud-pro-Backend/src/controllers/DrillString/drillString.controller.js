@@ -69,11 +69,7 @@ const loadLegacyDrillStrings = async (wellId) => {
 
 const loadDisplayDrillStrings = async ({ wellId, reportId }) => {
   if (wellId && reportId) {
-    const scoped = await loadScopedDrillStrings(wellId, reportId);
-    if (scoped.length > 0) {
-      return scoped;
-    }
-    return loadLegacyDrillStrings(wellId);
+    return loadScopedDrillStrings(wellId, reportId);
   }
 
   if (wellId) {
@@ -162,6 +158,21 @@ export const getDrillStrings = async (req, res) => {
  */
 export const deleteDrillString = async (req, res) => {
   try {
+    const existing = await DrillString.findById(req.params.id);
+    if (!existing) {
+      return res.status(404).json({
+        success: false,
+        message: "Drill String not found"
+      });
+    }
+
+    const { reportId } = resolveScope(req, existing);
+    if (reportId && toText(existing.reportId) !== reportId) {
+      return res.status(404).json({
+        success: false,
+        message: "Drill String not found for this report"
+      });
+    }
 
     await DrillString.findByIdAndDelete(req.params.id);
 
@@ -195,6 +206,13 @@ export const updateDrillString = async (req, res) => {
     const { wellId, reportId, reportNo } = resolveScope(req, existing);
     const { description, od, weightPpf, id, grade, length, sortOrder } =
       req.body;
+
+    if (reportId && toText(existing.reportId) !== reportId) {
+      return res.status(404).json({
+        success: false,
+        message: "Drill String not found for this report"
+      });
+    }
 
     existing.wellId = wellId || null;
     existing.reportId = reportId || null;

@@ -147,18 +147,26 @@ const productMovementFilter = ({ wellId, reportId, product, code }) => {
 const escapeRegExp = (value) =>
   String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
+const requestRecordScope = (req) => ({
+  wellId: String(req.query.wellId ?? req.body?.wellId ?? "").trim(),
+  reportId: readReportId(req),
+});
+
+const recordMatchesScope = (record, scope) => {
+  if (scope.wellId && String(record.wellId ?? "").trim() !== scope.wellId) {
+    return false;
+  }
+  if (scope.reportId && String(record.reportId ?? "").trim() !== scope.reportId) {
+    return false;
+  }
+  return true;
+};
+
 const sumProductMovement = async (Model, payload) => {
   const scopedFilter = productMovementFilter(payload);
   if (!scopedFilter) return 0;
 
-  let rows = await Model.find(scopedFilter).select("amount").lean();
-
-  if (rows.length === 0 && payload.reportId) {
-    const legacyFilter = productMovementFilter({ ...payload, reportId: "" });
-    rows = legacyFilter
-      ? await Model.find(legacyFilter).select("amount").lean()
-      : [];
-  }
+  const rows = await Model.find(scopedFilter).select("amount").lean();
 
   return rows.reduce((sum, row) => sum + toNumber(row.amount), 0);
 };
@@ -222,8 +230,6 @@ export const getAllConsumeProducts = async (req, res) => {
     const filter = {};
     const wellId = String(req.query.wellId ?? "").trim();
     const reportId = String(req.query.reportId ?? "").trim();
-    const strictScope =
-      String(req.query.strictScope ?? "").trim().toLowerCase() === "true";
 
     if (wellId) {
       filter.wellId = wellId;
@@ -239,16 +245,6 @@ export const getAllConsumeProducts = async (req, res) => {
         createdAt: 1,
         _id: 1,
       });
-
-      if (products.length === 0 && !strictScope) {
-        products = await ConsumeProduct.find({
-          wellId,
-          ...legacyReportScope(),
-        }).sort({
-          createdAt: 1,
-          _id: 1,
-        });
-      }
     } else {
       products = await ConsumeProduct.find(filter).sort({
         createdAt: 1,
@@ -290,9 +286,10 @@ export const getConsumeProductById = async (req, res) => {
  */
 export const updateConsumeProduct = async (req, res) => {
   try {
+    const scope = requestRecordScope(req);
     const existing = await ConsumeProduct.findById(req.params.id);
 
-    if (!existing) {
+    if (!existing || !recordMatchesScope(existing, scope)) {
       return res.status(404).json({ success: false, message: "Consume Product not found" });
     }
 
@@ -335,11 +332,14 @@ export const updateConsumeProduct = async (req, res) => {
  */
 export const deleteConsumeProduct = async (req, res) => {
   try {
-    const product = await ConsumeProduct.findByIdAndDelete(req.params.id);
+    const scope = requestRecordScope(req);
+    const product = await ConsumeProduct.findById(req.params.id);
 
-    if (!product) {
+    if (!product || !recordMatchesScope(product, scope)) {
       return res.status(404).json({ success: false, message: "Consume Product not found" });
     }
+
+    await ConsumeProduct.findByIdAndDelete(req.params.id);
 
     res.status(200).json({ success: true, message: "Consume Product deleted successfully" });
   } catch (error) {

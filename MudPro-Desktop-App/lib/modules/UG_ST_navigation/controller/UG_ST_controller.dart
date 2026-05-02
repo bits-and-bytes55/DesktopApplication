@@ -154,12 +154,13 @@ class UgStController extends GetxController {
       }
       _isSavingCasing = true;
       try {
-        if (pending.dbId == null || pending.dbId!.trim().isEmpty) {
-          await addCasing(pending, refresh: false);
-        } else {
-          await updateCasing(pending, refresh: false);
+        final isNew = pending.dbId == null || pending.dbId!.trim().isEmpty;
+        final saved = isNew
+            ? await addCasing(pending, refresh: false)
+            : await updateCasing(pending, refresh: false);
+        if (saved && isNew) {
+          casings.refresh();
         }
-        casings.refresh();
       } finally {
         _isSavingCasing = false;
       }
@@ -196,7 +197,16 @@ class UgStController extends GetxController {
         final Map<String, dynamic> body = json.decode(response.body);
         if (body['success']) {
           final List<dynamic> data = body['data'];
-          casings.assignAll(data.map((e) => CasingRow.fromJson(e)).toList());
+          casings.assignAll(
+            data
+                .where(
+                  (e) =>
+                      e is Map &&
+                      (e['toc'] ?? '').toString() != kCasedHoleTocMarker,
+                )
+                .map((e) => CasingRow.fromJson(Map<String, dynamic>.from(e)))
+                .toList(),
+          );
           selectedCasingDeleteKey.value = '';
         }
       }

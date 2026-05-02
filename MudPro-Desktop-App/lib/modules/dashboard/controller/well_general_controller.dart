@@ -136,6 +136,9 @@ class WellGeneralController extends GetxController {
     _autoSaveWorkers.add(
       ever<String>(md, (_) => _scheduleDepthDrilledRefresh()),
     );
+    _autoSaveWorkers.add(
+      ever<String>(md, (value) => _syncOpenHoleMdFromGeneral(value)),
+    );
     fetchLatest();
   }
 
@@ -281,6 +284,22 @@ class WellGeneralController extends GetxController {
     }
   }
 
+  void _syncOpenHoleMdFromGeneral(String value) {
+    if (_isApplyingState) return;
+    final rows = openHoleRowsForUi;
+    while (rows.length < _minOpenHoleRows) {
+      rows.add(_blankOpenHoleRow());
+    }
+
+    final firstRow = Map<String, String>.from(rows.first);
+    final nextMd = value.trim();
+    if ((firstRow['md'] ?? '') == nextMd) return;
+
+    firstRow['md'] = nextMd;
+    rows[0] = firstRow;
+    _setOpenHoleRows(rows);
+  }
+
   List<Map<String, String>> get timeDistributionRowsForUi =>
       timeDistributionRows
           .map(
@@ -307,7 +326,14 @@ class WellGeneralController extends GetxController {
       .toList();
 
   void hydrateOpenHoleRows(dynamic rawRows, {bool notify = true}) {
-    _setOpenHoleRows(rawRows, notify: notify);
+    final rows = _normalizeOpenHoleRows(rawRows);
+    _setOpenHoleRows(rows, notify: notify);
+    if (!_isApplyingState && rows.isNotEmpty) {
+      final nextMd = (rows.first['md'] ?? '').trim();
+      if (md.value != nextMd) {
+        md.value = nextMd;
+      }
+    }
   }
 
   void updateTimeDistributionRow(
@@ -360,6 +386,10 @@ class WellGeneralController extends GetxController {
     }
     rows[index] = current;
     _setOpenHoleRows(rows, notify: notify);
+
+    if (index == 0 && md != null && this.md.value != md.trim()) {
+      this.md.value = md.trim();
+    }
   }
 
   List<Map<String, dynamic>> _serializeTimeDistributionRows() {
@@ -560,8 +590,6 @@ class WellGeneralController extends GetxController {
   Map<String, dynamic>? _findRecordForReport(
     List<dynamic> rawItems, {
     required String reportId,
-    required String reportNo,
-    required String userReportNo,
   }) {
     final items = rawItems
         .whereType<Map>()
@@ -576,21 +604,10 @@ class WellGeneralController extends GetxController {
       return null;
     }
 
+    if (reportId.isEmpty) return null;
     return firstMatch(
-          (item) =>
-              reportId.isNotEmpty &&
-              (item['reportId']?.toString().trim() ?? '') == reportId,
-        ) ??
-        firstMatch(
-          (item) =>
-              reportNo.isNotEmpty &&
-              (item['reportNo']?.toString().trim() ?? '') == reportNo,
-        ) ??
-        firstMatch(
-          (item) =>
-              userReportNo.isNotEmpty &&
-              (item['userReportNo']?.toString().trim() ?? '') == userReportNo,
-        );
+      (item) => (item['reportId']?.toString().trim() ?? '') == reportId,
+    );
   }
 
   dynamic _previousReportForSelected() {
@@ -645,28 +662,7 @@ class WellGeneralController extends GetxController {
     var matched = _findRecordForReport(
       data,
       reportId: previousReport.id,
-      reportNo: previousReport.reportNo,
-      userReportNo: previousReport.userReportNo,
     );
-
-    if (matched == null && previousReport.reportNo.trim().isNotEmpty) {
-      final fallback = await http.get(
-        Uri.parse('${baseUrl}well-general/$kControllerWellId').replace(
-          queryParameters: {'reportNo': previousReport.reportNo.trim()},
-        ),
-        headers: _headers,
-      );
-      if (fallback.statusCode == 200) {
-        final fallbackDecoded = jsonDecode(fallback.body);
-        final List fallbackData = fallbackDecoded['data'] ?? [];
-        matched = _findRecordForReport(
-          fallbackData,
-          reportId: previousReport.id,
-          reportNo: previousReport.reportNo,
-          userReportNo: previousReport.userReportNo,
-        );
-      }
-    }
 
     if (matched == null) {
       return null;
@@ -713,6 +709,18 @@ class WellGeneralController extends GetxController {
     }
   }
 
+  Future<void> _syncSelectedReportDate() async {
+    final report = reportContext.selectedReport;
+    final nextDate = date.value.trim();
+    if (report == null ||
+        nextDate.isEmpty ||
+        report.reportDate.trim() == nextDate) {
+      return;
+    }
+
+    await reportContext.updateSelectedReport({'reportDate': nextDate});
+  }
+
   Map<String, dynamic>? _findMatchingRecord(List<dynamic> rawItems) {
     final items = rawItems
         .whereType<Map>()
@@ -733,21 +741,10 @@ class WellGeneralController extends GetxController {
     }
 
     final reportId = report.id.trim();
-    final reportNo = report.reportNo.trim();
-    final userReportNo = report.userReportNo.trim();
+    if (reportId.isEmpty) return null;
     return firstMatch(
-          (item) =>
-              reportId.isNotEmpty &&
-              (item['reportId']?.toString().trim() ?? '') == reportId,
-        ) ??
-        firstMatch(
-          (item) => (item['reportNo']?.toString().trim() ?? '') == reportNo,
-        ) ??
-        firstMatch(
-          (item) =>
-              userReportNo.isNotEmpty &&
-              (item['userReportNo']?.toString().trim() ?? '') == userReportNo,
-        );
+      (item) => (item['reportId']?.toString().trim() ?? '') == reportId,
+    );
   }
 
   // FETCH latest record
@@ -780,25 +777,7 @@ class WellGeneralController extends GetxController {
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body);
         final List data = json['data'] ?? [];
-        var matched = _findMatchingRecord(data);
-
-        if (matched == null) {
-          final reportNo = reportContext.selectedReportNumber.trim();
-          if (reportNo.isNotEmpty) {
-            final fallbackUri = Uri.parse(
-              '${baseUrl}well-general/$kControllerWellId',
-            ).replace(queryParameters: {'reportNo': reportNo});
-            final fallbackResponse = await http.get(
-              fallbackUri,
-              headers: _headers,
-            );
-            if (fallbackResponse.statusCode == 200) {
-              final fallbackJson = jsonDecode(fallbackResponse.body);
-              final List fallbackData = fallbackJson['data'] ?? [];
-              matched = _findMatchingRecord(fallbackData);
-            }
-          }
-        }
+        final matched = _findMatchingRecord(data);
 
         if (matched != null) {
           _fromJson(matched);
@@ -838,11 +817,13 @@ class WellGeneralController extends GetxController {
 
       if (result['success'] == true) {
         final data = result['data']?['data'];
-        if (data != null) {
-          _isApplyingState = true;
-          _fromJson(data);
-          _isApplyingState = false;
+        if (data is Map) {
+          final returnedId = (data['_id'] ?? data['id'])?.toString() ?? '';
+          if (returnedId.isNotEmpty && savedId.value != returnedId) {
+            savedId.value = returnedId;
+          }
         }
+        await _syncSelectedReportDate();
         return {
           'success': true,
           'message': 'Well General data saved successfully',

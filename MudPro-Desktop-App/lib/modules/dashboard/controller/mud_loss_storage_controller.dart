@@ -121,6 +121,16 @@ class MudLossStorageController extends GetxController {
     return MudLossStorageEntry.formatVolume(value);
   }
 
+  Map<String, dynamic>? _extractEntity(dynamic value) {
+    if (value is Map && value['data'] is Map) {
+      return Map<String, dynamic>.from(value['data'] as Map);
+    }
+    if (value is Map) {
+      return Map<String, dynamic>.from(value);
+    }
+    return null;
+  }
+
   void _ensureMinimumRows() {
     while (rows.length < 20) {
       rows.add(MudLossStorageEntry());
@@ -259,12 +269,13 @@ class MudLossStorageController extends GetxController {
         );
         if (result['success'] == true) {
           successCount++;
+          row.id.value = '';
         } else {
           errors.add(result['message']?.toString() ?? 'Delete failed');
         }
       }
       if (errors.isEmpty) {
-        await load(force: true);
+        _ensureMinimumRows();
         await _refreshPitState();
       }
       return {
@@ -276,6 +287,7 @@ class MudLossStorageController extends GetxController {
     }
 
     final currentIds = existingRows.map((row) => row.id.value).toList();
+    final deletedIds = <String>{};
     for (var index = 0; index < filledRows.length; index++) {
       final row = filledRows[index];
       final body = row.toBody();
@@ -283,6 +295,11 @@ class MudLossStorageController extends GetxController {
           ? await _repository.updateMudLossStorage(wellId, row.id.value, body)
           : await _repository.createMudLossStorage(wellId, body);
       if (result['success'] == true) {
+        final savedData = _extractEntity(result['data']);
+        final savedId = (savedData?['_id'] ?? savedData?['id'])?.toString();
+        if (savedId != null && savedId.isNotEmpty) {
+          row.id.value = savedId;
+        }
         successCount++;
       } else {
         errors.add('Row ${index + 1}: ${result['message']}');
@@ -296,6 +313,7 @@ class MudLossStorageController extends GetxController {
     for (final id in currentIds.where((id) => !filledIds.contains(id))) {
       final deleteRes = await _repository.deleteMudLossStorage(wellId, id);
       if (deleteRes['success'] == true) {
+        deletedIds.add(id);
         successCount++;
       } else {
         errors.add(deleteRes['message']?.toString() ?? 'Delete failed');
@@ -303,7 +321,12 @@ class MudLossStorageController extends GetxController {
     }
 
     if (errors.isEmpty) {
-      await load(force: true);
+      for (final row in rows) {
+        if (deletedIds.contains(row.id.value)) {
+          row.id.value = '';
+        }
+      }
+      _ensureMinimumRows();
       await _refreshPitState();
     }
     return {

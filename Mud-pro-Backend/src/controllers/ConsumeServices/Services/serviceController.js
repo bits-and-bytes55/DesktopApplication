@@ -33,6 +33,16 @@ const buildPayload = (req, existing = {}) => {
   };
 };
 
+const scopedIdFilter = (req) => {
+  const wellId = readWellId(req);
+  const reportId = readReportId(req);
+  return {
+    _id: req.params.id,
+    ...(wellId ? { wellId } : {}),
+    ...(reportId ? { reportId } : {}),
+  };
+};
+
 export const createService = async (req, res) => {
   try {
     const newService = await Service.create(buildPayload(req));
@@ -96,7 +106,7 @@ export const getServiceById = async (req, res) => {
 
 export const updateService = async (req, res) => {
   try {
-    const existing = await Service.findById(req.params.id);
+    const existing = await Service.findOne(scopedIdFilter(req));
 
     if (!existing) {
       return res.status(404).json({
@@ -105,8 +115,8 @@ export const updateService = async (req, res) => {
       });
     }
 
-    const updatedService = await Service.findByIdAndUpdate(
-      req.params.id,
+    const updatedService = await Service.findOneAndUpdate(
+      scopedIdFilter(req),
       buildPayload(req, existing),
       { new: true }
     );
@@ -126,7 +136,7 @@ export const updateService = async (req, res) => {
 
 export const deleteService = async (req, res) => {
   try {
-    const service = await Service.findByIdAndDelete(req.params.id);
+    const service = await Service.findOneAndDelete(scopedIdFilter(req));
 
     if (!service) {
       return res.status(404).json({

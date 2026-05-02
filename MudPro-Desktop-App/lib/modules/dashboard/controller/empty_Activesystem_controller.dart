@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import 'package:flutter/material.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/pit_model.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
@@ -14,6 +15,7 @@ class EmptyActiveSystemController extends GetxController {
   // Table data - starts with 5 rows
   final pitValues = List<String>.generate(5, (_) => "").obs;
   final volValues = List<String>.generate(5, (_) => "").obs;
+  final volControllers = <TextEditingController>[].obs;
 
   String? currentWellId;
   final List<Worker> _unitWorkers = [];
@@ -29,6 +31,7 @@ class EmptyActiveSystemController extends GetxController {
       ever(AppUnits.controller.customUnits, (_) => _handleUnitChange()),
     ]);
     currentWellId = Get.arguments?['wellId'] ?? currentBackendWellId;
+    _syncVolumeControllers();
     fetchUnselectedPits();
   }
 
@@ -37,8 +40,35 @@ class EmptyActiveSystemController extends GetxController {
     for (final worker in _unitWorkers) {
       worker.dispose();
     }
+    for (final controller in volControllers) {
+      controller.dispose();
+    }
     _unitWorkers.clear();
     super.onClose();
+  }
+
+  void _syncVolumeControllers() {
+    while (volControllers.length < volValues.length) {
+      final index = volControllers.length;
+      volControllers.add(TextEditingController(text: volValues[index]));
+    }
+    while (volControllers.length > volValues.length) {
+      volControllers.removeLast().dispose();
+    }
+    for (var i = 0; i < volControllers.length; i++) {
+      final nextText = volValues[i];
+      if (volControllers[i].text != nextText) {
+        volControllers[i].text = nextText;
+        volControllers[i].selection = TextSelection.collapsed(
+          offset: nextText.length,
+        );
+      }
+    }
+  }
+
+  void setVolume(int row, String value) {
+    if (row < 0 || row >= volValues.length) return;
+    volValues.value[row] = value;
   }
 
   String _formatConverted(double value) {
@@ -64,6 +94,7 @@ class EmptyActiveSystemController extends GetxController {
         (value) => _convertText(value, _fluidVolumeUnit, nextFluidVolumeUnit),
       ),
     );
+    _syncVolumeControllers();
     _fluidVolumeUnit = nextFluidVolumeUnit;
   }
 
@@ -112,6 +143,7 @@ class EmptyActiveSystemController extends GetxController {
         '(bbl)',
         _fluidVolumeUnit,
       );
+      _syncVolumeControllers();
     }
   }
 
@@ -119,6 +151,7 @@ class EmptyActiveSystemController extends GetxController {
   void addNewRow() {
     pitValues.add("");
     volValues.add("");
+    _syncVolumeControllers();
   }
 
   // Demo adjust logic
@@ -128,5 +161,6 @@ class EmptyActiveSystemController extends GetxController {
         volValues[i] = _convertText("100.00", '(bbl)', _fluidVolumeUnit);
       }
     }
+    _syncVolumeControllers();
   }
 }

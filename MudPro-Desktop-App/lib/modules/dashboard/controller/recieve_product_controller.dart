@@ -145,7 +145,9 @@ class ReceiveProductController {
   Future<Map<String, dynamic>> deleteReceiveProduct(String id) async {
     try {
       final response = await http.delete(
-        Uri.parse('${baseUrl}receive-product/$id'),
+        Uri.parse(
+          '${baseUrl}receive-product/$id',
+        ).replace(queryParameters: _queryScope),
         headers: _headers,
       );
 
@@ -285,7 +287,9 @@ class ReceiveProductController {
   Future<Map<String, dynamic>> deleteReceivePackage(String id) async {
     try {
       final response = await http.delete(
-        Uri.parse('${baseUrl}receive-package/$id'),
+        Uri.parse(
+          '${baseUrl}receive-package/$id',
+        ).replace(queryParameters: _queryScope),
         headers: _headers,
       );
 

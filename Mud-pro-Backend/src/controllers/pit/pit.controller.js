@@ -403,7 +403,7 @@ export const getPitById = async (req, res) => {
 export const updatePit = async (req, res) => {
   try {
     const { id } = req.params;
-    const reportId = toText(req.body.reportId);
+    const reportId = toText(req.body.reportId ?? req.query.reportId);
     const pit = await Pit.findById(id);
 
     if (!pit) {
@@ -420,40 +420,41 @@ export const updatePit = async (req, res) => {
       });
     }
 
-    let targetPit = pit;
-
     if (reportId && toText(pit.reportId) !== reportId) {
-      targetPit = await clonePitForReport(pit, reportId, req.body);
-    } else {
-      if (req.body.pitName !== undefined) {
-        targetPit.pitName = toText(req.body.pitName);
-      }
-      if (req.body.capacity !== undefined) {
-        targetPit.capacity = Number(req.body.capacity) || 0;
-      }
-      if (req.body.initialActive !== undefined) {
-        targetPit.initialActive = Boolean(req.body.initialActive);
-      }
-      if (req.body.volume !== undefined) {
-        targetPit.volume = Number(req.body.volume) || 0;
-      }
-      if (req.body.density !== undefined) {
-        targetPit.density = Number(req.body.density) || 0;
-      }
-      if (req.body.fluidType !== undefined) {
-        targetPit.fluidType = toText(req.body.fluidType);
-      }
-      if (req.body.reportId !== undefined) {
-        targetPit.reportId = reportId;
-      }
-
-      await targetPit.save();
+      return res.status(404).json({
+        success: false,
+        message: "Pit not found for this report",
+      });
     }
+
+    if (req.body.pitName !== undefined) {
+      pit.pitName = toText(req.body.pitName);
+    }
+    if (req.body.capacity !== undefined) {
+      pit.capacity = Number(req.body.capacity) || 0;
+    }
+    if (req.body.initialActive !== undefined) {
+      pit.initialActive = Boolean(req.body.initialActive);
+    }
+    if (req.body.volume !== undefined) {
+      pit.volume = Number(req.body.volume) || 0;
+    }
+    if (req.body.density !== undefined) {
+      pit.density = Number(req.body.density) || 0;
+    }
+    if (req.body.fluidType !== undefined) {
+      pit.fluidType = toText(req.body.fluidType);
+    }
+    if (req.body.reportId !== undefined) {
+      pit.reportId = reportId;
+    }
+
+    await pit.save();
 
     res.status(200).json({
       success: true,
       message: "Pit updated successfully",
-      data: targetPit,
+      data: pit,
     });
   } catch (error) {
     console.error("Update Pit Error:", error);
@@ -559,6 +560,7 @@ export const toggleLockPit = async (req, res) => {
 export const deletePit = async (req, res) => {
   try {
     const { id } = req.params;
+    const reportId = toText(req.query.reportId ?? req.body?.reportId);
 
     const pit = await Pit.findById(id);
 
@@ -573,6 +575,13 @@ export const deletePit = async (req, res) => {
       return res.status(403).json({
         success: false,
         message: "Cannot delete locked pit",
+      });
+    }
+
+    if (reportId && toText(pit.reportId) !== reportId) {
+      return res.status(404).json({
+        success: false,
+        message: "Pit not found for this report",
       });
     }
 

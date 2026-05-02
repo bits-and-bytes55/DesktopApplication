@@ -232,6 +232,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     }
 
     _replaceDistributeRows(restoredRows);
+    _rebalanceDistributeVolumes();
   }
 
   void _replaceDistributeRows(List<DistributeRowData> rows) {
@@ -900,7 +901,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
         if (!mounted || dashboardController.isLocked.value) return;
         final result = await _saveDistributionState();
         if (result['success'] == true) {
-          await _refreshPitStateAfterConsumeProductSave();
+          await pitController.fetchVolumeNameData();
         }
       },
     );
@@ -913,7 +914,6 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
 
     _applyProductMovementToRow(row);
     row.recalculate();
-    productRows.refresh();
     _recalculateTotalVolume();
     _scheduleProductAutoSave(index);
     _scheduleDistributionAutoSave();
@@ -1009,14 +1009,17 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
   void _rebalanceDistributeVolumes() {
     if (distributeRows.isEmpty) return;
 
-    final totalVol = operationController.totalVolume.value;
-
     if (distributeRows[0].pit.isNotEmpty) {
-      final formattedVol = totalVol > 0 ? totalVol.toStringAsFixed(3) : '0.000';
-
+      final formattedVol = totalVolumeDisplay.value.trim().isNotEmpty
+          ? totalVolumeDisplay.value.trim()
+          : '0.000';
       distributeRows[0].volume = formattedVol;
-      distributeRows[0].volumeController.text = formattedVol;
-      distributeRows.refresh();
+      if (distributeRows[0].volumeController.text != formattedVol) {
+        distributeRows[0].volumeController.value = TextEditingValue(
+          text: formattedVol,
+          selection: TextSelection.collapsed(offset: formattedVol.length),
+        );
+      }
     }
   }
 
@@ -1049,12 +1052,6 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     _savingInProgress.add(index);
 
     row.recalculate();
-    productRows.refresh();
-
-    if (index < productRowSaving.length) {
-      productRowSaving[index] = true;
-      productRowSaving.refresh();
-    }
 
     try {
       Map<String, dynamic> result;
@@ -1077,7 +1074,6 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
         if (result['success'] == true) {
           row.savedId = result['data']?['_id']?.toString();
           row.productName = productName;
-          productRows.refresh();
           await pitController.fetchVolumeNameData();
           debugPrint('✅ [CREATE] Done — savedId=${row.savedId}');
         } else {
@@ -1114,10 +1110,6 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       return {'success': false, 'message': 'Save error: $e'};
     } finally {
       _savingInProgress.remove(index);
-      if (index < productRowSaving.length) {
-        productRowSaving[index] = false;
-        productRowSaving.refresh();
-      }
     }
   }
 
@@ -1135,17 +1127,11 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
         _savingInProgress.remove(index);
       } else {
         productRows[index] = ProductRowData();
-        productRows.refresh();
       }
       _recalculateTotalVolume();
       _rebalanceDistributeVolumes();
       _scheduleDistributionAutoSave();
       return;
-    }
-
-    if (index < productRowDeleting.length) {
-      productRowDeleting[index] = true;
-      productRowDeleting.refresh();
     }
 
     try {
@@ -1154,7 +1140,16 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       );
       if (result['success'] == true) {
         _savingInProgress.remove(index);
-        await _fetchAllConsumeProducts();
+        if (productRows.length > 1) {
+          productRows.removeAt(index);
+          if (index < productRowSaving.length) productRowSaving.removeAt(index);
+          if (index < productRowDeleting.length) {
+            productRowDeleting.removeAt(index);
+          }
+        } else {
+          _clearProductRowUi(row);
+        }
+        _recalculateTotalVolume();
         _rebalanceDistributeVolumes();
         final distributionResult = await _saveDistributionState();
         if (distributionResult['success'] == true) {
@@ -1166,17 +1161,9 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
         _showToast('Deleted');
       } else {
         _showToast(result['message'] ?? 'Delete failed', isError: true);
-        if (index < productRowDeleting.length) {
-          productRowDeleting[index] = false;
-          productRowDeleting.refresh();
-        }
       }
     } catch (e) {
       _showToast('Delete error: $e', isError: true);
-      if (index < productRowDeleting.length) {
-        productRowDeleting[index] = false;
-        productRowDeleting.refresh();
-      }
     }
   }
 
@@ -1827,7 +1814,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       // 6. Initial
       DataCell(
         _editField(
-          key: ValueKey('init_${row.savedId ?? i}_${row.productName}'),
+          key: ValueKey('init_${identityHashCode(row)}'),
           value: row.initial,
           width: 75,
           locked: locked,
@@ -1842,7 +1829,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       // 7. Adjust
       DataCell(
         _editField(
-          key: ValueKey('adj_${row.savedId ?? i}_${row.productName}'),
+          key: ValueKey('adj_${identityHashCode(row)}'),
           value: row.adjust,
           width: 75,
           locked: locked,
@@ -1860,7 +1847,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
           final isUsedMode = selectedMethod.value == "Used";
           return _editField(
             key: ValueKey(
-              'used_${row.savedId ?? i}_${row.productName}_$isUsedMode',
+              'used_${identityHashCode(row)}_$isUsedMode',
             ),
             value: row.used,
             width: 75,

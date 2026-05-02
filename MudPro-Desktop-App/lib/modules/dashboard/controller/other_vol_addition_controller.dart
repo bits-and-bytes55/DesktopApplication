@@ -139,6 +139,16 @@ class OtherVolAdditionController extends GetxController {
     return const [];
   }
 
+  Map<String, dynamic>? _extractEntity(dynamic value) {
+    if (value is Map && value['data'] is Map) {
+      return Map<String, dynamic>.from(value['data'] as Map);
+    }
+    if (value is Map) {
+      return Map<String, dynamic>.from(value);
+    }
+    return null;
+  }
+
   Future<void> load({bool force = false}) async {
     _autoSaveTimer?.cancel();
     if (wellId.isEmpty) {
@@ -211,7 +221,11 @@ class OtherVolAdditionController extends GetxController {
         : await _repository.createOtherVolAddition(wellId, body);
 
     if (result['success'] == true) {
-      await load(force: true);
+      final savedData = _extractEntity(result['data']);
+      final savedId = (savedData?['_id'] ?? savedData?['id'])?.toString();
+      if (savedId != null && savedId.isNotEmpty) {
+        recordId.value = savedId;
+      }
       await _refreshPitState();
     }
     return result;

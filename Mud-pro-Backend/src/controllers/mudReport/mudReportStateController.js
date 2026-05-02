@@ -32,10 +32,9 @@ const findState = async ({ wellId, reportId }) => {
   const scopedReportId = normalizedReportId(reportId);
 
   if (scopedReportId) {
-    const scoped = await MudReportState.findOne({ wellId, reportId: scopedReportId })
+    return MudReportState.findOne({ wellId, reportId: scopedReportId })
       .sort({ updatedAt: -1, _id: -1 })
       .lean();
-    if (scoped) return scoped;
   }
 
   const legacy = await MudReportState.findOne({

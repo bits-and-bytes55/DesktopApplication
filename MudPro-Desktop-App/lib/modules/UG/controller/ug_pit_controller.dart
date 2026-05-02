@@ -404,7 +404,6 @@ class PitController extends GetxController {
           pitModel.volume?.value = volume;
           pitModel.density?.value = density;
           pitModel.fluidType?.value = fluidType;
-          pits.refresh();
         }
       }
     } catch (e) {
@@ -502,6 +501,71 @@ class PitController extends GetxController {
     return activePitControllers[pitId]!;
   }
 
+  Future<void> prepareMeasuredVolumeReportCheck() async {
+    _debounceTimer?.cancel();
+    _pitAutoSaveTimer?.cancel();
+
+    if (pits.where((pit) => pit.id != null).isEmpty) {
+      await fetchAllPits();
+    }
+
+    if (_hasPendingPitChanges) {
+      final result = await saveAllActivePits();
+      if (result['success'] != true) {
+        throw Exception(result['message'] ?? 'Pit save failed');
+      }
+    } else {
+      await fetchVolumeNameData();
+    }
+  }
+
+  bool hasMeasuredVolumeReportWarning() {
+    final rows = storagePitRows;
+    for (var index = 0; index < rows.length; index++) {
+      final pit = rows[index];
+      final calculated = storageCalculatedVolumeForPit(pit);
+      final measuredText = _measuredVolumeTextForPit(pit, index);
+      final measured = measuredText == null
+          ? pit.volume?.value ?? 0.0
+          : _parseVolume(measuredText);
+      final hasText = measuredText?.trim().isNotEmpty ?? true;
+      final wasCleared = measuredText != null && measuredText.trim().isEmpty;
+      final missingRequiredValue =
+          wasCleared ||
+          (!hasText && calculated.abs() >= 0.005) ||
+          (measured.abs() < 0.005 && calculated.abs() >= 0.005);
+
+      if (missingRequiredValue) return true;
+      if ((measured - calculated).abs() >= 0.005) return true;
+    }
+    return false;
+  }
+
+  double storageCalculatedVolumeForPit(PitModel pit) {
+    final rows = volumeNameData['storageTable'];
+    if (rows is List) {
+      final match = rows.cast<dynamic>().firstWhereOrNull((row) {
+        if (row is! Map) return false;
+        final id = row['_id']?.toString() ?? '';
+        final name = row['pitName']?.toString().trim() ?? '';
+        return (pit.id != null && id == pit.id) || name == pit.pitName.trim();
+      });
+
+      if (match is Map) {
+        final calculatedVol = _calculateDouble(match['calculatedVol']);
+        final measuredVol = _calculateDouble(
+          match['measuredVol'] ?? pit.volume?.value,
+        );
+        final displayVol = _hasExplicitDistributionForPit(pit)
+            ? calculatedVol
+            : calculatedVol - measuredVol;
+        return displayVol.abs() < 0.005 ? 0.0 : displayVol;
+      }
+    }
+
+    return 0.0;
+  }
+
   // Refined: Update only modified pits individually via PUT /pit/:id
   Future<Map<String, dynamic>> saveAllActivePits() async {
     if (!_hasWellId) {
@@ -596,10 +660,8 @@ class PitController extends GetxController {
       }
     }
 
-    // Refresh both master list and calculations summary to ensure UI reflects the latest state
-    await fetchAllPits();
+    // Keep text controllers intact during autosave; only refresh calculated summary.
     await fetchVolumeNameData();
-    pits.refresh();
 
     if (errors.isEmpty) {
       return {
@@ -780,6 +842,32 @@ class PitController extends GetxController {
       return pit.id!;
     }
     return '$section-draft-$index';
+  }
+
+  String? _measuredVolumeTextForPit(PitModel pit, int index) {
+    final key = controllerKeyForPit(pit, 'storage', index);
+    return activePitControllers[key]?['volume']?.text;
+  }
+
+  double _parseVolume(String value) {
+    return double.tryParse(value.trim().replaceAll(',', '')) ?? 0.0;
+  }
+
+  bool _hasExplicitDistributionForPit(PitModel pit) {
+    final distributionState = volumeNameData['consumeProductDistribution'];
+    final distributionRows = distributionState is Map
+        ? distributionState['distributions']
+        : null;
+    if (distributionRows is! List) return false;
+
+    final pitName = pit.pitName.trim().toLowerCase();
+    if (pitName.isEmpty) return false;
+
+    return distributionRows.any((row) {
+      if (row is! Map) return false;
+      final rowPit = (row['pitName'] ?? '').toString().trim().toLowerCase();
+      return rowPit == pitName && _calculateDouble(row['volume']) > 0;
+    });
   }
 
   bool isDraftPit(PitModel pit) => pit.id == null;
@@ -1127,8 +1215,6 @@ class PitController extends GetxController {
         }
       }
 
-      transferRows.refresh();
-      await fetchTransferMud();
       await fetchAllPits();
       await fetchVolumeNameData();
 
@@ -1181,8 +1267,6 @@ class PitController extends GetxController {
     while (transferRows.length < 5) {
       transferRows.add(TransferRowData());
     }
-    transferRows.refresh();
-    await fetchTransferMud();
     await fetchAllPits();
     await fetchVolumeNameData();
   }

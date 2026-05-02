@@ -99,7 +99,10 @@ class _CasingViewState extends State<CasingView> {
       wt: result['weightLbFt'] ?? '',
       id: result['idMm'] ?? '',
     );
-    await c.addCasing(newRow);
+    final saved = await c.addCasing(newRow, refresh: false);
+    if (saved) {
+      c.casings.add(newRow);
+    }
   }
 
   @override
@@ -394,7 +397,6 @@ class _SavedCasingRowState extends State<_SavedCasingRow> {
     widget.row.bit.value = _bit.text;
     _toc.text = data['toc'] ?? '';
     widget.row.toc.value = _toc.text;
-    widget.ctrl.casings.refresh();
     widget.ctrl.scheduleCasingAutoSave(widget.row);
     setState(() {});
   }
@@ -464,6 +466,8 @@ class _SavedCasingRowState extends State<_SavedCasingRow> {
   @override
   Widget build(BuildContext context) {
     final bg = widget.locked ? _cLocked : Colors.white;
+    final topReadOnly = widget.locked || _isCasingType(widget.row.type.value);
+    final topBg = topReadOnly ? _cLocked : Colors.white;
     return Container(
       color: Colors.white,
       child: GestureDetector(
@@ -535,8 +539,8 @@ class _SavedCasingRowState extends State<_SavedCasingRow> {
             _editCell(
               controller: _top,
               width: _cStd,
-              readOnly: widget.locked,
-              bg: bg,
+              readOnly: topReadOnly,
+              bg: topBg,
               align: TextAlign.right,
               onTap: widget.onSelected,
               onChanged: (value) {
@@ -697,22 +701,22 @@ class _DraftCasingRowState extends State<_DraftCasingRow> {
   Future<void> _save() async {
     if (widget.locked || !_hasData || _isSaving) return;
     _isSaving = true;
-    final saved = await widget.ctrl.addCasing(
-      CasingRow(
-        description: _desc.text.trim(),
-        type: _type.trim(),
-        od: _od.text.trim(),
-        wt: _wt.text.trim(),
-        id: _id.text.trim(),
-        top: _top.text.trim(),
-        shoe: _shoe.text.trim(),
-        bit: _bit.text.trim(),
-        toc: _toc.text.trim(),
-      ),
+    final row = CasingRow(
+      description: _desc.text.trim(),
+      type: _type.trim(),
+      od: _od.text.trim(),
+      wt: _wt.text.trim(),
+      id: _id.text.trim(),
+      top: _top.text.trim(),
+      shoe: _shoe.text.trim(),
+      bit: _bit.text.trim(),
+      toc: _toc.text.trim(),
     );
+    final saved = await widget.ctrl.addCasing(row, refresh: false);
     _isSaving = false;
     if (saved && mounted) {
       _clear();
+      widget.ctrl.casings.add(row);
     }
   }
 
@@ -790,6 +794,8 @@ class _DraftCasingRowState extends State<_DraftCasingRow> {
   @override
   Widget build(BuildContext context) {
     final bg = widget.locked ? _cLocked : Colors.white;
+    final topReadOnly = widget.locked || _isCasingType(_type);
+    final topBg = topReadOnly ? _cLocked : Colors.white;
     return Container(
       color: Colors.white,
       child: GestureDetector(
@@ -849,8 +855,8 @@ class _DraftCasingRowState extends State<_DraftCasingRow> {
             _editCell(
               controller: _top,
               width: _cStd,
-              readOnly: widget.locked,
-              bg: bg,
+              readOnly: topReadOnly,
+              bg: topBg,
               align: TextAlign.right,
               onTap: widget.onSelected,
               onChanged: (_) => _scheduleSave(),
@@ -888,6 +894,8 @@ class _DraftCasingRowState extends State<_DraftCasingRow> {
     );
   }
 }
+
+bool _isCasingType(String value) => value.trim().toLowerCase() == 'casing';
 
 PopupMenuItem<String> _menuItem(
   String value,

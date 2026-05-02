@@ -18,6 +18,15 @@ class ConsumeProductController {
     return payload;
   }
 
+  Map<String, String> get _queryScope {
+    final wellId = currentBackendWellId.trim();
+    final reportId = reportContext.selectedReportId.value.trim();
+    return {
+      if (wellId.isNotEmpty) 'wellId': wellId,
+      if (reportId.isNotEmpty) 'reportId': reportId,
+    };
+  }
+
   // ═══════════════════════════════════════════
   //  CREATE CONSUME PRODUCT
   // ═══════════════════════════════════════════
@@ -130,7 +139,9 @@ class ConsumeProductController {
       print('🔵 [API] Body: $body');
 
       final response = await http.put(
-        Uri.parse('${baseUrl}consume-product/$id'),
+        Uri.parse(
+          '${baseUrl}consume-product/$id',
+        ).replace(queryParameters: _queryScope),
         headers: _headers,
         body: body,
       );
@@ -167,7 +178,9 @@ class ConsumeProductController {
       print('🔵 [API] DELETE ${baseUrl}consume-product/$id');
 
       final response = await http.delete(
-        Uri.parse('${baseUrl}consume-product/$id'),
+        Uri.parse(
+          '${baseUrl}consume-product/$id',
+        ).replace(queryParameters: _queryScope),
         headers: _headers,
       );
 

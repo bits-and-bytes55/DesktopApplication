@@ -208,6 +208,32 @@ class SceController extends GetxController {
 
   // ================= SHAKER OPERATIONS =================
 
+  Map<String, dynamic>? _extractEntity(dynamic value) {
+    if (value is Map && value['data'] is Map) {
+      return Map<String, dynamic>.from(value['data'] as Map);
+    }
+    if (value is Map) {
+      return Map<String, dynamic>.from(value);
+    }
+    return null;
+  }
+
+  void _applySavedShaker(ShakerModel target, dynamic rawData) {
+    final data = _extractEntity(rawData);
+    final savedId = (data?['_id'] ?? data?['id'])?.toString();
+    if (savedId != null && savedId.isNotEmpty) {
+      target.id = savedId;
+    }
+  }
+
+  void _applySavedOtherSce(OtherSceModel target, dynamic rawData) {
+    final data = _extractEntity(rawData);
+    final savedId = (data?['_id'] ?? data?['id'])?.toString();
+    if (savedId != null && savedId.isNotEmpty) {
+      target.id = savedId;
+    }
+  }
+
   Future<void> saveShaker(int index) async {
     if (currentWellId == null) return;
     try {
@@ -223,8 +249,7 @@ class SceController extends GetxController {
       }
 
       if (result['success']) {
-        final updatedShaker = ShakerModel.fromJson(result['data']);
-        shakers[index] = updatedShaker;
+        _applySavedShaker(shaker, result['data']);
         shaker.isEditing.value = false;
       }
     } catch (e) {
@@ -322,8 +347,7 @@ class SceController extends GetxController {
       }
 
       if (result['success']) {
-        final updatedSce = OtherSceModel.fromJson(result['data']);
-        otherSce[index] = updatedSce;
+        _applySavedOtherSce(sce, result['data']);
         sce.isEditing.value = false;
       }
     } catch (e) {

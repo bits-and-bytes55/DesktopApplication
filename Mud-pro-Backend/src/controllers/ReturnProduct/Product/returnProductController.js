@@ -1,7 +1,6 @@
 import ReturnProduct from "../../../modules/ReturnProduct/Product/ReturnProduct.js";
 import {
   buildScopedFilter,
-  legacyReportScope,
   readReportId,
   readWellId,
   toText,
@@ -27,6 +26,16 @@ const buildPayload = (req, existing = {}) => ({
   wellId: readWellId(req) || toText(existing.wellId),
   reportId: readReportId(req) || toText(existing.reportId),
 });
+
+const scopedIdFilter = (req) => {
+  const wellId = readWellId(req);
+  const reportId = readReportId(req);
+  return {
+    _id: req.params.id,
+    ...(wellId ? { wellId } : {}),
+    ...(reportId ? { reportId } : {}),
+  };
+};
 
 /**
  * @desc    Create Return Product
@@ -57,21 +66,11 @@ export const createReturnProduct = async (req, res) => {
  */
 export const getAllReturnProducts = async (req, res) => {
   try {
-    const { wellId, reportId, filter } = getScope(req);
-    let products = await ReturnProduct.find(filter).sort({
+    const { filter } = getScope(req);
+    const products = await ReturnProduct.find(filter).sort({
       createdAt: 1,
       _id: 1,
     });
-
-    if (wellId && reportId && products.length === 0) {
-      products = await ReturnProduct.find({
-        wellId,
-        ...legacyReportScope(),
-      }).sort({
-        createdAt: 1,
-        _id: 1,
-      });
-    }
 
     res.status(200).json({
       success: true,
@@ -121,7 +120,7 @@ export const getReturnProductById = async (req, res) => {
  */
 export const updateReturnProduct = async (req, res) => {
   try {
-    const existing = await ReturnProduct.findById(req.params.id);
+    const existing = await ReturnProduct.findOne(scopedIdFilter(req));
 
     if (!existing) {
       return res.status(404).json({
@@ -130,8 +129,8 @@ export const updateReturnProduct = async (req, res) => {
       });
     }
 
-    const updatedProduct = await ReturnProduct.findByIdAndUpdate(
-      req.params.id,
+    const updatedProduct = await ReturnProduct.findOneAndUpdate(
+      scopedIdFilter(req),
       buildPayload(req, existing),
       { new: true }
     );
@@ -156,7 +155,7 @@ export const updateReturnProduct = async (req, res) => {
  */
 export const deleteReturnProduct = async (req, res) => {
   try {
-    const deleted = await ReturnProduct.findByIdAndDelete(req.params.id);
+    const deleted = await ReturnProduct.findOneAndDelete(scopedIdFilter(req));
 
     if (!deleted) {
       return res.status(404).json({

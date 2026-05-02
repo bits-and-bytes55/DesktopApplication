@@ -232,6 +232,13 @@ export const deleteOperationData = async (req, res) => {
       });
     }
 
+    if (!reportId) {
+      return res.status(400).json({
+        success: false,
+        message: "reportId is required",
+      });
+    }
+
     if (!Object.prototype.hasOwnProperty.call(operationDataModels, operationType)) {
       return res.status(400).json({
         success: false,
@@ -305,11 +312,6 @@ const buildOperationDataFilter = (wellId, reportId) => {
 
   return {
     wellId: cleanWellId,
-    $or: [
-      { reportId: cleanReportId },
-      { reportId: { $exists: false } },
-      { reportId: null },
-      { reportId: "" },
-    ],
+    reportId: cleanReportId,
   };
 };

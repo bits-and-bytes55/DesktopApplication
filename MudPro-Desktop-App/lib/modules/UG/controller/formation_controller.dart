@@ -131,7 +131,6 @@ class FormationController extends GetxController {
   void updateDescription(int index, String value) {
     if (!_validIndex(index)) return;
     rows[index].description.value = value;
-    rows.refresh();
     _syncUgController();
     scheduleAutosave();
   }
@@ -140,7 +139,6 @@ class FormationController extends GetxController {
     if (!_validIndex(index)) return;
     rows[index].tvd.value = value;
     _recalculateRow(rows[index]);
-    rows.refresh();
     _syncUgController();
     scheduleAutosave();
   }
@@ -170,7 +168,6 @@ class FormationController extends GetxController {
     }
 
     _recalculateRow(row);
-    rows.refresh();
     _syncUgController();
     scheduleAutosave();
   }

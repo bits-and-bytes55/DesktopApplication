@@ -111,11 +111,7 @@ const loadScopedPumps = async (wellId, reportId) => {
 
 const loadDisplayPumps = async ({ wellId, reportId }) => {
   if (wellId && reportId) {
-    const scoped = await loadScopedPumps(wellId, reportId);
-    if (scoped.length > 0) {
-      return scoped;
-    }
-    return loadLegacyPumps(wellId);
+    return loadScopedPumps(wellId, reportId);
   }
 
   if (wellId) {
@@ -137,29 +133,10 @@ const loadDisplayPumps = async ({ wellId, reportId }) => {
   );
 };
 
-const ensureReportPumpSet = async ({ wellId, reportId, reportNo }) => {
+const ensureReportPumpSet = async ({ wellId, reportId }) => {
   if (!wellId || !reportId) {
     return [];
   }
-
-  const scoped = await loadScopedPumps(wellId, reportId);
-  if (scoped.length > 0) {
-    return scoped;
-  }
-
-  const legacy = await loadLegacyPumps(wellId);
-  if (legacy.length === 0) {
-    return [];
-  }
-
-  await Pump.insertMany(
-    legacy.map((item) => ({
-      ...cleanClone(item),
-      wellId,
-      reportId,
-      reportNo,
-    }))
-  );
 
   return loadScopedPumps(wellId, reportId);
 };
@@ -359,31 +336,9 @@ class PumpController {
       const rowNumber = Number(req.body.rowNumber ?? existing.rowNumber) || 1;
 
       if (scope.reportId && toText(existing.reportId) !== scope.reportId) {
-        const scopedRows = await ensureReportPumpSet(scope);
-        const scopedMatch = scopedRows.find(
-          (item) => Number(item.rowNumber) === rowNumber
-        );
-
-        const pumpData = buildPumpPayload({
-          body: req.body,
-          existing: scopedMatch ?? existing.toObject(),
-          wellId: scope.wellId,
-          reportId: scope.reportId,
-          reportNo: scope.reportNo,
-          rowNumber,
-        });
-
-        const scopedPump = scopedMatch
-          ? await Pump.findByIdAndUpdate(scopedMatch._id, pumpData, {
-              new: true,
-              runValidators: true,
-            })
-          : await Pump.create(pumpData);
-
-        return res.status(200).json({
-          success: true,
-          message: "Pump updated successfully",
-          data: scopedPump,
+        return res.status(404).json({
+          success: false,
+          message: "Pump not found for this report",
         });
       }
 
@@ -430,18 +385,9 @@ class PumpController {
       const scope = resolveScope(req, existing);
 
       if (scope.reportId && toText(existing.reportId) !== scope.reportId) {
-        const scopedRows = await ensureReportPumpSet(scope);
-        const scopedMatch = scopedRows.find(
-          (item) => Number(item.rowNumber) === Number(existing.rowNumber)
-        );
-
-        if (scopedMatch?._id) {
-          await Pump.findByIdAndDelete(scopedMatch._id);
-        }
-
-        return res.status(200).json({
-          success: true,
-          message: "Pump deleted successfully",
+        return res.status(404).json({
+          success: false,
+          message: "Pump not found for this report",
         });
       }
 

@@ -13,7 +13,7 @@ import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 
 class CasedHoleEntry {
-  final String? id;
+  String? id;
   int sortOrder;
   TextEditingController description;
   TextEditingController od;
@@ -70,7 +70,7 @@ class CasedHoleEntry {
     'shoe': shoe.text,
     'type': '',
     'bit': '',
-    'toc': '',
+    'toc': kCasedHoleTocMarker,
   };
 }
 
@@ -265,7 +265,6 @@ class CasedHoleUIController extends GetxController {
     } else {
       e.length.text = '';
     }
-    entries.refresh();
   }
 
   void checkAndAddRow(int rowIndex) {
@@ -284,7 +283,6 @@ class CasedHoleUIController extends GetxController {
         entries.add(e);
       }
     }
-    entries.refresh();
   }
 
   void addRowFromCasing(CasingRow casing) {
@@ -352,6 +350,7 @@ class CasedHoleUIController extends GetxController {
         entries.clear();
         for (final item in data) {
           if (item['wellId'] != kControllerWellId) continue;
+          if ((item['toc'] ?? '').toString() != kCasedHoleTocMarker) continue;
 
           final entry = CasedHoleEntry(
             id: item['_id'],
@@ -411,28 +410,11 @@ class CasedHoleUIController extends GetxController {
         if (result['success'] == true) {
           successCount++;
           final data = result['data']?['data'];
-          if (data != null && entry.id == null) {
+          if (data != null && (entry.id == null || entry.id!.isEmpty)) {
             final newId = data['_id'];
-            final rowIndex = entries.indexOf(entry);
-
-            final updated = CasedHoleEntry(
-              id: newId,
-              sortOrder: entry.sortOrder,
-              desc: entry.description.text,
-              odVal: entry.od.text,
-              wtVal: entry.wt.text,
-              idVal: entry.idCtrl.text,
-              topVal: entry.top.text,
-              shoeVal: entry.shoe.text,
-            );
-            final t = double.tryParse(updated.top.text);
-            final s = double.tryParse(updated.shoe.text);
-            if (t != null && s != null)
-              updated.length.text = (s - t).toStringAsFixed(1);
-
-            _attachListeners(updated);
-            entry.dispose();
-            if (rowIndex != -1) entries[rowIndex] = updated;
+            if (newId != null) {
+              entry.id = newId.toString();
+            }
           }
         } else {
           final rowLabel = entry.description.text.trim().isNotEmpty
@@ -443,7 +425,6 @@ class CasedHoleUIController extends GetxController {
       }
 
       _ensureMinimumRows();
-      entries.refresh();
 
       if (errors.isEmpty) {
         return {
