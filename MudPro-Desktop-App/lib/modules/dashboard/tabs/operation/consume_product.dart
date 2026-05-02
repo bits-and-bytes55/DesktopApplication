@@ -70,10 +70,12 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
   final RxBool isSavingAll = false.obs;
   final Map<String, double> _receiveProductTotals = {};
   final Map<String, double> _returnProductTotals = {};
+  final Map<String, double> _previousFinalByProductKey = {};
   final Map<int, Timer> _autoSaveProductTimers = {};
   Map<String, dynamic>? _productRowClipboard;
   Map<String, dynamic>? _distributeRowClipboard;
   Timer? _autoSaveDistributionTimer;
+  String _previousFinalCacheReportId = '';
   Worker? _wellWorker;
   Worker? _reportWorker;
   Worker? _totalVolumeWorker;
@@ -151,6 +153,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
 
     await _loadProductsIfNeeded();
     await _loadProductMovementTotals();
+    await _loadPreviousProductFinals();
     await _fetchAllConsumeProducts();
     await _loadSavedDistributionState();
   }
@@ -363,6 +366,78 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     return normalized.isEmpty ? '' : 'code:$normalized';
   }
 
+  List<String> _productCarryKeys({String productName = '', String code = ''}) {
+    final keys = <String>[];
+    final codeKey = _codeMovementKey(code);
+    if (codeKey.isNotEmpty) keys.add(codeKey);
+    final nameKey = _nameMovementKey(productName);
+    if (nameKey.isNotEmpty) keys.add(nameKey);
+    return keys;
+  }
+
+  String _formatCarryInitial(double value) {
+    final text = value
+        .toStringAsFixed(3)
+        .replaceFirst(RegExp(r'0+$'), '')
+        .replaceFirst(RegExp(r'\.$'), '');
+    return text.isEmpty ? '0' : text;
+  }
+
+  Future<void> _loadPreviousProductFinals() async {
+    final previousReports = _previousReports();
+    final previousReportId = previousReports.isEmpty
+        ? ''
+        : previousReports.first.id.toString().trim();
+
+    if (previousReportId.isEmpty) {
+      _previousFinalCacheReportId = '';
+      _previousFinalByProductKey.clear();
+      return;
+    }
+
+    if (_previousFinalCacheReportId == previousReportId &&
+        _previousFinalByProductKey.isNotEmpty) {
+      return;
+    }
+
+    try {
+      final data = await consumeProductController.getAllConsumeProducts(
+        reportIdOverride: previousReportId,
+      );
+      _previousFinalByProductKey.clear();
+      for (final item in data) {
+        final finalValue = _toDouble(item['final']);
+        final keys = _productCarryKeys(
+          productName: item['product']?.toString() ?? '',
+          code: item['code']?.toString() ?? '',
+        );
+        for (final key in keys) {
+          _previousFinalByProductKey[key] = finalValue;
+        }
+      }
+      _previousFinalCacheReportId = previousReportId;
+    } catch (e) {
+      debugPrint('[CONSUME PRODUCT] Previous final load failed: $e');
+      _previousFinalCacheReportId = '';
+      _previousFinalByProductKey.clear();
+    }
+  }
+
+  String _initialForSelectedProduct(ProductModel product) {
+    final keys = _productCarryKeys(
+      productName: product.product,
+      code: product.code,
+    );
+    for (final key in keys) {
+      if (_previousFinalByProductKey.containsKey(key)) {
+        return _formatCarryInitial(_previousFinalByProductKey[key] ?? 0.0);
+      }
+    }
+
+    final initD = double.tryParse(product.initial) ?? 0.0;
+    return initD != 0.0 ? product.initial : '';
+  }
+
   void _addMovementTotal(
     Map<String, double> totals,
     Map<String, dynamic> item,
@@ -515,8 +590,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     row.price =
         double.tryParse(product.a.isNotEmpty ? product.a : product.price) ??
         0.0;
-    final initD = double.tryParse(product.initial) ?? 0.0;
-    row.initial = initD != 0.0 ? product.initial : '';
+    row.initial = _initialForSelectedProduct(product);
     if (clearUsage) {
       row.adjust = '';
       row.used = '';
@@ -601,8 +675,8 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
         row.sg = item['sg']?.toString() ?? '';
         row.unit = item['unit']?.toString() ?? '';
         row.price = _toDouble(item['price']);
-        row.initial = _numStr(item['initial']);
-        row.adjust = _numStr(item['adjust']);
+        row.initial = _formatCarryInitial(_toDouble(item['final']));
+        row.adjust = '';
         row.used = '';
         row.savedId = null;
         _applyProductMovementToRow(row);

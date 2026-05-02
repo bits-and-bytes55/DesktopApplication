@@ -49,7 +49,9 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
     });
 
     try {
-      final result = await _inventoryController.getInventorySnapshot();
+      final result = await _inventoryController.getInventorySnapshot(
+        generateHistory: true,
+      );
       if (result['success'] != true) {
         throw Exception(
           result['message'] ?? 'Failed to load inventory snapshot',

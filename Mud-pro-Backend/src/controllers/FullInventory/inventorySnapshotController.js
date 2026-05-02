@@ -202,6 +202,18 @@ const findPreviousReport = async ({ wellId, reportId }) => {
   return index > 0 ? reports[index - 1] : null;
 };
 
+const findPreviousReportDailyTotal = async ({ wellId, reportId }) => {
+  const previousReport = await findPreviousReport({ wellId, reportId });
+  if (!previousReport) return 0;
+
+  const rows = await InventorySnapshot.find({
+    wellId,
+    reportId: toText(previousReport._id),
+  }).lean();
+
+  return summaryFromRows(rows).dailyTotal;
+};
+
 const resolveConcentrationVolumeBasis = async ({ wellId, reportId, reportNo }) => {
   if (!wellId || !reportId) return 0;
 
@@ -277,14 +289,10 @@ export const generateInventorySnapshot = async (req, res) => {
     const packageReceives = await ReceivePackage.find(sourceFilter).lean();
     const packageReturns = await ReturnPackage.find(sourceFilter).lean();
 
-    const existingRows = await InventorySnapshot.find(
-      wellId
-        ? { wellId, ...(reportId ? { reportId } : {}) }
-        : reportId
-          ? { reportId }
-          : {}
-    ).sort({ createdAt: -1 });
-    const previousDailyTotal = round2(existingRows[0]?.dailyTotal || 0);
+    const previousDailyTotal =
+      wellId && reportId
+        ? await findPreviousReportDailyTotal({ wellId, reportId })
+        : 0;
 
     const inventoryConfig = wellId
       ? await UgInventorySnapshot.findOne({ wellId }).sort({ updatedAt: -1 }).lean()

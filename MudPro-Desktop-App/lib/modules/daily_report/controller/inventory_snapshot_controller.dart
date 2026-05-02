@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:mudpro_desktop_app/api_endpoint/api_endpoint.dart';
 import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
+import 'package:mudpro_desktop_app/modules/report_context/report_models.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
 class InventorySnapshotController {
@@ -33,6 +34,7 @@ class InventorySnapshotController {
   Future<Map<String, dynamic>> getInventorySnapshot({
     String? wellId,
     String? reportIdOverride,
+    bool generateHistory = false,
   }) async {
     try {
       final activeWellId = (wellId ?? currentBackendWellId).trim();
@@ -48,10 +50,15 @@ class InventorySnapshotController {
       // Always refresh snapshot from the latest source rows before reading it.
       // This keeps receive/return/consume changes visible without requiring
       // every source tab to manage snapshot invalidation perfectly.
-      await generateInventorySnapshot(
-        wellId: activeWellId,
-        reportIdOverride: reportIdOverride,
-      );
+      final generated = generateHistory
+          ? await _generateInventoryHistory(
+              wellId: activeWellId,
+              reportIdOverride: reportIdOverride,
+            )
+          : await generateInventorySnapshot(
+              wellId: activeWellId,
+              reportIdOverride: reportIdOverride,
+            );
 
       final response = await http.get(
         _buildUri(
@@ -69,10 +76,6 @@ class InventorySnapshotController {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         final List items = data['data'] ?? const [];
         if (items.isEmpty) {
-          final generated = await generateInventorySnapshot(
-            wellId: activeWellId,
-            reportIdOverride: reportIdOverride,
-          );
           final generatedCount = (generated['count'] is num)
               ? (generated['count'] as num).toInt()
               : 0;
@@ -181,5 +184,70 @@ class InventorySnapshotController {
     if (value is Map<String, dynamic>) return value;
     if (value is Map) return Map<String, dynamic>.from(value);
     return const <String, dynamic>{};
+  }
+
+  Future<Map<String, dynamic>> _generateInventoryHistory({
+    required String wellId,
+    String? reportIdOverride,
+  }) async {
+    final selectedReportId =
+        reportIdOverride?.trim() ?? reportContext.selectedReportId.value.trim();
+    final historyReports = _orderedReportsUpToSelected(selectedReportId);
+    if (historyReports.isEmpty) {
+      return generateInventorySnapshot(
+        wellId: wellId,
+        reportIdOverride: selectedReportId.isEmpty ? null : selectedReportId,
+      );
+    }
+
+    Map<String, dynamic> latestResult = const <String, dynamic>{};
+    for (final report in historyReports) {
+      latestResult = await generateInventorySnapshot(
+        wellId: wellId,
+        reportIdOverride: report.id,
+      );
+      if (latestResult['success'] != true) {
+        return latestResult;
+      }
+    }
+    return latestResult;
+  }
+
+  List<AppReport> _orderedReportsUpToSelected(String selectedReportId) {
+    if (selectedReportId.trim().isEmpty) {
+      return const <AppReport>[];
+    }
+
+    final reports = reportContext.reports.toList()
+      ..sort(_compareReportsOldestFirst);
+    final index = reports.indexWhere((item) => item.id == selectedReportId);
+    if (index < 0) {
+      return const <AppReport>[];
+    }
+    return reports.sublist(0, index + 1);
+  }
+
+  int _compareReportsOldestFirst(AppReport left, AppReport right) {
+    final leftOrder = _reportOrderValue(left);
+    final rightOrder = _reportOrderValue(right);
+    if (leftOrder != rightOrder) {
+      return leftOrder.compareTo(rightOrder);
+    }
+
+    final leftTime =
+        DateTime.tryParse(left.createdAt)?.millisecondsSinceEpoch ?? 0;
+    final rightTime =
+        DateTime.tryParse(right.createdAt)?.millisecondsSinceEpoch ?? 0;
+    if (leftTime != rightTime) {
+      return leftTime.compareTo(rightTime);
+    }
+
+    return left.id.compareTo(right.id);
+  }
+
+  int _reportOrderValue(AppReport report) {
+    final userNo = int.tryParse(report.userReportNo.trim());
+    final reportNo = int.tryParse(report.reportNo.trim());
+    return userNo ?? reportNo ?? 0;
   }
 }
