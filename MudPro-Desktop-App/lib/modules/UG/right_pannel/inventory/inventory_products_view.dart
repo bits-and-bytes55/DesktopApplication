@@ -6,6 +6,7 @@ import 'package:mudpro_desktop_app/modules/UG/controller/UG_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/inventory_model.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/controller/ug_inventory_product_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/inventory_store/inventory_store.dart';
+import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/model/ug_inventory_product_model.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/model/products_model.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
@@ -27,6 +28,9 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
   String get wellId => padWellC.selectedWellId.value;
 
   bool _isLoading = false;
+  bool _productsInventorySaveInFlight = false;
+  bool _productsInventorySaveQueued = false;
+  Timer? _productsInventorySaveTimer;
   Timer? _premixedCreateTimer;
   Timer? _obmCreateTimer;
   final Map<String, Timer> _premixedUpdateTimers = {};
@@ -53,6 +57,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
 
   @override
   void dispose() {
+    _productsInventorySaveTimer?.cancel();
     _premixedCreateTimer?.cancel();
     _obmCreateTimer?.cancel();
     for (final timer in _premixedUpdateTimers.values) {
@@ -293,6 +298,97 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
     });
   }
 
+  void _scheduleProductsInventorySave() {
+    if (c.isLocked.value) return;
+    _productsInventorySaveTimer?.cancel();
+    _productsInventorySaveTimer = Timer(
+      const Duration(milliseconds: 800),
+      _saveProductsInventorySnapshot,
+    );
+  }
+
+  Future<void> _saveProductsInventorySnapshot() async {
+    if (!mounted || c.isLocked.value) return;
+
+    final activeWellId = wellId.isNotEmpty ? wellId : c.wellId;
+    if (activeWellId.trim().isEmpty) {
+      _showToast('No well selected', isError: true);
+      return;
+    }
+
+    if (_productsInventorySaveInFlight) {
+      _productsInventorySaveQueued = true;
+      return;
+    }
+
+    _productsInventorySaveInFlight = true;
+    try {
+      final store = Get.find<InventoryProductsStore>();
+      final servicesStore = Get.isRegistered<InventoryServicesStore>()
+          ? Get.find<InventoryServicesStore>()
+          : Get.put(InventoryServicesStore());
+
+      if (servicesStore.selectedPackages.isEmpty &&
+          servicesStore.selectedEngineering.isEmpty &&
+          servicesStore.selectedServices.isEmpty) {
+        final fetchedPackages = await InventoryProductsService.fetchPackages(
+          activeWellId,
+        );
+        final fetchedEngineering =
+            await InventoryProductsService.fetchEngineering(activeWellId);
+        final fetchedServices = await InventoryProductsService.fetchServices(
+          activeWellId,
+        );
+        servicesStore.setSelectedServices(
+          packages: fetchedPackages,
+          engineering: fetchedEngineering,
+          services: fetchedServices,
+        );
+      }
+
+      await InventoryProductsService.applyInventoryData(
+        wellId: activeWellId,
+        products: store.selectedProducts.map(_toInventoryProductModel).toList(),
+        premixed: c.premixed.toList(),
+        obm: c.obm.toList(),
+        packages: servicesStore.selectedPackages.toList(),
+        engineering: servicesStore.selectedEngineering.toList(),
+        services: servicesStore.selectedServices.toList(),
+        bulkTankSetupFee: c.bulkTankSetupFee.value,
+        taxRate: c.taxRate.value,
+        applyPricesOption: c.applyChangedPricesOption.value,
+        fromDate: c.fromDate.value,
+      );
+    } catch (e) {
+      if (mounted) {
+        _showToast('Failed to auto save products', isError: true);
+      }
+    } finally {
+      _productsInventorySaveInFlight = false;
+      if (_productsInventorySaveQueued) {
+        _productsInventorySaveQueued = false;
+        _scheduleProductsInventorySave();
+      }
+    }
+  }
+
+  ProductInventoryModel _toInventoryProductModel(ProductModel p) {
+    return ProductInventoryModel(
+      id: p.id,
+      product: p.product,
+      code: p.code,
+      sg: p.sg,
+      unit: p.formattedUnit,
+      price: p.price.isNotEmpty ? p.price : p.a,
+      initial: p.initial,
+      group: p.group,
+      volAdd: p.volAdd,
+      calculate: p.calculate,
+      plot: p.plot,
+      tax: p.tax,
+    );
+  }
+
   Widget _withRowMenu({
     required Widget child,
     Future<void> Function()? onDelete,
@@ -530,10 +626,19 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
               final productsToDisplay = store.selectedProducts;
 
               if (productsToDisplay.isEmpty) {
-                return Center(
-                  child: Text(
-                    'No products selected',
-                    style: TextStyle(color: Colors.grey),
+                return GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onSecondaryTapDown: c.isLocked.value
+                      ? null
+                      : (details) => _showEmptyProductContextMenu(
+                            store,
+                            details.globalPosition,
+                          ),
+                  child: Center(
+                    child: Text(
+                      'No products selected',
+                      style: TextStyle(color: Colors.grey),
+                    ),
                   ),
                 );
               }
@@ -628,86 +733,101 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                         ...productsToDisplay.asMap().entries.map((entry) {
                           final index = entry.key;
                           final p = entry.value;
+                          final rowCells = [
+                            _tableCell((index + 1).toString()),
+                            _productActionCell(p, store),
+                            _editableTableCell(
+                              p.code,
+                              key: ValueKey('product-${_productRowKey(p, index)}-code'),
+                              onChanged: (v) {
+                                p.code = v;
+                                _scheduleProductsInventorySave();
+                              },
+                            ),
+                            _editableTableCell(
+                              p.sg,
+                              key: ValueKey('product-${_productRowKey(p, index)}-sg'),
+                              onChanged: (v) {
+                                p.sg = v;
+                                _scheduleProductsInventorySave();
+                              },
+                            ),
+                            _tableCell(p.formattedUnit),
+                            _editableTableCell(
+                              p.a.isNotEmpty ? p.a : p.price,
+                              key: ValueKey('product-${_productRowKey(p, index)}-price'),
+                              onChanged: (v) {
+                                p.a = v;
+                                p.price = v;
+                                _scheduleProductsInventorySave();
+                              },
+                            ),
+                            _editableTableCell(
+                              p.initial,
+                              key: ValueKey('product-${_productRowKey(p, index)}-initial'),
+                              onChanged: (v) {
+                                p.initial = v;
+                                _scheduleProductsInventorySave();
+                              },
+                            ),
+                            _editableTableCell(
+                              p.group,
+                              key: ValueKey('product-${_productRowKey(p, index)}-group'),
+                              onChanged: (v) {
+                                p.group = v;
+                                _scheduleProductsInventorySave();
+                              },
+                            ),
+                            _checkboxCell(() => p.volAdd, (v) {
+                              p.volAdd = v;
+                              store.selectedProducts.refresh();
+                              _scheduleProductsInventorySave();
+                            }),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 1,
+                              ),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceEvenly,
+                                children: [
+                                  Expanded(
+                                    child: _checkboxCell(() => p.calculate, (
+                                      v,
+                                    ) {
+                                      p.calculate = v;
+                                      store.selectedProducts.refresh();
+                                      _scheduleProductsInventorySave();
+                                    }),
+                                  ),
+                                  Expanded(
+                                    child: _checkboxCell(() => p.plot, (v) {
+                                      p.plot = v;
+                                      store.selectedProducts.refresh();
+                                      _scheduleProductsInventorySave();
+                                    }),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            _checkboxCell(() => p.tax, (v) {
+                              p.tax = v;
+                              store.selectedProducts.refresh();
+                              _scheduleProductsInventorySave();
+                            }),
+                          ];
+
                           return TableRow(
                             decoration: BoxDecoration(
                               color: index.isEven
                                   ? Colors.white
                                   : AppTheme.cardColor,
                             ),
-                            children: [
-                              _tableCell((index + 1).toString()),
-                              _productActionCell(p, store),
-                              _editableTableCell(
-                                p.code,
-                                onChanged: (v) {
-                                  p.code = v;
-                                  store.selectedProducts.refresh();
-                                },
-                              ),
-                              _editableTableCell(
-                                p.sg,
-                                onChanged: (v) {
-                                  p.sg = v;
-                                  store.selectedProducts.refresh();
-                                },
-                              ),
-                              _tableCell(p.formattedUnit),
-                              _editableTableCell(
-                                p.a,
-                                onChanged: (v) {
-                                  p.a = v;
-                                  p.price = v;
-                                  store.selectedProducts.refresh();
-                                },
-                              ),
-                              _editableTableCell(
-                                p.initial,
-                                onChanged: (v) {
-                                  p.initial = v;
-                                  store.selectedProducts.refresh();
-                                },
-                              ),
-                              _editableTableCell(
-                                p.group,
-                                onChanged: (v) {
-                                  p.group = v;
-                                  store.selectedProducts.refresh();
-                                },
-                              ),
-                              _checkboxCell(() => p.volAdd, (v) {
-                                p.volAdd = v;
-                                store.selectedProducts.refresh();
-                              }),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 1,
-                                ),
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceEvenly,
-                                  children: [
-                                    Expanded(
-                                      child: _checkboxCell(() => p.calculate, (
-                                        v,
-                                      ) {
-                                        p.calculate = v;
-                                        store.selectedProducts.refresh();
-                                      }),
-                                    ),
-                                    Expanded(
-                                      child: _checkboxCell(() => p.plot, (v) {
-                                        p.plot = v;
-                                        store.selectedProducts.refresh();
-                                      }),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              _checkboxCell(() => p.tax, (v) {
-                                p.tax = v;
-                                store.selectedProducts.refresh();
-                              }),
-                            ],
+                            children: _wrapProductMenuCells(
+                              rowCells,
+                              product: p,
+                              store: store,
+                            ),
                           );
                         }),
                       ],
@@ -732,66 +852,125 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      child: MouseRegion(
-        cursor: c.isLocked.value
-            ? SystemMouseCursors.basic
-            : SystemMouseCursors.click,
-        child: InkWell(
-          onTap: c.isLocked.value
-              ? null
-              : () => _showProductActions(product, store),
-          child: Text(
-            label,
-            style: TextStyle(fontSize: 9, color: AppTheme.textPrimary),
-          ),
-        ),
+      child: Text(
+        label,
+        style: TextStyle(fontSize: 9, color: AppTheme.textPrimary),
       ),
     );
   }
 
-  Future<void> _showProductActions(
+  String _productRowKey(ProductModel product, int index) {
+    final id = product.id?.trim() ?? '';
+    if (id.isNotEmpty) return 'id-$id';
+
+    final code = product.code.trim();
+    if (code.isNotEmpty) return 'code-$code-$index';
+
+    final name = product.product.trim();
+    if (name.isNotEmpty) return 'name-$name-$index';
+
+    return 'row-$index';
+  }
+
+  List<Widget> _wrapProductMenuCells(
+    List<Widget> cells, {
+    required ProductModel product,
+    required InventoryProductsStore store,
+  }) {
+    return cells
+        .map(
+          (cell) => GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onSecondaryTapDown: c.isLocked.value
+                ? null
+                : (details) => _showProductContextMenu(
+                      product,
+                      store,
+                      details.globalPosition,
+                    ),
+            child: cell,
+          ),
+        )
+        .toList();
+  }
+
+  Future<void> _showProductContextMenu(
     ProductModel product,
     InventoryProductsStore store,
+    Offset position,
   ) async {
-    await showDialog<void>(
+    final action = await showMenu<_ProductInventoryAction>(
       context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('Product Actions'),
-          content: Text(
-            product.product.trim().isEmpty
-                ? 'Choose what you want to do with this product.'
-                : product.product,
+      position: RelativeRect.fromLTRB(
+        position.dx,
+        position.dy,
+        position.dx,
+        position.dy,
+      ),
+      items: const [
+        PopupMenuItem<_ProductInventoryAction>(
+          value: _ProductInventoryAction.add,
+          child: _InventoryMenuItem(icon: Icons.add, label: 'Add product'),
+        ),
+        PopupMenuItem<_ProductInventoryAction>(
+          value: _ProductInventoryAction.edit,
+          child: _InventoryMenuItem(icon: Icons.edit, label: 'Edit product'),
+        ),
+        PopupMenuItem<_ProductInventoryAction>(
+          value: _ProductInventoryAction.delete,
+          child: _InventoryMenuItem(
+            icon: Icons.delete,
+            label: 'Delete product',
+            color: Colors.red,
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-                _showProductEditDialog(product, store);
-              },
-              child: const Text('Edit'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-                _removeProductFromInventory(product, store);
-              },
-              style: TextButton.styleFrom(foregroundColor: Colors.red),
-              child: const Text('Delete'),
-            ),
-          ],
-        );
-      },
+        ),
+      ],
     );
+
+    if (!mounted || action == null) return;
+
+    switch (action) {
+      case _ProductInventoryAction.add:
+        await _showProductEditDialog(ProductModel(), store, isNew: true);
+        break;
+      case _ProductInventoryAction.edit:
+        await _showProductEditDialog(product, store);
+        break;
+      case _ProductInventoryAction.delete:
+        await _removeProductFromInventory(product, store);
+        break;
+    }
+  }
+
+  Future<void> _showEmptyProductContextMenu(
+    InventoryProductsStore store,
+    Offset position,
+  ) async {
+    final action = await showMenu<_ProductInventoryAction>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        position.dx,
+        position.dy,
+        position.dx,
+        position.dy,
+      ),
+      items: const [
+        PopupMenuItem<_ProductInventoryAction>(
+          value: _ProductInventoryAction.add,
+          child: _InventoryMenuItem(icon: Icons.add, label: 'Add product'),
+        ),
+      ],
+    );
+
+    if (!mounted || action != _ProductInventoryAction.add) return;
+    await _showProductEditDialog(ProductModel(), store, isNew: true);
   }
 
   Future<void> _showProductEditDialog(
     ProductModel product,
-    InventoryProductsStore store,
+    InventoryProductsStore store, {
+    bool isNew = false,
+  }
   ) async {
     final productController = TextEditingController(text: product.product);
     final codeController = TextEditingController(text: product.code);
@@ -901,6 +1080,24 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                 ),
                 ElevatedButton(
                   onPressed: () {
+                    final hasDraftData = productController.text.trim().isNotEmpty ||
+                        codeController.text.trim().isNotEmpty ||
+                        sgController.text.trim().isNotEmpty ||
+                        unitNumController.text.trim().isNotEmpty ||
+                        unitClassController.text.trim().isNotEmpty ||
+                        priceController.text.trim().isNotEmpty ||
+                        initialController.text.trim().isNotEmpty ||
+                        groupController.text.trim().isNotEmpty ||
+                        volAdd ||
+                        calculate ||
+                        plot ||
+                        tax;
+
+                    if (isNew && !hasDraftData) {
+                      _showToast('Enter product details first', isError: true);
+                      return;
+                    }
+
                     product.product = productController.text.trim();
                     product.code = codeController.text.trim();
                     product.sg = sgController.text.trim();
@@ -915,9 +1112,18 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                     product.plot = plot;
                     product.tax = tax;
 
-                    store.selectedProducts.refresh();
+                    if (isNew) {
+                      store.selectedProducts.add(product);
+                    } else {
+                      store.selectedProducts.refresh();
+                    }
                     Navigator.of(dialogContext).pop();
-                    _showToast('Product updated in inventory');
+                    _scheduleProductsInventorySave();
+                    _showToast(
+                      isNew
+                          ? 'Product added to inventory'
+                          : 'Product updated in inventory',
+                    );
                   },
                   child: const Text('Save'),
                 ),
@@ -953,6 +1159,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
 
     store.selectedProducts.removeAt(index);
     store.selectedProducts.refresh();
+    _scheduleProductsInventorySave();
     _showToast('Product removed from inventory');
   }
 
@@ -1500,16 +1707,10 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
             value,
             style: TextStyle(fontSize: 9, color: AppTheme.textPrimary),
           )
-        : TextFormField(
-            key: key ?? ValueKey(value),
-            initialValue: value,
+        : _InventoryEditableTextCell(
+            key: key,
+            value: value,
             onChanged: onChanged,
-            style: TextStyle(fontSize: 9, color: AppTheme.textPrimary),
-            decoration: const InputDecoration(
-              isDense: true,
-              contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-              border: InputBorder.none,
-            ),
           ),
   );
 
@@ -1537,6 +1738,93 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
           ),
         ),
+      ),
+    );
+  }
+}
+
+enum _ProductInventoryAction { add, edit, delete }
+
+class _InventoryMenuItem extends StatelessWidget {
+  const _InventoryMenuItem({
+    required this.icon,
+    required this.label,
+    this.color,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final itemColor = color ?? AppTheme.textPrimary;
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: itemColor),
+        const SizedBox(width: 8),
+        Text(label, style: TextStyle(fontSize: 11, color: itemColor)),
+      ],
+    );
+  }
+}
+
+class _InventoryEditableTextCell extends StatefulWidget {
+  const _InventoryEditableTextCell({
+    super.key,
+    required this.value,
+    this.onChanged,
+  });
+
+  final String value;
+  final ValueChanged<String>? onChanged;
+
+  @override
+  State<_InventoryEditableTextCell> createState() =>
+      _InventoryEditableTextCellState();
+}
+
+class _InventoryEditableTextCellState
+    extends State<_InventoryEditableTextCell> {
+  late final TextEditingController _controller;
+  late final FocusNode _focusNode;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.value);
+    _focusNode = FocusNode();
+  }
+
+  @override
+  void didUpdateWidget(covariant _InventoryEditableTextCell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!_focusNode.hasFocus && widget.value != _controller.text) {
+      _controller.text = widget.value;
+      _controller.selection = TextSelection.collapsed(
+        offset: _controller.text.length,
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      controller: _controller,
+      focusNode: _focusNode,
+      onChanged: widget.onChanged,
+      style: TextStyle(fontSize: 9, color: AppTheme.textPrimary),
+      decoration: const InputDecoration(
+        isDense: true,
+        contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+        border: InputBorder.none,
       ),
     );
   }

@@ -98,7 +98,7 @@ class ProductsPage extends StatelessWidget {
                           scrollDirection: Axis.vertical,
                           child: SingleChildScrollView(
                             scrollDirection: Axis.horizontal,
-                            child: _buildTable(controller, constraints),
+                            child: _buildTable(context, controller, constraints),
                           ),
                         );
                       },
@@ -186,8 +186,8 @@ class ProductsPage extends StatelessWidget {
     );
   }
 
-  Widget _buildTable(ProductsController controller, BoxConstraints constraints) {
-    final double minWidth = 1050;
+  Widget _buildTable(BuildContext context, ProductsController controller, BoxConstraints constraints) {
+    final double minWidth = 980;
     final double tableWidth = constraints.maxWidth > minWidth
         ? constraints.maxWidth - 40
         : minWidth;
@@ -200,7 +200,7 @@ class ProductsPage extends StatelessWidget {
           _buildTableHeader(tableWidth),
           ...List.generate(
             controller.products.length,
-            (index) => _buildTableRow(controller, index, tableWidth),
+            (index) => _buildTableRow(context, controller, index, tableWidth),
           ),
         ],
       ),
@@ -220,11 +220,11 @@ class ProductsPage extends StatelessWidget {
       child: Row(
         children: [
           _headerCell('No', tableWidth * 0.05),
-          _headerCell('Product*', tableWidth * 0.16),
-          _headerCell('Code*', tableWidth * 0.11),
-          _headerCell('SG*', tableWidth * 0.07),
+          _headerCell('Product*', tableWidth * 0.19),
+          _headerCell('Code*', tableWidth * 0.12),
+          _headerCell('SG*', tableWidth * 0.08),
           Container(
-            width: tableWidth * 0.14,
+            width: tableWidth * 0.15,
             decoration: BoxDecoration(
               border: Border(
                 left: BorderSide(color: Colors.white.withOpacity(0.2), width: 1),
@@ -293,11 +293,10 @@ class ProductsPage extends StatelessWidget {
               ],
             ),
           ),
-          _headerCell('Group*', tableWidth * 0.11),
-          _headerCell('Retail', tableWidth * 0.09),
+          _headerCell('Group*', tableWidth * 0.13),
+          _headerCell('Retail', tableWidth * 0.10),
           _headerCell('Sales price', tableWidth * 0.09),
           _headerCell('COGS', tableWidth * 0.09),
-          _headerCell('Actions', tableWidth * 0.09),
         ],
       ),
     );
@@ -323,173 +322,185 @@ class ProductsPage extends StatelessWidget {
     );
   }
 
-  Widget _buildTableRow(ProductsController controller, int index, double tableWidth) {
+  Widget _buildTableRow(BuildContext context, ProductsController controller, int index, double tableWidth) {
     final setupController = Get.find<CompanySetupController>();
     final product = controller.products[index];
     final isLocked = controller.isExistingProduct(index);
     final isEditing = isLocked && controller.editingProductId.value == product.id;
 
-    return Container(
-      height: 34,
-      decoration: BoxDecoration(
-        color: isEditing
-            ? Color(0xffEFF6FF)
-            : isLocked
-                ? Color(0xffF3F4F6)
-                : (index % 2 == 0 ? Color(0xffF9FAFB) : Colors.white),
-        border: Border(
-          bottom: BorderSide(color: Color(0xffE5E7EB), width: 0.5),
-        ),
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onSecondaryTapDown: (details) => _showRowContextMenu(
+        context,
+        controller,
+        product,
+        index,
+        isLocked,
+        isEditing,
+        setupController,
+        details.globalPosition,
       ),
-      child: Row(
-        children: [
-          // No Column
-          Container(
-            width: tableWidth * 0.05,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              border: Border(
-                left: BorderSide(color: Color(0xffE5E7EB), width: 0.5),
+      child: Container(
+        height: 34,
+        decoration: BoxDecoration(
+          color: isEditing
+              ? Color(0xffEFF6FF)
+              : isLocked
+                  ? Color(0xffF3F4F6)
+                  : (index % 2 == 0 ? Color(0xffF9FAFB) : Colors.white),
+          border: Border(
+            bottom: BorderSide(color: Color(0xffE5E7EB), width: 0.5),
+          ),
+        ),
+        child: Row(
+          children: [
+            // No Column
+            Container(
+              width: tableWidth * 0.05,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                border: Border(
+                  left: BorderSide(color: Color(0xffE5E7EB), width: 0.5),
+                ),
               ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                if (isLocked && !isEditing)
-                  Padding(
-                    padding: EdgeInsets.only(right: 4),
-                    child: Icon(
-                      Icons.lock,
-                      size: 12,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (isLocked && !isEditing)
+                    Padding(
+                      padding: EdgeInsets.only(right: 4),
+                      child: Icon(
+                        Icons.lock,
+                        size: 12,
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                  if (isEditing)
+                    Padding(
+                      padding: EdgeInsets.only(right: 4),
+                      child: Icon(
+                        Icons.edit,
+                        size: 12,
+                        color: Colors.blue,
+                      ),
+                    ),
+                  Text(
+                    '${index + 1}',
+                    style: AppTheme.bodyLarge.copyWith(
+                      fontSize: 12,
                       color: AppTheme.textSecondary,
                     ),
                   ),
-                if (isEditing)
-                  Padding(
-                    padding: EdgeInsets.only(right: 4),
-                    child: Icon(
-                      Icons.edit,
-                      size: 12,
-                      color: Colors.blue,
-                    ),
-                  ),
-                Text(
-                  '${index + 1}',
-                  style: AppTheme.bodyLarge.copyWith(
-                    fontSize: 12,
-                    color: AppTheme.textSecondary,
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          Obx(() {
-            final globalLocked = setupController.isLocked.value;
-            return Row(
-              children: [
-                _buildCell(
-                  controller,
-                  tableWidth * 0.16,
-                  product.product,
-                  (val) => _updateField(controller, index, 'product', val, setupController),
-                  isLocked: (isLocked && !isEditing) || globalLocked,
-                  isEditing: isEditing && !globalLocked,
-                ),
-                _buildCell(
-                  controller,
-                  tableWidth * 0.11,
-                  product.code,
-                  (val) => _updateField(controller, index, 'code', val, setupController),
-                  isLocked: (isLocked && !isEditing) || globalLocked,
-                  isEditing: isEditing && !globalLocked,
-                ),
-                _buildCell(
-                  controller,
-                  tableWidth * 0.07,
-                  product.sg,
-                  (val) => _updateField(controller, index, 'sg', val, setupController),
-                  isNumeric: true,
-                  isLocked: (isLocked && !isEditing) || globalLocked,
-                  isEditing: isEditing && !globalLocked,
-                ),
-                Container(
-                  width: tableWidth * 0.14,
-                  decoration: BoxDecoration(
-                    border: Border(
-                      left: BorderSide(color: Color(0xffE5E7EB), width: 0.5),
-                      right: BorderSide(color: Color(0xffE5E7EB), width: 0.5),
-                    ),
+            Obx(() {
+              final globalLocked = setupController.isLocked.value;
+              return Row(
+                children: [
+                  _buildCell(
+                    controller,
+                    tableWidth * 0.19,
+                    product.product,
+                    (val) => _updateField(controller, index, 'product', val, setupController),
+                    isLocked: (isLocked && !isEditing) || globalLocked,
+                    isEditing: isEditing && !globalLocked,
                   ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            border: Border(
-                              right: BorderSide(color: Color(0xffE5E7EB), width: 0.5),
+                  _buildCell(
+                    controller,
+                    tableWidth * 0.12,
+                    product.code,
+                    (val) => _updateField(controller, index, 'code', val, setupController),
+                    isLocked: (isLocked && !isEditing) || globalLocked,
+                    isEditing: isEditing && !globalLocked,
+                  ),
+                  _buildCell(
+                    controller,
+                    tableWidth * 0.08,
+                    product.sg,
+                    (val) => _updateField(controller, index, 'sg', val, setupController),
+                    isNumeric: true,
+                    isLocked: (isLocked && !isEditing) || globalLocked,
+                    isEditing: isEditing && !globalLocked,
+                  ),
+                  Container(
+                    width: tableWidth * 0.15,
+                    decoration: BoxDecoration(
+                      border: Border(
+                        left: BorderSide(color: Color(0xffE5E7EB), width: 0.5),
+                        right: BorderSide(color: Color(0xffE5E7EB), width: 0.5),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              border: Border(
+                                right: BorderSide(color: Color(0xffE5E7EB), width: 0.5),
+                              ),
+                            ),
+                            child: _buildCellContent(
+                              controller,
+                              product.unitNum,
+                              (val) => _updateField(controller, index, 'unitNum', val, setupController),
+                              isNumeric: true,
+                              isLocked: (isLocked && !isEditing) || globalLocked,
+                              isEditing: isEditing && !globalLocked,
                             ),
                           ),
+                        ),
+                        Expanded(
                           child: _buildCellContent(
                             controller,
-                            product.unitNum,
-                            (val) => _updateField(controller, index, 'unitNum', val, setupController),
-                            isNumeric: true,
+                            product.unitClass,
+                            (val) => _updateField(controller, index, 'unitClass', val, setupController),
                             isLocked: (isLocked && !isEditing) || globalLocked,
                             isEditing: isEditing && !globalLocked,
                           ),
                         ),
-                      ),
-                      Expanded(
-                        child: _buildCellContent(
-                          controller,
-                          product.unitClass,
-                          (val) => _updateField(controller, index, 'unitClass', val, setupController),
-                          isLocked: (isLocked && !isEditing) || globalLocked,
-                          isEditing: isEditing && !globalLocked,
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-                _buildCell(
-                  controller,
-                  tableWidth * 0.11,
-                  product.group,
-                  (val) => _updateField(controller, index, 'group', val, setupController),
-                  isLocked: (isLocked && !isEditing) || globalLocked,
-                  isEditing: isEditing && !globalLocked,
-                ),
-                _buildCell(
-                  controller,
-                  tableWidth * 0.09,
-                  product.retail,
-                  (val) => _updateField(controller, index, 'retail', val, setupController),
-                  isLocked: (isLocked && !isEditing) || globalLocked,
-                  isEditing: isEditing && !globalLocked,
-                ),
-                _buildCell(
-                  controller,
-                  tableWidth * 0.09,
-                  product.a,
-                  (val) => _updateField(controller, index, 'sales price', val, setupController),
-                  isNumeric: true,
-                  isLocked: (isLocked && !isEditing) || globalLocked,
-                  isEditing: isEditing && !globalLocked,
-                ),
-                _buildCell(
-                  controller,
-                  tableWidth * 0.09,
-                  product.b,
-                  (val) => _updateField(controller, index, 'COGS', val, setupController),
-                  isNumeric: true,
-                  isLocked: (isLocked && !isEditing) || globalLocked,
-                  isEditing: isEditing && !globalLocked,
-                ),
-                _buildActionsCell(controller, tableWidth * 0.09, product, index, isLocked, isEditing, setupController),
-              ],
-            );
-          }),
-        ],
+                  _buildCell(
+                    controller,
+                    tableWidth * 0.13,
+                    product.group,
+                    (val) => _updateField(controller, index, 'group', val, setupController),
+                    isLocked: (isLocked && !isEditing) || globalLocked,
+                    isEditing: isEditing && !globalLocked,
+                  ),
+                  _buildCell(
+                    controller,
+                    tableWidth * 0.10,
+                    product.retail,
+                    (val) => _updateField(controller, index, 'retail', val, setupController),
+                    isLocked: (isLocked && !isEditing) || globalLocked,
+                    isEditing: isEditing && !globalLocked,
+                  ),
+                  _buildCell(
+                    controller,
+                    tableWidth * 0.09,
+                    product.a,
+                    (val) => _updateField(controller, index, 'sales price', val, setupController),
+                    isNumeric: true,
+                    isLocked: (isLocked && !isEditing) || globalLocked,
+                    isEditing: isEditing && !globalLocked,
+                  ),
+                  _buildCell(
+                    controller,
+                    tableWidth * 0.09,
+                    product.b,
+                    (val) => _updateField(controller, index, 'COGS', val, setupController),
+                    isNumeric: true,
+                    isLocked: (isLocked && !isEditing) || globalLocked,
+                    isEditing: isEditing && !globalLocked,
+                  ),
+                ],
+              );
+            }),
+          ],
+        ),
       ),
     );
   }
@@ -544,123 +555,84 @@ class ProductsPage extends StatelessWidget {
       );
     }
 
-    return TextField(
-      controller: TextEditingController(text: value)
-        ..selection = TextSelection.collapsed(offset: value.length),
-      style: AppTheme.bodyLarge.copyWith(
-        fontSize: 12,
-        color: isEditing ? Colors.black : null,
-      ),
-      textAlign: TextAlign.center,
-      keyboardType: isNumeric ? TextInputType.number : TextInputType.text,
-      decoration: InputDecoration(
-        border: InputBorder.none,
-        contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-        isDense: true,
-        filled: isEditing,
-        fillColor: isEditing ? Colors.white : null,
-      ),
+    return _ProductCellEditor(
+      value: value,
       onChanged: onChanged,
+      isNumeric: isNumeric,
+      isEditing: isEditing,
     );
   }
 
-  Widget _buildActionsCell(
+  Future<void> _showRowContextMenu(
+    BuildContext context,
     ProductsController controller,
-    double width,
     ProductModel product,
     int index,
-    bool isLocked,
+    bool isExisting,
     bool isEditing,
     CompanySetupController setupController,
-  ) {
-    if (!isLocked) {
-      return Container(
-        width: width,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          border: Border(
-            left: BorderSide(color: Color(0xffE5E7EB), width: 0.5),
-          ),
-        ),
-        child: Text(
-          '-',
-          style: TextStyle(
-            fontSize: 12,
-            color: AppTheme.textSecondary.withOpacity(0.3),
-          ),
-        ),
-      );
-    }
+    Offset position,
+  ) async {
+    if (setupController.isLocked.value) return;
 
-    return Container(
-      width: width,
-      padding: EdgeInsets.symmetric(horizontal: 4),
-      decoration: BoxDecoration(
-        border: Border(
-          left: BorderSide(color: Color(0xffE5E7EB), width: 0.5),
-        ),
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    final selected = await showMenu<_ProductRowAction>(
+      context: context,
+      position: RelativeRect.fromRect(
+        Rect.fromLTWH(position.dx, position.dy, 0, 0),
+        Offset.zero & overlay.size,
       ),
+      items: [
+        _menuItem(_ProductRowAction.create, Icons.add, 'Add product'),
+        if (isExisting && !isEditing)
+          _menuItem(_ProductRowAction.edit, Icons.edit, 'Edit product'),
+        if (product.hasData())
+          _menuItem(
+            _ProductRowAction.delete,
+            Icons.delete,
+            isExisting ? 'Delete product' : 'Remove row',
+            isDestructive: true,
+          ),
+      ],
+    );
+
+    switch (selected) {
+      case _ProductRowAction.create:
+        controller.addProduct();
+        break;
+      case _ProductRowAction.edit:
+        controller.startInlineEdit(product);
+        break;
+      case _ProductRowAction.delete:
+        if (isExisting && product.id != null) {
+          controller.showDeleteConfirmation(
+            context,
+            product.id!,
+            product.product,
+          );
+        } else {
+          controller.removeUnsavedProduct(index);
+        }
+        break;
+      case null:
+        break;
+    }
+  }
+
+  PopupMenuItem<_ProductRowAction> _menuItem(
+    _ProductRowAction action,
+    IconData icon,
+    String label, {
+    bool isDestructive = false,
+  }) {
+    final color = isDestructive ? Colors.red : AppTheme.textPrimary;
+    return PopupMenuItem<_ProductRowAction>(
+      value: action,
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          if (isEditing) ...[
-            // Save Button (confirm inline edit)
-            IconButton(
-              onPressed: controller.isSaving.value
-                  ? null
-                  : () => controller.saveInlineEdit(product.id!),
-              icon: controller.isSaving.value
-                  ? SizedBox(
-                      width: 14,
-                      height: 14,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.green,
-                      ),
-                    )
-                  : Icon(Icons.save, size: 16),
-              color: Colors.green,
-              padding: EdgeInsets.zero,
-              constraints: BoxConstraints(minWidth: 28, minHeight: 28),
-              tooltip: 'Save',
-            ),
-            SizedBox(width: 4),
-            // Cancel Button
-            IconButton(
-              onPressed: () => controller.cancelInlineEdit(),
-              icon: Icon(Icons.close, size: 16),
-              color: Colors.orange,
-              padding: EdgeInsets.zero,
-              constraints: BoxConstraints(minWidth: 28, minHeight: 28),
-              tooltip: 'Cancel',
-            ),
-          ] else ...[
-            // Edit Button
-            IconButton(
-              onPressed: () => controller.startInlineEdit(product),
-              icon: Icon(Icons.edit, size: 16),
-              color: Colors.blue,
-              padding: EdgeInsets.zero,
-              constraints: BoxConstraints(minWidth: 28, minHeight: 28),
-              tooltip: 'Edit',
-            ),
-            SizedBox(width: 4),
-            // Delete Button
-            IconButton(
-              onPressed: () {
-                controller.showDeleteConfirmation(
-                  Get.context!,
-                  product.id!,
-                  product.product,
-                );
-              },
-              icon: Icon(Icons.delete, size: 16),
-              color: Colors.red,
-              padding: EdgeInsets.zero,
-              constraints: BoxConstraints(minWidth: 28, minHeight: 28),
-              tooltip: 'Delete',
-            ),
-          ],
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: 8),
+          Text(label, style: TextStyle(color: color)),
         ],
       ),
     );
@@ -707,11 +679,83 @@ class ProductsPage extends StatelessWidget {
         break;
     }
 
-    controller.updateProduct(index, product);
+    controller.updateProduct(index, product, refresh: false);
+    controller.queueAutoSave(index);
 
     // Auto-add new row only for new (non-existing) products
     if (!isExisting && index == controller.products.length - 1 && product.hasData()) {
       controller.addProduct();
     }
+  }
+}
+
+enum _ProductRowAction { create, edit, delete }
+
+class _ProductCellEditor extends StatefulWidget {
+  const _ProductCellEditor({
+    required this.value,
+    required this.onChanged,
+    required this.isNumeric,
+    required this.isEditing,
+  });
+
+  final String value;
+  final ValueChanged<String> onChanged;
+  final bool isNumeric;
+  final bool isEditing;
+
+  @override
+  State<_ProductCellEditor> createState() => _ProductCellEditorState();
+}
+
+class _ProductCellEditorState extends State<_ProductCellEditor> {
+  late final TextEditingController _textController;
+  late final FocusNode _focusNode;
+
+  @override
+  void initState() {
+    super.initState();
+    _textController = TextEditingController(text: widget.value);
+    _focusNode = FocusNode();
+  }
+
+  @override
+  void didUpdateWidget(covariant _ProductCellEditor oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!_focusNode.hasFocus && widget.value != _textController.text) {
+      _textController.text = widget.value;
+      _textController.selection = TextSelection.collapsed(
+        offset: _textController.text.length,
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _textController.dispose();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: _textController,
+      focusNode: _focusNode,
+      style: AppTheme.bodyLarge.copyWith(
+        fontSize: 12,
+        color: widget.isEditing ? Colors.black : null,
+      ),
+      textAlign: TextAlign.center,
+      keyboardType: widget.isNumeric ? TextInputType.number : TextInputType.text,
+      decoration: InputDecoration(
+        border: InputBorder.none,
+        contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+        isDense: true,
+        filled: widget.isEditing,
+        fillColor: widget.isEditing ? Colors.white : null,
+      ),
+      onChanged: widget.onChanged,
+    );
   }
 }

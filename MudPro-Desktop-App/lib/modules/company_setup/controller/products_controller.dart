@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/model/products_model.dart';
@@ -14,6 +16,10 @@ class ProductsController extends GetxController {
   
   final RxBool isSaving = false.obs;
   final RxBool isLoading = false.obs;
+  final Map<String, Timer> _autosaveTimers = {};
+  final Set<String> _autosaveInFlight = {};
+  final Set<String> _autosaveQueued = {};
+  static const Duration _autosaveDelay = Duration(milliseconds: 800);
 
   // Track which existing product is currently being inline-edited
   final RxnString editingProductId = RxnString(null);
@@ -66,10 +72,18 @@ class ProductsController extends GetxController {
     products.add(ProductModel());
   }
 
-  void updateProduct(int index, ProductModel product) {
+  void updateProduct(
+    int index,
+    ProductModel product, {
+    bool refresh = true,
+  }) {
     if (index >= 0 && index < products.length) {
-      products[index] = product;
-      products.refresh();
+      if (!identical(products[index], product)) {
+        products[index] = product;
+      }
+      if (refresh) {
+        products.refresh();
+      }
     }
   }
 
@@ -81,9 +95,10 @@ class ProductsController extends GetxController {
 
   // Start inline editing — save a deep copy of original data for cancel
   void startInlineEdit(ProductModel product) {
-    // If another row is being edited, cancel it first
+    // If another row is being edited, just close that edit state.
     if (editingProductId.value != null && editingProductId.value != product.id) {
-      cancelInlineEdit();
+      editingProductId.value = null;
+      _editingOriginalProduct = null;
     }
 
     _editingOriginalProduct = ProductModel(
@@ -100,6 +115,112 @@ class ProductsController extends GetxController {
     );
 
     editingProductId.value = product.id;
+  }
+
+  void queueAutoSave(int index) {
+    if (index < 0 || index >= products.length) return;
+
+    final product = products[index];
+    if (!product.hasData()) return;
+
+    final key = _autosaveKey(index, product);
+    _autosaveTimers[key]?.cancel();
+    _autosaveTimers[key] = Timer(
+      _autosaveDelay,
+      () => _runAutoSave(index, key),
+    );
+  }
+
+  Future<void> _runAutoSave(int index, String key) async {
+    if (index < 0 || index >= products.length) return;
+    if (_autosaveInFlight.contains(key)) {
+      _autosaveQueued.add(key);
+      return;
+    }
+
+    final product = products[index];
+    if (!product.hasData() || product.product.trim().isEmpty) return;
+
+    _autosaveInFlight.add(key);
+    try {
+      final isExisting = product.id != null &&
+          product.id!.trim().isNotEmpty &&
+          existingProductIds.contains(product.id);
+      final result = isExisting
+          ? await repository.updateProduct(product.id!, product)
+          : await repository.addProduct(product);
+
+      if (result['success'] == true) {
+        final data = result['data'];
+        if (!isExisting && data is Map) {
+          final savedProduct = ProductModel.fromJson(
+            Map<String, dynamic>.from(data),
+          );
+          if (savedProduct.id != null && savedProduct.id!.isNotEmpty) {
+            product.id = savedProduct.id;
+            product.createdAt = savedProduct.createdAt;
+            product.updatedAt = savedProduct.updatedAt;
+            existingProductIds.add(savedProduct.id!);
+            editingProductId.value = savedProduct.id;
+            products.refresh();
+          }
+        } else if (isExisting && data is Map) {
+          final savedProduct = ProductModel.fromJson(
+            Map<String, dynamic>.from(data),
+          );
+          product.updatedAt = savedProduct.updatedAt;
+        }
+
+        _ensureTrailingBlankRow();
+      } else {
+        showErrorAlert(result['message'] ?? 'Auto save failed');
+      }
+    } catch (e) {
+      showErrorAlert('Auto save failed: $e');
+    } finally {
+      _autosaveTimers.remove(key);
+      _autosaveInFlight.remove(key);
+      final shouldSaveAgain = _autosaveQueued.remove(key);
+      if (shouldSaveAgain && index >= 0 && index < products.length) {
+        queueAutoSave(index);
+      }
+    }
+  }
+
+  void removeUnsavedProduct(int index) {
+    if (index < 0 || index >= products.length) return;
+    final product = products[index];
+    if (isExistingProduct(index)) return;
+
+    _cancelAutoSave(index, product);
+    products.removeAt(index);
+    _ensureTrailingBlankRow();
+    products.refresh();
+  }
+
+  void _ensureTrailingBlankRow() {
+    if (products.isEmpty || products.last.hasData()) {
+      addProduct();
+    }
+  }
+
+  String _autosaveKey(int index, ProductModel product) {
+    final id = product.id?.trim() ?? '';
+    return id.isNotEmpty ? 'id:$id' : 'new:$index';
+  }
+
+  void _cancelAutoSave(int index, ProductModel product) {
+    final keys = {
+      _autosaveKey(index, product),
+      if (product.id != null && product.id!.trim().isNotEmpty)
+        'id:${product.id!.trim()}',
+      'new:$index',
+    };
+    for (final key in keys) {
+      _autosaveTimers.remove(key)?.cancel();
+      _autosaveInFlight.remove(key);
+      _autosaveQueued.remove(key);
+    }
   }
 
   // Cancel inline edit — restore original data
@@ -852,6 +973,12 @@ class ProductsController extends GetxController {
 
   @override
   void onClose() {
+    for (final timer in _autosaveTimers.values) {
+      timer.cancel();
+    }
+    _autosaveTimers.clear();
+    _autosaveInFlight.clear();
+    _autosaveQueued.clear();
     products.clear();
     existingProductIds.clear();
     editingProductId.value = null;
