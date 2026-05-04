@@ -4,6 +4,8 @@ import 'package:mudpro_desktop_app/modules/company_setup/model/products_model.da
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 
+typedef ProductImportProgress = void Function(double progress, String message);
+
 class ProductsController extends GetxController {
   final AuthRepository repository = AuthRepository();
   
@@ -280,7 +282,11 @@ class ProductsController extends GetxController {
     return data;
   }
 
-  Future<Map<String, dynamic>> importFromData(List<List<String>> rows) async {
+  Future<Map<String, dynamic>> importFromData(
+    List<List<String>> rows, {
+    ProductImportProgress? onProgress,
+  }) async {
+    onProgress?.call(0.02, 'Reading product rows...');
     final parsedRows = _parseImportedRows(rows);
     if (parsedRows.isEmpty) {
       return {
@@ -289,6 +295,7 @@ class ProductsController extends GetxController {
       };
     }
 
+    onProgress?.call(0.08, 'Preparing products...');
     int updated = 0;
     int inserted = 0;
     final errors = <String>[];
@@ -314,7 +321,13 @@ class ProductsController extends GetxController {
     final newProducts = <ProductModel>[];
     final newProductKeys = <String>{};
 
-    for (final row in parsedRows) {
+    for (int i = 0; i < parsedRows.length; i += 1) {
+      final row = parsedRows[i];
+      onProgress?.call(
+        0.10 + (0.55 * (i / parsedRows.length)),
+        'Checking product ${i + 1} of ${parsedRows.length}...',
+      );
+
       if (row.product.trim().isEmpty && row.code.trim().isEmpty) {
         errors.add('Row ${row.rowNumber}: Product or Code is required');
         continue;
@@ -363,7 +376,12 @@ class ProductsController extends GetxController {
     }
 
     if (newProducts.isNotEmpty) {
-      for (final product in newProducts) {
+      for (int i = 0; i < newProducts.length; i += 1) {
+        final product = newProducts[i];
+        onProgress?.call(
+          0.70 + (0.25 * (i / newProducts.length)),
+          'Adding product ${i + 1} of ${newProducts.length}...',
+        );
         final result = await repository.addProduct(product);
         if (result['success'] == true) {
           inserted += 1;
@@ -375,7 +393,9 @@ class ProductsController extends GetxController {
       }
     }
 
+    onProgress?.call(0.96, 'Refreshing products...');
     await loadProducts();
+    onProgress?.call(1, 'Import completed');
 
     if (errors.isNotEmpty) {
       return {
