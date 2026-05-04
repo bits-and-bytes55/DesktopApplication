@@ -99,7 +99,7 @@ productSchema.index(
   {
     unique: true,
     partialFilterExpression: {
-      Code: { $type: "string", $ne: "" },
+      Code: { $gt: "" },
       isDeleted: false
     }
   }

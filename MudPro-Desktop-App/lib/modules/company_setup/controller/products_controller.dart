@@ -582,7 +582,7 @@ class ProductsController extends GetxController {
       unitNum: unitNum,
       unitClass: unitClass,
       group: _valueAt(row, 8),
-      retail: 'No',
+      retail: '',
       a: '',
       b: '',
     );

@@ -20,7 +20,7 @@ const ensureProductCodeIndex = async () => {
         {
           unique: true,
           partialFilterExpression: {
-            Code: { $type: "string", $ne: "" },
+            Code: { $gt: "" },
             isDeleted: false
           }
         }
