@@ -319,7 +319,12 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
         row.sg = item['sg']?.toString() ?? '';
         row.unit = item['unit']?.toString() ?? '';
         row.price = _toDouble(item['price']);
-        row.initial = _numStr(item['initial']);
+        final savedInitial = _numStr(item['initial']);
+        row.initial = savedInitial.isNotEmpty
+            ? savedInitial
+            : (row.selectedProduct.value == null
+                  ? ''
+                  : _initialForSelectedProduct(row.selectedProduct.value!));
         row.adjust = _numStr(item['adjust']);
         row.used = _numStr(item['used']);
         row.savedId = item['_id']?.toString();
@@ -508,22 +513,18 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
 
   Future<void> _loadProductsIfNeeded() async {
     try {
-      if (_inventoryStore.selectedProducts.isNotEmpty) {
-        _syncProductSelectionsWithInventory();
-        return;
+      final wellId = currentBackendWellId.trim();
+      if (wellId.isNotEmpty) {
+        final savedProducts = await InventoryProductsService.fetchProducts(
+          wellId,
+        );
+        if (savedProducts.isNotEmpty) {
+          _inventoryStore.setSelectedProducts(
+            savedProducts.map(_toProductModel).toList(),
+          );
+        }
       }
 
-      final wellId = currentBackendWellId.trim();
-      if (wellId.isEmpty) return;
-
-      final savedProducts = await InventoryProductsService.fetchProducts(
-        wellId,
-      );
-      if (savedProducts.isEmpty) return;
-
-      _inventoryStore.setSelectedProducts(
-        savedProducts.map(_toProductModel).toList(),
-      );
       _syncProductSelectionsWithInventory();
     } catch (e) {
       debugPrint('🔴 [PRODUCTS] Error loading inventory products: $e');
@@ -532,9 +533,14 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
 
   void _syncProductSelectionsWithInventory() {
     for (final row in productRows) {
-      if (row.selectedProduct.value == null &&
-          row.productName.trim().isNotEmpty) {
-        row.selectedProduct.value = _findByName(row.productName);
+      if (row.productName.trim().isNotEmpty) {
+        final matchedProduct = _findByName(row.productName);
+        if (matchedProduct != null) {
+          row.selectedProduct.value = matchedProduct;
+          if (row.initial.trim().isEmpty) {
+            row.initial = _initialForSelectedProduct(matchedProduct);
+          }
+        }
       }
       _applyProductMovementToRow(row);
       row.recalculate();
