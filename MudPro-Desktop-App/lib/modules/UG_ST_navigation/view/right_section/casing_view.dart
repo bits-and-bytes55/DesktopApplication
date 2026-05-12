@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/controller/UG_ST_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/model/UG_ST_model.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/widgets/compact_tabular_database_dialog.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 
 const double _cIdx = 52.0;
 const double _cDesc = 180.0;
@@ -18,8 +19,46 @@ const int _minVisibleRows = 20;
 const Color _cBorder = Color(0xFFC9CED6);
 const Color _cHeader = Color(0xFFF3F3F3);
 const Color _cLocked = Color(0xFFFFF6C7);
+const String _casingDiameterBaseUnit = '(mm)';
+const String _casingLineDensityBaseUnit = '(lb/ft)';
+const String _casingLengthBaseUnit = '(ft)';
 
 double get _casingTableWidth => _cIdx + _cDesc + _cType + (_cStd * 7) + 4;
+
+String _formatCasingNumber(double value) {
+  return value
+      .toStringAsFixed(4)
+      .replaceAll(RegExp(r'0+$'), '')
+      .replaceAll(RegExp(r'\.$'), '');
+}
+
+String _convertCasingText(String rawValue, String fromUnit, String toUnit) {
+  final raw = rawValue.trim();
+  if (raw.isEmpty || fromUnit == toUnit) return rawValue;
+  final parsed = double.tryParse(raw.replaceAll(',', ''));
+  if (parsed == null) return rawValue;
+  final converted = AppUnits.convertValue(parsed, fromUnit, toUnit);
+  if (converted == null) return rawValue;
+  return _formatCasingNumber(converted);
+}
+
+String _displayDiameter(String value) =>
+    _convertCasingText(value, _casingDiameterBaseUnit, AppUnits.diameter);
+
+String _displayLineDensity(String value) =>
+    _convertCasingText(value, _casingLineDensityBaseUnit, AppUnits.lineDensity);
+
+String _displayLength(String value) =>
+    _convertCasingText(value, _casingLengthBaseUnit, AppUnits.length);
+
+String _storeDiameter(String value) =>
+    _convertCasingText(value, AppUnits.diameter, _casingDiameterBaseUnit);
+
+String _storeLineDensity(String value) =>
+    _convertCasingText(value, AppUnits.lineDensity, _casingLineDensityBaseUnit);
+
+String _storeLength(String value) =>
+    _convertCasingText(value, AppUnits.length, _casingLengthBaseUnit);
 
 class CasingView extends StatefulWidget {
   const CasingView({super.key});
@@ -189,20 +228,50 @@ class _CasingViewState extends State<CasingView> {
   }
 
   Widget _header() {
+    final unitSignature = AppUnits.signature;
     return Column(
+      key: ValueKey(unitSignature),
       children: [
         Row(
           children: [
             _headCell('', _cIdx, _cHeadTopH),
             _headCell('Description', _cDesc, _cHeadTopH),
             _headCell('Type', _cType, _cHeadTopH),
-            _headCell('OD\n(mm)', _cStd, _cHeadTopH),
-            _headCell('Wt.\n(lb/ft)', _cStd, _cHeadTopH),
-            _headCell('ID\n(mm)', _cStd, _cHeadTopH),
-            _headCell('Top\n(ft)', _cStd, _cHeadTopH),
-            _headCell('Shoe\n(ft)', _cStd, _cHeadTopH),
-            _headCell('Bit\n(mm)', _cStd, _cHeadTopH),
-            _headCell('TOC\n(ft)', _cStd, _cHeadTopH),
+            _headCell(
+              'OD\n${AppUnits.unitText(_casingDiameterBaseUnit)}',
+              _cStd,
+              _cHeadTopH,
+            ),
+            _headCell(
+              'Wt.\n${AppUnits.unitText(_casingLineDensityBaseUnit)}',
+              _cStd,
+              _cHeadTopH,
+            ),
+            _headCell(
+              'ID\n${AppUnits.unitText(_casingDiameterBaseUnit)}',
+              _cStd,
+              _cHeadTopH,
+            ),
+            _headCell(
+              'Top\n${AppUnits.unitText(_casingLengthBaseUnit)}',
+              _cStd,
+              _cHeadTopH,
+            ),
+            _headCell(
+              'Shoe\n${AppUnits.unitText(_casingLengthBaseUnit)}',
+              _cStd,
+              _cHeadTopH,
+            ),
+            _headCell(
+              'Bit\n${AppUnits.unitText(_casingDiameterBaseUnit)}',
+              _cStd,
+              _cHeadTopH,
+            ),
+            _headCell(
+              'TOC\n${AppUnits.unitText(_casingLengthBaseUnit)}',
+              _cStd,
+              _cHeadTopH,
+            ),
           ],
         ),
       ],
@@ -324,26 +393,28 @@ class _SavedCasingRowState extends State<_SavedCasingRow> {
   void initState() {
     super.initState();
     _desc = TextEditingController(text: widget.row.description.value);
-    _od = TextEditingController(text: widget.row.od.value);
-    _wt = TextEditingController(text: widget.row.wt.value);
-    _id = TextEditingController(text: widget.row.id.value);
-    _top = TextEditingController(text: widget.row.top.value);
-    _shoe = TextEditingController(text: widget.row.shoe.value);
-    _bit = TextEditingController(text: widget.row.bit.value);
-    _toc = TextEditingController(text: widget.row.toc.value);
+    _od = TextEditingController(text: _displayDiameter(widget.row.od.value));
+    _wt = TextEditingController(
+      text: _displayLineDensity(widget.row.wt.value),
+    );
+    _id = TextEditingController(text: _displayDiameter(widget.row.id.value));
+    _top = TextEditingController(text: _displayLength(widget.row.top.value));
+    _shoe = TextEditingController(text: _displayLength(widget.row.shoe.value));
+    _bit = TextEditingController(text: _displayDiameter(widget.row.bit.value));
+    _toc = TextEditingController(text: _displayLength(widget.row.toc.value));
   }
 
   @override
   void didUpdateWidget(covariant _SavedCasingRow oldWidget) {
     super.didUpdateWidget(oldWidget);
     _syncController(_desc, widget.row.description.value);
-    _syncController(_od, widget.row.od.value);
-    _syncController(_wt, widget.row.wt.value);
-    _syncController(_id, widget.row.id.value);
-    _syncController(_top, widget.row.top.value);
-    _syncController(_shoe, widget.row.shoe.value);
-    _syncController(_bit, widget.row.bit.value);
-    _syncController(_toc, widget.row.toc.value);
+    _syncController(_od, _displayDiameter(widget.row.od.value));
+    _syncController(_wt, _displayLineDensity(widget.row.wt.value));
+    _syncController(_id, _displayDiameter(widget.row.id.value));
+    _syncController(_top, _displayLength(widget.row.top.value));
+    _syncController(_shoe, _displayLength(widget.row.shoe.value));
+    _syncController(_bit, _displayDiameter(widget.row.bit.value));
+    _syncController(_toc, _displayLength(widget.row.toc.value));
   }
 
   @override
@@ -384,19 +455,19 @@ class _SavedCasingRowState extends State<_SavedCasingRow> {
     widget.row.description.value = _desc.text;
     widget.row.type.value = data['type'] ?? '';
     _od.text = data['od'] ?? '';
-    widget.row.od.value = _od.text;
+    widget.row.od.value = _storeDiameter(_od.text);
     _wt.text = data['wt'] ?? '';
-    widget.row.wt.value = _wt.text;
+    widget.row.wt.value = _storeLineDensity(_wt.text);
     _id.text = data['id'] ?? '';
-    widget.row.id.value = _id.text;
+    widget.row.id.value = _storeDiameter(_id.text);
     _top.text = data['top'] ?? '';
-    widget.row.top.value = _top.text;
+    widget.row.top.value = _storeLength(_top.text);
     _shoe.text = data['shoe'] ?? '';
-    widget.row.shoe.value = _shoe.text;
+    widget.row.shoe.value = _storeLength(_shoe.text);
     _bit.text = data['bit'] ?? '';
-    widget.row.bit.value = _bit.text;
+    widget.row.bit.value = _storeDiameter(_bit.text);
     _toc.text = data['toc'] ?? '';
-    widget.row.toc.value = _toc.text;
+    widget.row.toc.value = _storeLength(_toc.text);
     widget.ctrl.scheduleCasingAutoSave(widget.row);
     setState(() {});
   }
@@ -508,7 +579,7 @@ class _SavedCasingRowState extends State<_SavedCasingRow> {
               align: TextAlign.right,
               onTap: widget.onSelected,
               onChanged: (value) {
-                widget.row.od.value = value;
+                widget.row.od.value = _storeDiameter(value);
                 widget.ctrl.scheduleCasingAutoSave(widget.row);
               },
             ),
@@ -520,7 +591,7 @@ class _SavedCasingRowState extends State<_SavedCasingRow> {
               align: TextAlign.right,
               onTap: widget.onSelected,
               onChanged: (value) {
-                widget.row.wt.value = value;
+                widget.row.wt.value = _storeLineDensity(value);
                 widget.ctrl.scheduleCasingAutoSave(widget.row);
               },
             ),
@@ -532,7 +603,7 @@ class _SavedCasingRowState extends State<_SavedCasingRow> {
               align: TextAlign.right,
               onTap: widget.onSelected,
               onChanged: (value) {
-                widget.row.id.value = value;
+                widget.row.id.value = _storeDiameter(value);
                 widget.ctrl.scheduleCasingAutoSave(widget.row);
               },
             ),
@@ -544,7 +615,7 @@ class _SavedCasingRowState extends State<_SavedCasingRow> {
               align: TextAlign.right,
               onTap: widget.onSelected,
               onChanged: (value) {
-                widget.row.top.value = value;
+                widget.row.top.value = _storeLength(value);
                 widget.ctrl.scheduleCasingAutoSave(widget.row);
               },
             ),
@@ -556,7 +627,7 @@ class _SavedCasingRowState extends State<_SavedCasingRow> {
               align: TextAlign.right,
               onTap: widget.onSelected,
               onChanged: (value) {
-                widget.row.shoe.value = value;
+                widget.row.shoe.value = _storeLength(value);
                 widget.ctrl.scheduleCasingAutoSave(widget.row);
               },
             ),
@@ -568,7 +639,7 @@ class _SavedCasingRowState extends State<_SavedCasingRow> {
               align: TextAlign.right,
               onTap: widget.onSelected,
               onChanged: (value) {
-                widget.row.bit.value = value;
+                widget.row.bit.value = _storeDiameter(value);
                 widget.ctrl.scheduleCasingAutoSave(widget.row);
               },
             ),
@@ -580,7 +651,7 @@ class _SavedCasingRowState extends State<_SavedCasingRow> {
               align: TextAlign.right,
               onTap: widget.onSelected,
               onChanged: (value) {
-                widget.row.toc.value = value;
+                widget.row.toc.value = _storeLength(value);
                 widget.ctrl.scheduleCasingAutoSave(widget.row);
               },
             ),
@@ -704,13 +775,13 @@ class _DraftCasingRowState extends State<_DraftCasingRow> {
     final row = CasingRow(
       description: _desc.text.trim(),
       type: _type.trim(),
-      od: _od.text.trim(),
-      wt: _wt.text.trim(),
-      id: _id.text.trim(),
-      top: _top.text.trim(),
-      shoe: _shoe.text.trim(),
-      bit: _bit.text.trim(),
-      toc: _toc.text.trim(),
+      od: _storeDiameter(_od.text),
+      wt: _storeLineDensity(_wt.text),
+      id: _storeDiameter(_id.text),
+      top: _storeLength(_top.text),
+      shoe: _storeLength(_shoe.text),
+      bit: _storeDiameter(_bit.text),
+      toc: _storeLength(_toc.text),
     );
     final saved = await widget.ctrl.addCasing(row, refresh: false);
     _isSaving = false;

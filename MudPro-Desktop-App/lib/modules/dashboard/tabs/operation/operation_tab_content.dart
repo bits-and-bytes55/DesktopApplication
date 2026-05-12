@@ -383,64 +383,74 @@ class OperationPage extends StatelessWidget {
     return Container(
       color: Colors.white,
       child: Obx(() {
-        final selectedOp =
-            controller.dropdownValues[controller.selectedRowIndex.value];
+        final selectedIndex = controller.selectedRowIndex.value;
+        final selectedOp = controller.dropdownValues[selectedIndex];
 
         return AnimatedSwitcher(
           duration: const Duration(milliseconds: 300),
           child: selectedOp != null
-              ? _getViewForOperation(selectedOp)
+              ? _getViewForOperation(selectedOp, selectedIndex)
               : _buildPlaceholderView(),
         );
       }),
     );
   }
 
-  Widget _getViewForOperation(OperationType operation) {
+  Widget _getViewForOperation(OperationType operation, int rowIndex) {
+    final instanceKey = controller.operationInstanceKeyAt(rowIndex);
     switch (operation) {
       case OperationType.consumeServices:
-        return const ConsumeServicesView(key: ValueKey('consumeServices'));
+        return ConsumeServicesView(
+          key: ValueKey('consumeServices-$instanceKey'),
+        );
 
       case OperationType.consumeProduct:
-        return const ConsumeProductView(key: ValueKey('consumeProduct'));
+        return ConsumeProductView(key: ValueKey('consumeProduct-$instanceKey'));
 
       case OperationType.mudLossActiveSystem:
-        return MudLossActiveSystemView(key: const ValueKey('mudLossActiveSystem'));
+        return MudLossActiveSystemView(
+          key: ValueKey('mudLossActiveSystem-$instanceKey'),
+        );
 
       case OperationType.receiveProduct:
-        return const ReceiveProductView(key: ValueKey('receiveProduct'));
+        return ReceiveProductView(key: ValueKey('receiveProduct-$instanceKey'));
 
       case OperationType.returnProduct:
-        return const ReturnProductView(key: ValueKey('returnProduct'));
+        return ReturnProductView(key: ValueKey('returnProduct-$instanceKey'));
 
       case OperationType.transferMud:
-        return const TransferMudView(key: ValueKey('transferMud'));
+        return TransferMudView(key: ValueKey('transferMud-$instanceKey'));
 
       case OperationType.receiveMud:
-        return ReceiveMudView(key: const ValueKey('receiveMud'));
+        return ReceiveMudView(key: ValueKey('receiveMud-$instanceKey'));
 
       case OperationType.addWater:
-        return const AddWaterView(key: ValueKey('addWater'));
+        return AddWaterView(
+          key: ValueKey('addWater-$instanceKey'),
+          instanceKey: instanceKey,
+        );
 
       case OperationType.otherVolAddition:
         return OtherVolAdditionActiveSystemView(
-          key: const ValueKey('otherVolAddition'),
+          key: ValueKey('otherVolAddition-$instanceKey'),
         );
 
       case OperationType.mudLossStorage:
-        return const MudLossStorageView(key: ValueKey('mudLossStorage'));
+        return MudLossStorageView(key: ValueKey('mudLossStorage-$instanceKey'));
 
       case OperationType.switchPit:
-        return const SwitchPitView(key: ValueKey('switchPit'));
+        return SwitchPitView(key: ValueKey('switchPit-$instanceKey'));
 
       case OperationType.returnLostMud:
-        return ReturnLostMudView(key: const ValueKey('returnLostMud'));
+        return ReturnLostMudView(key: ValueKey('returnLostMud-$instanceKey'));
 
       case OperationType.switchMudType:
-        return SwitchMudTypeView(key: const ValueKey('switchMudType'));
+        return SwitchMudTypeView(key: ValueKey('switchMudType-$instanceKey'));
 
       case OperationType.emptyActiveSystem:
-        return EmptyActiveSystemView(key: const ValueKey('emptyActiveSystem'));
+        return EmptyActiveSystemView(
+          key: ValueKey('emptyActiveSystem-$instanceKey'),
+        );
     }
   }
 

@@ -286,9 +286,9 @@ class CasedHoleUIController extends GetxController {
     final entry = CasedHoleEntry(
       sortOrder: entries.length,
       desc: casing.description.value,
-      odVal: _convertText(casing.od.value, '(in)', _diameterUnit),
+      odVal: _convertText(casing.od.value, '(mm)', _diameterUnit),
       wtVal: _convertText(casing.wt.value, '(lb/ft)', _lineDensityUnit),
-      idVal: _convertText(casing.id.value, '(in)', _diameterUnit),
+      idVal: _convertText(casing.id.value, '(mm)', _diameterUnit),
       topVal: _convertText(casing.top.value, '(ft)', _lengthUnit),
       shoeVal: _convertText(casing.shoe.value, '(ft)', _lengthUnit),
     );
@@ -353,17 +353,33 @@ class CasedHoleUIController extends GetxController {
             id: item['_id'],
             sortOrder: (item['sortOrder'] as num?)?.toInt() ?? entries.length,
             desc: item['description']?.toString() ?? '',
-            odVal: item['od']?.toString() ?? '',
-            wtVal: item['wt']?.toString() ?? '',
-            idVal: item['id']?.toString() ?? '',
-            topVal: item['top']?.toString() ?? '',
-            shoeVal: item['shoe']?.toString() ?? '',
+            odVal: _convertText(
+              item['od']?.toString() ?? '',
+              '(in)',
+              _diameterUnit,
+            ),
+            wtVal: _convertText(
+              item['wt']?.toString() ?? '',
+              '(lb/ft)',
+              _lineDensityUnit,
+            ),
+            idVal: _convertText(
+              item['id']?.toString() ?? '',
+              '(in)',
+              _diameterUnit,
+            ),
+            topVal: _convertText(
+              item['top']?.toString() ?? '',
+              '(ft)',
+              _lengthUnit,
+            ),
+            shoeVal: _convertText(
+              item['shoe']?.toString() ?? '',
+              '(ft)',
+              _lengthUnit,
+            ),
           );
-          final t = double.tryParse(entry.top.text);
-          final s = double.tryParse(entry.shoe.text);
-          if (t != null && s != null) {
-            entry.length.text = (s - t).toStringAsFixed(1);
-          }
+          recalcLength(entry);
 
           _attachListeners(entry);
           entries.add(entry);
@@ -379,6 +395,20 @@ class CasedHoleUIController extends GetxController {
       isLoading.value = false;
     }
   }
+
+  Map<String, dynamic> _toCanonicalPayload(CasedHoleEntry entry) => {
+    if (entry.id != null && entry.id!.isNotEmpty) 'recordId': entry.id,
+    'sortOrder': entry.sortOrder,
+    'description': entry.description.text,
+    'od': _convertText(entry.od.text, _diameterUnit, '(in)'),
+    'wt': _convertText(entry.wt.text, _lineDensityUnit, '(lb/ft)'),
+    'id': _convertText(entry.idCtrl.text, _diameterUnit, '(in)'),
+    'top': _convertText(entry.top.text, _lengthUnit, '(ft)'),
+    'shoe': _convertText(entry.shoe.text, _lengthUnit, '(ft)'),
+    'type': '',
+    'bit': '',
+    'toc': kCasedHoleTocMarker,
+  };
 
   Future<Map<String, dynamic>> saveAll() async {
     _autoSaveTimer?.cancel();
@@ -396,7 +426,7 @@ class CasedHoleUIController extends GetxController {
       _reindexRows();
 
       for (final entry in allRows) {
-        final payload = entry.toJson();
+        final payload = _toCanonicalPayload(entry);
         payload['wellId'] = kControllerWellId;
         if (reportContext.selectedReportId.value.isNotEmpty) {
           payload['reportId'] = reportContext.selectedReportId.value;

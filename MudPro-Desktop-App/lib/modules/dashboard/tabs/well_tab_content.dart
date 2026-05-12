@@ -1927,29 +1927,40 @@ class _CasedHoleSectionState extends State<CasedHoleSection> {
                 };
                 return Column(
                   children: [
-                    Table(
-                      border: _headerTableBorder(),
-                      defaultVerticalAlignment:
-                          TableCellVerticalAlignment.middle,
-                      columnWidths: columnWidths,
-                      children: [
-                        TableRow(
-                          decoration: BoxDecoration(color: _kGridHeaderColor),
-                          children:
-                              [
-                                    'No.',
-                                    'Description',
-                                    'OD\n${AppUnits.unitText('in')}',
-                                    'Wt.\n${AppUnits.unitText('lb/ft')}',
-                                    'ID\n${AppUnits.unitText('in')}',
-                                    'Top\n${AppUnits.unitText('ft')}',
-                                    'Shoe\n${AppUnits.unitText('ft')}',
-                                    'Len.\n${AppUnits.unitText('ft')}',
-                                  ]
-                                  .map((h) => _hCell(h, AppTheme.primaryColor))
-                                  .toList(),
-                        ),
-                      ],
+                    Obx(
+                      () {
+                        final unitSignature = AppUnits.signature;
+                        return Table(
+                          key: ValueKey(unitSignature),
+                          border: _headerTableBorder(),
+                          defaultVerticalAlignment:
+                              TableCellVerticalAlignment.middle,
+                          columnWidths: columnWidths,
+                          children: [
+                            TableRow(
+                              decoration: BoxDecoration(
+                                color: _kGridHeaderColor,
+                              ),
+                              children:
+                                  [
+                                        'No.',
+                                        'Description',
+                                        'OD\n${AppUnits.unitText('in')}',
+                                        'Wt.\n${AppUnits.unitText('lb/ft')}',
+                                        'ID\n${AppUnits.unitText('in')}',
+                                        'Top\n${AppUnits.unitText('ft')}',
+                                        'Shoe\n${AppUnits.unitText('ft')}',
+                                        'Len.\n${AppUnits.unitText('ft')}',
+                                      ]
+                                      .map(
+                                        (h) =>
+                                            _hCell(h, AppTheme.primaryColor),
+                                      )
+                                      .toList(),
+                            ),
+                          ],
+                        );
+                      },
                     ),
                     Expanded(
                       child: SingleChildScrollView(

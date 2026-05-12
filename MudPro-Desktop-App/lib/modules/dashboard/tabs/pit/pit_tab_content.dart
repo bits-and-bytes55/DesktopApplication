@@ -23,6 +23,7 @@ class PitPage extends StatefulWidget {
 class _PitPageState extends State<PitPage> {
   final PitController controller = Get.put(PitController());
   final dashboard = Get.find<DashboardController>();
+  final Map<String, String> _lastValidMeasuredVolByPit = {};
 
   @override
   void initState() {
@@ -36,6 +37,48 @@ class _PitPageState extends State<PitPage> {
     // Only clear if navigating completely away, keeping the values in the controller
     // allows for switching tabs without losing data if they haven't saved.
     super.dispose();
+  }
+
+  String _volumeValidationKey(PitModel pit) =>
+      pit.id?.trim().isNotEmpty == true
+      ? pit.id!
+      : identityHashCode(pit).toString();
+
+  double _parseVolumeText(String value) {
+    return double.tryParse(value.trim().replaceAll(',', '')) ?? 0.0;
+  }
+
+  bool _validateMeasuredVolume(
+    TextEditingController ctrl,
+    PitModel pit,
+    String value,
+  ) {
+    final capacity = pit.capacity.value;
+    if (capacity <= 0 || value.trim().isEmpty) {
+      _lastValidMeasuredVolByPit[_volumeValidationKey(pit)] = value;
+      return true;
+    }
+
+    final volume = _parseVolumeText(value);
+    if (volume <= capacity + 0.005) {
+      _lastValidMeasuredVolByPit[_volumeValidationKey(pit)] = value;
+      return true;
+    }
+
+    final key = _volumeValidationKey(pit);
+    final previous = _lastValidMeasuredVolByPit[key] ?? '';
+    ctrl.value = TextEditingValue(
+      text: previous,
+      selection: TextSelection.collapsed(offset: previous.length),
+    );
+    Get.snackbar(
+      'Invalid measured volume',
+      'Measured Vol. cannot exceed pit capacity (${capacity.toStringAsFixed(2)} bbl).',
+      snackPosition: SnackPosition.BOTTOM,
+      margin: const EdgeInsets.all(12),
+      duration: const Duration(seconds: 2),
+    );
+    return false;
   }
 
   @override
@@ -544,22 +587,26 @@ class _PitPageState extends State<PitPage> {
         final value = row[1];
         final numVal = double.tryParse(value) ?? 0.0;
         final isNegativeWarning = label == 'End Vol. - Active System';
-        final isRed = isNegativeWarning && numVal < 0;
+        final isRed = isNegativeWarning && numVal.abs() > 0.005;
+        final rowBg = isRed ? Colors.red.shade50 : Colors.transparent;
+        final rowTextColor = isRed ? Colors.red : Colors.black87;
 
         return TableRow(
           children: [
             Container(
+              color: rowBg,
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               child: Text(
                 label,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.w500,
-                  color: Colors.black87,
+                  color: rowTextColor,
                 ),
               ),
             ),
             Container(
+              color: rowBg,
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               child: Text(
                 value,
@@ -567,7 +614,7 @@ class _PitPageState extends State<PitPage> {
                 style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.w600,
-                  color: isRed ? Colors.red : Colors.black87,
+                  color: rowTextColor,
                 ),
               ),
             ),
@@ -832,6 +879,12 @@ class _PitPageState extends State<PitPage> {
     String field,
   ) {
     final ctrl = ctrls[field]!;
+    if (field == 'volume') {
+      _lastValidMeasuredVolByPit.putIfAbsent(
+        _volumeValidationKey(pit),
+        () => ctrl.text,
+      );
+    }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
       child: Obx(() {
@@ -857,6 +910,10 @@ class _PitPageState extends State<PitPage> {
             focusedBorder: InputBorder.none,
           ),
           onChanged: (val) {
+            if (field == 'volume' &&
+                !_validateMeasuredVolume(ctrl, pit, val)) {
+              return;
+            }
             if (pit.id != null && pit.id!.isNotEmpty) {
               controller.onPitFieldChanged(
                 pitId: pit.id!,

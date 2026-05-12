@@ -59,12 +59,10 @@ const sanitizeOperationSelections = (value = []) => {
     return [];
   }
 
-  const seen = new Set();
   const selections = [];
   for (const item of value) {
     const key = toText(item);
-    if (!key || seen.has(key)) continue;
-    seen.add(key);
+    if (!key) continue;
     selections.push(key);
   }
   return selections;

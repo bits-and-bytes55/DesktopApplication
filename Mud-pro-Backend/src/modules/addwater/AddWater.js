@@ -22,6 +22,12 @@ const addWaterSchema = new mongoose.Schema(
       required: true,
       default: 0,
     },
+    operationInstanceKey: {
+      type: String,
+      default: "",
+      trim: true,
+      index: true,
+    },
   },
   { timestamps: true }
 );

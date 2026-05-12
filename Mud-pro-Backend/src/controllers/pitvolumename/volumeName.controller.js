@@ -235,6 +235,23 @@ const findPreviousReportMeta = async ({ wellId, reportMeta }) => {
   return null;
 };
 
+const calculateHoleVolumeForReport = async ({ wellId, reportId, reportNo }) => {
+  if (!reportId && !reportNo) return 0;
+
+  const [wellGeneral, casings] = await Promise.all([
+    findScopedWellGeneral({ wellId, reportId, reportNo }),
+    findScopedCasings({ wellId, reportId }),
+  ]);
+
+  const md = toNumber(wellGeneral?.md);
+  const validCasings = casings.filter((row) => toNumber(row.id) > 0);
+  const latestCasing = validCasings.length
+    ? validCasings[validCasings.length - 1]
+    : null;
+
+  return calculateHoleVolume(latestCasing, md);
+};
+
 const calculateTotalOnLocationForReport = async ({ wellId, reportId, reportNo }) => {
   if (!reportId && !reportNo) return 0;
 
@@ -251,6 +268,18 @@ const calculateTotalOnLocationForReport = async ({ wellId, reportId, reportNo })
     : null;
 
   const hole = calculateHoleVolume(latestCasing, md);
+  const previousReportMeta = await findPreviousReportMeta({
+    wellId,
+    reportMeta: { reportNo },
+  });
+  const previousHole = previousReportMeta
+    ? await calculateHoleVolumeForReport({
+        wellId,
+        reportId: previousReportMeta.reportId,
+        reportNo: previousReportMeta.reportNo,
+      })
+    : 0;
+  const holeVolDifference = round2(hole - previousHole);
   const activePits = pits
     .filter((pit) => pit.initialActive === true)
     .reduce((sum, pit) => sum + toNumber(pit.volume), 0);
@@ -258,7 +287,7 @@ const calculateTotalOnLocationForReport = async ({ wellId, reportId, reportNo })
     .filter((pit) => pit.initialActive === false)
     .reduce((sum, pit) => sum + toNumber(pit.volume), 0);
 
-  return round2(activePits + hole + totalStorage);
+  return round2(activePits + holeVolDifference + totalStorage);
 };
 
 const findScopedConsumeProductDistributionState = async ({
@@ -820,6 +849,18 @@ export const getVolumeNameCalculation = async (req, res) => {
 
     const casingId = toNumber(latestCasing?.id);
     const hole = calculateHoleVolume(latestCasing, md);
+    const previousReportMeta = await findPreviousReportMeta({
+      wellId,
+      reportMeta,
+    });
+    const previousHole = previousReportMeta
+      ? await calculateHoleVolumeForReport({
+          wellId,
+          reportId: previousReportMeta.reportId,
+          reportNo: previousReportMeta.reportNo,
+        })
+      : 0;
+    const heldVolDifference = round2(hole - previousHole);
     const drillstringVolume = Number(
       drillStrings
         .reduce(
@@ -869,7 +910,7 @@ export const getVolumeNameCalculation = async (req, res) => {
     for (const [pitName, volume] of operationVolumeEffects.storageDeltaByPit) {
       addPitDelta(calculatedVolumeByPit, pitName, volume);
     }
-    const derivedActiveSystem = round2(activePits + hole);
+    const derivedActiveSystem = round2(activePits + heldVolDifference);
     // Active Pits is the measured pit total. Operation rows affect End Vol.,
     // not the measured pit rows, unless a specific storage pit is selected.
     const activeSystem = derivedActiveSystem;
@@ -926,10 +967,6 @@ export const getVolumeNameCalculation = async (req, res) => {
       ).toFixed(2)
     );
     const totalOnLocation = Number((activeSystem + totalStorage).toFixed(2));
-    const previousReportMeta = await findPreviousReportMeta({
-      wellId,
-      reportMeta,
-    });
     const previousTotalOnLocation = previousReportMeta
       ? await calculateTotalOnLocationForReport({
           wellId,
@@ -937,8 +974,6 @@ export const getVolumeNameCalculation = async (req, res) => {
           reportNo: previousReportMeta.reportNo,
         })
       : 0;
-
-    const heldVolDifference = hole;
 
     return res.status(200).json({
       success: true,

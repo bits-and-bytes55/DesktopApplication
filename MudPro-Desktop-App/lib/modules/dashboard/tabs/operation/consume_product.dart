@@ -2689,6 +2689,62 @@ class ProductRowData {
   final RxDouble calculatedVolume = 0.0.obs;
   final RxDouble calculatedFinal = 0.0.obs;
 
+  ({double amount, String unitClass}) _parseUnitValue() {
+    final raw = unit.trim();
+    final match = RegExp(
+      r'^([0-9]*\.?[0-9]+)\s*([a-zA-Z]+)',
+    ).firstMatch(raw);
+    final amount = match == null
+        ? 1.0
+        : (double.tryParse(match.group(1) ?? '') ?? 1.0).clamp(
+            1.0,
+            double.infinity,
+          ).toDouble();
+    return (
+      amount: amount,
+      unitClass: (match?.group(2) ?? raw).trim().toLowerCase(),
+    );
+  }
+
+  double _calculateVolumeBbl(double usedValue, double sgValue) {
+    if (usedValue <= 0) return 0.0;
+
+    final parsedUnit = _parseUnitValue();
+    final totalUnits = usedValue * parsedUnit.amount;
+    final unitClass = parsedUnit.unitClass;
+
+    if (unitClass.contains('gal')) return totalUnits / 42;
+    if (unitClass.contains('bbl')) return totalUnits;
+    if (unitClass.contains('kg')) {
+      return sgValue > 0 ? totalUnits / (sgValue * 158.987) : 0.0;
+    }
+    if (unitClass == 'lb' ||
+        unitClass == 'lbs' ||
+        unitClass == 'lbm' ||
+        unitClass.contains('pound')) {
+      return sgValue > 0 ? totalUnits / (sgValue * 350) : 0.0;
+    }
+    if (unitClass == 'ton' ||
+        unitClass == 'tons' ||
+        unitClass == 'tonne' ||
+        unitClass == 'tonnes' ||
+        unitClass == 'mt') {
+      return sgValue > 0 ? (totalUnits * 2000) / (sgValue * 350) : 0.0;
+    }
+    if (unitClass == 'l' ||
+        unitClass == 'ltr' ||
+        unitClass == 'liter' ||
+        unitClass == 'liters' ||
+        unitClass == 'litre' ||
+        unitClass == 'litres') {
+      return totalUnits / 158.987;
+    }
+    if (unitClass == 'ml') return totalUnits / 158987;
+    if (unitClass == 'm3' || unitClass == 'm^3') return totalUnits * 6.28981;
+
+    return sgValue > 0 ? totalUnits / (sgValue * 158.987) : 0.0;
+  }
+
   void recalculate() {
     final iVal = double.tryParse(initial) ?? 0.0;
     final aVal = double.tryParse(adjust) ?? 0.0;
@@ -2697,9 +2753,9 @@ class ProductRowData {
 
     calculatedFinal.value = iVal + received - returned - aVal - uVal;
     calculatedCost.value = uVal * price;
-    calculatedVolume.value = (sVal > 0 && uVal > 0)
-        ? double.parse((uVal / (sVal * 158.987)).toStringAsFixed(3))
-        : 0.0;
+    calculatedVolume.value = double.parse(
+      _calculateVolumeBbl(uVal, sVal).toStringAsFixed(3),
+    );
   }
 }
 

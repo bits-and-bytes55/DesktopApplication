@@ -26,6 +26,16 @@ enum OperationType {
   mudLossStorage,
 }
 
+class _OperationSelectionEntry {
+  const _OperationSelectionEntry({
+    required this.operation,
+    required this.token,
+  });
+
+  final OperationType operation;
+  final String token;
+}
+
 class OperationController extends GetxController {
   final AuthRepository _repository = AuthRepository();
   Worker? _wellWorker;
@@ -36,7 +46,8 @@ class OperationController extends GetxController {
   RxBool isLocked = true.obs;
   RxInt selectedRowIndex = 0.obs;
   RxString addWaterVolume = "".obs; // Track Add Water locally
-  RxDouble totalVolume = 0.0.obs; // Track overall total volume (Products + Water)
+  RxDouble totalVolume =
+      0.0.obs; // Track overall total volume (Products + Water)
   final isMenuLoading = false.obs;
   final menuError = ''.obs;
 
@@ -164,9 +175,11 @@ class OperationController extends GetxController {
       final data = envelope is Map<String, dynamic>
           ? envelope['data']
           : envelope is Map
-              ? Map<String, dynamic>.from(envelope)['data']
-              : null;
-      final items = data is List ? List<Map<String, dynamic>>.from(data) : const <Map<String, dynamic>>[];
+          ? Map<String, dynamic>.from(envelope)['data']
+          : null;
+      final items = data is List
+          ? List<Map<String, dynamic>>.from(data)
+          : const <Map<String, dynamic>>[];
       final chronologicalItems = items.reversed.toList();
 
       if (chronologicalItems.isEmpty) {
@@ -178,9 +191,8 @@ class OperationController extends GetxController {
 
       final volumes = chronologicalItems
           .map(
-            (item) => _formatVolume(
-              _parseVolume((item['volume'] ?? '').toString()),
-            ),
+            (item) =>
+                _formatVolume(_parseVolume((item['volume'] ?? '').toString())),
           )
           .toList();
       final recordIds = chronologicalItems
@@ -188,10 +200,11 @@ class OperationController extends GetxController {
           .where((id) => id.isNotEmpty)
           .toList();
 
-      addWaterTo.value = (chronologicalItems.first['to'] ?? 'Active System')
-          .toString()
-          .trim()
-          .isEmpty
+      addWaterTo.value =
+          (chronologicalItems.first['to'] ?? 'Active System')
+              .toString()
+              .trim()
+              .isEmpty
           ? 'Active System'
           : (chronologicalItems.first['to'] ?? 'Active System').toString();
       addWaterMainVol.value = volumes.isNotEmpty ? volumes.first : "";
@@ -295,8 +308,15 @@ class OperationController extends GetxController {
       }
     }
 
-    for (var index = enteredVolumes.length; index < currentIds.length; index++) {
-      final deleteRes = await _repository.deleteAddWater(wellId, currentIds[index]);
+    for (
+      var index = enteredVolumes.length;
+      index < currentIds.length;
+      index++
+    ) {
+      final deleteRes = await _repository.deleteAddWater(
+        wellId,
+        currentIds[index],
+      );
       if (deleteRes['success'] == true) {
         successCount++;
       } else {
@@ -317,7 +337,7 @@ class OperationController extends GetxController {
       'success': errors.isEmpty,
       'message': errors.isEmpty
           ? 'Add Water saved successfully'
-          : 'Saved $successCount changes, errors: ${errors.join(", ")}'
+          : 'Saved $successCount changes, errors: ${errors.join(", ")}',
     };
   }
 
@@ -325,6 +345,7 @@ class OperationController extends GetxController {
   final availableOperations = <OperationType>[].obs;
 
   RxList<OperationType?> dropdownValues = <OperationType?>[].obs;
+  RxList<String> operationSelectionTokens = <String>[].obs;
   RxList<bool> isDropdownOpen = <bool>[].obs;
   final deletingOperationRowIndex = (-1).obs;
   final backendLabels = <OperationType, String>{}.obs;
@@ -341,51 +362,61 @@ class OperationController extends GetxController {
     OperationType.switchPit: "Switch Pit",
     OperationType.switchMudType: "Switch Mud Type",
     OperationType.emptyActiveSystem: "Empty Active System",
-    OperationType.otherVolAddition:
-        "Other Vol. Addition - Active System",
-    OperationType.mudLossActiveSystem:
-        "Mud Loss - Active System",
+    OperationType.otherVolAddition: "Other Vol. Addition - Active System",
+    OperationType.mudLossActiveSystem: "Mud Loss - Active System",
     OperationType.mudLossStorage: "Mud Loss - Storage",
   };
 
   // ---------- RETURN / LOST MUD ----------
-RxBool premixedMud = false.obs;
-RxBool leased = false.obs;
+  RxBool premixedMud = false.obs;
+  RxBool leased = false.obs;
 
-final List<String> returnLostLabels = [
-  "From",
-  "To",
-  "Vol. Returned",
-  "MW",
-  "Mud Type",
-  "BOL",
-  "Vol. Lost",
-  "Cost of Lost (Pre-tax)",
-  "",
-];
+  final List<String> returnLostLabels = [
+    "From",
+    "To",
+    "Vol. Returned",
+    "MW",
+    "Mud Type",
+    "BOL",
+    "Vol. Lost",
+    "Cost of Lost (Pre-tax)",
+    "",
+  ];
 
-final List<String> returnLostUnits = [
-  "",
-  "",
-  "(bbl)",
-  "(ppg)",
-  "",
-  "",
-  "(bbl)",
-  "(\$)",
-  "",
-];
+  final List<String> returnLostUnits = [
+    "",
+    "",
+    "(bbl)",
+    "(ppg)",
+    "",
+    "",
+    "(bbl)",
+    "(\$)",
+    "",
+  ];
 
-// which row uses dropdown (From & To)
-final RxList<bool> returnLostDropdownIndex =
-    <bool>[true, true, false, false, false, false, false, false, false].obs;
+  // which row uses dropdown (From & To)
+  final RxList<bool> returnLostDropdownIndex = <bool>[
+    true,
+    true,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+  ].obs;
 
   // dropdown values per row
-final RxList<String> returnLostDropdownValue =
-    List.generate(9, (_) => "Active System").obs;
+  final RxList<String> returnLostDropdownValue = List.generate(
+    9,
+    (_) => "Active System",
+  ).obs;
 
-  List<OperationType> get dropdownItems =>
-      availableOperations.isNotEmpty ? availableOperations : _fallbackOperations;
+  List<OperationType> get dropdownItems => availableOperations.isNotEmpty
+      ? availableOperations
+      : _fallbackOperations;
 
   String labelFor(OperationType operation) =>
       backendLabels[operation] ?? labels[operation] ?? operation.name;
@@ -402,39 +433,16 @@ final RxList<String> returnLostDropdownValue =
     final key = _normalizeOperationKey(description);
 
     const aliases = <OperationType, List<String>>{
-      OperationType.consumeServices: [
-        'consume services',
-        'consume service',
-      ],
-      OperationType.consumeProduct: [
-        'consume product',
-      ],
-      OperationType.receiveProduct: [
-        'receive product',
-      ],
-      OperationType.returnProduct: [
-        'return product',
-      ],
-      OperationType.transferMud: [
-        'transfer mud',
-      ],
-      OperationType.receiveMud: [
-        'receive mud',
-      ],
-      OperationType.returnLostMud: [
-        'return lost mud',
-        'return lost mud',
-      ],
-      OperationType.addWater: [
-        'add water',
-      ],
-      OperationType.switchPit: [
-        'switch pit',
-      ],
-      OperationType.switchMudType: [
-        'switch mud type',
-        'switch mudtype',
-      ],
+      OperationType.consumeServices: ['consume services', 'consume service'],
+      OperationType.consumeProduct: ['consume product'],
+      OperationType.receiveProduct: ['receive product'],
+      OperationType.returnProduct: ['return product'],
+      OperationType.transferMud: ['transfer mud'],
+      OperationType.receiveMud: ['receive mud'],
+      OperationType.returnLostMud: ['return lost mud', 'return lost mud'],
+      OperationType.addWater: ['add water'],
+      OperationType.switchPit: ['switch pit'],
+      OperationType.switchMudType: ['switch mud type', 'switch mudtype'],
       OperationType.emptyActiveSystem: [
         'empty active system',
         'empty fluid active system',
@@ -445,12 +453,8 @@ final RxList<String> returnLostDropdownValue =
         'other vol addition',
         'other volume addition active system',
       ],
-      OperationType.mudLossActiveSystem: [
-        'mud loss active system',
-      ],
-      OperationType.mudLossStorage: [
-        'mud loss storage',
-      ],
+      OperationType.mudLossActiveSystem: ['mud loss active system'],
+      OperationType.mudLossStorage: ['mud loss storage'],
     };
 
     for (final entry in aliases.entries) {
@@ -462,35 +466,73 @@ final RxList<String> returnLostDropdownValue =
     return null;
   }
 
-  List<OperationType> _reportSelectionsForChoices(List<OperationType> choices) {
+  List<_OperationSelectionEntry> _reportSelectionsForChoices(
+    List<OperationType> choices,
+  ) {
     final saved =
         reportContext.selectedReport?.operationSelections ?? const <String>[];
-    final selected = <OperationType>[];
+    final selected = <_OperationSelectionEntry>[];
+    final legacyCounts = <OperationType, int>{};
     for (final raw in saved) {
       final match = _operationTypeFromName(raw);
-      if (match == null ||
-          !choices.contains(match) ||
-          selected.contains(match)) {
+      if (match == null || !choices.contains(match)) {
         continue;
       }
-      selected.add(match);
+      final token = _operationTokenFromSavedValue(raw, match, legacyCounts);
+      selected.add(_OperationSelectionEntry(operation: match, token: token));
     }
     return selected;
   }
 
   OperationType? _operationTypeFromName(String name) {
+    final typeName = name.split('::').first.trim();
     for (final operation in OperationType.values) {
-      if (operation.name == name) return operation;
+      if (operation.name == typeName) return operation;
     }
     return null;
   }
 
+  String _operationTokenFromSavedValue(
+    String raw,
+    OperationType operation,
+    Map<OperationType, int> legacyCounts,
+  ) {
+    final clean = raw.trim();
+    if (clean.contains('::')) return clean;
+
+    final index = legacyCounts[operation] ?? 0;
+    legacyCounts[operation] = index + 1;
+    return '${operation.name}::legacy$index';
+  }
+
+  String _newOperationSelectionToken(OperationType operation) {
+    final now = DateTime.now().microsecondsSinceEpoch;
+    final existingCount = operationSelectionTokens
+        .where((token) => token.startsWith('${operation.name}::'))
+        .length;
+    return '${operation.name}::${now}_$existingCount';
+  }
+
+  String operationInstanceKeyAt(int index) {
+    if (index < 0 || index >= dropdownValues.length) return '';
+    final operation = dropdownValues[index];
+    if (operation == null) return '';
+    if (index < operationSelectionTokens.length) {
+      final token = operationSelectionTokens[index].trim();
+      if (token.isNotEmpty) return token;
+    }
+    return '${operation.name}::row$index';
+  }
+
   List<String> _operationSelectionPayload() {
     final selected = <String>[];
-    final seen = <OperationType>{};
-    for (final operation in dropdownValues.whereType<OperationType>()) {
-      if (!seen.add(operation)) continue;
-      selected.add(operation.name);
+    for (var i = 0; i < dropdownValues.length; i++) {
+      final operation = dropdownValues[i];
+      if (operation == null) continue;
+      final token = i < operationSelectionTokens.length
+          ? operationSelectionTokens[i].trim()
+          : '';
+      selected.add(token.isNotEmpty ? token : '${operation.name}::row$i');
     }
     return selected;
   }
@@ -500,17 +542,20 @@ final RxList<String> returnLostDropdownValue =
     final reportSelections = _reportSelectionsForChoices(choices);
 
     final nextSelections = List<OperationType?>.filled(choices.length, null);
+    final nextTokens = List<String>.filled(choices.length, '');
     for (
       var i = 0;
       i < reportSelections.length && i < nextSelections.length;
       i++
     ) {
-      nextSelections[i] = reportSelections[i];
+      nextSelections[i] = reportSelections[i].operation;
+      nextTokens[i] = reportSelections[i].token;
     }
 
     _isApplyingOperationSelectionState = true;
     availableOperations.assignAll(choices);
     dropdownValues.assignAll(nextSelections);
+    operationSelectionTokens.assignAll(nextTokens);
     isDropdownOpen.assignAll(List.generate(choices.length, (_) => false));
     _isApplyingOperationSelectionState = false;
 
@@ -522,15 +567,19 @@ final RxList<String> returnLostDropdownValue =
     if (index < 0 || index >= dropdownValues.length) return;
 
     final nextSelections = dropdownValues.toList();
-    if (operation != null) {
-      for (var i = 0; i < nextSelections.length; i++) {
-        if (i != index && nextSelections[i] == operation) {
-          nextSelections[i] = null;
-        }
-      }
+    final nextTokens = operationSelectionTokens.toList();
+    while (nextTokens.length < nextSelections.length) {
+      nextTokens.add('');
     }
+    final previousOperation = nextSelections[index];
     nextSelections[index] = operation;
+    if (operation == null) {
+      nextTokens[index] = '';
+    } else if (previousOperation != operation || nextTokens[index].isEmpty) {
+      nextTokens[index] = _newOperationSelectionToken(operation);
+    }
     dropdownValues.assignAll(nextSelections);
+    operationSelectionTokens.assignAll(nextTokens);
     selectedRowIndex.value = index;
     _scheduleOperationSelectionSave();
   }
@@ -554,9 +603,10 @@ final RxList<String> returnLostDropdownValue =
         'operationSelections': _operationSelectionPayload(),
       });
     } catch (e) {
-      menuError.value = e
-          .toString()
-          .replaceFirst(RegExp(r'^Exception:\s*'), '');
+      menuError.value = e.toString().replaceFirst(
+        RegExp(r'^Exception:\s*'),
+        '',
+      );
     }
   }
 
@@ -564,19 +614,36 @@ final RxList<String> returnLostDropdownValue =
     if (index < 0 || index >= dropdownValues.length) return;
 
     final rawSelections = dropdownValues.toList();
+    final rawTokens = operationSelectionTokens.toList();
+    while (rawTokens.length < rawSelections.length) {
+      rawTokens.add('');
+    }
     rawSelections.removeAt(index);
+    rawTokens.removeAt(index);
     rawSelections.add(null);
+    rawTokens.add('');
     final selected = rawSelections.whereType<OperationType>().toList();
+    final selectedTokens = <String>[];
+    for (var i = 0; i < rawSelections.length; i++) {
+      if (rawSelections[i] != null) {
+        selectedTokens.add(rawTokens[i]);
+      }
+    }
     final nextSelections = List<OperationType?>.filled(
       dropdownItems.length,
       null,
     );
+    final nextTokens = List<String>.filled(dropdownItems.length, '');
     for (var i = 0; i < selected.length && i < nextSelections.length; i++) {
       nextSelections[i] = selected[i];
+      nextTokens[i] = i < selectedTokens.length ? selectedTokens[i] : '';
     }
 
     dropdownValues.assignAll(nextSelections);
-    isDropdownOpen.assignAll(List.generate(nextSelections.length, (_) => false));
+    operationSelectionTokens.assignAll(nextTokens);
+    isDropdownOpen.assignAll(
+      List.generate(nextSelections.length, (_) => false),
+    );
     selectedRowIndex.value = selected.isEmpty
         ? 0
         : index.clamp(0, selected.length - 1).toInt();
@@ -614,6 +681,36 @@ final RxList<String> returnLostDropdownValue =
     }
   }
 
+  Future<int> _deleteAddWaterInstance(String wellId, String instanceKey) async {
+    final result = await _repository.getAddWaterList(wellId);
+    if (result['success'] != true) return 0;
+
+    final envelope = result['data'];
+    final data = envelope is Map<String, dynamic>
+        ? envelope['data']
+        : envelope is Map
+        ? Map<String, dynamic>.from(envelope)['data']
+        : null;
+    final items = data is List
+        ? List<Map<String, dynamic>>.from(data)
+        : const <Map<String, dynamic>>[];
+    var deletedCount = 0;
+    for (final item in items) {
+      final key = (item['operationInstanceKey'] ?? '').toString().trim();
+      final isLegacyFirst =
+          key.isEmpty &&
+          instanceKey == '${OperationType.addWater.name}::legacy0';
+      if (key != instanceKey && !isLegacyFirst) continue;
+      final id = (item['_id'] ?? item['id'] ?? '').toString().trim();
+      if (id.isEmpty) continue;
+      final deleteRes = await _repository.deleteAddWater(wellId, id);
+      if (deleteRes['success'] == true) {
+        deletedCount++;
+      }
+    }
+    return deletedCount;
+  }
+
   Future<Map<String, dynamic>> deleteOperationRow(int index) async {
     if (index < 0 || index >= dropdownValues.length) {
       return {'success': false, 'message': 'Invalid operation row'};
@@ -635,6 +732,22 @@ final RxList<String> returnLostDropdownValue =
 
     deletingOperationRowIndex.value = index;
     try {
+      final sameOperationCount = dropdownValues
+          .where((item) => item == operation)
+          .length;
+      if (sameOperationCount > 1) {
+        if (operation == OperationType.addWater) {
+          await _deleteAddWaterInstance(wellId, operationInstanceKeyAt(index));
+        }
+        _removeOperationSelectionAt(index);
+        await _saveOperationSelectionsNow();
+        await _refreshPitState();
+        return {
+          'success': true,
+          'message': 'Operation row removed successfully',
+        };
+      }
+
       final result = await _repository.deleteOperationData(
         wellId: wellId,
         operationType: operation.name,
@@ -668,8 +781,8 @@ final RxList<String> returnLostDropdownValue =
       final data = envelope is Map<String, dynamic>
           ? envelope['data']
           : envelope is Map
-              ? envelope['data']
-              : null;
+          ? envelope['data']
+          : null;
 
       final items = data is List ? data : const [];
       final mappedOperations = <OperationType>[];
@@ -713,10 +826,7 @@ final RxList<String> returnLostDropdownValue =
     _addWaterAutoSaveWorkers.addAll([
       ever<String>(addWaterTo, (_) => _scheduleAddWaterAutoSave()),
       ever<String>(addWaterMainVol, (_) => _scheduleAddWaterAutoSave()),
-      ever<List<String>>(
-        addWaterExtraRows,
-        (_) => _scheduleAddWaterAutoSave(),
-      ),
+      ever<List<String>>(addWaterExtraRows, (_) => _scheduleAddWaterAutoSave()),
     ]);
     _wellWorker = ever<String>(padWellContext.selectedWellId, (_) {
       _loadedAddWaterWellId = '';

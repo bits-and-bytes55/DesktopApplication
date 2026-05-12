@@ -1,56 +1,69 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart';
-import '../../controller/operation_controller.dart';
+import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
+import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 import '../../controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class AddWaterView extends StatefulWidget {
-  const AddWaterView({super.key});
+  const AddWaterView({super.key, required this.instanceKey});
+
+  final String instanceKey;
 
   @override
   State<AddWaterView> createState() => _AddWaterViewState();
 }
 
 class _AddWaterViewState extends State<AddWaterView> {
-  late final OperationController controller;
   late final DashboardController dashboardController;
   late final PitController pitController;
+  final AuthRepository _repository = AuthRepository();
+  final RxString _selectedTo = "Active System".obs;
+  final RxString _mainVol = "".obs;
+  final RxList<String> _extraRows = <String>["", ""].obs;
+  final RxList<String> _recordIds = <String>[].obs;
+  final RxBool _isLoading = false.obs;
   late final TextEditingController _mainVolController;
   final List<TextEditingController> _extraVolControllers = [];
   final List<Worker> _workers = [];
-
-  // Bind to OperationController for global state
-  // selectedTo, addWaterMainVol, and addWaterExtraRows are now in operationController
+  Timer? _autoSaveTimer;
+  bool _isApplyingState = false;
+  String _loadedWellId = '';
+  String _loadedReportId = '';
 
   @override
   void initState() {
     super.initState();
-    controller = Get.find<OperationController>();
     dashboardController = Get.find<DashboardController>();
     pitController = Get.isRegistered<PitController>()
         ? Get.find<PitController>()
         : Get.put(PitController());
-    _mainVolController = TextEditingController(
-      text: controller.addWaterMainVol.value,
-    );
+    _mainVolController = TextEditingController(text: _mainVol.value);
     _syncExtraControllers();
     _workers.addAll([
-      ever<String>(
-        controller.addWaterMainVol,
-        (value) => _setControllerText(_mainVolController, value),
-      ),
-      ever<List<String>>(
-        controller.addWaterExtraRows,
-        (_) => _syncExtraControllers(notify: true),
-      ),
+      ever<String>(_mainVol, (value) {
+        _setControllerText(_mainVolController, value);
+        _scheduleAutoSave();
+      }),
+      ever<String>(_selectedTo, (_) => _scheduleAutoSave()),
+      ever<List<String>>(_extraRows, (_) {
+        _syncExtraControllers(notify: true);
+        _scheduleAutoSave();
+      }),
+      ever<String>(padWellContext.selectedWellId, (_) => _load(force: true)),
+      ever<String>(reportContext.selectedReportId, (_) => _load(force: true)),
     ]);
     pitController.fetchAllPits();
-    controller.loadAddWater();
+    _load(force: true);
   }
 
   @override
   void dispose() {
+    _autoSaveTimer?.cancel();
     for (final worker in _workers) {
       worker.dispose();
     }
@@ -59,6 +72,235 @@ class _AddWaterViewState extends State<AddWaterView> {
       textController.dispose();
     }
     super.dispose();
+  }
+
+  double _parseVolume(String value) =>
+      double.tryParse(value.trim().replaceAll(',', '')) ?? 0.0;
+
+  String _formatVolume(double value) {
+    return value
+        .toStringAsFixed(4)
+        .replaceAll(RegExp(r'0+$'), '')
+        .replaceAll(RegExp(r'\.$'), '');
+  }
+
+  Map<String, dynamic>? _extractEntity(dynamic value) {
+    if (value is Map && value['data'] is Map) {
+      return Map<String, dynamic>.from(value['data'] as Map);
+    }
+    if (value is Map && value['data'] is List) {
+      final items = value['data'] as List;
+      if (items.isNotEmpty && items.first is Map) {
+        return Map<String, dynamic>.from(items.first as Map);
+      }
+    }
+    if (value is List && value.isNotEmpty && value.first is Map) {
+      return Map<String, dynamic>.from(value.first as Map);
+    }
+    if (value is Map) {
+      return Map<String, dynamic>.from(value);
+    }
+    return null;
+  }
+
+  void _resetState() {
+    _selectedTo.value = "Active System";
+    _mainVol.value = "";
+    _extraRows.assignAll(["", ""]);
+    _recordIds.clear();
+  }
+
+  List<String> _collectVolumes() {
+    final values = <String>[];
+    final main = _mainVol.value.trim();
+    if (_parseVolume(main) > 0) {
+      values.add(main);
+    }
+    for (final row in _extraRows) {
+      final trimmed = row.trim();
+      if (_parseVolume(trimmed) > 0) {
+        values.add(trimmed);
+      }
+    }
+    return values;
+  }
+
+  bool get _hasData => _recordIds.isNotEmpty || _collectVolumes().isNotEmpty;
+
+  bool _belongsToThisInstance(Map<String, dynamic> item) {
+    final key = (item['operationInstanceKey'] ?? '').toString().trim();
+    if (key == widget.instanceKey) return true;
+    return key.isEmpty && widget.instanceKey == 'addWater::legacy0';
+  }
+
+  Future<void> _refreshPitState() async {
+    await pitController.fetchAllPits();
+    await pitController.fetchSelectedPits();
+    await pitController.fetchUnselectedPits();
+    await pitController.fetchVolumeNameData();
+  }
+
+  Future<void> _load({bool force = false}) async {
+    _autoSaveTimer?.cancel();
+    final wellId = currentBackendWellId.trim();
+    final reportId = reportContext.selectedReportId.value.trim();
+    if (wellId.isEmpty || reportId.isEmpty) {
+      _isApplyingState = true;
+      _loadedWellId = '';
+      _loadedReportId = '';
+      _resetState();
+      _isApplyingState = false;
+      return;
+    }
+    if (!force &&
+        _loadedWellId == wellId &&
+        _loadedReportId == reportId &&
+        !_isLoading.value) {
+      return;
+    }
+
+    _isLoading.value = true;
+    _isApplyingState = true;
+    try {
+      final result = await _repository.getAddWaterList(wellId);
+      if (result['success'] != true) {
+        throw Exception(result['message'] ?? 'Failed to load Add Water');
+      }
+
+      final envelope = result['data'];
+      final data = envelope is Map<String, dynamic>
+          ? envelope['data']
+          : envelope is Map
+          ? Map<String, dynamic>.from(envelope)['data']
+          : null;
+      final allItems = data is List
+          ? List<Map<String, dynamic>>.from(data)
+          : const <Map<String, dynamic>>[];
+      final chronologicalItems = allItems
+          .where(_belongsToThisInstance)
+          .toList()
+          .reversed
+          .toList();
+
+      if (chronologicalItems.isEmpty) {
+        _resetState();
+        _loadedWellId = wellId;
+        _loadedReportId = reportId;
+        return;
+      }
+
+      final volumes = chronologicalItems
+          .map(
+            (item) =>
+                _formatVolume(_parseVolume((item['volume'] ?? '').toString())),
+          )
+          .toList();
+      final recordIds = chronologicalItems
+          .map((item) => (item['_id'] ?? item['id'] ?? '').toString())
+          .where((id) => id.isNotEmpty)
+          .toList();
+
+      final target = (chronologicalItems.first['to'] ?? 'Active System')
+          .toString()
+          .trim();
+      _selectedTo.value = target.isEmpty ? 'Active System' : target;
+      _mainVol.value = volumes.isNotEmpty ? volumes.first : "";
+
+      final extras = volumes.length > 1 ? volumes.skip(1).toList() : <String>[];
+      while (extras.length < 2) {
+        extras.add("");
+      }
+      if (extras.isNotEmpty && extras.last.trim().isNotEmpty) {
+        extras.add("");
+      }
+      _extraRows.assignAll(extras);
+      _recordIds.assignAll(recordIds);
+      _loadedWellId = wellId;
+      _loadedReportId = reportId;
+    } catch (_) {
+      _resetState();
+    } finally {
+      _isApplyingState = false;
+      _isLoading.value = false;
+    }
+  }
+
+  Future<void> _save() async {
+    _autoSaveTimer?.cancel();
+    final wellId = currentBackendWellId.trim();
+    final reportId = reportContext.selectedReportId.value.trim();
+    if (wellId.isEmpty || reportId.isEmpty) return;
+
+    final enteredTo = _selectedTo.value.trim().isEmpty
+        ? 'Active System'
+        : _selectedTo.value.trim();
+    final enteredVolumes = _collectVolumes();
+
+    if (_loadedWellId != wellId || _loadedReportId != reportId) {
+      if (enteredVolumes.isEmpty && _recordIds.isEmpty) {
+        await _load(force: true);
+      } else {
+        _loadedWellId = wellId;
+        _loadedReportId = reportId;
+      }
+    }
+
+    final currentIds = _recordIds.toList();
+    if (enteredVolumes.isEmpty) {
+      for (final id in currentIds) {
+        await _repository.deleteAddWater(wellId, id);
+      }
+      _isApplyingState = true;
+      _resetState();
+      _loadedWellId = wellId;
+      _loadedReportId = reportId;
+      _isApplyingState = false;
+      await _refreshPitState();
+      return;
+    }
+
+    for (var index = 0; index < enteredVolumes.length; index++) {
+      final body = {
+        'to': enteredTo,
+        'volume': _parseVolume(enteredVolumes[index]),
+        'operationInstanceKey': widget.instanceKey,
+      };
+      final existingId = index < currentIds.length ? currentIds[index] : '';
+      final result = existingId.isNotEmpty
+          ? await _repository.updateAddWater(wellId, existingId, body)
+          : await _repository.createAddWater(wellId, body);
+      if (result['success'] == true && existingId.isEmpty) {
+        final savedData = _extractEntity(result['data']);
+        final savedId = (savedData?['_id'] ?? savedData?['id'])?.toString();
+        if (savedId != null && savedId.isNotEmpty) {
+          currentIds.add(savedId);
+        }
+      }
+    }
+
+    for (
+      var index = enteredVolumes.length;
+      index < currentIds.length;
+      index++
+    ) {
+      await _repository.deleteAddWater(wellId, currentIds[index]);
+    }
+
+    _recordIds.assignAll(
+      currentIds.take(enteredVolumes.length).where((id) => id.isNotEmpty),
+    );
+    _loadedWellId = wellId;
+    _loadedReportId = reportId;
+    await _refreshPitState();
+  }
+
+  void _scheduleAutoSave() {
+    if (_isApplyingState || _isLoading.value || !_hasData) return;
+    _autoSaveTimer?.cancel();
+    _autoSaveTimer = Timer(const Duration(milliseconds: 850), () async {
+      if (_isApplyingState || _isLoading.value || !_hasData) return;
+      await _save();
+    });
   }
 
   void _setControllerText(TextEditingController textController, String value) {
@@ -70,7 +312,7 @@ class _AddWaterViewState extends State<AddWaterView> {
   }
 
   void _syncExtraControllers({bool notify = false}) {
-    final values = controller.addWaterExtraRows;
+    final values = _extraRows;
     while (_extraVolControllers.length < values.length) {
       _extraVolControllers.add(TextEditingController());
     }
@@ -92,7 +334,6 @@ class _AddWaterViewState extends State<AddWaterView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ================= HEADER =================
           Text(
             "Add Water",
             style: AppTheme.titleMedium.copyWith(
@@ -102,12 +343,10 @@ class _AddWaterViewState extends State<AddWaterView> {
             ),
           ),
           const SizedBox(height: 12),
-
-          // ================= COMPRESSED TABLE (LEFT ALIGNED) =================
           Align(
             alignment: Alignment.centerLeft,
             child: SizedBox(
-              width: 300, // Reduced width
+              width: 300,
               child: Container(
                 decoration: BoxDecoration(
                   color: Colors.white,
@@ -124,331 +363,318 @@ class _AddWaterViewState extends State<AddWaterView> {
                 child: Obx(() {
                   _syncExtraControllers();
                   return Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // ================= ROW 1: TO (Fixed Header) =================
-                        Container(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        height: 36,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              AppTheme.primaryColor.withOpacity(0.95),
+                              AppTheme.primaryColor,
+                            ],
+                          ),
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(8),
+                            topRight: Radius.circular(8),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 80,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                border: Border(
+                                  right: BorderSide(
+                                    color: Colors.white.withOpacity(0.3),
+                                  ),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 6,
+                                    height: 6,
+                                    margin: const EdgeInsets.only(right: 6),
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Colors.white.withOpacity(0.8),
+                                    ),
+                                  ),
+                                  Text(
+                                    "To",
+                                    style: AppTheme.bodySmall.copyWith(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Expanded(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                ),
+                                child: PopupMenuButton<String>(
+                                  enabled: !dashboardController.isLocked.value,
+                                  offset: const Offset(0, 0),
+                                  constraints: const BoxConstraints(
+                                    maxHeight: 180,
+                                    minWidth: 200,
+                                  ),
+                                  child: Container(
+                                    height: 24,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withOpacity(0.2),
+                                      borderRadius: BorderRadius.circular(4),
+                                      border: Border.all(
+                                        color: Colors.white.withOpacity(0.3),
+                                      ),
+                                    ),
+                                    alignment: Alignment.centerLeft,
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            _selectedTo.value,
+                                            style: AppTheme.bodySmall.copyWith(
+                                              fontSize: 11,
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ),
+                                        const Icon(
+                                          Icons.arrow_drop_down_rounded,
+                                          size: 16,
+                                          color: Colors.white,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  onSelected: (String value) {
+                                    _selectedTo.value = value;
+                                  },
+                                  itemBuilder: (BuildContext context) {
+                                    final items = <PopupMenuItem<String>>[
+                                      PopupMenuItem<String>(
+                                        value: "Active System",
+                                        height: 32,
+                                        child: Text(
+                                          "Active System",
+                                          style: AppTheme.bodySmall.copyWith(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                            color: AppTheme.primaryColor,
+                                          ),
+                                        ),
+                                      ),
+                                      PopupMenuItem<String>(
+                                        value: "",
+                                        height: 32,
+                                        child: Text(
+                                          "",
+                                          style: AppTheme.bodySmall.copyWith(
+                                            fontSize: 11,
+                                          ),
+                                        ),
+                                      ),
+                                    ];
+
+                                    if (pitController.pits.isNotEmpty) {
+                                      items.add(
+                                        const PopupMenuItem<String>(
+                                          enabled: false,
+                                          height: 1,
+                                          child: Divider(height: 1),
+                                        ),
+                                      );
+                                    }
+
+                                    items.addAll(
+                                      pitController.pits.map((pit) {
+                                        return PopupMenuItem<String>(
+                                          value: pit.pitName,
+                                          height: 32,
+                                          child: Text(
+                                            pit.pitName,
+                                            style: AppTheme.bodySmall.copyWith(
+                                              fontSize: 11,
+                                            ),
+                                          ),
+                                        );
+                                      }).toList(),
+                                    );
+
+                                    return items;
+                                  },
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryColor.withOpacity(0.08),
+                          border: Border(
+                            bottom: BorderSide(color: Colors.grey.shade300),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 80,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                border: Border(
+                                  right: BorderSide(
+                                    color: Colors.grey.shade300,
+                                  ),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 6,
+                                    height: 6,
+                                    margin: const EdgeInsets.only(right: 6),
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: AppTheme.primaryColor,
+                                    ),
+                                  ),
+                                  Text(
+                                    "Vol. (bbl)",
+                                    style: AppTheme.bodySmall.copyWith(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppTheme.primaryColor,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Expanded(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                ),
+                                child: TextField(
+                                  enabled: !dashboardController.isLocked.value,
+                                  decoration: InputDecoration(
+                                    border: InputBorder.none,
+                                    isDense: true,
+                                    hintText: "Enter value...",
+                                    hintStyle: AppTheme.caption.copyWith(
+                                      color: Colors.grey.shade400,
+                                      fontSize: 10,
+                                    ),
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      vertical: 8,
+                                    ),
+                                  ),
+                                  style: AppTheme.bodySmall.copyWith(
+                                    fontSize: 11,
+                                    color: AppTheme.textPrimary,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  controller: _mainVolController,
+                                  onChanged: (val) {
+                                    _mainVol.value = val;
+                                  },
+                                  keyboardType: TextInputType.number,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      ...List.generate(
+                        _extraRows.length,
+                        (index) => Container(
                           height: 36,
                           decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                AppTheme.primaryColor.withOpacity(0.95),
-                                AppTheme.primaryColor,
-                              ],
+                            color: index % 2 == 0
+                                ? Colors.white
+                                : Colors.grey.shade50,
+                            border: Border(
+                              bottom: index == _extraRows.length - 1
+                                  ? BorderSide.none
+                                  : BorderSide(color: Colors.grey.shade200),
                             ),
-                            borderRadius: const BorderRadius.only(
-                              topLeft: Radius.circular(8),
-                              topRight: Radius.circular(8),
-                            ),
+                            borderRadius: index == _extraRows.length - 1
+                                ? const BorderRadius.only(
+                                    bottomLeft: Radius.circular(8),
+                                    bottomRight: Radius.circular(8),
+                                  )
+                                : null,
                           ),
                           child: Row(
                             children: [
-                              // Label Column
                               Container(
                                 width: 80,
-                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                ),
                                 decoration: BoxDecoration(
                                   border: Border(
                                     right: BorderSide(
-                                      color: Colors.white.withOpacity(0.3),
+                                      color: Colors.grey.shade300,
                                     ),
                                   ),
                                 ),
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      width: 6,
-                                      height: 6,
-                                      margin: const EdgeInsets.only(right: 6),
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        color: Colors.white.withOpacity(0.8),
-                                      ),
-                                    ),
-                                    Text(
-                                      "To",
-                                      style: AppTheme.bodySmall.copyWith(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ],
-                                ),
                               ),
-                              // Dropdown Column
                               Expanded(
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                                  child: PopupMenuButton<String>(
-                                    enabled: !dashboardController.isLocked.value,
-                                    offset: const Offset(0, 0),
-                                    constraints: BoxConstraints(
-                                      maxHeight: 180,
-                                      minWidth: 200,
-                                    ),
-                                    child: Container(
-                                      height: 24,
-                                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white.withOpacity(0.2),
-                                        borderRadius: BorderRadius.circular(4),
-                                        border: Border.all(
-                                          color: Colors.white.withOpacity(0.3),
-                                        ),
-                                      ),
-                                      alignment: Alignment.centerLeft,
-                                      child: Row(
-                                        children: [
-                                          Expanded(
-                                            child: Text(
-                                              controller.addWaterTo.value,
-                                              style: AppTheme.bodySmall.copyWith(
-                                                fontSize: 11,
-                                                color: Colors.white,
-                                                fontWeight: FontWeight.w500,
-                                              ),
-                                            ),
-                                          ),
-                                          Icon(
-                                            Icons.arrow_drop_down_rounded,
-                                            size: 16,
-                                            color: Colors.white,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    onSelected: (String value) {
-                                      controller.addWaterTo.value = value;
-                                    },
-                                    itemBuilder: (BuildContext context) {
-                                      // Build dropdown items
-                                      final items = <PopupMenuItem<String>>[];
-
-                                      // Add "Active System" and "Empty" at top
-                                      items.add(
-                                        PopupMenuItem<String>(
-                                          value: "Active System",
-                                          height: 32,
-                                          child: Text(
-                                            "Active System",
-                                            style: AppTheme.bodySmall.copyWith(
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.w600,
-                                              color: AppTheme.primaryColor,
-                                            ),
-                                          ),
-                                        ),
-                                      );
-                                      items.add(
-                                        PopupMenuItem<String>(
-                                          value: "",
-                                          height: 32,
-                                          child: Text(
-                                            "",
-                                            style: AppTheme.bodySmall.copyWith(
-                                              fontSize: 11,
-                                            ),
-                                          ),
-                                        ),
-                                      );
-
-                                      // Add divider
-                                      if (pitController.pits.isNotEmpty) {
-                                        items.add(
-                                          const PopupMenuItem<String>(
-                                            enabled: false,
-                                            height: 1,
-                                            child: Divider(height: 1),
-                                          ),
-                                        );
-                                      }
-
-                                      // Add all pits (Active & Storage)
-                                      items.addAll(
-                                        pitController.pits.map((pit) {
-                                          return PopupMenuItem<String>(
-                                            value: pit.pitName,
-                                            height: 32,
-                                            child: Text(
-                                              pit.pitName,
-                                              style: AppTheme.bodySmall.copyWith(
-                                                fontSize: 11,
-                                              ),
-                                            ),
-                                          );
-                                        }).toList(),
-                                      );
-
-                                      return items;
-                                    },
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
                                   ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        // ================= ROW 2: VOL (bbl) (Fixed Header) =================
-                        Container(
-                          height: 36,
-                          decoration: BoxDecoration(
-                            color: AppTheme.primaryColor.withOpacity(0.08),
-                            border: Border(
-                              bottom: BorderSide(color: Colors.grey.shade300),
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              // Label Column
-                              Container(
-                                width: 80,
-                                padding: const EdgeInsets.symmetric(horizontal: 8),
-                                decoration: BoxDecoration(
-                                  border: Border(
-                                    right: BorderSide(color: Colors.grey.shade300),
-                                  ),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      width: 6,
-                                      height: 6,
-                                      margin: const EdgeInsets.only(right: 6),
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        color: AppTheme.primaryColor,
-                                      ),
-                                    ),
-                                    Text(
-                                      "Vol. (bbl)",
-                                      style: AppTheme.bodySmall.copyWith(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w600,
-                                        color: AppTheme.primaryColor,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              // Text field for Vol value
-                              Expanded(
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8),
                                   child: TextField(
-                                    enabled: !dashboardController.isLocked.value,
-                                    decoration: InputDecoration(
+                                    controller: _extraVolControllers[index],
+                                    enabled:
+                                        !dashboardController.isLocked.value,
+                                    decoration: const InputDecoration(
                                       border: InputBorder.none,
                                       isDense: true,
-                                      hintText: "Enter value...",
-                                      hintStyle: AppTheme.caption.copyWith(
-                                        color: Colors.grey.shade400,
-                                        fontSize: 10,
+                                      hintText: "",
+                                      contentPadding: EdgeInsets.symmetric(
+                                        vertical: 8,
                                       ),
-                                      contentPadding:
-                                          const EdgeInsets.symmetric(vertical: 8),
                                     ),
                                     style: AppTheme.bodySmall.copyWith(
                                       fontSize: 11,
                                       color: AppTheme.textPrimary,
                                       fontWeight: FontWeight.w500,
                                     ),
-                                    controller: _mainVolController,
-                                    onChanged: (val) {
-                                      controller.addWaterMainVol.value = val;
-                                    },
                                     keyboardType: TextInputType.number,
+                                    onChanged: (val) {
+                                      _extraRows[index] = val;
+                                      if (index == _extraRows.length - 1 &&
+                                          val.isNotEmpty) {
+                                        _extraRows.add("");
+                                      }
+                                    },
                                   ),
                                 ),
                               ),
                             ],
                           ),
                         ),
-
-                        // ================= DYNAMIC EMPTY ROWS (2 initial) =================
-                        ...List.generate(
-                          controller.addWaterExtraRows.length,
-                          (index) => Container(
-                            height: 36,
-                            decoration: BoxDecoration(
-                              color: index % 2 == 0 
-                                  ? Colors.white 
-                                  : Colors.grey.shade50,
-                              border: Border(
-                                bottom: index == controller.addWaterExtraRows.length - 1
-                                    ? BorderSide.none
-                                    : BorderSide(
-                                        color: Colors.grey.shade200,
-                                      ),
-                              ),
-                              borderRadius: index == controller.addWaterExtraRows.length - 1
-                                  ? const BorderRadius.only(
-                                      bottomLeft: Radius.circular(8),
-                                      bottomRight: Radius.circular(8),
-                                    )
-                                  : null,
-                            ),
-                            child: Row(
-                              children: [
-                                // Backend does not persist a per-row label here.
-                                Container(
-                                  width: 80,
-                                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                                  decoration: BoxDecoration(
-                                    border: Border(
-                                      right: BorderSide(
-                                          color: Colors.grey.shade300),
-                                    ),
-                                  ),
-                                  alignment: Alignment.centerLeft,
-                                  child: Text(
-                                    "",
-                                    style: AppTheme.bodySmall.copyWith(
-                                      fontSize: 11,
-                                      color: AppTheme.textSecondary,
-                                    ),
-                                  ),
-                                ),
-                                // Volume Input Column
-                                Expanded(
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 8),
-                                    child: TextField(
-                                      controller: _extraVolControllers[index],
-                                      enabled:
-                                          !dashboardController.isLocked.value,
-                                      decoration: InputDecoration(
-                                        border: InputBorder.none,
-                                        isDense: true,
-                                        hintText: "",
-                                        contentPadding:
-                                            const EdgeInsets.symmetric(
-                                                vertical: 8),
-                                      ),
-                                      style: AppTheme.bodySmall.copyWith(
-                                        fontSize: 11,
-                                        color: AppTheme.textPrimary,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                      keyboardType: TextInputType.number,
-                                      onChanged: (val) {
-                                        controller.addWaterExtraRows[index] = val;
-                                        // Auto-generate next row if current is last and has value
-                                        if (index == controller.addWaterExtraRows.length - 1 &&
-                                            val.isNotEmpty) {
-                                          controller.addWaterExtraRows.add("");
-                                        }
-                                      },
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    );
+                      ),
+                    ],
+                  );
                 }),
               ),
             ),

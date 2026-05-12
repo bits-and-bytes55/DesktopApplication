@@ -61,6 +61,7 @@ const prepareAddWaterData = (wellId, reportId, payload) => {
     reportId,
     to: safeTo,
     volume: waterVol,
+    operationInstanceKey: String(payload.operationInstanceKey ?? "").trim(),
   };
 };
 
@@ -218,6 +219,8 @@ export const updateAddWater = async (req, res) => {
     const mergedPayload = {
       to: req.body.to ?? existing.to,
       volume: req.body.volume ?? existing.volume,
+      operationInstanceKey:
+        req.body.operationInstanceKey ?? existing.operationInstanceKey ?? "",
     };
 
     const prepared = prepareAddWaterData(wellId, reportId, mergedPayload);
@@ -232,6 +235,7 @@ export const updateAddWater = async (req, res) => {
     existing.to = prepared.to;
     existing.volume = prepared.volume;
     existing.reportId = prepared.reportId;
+    existing.operationInstanceKey = prepared.operationInstanceKey;
 
     await existing.save();
 
