@@ -44,8 +44,24 @@ const calculatePipeVolume = ({ id, length }) => {
   return round2((idIn * idIn * lengthFt) / 1029.4);
 };
 
+const normalizeHoleDiameterIn = (casing) => {
+  const rawId = toNumber(casing?.id);
+  if (rawId <= 0) return 0;
+
+  const toc = toText(casing?.toc);
+  if (toc === "__cased_hole__" && rawId > 0 && rawId < 2) {
+    return rawId * 25.4;
+  }
+
+  if (rawId > 60) {
+    return rawId / 25.4;
+  }
+
+  return rawId;
+};
+
 const calculateHoleVolume = (casing, mdInFeet) => {
-  const id = toNumber(casing?.id);
+  const id = normalizeHoleDiameterIn(casing);
   const md = toNumber(mdInFeet);
   const top = toNumber(casing?.top);
   const shoe = toNumber(casing?.shoe);

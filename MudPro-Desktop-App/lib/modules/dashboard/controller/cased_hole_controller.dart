@@ -7,7 +7,7 @@ import 'package:mudpro_desktop_app/api_endpoint/api_endpoint.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/model/UG_ST_model.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart'
-    show kControllerWellId;
+    show PitController, kControllerWellId;
 import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
@@ -452,6 +452,9 @@ class CasedHoleUIController extends GetxController {
       }
 
       _ensureMinimumRows();
+      if (successCount > 0 && Get.isRegistered<PitController>()) {
+        await Get.find<PitController>().fetchVolumeNameData();
+      }
 
       if (errors.isEmpty) {
         return {
