@@ -6,6 +6,7 @@ import 'package:mudpro_desktop_app/modules/UG_ST_navigation/model/survey_model.d
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/survey/controller/survey_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/survey/survey_import_dialog.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/survey/survey_point_calculation_dialog.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 
 class SurveyDataTab extends StatelessWidget {
   SurveyDataTab({super.key});
@@ -109,16 +110,16 @@ class SurveyDataTab extends StatelessWidget {
           _gridRow(
             widths: widths,
             header: true,
-            cells: const [
+            cells: [
               '',
-              'MD\n(ft)',
-              'Inc\n(deg)',
-              'Azi\n(deg)',
-              'TVD\n(ft)',
-              'Vsec\n(ft)',
-              'N+/S-\n(ft)',
-              'E+/W-\n(ft)',
-              'Dogleg\n(deg/100ft)',
+              'MD\n${AppUnits.unitText('(ft)')}',
+              'Inc\n${AppUnits.unitText('(°)')}',
+              'Azi\n${AppUnits.unitText('(°)')}',
+              'TVD\n${AppUnits.unitText('(ft)')}',
+              'Vsec\n${AppUnits.unitText('(ft)')}',
+              'N+/S-\n${AppUnits.unitText('(ft)')}',
+              'E+/W-\n${AppUnits.unitText('(ft)')}',
+              'Dogleg\n${AppUnits.dogleg}',
             ],
           ),
           Expanded(
@@ -337,7 +338,12 @@ class SurveyDataTab extends StatelessWidget {
           _gridRow(
             widths: widths,
             header: true,
-            cells: const ['', 'MD (ft)', 'Annotation', 'Symbol'],
+            cells: [
+              '',
+              'MD ${AppUnits.unitText('(ft)')}',
+              'Annotation',
+              'Symbol',
+            ],
           ),
           Expanded(
             child: Obx(

@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import 'package:mudpro_desktop_app/api_endpoint/api_endpoint.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/controller/UG_ST_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/model/survey_model.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
@@ -40,12 +41,14 @@ class SurveyController extends GetxController {
 
   Worker? _wellWorker;
   Worker? _reportWorker;
+  final List<Worker> _unitWorkers = <Worker>[];
   Timer? _autosaveTimer;
 
   SurveyStationRow? _stationClipboard;
   SurveyAnnotationRow? _annotationClipboard;
 
   String? _currentWellId;
+  late String _lengthUnit;
 
   bool get isLocked => ugStController.isLocked.value;
 
@@ -80,6 +83,7 @@ class SurveyController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    _lengthUnit = AppUnits.length;
     _currentWellId = padWellContext.selectedWellId.value.trim().isNotEmpty
         ? padWellContext.selectedWellId.value.trim()
         : null;
@@ -97,6 +101,14 @@ class SurveyController extends GetxController {
     _reportWorker = ever<String>(reportContext.selectedReportId, (_) {
       loadSurvey();
     });
+    _unitWorkers.addAll([
+      ever(AppUnits.controller.unitSystem, (_) => _handleUnitChange()),
+      ever(
+        AppUnits.controller.selectedCustomSystemId,
+        (_) => _handleUnitChange(),
+      ),
+      ever(AppUnits.controller.customUnits, (_) => _handleUnitChange()),
+    ]);
 
     if (_currentWellId != null && _currentWellId!.isNotEmpty) {
       loadSurvey();
@@ -108,6 +120,9 @@ class SurveyController extends GetxController {
     _autosaveTimer?.cancel();
     _wellWorker?.dispose();
     _reportWorker?.dispose();
+    for (final worker in _unitWorkers) {
+      worker.dispose();
+    }
     for (final row in stations) {
       row.dispose();
     }
@@ -155,6 +170,7 @@ class SurveyController extends GetxController {
                   Map<String, dynamic>.from(item as Map),
                 ),
               )
+              .map(_displayStationRow)
               .toList();
           final nextAnnotations = ((data['annotations'] as List?) ?? const [])
               .map(
@@ -162,6 +178,7 @@ class SurveyController extends GetxController {
                   Map<String, dynamic>.from(item as Map),
                 ),
               )
+              .map(_displayAnnotationRow)
               .toList();
 
           _replaceStations(nextStations);
@@ -210,10 +227,13 @@ class SurveyController extends GetxController {
         'projectAziEnabled': projectAziEnabled.value,
         'projectAzi': projectAzi.value.trim(),
         'rows': _trimmedStations().asMap().entries.map((entry) {
-          return {'rowNumber': entry.key + 1, ...entry.value.toJson()};
+          return {'rowNumber': entry.key + 1, ..._stationBaseJson(entry.value)};
         }).toList(),
         'annotations': _trimmedAnnotations().asMap().entries.map((entry) {
-          return {'rowNumber': entry.key + 1, ...entry.value.toJson()};
+          return {
+            'rowNumber': entry.key + 1,
+            ..._annotationBaseJson(entry.value),
+          };
         }).toList(),
       };
 
@@ -236,6 +256,23 @@ class SurveyController extends GetxController {
     _autosaveTimer = Timer(const Duration(milliseconds: 900), () async {
       await saveSurvey();
     });
+  }
+
+  void _handleUnitChange() {
+    final nextLengthUnit = AppUnits.length;
+    if (_lengthUnit == nextLengthUnit) return;
+
+    for (final row in stations) {
+      row.md = _convertText(row.md, _lengthUnit, nextLengthUnit);
+      row.syncEditableControllers();
+    }
+    for (final row in annotations) {
+      row.md = _convertText(row.md, _lengthUnit, nextLengthUnit);
+      row.syncEditableControllers();
+    }
+    _lengthUnit = nextLengthUnit;
+    _recalculateAllRows();
+    annotations.refresh();
   }
 
   void setSelectedTab(int index) {
@@ -325,8 +362,8 @@ class SurveyController extends GetxController {
   void cycleAnnotationSymbol(int index) {
     if (index < 0 || index >= annotations.length || isLocked) return;
     final current = annotations[index].symbol.trim();
-    final nextIndex = (annotationSymbols.indexOf(current) + 1) %
-        annotationSymbols.length;
+    final nextIndex =
+        (annotationSymbols.indexOf(current) + 1) % annotationSymbols.length;
     annotations[index].symbol = annotationSymbols[nextIndex];
     annotations.refresh();
     scheduleAutosave();
@@ -425,7 +462,10 @@ class SurveyController extends GetxController {
 
   void removeEmptyRows() {
     if (isLocked) return;
-    final compact = stations.where((row) => row.hasAnyData).map((e) => e.clone()).toList();
+    final compact = stations
+        .where((row) => row.hasAnyData)
+        .map((e) => e.clone())
+        .toList();
     _replaceStations(compact);
     _recalculateAllRows();
     scheduleAutosave();
@@ -770,7 +810,9 @@ class SurveyController extends GetxController {
       cumulativeNorth += deltaNorth;
       cumulativeEast += deltaEast;
 
-      final doglegSeverity = (doglegRadians * 180 / math.pi) * 100 / deltaMd;
+      final doglegInterval = AppUnits.dogleg.contains('30m') ? 30.0 : 100.0;
+      final doglegSeverity =
+          (doglegRadians * 180 / math.pi) * doglegInterval / deltaMd;
 
       row.tvd = _format(cumulativeTvd, 1);
       row.northSouth = _format(cumulativeNorth, 1);
@@ -805,4 +847,55 @@ class SurveyController extends GetxController {
   double _lerp(double a, double b, double t) => a + ((b - a) * t);
 
   String _format(double value, int digits) => value.toStringAsFixed(digits);
+
+  SurveyStationRow _displayStationRow(SurveyStationRow row) {
+    return SurveyStationRow(
+      md: _convertText(row.md, '(ft)', AppUnits.length),
+      inc: row.inc,
+      azi: row.azi,
+      tvd: _convertText(row.tvd, '(ft)', AppUnits.length),
+      vsec: _convertText(row.vsec, '(ft)', AppUnits.length),
+      northSouth: _convertText(row.northSouth, '(ft)', AppUnits.length),
+      eastWest: _convertText(row.eastWest, '(ft)', AppUnits.length),
+      dogleg: _convertText(row.dogleg, '(°/100ft)', AppUnits.dogleg),
+    );
+  }
+
+  SurveyAnnotationRow _displayAnnotationRow(SurveyAnnotationRow row) {
+    return SurveyAnnotationRow(
+      md: _convertText(row.md, '(ft)', AppUnits.length),
+      annotation: row.annotation,
+      symbol: row.symbol,
+    );
+  }
+
+  Map<String, dynamic> _stationBaseJson(SurveyStationRow row) => {
+    'md': _convertText(row.md, AppUnits.length, '(ft)').trim(),
+    'inc': row.inc.trim(),
+    'azi': row.azi.trim(),
+    'tvd': _convertText(row.tvd, AppUnits.length, '(ft)').trim(),
+    'vsec': _convertText(row.vsec, AppUnits.length, '(ft)').trim(),
+    'northSouth': _convertText(row.northSouth, AppUnits.length, '(ft)').trim(),
+    'eastWest': _convertText(row.eastWest, AppUnits.length, '(ft)').trim(),
+    'dogleg': _convertText(row.dogleg, AppUnits.dogleg, '(°/100ft)').trim(),
+  };
+
+  Map<String, dynamic> _annotationBaseJson(SurveyAnnotationRow row) => {
+    'md': _convertText(row.md, AppUnits.length, '(ft)').trim(),
+    'annotation': row.annotation.trim(),
+    'symbol': row.symbol.trim(),
+  };
+
+  String _convertText(String value, String fromUnit, String toUnit) {
+    final raw = value.trim();
+    if (raw.isEmpty || fromUnit == toUnit) return value;
+    final parsed = double.tryParse(raw.replaceAll(',', ''));
+    if (parsed == null) return value;
+    final converted = AppUnits.convertValue(parsed, fromUnit, toUnit);
+    if (converted == null) return value;
+    return converted
+        .toStringAsFixed(4)
+        .replaceAll(RegExp(r'0+$'), '')
+        .replaceAll(RegExp(r'\.$'), '');
+  }
 }

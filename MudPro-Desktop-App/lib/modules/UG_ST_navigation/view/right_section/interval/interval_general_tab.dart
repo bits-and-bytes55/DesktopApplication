@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/controller/UG_ST_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/interval/controller/interval_controller.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 
 const Color _igBorder = Color(0xFFC9CED6);
 const Color _igHeader = Color(0xFFF3F3F3);
@@ -105,12 +106,22 @@ class IntervalGeneralTab extends StatelessWidget {
             defaultVerticalAlignment: TableCellVerticalAlignment.middle,
             children: [
               _tableRow('Formation', c.formationCtrl, '', ugSt.isLocked.value),
-              _tableRow('Bit Size', c.bitSizeCtrl, '(mm)', ugSt.isLocked.value),
-              _tableRow('Casing', c.casingCtrl, '(mm)', ugSt.isLocked.value),
+              _tableRow(
+                'Bit Size',
+                c.bitSizeCtrl,
+                AppUnits.unitText('(mm)'),
+                ugSt.isLocked.value,
+              ),
+              _tableRow(
+                'Casing',
+                c.casingCtrl,
+                AppUnits.unitText('(mm)'),
+                ugSt.isLocked.value,
+              ),
               _tableRow(
                 'Interval FIT',
                 c.intervalFITCtrl,
-                '(ppg)',
+                AppUnits.unitText('(ppg)'),
                 ugSt.isLocked.value,
               ),
               _tableRow(

@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/UG_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/formation_row_model.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
@@ -28,12 +29,21 @@ class FormationController extends GetxController {
   Timer? _autosaveTimer;
   Worker? _wellWorker;
   Worker? _reportWorker;
+  final List<Worker> _unitWorkers = <Worker>[];
+  late String _lengthUnit;
+  late String _mudWeightUnit;
+  late String _pressureGradientUnit;
+  late String _pressureUnit;
 
   bool get _hasWellId => currentWellId != null && currentWellId!.isNotEmpty;
 
   @override
   void onInit() {
     super.onInit();
+    _lengthUnit = AppUnits.length;
+    _mudWeightUnit = AppUnits.mudWeight;
+    _pressureGradientUnit = AppUnits.pressureGradient;
+    _pressureUnit = AppUnits.pressure;
     currentWellId = padWellContext.selectedWellId.value.isNotEmpty
         ? padWellContext.selectedWellId.value
         : currentBackendWellId;
@@ -48,6 +58,14 @@ class FormationController extends GetxController {
     _reportWorker = ever<String>(reportContext.selectedReportId, (_) {
       loadFormationData();
     });
+    _unitWorkers.addAll([
+      ever(AppUnits.controller.unitSystem, (_) => _handleUnitChange()),
+      ever(
+        AppUnits.controller.selectedCustomSystemId,
+        (_) => _handleUnitChange(),
+      ),
+      ever(AppUnits.controller.customUnits, (_) => _handleUnitChange()),
+    ]);
 
     if (_hasWellId) {
       loadFormationData();
@@ -59,6 +77,9 @@ class FormationController extends GetxController {
     _autosaveTimer?.cancel();
     _wellWorker?.dispose();
     _reportWorker?.dispose();
+    for (final worker in _unitWorkers) {
+      worker.dispose();
+    }
     super.onClose();
   }
 
@@ -86,6 +107,7 @@ class FormationController extends GetxController {
             .map(
               (item) => FormationRow.fromJson(Map<String, dynamic>.from(item)),
             )
+            .map(_displayRow)
             .toList();
 
         rows.assignAll(incomingRows);
@@ -231,7 +253,7 @@ class FormationController extends GetxController {
         wellId: currentWellId!,
         mode: mode.value,
         poreFromTop: poreFromTop.value,
-        rows: rows.map((row) => row.toJson()).toList(),
+        rows: rows.map(_rowBaseJson).toList(),
       );
     } finally {
       isSaving.value = false;
@@ -259,7 +281,7 @@ class FormationController extends GetxController {
   }
 
   void _recalculateRow(FormationRow row) {
-    final tvd = _toDouble(row.tvd.value);
+    final tvd = _toBaseDouble(row.tvd.value, AppUnits.length, '(ft)');
     _recalculateGroup(
       ppg: row.porePpg,
       grad: row.poreGrad,
@@ -280,9 +302,13 @@ class FormationController extends GetxController {
     required RxString psi,
     required double tvd,
   }) {
-    double densityValue = _toDouble(ppg.value);
-    double gradientValue = _toDouble(grad.value);
-    double pressureValue = _toDouble(psi.value);
+    double densityValue = _toBaseDouble(ppg.value, AppUnits.mudWeight, '(ppg)');
+    double gradientValue = _toBaseDouble(
+      grad.value,
+      AppUnits.pressureGradient,
+      '(psi/ft)',
+    );
+    double pressureValue = _toBaseDouble(psi.value, AppUnits.pressure, '(psi)');
 
     switch (mode.value) {
       case 'Density':
@@ -293,9 +319,24 @@ class FormationController extends GetxController {
         }
         gradientValue = densityValue * _psiPerFootPerPpg;
         pressureValue = tvd > 0 ? gradientValue * tvd : 0;
-        grad.value = _formatFixed(gradientValue, 3);
-        psi.value = _formatFixed(pressureValue, 0);
-        ppg.value = _formatFixed(densityValue, 2);
+        grad.value = _formatDisplay(
+          gradientValue,
+          '(psi/ft)',
+          AppUnits.pressureGradient,
+          3,
+        );
+        psi.value = _formatDisplay(
+          pressureValue,
+          '(psi)',
+          AppUnits.pressure,
+          _pressureFractionDigits,
+        );
+        ppg.value = _formatDisplay(
+          densityValue,
+          '(ppg)',
+          AppUnits.mudWeight,
+          2,
+        );
         return;
       case 'Pressure':
         if (pressureValue <= 0) {
@@ -307,9 +348,24 @@ class FormationController extends GetxController {
         densityValue = gradientValue > 0
             ? gradientValue / _psiPerFootPerPpg
             : 0;
-        ppg.value = _formatFixed(densityValue, 2);
-        grad.value = _formatFixed(gradientValue, 3);
-        psi.value = _formatFixed(pressureValue, 0);
+        ppg.value = _formatDisplay(
+          densityValue,
+          '(ppg)',
+          AppUnits.mudWeight,
+          2,
+        );
+        grad.value = _formatDisplay(
+          gradientValue,
+          '(psi/ft)',
+          AppUnits.pressureGradient,
+          3,
+        );
+        psi.value = _formatDisplay(
+          pressureValue,
+          '(psi)',
+          AppUnits.pressure,
+          _pressureFractionDigits,
+        );
         return;
       case 'Gradient':
       default:
@@ -320,9 +376,24 @@ class FormationController extends GetxController {
         }
         densityValue = gradientValue / _psiPerFootPerPpg;
         pressureValue = tvd > 0 ? gradientValue * tvd : 0;
-        ppg.value = _formatFixed(densityValue, 2);
-        psi.value = _formatFixed(pressureValue, 0);
-        grad.value = _formatFixed(gradientValue, 3);
+        ppg.value = _formatDisplay(
+          densityValue,
+          '(ppg)',
+          AppUnits.mudWeight,
+          2,
+        );
+        psi.value = _formatDisplay(
+          pressureValue,
+          '(psi)',
+          AppUnits.pressure,
+          _pressureFractionDigits,
+        );
+        grad.value = _formatDisplay(
+          gradientValue,
+          '(psi/ft)',
+          AppUnits.pressureGradient,
+          3,
+        );
         return;
     }
   }
@@ -342,9 +413,159 @@ class FormationController extends GetxController {
     return double.tryParse(value.trim()) ?? 0.0;
   }
 
+  int get _pressureFractionDigits =>
+      AppUnits.clean(AppUnits.pressure) == AppUnits.clean('(psi)') ? 0 : 2;
+
   String _formatFixed(double value, int fractionDigits) {
     if (value <= 0) return '';
     return value.toStringAsFixed(fractionDigits);
+  }
+
+  void _handleUnitChange() {
+    final nextLengthUnit = AppUnits.length;
+    final nextMudWeightUnit = AppUnits.mudWeight;
+    final nextPressureGradientUnit = AppUnits.pressureGradient;
+    final nextPressureUnit = AppUnits.pressure;
+
+    if (_lengthUnit == nextLengthUnit &&
+        _mudWeightUnit == nextMudWeightUnit &&
+        _pressureGradientUnit == nextPressureGradientUnit &&
+        _pressureUnit == nextPressureUnit) {
+      return;
+    }
+
+    for (final row in rows) {
+      row.tvd.value = _convertText(row.tvd.value, _lengthUnit, nextLengthUnit);
+      row.porePpg.value = _convertText(
+        row.porePpg.value,
+        _mudWeightUnit,
+        nextMudWeightUnit,
+      );
+      row.fracPpg.value = _convertText(
+        row.fracPpg.value,
+        _mudWeightUnit,
+        nextMudWeightUnit,
+      );
+      row.poreGrad.value = _convertText(
+        row.poreGrad.value,
+        _pressureGradientUnit,
+        nextPressureGradientUnit,
+      );
+      row.fracGrad.value = _convertText(
+        row.fracGrad.value,
+        _pressureGradientUnit,
+        nextPressureGradientUnit,
+      );
+      row.porePsi.value = _convertText(
+        row.porePsi.value,
+        _pressureUnit,
+        nextPressureUnit,
+      );
+      row.fracPsi.value = _convertText(
+        row.fracPsi.value,
+        _pressureUnit,
+        nextPressureUnit,
+      );
+    }
+
+    _lengthUnit = nextLengthUnit;
+    _mudWeightUnit = nextMudWeightUnit;
+    _pressureGradientUnit = nextPressureGradientUnit;
+    _pressureUnit = nextPressureUnit;
+
+    for (final row in rows) {
+      _recalculateRow(row);
+    }
+    rows.refresh();
+    _syncUgController();
+  }
+
+  FormationRow _displayRow(FormationRow row) {
+    return FormationRow(
+      description: row.description.value,
+      tvd: _convertText(row.tvd.value, '(ft)', AppUnits.length),
+      porePpg: _convertText(row.porePpg.value, '(ppg)', AppUnits.mudWeight),
+      poreGrad: _convertText(
+        row.poreGrad.value,
+        '(psi/ft)',
+        AppUnits.pressureGradient,
+      ),
+      porePsi: _convertText(row.porePsi.value, '(psi)', AppUnits.pressure),
+      fracPpg: _convertText(row.fracPpg.value, '(ppg)', AppUnits.mudWeight),
+      fracGrad: _convertText(
+        row.fracGrad.value,
+        '(psi/ft)',
+        AppUnits.pressureGradient,
+      ),
+      fracPsi: _convertText(row.fracPsi.value, '(psi)', AppUnits.pressure),
+      lithology: row.lithology.value,
+    );
+  }
+
+  Map<String, dynamic> _rowBaseJson(FormationRow row) => {
+    'description': row.description.value.trim(),
+    'tvd': _convertText(row.tvd.value, AppUnits.length, '(ft)').trim(),
+    'porePpg': _convertText(
+      row.porePpg.value,
+      AppUnits.mudWeight,
+      '(ppg)',
+    ).trim(),
+    'poreGrad': _convertText(
+      row.poreGrad.value,
+      AppUnits.pressureGradient,
+      '(psi/ft)',
+    ).trim(),
+    'porePsi': _convertText(
+      row.porePsi.value,
+      AppUnits.pressure,
+      '(psi)',
+    ).trim(),
+    'fracPpg': _convertText(
+      row.fracPpg.value,
+      AppUnits.mudWeight,
+      '(ppg)',
+    ).trim(),
+    'fracGrad': _convertText(
+      row.fracGrad.value,
+      AppUnits.pressureGradient,
+      '(psi/ft)',
+    ).trim(),
+    'fracPsi': _convertText(
+      row.fracPsi.value,
+      AppUnits.pressure,
+      '(psi)',
+    ).trim(),
+    'lithology': row.lithology.value.trim(),
+  };
+
+  double _toBaseDouble(String value, String fromUnit, String baseUnit) {
+    final parsed = _toDouble(value);
+    if (parsed <= 0) return 0;
+    return AppUnits.convertValue(parsed, fromUnit, baseUnit) ?? parsed;
+  }
+
+  String _formatDisplay(
+    double value,
+    String fromUnit,
+    String toUnit,
+    int fractionDigits,
+  ) {
+    if (value <= 0) return '';
+    final converted = AppUnits.convertValue(value, fromUnit, toUnit) ?? value;
+    return _formatFixed(converted, fractionDigits);
+  }
+
+  String _convertText(String value, String fromUnit, String toUnit) {
+    final raw = value.trim();
+    if (raw.isEmpty || fromUnit == toUnit) return value;
+    final parsed = double.tryParse(raw.replaceAll(',', ''));
+    if (parsed == null) return value;
+    final converted = AppUnits.convertValue(parsed, fromUnit, toUnit);
+    if (converted == null) return value;
+    return converted
+        .toStringAsFixed(4)
+        .replaceAll(RegExp(r'0+$'), '')
+        .replaceAll(RegExp(r'\.$'), '');
   }
 }
 

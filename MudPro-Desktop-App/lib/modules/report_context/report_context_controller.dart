@@ -134,6 +134,16 @@ class ReportContextController extends GetxController {
     return result;
   }
 
+  Future<Map<String, dynamic>> carryOverIntoReport({
+    required String targetReportId,
+    required String sourceReportId,
+  }) async {
+    final result = await _api.carryOverReport(targetReportId, sourceReportId);
+    await loadForSelectedWell(preferredReportId: targetReportId);
+    selectReport(targetReportId);
+    return result;
+  }
+
   void selectReport(String reportId) {
     final report = _firstWhereOrNull(reports, (item) => item.id == reportId);
     if (report == null) return;

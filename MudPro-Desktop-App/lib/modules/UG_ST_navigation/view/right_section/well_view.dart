@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/controller/UG_ST_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_models.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
@@ -40,9 +41,11 @@ class _WellViewState extends State<WellView> {
 
   final ScrollController _tableScrollCtrl = ScrollController();
   Worker? _wellWorker;
+  final List<Worker> _unitWorkers = <Worker>[];
   String _selectedPadId = '';
   Timer? _autosaveTimer;
   Map<String, String>? _wellClipboard;
+  late String _lengthUnit;
 
   late final Map<String, TextEditingController> _controllers = {
     for (final field in _wellFields) field.key: TextEditingController(),
@@ -51,17 +54,29 @@ class _WellViewState extends State<WellView> {
   @override
   void initState() {
     super.initState();
+    _lengthUnit = AppUnits.length;
     _loadSelectedWell();
     _wellWorker = ever<String>(padWellC.selectedWellId, (_) {
       if (mounted) {
         _loadSelectedWell();
       }
     });
+    _unitWorkers.addAll([
+      ever(AppUnits.controller.unitSystem, (_) => _handleUnitChange()),
+      ever(
+        AppUnits.controller.selectedCustomSystemId,
+        (_) => _handleUnitChange(),
+      ),
+      ever(AppUnits.controller.customUnits, (_) => _handleUnitChange()),
+    ]);
   }
 
   @override
   void dispose() {
     _wellWorker?.dispose();
+    for (final worker in _unitWorkers) {
+      worker.dispose();
+    }
     _autosaveTimer?.cancel();
     _tableScrollCtrl.dispose();
     for (final controller in _controllers.values) {
@@ -83,7 +98,10 @@ class _WellViewState extends State<WellView> {
     }
 
     for (final field in _wellFields) {
-      _controllers[field.key]!.text = _wellValue(well, field.key);
+      _controllers[field.key]!.text = _displayFieldValue(
+        _wellValue(well, field.key),
+        field.unit,
+      );
     }
 
     setState(() {
@@ -121,7 +139,10 @@ class _WellViewState extends State<WellView> {
     final payload = <String, dynamic>{
       'padId': _selectedPadId,
       for (final field in _wellFields)
-        field.key: _controllers[field.key]!.text.trim(),
+        field.key: _storeFieldValue(
+          _controllers[field.key]!.text.trim(),
+          field.unit,
+        ),
     };
 
     try {
@@ -171,6 +192,58 @@ class _WellViewState extends State<WellView> {
     _autosaveTimer = Timer(const Duration(milliseconds: 900), () {
       _saveWell(showFeedback: false, syncAfterSave: false);
     });
+  }
+
+  void _handleUnitChange() {
+    final nextLengthUnit = AppUnits.length;
+    if (_lengthUnit == nextLengthUnit) return;
+
+    for (final field in _wellFields) {
+      if (!_isLengthUnit(field.unit)) continue;
+      final controller = _controllers[field.key]!;
+      controller.text = _convertText(
+        controller.text,
+        _lengthUnit,
+        nextLengthUnit,
+      );
+    }
+    _lengthUnit = nextLengthUnit;
+    if (mounted) setState(() {});
+  }
+
+  bool _isLengthUnit(String unit) =>
+      AppUnits.unitText(unit) == AppUnits.length ||
+      AppUnits.unitText(unit) == AppUnits.unitText('(ft)');
+
+  String _displayFieldValue(String value, String baseUnit) {
+    if (baseUnit.trim().isEmpty) return value;
+    if (_isLengthUnit(baseUnit)) {
+      return _convertText(value, baseUnit, _lengthUnit);
+    }
+    return value;
+  }
+
+  String _storeFieldValue(String value, String baseUnit) {
+    if (baseUnit.trim().isEmpty) return value;
+    if (_isLengthUnit(baseUnit)) {
+      return _convertText(value, _lengthUnit, baseUnit);
+    }
+    return value;
+  }
+
+  String _displayUnit(String unit) =>
+      unit.trim().isEmpty ? unit : AppUnits.unitText(unit);
+
+  String _convertText(String rawValue, String fromUnit, String toUnit) {
+    if (rawValue.trim().isEmpty || fromUnit == toUnit) return rawValue;
+    final parsed = double.tryParse(rawValue.replaceAll(',', '').trim());
+    if (parsed == null) return rawValue;
+    final converted = AppUnits.convertValue(parsed, fromUnit, toUnit);
+    if (converted == null) return rawValue;
+    return converted
+        .toStringAsFixed(4)
+        .replaceAll(RegExp(r'0+$'), '')
+        .replaceAll(RegExp(r'\.$'), '');
   }
 
   Map<String, String> _currentFormValues() {
@@ -387,7 +460,7 @@ class _WellViewState extends State<WellView> {
           readOnly: isLocked,
           hint: field.hint,
         ),
-        _classicUnitCell(field.unit),
+        _classicUnitCell(_displayUnit(field.unit)),
       ],
     );
   }

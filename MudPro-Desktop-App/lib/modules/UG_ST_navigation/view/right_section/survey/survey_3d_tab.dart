@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/survey/controller/survey_controller.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 
 class Survey3DTab extends StatelessWidget {
   Survey3DTab({super.key});
@@ -262,16 +263,20 @@ class _Survey3DPainter extends CustomPainter {
       axisPaint,
     );
 
-    _drawLabel(canvas, 'E+/- (ft)', Offset(frame.left + 36, frame.bottom + 26));
+    _drawLabel(
+      canvas,
+      'E+/- ${AppUnits.unitText('(ft)')}',
+      Offset(frame.left + 36, frame.bottom + 26),
+    );
     _drawRotatedLabel(
       canvas,
-      'N+/-S (ft)',
+      'N+/-S ${AppUnits.unitText('(ft)')}',
       Offset(frame.right + 32, frame.center.dy - 20),
       -0.88,
     );
     _drawRotatedLabel(
       canvas,
-      'TVD (ft)',
+      'TVD ${AppUnits.unitText('(ft)')}',
       Offset(frame.left - 36, frame.center.dy + 8),
       -1.57,
     );

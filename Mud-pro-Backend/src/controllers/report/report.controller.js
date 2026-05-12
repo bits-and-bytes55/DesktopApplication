@@ -8,6 +8,29 @@ import Nozzle from "../../modules/nozzle/nozzle.model.js";
 import { Shaker, OtherSce } from "../../modules/sce/sce.model.js";
 import InventorySnapshot from "../../modules/FullInventory/InventorySnapshot.js";
 import MudReportState from "../../modules/mudReport/MudReportState.js";
+import Casing from "../../modules/casing/casing.model.js";
+import DrillString from "../../modules/DrillString/DrillString.js";
+import AddWater from "../../modules/addwater/AddWater.js";
+import EmptyFluidActiveSystem from "../../modules/emptyfluidactivesystem/EmptyFluidActiveSystem.js";
+import OtherVolAddition from "../../modules/othervol/OtherVolAddition.js";
+import MudLossStorage from "../../modules/mudlossstorage/MudLossStorage.js";
+import MudLoss from "../../modules/mudloss/MudLoss.js";
+import ReceiveMud from "../../modules/receivemud/ReceiveMud.js";
+import ReturnLostMud from "../../modules/returnlostmud/ReturnLostMud.js";
+import TransferMud from "../../modules/transfermud/TransferMud.js";
+import ConsumeProduct from "../../modules/Consumeproduct/ConsumeProduct.js";
+import ConsumeProductDistributionState from "../../modules/Consumeproduct/ConsumeProductDistributionState.js";
+import ConsumeService from "../../modules/ConsumeServices/Services/Service.js";
+import ConsumePackage from "../../modules/ConsumeServices/Package/Package.js";
+import ConsumeEngineering from "../../modules/ConsumeServices/Engineers/Engineering.js";
+import ReceiveProduct from "../../modules/ReceiveProduct/Product/ReceiveProduct.js";
+import ReceivePackage from "../../modules/ReceiveProduct/Package/ReceivePackage.js";
+import ReturnProduct from "../../modules/ReturnProduct/Product/ReturnProduct.js";
+import ReturnPackage from "../../modules/ReturnProduct/Package/ReturnPackage.js";
+import WellPlan from "../../modules/wellPlan/wellPlan.model.js";
+import FormationConfig from "../../modules/formation/formation.model.js";
+import SurveyConfig from "../../modules/survey/survey.model.js";
+import SolidsAnalysis from "../../modules/SolidAnalysis/solidanalysismodel.js";
 
 const toText = (value) => String(value ?? "").trim();
 
@@ -228,6 +251,79 @@ const cleanClone = (doc = {}) => {
   delete clone.createdAt;
   delete clone.updatedAt;
   return clone;
+};
+
+const carryOverExtraModels = [
+  Casing,
+  DrillString,
+  AddWater,
+  EmptyFluidActiveSystem,
+  OtherVolAddition,
+  MudLossStorage,
+  MudLoss,
+  ReceiveMud,
+  ReturnLostMud,
+  TransferMud,
+  ConsumeProduct,
+  ConsumeProductDistributionState,
+  ConsumeService,
+  ConsumePackage,
+  ConsumeEngineering,
+  ReceiveProduct,
+  ReceivePackage,
+  ReturnProduct,
+  ReturnPackage,
+  InventorySnapshot,
+  MudReportState,
+  WellPlan,
+  FormationConfig,
+  SurveyConfig,
+  SolidsAnalysis,
+];
+
+const reportArtifactModels = [
+  Pit,
+  WellGeneral,
+  Pump,
+  Nozzle,
+  Shaker,
+  OtherSce,
+  ...carryOverExtraModels,
+];
+
+const deleteReportScopedArtifacts = async ({ wellId, reportId }) => {
+  if (!wellId || !reportId) return;
+  await Promise.allSettled(
+    reportArtifactModels.map((model) => model.deleteMany({ wellId, reportId }))
+  );
+};
+
+const cloneExtraReportScopedDocuments = async ({
+  wellId,
+  sourceReport,
+  targetReport,
+}) => {
+  const sourceReportId = toText(sourceReport?._id);
+  const targetReportId = toText(targetReport?._id);
+  if (!wellId || !sourceReportId || !targetReportId) return;
+
+  for (const model of carryOverExtraModels) {
+    const sourceDocs = await model
+      .find({ wellId, reportId: sourceReportId })
+      .sort({ createdAt: 1, _id: 1 })
+      .lean();
+
+    if (sourceDocs.length === 0) continue;
+
+    await model.insertMany(
+      sourceDocs.map((doc) => ({
+        ...cleanClone(doc),
+        wellId,
+        reportId: targetReportId,
+        reportNo: toText(targetReport.reportNo),
+      }))
+    );
+  }
 };
 
 const legacyPitScopeFilter = (wellId) => ({
@@ -497,6 +593,12 @@ const cloneReportSnapshots = async ({ sourceReport, targetReport }) => {
       }))
     );
   }
+
+  await cloneExtraReportScopedDocuments({
+    wellId,
+    sourceReport,
+    targetReport,
+  });
 };
 
 const rollbackReportArtifacts = async (report) => {
@@ -509,12 +611,7 @@ const rollbackReportArtifacts = async (report) => {
 
   await Promise.allSettled([
     Report.findByIdAndDelete(reportId),
-    Pit.deleteMany({ wellId, reportId }),
-    WellGeneral.deleteMany({ wellId, reportId }),
-    Pump.deleteMany({ wellId, reportId }),
-    Nozzle.deleteMany({ wellId, reportId }),
-    Shaker.deleteMany({ wellId, reportId }),
-    OtherSce.deleteMany({ wellId, reportId }),
+    deleteReportScopedArtifacts({ wellId, reportId }),
   ]);
 };
 
@@ -534,12 +631,12 @@ export const createReport = async (req, res) => {
     const userReportNo = toText(req.body.userReportNo) || reportNo;
     const reportDate = toText(req.body.reportDate);
     const title = toText(req.body.title) || `Report ${reportNo}`;
-    const notes = toText(req.body.notes);
-    const recommendedTreatment = toText(req.body.recommendedTreatment);
-    const remarks = toText(req.body.remarks);
-    const recapRemarks = toText(req.body.recapRemarks);
-    const internalNotes = toText(req.body.internalNotes);
-    const remarksAttachment = sanitizeRemarksAttachment(req.body.remarksAttachment);
+    let notes = toText(req.body.notes);
+    let recommendedTreatment = toText(req.body.recommendedTreatment);
+    let remarks = toText(req.body.remarks);
+    let recapRemarks = toText(req.body.recapRemarks);
+    let internalNotes = toText(req.body.internalNotes);
+    let remarksAttachment = sanitizeRemarksAttachment(req.body.remarksAttachment);
     const carryOverFromReportId = toText(req.body.carryOverFromReportId);
     let sourceReport = null;
 
@@ -559,6 +656,27 @@ export const createReport = async (req, res) => {
           success: false,
           message: "Carry-over source report not found for this well",
         });
+      }
+
+      if (req.body.notes === undefined) {
+        notes = toText(sourceReport.notes);
+      }
+      if (req.body.recommendedTreatment === undefined) {
+        recommendedTreatment = toText(sourceReport.recommendedTreatment);
+      }
+      if (req.body.remarks === undefined) {
+        remarks = toText(sourceReport.remarks);
+      }
+      if (req.body.recapRemarks === undefined) {
+        recapRemarks = toText(sourceReport.recapRemarks);
+      }
+      if (req.body.internalNotes === undefined) {
+        internalNotes = toText(sourceReport.internalNotes);
+      }
+      if (req.body.remarksAttachment === undefined) {
+        remarksAttachment = sanitizeRemarksAttachment(
+          sourceReport.remarksAttachment
+        );
       }
     }
 
@@ -615,6 +733,78 @@ export const createReport = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to create report",
+      error: error.message,
+    });
+  }
+};
+
+export const carryOverReportData = async (req, res) => {
+  try {
+    const targetReport = await Report.findById(req.params.id);
+    if (!targetReport) {
+      return res.status(404).json({
+        success: false,
+        message: "Target report not found",
+      });
+    }
+
+    const wellId = toText(targetReport.wellId);
+    const targetReportId = toText(targetReport._id);
+    const sourceReportId = toText(req.body.carryOverFromReportId);
+    if (!sourceReportId) {
+      return res.status(400).json({
+        success: false,
+        message: "carryOverFromReportId is required",
+      });
+    }
+    if (sourceReportId === targetReportId) {
+      return res.status(400).json({
+        success: false,
+        message: "Source and target reports must be different",
+      });
+    }
+
+    const sourceReport = await findSourceReport(wellId, sourceReportId);
+    if (!sourceReport) {
+      return res.status(404).json({
+        success: false,
+        message: "Carry-over source report not found for this well",
+      });
+    }
+
+    targetReport.notes = toText(sourceReport.notes);
+    targetReport.recommendedTreatment = toText(
+      sourceReport.recommendedTreatment
+    );
+    targetReport.remarks = toText(sourceReport.remarks);
+    targetReport.recapRemarks = toText(sourceReport.recapRemarks);
+    targetReport.internalNotes = toText(sourceReport.internalNotes);
+    targetReport.remarksAttachment = sanitizeRemarksAttachment(
+      sourceReport.remarksAttachment
+    );
+    targetReport.pumpRateAndPressure = sanitizePumpRateAndPressure(
+      sourceReport.pumpRateAndPressure
+    );
+    targetReport.operationSelections = sanitizeOperationSelections(
+      sourceReport.operationSelections
+    );
+    await targetReport.save();
+
+    await deleteReportScopedArtifacts({ wellId, reportId: targetReportId });
+    await cloneReportSnapshots({
+      sourceReport,
+      targetReport: targetReport.toObject(),
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Report carried over successfully",
+      data: targetReport,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to carry over report data",
       error: error.message,
     });
   }
@@ -968,14 +1158,7 @@ export const deleteReport = async (req, res) => {
     const reportId = toText(deleted._id);
     const wellId = toText(deleted.wellId);
 
-    await Promise.allSettled([
-      Pit.deleteMany({ wellId, reportId }),
-      WellGeneral.deleteMany({ wellId, reportId }),
-      Pump.deleteMany({ wellId, reportId }),
-      Nozzle.deleteMany({ wellId, reportId }),
-      Shaker.deleteMany({ wellId, reportId }),
-      OtherSce.deleteMany({ wellId, reportId }),
-    ]);
+    await deleteReportScopedArtifacts({ wellId, reportId });
 
     return res.status(200).json({
       success: true,

@@ -7,6 +7,7 @@ import 'package:mudpro_desktop_app/api_endpoint/api_endpoint.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/model/UG_ST_model.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/UG_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
@@ -48,11 +49,19 @@ class UgStController extends GetxController {
   Worker? _selectedWellWorker;
   Worker? _dashboardLockWorker;
   Worker? _reportWorker;
+  final List<Worker> _unitWorkers = <Worker>[];
   Timer? _casingAutoSaveTimer;
   Timer? _planAutoSaveTimer;
   CasingRow? _pendingCasingAutoSave;
   bool _isSavingCasing = false;
   bool _isSavingPlan = false;
+  late String _planLengthUnit;
+  late String _planMudWeightUnit;
+  late String _planFunnelViscosityUnit;
+  late String _planViscosityUnit;
+  late String _planYieldPointUnit;
+  late String _planSmallVolumeUnit;
+  late String _planMassVolumeRatioUnit;
   final selectedCasingDeleteKey = ''.obs;
 
   final casingVerticalScroll = ScrollController();
@@ -61,6 +70,13 @@ class UgStController extends GetxController {
 
   @override
   void onInit() {
+    _planLengthUnit = AppUnits.length;
+    _planMudWeightUnit = AppUnits.mudWeight;
+    _planFunnelViscosityUnit = AppUnits.funnelViscosity;
+    _planViscosityUnit = AppUnits.viscosity;
+    _planYieldPointUnit = AppUnits.yieldPoint;
+    _planSmallVolumeUnit = AppUnits.smallVolume;
+    _planMassVolumeRatioUnit = AppUnits.massVolumeRatio;
     final context = padWellContext;
     selectedWellId.value = context.selectedWellId.value.isEmpty
         ? null
@@ -85,6 +101,14 @@ class UgStController extends GetxController {
       fetchCasings();
       fetchPlan();
     });
+    _unitWorkers.addAll([
+      ever(AppUnits.controller.unitSystem, (_) => _handlePlanUnitChange()),
+      ever(
+        AppUnits.controller.selectedCustomSystemId,
+        (_) => _handlePlanUnitChange(),
+      ),
+      ever(AppUnits.controller.customUnits, (_) => _handlePlanUnitChange()),
+    ]);
     fetchCasings();
     fetchPlan();
     super.onInit();
@@ -99,6 +123,9 @@ class UgStController extends GetxController {
     _selectedWellWorker?.dispose();
     _dashboardLockWorker?.dispose();
     _reportWorker?.dispose();
+    for (final worker in _unitWorkers) {
+      worker.dispose();
+    }
     super.onClose();
   }
 
@@ -239,12 +266,182 @@ class UgStController extends GetxController {
         'type': existing['type']?.trim().isNotEmpty == true
             ? existing['type']!.trim()
             : defaults[index]['type']!,
-        'amount': existing['amount']?.trim() ?? '',
-        'unit': existing['unit']?.trim().isNotEmpty == true
-            ? existing['unit']!.trim()
-            : defaults[index]['unit']!,
+        'amount': index == 0
+            ? _convertText(
+                existing['amount']?.trim() ?? '',
+                AppUnits.length,
+                '(ft)',
+              )
+            : existing['amount']?.trim() ?? '',
+        'unit': defaults[index]['unit']!,
       };
     });
+  }
+
+  List<Map<String, String>> _displayPlanSummary(
+    List<Map<String, String>> summary,
+  ) {
+    final defaults = _defaultPlanSummary();
+    return List<Map<String, String>>.generate(defaults.length, (index) {
+      final existing = index < summary.length
+          ? summary[index]
+          : defaults[index];
+      final amount = (existing['amount'] ?? '').toString();
+      return {
+        'type': (existing['type'] ?? defaults[index]['type'] ?? '').toString(),
+        'amount': index == 0
+            ? _convertText(amount, '(ft)', AppUnits.length)
+            : amount,
+        'unit': index == 0 ? AppUnits.length : defaults[index]['unit']!,
+      };
+    });
+  }
+
+  List<String> _displayPlanRow(List<dynamic>? values) {
+    final row = _normalizePlanRow(values);
+    for (var i = 0; i < row.length; i++) {
+      final baseUnit = _planBaseUnitForColumn(i);
+      if (baseUnit == null) continue;
+      row[i] = _convertText(row[i], baseUnit, _planActiveUnitForColumn(i)!);
+    }
+    return row;
+  }
+
+  List<String> _storePlanRow(List<String> values) {
+    final row = _normalizePlanRow(values);
+    for (var i = 0; i < row.length; i++) {
+      final baseUnit = _planBaseUnitForColumn(i);
+      if (baseUnit == null) continue;
+      row[i] = _convertText(row[i], _planActiveUnitForColumn(i)!, baseUnit);
+    }
+    return row;
+  }
+
+  String? _planBaseUnitForColumn(int column) {
+    if (column == 0) return '(ft)';
+    if (column == 3 || column == 4) return '(ppg)';
+    if (column == 5 || column == 6) return '(sec/qt)';
+    if (column == 7 || column == 8) return '(cP)';
+    if (column == 9 || column == 10) return '(lbf/100ft2)';
+    if (column == 11 || column == 12 || column == 13 || column == 14) {
+      return '(mL)';
+    }
+    if (column == 27 || column == 28) return '(lb/bbl)';
+    return null;
+  }
+
+  String? _planActiveUnitForColumn(int column) {
+    if (column == 0) return AppUnits.length;
+    if (column == 3 || column == 4) return AppUnits.mudWeight;
+    if (column == 5 || column == 6) return AppUnits.funnelViscosity;
+    if (column == 7 || column == 8) return AppUnits.viscosity;
+    if (column == 9 || column == 10) return AppUnits.yieldPoint;
+    if (column == 11 || column == 12 || column == 13 || column == 14) {
+      return AppUnits.smallVolume;
+    }
+    if (column == 27 || column == 28) return AppUnits.massVolumeRatio;
+    return null;
+  }
+
+  void _handlePlanUnitChange() {
+    final nextLengthUnit = AppUnits.length;
+    final nextMudWeightUnit = AppUnits.mudWeight;
+    final nextFunnelViscosityUnit = AppUnits.funnelViscosity;
+    final nextViscosityUnit = AppUnits.viscosity;
+    final nextYieldPointUnit = AppUnits.yieldPoint;
+    final nextSmallVolumeUnit = AppUnits.smallVolume;
+    final nextMassVolumeRatioUnit = AppUnits.massVolumeRatio;
+
+    if (_planLengthUnit == nextLengthUnit &&
+        _planMudWeightUnit == nextMudWeightUnit &&
+        _planFunnelViscosityUnit == nextFunnelViscosityUnit &&
+        _planViscosityUnit == nextViscosityUnit &&
+        _planYieldPointUnit == nextYieldPointUnit &&
+        _planSmallVolumeUnit == nextSmallVolumeUnit &&
+        _planMassVolumeRatioUnit == nextMassVolumeRatioUnit) {
+      return;
+    }
+
+    if (summaryData.isNotEmpty) {
+      summaryData[0]['amount'] = _convertText(
+        summaryData[0]['amount'] ?? '',
+        _planLengthUnit,
+        nextLengthUnit,
+      );
+      summaryData[0]['unit'] = nextLengthUnit;
+      summaryData.refresh();
+    }
+
+    final nextRows = planData.map((source) {
+      final row = _normalizePlanRow(source);
+      row[0] = _convertText(row[0], _planLengthUnit, nextLengthUnit);
+      for (final column in [3, 4]) {
+        row[column] = _convertText(
+          row[column],
+          _planMudWeightUnit,
+          nextMudWeightUnit,
+        );
+      }
+      for (final column in [5, 6]) {
+        row[column] = _convertText(
+          row[column],
+          _planFunnelViscosityUnit,
+          nextFunnelViscosityUnit,
+        );
+      }
+      for (final column in [7, 8]) {
+        row[column] = _convertText(
+          row[column],
+          _planViscosityUnit,
+          nextViscosityUnit,
+        );
+      }
+      for (final column in [9, 10]) {
+        row[column] = _convertText(
+          row[column],
+          _planYieldPointUnit,
+          nextYieldPointUnit,
+        );
+      }
+      for (final column in [11, 12, 13, 14]) {
+        row[column] = _convertText(
+          row[column],
+          _planSmallVolumeUnit,
+          nextSmallVolumeUnit,
+        );
+      }
+      for (final column in [27, 28]) {
+        row[column] = _convertText(
+          row[column],
+          _planMassVolumeRatioUnit,
+          nextMassVolumeRatioUnit,
+        );
+      }
+      return row;
+    }).toList();
+
+    _planLengthUnit = nextLengthUnit;
+    _planMudWeightUnit = nextMudWeightUnit;
+    _planFunnelViscosityUnit = nextFunnelViscosityUnit;
+    _planViscosityUnit = nextViscosityUnit;
+    _planYieldPointUnit = nextYieldPointUnit;
+    _planSmallVolumeUnit = nextSmallVolumeUnit;
+    _planMassVolumeRatioUnit = nextMassVolumeRatioUnit;
+
+    planData.assignAll(_padPlanRows(nextRows));
+  }
+
+  String _convertText(String value, String fromUnit, String toUnit) {
+    final raw = value.trim();
+    if (raw.isEmpty || fromUnit == toUnit) return value;
+    final parsed = double.tryParse(raw.replaceAll(',', ''));
+    if (parsed == null) return value;
+    final converted = AppUnits.convertValue(parsed, fromUnit, toUnit);
+    if (converted == null) return value;
+    return converted
+        .toStringAsFixed(4)
+        .replaceAll(RegExp(r'0+$'), '')
+        .replaceAll(RegExp(r'\.$'), '');
   }
 
   Future<void> fetchPlan() async {
@@ -290,8 +487,10 @@ class UgStController extends GetxController {
             final values = (map['values'] as List?) ?? const [];
             return _normalizePlanRow(values);
           }).toList();
-          summaryData.assignAll(nextSummary);
-          planData.assignAll(_padPlanRows(nextRows));
+          summaryData.assignAll(_displayPlanSummary(nextSummary));
+          planData.assignAll(
+            _padPlanRows(nextRows.map(_displayPlanRow).toList()),
+          );
           return;
         }
       }
@@ -319,7 +518,7 @@ class UgStController extends GetxController {
       'rows': _trimmedPlanRows().asMap().entries.map((entry) {
         return {
           'rowNumber': entry.key + 1,
-          'values': _normalizePlanRow(entry.value),
+          'values': _storePlanRow(entry.value),
         };
       }).toList(),
     };

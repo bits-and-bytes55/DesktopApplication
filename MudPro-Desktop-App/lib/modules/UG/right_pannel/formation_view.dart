@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/UG_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/formation_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/formation_row_model.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 
 class FormationView extends StatefulWidget {
   const FormationView({super.key});
@@ -366,7 +367,7 @@ class _FormationViewState extends State<FormationView> {
             editableWhenUnlocked: _isModeEditable('porePsi'),
             textAlign: TextAlign.right,
             inputFormatters: [
-              FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,0}$')),
+              FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,3}$')),
             ],
           ),
           _editableTextCell(
@@ -399,7 +400,7 @@ class _FormationViewState extends State<FormationView> {
             editableWhenUnlocked: _isModeEditable('fracPsi'),
             textAlign: TextAlign.right,
             inputFormatters: [
-              FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,0}$')),
+              FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,3}$')),
             ],
           ),
           _lithologyCell(row, layout),
@@ -506,7 +507,7 @@ class _FormationViewState extends State<FormationView> {
               height: _headerTopHeight,
             ),
             _headerCell(
-              'Btm TVD\n(ft)',
+              'Btm TVD\n${AppUnits.unitText('(ft)')}',
               width: layout.tvdWidth,
               height: _headerTopHeight,
             ),
@@ -532,12 +533,12 @@ class _FormationViewState extends State<FormationView> {
             _headerCell('', width: layout.indexWidth),
             _headerCell('', width: layout.descriptionWidth),
             _headerCell('', width: layout.tvdWidth),
-            _headerCell('(ppg)', width: layout.dataWidth),
-            _headerCell('(psi/ft)', width: layout.dataWidth),
-            _headerCell('(psi)', width: layout.dataWidth),
-            _headerCell('(ppg)', width: layout.dataWidth),
-            _headerCell('(psi/ft)', width: layout.dataWidth),
-            _headerCell('(psi)', width: layout.dataWidth),
+            _headerCell(AppUnits.unitText('(ppg)'), width: layout.dataWidth),
+            _headerCell(AppUnits.unitText('(psi/ft)'), width: layout.dataWidth),
+            _headerCell(AppUnits.unitText('(psi)'), width: layout.dataWidth),
+            _headerCell(AppUnits.unitText('(ppg)'), width: layout.dataWidth),
+            _headerCell(AppUnits.unitText('(psi/ft)'), width: layout.dataWidth),
+            _headerCell(AppUnits.unitText('(psi)'), width: layout.dataWidth),
             _headerCell('', width: layout.lithologyWidth),
           ],
         ),
@@ -832,7 +833,10 @@ class _FormationGraphPainter extends CustomPainter {
     }
 
     final yAxis = TextPainter(
-      text: TextSpan(text: 'TVD (ft)', style: axisStyle),
+      text: TextSpan(
+        text: 'TVD ${AppUnits.unitText('(ft)')}',
+        style: axisStyle,
+      ),
       textDirection: TextDirection.ltr,
     )..layout();
     canvas.save();
@@ -842,7 +846,10 @@ class _FormationGraphPainter extends CustomPainter {
     canvas.restore();
 
     final xAxis = TextPainter(
-      text: TextSpan(text: 'P. Gradient (psi/ft)', style: axisStyle),
+      text: TextSpan(
+        text: 'P. Gradient ${AppUnits.unitText('(psi/ft)')}',
+        style: axisStyle,
+      ),
       textDirection: TextDirection.ltr,
     )..layout();
     xAxis.paint(

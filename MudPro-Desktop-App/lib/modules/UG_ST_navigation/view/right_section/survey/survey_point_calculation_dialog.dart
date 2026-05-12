@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/survey/controller/survey_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/survey/survey_graph_utils.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 
 class SurveyPointCalculationDialog extends StatefulWidget {
   const SurveyPointCalculationDialog({super.key});
@@ -50,10 +51,7 @@ class _SurveyPointCalculationDialogState
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        SizedBox(
-                          width: 670,
-                          child: _summaryTable(point),
-                        ),
+                        SizedBox(width: 670, child: _summaryTable(point)),
                         const SizedBox(width: 12),
                         Column(
                           children: [
@@ -122,18 +120,20 @@ class _SurveyPointCalculationDialogState
 
   Widget _summaryTable(dynamic point) {
     final rows = [
-      ['MD of POI', point.md.toStringAsFixed(1), '(ft)'],
-      ['Inc', point.inc.toStringAsFixed(2), '(°)'],
-      ['Azi', point.azi.toStringAsFixed(2), '(°)'],
-      ['TVD', point.tvd.toStringAsFixed(1), '(ft)'],
-      ['Vsec', point.vsec.toStringAsFixed(1), '(ft)'],
-      ['N+/S-', point.northSouth.toStringAsFixed(1), '(ft)'],
-      ['E+/W-', point.eastWest.toStringAsFixed(1), '(ft)'],
-      ['Dogleg', point.dogleg.toStringAsFixed(2), '(°/100ft)'],
+      ['MD of POI', point.md.toStringAsFixed(1), AppUnits.unitText('(ft)')],
+      ['Inc', point.inc.toStringAsFixed(2), AppUnits.unitText('(°)')],
+      ['Azi', point.azi.toStringAsFixed(2), AppUnits.unitText('(°)')],
+      ['TVD', point.tvd.toStringAsFixed(1), AppUnits.unitText('(ft)')],
+      ['Vsec', point.vsec.toStringAsFixed(1), AppUnits.unitText('(ft)')],
+      ['N+/S-', point.northSouth.toStringAsFixed(1), AppUnits.unitText('(ft)')],
+      ['E+/W-', point.eastWest.toStringAsFixed(1), AppUnits.unitText('(ft)')],
+      ['Dogleg', point.dogleg.toStringAsFixed(2), AppUnits.dogleg],
     ];
 
     return Container(
-      decoration: BoxDecoration(border: Border.all(color: const Color(0xFFB9BEC7))),
+      decoration: BoxDecoration(
+        border: Border.all(color: const Color(0xFFB9BEC7)),
+      ),
       child: Column(
         children: List.generate(rows.length, (index) {
           return SizedBox(
@@ -157,7 +157,9 @@ class _SurveyPointCalculationDialogState
                     rows[index][0],
                     style: TextStyle(
                       fontSize: 13,
-                      color: index == 0 ? Colors.white : const Color(0xFF2F2F2F),
+                      color: index == 0
+                          ? Colors.white
+                          : const Color(0xFF2F2F2F),
                     ),
                   ),
                 ),
@@ -172,16 +174,24 @@ class _SurveyPointCalculationDialogState
                       bottom: BorderSide(color: Color(0xFFB9BEC7)),
                     ),
                   ),
-                  child: Text(rows[index][1], style: const TextStyle(fontSize: 13)),
+                  child: Text(
+                    rows[index][1],
+                    style: const TextStyle(fontSize: 13),
+                  ),
                 ),
                 Expanded(
                   child: Container(
                     alignment: Alignment.centerLeft,
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                     decoration: const BoxDecoration(
-                      border: Border(bottom: BorderSide(color: Color(0xFFB9BEC7))),
+                      border: Border(
+                        bottom: BorderSide(color: Color(0xFFB9BEC7)),
+                      ),
                     ),
-                    child: Text(rows[index][2], style: const TextStyle(fontSize: 13)),
+                    child: Text(
+                      rows[index][2],
+                      style: const TextStyle(fontSize: 13),
+                    ),
                   ),
                 ),
               ],
@@ -194,12 +204,14 @@ class _SurveyPointCalculationDialogState
 
   Widget _sectionMiniChart(dynamic point) {
     return Container(
-      decoration: BoxDecoration(border: Border.all(color: const Color(0xFFB9BEC7))),
+      decoration: BoxDecoration(
+        border: Border.all(color: const Color(0xFFB9BEC7)),
+      ),
       child: CustomPaint(
         painter: _PointMiniPainter(
           title: 'Section View',
-          xLabel: 'Horizontal Displacement (ft)',
-          yLabel: 'TVD (ft)',
+          xLabel: 'Horizontal Displacement ${AppUnits.unitText('(ft)')}',
+          yLabel: 'TVD ${AppUnits.unitText('(ft)')}',
           pointX: point.vsec,
           pointY: point.tvd,
           xMax: 500,
@@ -212,12 +224,14 @@ class _SurveyPointCalculationDialogState
 
   Widget _planMiniChart(dynamic point) {
     return Container(
-      decoration: BoxDecoration(border: Border.all(color: const Color(0xFFB9BEC7))),
+      decoration: BoxDecoration(
+        border: Border.all(color: const Color(0xFFB9BEC7)),
+      ),
       child: CustomPaint(
         painter: _PointMiniPainter(
           title: 'Plan View',
-          xLabel: 'E+/W- (ft)',
-          yLabel: 'N+/S- (ft)',
+          xLabel: 'E+/W- ${AppUnits.unitText('(ft)')}',
+          yLabel: 'N+/S- ${AppUnits.unitText('(ft)')}',
           pointX: point.eastWest,
           pointY: point.northSouth,
           xMax: 500,
@@ -232,10 +246,7 @@ class _SurveyPointCalculationDialogState
     return SizedBox(
       width: 130,
       height: 42,
-      child: OutlinedButton(
-        onPressed: onTap,
-        child: Text(text),
-      ),
+      child: OutlinedButton(onPressed: onTap, child: Text(text)),
     );
   }
 }
@@ -271,17 +282,44 @@ class _PointMiniPainter extends CustomPainter {
     canvas.drawRect(plot, axisPaint);
     for (var i = 0; i <= 10; i++) {
       final x = plot.left + (plot.width * i / 10);
-      drawDashedLine(canvas, Offset(x, plot.top), Offset(x, plot.bottom), gridPaint);
+      drawDashedLine(
+        canvas,
+        Offset(x, plot.top),
+        Offset(x, plot.bottom),
+        gridPaint,
+      );
       final y = plot.top + (plot.height * i / 10);
-      drawDashedLine(canvas, Offset(plot.left, y), Offset(plot.right, y), gridPaint);
+      drawDashedLine(
+        canvas,
+        Offset(plot.left, y),
+        Offset(plot.right, y),
+        gridPaint,
+      );
     }
-    drawSurveyText(canvas, title, Offset(size.width / 2 - 68, 26), fontSize: 20);
-    drawSurveyText(canvas, xLabel, Offset(size.width / 2 - 90, size.height - 38), fontSize: 14, weight: FontWeight.w600);
+    drawSurveyText(
+      canvas,
+      title,
+      Offset(size.width / 2 - 68, 26),
+      fontSize: 20,
+    );
+    drawSurveyText(
+      canvas,
+      xLabel,
+      Offset(size.width / 2 - 90, size.height - 38),
+      fontSize: 14,
+      weight: FontWeight.w600,
+    );
 
     canvas.save();
     canvas.translate(22, size.height / 2 + 68);
     canvas.rotate(-1.5708);
-    drawSurveyText(canvas, yLabel, Offset(0, 0), fontSize: 14, weight: FontWeight.w600);
+    drawSurveyText(
+      canvas,
+      yLabel,
+      Offset(0, 0),
+      fontSize: 14,
+      weight: FontWeight.w600,
+    );
     canvas.restore();
 
     final clampedX = pointX.clamp(0, xMax);

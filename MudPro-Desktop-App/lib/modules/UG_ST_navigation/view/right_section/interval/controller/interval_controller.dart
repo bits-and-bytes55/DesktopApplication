@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:mudpro_desktop_app/api_endpoint/api_endpoint.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 
 // ════════════════════════════════════════════════════════════════════
 //  DATA MODELS
@@ -144,6 +145,9 @@ class IntervalController extends GetxController {
   Timer? _generalSaveTimer;
   IntervalItem? _pendingGeneralSave;
   bool _isHydratingControllers = false;
+  final List<Worker> _unitWorkers = <Worker>[];
+  late String _diameterUnit;
+  late String _mudWeightUnit;
 
   // TextEditingControllers for the General tab (updated when selection changes)
   final formationCtrl = TextEditingController();
@@ -162,12 +166,25 @@ class IntervalController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    _diameterUnit = AppUnits.diameter;
+    _mudWeightUnit = AppUnits.mudWeight;
+    _unitWorkers.addAll([
+      ever(AppUnits.controller.unitSystem, (_) => _handleUnitChange()),
+      ever(
+        AppUnits.controller.selectedCustomSystemId,
+        (_) => _handleUnitChange(),
+      ),
+      ever(AppUnits.controller.customUnits, (_) => _handleUnitChange()),
+    ]);
     _attachGeneralAutosaveListeners();
   }
 
   @override
   void onClose() {
     _generalSaveTimer?.cancel();
+    for (final worker in _unitWorkers) {
+      worker.dispose();
+    }
     formationCtrl.dispose();
     bitSizeCtrl.dispose();
     casingCtrl.dispose();
@@ -226,9 +243,9 @@ class IntervalController extends GetxController {
 
   void _syncIntervalFromControllers(IntervalItem iv) {
     iv.formation = formationCtrl.text;
-    iv.bitSize = bitSizeCtrl.text;
-    iv.casing = casingCtrl.text;
-    iv.intervalFIT = intervalFITCtrl.text;
+    iv.bitSize = _storeDiameter(bitSizeCtrl.text);
+    iv.casing = _storeDiameter(casingCtrl.text);
+    iv.intervalFIT = _storeMudWeight(intervalFITCtrl.text);
     iv.mudDescription = mudDescCtrl.text;
     iv.mudType = mudTypeCtrl.text;
     iv.intervalSummary = intervalSummaryCtrl.text;
@@ -239,6 +256,65 @@ class IntervalController extends GetxController {
     iv.endOfIntervalConclusion = endOfIntervalCtrl.text;
     intervals.refresh();
     selected.refresh();
+  }
+
+  void _handleUnitChange() {
+    final nextDiameterUnit = AppUnits.diameter;
+    final nextMudWeightUnit = AppUnits.mudWeight;
+    if (_diameterUnit == nextDiameterUnit &&
+        _mudWeightUnit == nextMudWeightUnit) {
+      return;
+    }
+
+    _isHydratingControllers = true;
+    bitSizeCtrl.text = _convertText(
+      bitSizeCtrl.text,
+      _diameterUnit,
+      nextDiameterUnit,
+    );
+    casingCtrl.text = _convertText(
+      casingCtrl.text,
+      _diameterUnit,
+      nextDiameterUnit,
+    );
+    intervalFITCtrl.text = _convertText(
+      intervalFITCtrl.text,
+      _mudWeightUnit,
+      nextMudWeightUnit,
+    );
+    _diameterUnit = nextDiameterUnit;
+    _mudWeightUnit = nextMudWeightUnit;
+    _isHydratingControllers = false;
+
+    final iv = selected.value;
+    if (iv != null) {
+      _syncIntervalFromControllers(iv);
+    }
+  }
+
+  String _displayDiameter(String value) =>
+      _convertText(value, '(mm)', _diameterUnit);
+
+  String _storeDiameter(String value) =>
+      _convertText(value, _diameterUnit, '(mm)');
+
+  String _displayMudWeight(String value) =>
+      _convertText(value, '(ppg)', _mudWeightUnit);
+
+  String _storeMudWeight(String value) =>
+      _convertText(value, _mudWeightUnit, '(ppg)');
+
+  String _convertText(String value, String fromUnit, String toUnit) {
+    final raw = value.trim();
+    if (raw.isEmpty) return '';
+    final parsed = double.tryParse(raw.replaceAll(',', ''));
+    if (parsed == null) return value;
+    final converted = AppUnits.convertValue(parsed, fromUnit, toUnit);
+    final next = converted ?? parsed;
+    return next
+        .toStringAsFixed(4)
+        .replaceAll(RegExp(r'0+$'), '')
+        .replaceAll(RegExp(r'\.$'), '');
   }
 
   // ── Computed flat list for the sidebar ──────────────────────────
@@ -354,9 +430,9 @@ class IntervalController extends GetxController {
   void _populateControllers(IntervalItem iv) {
     _isHydratingControllers = true;
     formationCtrl.text = iv.formation;
-    bitSizeCtrl.text = iv.bitSize;
-    casingCtrl.text = iv.casing;
-    intervalFITCtrl.text = iv.intervalFIT;
+    bitSizeCtrl.text = _displayDiameter(iv.bitSize);
+    casingCtrl.text = _displayDiameter(iv.casing);
+    intervalFITCtrl.text = _displayMudWeight(iv.intervalFIT);
     mudDescCtrl.text = iv.mudDescription;
     mudTypeCtrl.text = iv.mudType;
     intervalSummaryCtrl.text = iv.intervalSummary;

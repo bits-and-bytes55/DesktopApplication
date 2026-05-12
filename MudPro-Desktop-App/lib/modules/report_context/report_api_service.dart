@@ -70,6 +70,19 @@ class ReportApiService {
     );
   }
 
+  Future<Map<String, dynamic>> carryOverReport(
+    String targetReportId,
+    String sourceReportId,
+  ) {
+    return _sendObject(
+      method: 'POST',
+      path: 'reports/$targetReportId/carry-over',
+      body: {'carryOverFromReportId': sourceReportId},
+      successStatusCodes: const {200},
+      defaultErrorMessage: 'Failed to carry over report',
+    );
+  }
+
   Future<Map<String, dynamic>> deleteReport(String reportId) {
     return _sendObject(
       method: 'DELETE',

@@ -4,6 +4,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/controller/UG_ST_controller.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 
 const int _planVisibleRows = 18;
 
@@ -169,7 +170,7 @@ class _PlanPageViewState extends State<PlanPageView> {
           ),
           child: Column(
             children: [
-              _summaryRow('TD', _tdController, '(ft)', 0),
+              _summaryRow('TD', _tdController, AppUnits.unitText('(ft)'), 0),
               _summaryRow('Days', _daysController, '(-)', 1),
               _summaryRow(
                 'Total Cost',
@@ -371,9 +372,17 @@ class _PlanPageViewState extends State<PlanPageView> {
           children: [
             _headerCell('', _planIndexWidth, _planHeaderTopHeight),
             for (final column in _planFixedColumns)
-              _headerCell(column.title, column.width, _planHeaderTopHeight),
+              _headerCell(
+                AppUnits.label(column.title),
+                column.width,
+                _planHeaderTopHeight,
+              ),
             for (final group in _planGroupedColumns)
-              _headerCell(group.title, group.width * 2, _planHeaderTopHeight),
+              _headerCell(
+                AppUnits.label(group.title),
+                group.width * 2,
+                _planHeaderTopHeight,
+              ),
           ],
         ),
         Row(

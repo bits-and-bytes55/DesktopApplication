@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/survey/controller/survey_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/survey/survey_graph_utils.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 
 class SurveyPlanTab extends StatelessWidget {
   SurveyPlanTab({super.key});
@@ -42,9 +43,9 @@ class SurveyPlanTab extends StatelessWidget {
                 children: [
                   RotatedBox(
                     quarterTurns: 3,
-                    child: const Text(
-                      'N+/S- (ft)',
-                      style: TextStyle(fontSize: 14),
+                    child: Text(
+                      'N+/S- ${AppUnits.unitText('(ft)')}',
+                      style: const TextStyle(fontSize: 14),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -61,7 +62,10 @@ class SurveyPlanTab extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 6),
-            const Text('E+/W- (ft)', style: TextStyle(fontSize: 14)),
+            Text(
+              'E+/W- ${AppUnits.unitText('(ft)')}',
+              style: const TextStyle(fontSize: 14),
+            ),
           ],
         ),
       );

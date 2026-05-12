@@ -782,7 +782,7 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
         await _createNewReport(context);
         break;
       case 6:
-        _carryOver(context);
+        await _carryOver(context);
         break;
       case 7:
         _toggleLock(context);
@@ -1957,24 +1957,44 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
     );
   }
 
-  void _carryOver(BuildContext context) {
-    showDialog(
+  Future<void> _carryOver(BuildContext context) async {
+    final sourceReport = reportC.selectedReport;
+    if (sourceReport == null) {
+      _showDesktopAlert(context, 'Select a report first.', isSuccess: false);
+      return;
+    }
+    if (!padWellC.isSelectedWellReadyForReportCreation) {
+      _showDesktopAlert(
+        context,
+        padWellC.wellReadinessMessage,
+        isSuccess: false,
+      );
+      return;
+    }
+    if (_isCreatingReport) return;
+
+    final nextReportNo = _nextCarryOverReportNo(sourceReport.reportNo);
+    final existingNextReport = _reportByReportNo(nextReportNo);
+    final targetLabel = 'Report $nextReportNo';
+
+    final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         title: const Text("Carry-over Report"),
-        content: const Text(
-          "This will carry selected data to the next report.",
+        content: Text(
+          existingNextReport == null
+              ? "This will create $targetLabel and copy Report ${sourceReport.reportNo} data into it."
+              : "This will replace $targetLabel data with Report ${sourceReport.reportNo} data.",
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(context, false),
             child: const Text("Cancel"),
           ),
           ElevatedButton(
             onPressed: () {
-              Navigator.pop(context);
-              _showDesktopAlert(context, "Data carried over successfully");
+              Navigator.pop(context, true);
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.warningColor,
@@ -1985,6 +2005,75 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
         ],
       ),
     );
+    if (confirmed != true) return;
+
+    setState(() => _isCreatingReport = true);
+    try {
+      final result = existingNextReport == null
+          ? await reportC.createReport({
+              'reportNo': nextReportNo,
+              'userReportNo': nextReportNo,
+              'reportDate': _nextCarryOverDate(sourceReport.reportDate),
+              'title': targetLabel,
+              'carryOverFromReportId': sourceReport.id,
+            })
+          : await reportC.carryOverIntoReport(
+              targetReportId: existingNextReport.id,
+              sourceReportId: sourceReport.id,
+            );
+
+      final targetReportId = existingNextReport?.id.isNotEmpty == true
+          ? existingNextReport!.id
+          : _dialogEntityId(result['data']);
+      if (targetReportId.isNotEmpty) {
+        reportC.selectReport(targetReportId);
+        controller.navigate('report:$targetReportId');
+      }
+
+      final selectedDate = reportC.selectedReportDate;
+      if (selectedDate.isNotEmpty) {
+        _dateController.text = selectedDate;
+      }
+
+      _showDesktopAlert(
+        context,
+        result['message']?.toString() ?? 'Report carried over successfully',
+      );
+    } catch (e) {
+      _showDesktopAlert(
+        context,
+        e.toString().replaceFirst(RegExp(r'^Exception:\s*'), ''),
+        isSuccess: false,
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isCreatingReport = false);
+      } else {
+        _isCreatingReport = false;
+      }
+    }
+  }
+
+  String _nextCarryOverReportNo(String sourceReportNo) {
+    final parsed = int.tryParse(sourceReportNo.trim());
+    if (parsed != null) return (parsed + 1).toString();
+    return reportC.nextSuggestedReportNo.trim();
+  }
+
+  String _nextCarryOverDate(String sourceReportDate) {
+    final parsed = _parseReportDate(sourceReportDate);
+    final nextDate = (parsed ?? DateTime.now()).add(const Duration(days: 1));
+    return DateFormat('MM/dd/yyyy').format(nextDate);
+  }
+
+  dynamic _reportByReportNo(String reportNo) {
+    final targetNo = reportNo.trim();
+    for (final report in reportC.reports) {
+      if (report.reportNo.trim() == targetNo) {
+        return report;
+      }
+    }
+    return null;
   }
 
   void _toggleLock(BuildContext context) {

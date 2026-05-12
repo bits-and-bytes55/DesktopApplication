@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/UG_controller.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_models.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
@@ -20,8 +21,11 @@ class _PadViewState extends State<PadView> {
   final ScrollController _memoScrollController = ScrollController();
 
   Worker? _padWorker;
+  final List<Worker> _unitWorkers = <Worker>[];
   bool _isCreatingNewPad = false;
   String _locationType = 'Land';
+  late String _lengthUnit;
+  late String _diameterUnit;
 
   late final Map<String, TextEditingController> _controllers = {
     for (final field in _padFields) field.key: TextEditingController(),
@@ -31,17 +35,30 @@ class _PadViewState extends State<PadView> {
   @override
   void initState() {
     super.initState();
+    _lengthUnit = AppUnits.length;
+    _diameterUnit = AppUnits.diameter;
     _loadSelectedPad();
     _padWorker = ever<String>(padWellC.selectedPadId, (_) {
       if (!_isCreatingNewPad && mounted) {
         _loadSelectedPad();
       }
     });
+    _unitWorkers.addAll([
+      ever(AppUnits.controller.unitSystem, (_) => _handleUnitChange()),
+      ever(
+        AppUnits.controller.selectedCustomSystemId,
+        (_) => _handleUnitChange(),
+      ),
+      ever(AppUnits.controller.customUnits, (_) => _handleUnitChange()),
+    ]);
   }
 
   @override
   void dispose() {
     _padWorker?.dispose();
+    for (final worker in _unitWorkers) {
+      worker.dispose();
+    }
     _leftScrollController.dispose();
     _memoScrollController.dispose();
     for (final controller in _controllers.values) {
@@ -64,7 +81,10 @@ class _PadViewState extends State<PadView> {
     }
 
     for (final field in _padFields) {
-      _controllers[field.key]!.text = _padValue(pad, field.key);
+      _controllers[field.key]!.text = _displayFieldValue(
+        _padValue(pad, field.key),
+        field.unit,
+      );
     }
     _memoController.text = pad.memo;
 
@@ -97,12 +117,84 @@ class _PadViewState extends State<PadView> {
     _loadSelectedPad();
   }
 
+  void _handleUnitChange() {
+    final nextLengthUnit = AppUnits.length;
+    final nextDiameterUnit = AppUnits.diameter;
+    if (_lengthUnit == nextLengthUnit && _diameterUnit == nextDiameterUnit) {
+      return;
+    }
+
+    for (final field in _padFields) {
+      final controller = _controllers[field.key]!;
+      if (_isLengthUnit(field.unit)) {
+        controller.text = _convertText(
+          controller.text,
+          _lengthUnit,
+          nextLengthUnit,
+        );
+      } else if (_isDiameterUnit(field.unit)) {
+        controller.text = _convertText(
+          controller.text,
+          _diameterUnit,
+          nextDiameterUnit,
+        );
+      }
+    }
+    _lengthUnit = nextLengthUnit;
+    _diameterUnit = nextDiameterUnit;
+    if (mounted) setState(() {});
+  }
+
+  bool _isLengthUnit(String unit) =>
+      unit.trim().isNotEmpty && AppUnits.unitText(unit) == AppUnits.length;
+
+  bool _isDiameterUnit(String unit) =>
+      unit.trim().isNotEmpty && AppUnits.unitText(unit) == AppUnits.diameter;
+
+  String _displayFieldValue(String value, String baseUnit) {
+    if (_isLengthUnit(baseUnit)) {
+      return _convertText(value, baseUnit, _lengthUnit);
+    }
+    if (_isDiameterUnit(baseUnit)) {
+      return _convertText(value, baseUnit, _diameterUnit);
+    }
+    return value;
+  }
+
+  String _storeFieldValue(String value, String baseUnit) {
+    if (_isLengthUnit(baseUnit)) {
+      return _convertText(value, _lengthUnit, baseUnit);
+    }
+    if (_isDiameterUnit(baseUnit)) {
+      return _convertText(value, _diameterUnit, baseUnit);
+    }
+    return value;
+  }
+
+  String _displayUnit(String unit) =>
+      unit.trim().isEmpty ? unit : AppUnits.unitText(unit);
+
+  String _convertText(String rawValue, String fromUnit, String toUnit) {
+    if (rawValue.trim().isEmpty || fromUnit == toUnit) return rawValue;
+    final parsed = double.tryParse(rawValue.replaceAll(',', '').trim());
+    if (parsed == null) return rawValue;
+    final converted = AppUnits.convertValue(parsed, fromUnit, toUnit);
+    if (converted == null) return rawValue;
+    return converted
+        .toStringAsFixed(4)
+        .replaceAll(RegExp(r'0+$'), '')
+        .replaceAll(RegExp(r'\.$'), '');
+  }
+
   Future<void> _savePad() async {
     final payload = <String, dynamic>{
       'locationType': _locationType,
       'memo': _memoController.text.trim(),
       for (final field in _padFields)
-        field.key: _controllers[field.key]!.text.trim(),
+        field.key: _storeFieldValue(
+          _controllers[field.key]!.text.trim(),
+          field.unit,
+        ),
     };
 
     if (!_hasMeaningfulData(payload)) {
@@ -388,7 +480,7 @@ class _PadViewState extends State<PadView> {
         fieldReadOnly
             ? _readOnlyValueCell(controller.text)
             : _editableValueCell(controller, field.hint),
-        _unitCell(field.unit),
+        _unitCell(_displayUnit(field.unit)),
       ],
     );
   }

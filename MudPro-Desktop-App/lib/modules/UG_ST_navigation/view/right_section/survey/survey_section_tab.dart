@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/survey/controller/survey_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/survey/survey_graph_utils.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 
 class SurveySectionTab extends StatelessWidget {
   SurveySectionTab({super.key});
@@ -42,9 +43,9 @@ class SurveySectionTab extends StatelessWidget {
                 children: [
                   RotatedBox(
                     quarterTurns: 3,
-                    child: const Text(
-                      'TVD (ft)',
-                      style: TextStyle(fontSize: 14),
+                    child: Text(
+                      'TVD ${AppUnits.unitText('(ft)')}',
+                      style: const TextStyle(fontSize: 14),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -61,9 +62,9 @@ class SurveySectionTab extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 6),
-            const Text(
-              'Horizontal Displacement (ft)',
-              style: TextStyle(fontSize: 14),
+            Text(
+              'Horizontal Displacement ${AppUnits.unitText('(ft)')}',
+              style: const TextStyle(fontSize: 14),
             ),
           ],
         ),

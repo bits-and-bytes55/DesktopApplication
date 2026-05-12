@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/model/survey_model.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/survey/controller/survey_controller.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 
 class SurveyImportDialog extends StatefulWidget {
   const SurveyImportDialog({super.key});
@@ -15,10 +16,17 @@ class _SurveyImportDialogState extends State<SurveyImportDialog>
     with SingleTickerProviderStateMixin {
   final SurveyController controller = Get.find<SurveyController>();
   final TextEditingController sourceController = TextEditingController();
-  final TextEditingController startRowController = TextEditingController(text: '1');
-  final TextEditingController endRowController = TextEditingController(text: '1');
+  final TextEditingController startRowController = TextEditingController(
+    text: '1',
+  );
+  final TextEditingController endRowController = TextEditingController(
+    text: '1',
+  );
 
-  late final TabController tabController = TabController(length: 2, vsync: this);
+  late final TabController tabController = TabController(
+    length: 2,
+    vsync: this,
+  );
 
   bool decimalPoint = true;
   bool delimiterTab = true;
@@ -68,10 +76,7 @@ class _SurveyImportDialogState extends State<SurveyImportDialog>
             Expanded(
               child: TabBarView(
                 controller: tabController,
-                children: [
-                  _body(context),
-                  _body(context, pdfMode: true),
-                ],
+                children: [_body(context), _body(context, pdfMode: true)],
               ),
             ),
           ],
@@ -120,15 +125,12 @@ class _SurveyImportDialogState extends State<SurveyImportDialog>
                 const SizedBox(height: 10),
                 Row(
                   children: [
-                    _smallIconButton(
-                      Icons.folder_open,
-                      () async {
-                        final data = await Clipboard.getData('text/plain');
-                        if (data?.text != null) {
-                          sourceController.text = data!.text!;
-                        }
-                      },
-                    ),
+                    _smallIconButton(Icons.folder_open, () async {
+                      final data = await Clipboard.getData('text/plain');
+                      if (data?.text != null) {
+                        sourceController.text = data!.text!;
+                      }
+                    }),
                     const SizedBox(width: 6),
                     _smallIconButton(Icons.cleaning_services, () {
                       sourceController.clear();
@@ -169,15 +171,9 @@ class _SurveyImportDialogState extends State<SurveyImportDialog>
             ),
           ),
           const SizedBox(width: 28),
-          SizedBox(
-            width: 260,
-            child: _extractPanel(),
-          ),
+          SizedBox(width: 260, child: _extractPanel()),
           const SizedBox(width: 28),
-          SizedBox(
-            width: 430,
-            child: _previewPanel(context),
-          ),
+          SizedBox(width: 430, child: _previewPanel(context)),
         ],
       ),
     );
@@ -201,7 +197,8 @@ class _SurveyImportDialogState extends State<SurveyImportDialog>
                 value: true,
                 groupValue: decimalPoint,
                 title: const Text('Decimal Point ( . )'),
-                onChanged: (value) => setState(() => decimalPoint = value ?? true),
+                onChanged: (value) =>
+                    setState(() => decimalPoint = value ?? true),
               ),
               RadioListTile<bool>(
                 dense: true,
@@ -209,7 +206,8 @@ class _SurveyImportDialogState extends State<SurveyImportDialog>
                 value: false,
                 groupValue: decimalPoint,
                 title: const Text('Decimal Comma ( , )'),
-                onChanged: (value) => setState(() => decimalPoint = value ?? true),
+                onChanged: (value) =>
+                    setState(() => decimalPoint = value ?? true),
               ),
             ],
           ),
@@ -222,7 +220,10 @@ class _SurveyImportDialogState extends State<SurveyImportDialog>
               child: DropdownButtonFormField<String>(
                 value: mdUnit,
                 items: const ['(ft)', '(m)']
-                    .map((item) => DropdownMenuItem(value: item, child: Text(item)))
+                    .map(
+                      (item) =>
+                          DropdownMenuItem(value: item, child: Text(item)),
+                    )
                     .toList(),
                 onChanged: (value) => setState(() => mdUnit = value ?? '(ft)'),
                 decoration: const InputDecoration(isDense: true),
@@ -258,7 +259,8 @@ class _SurveyImportDialogState extends State<SurveyImportDialog>
                 value: delimiterSemicolon,
                 title: const Text('Semicolon'),
                 contentPadding: EdgeInsets.zero,
-                onChanged: (v) => setState(() => delimiterSemicolon = v ?? true),
+                onChanged: (v) =>
+                    setState(() => delimiterSemicolon = v ?? true),
               ),
               CheckboxListTile(
                 dense: true,
@@ -308,7 +310,9 @@ class _SurveyImportDialogState extends State<SurveyImportDialog>
         const SizedBox(height: 10),
         Expanded(
           child: Container(
-            decoration: BoxDecoration(border: Border.all(color: const Color(0xFFB9BEC7))),
+            decoration: BoxDecoration(
+              border: Border.all(color: const Color(0xFFB9BEC7)),
+            ),
             child: Column(
               children: [
                 Container(
@@ -356,7 +360,9 @@ class _SurveyImportDialogState extends State<SurveyImportDialog>
   Widget _group(String title, Widget child) {
     return Container(
       padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(border: Border.all(color: const Color(0xFFD0D5DC))),
+      decoration: BoxDecoration(
+        border: Border.all(color: const Color(0xFFD0D5DC)),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -375,7 +381,10 @@ class _SurveyImportDialogState extends State<SurveyImportDialog>
         Expanded(
           child: TextField(
             controller: field,
-            decoration: const InputDecoration(isDense: true, border: OutlineInputBorder()),
+            decoration: const InputDecoration(
+              isDense: true,
+              border: OutlineInputBorder(),
+            ),
           ),
         ),
       ],
@@ -391,7 +400,10 @@ class _SurveyImportDialogState extends State<SurveyImportDialog>
             value: value,
             items: List.generate(
               10,
-              (index) => DropdownMenuItem(value: index + 1, child: Text('${index + 1}')),
+              (index) => DropdownMenuItem(
+                value: index + 1,
+                child: Text('${index + 1}'),
+              ),
             ),
             onChanged: (selected) => onChanged(selected ?? value),
             decoration: const InputDecoration(isDense: true),
@@ -407,7 +419,9 @@ class _SurveyImportDialogState extends State<SurveyImportDialog>
       child: Container(
         width: 30,
         height: 30,
-        decoration: BoxDecoration(border: Border.all(color: const Color(0xFFB9BEC7))),
+        decoration: BoxDecoration(
+          border: Border.all(color: const Color(0xFFB9BEC7)),
+        ),
         child: Icon(icon, size: 18, color: const Color(0xFF2780E3)),
       ),
     );
@@ -427,7 +441,10 @@ class _SurveyImportDialogState extends State<SurveyImportDialog>
         .split(RegExp(r'\r?\n'))
         .where((line) => line.trim().isNotEmpty)
         .toList();
-    final start = (int.tryParse(startRowController.text.trim()) ?? 1).clamp(1, lines.isEmpty ? 1 : lines.length);
+    final start = (int.tryParse(startRowController.text.trim()) ?? 1).clamp(
+      1,
+      lines.isEmpty ? 1 : lines.length,
+    );
     final end = (int.tryParse(endRowController.text.trim()) ?? lines.length)
         .clamp(start, lines.isEmpty ? start : lines.length);
 
@@ -446,7 +463,8 @@ class _SurveyImportDialogState extends State<SurveyImportDialog>
           .split(regex)
           .where((part) => part.trim().isNotEmpty)
           .toList();
-      if (parts.length < [mdColumn, incColumn, aziColumn].reduce((a, b) => a > b ? a : b)) {
+      if (parts.length <
+          [mdColumn, incColumn, aziColumn].reduce((a, b) => a > b ? a : b)) {
         continue;
       }
       String normalize(String value) =>
@@ -463,10 +481,27 @@ class _SurveyImportDialogState extends State<SurveyImportDialog>
 
   void _accept() {
     final rows = extractedRows.map((row) {
-      return SurveyStationRow(md: row[0], inc: row[1], azi: row[2]);
+      return SurveyStationRow(
+        md: _convertMdToActiveUnit(row[0]),
+        inc: row[1],
+        azi: row[2],
+      );
     }).toList();
     controller.importSurveyRows(rows);
     Navigator.of(context).pop();
+  }
+
+  String _convertMdToActiveUnit(String value) {
+    final raw = value.trim();
+    if (raw.isEmpty || mdUnit == AppUnits.length) return value;
+    final parsed = double.tryParse(raw.replaceAll(',', ''));
+    if (parsed == null) return value;
+    final converted = AppUnits.convertValue(parsed, mdUnit, AppUnits.length);
+    if (converted == null) return value;
+    return converted
+        .toStringAsFixed(4)
+        .replaceAll(RegExp(r'0+$'), '')
+        .replaceAll(RegExp(r'\.$'), '');
   }
 }
 
@@ -482,9 +517,7 @@ class _HeadCell extends StatelessWidget {
       width: width,
       alignment: Alignment.center,
       decoration: const BoxDecoration(
-        border: Border(
-          left: BorderSide(color: Color(0xFFB9BEC7)),
-        ),
+        border: Border(left: BorderSide(color: Color(0xFFB9BEC7))),
       ),
       child: Text(label),
     );
