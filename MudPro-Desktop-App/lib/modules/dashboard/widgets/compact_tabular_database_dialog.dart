@@ -48,13 +48,12 @@ class _CompactTabularDatabaseDialogState
   @override
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.sizeOf(context);
-    final dialogWidth = math.min(screenSize.width - 28, 1630.0);
-    final dialogHeight = math.min(screenSize.height - 28, 720.0);
-    const leftWidth = 732.0;
-    final tableWidth = math.max(820.0, dialogWidth - leftWidth - 34);
+    final dialogWidth = math.min(screenSize.width - 8, 1630.0);
+    final dialogHeight = math.min(screenSize.height - 8, 720.0);
+    const leftWidth = 500.0;
 
     return Dialog(
-      insetPadding: const EdgeInsets.all(14),
+      insetPadding: const EdgeInsets.all(4),
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
       child: SizedBox(
         width: dialogWidth,
@@ -64,7 +63,7 @@ class _CompactTabularDatabaseDialogState
             _titleBar(context),
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(18, 10, 18, 8),
+                padding: const EdgeInsets.fromLTRB(10, 6, 10, 6),
                 child: Obx(() {
                   c.unitSignature.value;
                   final ods = c.distinctValues('od');
@@ -84,7 +83,7 @@ class _CompactTabularDatabaseDialogState
                           children: [
                             _optionPane(
                               title: 'Type',
-                              width: 188,
+                              width: 126,
                               controller: _typeScroll,
                               itemCount: c.types.length,
                               selectedIndex: c.selectedTypeIndex.value,
@@ -94,10 +93,10 @@ class _CompactTabularDatabaseDialogState
                                 _resetDerivedSelections();
                               },
                             ),
-                            const SizedBox(width: 8),
+                            const SizedBox(width: 6),
                             _optionPane(
                               title: 'Catalog',
-                              width: 130,
+                              width: 88,
                               controller: _catalogScroll,
                               itemCount: c.catalogs.length,
                               selectedIndex: c.selectedCatalogIndex.value,
@@ -107,10 +106,10 @@ class _CompactTabularDatabaseDialogState
                                 _resetDerivedSelections();
                               },
                             ),
-                            const SizedBox(width: 8),
+                            const SizedBox(width: 6),
                             _valuePane(
                               title: 'OD (${c.diameterUnitLabel})',
-                              width: 126,
+                              width: 86,
                               controller: _odScroll,
                               values: ods,
                               selectedIndex: _odIndex,
@@ -119,10 +118,10 @@ class _CompactTabularDatabaseDialogState
                                 _selectFirstMatching('od', ods[index]);
                               },
                             ),
-                            const SizedBox(width: 8),
+                            const SizedBox(width: 6),
                             _valuePane(
                               title: 'Weight (${c.lineDensityUnitLabel})',
-                              width: 126,
+                              width: 88,
                               controller: _weightScroll,
                               values: weights,
                               selectedIndex: _weightIndex,
@@ -134,10 +133,10 @@ class _CompactTabularDatabaseDialogState
                                 );
                               },
                             ),
-                            const SizedBox(width: 8),
+                            const SizedBox(width: 6),
                             _valuePane(
                               title: 'Grade',
-                              width: 128,
+                              width: 88,
                               controller: _gradeScroll,
                               values: grades,
                               selectedIndex: _gradeIndex,
@@ -149,10 +148,8 @@ class _CompactTabularDatabaseDialogState
                           ],
                         ),
                       ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _tablePane(tableWidth, ods, weights, grades),
-                      ),
+                      const SizedBox(width: 8),
+                      Expanded(child: _tablePane(ods, weights, grades)),
                     ],
                   );
                 }),
@@ -190,7 +187,7 @@ class _CompactTabularDatabaseDialogState
 
   Widget _titleBar(BuildContext context) {
     return Container(
-      height: 42,
+      height: 30,
       padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: const BoxDecoration(
         color: Color(0xFFF3F3F3),
@@ -200,13 +197,15 @@ class _CompactTabularDatabaseDialogState
         children: [
           const Text(
             'Tubular Database',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
           ),
           const Spacer(),
           IconButton(
-            splashRadius: 14,
+            splashRadius: 12,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints.tightFor(width: 28, height: 28),
             onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(Icons.close, size: 18),
+            icon: const Icon(Icons.close, size: 16),
           ),
         ],
       ),
@@ -285,10 +284,10 @@ class _CompactTabularDatabaseDialogState
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SizedBox(
-            height: 24,
+            height: 18,
             child: Align(
               alignment: Alignment.centerLeft,
-              child: Text(title, style: const TextStyle(fontSize: 11)),
+              child: Text(title, style: const TextStyle(fontSize: 10)),
             ),
           ),
           Expanded(
@@ -313,14 +312,14 @@ class _CompactTabularDatabaseDialogState
     return InkWell(
       onTap: onTap,
       child: Container(
-        height: 29,
-        padding: const EdgeInsets.symmetric(horizontal: 6),
+        height: 20,
+        padding: const EdgeInsets.symmetric(horizontal: 4),
         alignment: Alignment.centerLeft,
         color: isSelected ? const Color(0xFF1D6FCC) : Colors.white,
         child: Text(
           label,
           style: TextStyle(
-            fontSize: 12,
+            fontSize: 10.5,
             color: isSelected ? Colors.white : Colors.black87,
           ),
           overflow: TextOverflow.ellipsis,
@@ -330,7 +329,6 @@ class _CompactTabularDatabaseDialogState
   }
 
   Widget _tablePane(
-    double tableWidth,
     List<String> ods,
     List<String> weights,
     List<String> grades,
@@ -347,15 +345,23 @@ class _CompactTabularDatabaseDialogState
         ? ''
         : grades[_clamp(_gradeIndex, grades.length)];
 
-    return Align(
-      alignment: Alignment.topLeft,
-      child: SizedBox(
-        width: tableWidth,
-        child: Column(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final tableWidth = math.max(constraints.maxWidth - 18, 1.0);
+        const rowNoW = 42.0;
+        final dataW = math.max(tableWidth - rowNoW, 1.0);
+        final idW = dataW * 0.17;
+        final yieldW = dataW * 0.17;
+        final typeW = dataW * 0.18;
+        final connOdW = dataW * 0.17;
+        final connIdW = dataW * 0.17;
+        final adjustW = dataW - idW - yieldW - typeW - connOdW - connIdW;
+
+        return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Container(
-              height: 32,
+              height: 28,
               padding: const EdgeInsets.symmetric(horizontal: 8),
               alignment: Alignment.centerLeft,
               decoration: BoxDecoration(
@@ -365,7 +371,7 @@ class _CompactTabularDatabaseDialogState
               child: Text(
                 '${c.selectedTypeName} - ${c.selectedCatalogName} : $od ${c.diameterUnitLabel}, $weight ${c.lineDensityUnitLabel}, $grade',
                 style: const TextStyle(
-                  fontSize: 12,
+                  fontSize: 11,
                   fontWeight: FontWeight.w700,
                   color: Color(0xFF0D74C7),
                 ),
@@ -379,7 +385,21 @@ class _CompactTabularDatabaseDialogState
                 ),
                 child: Column(
                   children: [
-                    _tableHeader(),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: SizedBox(
+                        width: tableWidth,
+                        child: _tableHeader(
+                          rowNoW: rowNoW,
+                          idW: idW,
+                          yieldW: yieldW,
+                          typeW: typeW,
+                          connOdW: connOdW,
+                          connIdW: connIdW,
+                          adjustW: adjustW,
+                        ),
+                      ),
+                    ),
                     Expanded(
                       child: Scrollbar(
                         controller: _tableVerticalScroll,
@@ -387,8 +407,23 @@ class _CompactTabularDatabaseDialogState
                         child: ListView.builder(
                           controller: _tableVerticalScroll,
                           itemCount: c.currentRows.length,
-                          itemBuilder: (context, index) =>
-                              _dataRow(c.currentRows[index], index),
+                          itemBuilder: (context, index) => Align(
+                            alignment: Alignment.centerLeft,
+                            child: SizedBox(
+                              width: tableWidth,
+                              child: _dataRow(
+                                c.currentRows[index],
+                                index,
+                                rowNoW: rowNoW,
+                                idW: idW,
+                                yieldW: yieldW,
+                                typeW: typeW,
+                                connOdW: connOdW,
+                                connIdW: connIdW,
+                                adjustW: adjustW,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -397,54 +432,76 @@ class _CompactTabularDatabaseDialogState
               ),
             ),
           ],
+        );
+      },
+    );
+  }
+
+  Widget _tableHeader({
+    required double rowNoW,
+    required double idW,
+    required double yieldW,
+    required double typeW,
+    required double connOdW,
+    required double connIdW,
+    required double adjustW,
+  }) {
+    return ClipRect(
+      child: SizedBox(
+        height: 60,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              height: 22,
+              decoration: const BoxDecoration(
+                color: Color(0xFFF8F8F8),
+                border: Border(bottom: BorderSide(color: Color(0xFFBFC5CC))),
+              ),
+              child: Row(
+                children: [
+                  SizedBox(width: rowNoW),
+                  _groupHeader('Body', idW + yieldW, height: 22),
+                  _groupHeader(
+                    'Connection',
+                    typeW + connOdW + connIdW,
+                    height: 22,
+                  ),
+                  _groupHeader('Assembly', adjustW, height: 22),
+                ],
+              ),
+            ),
+            Container(
+              height: 38,
+              decoration: const BoxDecoration(
+                color: Color(0xFFF8F8F8),
+                border: Border(bottom: BorderSide(color: Color(0xFFBFC5CC))),
+              ),
+              child: Row(
+                children: [
+                  SizedBox(width: rowNoW),
+                  _headerCell('ID\n(${c.diameterUnitLabel})', idW),
+                  _headerCell('Yield\n(${c.pressureUnitLabel})', yieldW),
+                  _headerCell('Type', typeW),
+                  _headerCell('OD\n(${c.diameterUnitLabel})', connOdW),
+                  _headerCell('ID\n(${c.diameterUnitLabel})', connIdW),
+                  _headerCell(
+                    'Adjust Wt.\n(${c.lineDensityUnitLabel})',
+                    adjustW,
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _tableHeader() {
-    return Container(
-      height: 76,
-      decoration: const BoxDecoration(
-        color: Color(0xFFF8F8F8),
-        border: Border(bottom: BorderSide(color: Color(0xFFBFC5CC))),
-      ),
-      child: Column(
-        children: [
-          SizedBox(
-            height: 28,
-            child: Row(
-              children: const [
-                SizedBox(width: 52),
-                SizedBox(width: 260, child: Center(child: Text('Body'))),
-                SizedBox(width: 390, child: Center(child: Text('Connection'))),
-                SizedBox(width: 132, child: Center(child: Text('Assembly'))),
-              ],
-            ),
-          ),
-          SizedBox(
-            height: 48,
-            child: Row(
-              children: [
-                const SizedBox(width: 52),
-                _headerCell('ID\n(${c.diameterUnitLabel})', 130),
-                _headerCell('Yield\n(${c.pressureUnitLabel})', 130),
-                _headerCell('Type', 130),
-                _headerCell('OD\n(${c.diameterUnitLabel})', 130),
-                _headerCell('ID\n(${c.diameterUnitLabel})', 130),
-                _headerCell('Adjust Wt.\n(${c.lineDensityUnitLabel})', 132),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _headerCell(String value, double width) {
+  Widget _groupHeader(String value, double width, {required double height}) {
     return Container(
       width: width,
-      height: 48,
+      height: height,
       alignment: Alignment.center,
       decoration: const BoxDecoration(
         border: Border(right: BorderSide(color: Color(0xFFBFC5CC))),
@@ -453,26 +510,55 @@ class _CompactTabularDatabaseDialogState
         value,
         textAlign: TextAlign.center,
         style: const TextStyle(fontSize: 11),
+        overflow: TextOverflow.ellipsis,
       ),
     );
   }
 
-  Widget _dataRow(TubularDbRow row, int index) {
+  Widget _headerCell(String value, double width) {
+    return Container(
+      width: width,
+      height: 38,
+      alignment: Alignment.center,
+      decoration: const BoxDecoration(
+        border: Border(right: BorderSide(color: Color(0xFFBFC5CC))),
+      ),
+      child: Text(
+        value,
+        textAlign: TextAlign.center,
+        maxLines: 2,
+        style: const TextStyle(fontSize: 9, height: 1.05),
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+  }
+
+  Widget _dataRow(
+    TubularDbRow row,
+    int index, {
+    required double rowNoW,
+    required double idW,
+    required double yieldW,
+    required double typeW,
+    required double connOdW,
+    required double connIdW,
+    required double adjustW,
+  }) {
     final isSelected = c.selectedRowIndex.value == index;
     return InkWell(
       onTap: () => c.selectRow(index),
       child: Container(
-        height: 31,
+        height: 22,
         color: isSelected ? const Color(0xFF1D6FCC) : Colors.white,
         child: Row(
           children: [
-            _cell('${index + 1}', 52, isSelected, align: TextAlign.center),
-            _cell(row.value('id'), 130, isSelected),
-            _cell(row.value('yieldPsi'), 130, isSelected),
-            _cell(row.value('connectionType'), 130, isSelected),
-            _cell(row.value('connectionOd'), 130, isSelected),
-            _cell(row.value('connectionId'), 130, isSelected),
-            _cell(row.value('assemblyAdjustWt'), 132, isSelected),
+            _cell('${index + 1}', rowNoW, isSelected, align: TextAlign.center),
+            _cell(row.value('id'), idW, isSelected),
+            _cell(row.value('yieldPsi'), yieldW, isSelected),
+            _cell(row.value('connectionType'), typeW, isSelected),
+            _cell(row.value('connectionOd'), connOdW, isSelected),
+            _cell(row.value('connectionId'), connIdW, isSelected),
+            _cell(row.value('assemblyAdjustWt'), adjustW, isSelected),
           ],
         ),
       ),
@@ -487,9 +573,9 @@ class _CompactTabularDatabaseDialogState
   }) {
     return Container(
       width: width,
-      height: 31,
+      height: 22,
       alignment: Alignment.center,
-      padding: const EdgeInsets.symmetric(horizontal: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 4),
       decoration: const BoxDecoration(
         border: Border(
           right: BorderSide(color: Color(0xFFD4D8DD)),
@@ -500,7 +586,8 @@ class _CompactTabularDatabaseDialogState
         value,
         textAlign: align,
         style: TextStyle(
-          fontSize: 12,
+          fontSize: 10.5,
+          fontWeight: selected ? FontWeight.w500 : FontWeight.w400,
           color: selected ? Colors.white : Colors.black87,
         ),
         overflow: TextOverflow.ellipsis,
@@ -510,19 +597,19 @@ class _CompactTabularDatabaseDialogState
 
   Widget _footer(BuildContext context) {
     return Container(
-      height: 60,
-      padding: const EdgeInsets.fromLTRB(18, 8, 18, 10),
+      height: 44,
+      padding: const EdgeInsets.fromLTRB(10, 4, 10, 7),
       child: Obx(
         () => Row(
           children: [
             Text(
               'Material: ${c.selectedTypeMaterial}',
-              style: const TextStyle(fontSize: 12),
+              style: const TextStyle(fontSize: 11),
             ),
-            const SizedBox(width: 18),
+            const SizedBox(width: 14),
             SizedBox(
-              width: 110,
-              height: 36,
+              width: 96,
+              height: 30,
               child: OutlinedButton(
                 onPressed: () async {
                   await Navigator.of(context).push(
@@ -542,8 +629,8 @@ class _CompactTabularDatabaseDialogState
             ),
             const Spacer(),
             SizedBox(
-              width: 110,
-              height: 36,
+              width: 96,
+              height: 30,
               child: FilledButton(
                 onPressed: c.currentRows.isEmpty
                     ? null
@@ -558,8 +645,8 @@ class _CompactTabularDatabaseDialogState
             ),
             const SizedBox(width: 8),
             SizedBox(
-              width: 110,
-              height: 36,
+              width: 96,
+              height: 30,
               child: OutlinedButton(
                 onPressed: () => Navigator.of(context).pop(),
                 style: OutlinedButton.styleFrom(

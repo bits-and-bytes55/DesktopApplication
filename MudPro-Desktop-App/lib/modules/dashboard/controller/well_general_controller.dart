@@ -353,6 +353,9 @@ class WellGeneralController extends GetxController {
     }
     rows[index] = current;
     _setTimeDistributionRows(rows, notify: notify);
+    if (!notify) {
+      _scheduleAutoSave();
+    }
   }
 
   void updateOpenHoleRow(

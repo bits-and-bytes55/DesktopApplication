@@ -3858,6 +3858,7 @@ class _TimeDistributionSectionState extends State<TimeDistributionSection> {
       idx,
       activity: (row['activity'] ?? '').toString(),
       time: timeCtrl.text,
+      notify: false,
     );
   }
 
@@ -3869,6 +3870,22 @@ class _TimeDistributionSectionState extends State<TimeDistributionSection> {
 
   void _commitRows(List<Map<String, String>> rows) {
     wellGenCtrl.hydrateTimeDistributionRows(rows);
+  }
+
+  List<String> _activityOptionsFor(String currentActivity) {
+    final values = <String>[];
+    for (final option in activityOptions) {
+      final text = option.trim();
+      if (text.isNotEmpty && !values.contains(text)) {
+        values.add(text);
+      }
+    }
+
+    final selected = currentActivity.trim();
+    if (selected.isNotEmpty && !values.contains(selected)) {
+      values.insert(0, selected);
+    }
+    return values;
   }
 
   List<Map<String, String>> _rowsForController() => tableData
@@ -3975,11 +3992,13 @@ class _TimeDistributionSectionState extends State<TimeDistributionSection> {
   Future<void> _fetchActivities() async {
     try {
       final acts = await widget.activityController.getActivities();
+      if (!mounted) return;
       setState(() {
         activityOptions = acts.map((a) => a.description).toList();
         _isLoadingActivities = false;
       });
     } catch (_) {
+      if (!mounted) return;
       setState(() => _isLoadingActivities = false);
     }
   }
@@ -4073,6 +4092,10 @@ class _TimeDistributionSectionState extends State<TimeDistributionSection> {
                           final row = entry.value;
                           final timeCtrl = row['time'] as TextEditingController;
                           final currentActivity = row['activity'] as String;
+                          final selectedActivity = currentActivity.trim();
+                          final activityItems = _activityOptionsFor(
+                            currentActivity,
+                          );
                           final bool sel = selectedRowIndex == idx;
                           final rowChildren = <Widget>[
                             GestureDetector(
@@ -4121,10 +4144,10 @@ class _TimeDistributionSectionState extends State<TimeDistributionSection> {
                                             : DropdownButtonHideUnderline(
                                                 child: DropdownButton<String>(
                                                   value:
-                                                      activityOptions.contains(
-                                                        currentActivity,
+                                                      activityItems.contains(
+                                                        selectedActivity,
                                                       )
-                                                      ? currentActivity
+                                                      ? selectedActivity
                                                       : null,
                                                   hint: Text(
                                                     "Select",
@@ -4155,7 +4178,7 @@ class _TimeDistributionSectionState extends State<TimeDistributionSection> {
                                                       _syncRowToController(idx);
                                                     }
                                                   },
-                                                  items: activityOptions
+                                                  items: activityItems
                                                       .map(
                                                         (o) => DropdownMenuItem(
                                                           value: o,

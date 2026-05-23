@@ -7,6 +7,34 @@ const getReportNo = (req) =>
   String(req.query.reportNo ?? req.body?.reportNo ?? "").trim();
 
 const toText = (value) => String(value ?? "").trim();
+const toNumber = (value) => {
+  const parsed = Number(String(value ?? "").replace(/,/g, "").trim());
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const normalizeTimeDistributionRows = (rows) => {
+  if (!Array.isArray(rows)) return rows;
+
+  return rows
+    .filter((row) => row && typeof row === "object")
+    .map((row) => {
+      const description =
+        toText(row.description) || toText(row.activity) || toText(row.name);
+      const hours = toNumber(row.hours ?? row.time ?? row.value);
+      return { description, hours };
+    })
+    .filter((row) => row.description || row.hours !== 0);
+};
+
+const normalizeWellGeneralPayload = (body = {}) => {
+  const payload = { ...body };
+  if (Array.isArray(payload.timeDistributionRows)) {
+    payload.timeDistributionRows = normalizeTimeDistributionRows(
+      payload.timeDistributionRows
+    );
+  }
+  return payload;
+};
 
 const upsertScopeFilter = ({ wellId, reportId, reportNo, recordId }) => {
   if (reportId) {
@@ -30,7 +58,8 @@ export const createWellGeneral = async (req, res) => {
     const wellId = getWellId(req);
     const reportId = getReportId(req);
     const reportNo = getReportNo(req);
-    const recordId = toText(req.body.recordId);
+    const payload = normalizeWellGeneralPayload(req.body);
+    const recordId = toText(payload.recordId);
 
     if (!wellId) {
       return res.status(400).json({
@@ -48,10 +77,10 @@ export const createWellGeneral = async (req, res) => {
 
     if (data) {
       Object.assign(data, {
-        ...req.body,
+        ...payload,
         wellId,
         reportId: reportId || data.reportId || "",
-        reportNo: reportNo || toText(req.body.reportNo) || data.reportNo || "",
+        reportNo: reportNo || toText(payload.reportNo) || data.reportNo || "",
       });
       await data.save();
 
@@ -63,10 +92,10 @@ export const createWellGeneral = async (req, res) => {
     }
 
     data = await WellGeneral.create({
-      ...req.body,
+      ...payload,
       wellId,
       reportId,
-      reportNo: reportNo || toText(req.body.reportNo),
+      reportNo: reportNo || toText(payload.reportNo),
     });
 
     res.status(201).json({
@@ -157,6 +186,7 @@ export const updateWellGeneral = async (req, res) => {
   try {
     const wellId = getWellId(req);
     const reportId = getReportId(req);
+    const payload = normalizeWellGeneralPayload(req.body);
 
     if (!wellId) {
       return res.status(400).json({
@@ -172,13 +202,13 @@ export const updateWellGeneral = async (req, res) => {
         ...(reportId ? { reportId } : {}),
       },
       {
-        ...req.body,
+        ...payload,
         wellId,
-        ...(req.body.reportId !== undefined || reportId
-          ? { reportId: toText(req.body.reportId ?? reportId) }
+        ...(payload.reportId !== undefined || reportId
+          ? { reportId: toText(payload.reportId ?? reportId) }
           : {}),
-        ...(req.body.reportNo !== undefined && {
-          reportNo: toText(req.body.reportNo),
+        ...(payload.reportNo !== undefined && {
+          reportNo: toText(payload.reportNo),
         }),
       },
       { new: true }
