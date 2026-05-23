@@ -42,6 +42,7 @@ const prepareOtherVolAdditionData = (
   return {
     wellId,
     reportId,
+    operationInstanceKey: String(payload.operationInstanceKey || "").trim(),
     formation: formationVol,
     cuttings: cuttingsVol,
     volumeNotFluid: volumeNotFluidVol,
@@ -221,6 +222,8 @@ export const updateOtherVolAddition = async (req, res) => {
     const mergedPayload = {
       wellId: req.body.wellId ?? existing.wellId,
       reportId: req.body.reportId ?? existing.reportId ?? reportId,
+      operationInstanceKey:
+        req.body.operationInstanceKey ?? existing.operationInstanceKey ?? "",
       formation: req.body.formation ?? existing.formation,
       cuttings: req.body.cuttings ?? existing.cuttings,
       volumeNotFluid: req.body.volumeNotFluid ?? existing.volumeNotFluid,
@@ -236,6 +239,7 @@ export const updateOtherVolAddition = async (req, res) => {
 
     existing.wellId = prepared.wellId;
     existing.reportId = prepared.reportId;
+    existing.operationInstanceKey = prepared.operationInstanceKey;
     existing.formation = prepared.formation;
     existing.cuttings = prepared.cuttings;
     existing.volumeNotFluid = prepared.volumeNotFluid;

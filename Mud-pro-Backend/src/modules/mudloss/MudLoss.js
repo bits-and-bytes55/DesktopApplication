@@ -12,6 +12,11 @@ const mudLossSchema = new mongoose.Schema(
       default: "",
       index: true,
     },
+    operationInstanceKey: {
+      type: String,
+      default: "",
+      index: true,
+    },
     cuttingsRetention: {
       type: Number,
       default: 0,

@@ -45,6 +45,7 @@ const prepareReceiveMudData = async (wellId, reportId, payload) => {
     volume,
     leased,
     lossVolume,
+    operationInstanceKey,
   } = payload;
 
   if (!wellId || !premixedMud || !to || volume === undefined || volume === null) {
@@ -97,6 +98,7 @@ const prepareReceiveMudData = async (wellId, reportId, payload) => {
     volume: grossVolume,
     leased: leased === true || leased === "true",
     lossVolume: loss,
+    operationInstanceKey: String(operationInstanceKey || "").trim(),
     netVolume,
   };
 };
@@ -265,6 +267,8 @@ export const updateReceiveMud = async (req, res) => {
       volume: req.body.volume ?? existing.volume,
       leased: req.body.leased ?? existing.leased,
       lossVolume: req.body.lossVolume ?? existing.lossVolume,
+      operationInstanceKey:
+        req.body.operationInstanceKey ?? existing.operationInstanceKey ?? "",
     };
 
     const prepared = await prepareReceiveMudData(wellId, reportId, mergedPayload);
@@ -290,6 +294,7 @@ export const updateReceiveMud = async (req, res) => {
     existing.lossVolume = prepared.lossVolume;
     existing.netVolume = prepared.netVolume;
     existing.reportId = prepared.reportId;
+    existing.operationInstanceKey = prepared.operationInstanceKey;
 
     await existing.save();
 

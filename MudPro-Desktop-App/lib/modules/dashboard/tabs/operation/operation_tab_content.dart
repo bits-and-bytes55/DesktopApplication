@@ -410,6 +410,7 @@ class OperationPage extends StatelessWidget {
       case OperationType.mudLossActiveSystem:
         return MudLossActiveSystemView(
           key: ValueKey('mudLossActiveSystem-$instanceKey'),
+          instanceKey: instanceKey,
         );
 
       case OperationType.receiveProduct:
@@ -422,7 +423,10 @@ class OperationPage extends StatelessWidget {
         return TransferMudView(key: ValueKey('transferMud-$instanceKey'));
 
       case OperationType.receiveMud:
-        return ReceiveMudView(key: ValueKey('receiveMud-$instanceKey'));
+        return ReceiveMudView(
+          key: ValueKey('receiveMud-$instanceKey'),
+          instanceKey: instanceKey,
+        );
 
       case OperationType.addWater:
         return AddWaterView(
@@ -433,16 +437,23 @@ class OperationPage extends StatelessWidget {
       case OperationType.otherVolAddition:
         return OtherVolAdditionActiveSystemView(
           key: ValueKey('otherVolAddition-$instanceKey'),
+          instanceKey: instanceKey,
         );
 
       case OperationType.mudLossStorage:
-        return MudLossStorageView(key: ValueKey('mudLossStorage-$instanceKey'));
+        return MudLossStorageView(
+          key: ValueKey('mudLossStorage-$instanceKey'),
+          instanceKey: instanceKey,
+        );
 
       case OperationType.switchPit:
         return SwitchPitView(key: ValueKey('switchPit-$instanceKey'));
 
       case OperationType.returnLostMud:
-        return ReturnLostMudView(key: ValueKey('returnLostMud-$instanceKey'));
+        return ReturnLostMudView(
+          key: ValueKey('returnLostMud-$instanceKey'),
+          instanceKey: instanceKey,
+        );
 
       case OperationType.switchMudType:
         return SwitchMudTypeView(key: ValueKey('switchMudType-$instanceKey'));

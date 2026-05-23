@@ -80,11 +80,16 @@ class MudLossStorageEntry {
 }
 
 class MudLossStorageController extends GetxController {
+  MudLossStorageController({required this.instanceKey});
+
+  final String instanceKey;
   final AuthRepository _repository = AuthRepository();
   final rows = <MudLossStorageEntry>[].obs;
   final isLoading = false.obs;
   Timer? _autoSaveTimer;
   bool _isApplyingState = false;
+  String _loadedWellId = '';
+  String _loadedReportId = '';
 
   Worker? _wellWorker;
   Worker? _reportWorker;
@@ -131,6 +136,12 @@ class MudLossStorageController extends GetxController {
     return null;
   }
 
+  bool _belongsToThisInstance(Map<String, dynamic> item) {
+    final key = (item['operationInstanceKey'] ?? '').toString().trim();
+    if (key == instanceKey) return true;
+    return key.isEmpty && instanceKey == 'mudLossStorage::legacy0';
+  }
+
   void _ensureMinimumRows() {
     while (rows.length < 20) {
       rows.add(MudLossStorageEntry());
@@ -150,6 +161,13 @@ class MudLossStorageController extends GetxController {
       if (_isApplyingState || isLoading.value || !_hasData) return;
       await save();
     });
+  }
+
+  Future<void> flushPendingAutoSave() async {
+    if (!(_autoSaveTimer?.isActive ?? false)) return;
+    _autoSaveTimer?.cancel();
+    if (_isApplyingState || isLoading.value || !_hasData) return;
+    await save();
   }
 
   Future<void> _refreshPitState() async {
@@ -177,17 +195,34 @@ class MudLossStorageController extends GetxController {
     _autoSaveTimer?.cancel();
     _isApplyingState = true;
     _resetRows();
+    _loadedWellId = wellId;
+    _loadedReportId = reportContext.selectedReportId.value.trim();
     _isApplyingState = false;
   }
 
   Future<void> load({bool force = false}) async {
-    _autoSaveTimer?.cancel();
-    if (wellId.isEmpty) {
+    final currentWellId = wellId;
+    final currentReportId = reportContext.selectedReportId.value.trim();
+    if (currentWellId.isEmpty) {
       _isApplyingState = true;
       _resetRows();
+      _loadedWellId = '';
+      _loadedReportId = '';
       _isApplyingState = false;
       return;
     }
+    if (!force &&
+        _loadedWellId == currentWellId &&
+        _loadedReportId == currentReportId &&
+        !isLoading.value) {
+      return;
+    }
+    if ((_autoSaveTimer?.isActive ?? false) &&
+        _loadedWellId == currentWellId &&
+        _loadedReportId == currentReportId) {
+      return;
+    }
+    _autoSaveTimer?.cancel();
     if (isLoading.value && !force) return;
 
     isLoading.value = true;
@@ -204,7 +239,15 @@ class MudLossStorageController extends GetxController {
           : envelope is Map
           ? Map<String, dynamic>.from(envelope)['data']
           : null;
-      final items = data is List ? data.reversed.toList() : const [];
+      final items = data is List
+          ? data
+                .whereType<Map>()
+                .map((item) => Map<String, dynamic>.from(item))
+                .where(_belongsToThisInstance)
+                .toList()
+                .reversed
+                .toList()
+          : const [];
 
       _disposeRows();
       for (final rawItem in items) {
@@ -221,8 +264,12 @@ class MudLossStorageController extends GetxController {
       }
       _ensureMinimumRows();
       ensureTrailingRow();
+      _loadedWellId = currentWellId;
+      _loadedReportId = currentReportId;
     } catch (_) {
       _resetRows();
+      _loadedWellId = currentWellId;
+      _loadedReportId = currentReportId;
     } finally {
       _isApplyingState = false;
       isLoading.value = false;
@@ -276,6 +323,8 @@ class MudLossStorageController extends GetxController {
       }
       if (errors.isEmpty) {
         _ensureMinimumRows();
+        _loadedWellId = wellId;
+        _loadedReportId = reportContext.selectedReportId.value.trim();
         await _refreshPitState();
       }
       return {
@@ -290,7 +339,10 @@ class MudLossStorageController extends GetxController {
     final deletedIds = <String>{};
     for (var index = 0; index < filledRows.length; index++) {
       final row = filledRows[index];
-      final body = row.toBody();
+      final body = {
+        ...row.toBody(),
+        'operationInstanceKey': instanceKey,
+      };
       final result = row.id.value.isNotEmpty
           ? await _repository.updateMudLossStorage(wellId, row.id.value, body)
           : await _repository.createMudLossStorage(wellId, body);
@@ -327,6 +379,8 @@ class MudLossStorageController extends GetxController {
         }
       }
       _ensureMinimumRows();
+      _loadedWellId = wellId;
+      _loadedReportId = reportContext.selectedReportId.value.trim();
       await _refreshPitState();
     }
     return {

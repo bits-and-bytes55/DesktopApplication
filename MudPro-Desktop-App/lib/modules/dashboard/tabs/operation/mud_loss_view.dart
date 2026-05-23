@@ -6,11 +6,14 @@ import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_de
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class MudLossActiveSystemView extends StatelessWidget {
-  MudLossActiveSystemView({super.key});
+  MudLossActiveSystemView({super.key, required this.instanceKey})
+    : controller = Get.put(
+        MudLossActiveSystemController(instanceKey: instanceKey),
+        tag: instanceKey,
+      );
 
-  final MudLossActiveSystemController controller = Get.put(
-    MudLossActiveSystemController(),
-  );
+  final String instanceKey;
+  final MudLossActiveSystemController controller;
   final DashboardController dashboardController =
       Get.find<DashboardController>();
 

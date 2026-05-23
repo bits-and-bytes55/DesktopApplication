@@ -8,6 +8,9 @@ import 'package:mudpro_desktop_app/modules/report_context/report_context_control
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
 class MudLossActiveSystemController extends GetxController {
+  MudLossActiveSystemController({required this.instanceKey});
+
+  final String instanceKey;
   final AuthRepository _repository = AuthRepository();
   final isLoading = false.obs;
   final recordId = RxnString();
@@ -140,6 +143,12 @@ class MudLossActiveSystemController extends GetxController {
     return null;
   }
 
+  bool _belongsToThisInstance(Map<String, dynamic> item) {
+    final key = (item['operationInstanceKey'] ?? '').toString().trim();
+    if (key == instanceKey) return true;
+    return key.isEmpty && instanceKey == 'mudLossActiveSystem::legacy0';
+  }
+
   double _number(String key) {
     return _parseNumber(fields[key]!.text);
   }
@@ -177,7 +186,17 @@ class MudLossActiveSystemController extends GetxController {
         return;
       }
 
-      final item = Map<String, dynamic>.from(items.first as Map);
+      final matchingItems = items
+          .whereType<Map>()
+          .map((item) => Map<String, dynamic>.from(item))
+          .where(_belongsToThisInstance)
+          .toList();
+      if (matchingItems.isEmpty) {
+        _clearFields();
+        return;
+      }
+
+      final item = matchingItems.first;
       recordId.value = (item['_id'] ?? item['id'] ?? '').toString();
       for (final entry in fields.entries) {
         final value = item[entry.key];
@@ -216,6 +235,7 @@ class MudLossActiveSystemController extends GetxController {
       'tripping': _number('tripping'),
       'extraLossLabel': selectedExtraLoss.value.trim(),
       'extraLossVolume': _extraLossNumber(),
+      'operationInstanceKey': instanceKey,
     };
 
     final total = body.values

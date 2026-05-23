@@ -38,6 +38,7 @@ export const createMudLoss = async (req, res) => {
       tripping,
       extraLossLabel,
       extraLossVolume,
+      operationInstanceKey,
     } = req.body;
 
     const extraLossVol = toNumber(extraLossVolume);
@@ -81,6 +82,7 @@ export const createMudLoss = async (req, res) => {
       tripping: toNumber(tripping),
       extraLossLabel: String(extraLossLabel || "").trim(),
       extraLossVolume: extraLossVol,
+      operationInstanceKey: String(operationInstanceKey || "").trim(),
       totalLoss,
     });
 
@@ -190,6 +192,8 @@ export const updateMudLoss = async (req, res) => {
       tripping: req.body.tripping ?? existing.tripping,
       extraLossLabel: req.body.extraLossLabel ?? existing.extraLossLabel,
       extraLossVolume: req.body.extraLossVolume ?? existing.extraLossVolume,
+      operationInstanceKey:
+        req.body.operationInstanceKey ?? existing.operationInstanceKey ?? "",
     };
 
     const extraLossVol = toNumber(updatedData.extraLossVolume);
@@ -210,6 +214,9 @@ export const updateMudLoss = async (req, res) => {
 
     updatedData.extraLossLabel = String(updatedData.extraLossLabel || "").trim();
     updatedData.extraLossVolume = extraLossVol;
+    updatedData.operationInstanceKey = String(
+      updatedData.operationInstanceKey || ""
+    ).trim();
 
     await deductFromActivePits({ wellId, reportId, totalLoss });
 

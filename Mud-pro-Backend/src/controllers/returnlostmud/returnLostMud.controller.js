@@ -54,6 +54,7 @@ const prepareReturnLostMudData = async (wellId, reportId, payload) => {
     volLost,
     costOfLostPreTax,
     leased,
+    operationInstanceKey,
   } = payload;
 
   if (!wellId || !premixedMud || !from || !to) {
@@ -115,6 +116,7 @@ const prepareReturnLostMudData = async (wellId, reportId, payload) => {
     volLost: lost,
     costOfLostPreTax: finalCostOfLostPreTax,
     leased: leased === true || leased === "true",
+    operationInstanceKey: String(operationInstanceKey || "").trim(),
     totalDeduct,
   };
 };
@@ -172,6 +174,7 @@ export const createReturnLostMud = async (req, res) => {
         volLost: prepared.volLost,
         costOfLostPreTax: prepared.costOfLostPreTax,
         leased: prepared.leased,
+        operationInstanceKey: prepared.operationInstanceKey,
       });
 
       createdItems.push(item);
@@ -317,6 +320,8 @@ export const updateReturnLostMud = async (req, res) => {
       volLost: req.body.volLost ?? existing.volLost,
       costOfLostPreTax: req.body.costOfLostPreTax ?? existing.costOfLostPreTax,
       leased: req.body.leased ?? existing.leased,
+      operationInstanceKey:
+        req.body.operationInstanceKey ?? existing.operationInstanceKey ?? "",
     };
 
     const prepared = await prepareReturnLostMudData(wellId, reportId, mergedPayload);
@@ -348,6 +353,7 @@ export const updateReturnLostMud = async (req, res) => {
     existing.costOfLostPreTax = prepared.costOfLostPreTax;
     existing.leased = prepared.leased;
     existing.reportId = prepared.reportId;
+    existing.operationInstanceKey = prepared.operationInstanceKey;
 
     await existing.save();
 

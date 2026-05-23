@@ -24,6 +24,11 @@ const transferMudSchema = new mongoose.Schema(
       default: "",
       index: true,
     },
+    operationInstanceKey: {
+      type: String,
+      default: "",
+      index: true,
+    },
     from: {
       type: String,
       required: true,

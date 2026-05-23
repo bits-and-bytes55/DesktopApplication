@@ -12,6 +12,11 @@ const emptyFluidActiveSystemSchema = new mongoose.Schema(
       default: "",
       index: true,
     },
+    operationInstanceKey: {
+      type: String,
+      default: "",
+      index: true,
+    },
     actionType: {
       type: String,
       enum: ["Dump", "Transfer to Storage"],

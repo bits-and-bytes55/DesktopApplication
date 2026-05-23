@@ -12,6 +12,11 @@ const receiveMudSchema = new mongoose.Schema(
       default: "",
       index: true,
     },
+    operationInstanceKey: {
+      type: String,
+      default: "",
+      index: true,
+    },
     bolNo: {
       type: String,
       default: "",

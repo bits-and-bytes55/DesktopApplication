@@ -9,6 +9,9 @@ import 'package:mudpro_desktop_app/modules/report_context/report_context_control
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
 class ReceiveMudController extends GetxController {
+  ReceiveMudController({required this.instanceKey});
+
+  final String instanceKey;
   final AuthRepository _repository = AuthRepository();
   final PitController pitController = Get.put(PitController());
 
@@ -131,6 +134,12 @@ class ReceiveMudController extends GetxController {
     return null;
   }
 
+  bool _belongsToThisInstance(Map<String, dynamic> item) {
+    final key = (item['operationInstanceKey'] ?? '').toString().trim();
+    if (key == instanceKey) return true;
+    return key.isEmpty && instanceKey == 'receiveMud::legacy0';
+  }
+
   void _resetLoadedState() {
     _isProgrammaticUpdate = true;
     recordId.value = null;
@@ -216,6 +225,7 @@ class ReceiveMudController extends GetxController {
         'leased': true,
         'lossVolume': lossVolume,
         'wellId': wellId,
+        'operationInstanceKey': instanceKey,
       };
 
       if (recordId.value != null) {
@@ -264,8 +274,13 @@ class ReceiveMudController extends GetxController {
       final res = await _repository.getReceiveMudList(wellId);
       if (res['success'] == true && res['data'] != null) {
         final items = _extractList(res['data']);
-        if (items.isNotEmpty) {
-           final item = Map<String, dynamic>.from(items.first as Map);
+        final matchingItems = items
+            .whereType<Map>()
+            .map((item) => Map<String, dynamic>.from(item))
+            .where(_belongsToThisInstance)
+            .toList();
+        if (matchingItems.isNotEmpty) {
+           final item = matchingItems.first;
            _isProgrammaticUpdate = true;
            
            recordId.value = item['_id']?.toString();

@@ -5,9 +5,14 @@ import 'package:mudpro_desktop_app/modules/dashboard/controller/recievemud_contr
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class ReceiveMudView extends StatelessWidget {
-  ReceiveMudView({super.key});
+  ReceiveMudView({super.key, required this.instanceKey})
+    : controller = Get.put(
+        ReceiveMudController(instanceKey: instanceKey),
+        tag: instanceKey,
+      );
 
-  final ReceiveMudController controller = Get.put(ReceiveMudController());
+  final String instanceKey;
+  final ReceiveMudController controller;
   final DashboardController dashboardController = Get.find<DashboardController>();
 
   @override

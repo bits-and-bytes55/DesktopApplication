@@ -34,6 +34,7 @@ const prepareMudLossStorageData = (wellId, reportId, payload = {}) => {
   return {
     wellId,
     reportId,
+    operationInstanceKey: String(payload.operationInstanceKey || "").trim(),
     storage: safeStorage,
     dump: dumpVol,
     evaporation: evaporationVol,
@@ -181,6 +182,8 @@ export const updateMudLossStorage = async (req, res) => {
       dump: req.body.dump ?? existing.dump,
       evaporation: req.body.evaporation ?? existing.evaporation,
       pitCleaning: req.body.pitCleaning ?? existing.pitCleaning,
+      operationInstanceKey:
+        req.body.operationInstanceKey ?? existing.operationInstanceKey ?? "",
     };
 
     const prepared = prepareMudLossStorageData(wellId, reportId, mergedPayload);
@@ -198,6 +201,7 @@ export const updateMudLossStorage = async (req, res) => {
     existing.pitCleaning = prepared.pitCleaning;
     existing.totalLoss = prepared.totalLoss;
     existing.reportId = prepared.reportId;
+    existing.operationInstanceKey = prepared.operationInstanceKey;
 
     await existing.save();
 

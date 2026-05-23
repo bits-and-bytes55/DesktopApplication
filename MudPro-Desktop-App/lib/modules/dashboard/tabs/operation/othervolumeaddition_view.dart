@@ -5,10 +5,14 @@ import 'package:mudpro_desktop_app/modules/dashboard/controller/other_vol_additi
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class OtherVolAdditionActiveSystemView extends StatelessWidget {
-  OtherVolAdditionActiveSystemView({super.key});
+  OtherVolAdditionActiveSystemView({super.key, required this.instanceKey})
+    : controller = Get.put(
+        OtherVolAdditionController(instanceKey: instanceKey),
+        tag: instanceKey,
+      );
 
-  final OtherVolAdditionController controller =
-      Get.put(OtherVolAdditionController());
+  final String instanceKey;
+  final OtherVolAdditionController controller;
   final DashboardController dashboardController = Get.find<DashboardController>();
 
   @override

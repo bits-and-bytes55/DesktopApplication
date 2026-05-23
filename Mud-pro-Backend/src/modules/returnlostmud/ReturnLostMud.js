@@ -12,6 +12,11 @@ const returnLostMudSchema = new mongoose.Schema(
       default: "",
       index: true,
     },
+    operationInstanceKey: {
+      type: String,
+      default: "",
+      index: true,
+    },
     premixedMud: {
       type: String,
       required: true,

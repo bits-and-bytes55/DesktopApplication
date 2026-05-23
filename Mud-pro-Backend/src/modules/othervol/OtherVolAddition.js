@@ -12,6 +12,11 @@ const otherVolAdditionSchema = new mongoose.Schema(
       default: "",
       index: true,
     },
+    operationInstanceKey: {
+      type: String,
+      default: "",
+      index: true,
+    },
     formation: {
       type: Number,
       default: 0,

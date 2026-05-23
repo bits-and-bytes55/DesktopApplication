@@ -8,6 +8,9 @@ import 'package:mudpro_desktop_app/modules/report_context/report_context_control
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
 class OtherVolAdditionController extends GetxController {
+  OtherVolAdditionController({required this.instanceKey});
+
+  final String instanceKey;
   final AuthRepository _repository = AuthRepository();
   final isLoading = false.obs;
   final recordId = RxnString();
@@ -149,6 +152,12 @@ class OtherVolAdditionController extends GetxController {
     return null;
   }
 
+  bool _belongsToThisInstance(Map<String, dynamic> item) {
+    final key = (item['operationInstanceKey'] ?? '').toString().trim();
+    if (key == instanceKey) return true;
+    return key.isEmpty && instanceKey == 'otherVolAddition::legacy0';
+  }
+
   Future<void> load({bool force = false}) async {
     _autoSaveTimer?.cancel();
     if (wellId.isEmpty) {
@@ -172,7 +181,17 @@ class OtherVolAdditionController extends GetxController {
         return;
       }
 
-      final item = Map<String, dynamic>.from(items.first as Map);
+      final matchingItems = items
+          .whereType<Map>()
+          .map((item) => Map<String, dynamic>.from(item))
+          .where(_belongsToThisInstance)
+          .toList();
+      if (matchingItems.isEmpty) {
+        _clearFields();
+        return;
+      }
+
+      final item = matchingItems.first;
       recordId.value = (item['_id'] ?? item['id'] ?? '').toString();
       formationController.text = _formatNumber(item['formation']);
       cuttingsController.text = _formatNumber(item['cuttings']);
@@ -195,6 +214,7 @@ class OtherVolAdditionController extends GetxController {
       'formation': _number(formationController),
       'cuttings': _number(cuttingsController),
       'volumeNotFluid': _number(volumeNotFluidController),
+      'operationInstanceKey': instanceKey,
     };
 
     final total = (body['formation'] as double) +

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart';
@@ -6,7 +8,9 @@ import 'package:mudpro_desktop_app/modules/dashboard/controller/mud_loss_storage
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class MudLossStorageView extends StatefulWidget {
-  const MudLossStorageView({super.key});
+  const MudLossStorageView({super.key, required this.instanceKey});
+
+  final String instanceKey;
 
   @override
   State<MudLossStorageView> createState() => _MudLossStorageViewState();
@@ -16,19 +20,27 @@ class _MudLossStorageViewState extends State<MudLossStorageView> {
   final DashboardController dashboardController =
       Get.find<DashboardController>();
   final PitController pitController = Get.find<PitController>();
-  final MudLossStorageController controller = Get.put(
-    MudLossStorageController(),
-  );
+  late final MudLossStorageController controller;
 
   int selectedRowIndex = 0;
 
   @override
   void initState() {
     super.initState();
+    controller = Get.put(
+      MudLossStorageController(instanceKey: widget.instanceKey),
+      tag: widget.instanceKey,
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await pitController.fetchUnselectedPits();
-      await controller.load(force: true);
+      await controller.load();
     });
+  }
+
+  @override
+  void dispose() {
+    unawaited(controller.flushPendingAutoSave());
+    super.dispose();
   }
 
   @override

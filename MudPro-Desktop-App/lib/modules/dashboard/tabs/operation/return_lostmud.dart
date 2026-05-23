@@ -5,9 +5,14 @@ import 'package:mudpro_desktop_app/modules/dashboard/controller/return_lostmud_c
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class ReturnLostMudView extends StatelessWidget {
-  ReturnLostMudView({super.key});
+  ReturnLostMudView({super.key, required this.instanceKey})
+    : controller = Get.put(
+        ReturnLostMudController(instanceKey: instanceKey),
+        tag: instanceKey,
+      );
 
-  final ReturnLostMudController controller = Get.put(ReturnLostMudController());
+  final String instanceKey;
+  final ReturnLostMudController controller;
   final DashboardController dashboardController = Get.find<DashboardController>();
 
   @override
