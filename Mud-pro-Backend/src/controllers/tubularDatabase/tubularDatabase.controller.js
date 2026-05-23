@@ -30,6 +30,24 @@ const DEFAULT_TYPES = [
 
 const DEFAULT_CATALOGS = ["Weatherford"];
 const DEFAULT_MATERIALS = ["Steel", "Aluminium"];
+const DEFAULT_MATERIAL_PROPERTIES = {
+  Steel: {
+    density: "7.85",
+    elasticModulus: "29.00",
+    poissonRatio: "0.30",
+    compressibility: "10.0000",
+    heatCapacity: "0.11",
+    thermalConductivity: "",
+  },
+  Aluminium: {
+    density: "2.80",
+    elasticModulus: "10.00",
+    poissonRatio: "0.32",
+    compressibility: "146.0000",
+    heatCapacity: "0.21",
+    thermalConductivity: "",
+  },
+};
 
 const DEFAULT_ROWS = [
   { od: "2.720", id: "1.995", grade: "Super weld", yieldPsi: "33034", tensileStr: "88690", connectionOd: "2.820" },
@@ -95,13 +113,39 @@ const rowPayload = (body) => ({
   assemblyAdjustWt: text(body.assemblyAdjustWt),
 });
 
+const materialProperties = (name) => DEFAULT_MATERIAL_PROPERTIES[name] || {};
+
+const materialPayload = (body) => ({
+  name: text(body.name),
+  density: text(body.density),
+  elasticModulus: text(body.elasticModulus),
+  poissonRatio: text(body.poissonRatio),
+  compressibility: text(body.compressibility),
+  heatCapacity: text(body.heatCapacity),
+  thermalConductivity: text(body.thermalConductivity),
+});
+
 const ensureSeedData = async () => {
   const existingCount = await TubularDatabase.countDocuments();
   if (existingCount > 0) {
     for (const [index, name] of DEFAULT_MATERIALS.entries()) {
       const exists = await TubularDatabase.findOne({ kind: "material", name });
       if (!exists) {
-        await TubularDatabase.create({ kind: "material", name, sortOrder: index });
+        await TubularDatabase.create({
+          kind: "material",
+          name,
+          ...materialProperties(name),
+          sortOrder: index,
+        });
+      } else {
+        const defaults = materialProperties(name);
+        const patch = {};
+        for (const [key, value] of Object.entries(defaults)) {
+          if (!text(exists[key])) patch[key] = value;
+        }
+        if (Object.keys(patch).length > 0) {
+          await TubularDatabase.updateOne({ _id: exists._id }, { $set: patch });
+        }
       }
     }
 
@@ -153,6 +197,7 @@ const ensureSeedData = async () => {
     ...DEFAULT_MATERIALS.map((name, index) => ({
       kind: "material",
       name,
+      ...materialProperties(name),
       sortOrder: index,
     })),
     ...DEFAULT_ROWS.map((row, index) => ({
@@ -253,7 +298,8 @@ export const createCatalog = async (req, res) => {
 
 export const createMaterial = async (req, res) => {
   try {
-    const name = text(req.body.name);
+    const payload = materialPayload(req.body);
+    const name = payload.name;
     if (!name) {
       return res.status(400).json({ success: false, message: "Material is required" });
     }
@@ -264,8 +310,80 @@ export const createMaterial = async (req, res) => {
     }
 
     const sortOrder = await TubularDatabase.countDocuments({ kind: "material" });
-    const data = await TubularDatabase.create({ kind: "material", name, sortOrder });
+    const data = await TubularDatabase.create({
+      kind: "material",
+      ...payload,
+      sortOrder,
+    });
     res.status(201).json({ success: true, data });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const updateMaterial = async (req, res) => {
+  try {
+    const payload = materialPayload(req.body);
+    const name = payload.name;
+    if (!name) {
+      return res.status(400).json({ success: false, message: "Material is required" });
+    }
+
+    const item = await TubularDatabase.findOne({ _id: req.params.id, kind: "material" });
+    if (!item) {
+      return res.status(404).json({ success: false, message: "Material not found" });
+    }
+
+    const duplicate = await TubularDatabase.findOne({
+      _id: { $ne: item._id },
+      kind: "material",
+      name,
+    });
+    if (duplicate) {
+      return res.status(400).json({ success: false, message: "Material already exists" });
+    }
+
+    const oldName = item.name;
+    Object.assign(item, payload);
+    await item.save();
+    if (oldName !== name) {
+      await TubularDatabase.updateMany(
+        { kind: "type", material: oldName },
+        { $set: { material: name } }
+      );
+    }
+
+    res.status(200).json({ success: true, data: item });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const deleteMaterial = async (req, res) => {
+  try {
+    const item = await TubularDatabase.findOne({ _id: req.params.id, kind: "material" });
+    if (!item) {
+      return res.status(404).json({ success: false, message: "Material not found" });
+    }
+
+    const count = await TubularDatabase.countDocuments({ kind: "material" });
+    if (count <= 1) {
+      return res.status(400).json({
+        success: false,
+        message: "At least one material is required",
+      });
+    }
+
+    await TubularDatabase.deleteOne({ _id: item._id });
+    const fallback = await TubularDatabase.findOne({ kind: "material" })
+      .sort({ sortOrder: 1, name: 1 })
+      .lean();
+    await TubularDatabase.updateMany(
+      { kind: "type", material: item.name },
+      { $set: { material: fallback?.name || DEFAULT_MATERIALS[0] } }
+    );
+
+    res.status(200).json({ success: true, message: "Material deleted" });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

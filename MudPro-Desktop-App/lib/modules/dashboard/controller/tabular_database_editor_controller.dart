@@ -13,12 +13,24 @@ class TubularDbOption {
     required this.name,
     required this.sortOrder,
     this.material = '',
+    this.density = '',
+    this.elasticModulus = '',
+    this.poissonRatio = '',
+    this.compressibility = '',
+    this.heatCapacity = '',
+    this.thermalConductivity = '',
   });
 
   final String id;
   final String name;
   final int sortOrder;
   final String material;
+  final String density;
+  final String elasticModulus;
+  final String poissonRatio;
+  final String compressibility;
+  final String heatCapacity;
+  final String thermalConductivity;
 
   factory TubularDbOption.fromJson(Map<String, dynamic> json) =>
       TubularDbOption(
@@ -26,7 +38,23 @@ class TubularDbOption {
         name: (json['name'] ?? '').toString(),
         sortOrder: (json['sortOrder'] as num?)?.toInt() ?? 0,
         material: (json['material'] ?? '').toString(),
+        density: (json['density'] ?? '').toString(),
+        elasticModulus: (json['elasticModulus'] ?? '').toString(),
+        poissonRatio: (json['poissonRatio'] ?? '').toString(),
+        compressibility: (json['compressibility'] ?? '').toString(),
+        heatCapacity: (json['heatCapacity'] ?? '').toString(),
+        thermalConductivity: (json['thermalConductivity'] ?? '').toString(),
       );
+
+  Map<String, dynamic> toMaterialJson() => {
+    'name': name,
+    'density': density,
+    'elasticModulus': elasticModulus,
+    'poissonRatio': poissonRatio,
+    'compressibility': compressibility,
+    'heatCapacity': heatCapacity,
+    'thermalConductivity': thermalConductivity,
+  };
 }
 
 class TubularDbColumn {
@@ -567,6 +595,135 @@ class TabularDatabaseEditorController extends GetxController {
     materials.add(
       TubularDbOption(id: '', name: cleanName, sortOrder: materials.length),
     );
+  }
+
+  Future<TubularDbOption?> saveMaterialOption(
+    TubularDbOption option, {
+    String? oldName,
+  }) async {
+    final cleanName = option.name.trim();
+    if (cleanName.isEmpty) return null;
+    final cleanOldName = (oldName ?? option.name).trim();
+    final existingIndex = materials.indexWhere(
+      (item) =>
+          item.name.toLowerCase() == cleanName.toLowerCase() &&
+          item.id != option.id &&
+          item.name.toLowerCase() != cleanOldName.toLowerCase(),
+    );
+    if (existingIndex >= 0) return null;
+
+    TubularDbOption savedOption = option;
+    final isUpdate = option.id.isNotEmpty;
+    try {
+      final response = isUpdate
+          ? await http.put(
+              Uri.parse('${_baseUrl}tubular-database/materials/${option.id}'),
+              headers: _headers,
+              body: jsonEncode(option.toMaterialJson()),
+            )
+          : await http.post(
+              Uri.parse('${_baseUrl}tubular-database/materials'),
+              headers: _headers,
+              body: jsonEncode(option.toMaterialJson()),
+            );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = jsonDecode(response.body)['data'];
+        savedOption = TubularDbOption.fromJson(Map<String, dynamic>.from(data));
+      }
+    } catch (_) {}
+
+    final byId = savedOption.id.isEmpty
+        ? -1
+        : materials.indexWhere((item) => item.id == savedOption.id);
+    final byOldName = cleanOldName.isEmpty
+        ? -1
+        : materials.indexWhere((item) => item.name == cleanOldName);
+    final index = byId >= 0 ? byId : byOldName;
+
+    if (index >= 0) {
+      final oldMaterialName = materials[index].name;
+      materials[index] = savedOption;
+      if (oldMaterialName != savedOption.name) {
+        _replaceTypeMaterial(oldMaterialName, savedOption.name);
+      }
+    } else if (!materials.any(
+      (item) => item.name.toLowerCase() == savedOption.name.toLowerCase(),
+    )) {
+      materials.add(savedOption);
+    }
+    materials.refresh();
+    types.refresh();
+    return savedOption;
+  }
+
+  Future<void> updateMaterial(String oldName, String newName) async {
+    final cleanOldName = oldName.trim();
+    final cleanNewName = newName.trim();
+    if (cleanOldName.isEmpty ||
+        cleanNewName.isEmpty ||
+        cleanOldName == cleanNewName) {
+      return;
+    }
+    if (materials.any(
+      (item) =>
+          item.name.toLowerCase() == cleanNewName.toLowerCase() &&
+          item.name.toLowerCase() != cleanOldName.toLowerCase(),
+    )) {
+      return;
+    }
+
+    final index = materials.indexWhere((item) => item.name == cleanOldName);
+    if (index < 0) return;
+    final option = materials[index];
+    final nextOption = TubularDbOption(
+      id: option.id,
+      name: cleanNewName,
+      sortOrder: option.sortOrder,
+      material: option.material,
+      density: option.density,
+      elasticModulus: option.elasticModulus,
+      poissonRatio: option.poissonRatio,
+      compressibility: option.compressibility,
+      heatCapacity: option.heatCapacity,
+      thermalConductivity: option.thermalConductivity,
+    );
+    await saveMaterialOption(nextOption, oldName: cleanOldName);
+  }
+
+  Future<void> deleteMaterial(String name) async {
+    final cleanName = name.trim();
+    if (cleanName.isEmpty || materials.length <= 1) return;
+    final index = materials.indexWhere((item) => item.name == cleanName);
+    if (index < 0) return;
+
+    final option = materials[index];
+    if (option.id.isNotEmpty) {
+      try {
+        await http.delete(
+          Uri.parse('${_baseUrl}tubular-database/materials/${option.id}'),
+          headers: _headers,
+        );
+      } catch (_) {}
+    }
+
+    materials.removeAt(index);
+    final fallback = materials.isEmpty ? 'Steel' : materials.first.name;
+    _replaceTypeMaterial(cleanName, fallback);
+    materials.refresh();
+    types.refresh();
+  }
+
+  void _replaceTypeMaterial(String oldName, String newName) {
+    for (var i = 0; i < types.length; i++) {
+      final type = types[i];
+      if (type.material != oldName) continue;
+      types[i] = TubularDbOption(
+        id: type.id,
+        name: type.name,
+        sortOrder: type.sortOrder,
+        material: newName,
+      );
+    }
   }
 
   Future<void> deleteSelectedType() async {

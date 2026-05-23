@@ -30,6 +30,12 @@ const tubularDatabaseSchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
+    density: { type: String, default: "" },
+    elasticModulus: { type: String, default: "" },
+    poissonRatio: { type: String, default: "" },
+    compressibility: { type: String, default: "" },
+    heatCapacity: { type: String, default: "" },
+    thermalConductivity: { type: String, default: "" },
     sortOrder: {
       type: Number,
       default: 0,

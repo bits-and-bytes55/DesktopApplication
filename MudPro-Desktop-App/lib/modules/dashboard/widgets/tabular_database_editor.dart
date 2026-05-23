@@ -1,6 +1,124 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/tabular_database_editor_controller.dart';
+
+class _MaterialEditorRow {
+  _MaterialEditorRow({
+    required this.id,
+    required this.originalName,
+    required this.sortOrder,
+    required String name,
+    required String density,
+    required String elasticModulus,
+    required String poissonRatio,
+    required String compressibility,
+    required String heatCapacity,
+    required String thermalConductivity,
+  }) : nameController = TextEditingController(text: name),
+       densityController = TextEditingController(text: density),
+       elasticModulusController = TextEditingController(text: elasticModulus),
+       poissonRatioController = TextEditingController(text: poissonRatio),
+       compressibilityController = TextEditingController(text: compressibility),
+       heatCapacityController = TextEditingController(text: heatCapacity),
+       thermalConductivityController = TextEditingController(
+         text: thermalConductivity,
+       );
+
+  factory _MaterialEditorRow.fromOption(TubularDbOption option) {
+    return _MaterialEditorRow(
+      id: option.id,
+      originalName: option.name,
+      sortOrder: option.sortOrder,
+      name: option.name,
+      density: option.density,
+      elasticModulus: option.elasticModulus,
+      poissonRatio: option.poissonRatio,
+      compressibility: option.compressibility,
+      heatCapacity: option.heatCapacity,
+      thermalConductivity: option.thermalConductivity,
+    );
+  }
+
+  factory _MaterialEditorRow.blank(int sortOrder) {
+    return _MaterialEditorRow(
+      id: '',
+      originalName: '',
+      sortOrder: sortOrder,
+      name: '',
+      density: '',
+      elasticModulus: '',
+      poissonRatio: '',
+      compressibility: '',
+      heatCapacity: '',
+      thermalConductivity: '',
+    );
+  }
+
+  String id;
+  String originalName;
+  final int sortOrder;
+  final TextEditingController nameController;
+  final TextEditingController densityController;
+  final TextEditingController elasticModulusController;
+  final TextEditingController poissonRatioController;
+  final TextEditingController compressibilityController;
+  final TextEditingController heatCapacityController;
+  final TextEditingController thermalConductivityController;
+  bool isSaving = false;
+  bool pendingSave = false;
+
+  String get name => nameController.text.trim();
+  bool get hasData =>
+      name.isNotEmpty ||
+      densityController.text.trim().isNotEmpty ||
+      elasticModulusController.text.trim().isNotEmpty ||
+      poissonRatioController.text.trim().isNotEmpty ||
+      compressibilityController.text.trim().isNotEmpty ||
+      heatCapacityController.text.trim().isNotEmpty ||
+      thermalConductivityController.text.trim().isNotEmpty;
+
+  List<TextEditingController> get controllers => [
+    nameController,
+    densityController,
+    elasticModulusController,
+    poissonRatioController,
+    compressibilityController,
+    heatCapacityController,
+    thermalConductivityController,
+  ];
+
+  void addListener(VoidCallback listener) {
+    for (final controller in controllers) {
+      controller.addListener(listener);
+    }
+  }
+
+  TubularDbOption toOption(int nextSortOrder) {
+    return TubularDbOption(
+      id: id,
+      name: name,
+      sortOrder: nextSortOrder,
+      density: densityController.text.trim(),
+      elasticModulus: elasticModulusController.text.trim(),
+      poissonRatio: poissonRatioController.text.trim(),
+      compressibility: compressibilityController.text.trim(),
+      heatCapacity: heatCapacityController.text.trim(),
+      thermalConductivity: thermalConductivityController.text.trim(),
+    );
+  }
+
+  void dispose() {
+    nameController.dispose();
+    densityController.dispose();
+    elasticModulusController.dispose();
+    poissonRatioController.dispose();
+    compressibilityController.dispose();
+    heatCapacityController.dispose();
+    thermalConductivityController.dispose();
+  }
+}
 
 class TabularDatabaseEditorView extends StatefulWidget {
   const TabularDatabaseEditorView({super.key});
@@ -424,20 +542,11 @@ class _TabularDatabaseEditorViewState extends State<TabularDatabaseEditorView> {
           SizedBox(
             width: 94,
             child: OutlinedButton(
-              onPressed: c.saveAllNow,
-              style: OutlinedButton.styleFrom(
-                shape: const RoundedRectangleBorder(
-                  borderRadius: BorderRadius.zero,
-                ),
-              ),
-              child: const Text('Save'),
-            ),
-          ),
-          const SizedBox(width: 8),
-          SizedBox(
-            width: 94,
-            child: OutlinedButton(
-              onPressed: () => Navigator.of(context).maybePop(),
+              onPressed: () async {
+                await c.saveAllNow();
+                if (!mounted) return;
+                Navigator.of(context).maybePop();
+              },
               style: OutlinedButton.styleFrom(
                 shape: const RoundedRectangleBorder(
                   borderRadius: BorderRadius.zero,
@@ -480,6 +589,28 @@ class _TabularDatabaseEditorViewState extends State<TabularDatabaseEditorView> {
           shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
         ),
         child: Text(label, style: const TextStyle(fontSize: 11)),
+      ),
+    );
+  }
+
+  Widget _materialIconButton({
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback? onPressed,
+  }) {
+    return SizedBox(
+      width: 30,
+      height: 30,
+      child: Tooltip(
+        message: tooltip,
+        child: OutlinedButton(
+          onPressed: onPressed,
+          style: OutlinedButton.styleFrom(
+            padding: EdgeInsets.zero,
+            shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+          ),
+          child: Icon(icon, size: 15),
+        ),
       ),
     );
   }
@@ -665,30 +796,71 @@ class _TabularDatabaseEditorViewState extends State<TabularDatabaseEditorView> {
                                 ),
                               ),
                               const SizedBox(width: 8),
-                              SizedBox(
-                                width: 32,
-                                height: 30,
-                                child: OutlinedButton(
-                                  onPressed: () async {
-                                    final material =
-                                        await _showNewMaterialDialog();
-                                    if (material == null ||
-                                        material.trim().isEmpty) {
-                                      return;
-                                    }
-                                    await c.addMaterial(material);
-                                    setDialogState(() {
-                                      selectedMaterial = material.trim();
-                                    });
-                                  },
-                                  style: OutlinedButton.styleFrom(
-                                    padding: EdgeInsets.zero,
-                                    shape: const RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.zero,
-                                    ),
-                                  ),
-                                  child: const Icon(Icons.add, size: 16),
-                                ),
+                              _materialIconButton(
+                                icon: Icons.add,
+                                tooltip: 'Add material',
+                                onPressed: () async {
+                                  final material =
+                                      await _showMaterialDatabaseEditor(
+                                        selectedMaterial: selectedMaterial,
+                                        addBlankOnOpen: true,
+                                      );
+                                  if (material == null ||
+                                      material.trim().isEmpty) {
+                                    return;
+                                  }
+                                  setDialogState(() {
+                                    selectedMaterial = material.trim();
+                                  });
+                                },
+                              ),
+                              const SizedBox(width: 4),
+                              _materialIconButton(
+                                icon: Icons.edit,
+                                tooltip: 'Edit material',
+                                onPressed:
+                                    c.materials.isEmpty ||
+                                        selectedMaterial.trim().isEmpty
+                                    ? null
+                                    : () async {
+                                        final material =
+                                            await _showMaterialDatabaseEditor(
+                                              selectedMaterial:
+                                                  selectedMaterial,
+                                            );
+                                        if (material == null ||
+                                            material.trim().isEmpty) {
+                                          return;
+                                        }
+                                        setDialogState(() {
+                                          selectedMaterial = material.trim();
+                                        });
+                                      },
+                              ),
+                              const SizedBox(width: 4),
+                              _materialIconButton(
+                                icon: Icons.delete_outline,
+                                tooltip: 'Delete material',
+                                onPressed: c.materials.length <= 1
+                                    ? null
+                                    : () async {
+                                        final shouldDelete =
+                                            await _confirmMaterialDelete(
+                                              selectedMaterial,
+                                            );
+                                        if (shouldDelete != true) return;
+                                        await c.deleteMaterial(
+                                          selectedMaterial,
+                                        );
+                                        setDialogState(() {
+                                          final names = c.materials
+                                              .map((item) => item.name)
+                                              .toList();
+                                          selectedMaterial = names.isEmpty
+                                              ? 'Steel'
+                                              : names.first;
+                                        });
+                                      },
                               ),
                             ],
                           ),
@@ -727,56 +899,346 @@ class _TabularDatabaseEditorViewState extends State<TabularDatabaseEditorView> {
     await c.addType(name, material: result?['material'] ?? 'Steel');
   }
 
-  Future<String?> _showNewMaterialDialog() async {
-    final controller = TextEditingController();
+  Future<String?> _showMaterialDatabaseEditor({
+    required String selectedMaterial,
+    bool addBlankOnOpen = false,
+  }) async {
+    final saveTimers = <_MaterialEditorRow, Timer>{};
+    final rows = c.materials
+        .map((item) => _MaterialEditorRow.fromOption(item))
+        .toList();
+    final shouldSelectBlank = rows.isEmpty || addBlankOnOpen;
+    if (shouldSelectBlank) {
+      rows.add(_MaterialEditorRow.blank(rows.length));
+    }
+    var selectedIndex = shouldSelectBlank
+        ? rows.length - 1
+        : rows.indexWhere((row) => row.name == selectedMaterial);
+    if (selectedIndex < 0) selectedIndex = rows.isEmpty ? 0 : rows.length - 1;
+
+    Future<void> saveRow(_MaterialEditorRow row) async {
+      if (!row.hasData || row.name.isEmpty || !rows.contains(row)) return;
+      if (row.isSaving) {
+        row.pendingSave = true;
+        return;
+      }
+      row.isSaving = true;
+      try {
+        final saved = await c.saveMaterialOption(
+          row.toOption(rows.indexOf(row)),
+          oldName: row.originalName,
+        );
+        if (saved != null && rows.contains(row)) {
+          row.id = saved.id;
+          row.originalName = saved.name;
+        }
+      } finally {
+        row.isSaving = false;
+      }
+      if (row.pendingSave && rows.contains(row)) {
+        row.pendingSave = false;
+        unawaited(saveRow(row));
+      }
+    }
+
+    void scheduleSave(_MaterialEditorRow row) {
+      saveTimers[row]?.cancel();
+      saveTimers[row] = Timer(const Duration(milliseconds: 650), () {
+        unawaited(saveRow(row));
+      });
+    }
+
+    void attachRow(_MaterialEditorRow row) {
+      row.addListener(() => scheduleSave(row));
+    }
+
+    Future<void> flushMaterialSaves() async {
+      for (final timer in saveTimers.values) {
+        timer.cancel();
+      }
+      saveTimers.clear();
+      for (final row in List<_MaterialEditorRow>.from(rows)) {
+        await saveRow(row);
+      }
+    }
+
+    for (final row in rows) {
+      attachRow(row);
+    }
+
     final value = await showDialog<String>(
       context: context,
-      builder: (context) => Dialog(
-        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-        child: SizedBox(
-          width: 360,
-          height: 150,
-          child: Column(
-            children: [
-              _dialogTitle(context, 'New Material'),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(24, 18, 24, 14),
-                child: Column(
-                  children: [
-                    TextField(
-                      controller: controller,
-                      autofocus: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Material',
-                        isDense: true,
-                        border: OutlineInputBorder(),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          void addRow() {
+            setDialogState(() {
+              final row = _MaterialEditorRow.blank(rows.length);
+              attachRow(row);
+              rows.add(row);
+              selectedIndex = rows.length - 1;
+            });
+          }
+
+          void deleteRow() {
+            if (rows.isEmpty || rows.length <= 1) return;
+            setDialogState(() {
+              final removed = rows.removeAt(selectedIndex);
+              if (removed.originalName.isNotEmpty) {
+                unawaited(c.deleteMaterial(removed.originalName));
+              }
+              saveTimers.remove(removed)?.cancel();
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                removed.dispose();
+              });
+              if (selectedIndex >= rows.length) selectedIndex = rows.length - 1;
+            });
+          }
+
+          Future<void> closeDialog() async {
+            await flushMaterialSaves();
+            final selectedName = rows.isEmpty
+                ? selectedMaterial
+                : rows[selectedIndex].name;
+            if (!mounted) return;
+            Navigator.of(context).pop(selectedName);
+          }
+
+          return Dialog(
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.zero,
+            ),
+            child: SizedBox(
+              width: 920,
+              height: 520,
+              child: Column(
+                children: [
+                  _materialEditorTitle(context, onClose: closeDialog),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+                      child: Column(
+                        children: [
+                          _materialEditorHeader(),
+                          Expanded(
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                border: Border.all(
+                                  color: const Color(0xFFC8CCD1),
+                                ),
+                              ),
+                              child: ListView.builder(
+                                itemCount: rows.length,
+                                itemBuilder: (context, index) {
+                                  return _materialEditorRow(
+                                    row: rows[index],
+                                    index: index,
+                                    selected: selectedIndex == index,
+                                    onTap: () => setDialogState(
+                                      () => selectedIndex = index,
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
+                  ),
+                  Container(
+                    height: 52,
+                    padding: const EdgeInsets.fromLTRB(12, 7, 12, 8),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFF2F2F2),
+                      border: Border(top: BorderSide(color: Color(0xFFC8CCD1))),
+                    ),
+                    child: Row(
                       children: [
-                        _dialogButton(
-                          'OK',
-                          () => Navigator.of(context).pop(controller.text),
+                        _materialFooterIcon(
+                          icon: Icons.add,
+                          tooltip: 'Add',
+                          onPressed: addRow,
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 4),
+                        _materialFooterIcon(
+                          icon: Icons.delete_outline,
+                          tooltip: 'Delete',
+                          onPressed: rows.length <= 1 ? null : deleteRow,
+                        ),
+                        const Spacer(),
                         _dialogButton(
-                          'Cancel',
-                          () => Navigator.of(context).pop(),
+                          'Close',
+                          () => unawaited(closeDialog()),
                         ),
                       ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
+            ),
+          );
+        },
+      ),
+    );
+
+    for (final timer in saveTimers.values) {
+      timer.cancel();
+    }
+    for (final row in rows) {
+      row.dispose();
+    }
+    return value;
+  }
+
+  Widget _materialEditorTitle(
+    BuildContext context, {
+    required Future<void> Function() onClose,
+  }) {
+    return Container(
+      height: 34,
+      padding: const EdgeInsets.only(left: 10),
+      decoration: const BoxDecoration(
+        color: Color(0xFFEFEFEF),
+        border: Border(bottom: BorderSide(color: Color(0xFFBFC5CC))),
+      ),
+      child: Row(
+        children: [
+          const Text(
+            'Casing Material Database Editor',
+            style: TextStyle(fontSize: 12),
           ),
+          const Spacer(),
+          IconButton(
+            splashRadius: 14,
+            onPressed: () => unawaited(onClose()),
+            icon: const Icon(Icons.close, size: 17),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _materialEditorHeader() {
+    const headerStyle = TextStyle(fontSize: 10, color: Colors.black87);
+    return Container(
+      height: 34,
+      decoration: BoxDecoration(
+        color: const Color(0xFFEFEFEF),
+        border: Border.all(color: const Color(0xFFC8CCD1)),
+      ),
+      child: Row(
+        children: const [
+          SizedBox(width: 34, child: Center(child: Text(''))),
+          SizedBox(width: 170, child: Center(child: Text('Material', style: headerStyle))),
+          SizedBox(width: 110, child: Center(child: Text('Density\n(SG)', style: headerStyle, textAlign: TextAlign.center))),
+          SizedBox(width: 110, child: Center(child: Text('E\n(Msi)', style: headerStyle, textAlign: TextAlign.center))),
+          SizedBox(width: 92, child: Center(child: Text('Y\n(-)', style: headerStyle, textAlign: TextAlign.center))),
+          SizedBox(width: 130, child: Center(child: Text('Comp.\n(Btu/hr/ft/F)', style: headerStyle, textAlign: TextAlign.center))),
+          SizedBox(width: 130, child: Center(child: Text('Heat Cap.\n(Btu/lbm/F)', style: headerStyle, textAlign: TextAlign.center))),
+          Expanded(child: Center(child: Text('Therm. Con. Factor\n(Btu/hr-ft-F)', style: headerStyle, textAlign: TextAlign.center))),
+        ],
+      ),
+    );
+  }
+
+  Widget _materialEditorRow({
+    required _MaterialEditorRow row,
+    required int index,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    final color = selected ? const Color(0xFFDCE8F7) : Colors.white;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 28,
+        color: color,
+        child: Row(
+          children: [
+            SizedBox(
+              width: 34,
+              child: Center(
+                child: Text('${index + 1}', style: const TextStyle(fontSize: 11)),
+              ),
+            ),
+            _materialCell(row.nameController, width: 170),
+            _materialCell(row.densityController, width: 110),
+            _materialCell(row.elasticModulusController, width: 110),
+            _materialCell(row.poissonRatioController, width: 92),
+            _materialCell(row.compressibilityController, width: 130),
+            _materialCell(row.heatCapacityController, width: 130),
+            Expanded(child: _materialCell(row.thermalConductivityController)),
+          ],
         ),
       ),
     );
-    controller.dispose();
-    return value;
+  }
+
+  Widget _materialCell(TextEditingController controller, {double? width}) {
+    final child = Container(
+      height: 28,
+      decoration: const BoxDecoration(
+        border: Border(
+          left: BorderSide(color: Color(0xFFD3D6DA)),
+          bottom: BorderSide(color: Color(0xFFD3D6DA)),
+        ),
+      ),
+      child: TextField(
+        controller: controller,
+        style: const TextStyle(fontSize: 11),
+        textAlign: TextAlign.center,
+        decoration: const InputDecoration(
+          isDense: true,
+          contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+          border: InputBorder.none,
+        ),
+      ),
+    );
+    if (width == null) return child;
+    return SizedBox(width: width, child: child);
+  }
+
+  Widget _materialFooterIcon({
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback? onPressed,
+  }) {
+    return SizedBox(
+      width: 26,
+      height: 26,
+      child: Tooltip(
+        message: tooltip,
+        child: OutlinedButton(
+          onPressed: onPressed,
+          style: OutlinedButton.styleFrom(
+            padding: EdgeInsets.zero,
+            shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+          ),
+          child: Icon(icon, size: 15),
+        ),
+      ),
+    );
+  }
+
+  Future<bool?> _confirmMaterialDelete(String material) {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Material'),
+        content: Text('Delete "$material"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _dialogTitle(BuildContext context, String title) {
