@@ -5,32 +5,44 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:mudpro_desktop_app/api_endpoint/api_endpoint.dart';
+import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 
 class TubularDbOption {
   TubularDbOption({
     required this.id,
     required this.name,
     required this.sortOrder,
+    this.material = '',
   });
 
   final String id;
   final String name;
   final int sortOrder;
+  final String material;
 
   factory TubularDbOption.fromJson(Map<String, dynamic> json) =>
       TubularDbOption(
         id: (json['_id'] ?? '').toString(),
         name: (json['name'] ?? '').toString(),
         sortOrder: (json['sortOrder'] as num?)?.toInt() ?? 0,
+        material: (json['material'] ?? '').toString(),
       );
 }
 
 class TubularDbColumn {
-  const TubularDbColumn(this.key, this.label, {this.width = 96});
+  const TubularDbColumn(
+    this.key,
+    this.label, {
+    this.width = 96,
+    this.baseUnit = '',
+    this.group = 'Body',
+  });
 
   final String key;
   final String label;
   final double width;
+  final String baseUnit;
+  final String group;
 }
 
 class TubularDbRow {
@@ -43,7 +55,10 @@ class TubularDbRow {
   }) {
     for (final column in TabularDatabaseEditorController.columns) {
       controllers[column.key] = TextEditingController(
-        text: values?[column.key] ?? '',
+        text: TabularDatabaseEditorController.displayValueFromBase(
+          column.key,
+          values?[column.key] ?? '',
+        ),
       );
     }
   }
@@ -64,7 +79,10 @@ class TubularDbRow {
     'catalog': catalog,
     'sortOrder': sortOrder,
     for (final column in TabularDatabaseEditorController.columns)
-      column.key: value(column.key),
+      column.key: TabularDatabaseEditorController.baseValueFromDisplay(
+        column.key,
+        value(column.key),
+      ),
   };
 
   factory TubularDbRow.fromJson(Map<String, dynamic> json) => TubularDbRow(
@@ -87,26 +105,142 @@ class TubularDbRow {
 
 class TabularDatabaseEditorController extends GetxController {
   static const columns = <TubularDbColumn>[
-    TubularDbColumn('od', 'OD\n(in)', width: 76),
-    TubularDbColumn('id', 'ID\n(in)', width: 76),
-    TubularDbColumn('nominalWt', 'Nominal Wt.\n(lb/ft)', width: 96),
-    TubularDbColumn('wallThickness', 'Wall Thickness\n(in)', width: 110),
-    TubularDbColumn('driftId', 'Drift ID\n(in)', width: 86),
+    TubularDbColumn('od', 'OD\n(in)', width: 76, baseUnit: 'in'),
+    TubularDbColumn('id', 'ID\n(in)', width: 76, baseUnit: 'in'),
+    TubularDbColumn(
+      'nominalWt',
+      'Nominal Wt.\n(lb/ft)',
+      width: 96,
+      baseUnit: 'lb/ft',
+    ),
+    TubularDbColumn(
+      'wallThickness',
+      'Wall Thickness\n(in)',
+      width: 110,
+      baseUnit: 'in',
+    ),
+    TubularDbColumn('driftId', 'Drift ID\n(in)', width: 86, baseUnit: 'in'),
     TubularDbColumn('grade', 'Grade', width: 110),
-    TubularDbColumn('yieldPsi', 'Yield\n(psi)', width: 88),
-    TubularDbColumn('fatigueEndurance', 'Fatigue Endurance\n(psi)', width: 126),
+    TubularDbColumn('yieldPsi', 'Yield\n(psi)', width: 88, baseUnit: 'psi'),
+    TubularDbColumn(
+      'fatigueEndurance',
+      'Fatigue Endurance\n(psi)',
+      width: 126,
+      baseUnit: 'psi',
+    ),
     TubularDbColumn(
       'ultimateTensile',
       'Ultimate Tensile Str.\n(psi)',
       width: 132,
+      baseUnit: 'psi',
     ),
-    TubularDbColumn('collapseStr', 'Collapse Str.\n(psi)', width: 104),
-    TubularDbColumn('burstStr', 'Burst Str.\n(psi)', width: 96),
-    TubularDbColumn('tensileStr', 'Tensile Str.\n(lbf)', width: 104),
-    TubularDbColumn('compressiveStr', 'Compressive Str.\n(lbf)', width: 122),
-    TubularDbColumn('torsionalStr', 'Torsional Str.\n(ft-lb)', width: 116),
-    TubularDbColumn('makeupTorque', 'Make-up Torque\n(ft-lb)', width: 116),
-    TubularDbColumn('assemblyAdjustWt', 'Adjust Wt.\n(lb/ft)', width: 112),
+    TubularDbColumn(
+      'collapseStr',
+      'Collapse Str.\n(psi)',
+      width: 104,
+      baseUnit: 'psi',
+    ),
+    TubularDbColumn(
+      'burstStr',
+      'Burst Str.\n(psi)',
+      width: 96,
+      baseUnit: 'psi',
+    ),
+    TubularDbColumn(
+      'tensileStr',
+      'Tensile Str.\n(lbf)',
+      width: 104,
+      baseUnit: 'lbf',
+    ),
+    TubularDbColumn(
+      'compressiveStr',
+      'Compressive Str.\n(lbf)',
+      width: 122,
+      baseUnit: 'lbf',
+    ),
+    TubularDbColumn(
+      'torsionalStr',
+      'Torsional Str.\n(ft-lb)',
+      width: 116,
+      baseUnit: 'ft-lb',
+    ),
+    TubularDbColumn('connectionType', 'Type', width: 110, group: 'Connection'),
+    TubularDbColumn(
+      'connectionOd',
+      'OD\n(in)',
+      width: 86,
+      baseUnit: 'in',
+      group: 'Connection',
+    ),
+    TubularDbColumn(
+      'connectionId',
+      'ID\n(in)',
+      width: 86,
+      baseUnit: 'in',
+      group: 'Connection',
+    ),
+    TubularDbColumn(
+      'connectionGrade',
+      'Grade',
+      width: 110,
+      group: 'Connection',
+    ),
+    TubularDbColumn(
+      'connectionYield',
+      'Yield\n(psi)',
+      width: 88,
+      baseUnit: 'psi',
+      group: 'Connection',
+    ),
+    TubularDbColumn(
+      'connectionUts',
+      'UTS\n(psi)',
+      width: 88,
+      baseUnit: 'psi',
+      group: 'Connection',
+    ),
+    TubularDbColumn(
+      'connectionBurst',
+      'Burst Str.\n(psi)',
+      width: 96,
+      baseUnit: 'psi',
+      group: 'Connection',
+    ),
+    TubularDbColumn(
+      'connectionTensile',
+      'Tensile Str.\n(lbf)',
+      width: 104,
+      baseUnit: 'lbf',
+      group: 'Connection',
+    ),
+    TubularDbColumn(
+      'connectionCompressive',
+      'Compressive Str.\n(lbf)',
+      width: 122,
+      baseUnit: 'lbf',
+      group: 'Connection',
+    ),
+    TubularDbColumn(
+      'connectionTorsional',
+      'Torsional Str.\n(ft-lb)',
+      width: 116,
+      baseUnit: 'ft-lb',
+      group: 'Connection',
+    ),
+    TubularDbColumn(
+      'makeupTorque',
+      'Make-up Torque\n(ft-lb)',
+      width: 116,
+      baseUnit: 'ft-lb',
+      group: 'Connection',
+    ),
+    TubularDbColumn(
+      'assemblyAdjustWt',
+      'Adjust Wt.\n(lb/ft)',
+      width: 112,
+      baseUnit: 'lb/ft',
+      group: 'Assembly',
+    ),
   ];
 
   final selectedTypeIndex = 0.obs;
@@ -114,13 +248,17 @@ class TabularDatabaseEditorController extends GetxController {
   final selectedRowIndex = 0.obs;
   final types = <TubularDbOption>[].obs;
   final catalogs = <TubularDbOption>[].obs;
+  final materials = <TubularDbOption>[].obs;
   final rows = <TubularDbRow>[].obs;
   final isLoading = false.obs;
   final isSaving = false.obs;
   final loadError = ''.obs;
+  final unitSignature = ''.obs;
 
   final String _baseUrl = ApiEndpoint.baseUrl;
   final Map<String, Timer> _saveTimers = {};
+  final List<Worker> _unitWorkers = <Worker>[];
+  late Map<String, String> _displayUnitsByBase;
   bool _isApplyingState = false;
 
   Map<String, String> get _headers => ApiEndpoint.jsonHeaders;
@@ -156,9 +294,120 @@ class TabularDatabaseEditorController extends GetxController {
   double get totalTableWidth =>
       42 + columns.fold<double>(0, (total, column) => total + column.width);
 
+  static String baseUnitForKey(String key) {
+    return columns
+        .firstWhere(
+          (column) => column.key == key,
+          orElse: () => const TubularDbColumn('', ''),
+        )
+        .baseUnit;
+  }
+
+  static String displayUnitForBase(String baseUnit) {
+    switch (baseUnit) {
+      case 'in':
+        return AppUnits.unitText('in');
+      case 'lb/ft':
+        return AppUnits.unitText('lb/ft');
+      case 'psi':
+        return AppUnits.unitText('psi');
+      case 'lbf':
+        return AppUnits.unitText('lbf');
+      case 'ft-lb':
+        return AppUnits.unitText('ft-lb');
+      default:
+        return '';
+    }
+  }
+
+  static String displayValueFromBase(String key, String rawValue) {
+    final baseUnit = baseUnitForKey(key);
+    if (baseUnit.isEmpty) return rawValue;
+    return _convertText(rawValue, baseUnit, displayUnitForBase(baseUnit));
+  }
+
+  static String baseValueFromDisplay(String key, String rawValue) {
+    final baseUnit = baseUnitForKey(key);
+    if (baseUnit.isEmpty) return rawValue;
+    return _convertText(rawValue, displayUnitForBase(baseUnit), baseUnit);
+  }
+
+  static String _convertText(String rawValue, String fromUnit, String toUnit) {
+    final text = rawValue.trim();
+    if (text.isEmpty || fromUnit == toUnit) return rawValue;
+    final parsed = double.tryParse(text.replaceAll(',', ''));
+    if (parsed == null) return rawValue;
+    final converted = AppUnits.convertValue(parsed, fromUnit, toUnit) ?? parsed;
+    return converted
+        .toStringAsFixed(4)
+        .replaceAll(RegExp(r'0+$'), '')
+        .replaceAll(RegExp(r'\.$'), '');
+  }
+
+  Map<String, String> _currentDisplayUnits() => {
+    'in': displayUnitForBase('in'),
+    'lb/ft': displayUnitForBase('lb/ft'),
+    'psi': displayUnitForBase('psi'),
+    'lbf': displayUnitForBase('lbf'),
+    'ft-lb': displayUnitForBase('ft-lb'),
+  };
+
+  String get diameterUnitLabel => AppUnits.strip(displayUnitForBase('in'));
+  String get lineDensityUnitLabel =>
+      AppUnits.strip(displayUnitForBase('lb/ft'));
+  String get pressureUnitLabel => AppUnits.strip(displayUnitForBase('psi'));
+  String get forceUnitLabel => AppUnits.strip(displayUnitForBase('lbf'));
+  String get torqueUnitLabel => AppUnits.strip(displayUnitForBase('ft-lb'));
+
+  String displayHeader(TubularDbColumn column) {
+    final baseUnit = column.baseUnit;
+    if (baseUnit.isEmpty) return column.label;
+    final label = column.label.split('\n').first;
+    return '$label\n(${AppUnits.strip(displayUnitForBase(baseUnit))})';
+  }
+
+  String get selectedTypeMaterial {
+    if (types.isEmpty) {
+      return materials.isEmpty ? 'Steel' : materials.first.name;
+    }
+    final type = types[_safeIndex(selectedTypeIndex.value, types.length)];
+    if (type.material.trim().isNotEmpty) return type.material;
+    return materials.isEmpty ? 'Steel' : materials.first.name;
+  }
+
+  List<String> distinctValues(String key) {
+    final seen = <String>{};
+    final values = <String>[];
+    for (final row in currentRows) {
+      final value = row.value(key);
+      if (value.isEmpty || seen.contains(value)) continue;
+      seen.add(value);
+      values.add(value);
+    }
+    return values;
+  }
+
+  int firstRowIndexForValue(String key, String value) {
+    final visibleRows = currentRows;
+    return visibleRows.indexWhere((row) => row.value(key) == value);
+  }
+
+  String rowBaseValue(TubularDbRow row, String key) =>
+      baseValueFromDisplay(key, row.value(key));
+
   @override
   void onInit() {
     super.onInit();
+    unitSignature.value = AppUnits.signature;
+    _displayUnitsByBase = _currentDisplayUnits();
+    _unitWorkers.addAll([
+      ever(AppUnits.controller.unitSystem, (_) => _handleUnitChange()),
+      ever(
+        AppUnits.controller.selectedCustomSystemId,
+        (_) => _handleUnitChange(),
+      ),
+      ever(AppUnits.controller.customUnits, (_) => _handleUnitChange()),
+    ]);
     fetchDatabase();
   }
 
@@ -181,12 +430,11 @@ class TabularDatabaseEditorController extends GetxController {
       final data = decoded['data'] as Map<String, dynamic>? ?? {};
       _replaceOptions(data);
       _replaceRows(data);
+      _displayUnitsByBase = _currentDisplayUnits();
+      unitSignature.value = AppUnits.signature;
       _clampSelections();
     } catch (error) {
       loadError.value = error.toString();
-      if (types.isEmpty && catalogs.isEmpty && rows.isEmpty) {
-        _applyFallbackData();
-      }
     } finally {
       _isApplyingState = false;
       isLoading.value = false;
@@ -201,6 +449,11 @@ class TabularDatabaseEditorController extends GetxController {
     );
     catalogs.assignAll(
       ((data['catalogs'] as List?) ?? []).whereType<Map>().map(
+        (item) => TubularDbOption.fromJson(Map<String, dynamic>.from(item)),
+      ),
+    );
+    materials.assignAll(
+      ((data['materials'] as List?) ?? []).whereType<Map>().map(
         (item) => TubularDbOption.fromJson(Map<String, dynamic>.from(item)),
       ),
     );
@@ -219,68 +472,6 @@ class TabularDatabaseEditorController extends GetxController {
       _attachRowListeners(row);
     }
     rows.assignAll(nextRows);
-  }
-
-  void _applyFallbackData() {
-    types.assignAll([
-      TubularDbOption(id: '', name: 'CWS', sortOrder: 0),
-      TubularDbOption(id: '', name: 'CWS w/ FICD', sortOrder: 1),
-      TubularDbOption(id: '', name: 'ECL', sortOrder: 2),
-      TubularDbOption(id: '', name: 'Drill Pipe Premium', sortOrder: 3),
-      TubularDbOption(id: '', name: 'Heavy Weight DP', sortOrder: 4),
-      TubularDbOption(id: '', name: 'Drill Collar', sortOrder: 5),
-      TubularDbOption(id: '', name: 'Tubing', sortOrder: 6),
-      TubularDbOption(id: '', name: 'Casing', sortOrder: 7),
-    ]);
-    catalogs.assignAll([
-      TubularDbOption(id: '', name: 'Weatherford', sortOrder: 0),
-    ]);
-    final fallbackRows =
-        [
-          {
-            'od': '2.720',
-            'id': '1.995',
-            'nominalWt': '0.000',
-            'grade': 'Super weld',
-            'yieldPsi': '33034',
-            'tensileStr': '88690',
-          },
-          {
-            'od': '2.730',
-            'id': '1.995',
-            'nominalWt': '0.000',
-            'grade': 'Dura Grip',
-            'yieldPsi': '32516',
-            'tensileStr': '88690',
-          },
-          {
-            'od': '3.080',
-            'id': '1.995',
-            'nominalWt': '0.000',
-            'grade': 'Excelflo',
-            'yieldPsi': '20508',
-            'tensileStr': '88690',
-          },
-          {
-            'od': '3.220',
-            'id': '2.441',
-            'nominalWt': '0.000',
-            'grade': 'Super Weld',
-            'yieldPsi': '35576',
-            'tensileStr': '123220',
-          },
-        ].asMap().entries.map((entry) {
-          final row = TubularDbRow(
-            type: 'CWS',
-            catalog: 'Weatherford',
-            sortOrder: entry.key,
-            values: entry.value,
-          );
-          _attachRowListeners(row);
-          return row;
-        }).toList();
-    rows.assignAll(fallbackRows);
-    _clampSelections();
   }
 
   void _clampSelections() {
@@ -323,14 +514,15 @@ class TabularDatabaseEditorController extends GetxController {
     selectedRowIndex.value = index;
   }
 
-  Future<void> addType(String name) async {
+  Future<void> addType(String name, {String material = 'Steel'}) async {
     final cleanName = name.trim();
     if (cleanName.isEmpty) return;
+    final cleanMaterial = material.trim().isEmpty ? 'Steel' : material.trim();
     try {
       final response = await http.post(
         Uri.parse('${_baseUrl}tubular-database/types'),
         headers: _headers,
-        body: jsonEncode({'name': cleanName}),
+        body: jsonEncode({'name': cleanName, 'material': cleanMaterial}),
       );
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body)['data'];
@@ -339,10 +531,42 @@ class TabularDatabaseEditorController extends GetxController {
       }
     } catch (_) {
       types.add(
-        TubularDbOption(id: '', name: cleanName, sortOrder: types.length),
+        TubularDbOption(
+          id: '',
+          name: cleanName,
+          material: cleanMaterial,
+          sortOrder: types.length,
+        ),
       );
       selectedTypeIndex.value = types.length - 1;
     }
+  }
+
+  Future<void> addMaterial(String name) async {
+    final cleanName = name.trim();
+    if (cleanName.isEmpty) return;
+    if (materials.any(
+      (item) => item.name.toLowerCase() == cleanName.toLowerCase(),
+    )) {
+      return;
+    }
+    try {
+      final response = await http.post(
+        Uri.parse('${_baseUrl}tubular-database/materials'),
+        headers: _headers,
+        body: jsonEncode({'name': cleanName}),
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = jsonDecode(response.body)['data'];
+        materials.add(
+          TubularDbOption.fromJson(Map<String, dynamic>.from(data)),
+        );
+        return;
+      }
+    } catch (_) {}
+    materials.add(
+      TubularDbOption(id: '', name: cleanName, sortOrder: materials.length),
+    );
   }
 
   Future<void> deleteSelectedType() async {
@@ -445,6 +669,39 @@ class TabularDatabaseEditorController extends GetxController {
     }
   }
 
+  void _handleUnitChange() {
+    final nextUnits = _currentDisplayUnits();
+    if (_sameUnits(_displayUnitsByBase, nextUnits)) return;
+
+    _isApplyingState = true;
+    try {
+      for (final row in rows) {
+        for (final column in columns) {
+          final baseUnit = column.baseUnit;
+          if (baseUnit.isEmpty) continue;
+          final controller = row.controllers[column.key];
+          if (controller == null) continue;
+          final oldUnit = _displayUnitsByBase[baseUnit] ?? baseUnit;
+          final newUnit = nextUnits[baseUnit] ?? baseUnit;
+          controller.text = _convertText(controller.text, oldUnit, newUnit);
+        }
+      }
+      _displayUnitsByBase = nextUnits;
+      unitSignature.value = AppUnits.signature;
+      rows.refresh();
+    } finally {
+      _isApplyingState = false;
+    }
+  }
+
+  bool _sameUnits(Map<String, String> oldUnits, Map<String, String> nextUnits) {
+    if (oldUnits.length != nextUnits.length) return false;
+    for (final entry in nextUnits.entries) {
+      if (oldUnits[entry.key] != entry.value) return false;
+    }
+    return true;
+  }
+
   void _scheduleRowSave(TubularDbRow row) {
     if (_isApplyingState || isLoading.value) return;
     final key = _rowKey(row);
@@ -509,6 +766,9 @@ class TabularDatabaseEditorController extends GetxController {
   @override
   void onClose() {
     _cancelSaveTimers();
+    for (final worker in _unitWorkers) {
+      worker.dispose();
+    }
     for (final row in rows) {
       row.dispose();
     }

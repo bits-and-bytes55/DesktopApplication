@@ -4,7 +4,7 @@ const tubularDatabaseSchema = new mongoose.Schema(
   {
     kind: {
       type: String,
-      enum: ["type", "catalog", "row"],
+      enum: ["type", "catalog", "material", "row"],
       required: true,
       index: true,
     },
@@ -25,6 +25,11 @@ const tubularDatabaseSchema = new mongoose.Schema(
       default: "",
       index: true,
     },
+    material: {
+      type: String,
+      trim: true,
+      default: "",
+    },
     sortOrder: {
       type: Number,
       default: 0,
@@ -44,6 +49,16 @@ const tubularDatabaseSchema = new mongoose.Schema(
     tensileStr: { type: String, default: "" },
     compressiveStr: { type: String, default: "" },
     torsionalStr: { type: String, default: "" },
+    connectionType: { type: String, default: "" },
+    connectionOd: { type: String, default: "" },
+    connectionId: { type: String, default: "" },
+    connectionGrade: { type: String, default: "" },
+    connectionYield: { type: String, default: "" },
+    connectionUts: { type: String, default: "" },
+    connectionBurst: { type: String, default: "" },
+    connectionTensile: { type: String, default: "" },
+    connectionCompressive: { type: String, default: "" },
+    connectionTorsional: { type: String, default: "" },
     makeupTorque: { type: String, default: "" },
     assemblyAdjustWt: { type: String, default: "" },
   },

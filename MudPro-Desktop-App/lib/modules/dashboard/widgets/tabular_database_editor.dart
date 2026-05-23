@@ -190,6 +190,7 @@ class _TabularDatabaseEditorViewState extends State<TabularDatabaseEditorView> {
         border: Border.all(color: const Color(0xFFBFC5CC)),
       ),
       child: Obx(() {
+        c.unitSignature.value;
         if (c.isLoading.value) {
           return const Center(child: CircularProgressIndicator(strokeWidth: 2));
         }
@@ -277,13 +278,10 @@ class _TabularDatabaseEditorViewState extends State<TabularDatabaseEditorView> {
   }
 
   Widget _tableHeader() {
-    final bodyWidth = TabularDatabaseEditorController.columns
-        .take(TabularDatabaseEditorController.columns.length - 1)
-        .fold<double>(0, (sum, column) => sum + column.width);
-    final assemblyWidth = TabularDatabaseEditorController.columns.last.width;
+    final groups = ['Body', 'Connection', 'Assembly'];
 
     return Container(
-      height: 56,
+      height: 66,
       color: const Color(0xFFF7F7F7),
       child: Column(
         children: [
@@ -292,18 +290,27 @@ class _TabularDatabaseEditorViewState extends State<TabularDatabaseEditorView> {
             child: Row(
               children: [
                 _headerCell('', 42),
-                _headerCell('Body', bodyWidth),
-                _headerCell('Assembly', assemblyWidth),
+                for (final group in groups)
+                  _headerCell(
+                    group,
+                    TabularDatabaseEditorController.columns
+                        .where((column) => column.group == group)
+                        .fold<double>(0, (sum, column) => sum + column.width),
+                  ),
               ],
             ),
           ),
           SizedBox(
-            height: 32,
+            height: 42,
             child: Row(
               children: [
                 _headerCell('', 42),
                 for (final column in TabularDatabaseEditorController.columns)
-                  _headerCell(column.label, column.width, fontSize: 10),
+                  _headerCell(
+                    c.displayHeader(column),
+                    column.width,
+                    fontSize: 10,
+                  ),
               ],
             ),
           ),
@@ -478,35 +485,334 @@ class _TabularDatabaseEditorViewState extends State<TabularDatabaseEditorView> {
   }
 
   Future<void> _showAddDialog({required bool isType}) async {
+    if (isType) {
+      await _showNewTypeDialog();
+      return;
+    }
+    await _showNewCatalogDialog();
+  }
+
+  Future<void> _showNewCatalogDialog() async {
     final controller = TextEditingController();
     final value = await showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(isType ? 'Add Type' : 'Add Catalog'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: InputDecoration(labelText: isType ? 'Type' : 'Catalog'),
+      builder: (context) => Dialog(
+        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+        child: SizedBox(
+          width: 470,
+          height: 175,
+          child: Column(
+            children: [
+              _dialogTitle(context, 'New Catalog'),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(74, 22, 78, 14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Text('Catalog', style: TextStyle(fontSize: 12)),
+                      const SizedBox(height: 6),
+                      SizedBox(
+                        height: 28,
+                        child: TextField(
+                          controller: controller,
+                          autofocus: true,
+                          decoration: const InputDecoration(
+                            isDense: true,
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 6,
+                            ),
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                      const Spacer(),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          _dialogButton(
+                            'OK',
+                            () => Navigator.of(context).pop(controller.text),
+                          ),
+                          const SizedBox(width: 14),
+                          _dialogButton(
+                            'Cancel',
+                            () => Navigator.of(context).pop(),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(controller.text),
-            child: const Text('Add'),
-          ),
-        ],
       ),
     );
     controller.dispose();
     if (value == null || value.trim().isEmpty) return;
-    if (isType) {
-      await c.addType(value);
-    } else {
-      await c.addCatalog(value);
-    }
+    await c.addCatalog(value);
+  }
+
+  Future<void> _showNewTypeDialog() async {
+    final typeController = TextEditingController();
+    var selectedMaterial = c.materials.isEmpty
+        ? 'Steel'
+        : c.materials.first.name;
+    final result = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          final materialNames = c.materials.isEmpty
+              ? <String>['Steel', 'Aluminium']
+              : c.materials.map((item) => item.name).toList();
+          if (!materialNames.contains(selectedMaterial)) {
+            selectedMaterial = materialNames.first;
+          }
+          return Dialog(
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.zero,
+            ),
+            child: SizedBox(
+              width: 570,
+              height: 218,
+              child: Column(
+                children: [
+                  _dialogTitle(context, 'New Type'),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(26, 26, 26, 16),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              const SizedBox(
+                                width: 130,
+                                child: Text(
+                                  'Pipe Type',
+                                  style: TextStyle(fontSize: 12),
+                                ),
+                              ),
+                              Expanded(
+                                child: SizedBox(
+                                  height: 28,
+                                  child: TextField(
+                                    controller: typeController,
+                                    autofocus: true,
+                                    decoration: const InputDecoration(
+                                      isDense: true,
+                                      contentPadding: EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 6,
+                                      ),
+                                      border: OutlineInputBorder(),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              const SizedBox(
+                                width: 130,
+                                child: Text(
+                                  'Material',
+                                  style: TextStyle(fontSize: 12),
+                                ),
+                              ),
+                              Expanded(
+                                child: SizedBox(
+                                  height: 30,
+                                  child: DropdownButtonFormField<String>(
+                                    initialValue: selectedMaterial,
+                                    isExpanded: true,
+                                    decoration: const InputDecoration(
+                                      isDense: true,
+                                      contentPadding: EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
+                                      border: OutlineInputBorder(),
+                                    ),
+                                    items: c.materials.isEmpty
+                                        ? materialNames
+                                              .map(
+                                                (item) => DropdownMenuItem(
+                                                  value: item,
+                                                  child: Text(item),
+                                                ),
+                                              )
+                                              .toList()
+                                        : c.materials
+                                              .map(
+                                                (item) => DropdownMenuItem(
+                                                  value: item.name,
+                                                  child: Text(item.name),
+                                                ),
+                                              )
+                                              .toList(),
+                                    onChanged: (value) {
+                                      if (value == null) return;
+                                      setDialogState(
+                                        () => selectedMaterial = value,
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              SizedBox(
+                                width: 32,
+                                height: 30,
+                                child: OutlinedButton(
+                                  onPressed: () async {
+                                    final material =
+                                        await _showNewMaterialDialog();
+                                    if (material == null ||
+                                        material.trim().isEmpty) {
+                                      return;
+                                    }
+                                    await c.addMaterial(material);
+                                    setDialogState(() {
+                                      selectedMaterial = material.trim();
+                                    });
+                                  },
+                                  style: OutlinedButton.styleFrom(
+                                    padding: EdgeInsets.zero,
+                                    shape: const RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.zero,
+                                    ),
+                                  ),
+                                  child: const Icon(Icons.add, size: 16),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const Spacer(),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              _dialogButton(
+                                'OK',
+                                () => Navigator.of(context).pop({
+                                  'name': typeController.text,
+                                  'material': selectedMaterial,
+                                }),
+                              ),
+                              const SizedBox(width: 14),
+                              _dialogButton(
+                                'Cancel',
+                                () => Navigator.of(context).pop(),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+    typeController.dispose();
+    final name = result?['name']?.trim() ?? '';
+    if (name.isEmpty) return;
+    await c.addType(name, material: result?['material'] ?? 'Steel');
+  }
+
+  Future<String?> _showNewMaterialDialog() async {
+    final controller = TextEditingController();
+    final value = await showDialog<String>(
+      context: context,
+      builder: (context) => Dialog(
+        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+        child: SizedBox(
+          width: 360,
+          height: 150,
+          child: Column(
+            children: [
+              _dialogTitle(context, 'New Material'),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 18, 24, 14),
+                child: Column(
+                  children: [
+                    TextField(
+                      controller: controller,
+                      autofocus: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Material',
+                        isDense: true,
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        _dialogButton(
+                          'OK',
+                          () => Navigator.of(context).pop(controller.text),
+                        ),
+                        const SizedBox(width: 12),
+                        _dialogButton(
+                          'Cancel',
+                          () => Navigator.of(context).pop(),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    controller.dispose();
+    return value;
+  }
+
+  Widget _dialogTitle(BuildContext context, String title) {
+    return Container(
+      height: 38,
+      padding: const EdgeInsets.only(left: 12),
+      decoration: const BoxDecoration(
+        color: Color(0xFFEFEFEF),
+        border: Border(bottom: BorderSide(color: Color(0xFFBFC5CC))),
+      ),
+      child: Row(
+        children: [
+          Text(title, style: const TextStyle(fontSize: 14)),
+          const Spacer(),
+          IconButton(
+            splashRadius: 14,
+            onPressed: () => Navigator.of(context).pop(),
+            icon: const Icon(Icons.close, size: 18),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _dialogButton(String label, VoidCallback onPressed) {
+    return SizedBox(
+      width: 96,
+      height: 32,
+      child: OutlinedButton(
+        onPressed: onPressed,
+        style: OutlinedButton.styleFrom(
+          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+        ),
+        child: Text(label),
+      ),
+    );
   }
 
   Future<void> _confirmDelete({required bool isType}) async {

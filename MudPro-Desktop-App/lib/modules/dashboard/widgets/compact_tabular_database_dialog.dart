@@ -18,8 +18,13 @@ class _CompactTabularDatabaseDialogState
   late final TabularDatabaseEditorController c;
   final _typeScroll = ScrollController();
   final _catalogScroll = ScrollController();
-  final _tableHorizontalScroll = ScrollController();
+  final _odScroll = ScrollController();
+  final _weightScroll = ScrollController();
+  final _gradeScroll = ScrollController();
   final _tableVerticalScroll = ScrollController();
+  int _odIndex = 0;
+  int _weightIndex = 0;
+  int _gradeIndex = 0;
 
   @override
   void initState() {
@@ -33,7 +38,9 @@ class _CompactTabularDatabaseDialogState
   void dispose() {
     _typeScroll.dispose();
     _catalogScroll.dispose();
-    _tableHorizontalScroll.dispose();
+    _odScroll.dispose();
+    _weightScroll.dispose();
+    _gradeScroll.dispose();
     _tableVerticalScroll.dispose();
     super.dispose();
   }
@@ -41,12 +48,13 @@ class _CompactTabularDatabaseDialogState
   @override
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.sizeOf(context);
-    final dialogWidth = math.min(screenSize.width - 40, 1540.0);
-    final dialogHeight = math.min(screenSize.height - 40, 690.0);
-    final tableWidth = math.max(820.0, dialogWidth - 390);
+    final dialogWidth = math.min(screenSize.width - 28, 1630.0);
+    final dialogHeight = math.min(screenSize.height - 28, 720.0);
+    const leftWidth = 732.0;
+    final tableWidth = math.max(820.0, dialogWidth - leftWidth - 34);
 
     return Dialog(
-      insetPadding: const EdgeInsets.all(20),
+      insetPadding: const EdgeInsets.all(14),
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
       child: SizedBox(
         width: dialogWidth,
@@ -56,27 +64,98 @@ class _CompactTabularDatabaseDialogState
             _titleBar(context),
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _listPane(
-                      title: 'Type',
-                      width: 170,
-                      controller: _typeScroll,
-                      isType: true,
-                    ),
-                    const SizedBox(width: 8),
-                    _listPane(
-                      title: 'Catalog',
-                      width: 170,
-                      controller: _catalogScroll,
-                      isType: false,
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(child: _tablePane(tableWidth)),
-                  ],
-                ),
+                padding: const EdgeInsets.fromLTRB(18, 10, 18, 8),
+                child: Obx(() {
+                  c.unitSignature.value;
+                  final ods = c.distinctValues('od');
+                  final weights = c.distinctValues('nominalWt');
+                  final grades = c.distinctValues('grade');
+                  _odIndex = _clamp(_odIndex, ods.length);
+                  _weightIndex = _clamp(_weightIndex, weights.length);
+                  _gradeIndex = _clamp(_gradeIndex, grades.length);
+
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      SizedBox(
+                        width: leftWidth,
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _optionPane(
+                              title: 'Type',
+                              width: 188,
+                              controller: _typeScroll,
+                              itemCount: c.types.length,
+                              selectedIndex: c.selectedTypeIndex.value,
+                              itemLabel: (index) => c.types[index].name,
+                              onSelected: (index) {
+                                c.selectType(index);
+                                _resetDerivedSelections();
+                              },
+                            ),
+                            const SizedBox(width: 8),
+                            _optionPane(
+                              title: 'Catalog',
+                              width: 130,
+                              controller: _catalogScroll,
+                              itemCount: c.catalogs.length,
+                              selectedIndex: c.selectedCatalogIndex.value,
+                              itemLabel: (index) => c.catalogs[index].name,
+                              onSelected: (index) {
+                                c.selectCatalog(index);
+                                _resetDerivedSelections();
+                              },
+                            ),
+                            const SizedBox(width: 8),
+                            _valuePane(
+                              title: 'OD (${c.diameterUnitLabel})',
+                              width: 126,
+                              controller: _odScroll,
+                              values: ods,
+                              selectedIndex: _odIndex,
+                              onSelected: (index) {
+                                _odIndex = index;
+                                _selectFirstMatching('od', ods[index]);
+                              },
+                            ),
+                            const SizedBox(width: 8),
+                            _valuePane(
+                              title: 'Weight (${c.lineDensityUnitLabel})',
+                              width: 126,
+                              controller: _weightScroll,
+                              values: weights,
+                              selectedIndex: _weightIndex,
+                              onSelected: (index) {
+                                _weightIndex = index;
+                                _selectFirstMatching(
+                                  'nominalWt',
+                                  weights[index],
+                                );
+                              },
+                            ),
+                            const SizedBox(width: 8),
+                            _valuePane(
+                              title: 'Grade',
+                              width: 128,
+                              controller: _gradeScroll,
+                              values: grades,
+                              selectedIndex: _gradeIndex,
+                              onSelected: (index) {
+                                _gradeIndex = index;
+                                _selectFirstMatching('grade', grades[index]);
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _tablePane(tableWidth, ods, weights, grades),
+                      ),
+                    ],
+                  );
+                }),
               ),
             ),
             _footer(context),
@@ -84,6 +163,29 @@ class _CompactTabularDatabaseDialogState
         ),
       ),
     );
+  }
+
+  int _clamp(int index, int length) {
+    if (length <= 0) return 0;
+    if (index < 0) return 0;
+    if (index >= length) return length - 1;
+    return index;
+  }
+
+  void _resetDerivedSelections() {
+    setState(() {
+      _odIndex = 0;
+      _weightIndex = 0;
+      _gradeIndex = 0;
+    });
+  }
+
+  void _selectFirstMatching(String key, String value) {
+    final rowIndex = c.firstRowIndexForValue(key, value);
+    if (rowIndex >= 0) {
+      c.selectRow(rowIndex);
+    }
+    setState(() {});
   }
 
   Widget _titleBar(BuildContext context) {
@@ -98,7 +200,7 @@ class _CompactTabularDatabaseDialogState
         children: [
           const Text(
             'Tubular Database',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
           ),
           const Spacer(),
           IconButton(
@@ -111,65 +213,91 @@ class _CompactTabularDatabaseDialogState
     );
   }
 
-  Widget _listPane({
+  Widget _optionPane({
     required String title,
     required double width,
     required ScrollController controller,
-    required bool isType,
+    required int itemCount,
+    required int selectedIndex,
+    required String Function(int index) itemLabel,
+    required ValueChanged<int> onSelected,
+  }) {
+    return _paneFrame(
+      title: title,
+      width: width,
+      child: Scrollbar(
+        controller: controller,
+        thumbVisibility: true,
+        child: ListView.builder(
+          controller: controller,
+          itemCount: itemCount,
+          itemBuilder: (context, index) {
+            final isSelected = selectedIndex == index;
+            return _listItem(
+              label: itemLabel(index),
+              isSelected: isSelected,
+              onTap: () => onSelected(index),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _valuePane({
+    required String title,
+    required double width,
+    required ScrollController controller,
+    required List<String> values,
+    required int selectedIndex,
+    required ValueChanged<int> onSelected,
+  }) {
+    return _paneFrame(
+      title: title,
+      width: width,
+      child: Scrollbar(
+        controller: controller,
+        thumbVisibility: true,
+        child: ListView.builder(
+          controller: controller,
+          itemCount: values.length,
+          itemBuilder: (context, index) {
+            final isSelected = selectedIndex == index;
+            return _listItem(
+              label: values[index],
+              isSelected: isSelected,
+              onTap: () => onSelected(index),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _paneFrame({
+    required String title,
+    required double width,
+    required Widget child,
   }) {
     return SizedBox(
       width: width,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Padding(
-            padding: const EdgeInsets.only(left: 4, bottom: 4),
-            child: Text(title, style: const TextStyle(fontSize: 10)),
+          SizedBox(
+            height: 24,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(title, style: const TextStyle(fontSize: 11)),
+            ),
           ),
           Expanded(
             child: Container(
               decoration: BoxDecoration(
+                color: Colors.white,
                 border: Border.all(color: const Color(0xFFBFC5CC)),
               ),
-              child: Obx(() {
-                final items = isType ? c.types : c.catalogs;
-                final selected = isType
-                    ? c.selectedTypeIndex.value
-                    : c.selectedCatalogIndex.value;
-                return Scrollbar(
-                  controller: controller,
-                  thumbVisibility: true,
-                  child: ListView.builder(
-                    controller: controller,
-                    itemCount: items.length,
-                    itemBuilder: (context, index) {
-                      final item = items[index];
-                      final isSelected = selected == index;
-                      return InkWell(
-                        onTap: () => isType
-                            ? c.selectType(index)
-                            : c.selectCatalog(index),
-                        child: Container(
-                          height: 28,
-                          padding: const EdgeInsets.symmetric(horizontal: 6),
-                          alignment: Alignment.centerLeft,
-                          color: isSelected
-                              ? const Color(0xFF1D6FCC)
-                              : Colors.white,
-                          child: Text(
-                            item.name,
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: isSelected ? Colors.white : Colors.black87,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                );
-              }),
+              child: child,
             ),
           ),
         ],
@@ -177,173 +305,154 @@ class _CompactTabularDatabaseDialogState
     );
   }
 
-  Widget _tablePane(double tableWidth) {
-    return Obx(() {
-      if (c.isLoading.value) {
-        return const Center(child: CircularProgressIndicator(strokeWidth: 2));
-      }
+  Widget _listItem({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        height: 29,
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        alignment: Alignment.centerLeft,
+        color: isSelected ? const Color(0xFF1D6FCC) : Colors.white,
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: isSelected ? Colors.white : Colors.black87,
+          ),
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+    );
+  }
 
-      return Align(
-        alignment: Alignment.topLeft,
-        child: SizedBox(
-          width: tableWidth,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Container(
-                height: 28,
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                alignment: Alignment.centerLeft,
+  Widget _tablePane(
+    double tableWidth,
+    List<String> ods,
+    List<String> weights,
+    List<String> grades,
+  ) {
+    if (c.isLoading.value) {
+      return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+    }
+
+    final od = ods.isEmpty ? '' : ods[_clamp(_odIndex, ods.length)];
+    final weight = weights.isEmpty
+        ? ''
+        : weights[_clamp(_weightIndex, weights.length)];
+    final grade = grades.isEmpty
+        ? ''
+        : grades[_clamp(_gradeIndex, grades.length)];
+
+    return Align(
+      alignment: Alignment.topLeft,
+      child: SizedBox(
+        width: tableWidth,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              height: 32,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              alignment: Alignment.centerLeft,
+              decoration: BoxDecoration(
+                border: Border.all(color: const Color(0xFFBFC5CC)),
+                color: const Color(0xFFF8F8F8),
+              ),
+              child: Text(
+                '${c.selectedTypeName} - ${c.selectedCatalogName} : $od ${c.diameterUnitLabel}, $weight ${c.lineDensityUnitLabel}, $grade',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF0D74C7),
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            Expanded(
+              child: Container(
                 decoration: BoxDecoration(
                   border: Border.all(color: const Color(0xFFBFC5CC)),
-                  color: const Color(0xFFF8F8F8),
                 ),
-                child: Text(
-                  '${c.selectedTypeName} - ${c.selectedCatalogName}',
-                  style: const TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF0D74C7),
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              Expanded(
-                child: Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(color: const Color(0xFFBFC5CC)),
-                  ),
-                  child: Scrollbar(
-                    controller: _tableHorizontalScroll,
-                    thumbVisibility: true,
-                    notificationPredicate: (notification) =>
-                        notification.depth == 1,
-                    child: SingleChildScrollView(
-                      controller: _tableHorizontalScroll,
-                      scrollDirection: Axis.horizontal,
-                      child: SizedBox(
-                        width: 840,
-                        child: Column(
-                          children: [
-                            _tableHeader(),
-                            Expanded(
-                              child: Scrollbar(
-                                controller: _tableVerticalScroll,
-                                thumbVisibility: true,
-                                child: ListView.builder(
-                                  controller: _tableVerticalScroll,
-                                  itemCount: c.currentRows.length,
-                                  itemBuilder: (context, index) =>
-                                      _dataRow(c.currentRows[index], index),
-                                ),
-                              ),
-                            ),
-                          ],
+                child: Column(
+                  children: [
+                    _tableHeader(),
+                    Expanded(
+                      child: Scrollbar(
+                        controller: _tableVerticalScroll,
+                        thumbVisibility: true,
+                        child: ListView.builder(
+                          controller: _tableVerticalScroll,
+                          itemCount: c.currentRows.length,
+                          itemBuilder: (context, index) =>
+                              _dataRow(c.currentRows[index], index),
                         ),
                       ),
                     ),
-                  ),
+                  ],
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
-      );
-    });
+      ),
+    );
   }
 
   Widget _tableHeader() {
     return Container(
-      height: 54,
+      height: 76,
       decoration: const BoxDecoration(
         color: Color(0xFFF8F8F8),
         border: Border(bottom: BorderSide(color: Color(0xFFBFC5CC))),
       ),
       child: Column(
         children: [
-          Expanded(
+          SizedBox(
+            height: 28,
             child: Row(
               children: const [
-                SizedBox(width: 42),
-                Expanded(child: Center(child: Text('Body'))),
-                SizedBox(width: 130, child: Center(child: Text('Assembly'))),
+                SizedBox(width: 52),
+                SizedBox(width: 260, child: Center(child: Text('Body'))),
+                SizedBox(width: 390, child: Center(child: Text('Connection'))),
+                SizedBox(width: 132, child: Center(child: Text('Assembly'))),
               ],
             ),
           ),
-          Expanded(
+          SizedBox(
+            height: 48,
             child: Row(
-              children: const [
-                SizedBox(width: 42),
-                SizedBox(
-                  width: 110,
-                  child: Center(
-                    child: Text(
-                      'OD\n(in)',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 10),
-                    ),
-                  ),
-                ),
-                SizedBox(
-                  width: 110,
-                  child: Center(
-                    child: Text(
-                      'ID\n(in)',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 10),
-                    ),
-                  ),
-                ),
-                SizedBox(
-                  width: 120,
-                  child: Center(
-                    child: Text(
-                      'Nominal Wt.\n(lb/ft)',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 10),
-                    ),
-                  ),
-                ),
-                SizedBox(
-                  width: 150,
-                  child: Center(
-                    child: Text('Grade', style: TextStyle(fontSize: 10)),
-                  ),
-                ),
-                SizedBox(
-                  width: 130,
-                  child: Center(
-                    child: Text(
-                      'Yield\n(psi)',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 10),
-                    ),
-                  ),
-                ),
-                SizedBox(
-                  width: 148,
-                  child: Center(
-                    child: Text(
-                      'Tensile Str.\n(lbf)',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 10),
-                    ),
-                  ),
-                ),
-                SizedBox(
-                  width: 130,
-                  child: Center(
-                    child: Text(
-                      'Adjust Wt.\n(lb/ft)',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 10),
-                    ),
-                  ),
-                ),
+              children: [
+                const SizedBox(width: 52),
+                _headerCell('ID\n(${c.diameterUnitLabel})', 130),
+                _headerCell('Yield\n(${c.pressureUnitLabel})', 130),
+                _headerCell('Type', 130),
+                _headerCell('OD\n(${c.diameterUnitLabel})', 130),
+                _headerCell('ID\n(${c.diameterUnitLabel})', 130),
+                _headerCell('Adjust Wt.\n(${c.lineDensityUnitLabel})', 132),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _headerCell(String value, double width) {
+    return Container(
+      width: width,
+      height: 48,
+      alignment: Alignment.center,
+      decoration: const BoxDecoration(
+        border: Border(right: BorderSide(color: Color(0xFFBFC5CC))),
+      ),
+      child: Text(
+        value,
+        textAlign: TextAlign.center,
+        style: const TextStyle(fontSize: 11),
       ),
     );
   }
@@ -353,29 +462,34 @@ class _CompactTabularDatabaseDialogState
     return InkWell(
       onTap: () => c.selectRow(index),
       child: Container(
-        height: 33,
+        height: 31,
         color: isSelected ? const Color(0xFF1D6FCC) : Colors.white,
         child: Row(
           children: [
-            _cell('${index + 1}', 42, isSelected),
-            _cell(row.value('od'), 110, isSelected),
-            _cell(row.value('id'), 110, isSelected),
-            _cell(row.value('nominalWt'), 120, isSelected),
-            _cell(row.value('grade'), 150, isSelected),
+            _cell('${index + 1}', 52, isSelected, align: TextAlign.center),
+            _cell(row.value('id'), 130, isSelected),
             _cell(row.value('yieldPsi'), 130, isSelected),
-            _cell(row.value('tensileStr'), 148, isSelected),
-            _cell(row.value('assemblyAdjustWt'), 130, isSelected),
+            _cell(row.value('connectionType'), 130, isSelected),
+            _cell(row.value('connectionOd'), 130, isSelected),
+            _cell(row.value('connectionId'), 130, isSelected),
+            _cell(row.value('assemblyAdjustWt'), 132, isSelected),
           ],
         ),
       ),
     );
   }
 
-  Widget _cell(String value, double width, bool selected) {
+  Widget _cell(
+    String value,
+    double width,
+    bool selected, {
+    TextAlign align = TextAlign.right,
+  }) {
     return Container(
       width: width,
-      height: 33,
+      height: 31,
       alignment: Alignment.center,
+      padding: const EdgeInsets.symmetric(horizontal: 6),
       decoration: const BoxDecoration(
         border: Border(
           right: BorderSide(color: Color(0xFFD4D8DD)),
@@ -384,9 +498,9 @@ class _CompactTabularDatabaseDialogState
       ),
       child: Text(
         value,
-        textAlign: TextAlign.center,
+        textAlign: align,
         style: TextStyle(
-          fontSize: 10,
+          fontSize: 12,
           color: selected ? Colors.white : Colors.black87,
         ),
         overflow: TextOverflow.ellipsis,
@@ -396,44 +510,41 @@ class _CompactTabularDatabaseDialogState
 
   Widget _footer(BuildContext context) {
     return Container(
-      height: 54,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: Row(
-        children: [
-          OutlinedButton(
-            onPressed: () async {
-              await Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const TabularDatabaseEditorView(),
+      height: 60,
+      padding: const EdgeInsets.fromLTRB(18, 8, 18, 10),
+      child: Obx(
+        () => Row(
+          children: [
+            Text(
+              'Material: ${c.selectedTypeMaterial}',
+              style: const TextStyle(fontSize: 12),
+            ),
+            const SizedBox(width: 18),
+            SizedBox(
+              width: 110,
+              height: 36,
+              child: OutlinedButton(
+                onPressed: () async {
+                  await Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const TabularDatabaseEditorView(),
+                    ),
+                  );
+                  setState(() {});
+                },
+                style: OutlinedButton.styleFrom(
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.zero,
+                  ),
                 ),
-              );
-              setState(() {});
-            },
-            style: OutlinedButton.styleFrom(
-              shape: const RoundedRectangleBorder(
-                borderRadius: BorderRadius.zero,
+                child: const Text('Editor...'),
               ),
             ),
-            child: const Text('Editor...'),
-          ),
-          const Spacer(),
-          SizedBox(
-            width: 110,
-            child: OutlinedButton(
-              onPressed: () => Navigator.of(context).pop(),
-              style: OutlinedButton.styleFrom(
-                shape: const RoundedRectangleBorder(
-                  borderRadius: BorderRadius.zero,
-                ),
-              ),
-              child: const Text('Cancel'),
-            ),
-          ),
-          const SizedBox(width: 8),
-          SizedBox(
-            width: 110,
-            child: Obx(
-              () => FilledButton(
+            const Spacer(),
+            SizedBox(
+              width: 110,
+              height: 36,
+              child: FilledButton(
                 onPressed: c.currentRows.isEmpty
                     ? null
                     : () => Navigator.of(context).pop(_selectionPayload()),
@@ -445,8 +556,22 @@ class _CompactTabularDatabaseDialogState
                 child: const Text('Accept'),
               ),
             ),
-          ),
-        ],
+            const SizedBox(width: 8),
+            SizedBox(
+              width: 110,
+              height: 36,
+              child: OutlinedButton(
+                onPressed: () => Navigator.of(context).pop(),
+                style: OutlinedButton.styleFrom(
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.zero,
+                  ),
+                ),
+                child: const Text('Cancel'),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -464,15 +589,17 @@ class _CompactTabularDatabaseDialogState
       };
     }
 
+    final weightBase = c.rowBaseValue(row, 'nominalWt').isNotEmpty
+        ? c.rowBaseValue(row, 'nominalWt')
+        : c.rowBaseValue(row, 'assemblyAdjustWt');
+
     return {
       'type': c.selectedTypeName,
       'catalog': c.selectedCatalogName,
-      'odMm': _inchToMm(row.value('od')),
-      'weightLbFt': row.value('nominalWt').isNotEmpty
-          ? row.value('nominalWt')
-          : row.value('assemblyAdjustWt'),
+      'odMm': _inchToMm(c.rowBaseValue(row, 'od')),
+      'weightLbFt': weightBase,
       'grade': row.value('grade'),
-      'idMm': _inchToMm(row.value('id')),
+      'idMm': _inchToMm(c.rowBaseValue(row, 'id')),
     };
   }
 
