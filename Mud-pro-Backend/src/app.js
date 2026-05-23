@@ -30,6 +30,7 @@ import receivePackageRoutes from "./routes/ReceiveProduct/Package/receivePackage
 import returnProductRoutes from "./routes/ReturnProduct/Product/returnProductRoutes.js";
 import returnPackageRoutes from "./routes/ReturnProduct/Package/returnPackageRoutes.js";
 import drillStringRoutes from "./routes/DrillString/drillString.routes.js";
+import tubularDatabaseRoutes from "./routes/tubularDatabase/tubularDatabase.routes.js";
 
 import mudPropertiesRoute from "./routes/mudProperties/mudProperetiesRoutes.js";
 import mudReportStateRoutes from "./routes/mudReport/mudReportState.routes.js";
@@ -177,6 +178,7 @@ app.use("/api/export", exportRoutes);
 app.use("/api/ug-inventory", ugInventoryRoutes);
 //drill string
 app.use("/api/drill-string", drillStringRoutes);
+app.use("/api/tubular-database", tubularDatabaseRoutes);
 
 app.use("/api/well-general", wellGeneralRoutes);
 
