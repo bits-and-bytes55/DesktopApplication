@@ -146,6 +146,7 @@ class SurveyController extends GetxController {
         Uri.parse(
           '${ApiEndpoint.baseUrl}survey/$wellId',
         ).replace(queryParameters: _queryParams),
+        headers: ApiEndpoint.jsonHeaders,
       );
       if (response.statusCode == 200) {
         final body = json.decode(response.body) as Map<String, dynamic>;

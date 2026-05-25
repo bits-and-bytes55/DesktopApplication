@@ -6,6 +6,7 @@ import {
   readWellId,
   toText,
 } from "../../utils/reportScope.js";
+import { currentInstallationId } from "../../utils/installationContext.js";
 
 const normalizeObjectId = (value) => {
   const textValue = toText(value);
@@ -444,6 +445,8 @@ class PumpController {
         await ensureReportPumpSet(scope);
       }
 
+      const installationId = currentInstallationId();
+      const installationFilter = installationId ? { installationId } : {};
       const operations = pumps.map((pump, index) => {
         const itemWellId = normalizeObjectId(pump.wellId || scope.wellId);
         const itemReportId = normalizeObjectId(pump.reportId || scope.reportId);
@@ -459,12 +462,20 @@ class PumpController {
           reportNo: itemReportNo,
           rowNumber,
         });
+        const scopedPumpData = installationId
+          ? { ...pumpData, installationId }
+          : pumpData;
 
         if (itemWellId && itemReportId) {
           return {
             updateOne: {
-              filter: { wellId: itemWellId, reportId: itemReportId, rowNumber },
-              update: { $set: pumpData },
+              filter: {
+                wellId: itemWellId,
+                reportId: itemReportId,
+                rowNumber,
+                ...installationFilter,
+              },
+              update: { $set: scopedPumpData },
               upsert: true,
             },
           };
@@ -473,8 +484,8 @@ class PumpController {
         if (pump._id && mongoose.Types.ObjectId.isValid(pump._id)) {
           return {
             updateOne: {
-              filter: { _id: pump._id },
-              update: { $set: pumpData },
+              filter: { _id: pump._id, ...installationFilter },
+              update: { $set: scopedPumpData },
               upsert: false,
             },
           };
@@ -482,7 +493,7 @@ class PumpController {
 
         return {
           insertOne: {
-            document: pumpData,
+            document: scopedPumpData,
           },
         };
       });

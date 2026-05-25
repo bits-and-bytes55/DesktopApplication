@@ -68,6 +68,9 @@ class _MaterialEditorRow {
   final TextEditingController thermalConductivityController;
   bool isSaving = false;
   bool pendingSave = false;
+  Future<void>? activeSave;
+  VoidCallback? _listener;
+  bool _disposed = false;
 
   String get name => nameController.text.trim();
   bool get hasData =>
@@ -89,10 +92,23 @@ class _MaterialEditorRow {
     thermalConductivityController,
   ];
 
-  void addListener(VoidCallback listener) {
+  bool get isDisposed => _disposed;
+
+  void attachListener(VoidCallback listener) {
+    detachListener();
+    _listener = listener;
     for (final controller in controllers) {
       controller.addListener(listener);
     }
+  }
+
+  void detachListener() {
+    final listener = _listener;
+    if (listener == null || _disposed) return;
+    for (final controller in controllers) {
+      controller.removeListener(listener);
+    }
+    _listener = null;
   }
 
   TubularDbOption toOption(int nextSortOrder) {
@@ -110,6 +126,9 @@ class _MaterialEditorRow {
   }
 
   void dispose() {
+    if (_disposed) return;
+    detachListener();
+    _disposed = true;
     nameController.dispose();
     densityController.dispose();
     elasticModulusController.dispose();
@@ -805,6 +824,7 @@ class _TabularDatabaseEditorViewState extends State<TabularDatabaseEditorView> {
                                         selectedMaterial: selectedMaterial,
                                         addBlankOnOpen: true,
                                       );
+                                  if (!context.mounted) return;
                                   if (material == null ||
                                       material.trim().isEmpty) {
                                     return;
@@ -828,6 +848,7 @@ class _TabularDatabaseEditorViewState extends State<TabularDatabaseEditorView> {
                                               selectedMaterial:
                                                   selectedMaterial,
                                             );
+                                        if (!context.mounted) return;
                                         if (material == null ||
                                             material.trim().isEmpty) {
                                           return;
@@ -848,6 +869,7 @@ class _TabularDatabaseEditorViewState extends State<TabularDatabaseEditorView> {
                                             await _confirmMaterialDelete(
                                               selectedMaterial,
                                             );
+                                        if (!context.mounted) return;
                                         if (shouldDelete != true) return;
                                         await c.deleteMaterial(
                                           selectedMaterial,
@@ -915,33 +937,49 @@ class _TabularDatabaseEditorViewState extends State<TabularDatabaseEditorView> {
         ? rows.length - 1
         : rows.indexWhere((row) => row.name == selectedMaterial);
     if (selectedIndex < 0) selectedIndex = rows.isEmpty ? 0 : rows.length - 1;
+    var isClosing = false;
+    final dialogNavigator = Navigator.of(context, rootNavigator: true);
 
     Future<void> saveRow(_MaterialEditorRow row) async {
-      if (!row.hasData || row.name.isEmpty || !rows.contains(row)) return;
+      if (row.isDisposed ||
+          !row.hasData ||
+          row.name.isEmpty ||
+          !rows.contains(row)) {
+        return;
+      }
       if (row.isSaving) {
         row.pendingSave = true;
+        await row.activeSave;
+        if (!row.pendingSave || row.isDisposed || !rows.contains(row)) return;
+        row.pendingSave = false;
+        await saveRow(row);
         return;
       }
       row.isSaving = true;
-      try {
+      row.activeSave = () async {
         final saved = await c.saveMaterialOption(
           row.toOption(rows.indexOf(row)),
           oldName: row.originalName,
         );
-        if (saved != null && rows.contains(row)) {
+        if (saved != null && !row.isDisposed && rows.contains(row)) {
           row.id = saved.id;
           row.originalName = saved.name;
         }
+      }();
+      try {
+        await row.activeSave;
       } finally {
         row.isSaving = false;
+        row.activeSave = null;
       }
-      if (row.pendingSave && rows.contains(row)) {
+      if (row.pendingSave && !row.isDisposed && rows.contains(row)) {
         row.pendingSave = false;
-        unawaited(saveRow(row));
+        await saveRow(row);
       }
     }
 
     void scheduleSave(_MaterialEditorRow row) {
+      if (isClosing || row.isDisposed || !rows.contains(row)) return;
       saveTimers[row]?.cancel();
       saveTimers[row] = Timer(const Duration(milliseconds: 650), () {
         unawaited(saveRow(row));
@@ -949,7 +987,22 @@ class _TabularDatabaseEditorViewState extends State<TabularDatabaseEditorView> {
     }
 
     void attachRow(_MaterialEditorRow row) {
-      row.addListener(() => scheduleSave(row));
+      row.attachListener(() => scheduleSave(row));
+    }
+
+    void disposeRowLater(_MaterialEditorRow row) {
+      if (row.isDisposed) return;
+      row.detachListener();
+      saveTimers.remove(row)?.cancel();
+      unawaited(
+        () async {
+          try {
+            await row.activeSave;
+          } catch (_) {}
+          await Future<void>.delayed(const Duration(seconds: 2));
+          row.dispose();
+        }(),
+      );
     }
 
     Future<void> flushMaterialSaves() async {
@@ -968,9 +1021,11 @@ class _TabularDatabaseEditorViewState extends State<TabularDatabaseEditorView> {
 
     final value = await showDialog<String>(
       context: context,
+      barrierDismissible: false,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) {
           void addRow() {
+            if (isClosing) return;
             setDialogState(() {
               final row = _MaterialEditorRow.blank(rows.length);
               attachRow(row);
@@ -980,27 +1035,28 @@ class _TabularDatabaseEditorViewState extends State<TabularDatabaseEditorView> {
           }
 
           void deleteRow() {
-            if (rows.isEmpty || rows.length <= 1) return;
+            if (isClosing || rows.isEmpty || rows.length <= 1) return;
             setDialogState(() {
               final removed = rows.removeAt(selectedIndex);
               if (removed.originalName.isNotEmpty) {
                 unawaited(c.deleteMaterial(removed.originalName));
               }
               saveTimers.remove(removed)?.cancel();
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                removed.dispose();
-              });
+              disposeRowLater(removed);
               if (selectedIndex >= rows.length) selectedIndex = rows.length - 1;
             });
           }
 
           Future<void> closeDialog() async {
+            if (isClosing) return;
+            isClosing = true;
             await flushMaterialSaves();
             final selectedName = rows.isEmpty
                 ? selectedMaterial
                 : rows[selectedIndex].name;
-            if (!mounted) return;
-            Navigator.of(context).pop(selectedName);
+            if (dialogNavigator.mounted && dialogNavigator.canPop()) {
+              dialogNavigator.pop(selectedName);
+            }
           }
 
           return Dialog(
@@ -1034,9 +1090,12 @@ class _TabularDatabaseEditorViewState extends State<TabularDatabaseEditorView> {
                                     row: rows[index],
                                     index: index,
                                     selected: selectedIndex == index,
-                                    onTap: () => setDialogState(
-                                      () => selectedIndex = index,
-                                    ),
+                                    onTap: () {
+                                      if (isClosing) return;
+                                      setDialogState(() {
+                                        selectedIndex = index;
+                                      });
+                                    },
                                   );
                                 },
                               ),
@@ -1058,13 +1117,14 @@ class _TabularDatabaseEditorViewState extends State<TabularDatabaseEditorView> {
                         _materialFooterIcon(
                           icon: Icons.add,
                           tooltip: 'Add',
-                          onPressed: addRow,
+                          onPressed: isClosing ? null : addRow,
                         ),
                         const SizedBox(width: 4),
                         _materialFooterIcon(
                           icon: Icons.delete_outline,
                           tooltip: 'Delete',
-                          onPressed: rows.length <= 1 ? null : deleteRow,
+                          onPressed:
+                              isClosing || rows.length <= 1 ? null : deleteRow,
                         ),
                         const Spacer(),
                         _dialogButton(
@@ -1086,7 +1146,7 @@ class _TabularDatabaseEditorViewState extends State<TabularDatabaseEditorView> {
       timer.cancel();
     }
     for (final row in rows) {
-      row.dispose();
+      disposeRowLater(row);
     }
     return value;
   }
@@ -1128,15 +1188,74 @@ class _TabularDatabaseEditorViewState extends State<TabularDatabaseEditorView> {
         border: Border.all(color: const Color(0xFFC8CCD1)),
       ),
       child: Row(
-        children: const [
-          SizedBox(width: 34, child: Center(child: Text(''))),
-          SizedBox(width: 170, child: Center(child: Text('Material', style: headerStyle))),
-          SizedBox(width: 110, child: Center(child: Text('Density\n(SG)', style: headerStyle, textAlign: TextAlign.center))),
-          SizedBox(width: 110, child: Center(child: Text('E\n(Msi)', style: headerStyle, textAlign: TextAlign.center))),
-          SizedBox(width: 92, child: Center(child: Text('Y\n(-)', style: headerStyle, textAlign: TextAlign.center))),
-          SizedBox(width: 130, child: Center(child: Text('Comp.\n(Btu/hr/ft/F)', style: headerStyle, textAlign: TextAlign.center))),
-          SizedBox(width: 130, child: Center(child: Text('Heat Cap.\n(Btu/lbm/F)', style: headerStyle, textAlign: TextAlign.center))),
-          Expanded(child: Center(child: Text('Therm. Con. Factor\n(Btu/hr-ft-F)', style: headerStyle, textAlign: TextAlign.center))),
+        children: [
+          const SizedBox(width: 34, child: Center(child: Text(''))),
+          SizedBox(
+            width: 170,
+            child: Center(child: Text('Material', style: headerStyle)),
+          ),
+          SizedBox(
+            width: 110,
+            child: Center(
+              child: Text(
+                c.displayMaterialHeader('Density', 'density'),
+                style: headerStyle,
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+          SizedBox(
+            width: 110,
+            child: Center(
+              child: Text(
+                c.displayMaterialHeader('E', 'elasticModulus'),
+                style: headerStyle,
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+          const SizedBox(
+            width: 92,
+            child: Center(
+              child: Text(
+                'Y\n(-)',
+                style: headerStyle,
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+          SizedBox(
+            width: 130,
+            child: Center(
+              child: Text(
+                c.displayMaterialHeader('Comp.', 'compressibility'),
+                style: headerStyle,
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+          SizedBox(
+            width: 130,
+            child: Center(
+              child: Text(
+                c.displayMaterialHeader('Heat Cap.', 'heatCapacity'),
+                style: headerStyle,
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Center(
+              child: Text(
+                c.displayMaterialHeader(
+                  'Therm. Con. Factor',
+                  'thermalConductivity',
+                ),
+                style: headerStyle,
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
         ],
       ),
     );

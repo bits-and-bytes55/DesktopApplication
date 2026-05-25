@@ -5,6 +5,8 @@ import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart
 
 const Color _ivlBorder = Color(0xFFC9CED6);
 const Color _ivlHeader = Color(0xFFF3F3F3);
+bool _intervalContextMenuOpen = false;
+int _intervalChildMenuStartedAt = 0;
 
 class IntervalLeftPanel extends StatelessWidget {
   const IntervalLeftPanel({super.key});
@@ -120,25 +122,38 @@ class IntervalLeftPanel extends StatelessWidget {
     TapDownDetails details,
     IntervalController c,
   ) async {
-    final action = await showMenu<String>(
-      context: context,
-      position: RelativeRect.fromLTRB(
-        details.globalPosition.dx,
-        details.globalPosition.dy,
-        details.globalPosition.dx,
-        details.globalPosition.dy,
-      ),
-      items: [
-        _menuItem('add_after', 'Add Interval', enabled: !c.isSaving.value),
-        _menuItem('group', 'Group Intervals', enabled: !c.isSaving.value),
-        const PopupMenuDivider(),
-        _menuItem('copy', 'Copy', enabled: false),
-        _menuItem('paste', 'Paste', enabled: false),
-        _menuItem('delete', 'Delete', enabled: false),
-        _menuItem('top', 'To the Top', enabled: false),
-        _menuItem('bottom', 'To the Bottom', enabled: false),
-      ],
-    );
+    final requestedAt = DateTime.now().millisecondsSinceEpoch;
+    await Future<void>.delayed(const Duration(milliseconds: 80));
+    if (!context.mounted ||
+        _intervalContextMenuOpen ||
+        _intervalChildMenuStartedAt >= requestedAt) {
+      return;
+    }
+    _intervalContextMenuOpen = true;
+    String? action;
+    try {
+      action = await showMenu<String>(
+        context: context,
+        position: RelativeRect.fromLTRB(
+          details.globalPosition.dx,
+          details.globalPosition.dy,
+          details.globalPosition.dx,
+          details.globalPosition.dy,
+        ),
+        items: [
+          _menuItem('add_after', 'Add Interval', enabled: !c.isSaving.value),
+          _menuItem('group', 'Group Intervals', enabled: !c.isSaving.value),
+          const PopupMenuDivider(),
+          _menuItem('copy', 'Copy', enabled: false),
+          _menuItem('paste', 'Paste', enabled: false),
+          _menuItem('delete', 'Delete', enabled: false),
+          _menuItem('top', 'To the Top', enabled: false),
+          _menuItem('bottom', 'To the Bottom', enabled: false),
+        ],
+      );
+    } finally {
+      _intervalContextMenuOpen = false;
+    }
 
     if (!context.mounted) return;
     switch (action) {
@@ -289,37 +304,45 @@ class _IntervalTileState extends State<_IntervalTile> {
   }
 
   Future<void> _showMenu(TapDownDetails details) async {
+    if (_intervalContextMenuOpen) return;
+    _intervalChildMenuStartedAt = DateTime.now().millisecondsSinceEpoch;
+    _intervalContextMenuOpen = true;
     widget.c.selectInterval(widget.iv);
-    final action = await showMenu<String>(
-      context: context,
-      position: RelativeRect.fromLTRB(
-        details.globalPosition.dx,
-        details.globalPosition.dy,
-        details.globalPosition.dx,
-        details.globalPosition.dy,
-      ),
-      items: [
-        _menuItem('before', 'Add Before', enabled: !widget.c.isSaving.value),
-        _menuItem('after', 'Add After', enabled: !widget.c.isSaving.value),
-        _menuItem('rename', 'Rename', enabled: !widget.c.isSaving.value),
-        _menuItem(
-          'delete',
-          'Delete',
-          enabled: !widget.c.isSaving.value,
-          danger: true,
+    String? action;
+    try {
+      action = await showMenu<String>(
+        context: context,
+        position: RelativeRect.fromLTRB(
+          details.globalPosition.dx,
+          details.globalPosition.dy,
+          details.globalPosition.dx,
+          details.globalPosition.dy,
         ),
-        _menuItem(
-          'group',
-          'Group Intervals',
-          enabled: !widget.c.isSaving.value,
-        ),
-        const PopupMenuDivider(),
-        _menuItem('copy', 'Copy', enabled: false),
-        _menuItem('paste', 'Paste', enabled: false),
-        _menuItem('top', 'To the Top', enabled: false),
-        _menuItem('bottom', 'To the Bottom', enabled: false),
-      ],
-    );
+        items: [
+          _menuItem('before', 'Add Before', enabled: !widget.c.isSaving.value),
+          _menuItem('after', 'Add After', enabled: !widget.c.isSaving.value),
+          _menuItem('rename', 'Rename', enabled: !widget.c.isSaving.value),
+          _menuItem(
+            'delete',
+            'Delete',
+            enabled: !widget.c.isSaving.value,
+            danger: true,
+          ),
+          _menuItem(
+            'group',
+            'Group Intervals',
+            enabled: !widget.c.isSaving.value,
+          ),
+          const PopupMenuDivider(),
+          _menuItem('copy', 'Copy', enabled: false),
+          _menuItem('paste', 'Paste', enabled: false),
+          _menuItem('top', 'To the Top', enabled: false),
+          _menuItem('bottom', 'To the Bottom', enabled: false),
+        ],
+      );
+    } finally {
+      _intervalContextMenuOpen = false;
+    }
 
     if (!mounted) return;
     switch (action) {
@@ -418,34 +441,42 @@ class _GroupTile extends StatelessWidget {
   const _GroupTile({required this.group, required this.c});
 
   Future<void> _showMenu(BuildContext context, TapDownDetails details) async {
-    final action = await showMenu<String>(
-      context: context,
-      position: RelativeRect.fromLTRB(
-        details.globalPosition.dx,
-        details.globalPosition.dy,
-        details.globalPosition.dx,
-        details.globalPosition.dy,
-      ),
-      items: [
-        _menuItem(
-          'toggle',
-          group.collapsed ? 'Expand' : 'Collapse',
-          enabled: !c.isSaving.value,
+    if (_intervalContextMenuOpen) return;
+    _intervalChildMenuStartedAt = DateTime.now().millisecondsSinceEpoch;
+    _intervalContextMenuOpen = true;
+    String? action;
+    try {
+      action = await showMenu<String>(
+        context: context,
+        position: RelativeRect.fromLTRB(
+          details.globalPosition.dx,
+          details.globalPosition.dy,
+          details.globalPosition.dx,
+          details.globalPosition.dy,
         ),
-        _menuItem('group', 'Group Intervals', enabled: !c.isSaving.value),
-        _menuItem(
-          'delete',
-          'Delete Group',
-          enabled: !c.isSaving.value,
-          danger: true,
-        ),
-        const PopupMenuDivider(),
-        _menuItem('copy', 'Copy', enabled: false),
-        _menuItem('paste', 'Paste', enabled: false),
-        _menuItem('top', 'To the Top', enabled: false),
-        _menuItem('bottom', 'To the Bottom', enabled: false),
-      ],
-    );
+        items: [
+          _menuItem(
+            'toggle',
+            group.collapsed ? 'Expand' : 'Collapse',
+            enabled: !c.isSaving.value,
+          ),
+          _menuItem('group', 'Group Intervals', enabled: !c.isSaving.value),
+          _menuItem(
+            'delete',
+            'Delete Group',
+            enabled: !c.isSaving.value,
+            danger: true,
+          ),
+          const PopupMenuDivider(),
+          _menuItem('copy', 'Copy', enabled: false),
+          _menuItem('paste', 'Paste', enabled: false),
+          _menuItem('top', 'To the Top', enabled: false),
+          _menuItem('bottom', 'To the Bottom', enabled: false),
+        ],
+      );
+    } finally {
+      _intervalContextMenuOpen = false;
+    }
 
     if (!context.mounted) return;
     switch (action) {

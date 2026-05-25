@@ -4,6 +4,7 @@ import helmet from "helmet";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
+import "./plugins/installationScopePlugin.js";
 import { installationContextMiddleware } from "./utils/installationContext.js";
 
 import operatorRoutes from "./routes/operator/operator.route.js";

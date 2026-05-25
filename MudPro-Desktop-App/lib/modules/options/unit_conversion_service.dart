@@ -222,6 +222,7 @@ class UnitConversionService {
     },
     'pressure': {
       '(psi)': 6.894757293168,
+      '(Msi)': 6894757.293168,
       '(kPa)': 1.0,
       '(MPa)': 1000.0,
       '(bar)': 100.0,

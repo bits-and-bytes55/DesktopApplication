@@ -1,4 +1,5 @@
 import Pit from "../../modules/pit/pit.model.js";
+import { currentInstallationId } from "../../utils/installationContext.js";
 
 const toText = (value) => String(value ?? "").trim();
 
@@ -477,9 +478,13 @@ export const bulkUpdatePits = async (req, res) => {
       });
     }
 
+    const installationId = currentInstallationId();
+    const installationFilter = installationId ? { installationId } : {};
+    const installationData = installationId ? { installationId } : {};
+
     const bulkOps = updates.map((update) => ({
       updateOne: {
-        filter: { _id: update.id, isLocked: false },
+        filter: { _id: update.id, isLocked: false, ...installationFilter },
         update: {
           $set: {
             ...(update.pitName && { pitName: toText(update.pitName) }),
@@ -501,6 +506,7 @@ export const bulkUpdatePits = async (req, res) => {
             ...(update.reportId !== undefined && {
               reportId: toText(update.reportId),
             }),
+            ...installationData,
             updatedAt: Date.now(),
           },
         },

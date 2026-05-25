@@ -1017,6 +1017,9 @@ class AuthRepository {
         'POST',
         Uri.parse(ApiEndpoint.baseUrl + ApiEndpoint.addExcel),
       );
+      request.headers.addAll(
+        ApiEndpoint.withInstallationHeaders({'Accept': 'application/json'}),
+      );
 
       // Add file
       var file = await http.MultipartFile.fromPath(

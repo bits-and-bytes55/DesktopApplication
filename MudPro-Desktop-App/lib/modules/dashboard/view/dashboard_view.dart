@@ -68,9 +68,10 @@ class DashboardView extends StatelessWidget {
             // Main Content Area
             Expanded(
               child: Stack(
+                fit: StackFit.expand,
                 children: [
                   /// MAIN DASHBOARD CONTENT (unchanged)
-                  _buildMainDashboardContent(),
+                  Positioned.fill(child: _buildMainDashboardContent()),
 
                   /// OVERLAY PAGE
                   Obx(() {
@@ -113,7 +114,7 @@ class DashboardView extends StatelessWidget {
                             ),
 
                             /// PAGE CONTENT
-                            Expanded(child: page),
+                            Expanded(child: SizedBox.expand(child: page)),
                           ],
                         ),
                       ),

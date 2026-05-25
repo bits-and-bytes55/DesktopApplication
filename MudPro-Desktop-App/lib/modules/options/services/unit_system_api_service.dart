@@ -10,10 +10,7 @@ class UnitSystemApiService {
   UnitSystemApiService._internal();
 
   final String baseUrl = ApiEndpoint.baseUrl;
-  final Map<String, String> _headers = {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-  };
+  Map<String, String> get _headers => ApiEndpoint.jsonHeaders;
 
   // ── Fetch all unit systems ───────────────────────────────────────────────────
   Future<UnitSystemListResponse> fetchAll() async {

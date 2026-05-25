@@ -154,7 +154,7 @@ class UnitDefinitions {
       '(kg/L)',
       '(bar/10m)',
     ],
-    '24': ['(psi)', '(kPa)', '(kg/cm2)', '(Pa)', '(MPa)'],
+    '24': ['(psi)', '(Msi)', '(kPa)', '(kg/cm2)', '(Pa)', '(MPa)'],
     '25': ['(lbf/100ft2)', '(Pa)', '(dyne/cm2)', '(kPa)', '(MPa)'],
     '26': [
       '(HP)',

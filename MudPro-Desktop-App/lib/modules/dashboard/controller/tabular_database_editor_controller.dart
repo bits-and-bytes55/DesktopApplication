@@ -38,22 +38,59 @@ class TubularDbOption {
         name: (json['name'] ?? '').toString(),
         sortOrder: (json['sortOrder'] as num?)?.toInt() ?? 0,
         material: (json['material'] ?? '').toString(),
-        density: (json['density'] ?? '').toString(),
-        elasticModulus: (json['elasticModulus'] ?? '').toString(),
+        density: TabularDatabaseEditorController.materialDisplayValueFromBase(
+          'density',
+          (json['density'] ?? '').toString(),
+        ),
+        elasticModulus:
+            TabularDatabaseEditorController.materialDisplayValueFromBase(
+              'elasticModulus',
+              (json['elasticModulus'] ?? '').toString(),
+            ),
         poissonRatio: (json['poissonRatio'] ?? '').toString(),
-        compressibility: (json['compressibility'] ?? '').toString(),
-        heatCapacity: (json['heatCapacity'] ?? '').toString(),
-        thermalConductivity: (json['thermalConductivity'] ?? '').toString(),
+        compressibility:
+            TabularDatabaseEditorController.materialDisplayValueFromBase(
+              'compressibility',
+              (json['compressibility'] ?? '').toString(),
+            ),
+        heatCapacity:
+            TabularDatabaseEditorController.materialDisplayValueFromBase(
+              'heatCapacity',
+              (json['heatCapacity'] ?? '').toString(),
+            ),
+        thermalConductivity:
+            TabularDatabaseEditorController.materialDisplayValueFromBase(
+              'thermalConductivity',
+              (json['thermalConductivity'] ?? '').toString(),
+            ),
       );
 
   Map<String, dynamic> toMaterialJson() => {
     'name': name,
-    'density': density,
-    'elasticModulus': elasticModulus,
+    'density': TabularDatabaseEditorController.materialBaseValueFromDisplay(
+      'density',
+      density,
+    ),
+    'elasticModulus':
+        TabularDatabaseEditorController.materialBaseValueFromDisplay(
+          'elasticModulus',
+          elasticModulus,
+        ),
     'poissonRatio': poissonRatio,
-    'compressibility': compressibility,
-    'heatCapacity': heatCapacity,
-    'thermalConductivity': thermalConductivity,
+    'compressibility':
+        TabularDatabaseEditorController.materialBaseValueFromDisplay(
+          'compressibility',
+          compressibility,
+        ),
+    'heatCapacity': TabularDatabaseEditorController.materialBaseValueFromDisplay(
+      'heatCapacity',
+      heatCapacity,
+    ),
+    'thermalConductivity':
+        TabularDatabaseEditorController.materialBaseValueFromDisplay(
+          'thermalConductivity',
+          thermalConductivity,
+        ),
   };
 }
 
@@ -271,6 +308,19 @@ class TabularDatabaseEditorController extends GetxController {
     ),
   ];
 
+  static const String _materialDensityBaseUnit = '(S.G.)';
+  static const String _materialElasticModulusBaseUnit = '(Msi)';
+  static const String _materialConductivityBaseUnit = '(Btu/hr/ft/°F)';
+  static const String _materialHeatCapacityBaseUnit = '(Btu/lbm/°F)';
+
+  static const Map<String, String> _materialBaseUnits = {
+    'density': _materialDensityBaseUnit,
+    'elasticModulus': _materialElasticModulusBaseUnit,
+    'compressibility': _materialConductivityBaseUnit,
+    'heatCapacity': _materialHeatCapacityBaseUnit,
+    'thermalConductivity': _materialConductivityBaseUnit,
+  };
+
   final selectedTypeIndex = 0.obs;
   final selectedCatalogIndex = 0.obs;
   final selectedRowIndex = 0.obs;
@@ -338,7 +388,9 @@ class TabularDatabaseEditorController extends GetxController {
       case 'lb/ft':
         return AppUnits.unitText('lb/ft');
       case 'psi':
-        return AppUnits.unitText('psi');
+        return AppUnits.stress;
+      case 'Msi':
+        return AppUnits.stress;
       case 'lbf':
         return AppUnits.unitText('lbf');
       case 'ft-lb':
@@ -346,6 +398,30 @@ class TabularDatabaseEditorController extends GetxController {
       default:
         return '';
     }
+  }
+
+  static String materialBaseUnitForKey(String key) =>
+      _materialBaseUnits[key] ?? '';
+
+  static String displayUnitForMaterialBase(String baseUnit) {
+    switch (baseUnit) {
+      case _materialDensityBaseUnit:
+        return AppUnits.density;
+      case _materialElasticModulusBaseUnit:
+        return AppUnits.stress;
+      case _materialConductivityBaseUnit:
+        return AppUnits.conductivity;
+      case _materialHeatCapacityBaseUnit:
+        return AppUnits.heatCapacity;
+      default:
+        return '';
+    }
+  }
+
+  static String displayUnitForMaterialKey(String key) {
+    final baseUnit = materialBaseUnitForKey(key);
+    if (baseUnit.isEmpty) return '';
+    return displayUnitForMaterialBase(baseUnit);
   }
 
   static String displayValueFromBase(String key, String rawValue) {
@@ -358,6 +434,18 @@ class TabularDatabaseEditorController extends GetxController {
     final baseUnit = baseUnitForKey(key);
     if (baseUnit.isEmpty) return rawValue;
     return _convertText(rawValue, displayUnitForBase(baseUnit), baseUnit);
+  }
+
+  static String materialDisplayValueFromBase(String key, String rawValue) {
+    final baseUnit = materialBaseUnitForKey(key);
+    if (baseUnit.isEmpty) return rawValue;
+    return _convertText(rawValue, baseUnit, displayUnitForMaterialBase(baseUnit));
+  }
+
+  static String materialBaseValueFromDisplay(String key, String rawValue) {
+    final baseUnit = materialBaseUnitForKey(key);
+    if (baseUnit.isEmpty) return rawValue;
+    return _convertText(rawValue, displayUnitForMaterialBase(baseUnit), baseUnit);
   }
 
   static String _convertText(String rawValue, String fromUnit, String toUnit) {
@@ -378,6 +466,18 @@ class TabularDatabaseEditorController extends GetxController {
     'psi': displayUnitForBase('psi'),
     'lbf': displayUnitForBase('lbf'),
     'ft-lb': displayUnitForBase('ft-lb'),
+    _materialDensityBaseUnit: displayUnitForMaterialBase(
+      _materialDensityBaseUnit,
+    ),
+    _materialElasticModulusBaseUnit: displayUnitForMaterialBase(
+      _materialElasticModulusBaseUnit,
+    ),
+    _materialConductivityBaseUnit: displayUnitForMaterialBase(
+      _materialConductivityBaseUnit,
+    ),
+    _materialHeatCapacityBaseUnit: displayUnitForMaterialBase(
+      _materialHeatCapacityBaseUnit,
+    ),
   };
 
   String get diameterUnitLabel => AppUnits.strip(displayUnitForBase('in'));
@@ -392,6 +492,12 @@ class TabularDatabaseEditorController extends GetxController {
     if (baseUnit.isEmpty) return column.label;
     final label = column.label.split('\n').first;
     return '$label\n(${AppUnits.strip(displayUnitForBase(baseUnit))})';
+  }
+
+  String displayMaterialHeader(String label, String key) {
+    final unit = displayUnitForMaterialKey(key);
+    if (unit.isEmpty) return label;
+    return '$label\n(${AppUnits.strip(unit)})';
   }
 
   String get selectedTypeMaterial {
@@ -843,12 +949,60 @@ class TabularDatabaseEditorController extends GetxController {
           controller.text = _convertText(controller.text, oldUnit, newUnit);
         }
       }
+      for (var i = 0; i < materials.length; i++) {
+        final material = materials[i];
+        materials[i] = TubularDbOption(
+          id: material.id,
+          name: material.name,
+          sortOrder: material.sortOrder,
+          material: material.material,
+          density: _convertMaterialText(
+            'density',
+            material.density,
+            nextUnits,
+          ),
+          elasticModulus: _convertMaterialText(
+            'elasticModulus',
+            material.elasticModulus,
+            nextUnits,
+          ),
+          poissonRatio: material.poissonRatio,
+          compressibility: _convertMaterialText(
+            'compressibility',
+            material.compressibility,
+            nextUnits,
+          ),
+          heatCapacity: _convertMaterialText(
+            'heatCapacity',
+            material.heatCapacity,
+            nextUnits,
+          ),
+          thermalConductivity: _convertMaterialText(
+            'thermalConductivity',
+            material.thermalConductivity,
+            nextUnits,
+          ),
+        );
+      }
       _displayUnitsByBase = nextUnits;
       unitSignature.value = AppUnits.signature;
       rows.refresh();
+      materials.refresh();
     } finally {
       _isApplyingState = false;
     }
+  }
+
+  String _convertMaterialText(
+    String key,
+    String value,
+    Map<String, String> nextUnits,
+  ) {
+    final baseUnit = materialBaseUnitForKey(key);
+    if (baseUnit.isEmpty) return value;
+    final oldUnit = _displayUnitsByBase[baseUnit] ?? baseUnit;
+    final newUnit = nextUnits[baseUnit] ?? baseUnit;
+    return _convertText(value, oldUnit, newUnit);
   }
 
   bool _sameUnits(Map<String, String> oldUnits, Map<String, String> nextUnits) {
