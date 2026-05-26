@@ -276,15 +276,17 @@ class _IntervalTile extends StatefulWidget {
 class _IntervalTileState extends State<_IntervalTile> {
   bool _editing = false;
   late final TextEditingController _nameCtrl;
-  Timer? _renameDebounce;
+  late final FocusNode _renameFocusNode;
   String _lastSavedName = '';
-  String? _pendingRename;
+  bool _renameDirty = false;
   bool _renameSaving = false;
 
   @override
   void initState() {
     super.initState();
     _nameCtrl = TextEditingController(text: widget.iv.name);
+    _renameFocusNode = FocusNode();
+    _renameFocusNode.addListener(_handleRenameFocusChange);
     _lastSavedName = widget.iv.name.trim();
   }
 
@@ -294,45 +296,44 @@ class _IntervalTileState extends State<_IntervalTile> {
     if (oldWidget.iv.id != widget.iv.id || !_editing) {
       _nameCtrl.text = widget.iv.name;
       _lastSavedName = widget.iv.name.trim();
+      _renameDirty = false;
     }
   }
 
   @override
   void dispose() {
-    _renameDebounce?.cancel();
+    _renameFocusNode.removeListener(_handleRenameFocusChange);
+    _renameFocusNode.dispose();
     _nameCtrl.dispose();
     super.dispose();
   }
 
+  void _handleRenameFocusChange() {
+    if (!_renameFocusNode.hasFocus && _editing) {
+      _submitRename();
+    }
+  }
+
   void _submitRename() {
-    _renameDebounce?.cancel();
+    if (!_editing) return;
     final next = _nameCtrl.text.trim();
-    unawaited(_saveRename(next, keepEditing: false));
+    if (_renameDirty) {
+      unawaited(_saveRename(next));
+    }
     if (mounted) {
       setState(() => _editing = false);
     }
   }
 
-  void _scheduleRenameSave(String value) {
-    _renameDebounce?.cancel();
-    final next = value.trim();
-    if (next.isEmpty || next == _lastSavedName) return;
-
-    _renameDebounce = Timer(const Duration(milliseconds: 450), () {
-      if (!mounted) return;
-      unawaited(_saveRename(next, keepEditing: true));
-    });
+  void _markRenameDirty(String value) {
+    _renameDirty = value.trim() != _lastSavedName;
   }
 
-  Future<void> _saveRename(
-    String value, {
-    required bool keepEditing,
-  }) async {
+  Future<void> _saveRename(String value) async {
     final next = value.trim();
     if (next.isEmpty || next == _lastSavedName) return;
 
     if (_renameSaving) {
-      _pendingRename = next;
       return;
     }
 
@@ -341,19 +342,10 @@ class _IntervalTileState extends State<_IntervalTile> {
       final saved = await widget.c.renameInterval(widget.iv, next);
       if (saved) {
         _lastSavedName = next;
+        _renameDirty = false;
       }
     } finally {
       _renameSaving = false;
-    }
-
-    final pending = _pendingRename;
-    _pendingRename = null;
-    if (pending != null && pending != _lastSavedName && mounted) {
-      await _saveRename(pending, keepEditing: true);
-    }
-
-    if (!keepEditing && mounted) {
-      setState(() => _editing = false);
     }
   }
 
@@ -407,7 +399,7 @@ class _IntervalTileState extends State<_IntervalTile> {
         await widget.c.insertAfter();
         break;
       case 'rename':
-        setState(() => _editing = true);
+        _startRename(widget.iv.name);
         break;
       case 'delete':
         await widget.c.removeSelected();
@@ -431,10 +423,7 @@ class _IntervalTileState extends State<_IntervalTile> {
       return GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: () => c.selectInterval(iv),
-        onDoubleTap: () => setState(() {
-          _editing = true;
-          _nameCtrl.text = iv.name;
-        }),
+        onDoubleTap: () => _startRename(iv.name),
         onSecondaryTapDown: _showMenu,
         child: Container(
           height: 24,
@@ -456,6 +445,7 @@ class _IntervalTileState extends State<_IntervalTile> {
                 child: _editing
                     ? TextField(
                         controller: _nameCtrl,
+                        focusNode: _renameFocusNode,
                         autofocus: true,
                         style: const TextStyle(fontSize: 10),
                         decoration: const InputDecoration(
@@ -463,7 +453,7 @@ class _IntervalTileState extends State<_IntervalTile> {
                           border: InputBorder.none,
                           contentPadding: EdgeInsets.zero,
                         ),
-                        onChanged: _scheduleRenameSave,
+                        onChanged: _markRenameDirty,
                         onSubmitted: (_) => _submitRename(),
                         onEditingComplete: _submitRename,
                       )
@@ -485,6 +475,20 @@ class _IntervalTileState extends State<_IntervalTile> {
           ),
         ),
       );
+    });
+  }
+
+  void _startRename(String value) {
+    setState(() {
+      _editing = true;
+      _nameCtrl.text = value;
+      _lastSavedName = value.trim();
+      _renameDirty = false;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _renameFocusNode.requestFocus();
+      }
     });
   }
 }

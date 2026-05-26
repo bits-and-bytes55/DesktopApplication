@@ -91,11 +91,11 @@ const productSchema = new mongoose.Schema(
 );
 
 /* =====================================
-   DUPLICATE PREVENTION (KEEPED AS ASKED)
-   - Code must be unique (active records)
+   DUPLICATE PREVENTION
+   - Code must be unique per installation (active records)
 ===================================== */
 productSchema.index(
-  { Code: 1, isDeleted: 1 },
+  { installationId: 1, Code: 1, isDeleted: 1 },
   {
     unique: true,
     partialFilterExpression: {

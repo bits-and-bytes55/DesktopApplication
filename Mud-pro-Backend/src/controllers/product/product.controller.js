@@ -16,7 +16,7 @@ const ensureProductCodeIndex = async () => {
       }
 
       await Product.collection.createIndex(
-        { Code: 1, isDeleted: 1 },
+        { installationId: 1, Code: 1, isDeleted: 1 },
         {
           unique: true,
           partialFilterExpression: {
