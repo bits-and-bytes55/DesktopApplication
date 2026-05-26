@@ -408,10 +408,22 @@ class _LegacyMudPropTableState extends State<_LegacyMudPropTable> {
 
   @override
   Widget build(BuildContext context) {
-    final dynamicWidth = widget.columns.length * _columnWidth;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const fixedWidth =
+            _indexWidth + _dateWidth + _mdWidth + _reportWidth;
+        final baseDynamicWidth = widget.columns.length * _columnWidth;
+        final availableDynamicWidth =
+            (constraints.maxWidth - 16 - fixedWidth)
+                .clamp(0, double.infinity)
+                .toDouble();
+        final dynamicWidth = math.max(baseDynamicWidth, availableDynamicWidth);
+        final columnWidth = widget.columns.isEmpty
+            ? _columnWidth
+            : dynamicWidth / widget.columns.length;
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
       child: Column(
         children: [
           Container(
@@ -431,7 +443,10 @@ class _LegacyMudPropTableState extends State<_LegacyMudPropTable> {
                       width: dynamicWidth,
                       child: Row(
                         children: widget.columns
-                            .map((column) => _headerCell(_columnTitle(column), _columnWidth))
+                            .map(
+                              (column) =>
+                                  _headerCell(_columnTitle(column), columnWidth),
+                            )
                             .toList(growable: false),
                       ),
                     ),
@@ -444,7 +459,7 @@ class _LegacyMudPropTableState extends State<_LegacyMudPropTable> {
             child: Row(
               children: [
                 SizedBox(
-                  width: _indexWidth + _dateWidth + _mdWidth + _reportWidth,
+                  width: fixedWidth,
                   child: ListView.builder(
                     itemCount: widget.rows.length,
                     itemBuilder: (context, index) {
@@ -485,7 +500,7 @@ class _LegacyMudPropTableState extends State<_LegacyMudPropTable> {
                                   row.metric(column.id)?.actualText.isNotEmpty == true
                                       ? row.metric(column.id)!.actualText
                                       : '-',
-                                  _columnWidth,
+                                  columnWidth,
                                   index,
                                 );
                               }).toList(growable: false),
@@ -501,6 +516,8 @@ class _LegacyMudPropTableState extends State<_LegacyMudPropTable> {
           ),
         ],
       ),
+        );
+      },
     );
   }
 

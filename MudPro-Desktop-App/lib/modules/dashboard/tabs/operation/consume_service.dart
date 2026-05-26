@@ -1459,6 +1459,7 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
       Function(int),
       bool,
       bool,
+      double,
     )
     cellBuilder,
   }) {
@@ -1486,92 +1487,124 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
             ),
           ),
           Expanded(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: SingleChildScrollView(
-                scrollDirection: Axis.vertical,
-                child: Obx(
-                  () => DataTable(
-                    headingRowHeight: 26,
-                    dataRowHeight: 26,
-                    columnSpacing: 0,
-                    horizontalMargin: 0,
-                    dividerThickness: 0,
-                    headingRowColor: MaterialStateProperty.all(
-                      Colors.grey.shade50,
-                    ),
-                    border: TableBorder(
-                      verticalInside: BorderSide(color: Colors.grey.shade300),
-                      horizontalInside: BorderSide(color: Colors.grey.shade200),
-                    ),
-                    headingTextStyle: AppTheme.bodySmall.copyWith(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: color,
-                    ),
-                    dataTextStyle: AppTheme.bodySmall.copyWith(fontSize: 9),
-                    columns: headers
-                        .map(
-                          (h) => DataColumn(
-                            label: Container(
-                              width: _colWidth(h),
-                              alignment: _isNumericHeader(h)
-                                  ? Alignment.centerRight
-                                  : Alignment.centerLeft,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                              ),
-                              child: Text(h),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final baseWidth = headers.fold<double>(
+                  0,
+                  (total, header) => total + _colWidth(header),
+                );
+                final availableWidth = constraints.hasBoundedWidth
+                    ? constraints.maxWidth
+                    : baseWidth;
+                final widthScale = baseWidth <= 0
+                    ? 1.0
+                    : (availableWidth / baseWidth)
+                          .clamp(1.0, double.infinity)
+                          .toDouble();
+                final tableWidth = baseWidth * widthScale;
+
+                return SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: SizedBox(
+                    width: tableWidth,
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.vertical,
+                      child: Obx(
+                        () => DataTable(
+                          headingRowHeight: 26,
+                          dataRowHeight: 26,
+                          columnSpacing: 0,
+                          horizontalMargin: 0,
+                          dividerThickness: 0,
+                          headingRowColor: MaterialStateProperty.all(
+                            Colors.grey.shade50,
+                          ),
+                          border: TableBorder(
+                            verticalInside: BorderSide(
+                              color: Colors.grey.shade300,
+                            ),
+                            horizontalInside: BorderSide(
+                              color: Colors.grey.shade200,
                             ),
                           ),
-                        )
-                        .toList(),
-                    rows: List.generate(rows.length, (i) {
-                      final row = rows[i];
-                      final selected = selectedRowIndex.value == i;
-                      final saving = i < rowSaving.length
-                          ? rowSaving[i]
-                          : false;
-                      final deleting = i < rowDeleting.length
-                          ? rowDeleting[i]
-                          : false;
-                      final cells = cellBuilder(
-                        row,
-                        i,
-                        selected,
-                        dropdownItems,
-                        onDropdownChanged,
-                        () => selectedRowIndex.value = i,
-                        onCalculate,
-                        onSave,
-                        onDelete,
-                        saving,
-                        deleting,
-                      );
-                      return DataRow(
-                        color: MaterialStateProperty.all(
-                          i % 2 == 0 ? Colors.white : Colors.grey.shade50,
-                        ),
-                        cells: title == 'Package'
-                            ? _withRowMenu(
-                                cells,
-                                (details) => _showPackageRowMenu(details, i),
+                          headingTextStyle: AppTheme.bodySmall.copyWith(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: color,
+                          ),
+                          dataTextStyle: AppTheme.bodySmall.copyWith(
+                            fontSize: 9,
+                          ),
+                          columns: headers
+                              .map(
+                                (h) => DataColumn(
+                                  label: Container(
+                                    width: _colWidth(h) * widthScale,
+                                    alignment: _isNumericHeader(h)
+                                        ? Alignment.centerRight
+                                        : Alignment.centerLeft,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                    ),
+                                    child: Text(h),
+                                  ),
+                                ),
                               )
-                            : title == 'Services'
-                            ? _withRowMenu(
-                                cells,
-                                (details) => _showServiceRowMenu(details, i),
-                              )
-                            : _withRowMenu(
-                                cells,
-                                (details) =>
-                                    _showEngineeringRowMenu(details, i),
+                              .toList(),
+                          rows: List.generate(rows.length, (i) {
+                            final row = rows[i];
+                            final selected = selectedRowIndex.value == i;
+                            final saving = i < rowSaving.length
+                                ? rowSaving[i]
+                                : false;
+                            final deleting = i < rowDeleting.length
+                                ? rowDeleting[i]
+                                : false;
+                            final cells = cellBuilder(
+                              row,
+                              i,
+                              selected,
+                              dropdownItems,
+                              onDropdownChanged,
+                              () => selectedRowIndex.value = i,
+                              onCalculate,
+                              onSave,
+                              onDelete,
+                              saving,
+                              deleting,
+                              widthScale,
+                            );
+                            return DataRow(
+                              color: MaterialStateProperty.all(
+                                i % 2 == 0
+                                    ? Colors.white
+                                    : Colors.grey.shade50,
                               ),
-                      );
-                    }),
+                              cells: title == 'Package'
+                                  ? _withRowMenu(
+                                      cells,
+                                      (details) =>
+                                          _showPackageRowMenu(details, i),
+                                    )
+                                  : title == 'Services'
+                                  ? _withRowMenu(
+                                      cells,
+                                      (details) =>
+                                          _showServiceRowMenu(details, i),
+                                    )
+                                  : _withRowMenu(
+                                      cells,
+                                      (details) =>
+                                          _showEngineeringRowMenu(details, i),
+                                    ),
+                            );
+                          }),
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-              ),
+                );
+              },
             ),
           ),
         ],
@@ -1594,7 +1627,9 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
     Function(int) onDelete,
     bool isSaving,
     bool isDeleting,
+    double widthScale,
   ) {
+    double w(double width) => width * widthScale;
     return [
       _dropdownCell<PackageItem>(
         row: row,
@@ -1603,18 +1638,18 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
         dropdownItems: dropdownItems,
         onDropdownChanged: onDropdownChanged,
         onRowSelected: onRowSelected,
-        width: 160,
+        width: w(160),
         getName: (i) => i.name,
       ),
-      _editCell(row.codeCtrl, 90, (v) => {}),
-      _editCell(row.unitCtrl, 70, (v) => {}),
-      _editCell(row.priceCtrl, 90, (v) => _autoSavePackage(index)),
-      _editCell(row.initialCtrl, 80, (v) => _autoSavePackage(index)),
-      _editCell(row.usedCtrl, 80, (v) => _autoSavePackage(index)),
+      _editCell(row.codeCtrl, w(90), (v) => {}),
+      _editCell(row.unitCtrl, w(70), (v) => {}),
+      _editCell(row.priceCtrl, w(90), (v) => _autoSavePackage(index)),
+      _editCell(row.initialCtrl, w(80), (v) => _autoSavePackage(index)),
+      _editCell(row.usedCtrl, w(80), (v) => _autoSavePackage(index)),
       // Final — read-only, negative = red
       _reactiveReadCell(
         text: () => row.finalValue,
-        width: 80,
+        width: w(80),
         rightAlign: true,
         bold: true,
         colorForValue: (value) =>
@@ -1622,7 +1657,7 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
       ),
       _reactiveReadCell(
         text: () => row.cost > 0 ? row.cost.toStringAsFixed(2) : '',
-        width: 90,
+        width: w(90),
         rightAlign: true,
         bold: true,
         color: AppTheme.primaryColor,
@@ -1645,7 +1680,9 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
     Function(int) onDelete,
     bool isSaving,
     bool isDeleting,
+    double widthScale,
   ) {
+    double w(double width) => width * widthScale;
     return [
       _dropdownCell<ServiceItem>(
         row: row,
@@ -1654,16 +1691,16 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
         dropdownItems: dropdownItems,
         onDropdownChanged: onDropdownChanged,
         onRowSelected: onRowSelected,
-        width: 160,
+        width: w(160),
         getName: (i) => i.name,
       ),
-      _editCell(row.codeCtrl, 90, (v) => {}),
-      _editCell(row.unitCtrl, 70, (v) => {}),
-      _editCell(row.priceCtrl, 90, (v) => _autoSaveService(index)),
-      _editCell(row.usedCtrl, 80, (v) => _autoSaveService(index)),
+      _editCell(row.codeCtrl, w(90), (v) => {}),
+      _editCell(row.unitCtrl, w(70), (v) => {}),
+      _editCell(row.priceCtrl, w(90), (v) => _autoSaveService(index)),
+      _editCell(row.usedCtrl, w(80), (v) => _autoSaveService(index)),
       _reactiveReadCell(
         text: () => row.cost > 0 ? row.cost.toStringAsFixed(2) : '',
-        width: 90,
+        width: w(90),
         rightAlign: true,
         bold: true,
         color: AppTheme.successColor,
@@ -1686,7 +1723,9 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
     Function(int) onDelete,
     bool isSaving,
     bool isDeleting,
+    double widthScale,
   ) {
+    double w(double width) => width * widthScale;
     return [
       _dropdownCell<EngineeringItem>(
         row: row,
@@ -1695,16 +1734,16 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
         dropdownItems: dropdownItems,
         onDropdownChanged: onDropdownChanged,
         onRowSelected: onRowSelected,
-        width: 160,
+        width: w(160),
         getName: (i) => i.name,
       ),
-      _editCell(row.codeCtrl, 90, (v) => {}),
-      _editCell(row.unitCtrl, 70, (v) => {}),
-      _editCell(row.priceCtrl, 90, (v) => _autoSaveEngineering(index)),
-      _editCell(row.usageCtrl, 80, (v) => _autoSaveEngineering(index)),
+      _editCell(row.codeCtrl, w(90), (v) => {}),
+      _editCell(row.unitCtrl, w(70), (v) => {}),
+      _editCell(row.priceCtrl, w(90), (v) => _autoSaveEngineering(index)),
+      _editCell(row.usageCtrl, w(80), (v) => _autoSaveEngineering(index)),
       _reactiveReadCell(
         text: () => row.cost > 0 ? row.cost.toStringAsFixed(2) : '',
-        width: 90,
+        width: w(90),
         rightAlign: true,
         bold: true,
         color: AppTheme.infoColor,

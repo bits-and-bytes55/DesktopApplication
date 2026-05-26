@@ -584,10 +584,22 @@ class _LegacyVolumeTableState extends State<_LegacyVolumeTable> {
 
   @override
   Widget build(BuildContext context) {
-    final dynamicWidth = widget.columns.length * _columnWidth;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const fixedWidth =
+            _indexWidth + _dateWidth + _reportWidth + _mdWidth;
+        final baseDynamicWidth = widget.columns.length * _columnWidth;
+        final availableDynamicWidth =
+            (constraints.maxWidth - 16 - fixedWidth)
+                .clamp(0, double.infinity)
+                .toDouble();
+        final dynamicWidth = math.max(baseDynamicWidth, availableDynamicWidth);
+        final columnWidth = widget.columns.isEmpty
+            ? _columnWidth
+            : dynamicWidth / widget.columns.length;
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
       child: Column(
         children: [
           Container(
@@ -607,7 +619,7 @@ class _LegacyVolumeTableState extends State<_LegacyVolumeTable> {
                       width: dynamicWidth,
                       child: Row(
                         children: widget.columns
-                            .map((column) => _headerCell(column.title, _columnWidth))
+                            .map((column) => _headerCell(column.title, columnWidth))
                             .toList(),
                       ),
                     ),
@@ -620,7 +632,7 @@ class _LegacyVolumeTableState extends State<_LegacyVolumeTable> {
             child: Row(
               children: [
                 SizedBox(
-                  width: _indexWidth + _dateWidth + _reportWidth + _mdWidth,
+                  width: fixedWidth,
                   child: ListView.builder(
                     itemCount: widget.rows.length,
                     itemBuilder: (context, index) {
@@ -659,7 +671,7 @@ class _LegacyVolumeTableState extends State<_LegacyVolumeTable> {
                               children: widget.columns.map((column) {
                                 return _dataCell(
                                   column.valueFor(row),
-                                  _columnWidth,
+                                  columnWidth,
                                   index,
                                   alignRight: column.alignRight,
                                 );
@@ -676,6 +688,8 @@ class _LegacyVolumeTableState extends State<_LegacyVolumeTable> {
           ),
         ],
       ),
+        );
+      },
     );
   }
 

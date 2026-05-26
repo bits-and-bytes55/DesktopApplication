@@ -466,94 +466,109 @@ class _LegacyUsageTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final totalWidth = columns.fold<double>(
+    final baseTotalWidth = columns.fold<double>(
       44,
       (sum, column) => sum + column.width,
     );
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-      child: Scrollbar(
-        thumbVisibility: true,
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: SizedBox(
-            width: totalWidth,
-            child: Column(
-              children: [
-                _buildHeader(),
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: rows.length,
-                    itemBuilder: (context, index) {
-                      final row = rows[index];
-                      final selected = selectedKey.isNotEmpty &&
-                          row.key == selectedKey &&
-                          onRowTap != null;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final totalWidth = math.max(
+          baseTotalWidth,
+          (constraints.maxWidth - 16).clamp(0, double.infinity).toDouble(),
+        );
+        final scale =
+            baseTotalWidth <= 0 ? 1.0 : totalWidth / baseTotalWidth;
+        final noWidth = 44 * scale;
 
-                      final rowWidget = Container(
-                        color: selected
-                            ? _usageSelectedRow
-                            : (index.isOdd
-                                  ? const Color(0xFFF8F8F8)
-                                  : Colors.white),
-                        child: Row(
-                          children: [
-                            _dataCell(
-                              '${index + 1}',
-                              44,
-                              alignRight: true,
-                              selected: selected,
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+          child: Scrollbar(
+            thumbVisibility: true,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: SizedBox(
+                width: totalWidth,
+                child: Column(
+                  children: [
+                    _buildHeader(scale),
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: rows.length,
+                        itemBuilder: (context, index) {
+                          final row = rows[index];
+                          final selected =
+                              selectedKey.isNotEmpty &&
+                              row.key == selectedKey &&
+                              onRowTap != null;
+
+                          final rowWidget = Container(
+                            color: selected
+                                ? _usageSelectedRow
+                                : (index.isOdd
+                                      ? const Color(0xFFF8F8F8)
+                                      : Colors.white),
+                            child: Row(
+                              children: [
+                                _dataCell(
+                                  '${index + 1}',
+                                  noWidth,
+                                  alignRight: true,
+                                  selected: selected,
+                                ),
+                                ...List.generate(columns.length, (cellIndex) {
+                                  final column = columns[cellIndex];
+                                  final text = cellIndex < row.cells.length
+                                      ? row.cells[cellIndex]
+                                      : '';
+                                  return _dataCell(
+                                    text,
+                                    column.width * scale,
+                                    alignRight: column.alignRight,
+                                    selected: selected,
+                                  );
+                                }),
+                              ],
                             ),
-                            ...List.generate(columns.length, (cellIndex) {
-                              final column = columns[cellIndex];
-                              final text = cellIndex < row.cells.length
-                                  ? row.cells[cellIndex]
-                                  : '';
-                              return _dataCell(
-                                text,
-                                column.width,
-                                alignRight: column.alignRight,
-                                selected: selected,
-                              );
-                            }),
-                          ],
-                        ),
-                      );
+                          );
 
-                      if (onRowTap == null) {
-                        return SizedBox(height: 31, child: rowWidget);
-                      }
+                          if (onRowTap == null) {
+                            return SizedBox(height: 31, child: rowWidget);
+                          }
 
-                      return SizedBox(
-                        height: 31,
-                        child: Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            onTap: () => onRowTap!(row.key),
-                            child: rowWidget,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
+                          return SizedBox(
+                            height: 31,
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: () => onRowTap!(row.key),
+                                child: rowWidget,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(double scale) {
     return Container(
       height: 31,
       color: _usageHeaderFill,
       child: Row(
         children: [
-          _headerCell('No', 44),
-          ...columns.map((column) => _headerCell(column.label, column.width)),
+          _headerCell('No', 44 * scale),
+          ...columns.map(
+            (column) => _headerCell(column.label, column.width * scale),
+          ),
         ],
       ),
     );

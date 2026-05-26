@@ -464,10 +464,22 @@ class _LegacyHydraulicsTableState extends State<_LegacyHydraulicsTable> {
 
   @override
   Widget build(BuildContext context) {
-    final dynamicWidth = widget.columns.length * _columnWidth;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const fixedWidth =
+            _indexWidth + _dateWidth + _mdWidth + _reportWidth;
+        final baseDynamicWidth = widget.columns.length * _columnWidth;
+        final availableDynamicWidth =
+            (constraints.maxWidth - 16 - fixedWidth)
+                .clamp(0, double.infinity)
+                .toDouble();
+        final dynamicWidth = math.max(baseDynamicWidth, availableDynamicWidth);
+        final columnWidth = widget.columns.isEmpty
+            ? _columnWidth
+            : dynamicWidth / widget.columns.length;
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
       child: Column(
         children: [
           Container(
@@ -487,7 +499,7 @@ class _LegacyHydraulicsTableState extends State<_LegacyHydraulicsTable> {
                       width: dynamicWidth,
                       child: Row(
                         children: widget.columns
-                            .map((column) => _headerCell(column.title, _columnWidth))
+                            .map((column) => _headerCell(column.title, columnWidth))
                             .toList(),
                       ),
                     ),
@@ -500,7 +512,7 @@ class _LegacyHydraulicsTableState extends State<_LegacyHydraulicsTable> {
             child: Row(
               children: [
                 SizedBox(
-                  width: _indexWidth + _dateWidth + _mdWidth + _reportWidth,
+                  width: fixedWidth,
                   child: ListView.builder(
                     itemCount: widget.rows.length,
                     itemBuilder: (context, index) {
@@ -539,7 +551,7 @@ class _LegacyHydraulicsTableState extends State<_LegacyHydraulicsTable> {
                               children: widget.columns.map((column) {
                                 return _dataCell(
                                   column.valueFor(row),
-                                  _columnWidth,
+                                  columnWidth,
                                   index,
                                   alignRight: column.alignRight,
                                 );
@@ -556,6 +568,8 @@ class _LegacyHydraulicsTableState extends State<_LegacyHydraulicsTable> {
           ),
         ],
       ),
+        );
+      },
     );
   }
 

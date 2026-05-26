@@ -500,13 +500,21 @@ class _IntervalGridTableState extends State<_IntervalGridTable> {
 
   @override
   Widget build(BuildContext context) {
-    final totalWidth = widget.columns.fold<double>(
-      0,
-      (sum, column) => sum + column.width,
-    );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final baseTotalWidth = widget.columns.fold<double>(
+          0,
+          (sum, column) => sum + column.width,
+        );
+        final totalWidth = math.max(
+          baseTotalWidth,
+          (constraints.maxWidth - 16).clamp(0, double.infinity).toDouble(),
+        );
+        final scale =
+            baseTotalWidth <= 0 ? 1.0 : totalWidth / baseTotalWidth;
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
       child: Column(
         children: [
           SizedBox(
@@ -521,7 +529,7 @@ class _IntervalGridTableState extends State<_IntervalGridTable> {
                       .map(
                         (column) => _IntervalHeaderCell(
                           column.label,
-                          column.width,
+                          column.width * scale,
                           alignRight: column.alignRight,
                         ),
                       )
@@ -548,7 +556,7 @@ class _IntervalGridTableState extends State<_IntervalGridTable> {
                           final text = cellIndex < row.length ? row[cellIndex] : '';
                           return _IntervalDataCell(
                             text,
-                            column.width,
+                            column.width * scale,
                             index,
                             alignRight: column.alignRight,
                           );
@@ -562,6 +570,8 @@ class _IntervalGridTableState extends State<_IntervalGridTable> {
           ),
         ],
       ),
+        );
+      },
     );
   }
 }

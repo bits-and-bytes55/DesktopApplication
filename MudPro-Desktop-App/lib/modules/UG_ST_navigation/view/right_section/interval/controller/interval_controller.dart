@@ -495,9 +495,9 @@ class IntervalController extends GetxController {
   // ════════════════════════════════════════════════════════════════
   //  RENAME
   // ════════════════════════════════════════════════════════════════
-  Future<void> renameInterval(IntervalItem iv, String newName) async {
+  Future<bool> renameInterval(IntervalItem iv, String newName) async {
     final trimmedName = newName.trim();
-    if (trimmedName.isEmpty) return;
+    if (trimmedName.isEmpty) return false;
     isSaving.value = true;
     try {
       final res = await http.put(
@@ -507,6 +507,7 @@ class IntervalController extends GetxController {
       );
       if (res.statusCode == 200) {
         await fetchAll();
+        return true;
       } else {
         Get.snackbar(
           'Rename Failed',
@@ -520,6 +521,7 @@ class IntervalController extends GetxController {
     } finally {
       isSaving.value = false;
     }
+    return false;
   }
 
   // ════════════════════════════════════════════════════════════════

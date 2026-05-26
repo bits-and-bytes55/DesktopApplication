@@ -404,11 +404,24 @@ class _LegacyCumCostTableState extends State<_LegacyCumCostTable> {
 
   @override
   Widget build(BuildContext context) {
-    final dynamicWidth = widget.columns.length * _columnWidth;
     final latestRow = widget.rows.isEmpty ? null : widget.rows.last;
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const fixedWidth =
+            _indexWidth + _dateWidth + _mdWidth + _reportWidth;
+        final baseDynamicWidth = widget.columns.length * _columnWidth;
+        final availableDynamicWidth =
+            (constraints.maxWidth - 16 - fixedWidth)
+                .clamp(0, double.infinity)
+                .toDouble();
+        final dynamicWidth = math.max(baseDynamicWidth, availableDynamicWidth);
+        final columnWidth = widget.columns.isEmpty
+            ? _columnWidth
+            : dynamicWidth / widget.columns.length;
+
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
       child: Column(
         children: [
           Container(
@@ -428,7 +441,7 @@ class _LegacyCumCostTableState extends State<_LegacyCumCostTable> {
                       width: dynamicWidth,
                       child: Row(
                         children: widget.columns
-                            .map((column) => _headerCell(column, _columnWidth))
+                            .map((column) => _headerCell(column, columnWidth))
                             .toList(),
                       ),
                     ),
@@ -441,7 +454,7 @@ class _LegacyCumCostTableState extends State<_LegacyCumCostTable> {
             child: Row(
               children: [
                 SizedBox(
-                  width: _indexWidth + _dateWidth + _mdWidth + _reportWidth,
+                  width: fixedWidth,
                   child: ListView.builder(
                     itemCount: widget.rows.length,
                     itemBuilder: (context, index) {
@@ -486,7 +499,7 @@ class _LegacyCumCostTableState extends State<_LegacyCumCostTable> {
                                   _formatAmount(
                                     widget.valueForColumn(row, column),
                                   ),
-                                  _columnWidth,
+                                  columnWidth,
                                   index,
                                   alignRight: true,
                                 );
@@ -525,7 +538,7 @@ class _LegacyCumCostTableState extends State<_LegacyCumCostTable> {
                               : widget.valueForColumn(latestRow, column);
                           return _totalValueCell(
                             _formatAmount(value),
-                            _columnWidth,
+                            columnWidth,
                           );
                         }).toList(),
                       ),
@@ -537,6 +550,8 @@ class _LegacyCumCostTableState extends State<_LegacyCumCostTable> {
           ),
         ],
       ),
+        );
+      },
     );
   }
 

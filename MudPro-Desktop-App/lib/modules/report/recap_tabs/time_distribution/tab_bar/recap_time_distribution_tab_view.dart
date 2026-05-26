@@ -405,10 +405,27 @@ class _LegacyTimeDistributionTableState
 
   @override
   Widget build(BuildContext context) {
-    final dynamicWidth = widget.activities.length * _columnWidth;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const fixedWidth =
+            _indexWidth +
+            _dateWidth +
+            _reportWidth +
+            _mdWidth +
+            _totalHoursWidth +
+            _totalPercentWidth;
+        final baseDynamicWidth = widget.activities.length * _columnWidth;
+        final availableDynamicWidth =
+            (constraints.maxWidth - 16 - fixedWidth)
+                .clamp(0, double.infinity)
+                .toDouble();
+        final dynamicWidth = math.max(baseDynamicWidth, availableDynamicWidth);
+        final columnWidth = widget.activities.isEmpty
+            ? _columnWidth
+            : dynamicWidth / widget.activities.length;
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
       child: Column(
         children: [
           Container(
@@ -430,7 +447,10 @@ class _LegacyTimeDistributionTableState
                       width: dynamicWidth,
                       child: Row(
                         children: widget.activities
-                            .map((activity) => _activityHeaderCell(activity))
+                            .map(
+                              (activity) =>
+                                  _activityHeaderCell(activity, columnWidth),
+                            )
                             .toList(growable: false),
                       ),
                     ),
@@ -443,12 +463,7 @@ class _LegacyTimeDistributionTableState
             child: Row(
               children: [
                 SizedBox(
-                  width: _indexWidth +
-                      _dateWidth +
-                      _reportWidth +
-                      _mdWidth +
-                      _totalHoursWidth +
-                      _totalPercentWidth,
+                  width: fixedWidth,
                   child: ListView.builder(
                     itemCount: widget.rows.length,
                     itemBuilder: (context, index) {
@@ -500,7 +515,7 @@ class _LegacyTimeDistributionTableState
                                 final hours = row.entryFor(activity.key)?.hours;
                                 return _dataCell(
                                   _formatNumber(hours, zeroAsDash: true),
-                                  _columnWidth,
+                                  columnWidth,
                                   index,
                                   alignRight: true,
                                 );
@@ -517,6 +532,8 @@ class _LegacyTimeDistributionTableState
           ),
         ],
       ),
+        );
+      },
     );
   }
 
@@ -542,9 +559,12 @@ class _LegacyTimeDistributionTableState
     );
   }
 
-  Widget _activityHeaderCell(TimeDistributionActivityMeta activity) {
+  Widget _activityHeaderCell(
+    TimeDistributionActivityMeta activity,
+    double width,
+  ) {
     return Container(
-      width: _columnWidth,
+      width: width,
       padding: const EdgeInsets.symmetric(horizontal: 6),
       decoration: BoxDecoration(
         color: _timeHeaderFill,

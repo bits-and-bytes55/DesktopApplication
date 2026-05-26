@@ -380,10 +380,22 @@ class _LegacyConcentrationTableState extends State<_LegacyConcentrationTable> {
 
   @override
   Widget build(BuildContext context) {
-    final dynamicWidth = widget.products.length * _columnWidth;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const fixedWidth =
+            _indexWidth + _dateWidth + _mdWidth + _reportWidth;
+        final baseDynamicWidth = widget.products.length * _columnWidth;
+        final availableDynamicWidth =
+            (constraints.maxWidth - 16 - fixedWidth)
+                .clamp(0, double.infinity)
+                .toDouble();
+        final dynamicWidth = math.max(baseDynamicWidth, availableDynamicWidth);
+        final columnWidth = widget.products.isEmpty
+            ? _columnWidth
+            : dynamicWidth / widget.products.length;
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
       child: Column(
         children: [
           Container(
@@ -408,6 +420,7 @@ class _LegacyConcentrationTableState extends State<_LegacyConcentrationTable> {
                           return _productHeaderCell(
                             product: product,
                             selected: selected,
+                            width: columnWidth,
                           );
                         }).toList(growable: false),
                       ),
@@ -421,7 +434,7 @@ class _LegacyConcentrationTableState extends State<_LegacyConcentrationTable> {
             child: Row(
               children: [
                 SizedBox(
-                  width: _indexWidth + _dateWidth + _mdWidth + _reportWidth,
+                  width: fixedWidth,
                   child: ListView.builder(
                     itemCount: widget.rows.length,
                     itemBuilder: (context, index) {
@@ -466,7 +479,7 @@ class _LegacyConcentrationTableState extends State<_LegacyConcentrationTable> {
                                 final value =
                                     row.valuesByProductKey[product.key] ?? 0;
                                 return Container(
-                                  width: _columnWidth,
+                                  width: columnWidth,
                                   alignment: Alignment.centerRight,
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 6,
@@ -503,6 +516,8 @@ class _LegacyConcentrationTableState extends State<_LegacyConcentrationTable> {
           ),
         ],
       ),
+        );
+      },
     );
   }
 
@@ -531,13 +546,14 @@ class _LegacyConcentrationTableState extends State<_LegacyConcentrationTable> {
   Widget _productHeaderCell({
     required ConcentrationProductMeta product,
     required bool selected,
+    required double width,
   }) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: () => widget.onProductTap(product.key),
         child: Container(
-          width: _columnWidth,
+          width: width,
           alignment: Alignment.centerLeft,
           padding: const EdgeInsets.symmetric(horizontal: 6),
           decoration: BoxDecoration(

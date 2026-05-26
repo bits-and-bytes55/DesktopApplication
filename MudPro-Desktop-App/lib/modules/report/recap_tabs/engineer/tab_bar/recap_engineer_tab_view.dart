@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -57,7 +58,7 @@ class _EngineerContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final rows = controller.rows.toList(growable: false);
-    final tableWidth = _columns.fold<double>(
+    final baseTableWidth = _columns.fold<double>(
       0,
       (sum, column) => sum + column.width,
     );
@@ -97,45 +98,65 @@ class _EngineerContent extends StatelessWidget {
                 color: Colors.white,
                 border: Border.all(color: _engineerPanelBorder),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: SizedBox(
-                      width: tableWidth,
-                      child: _EngineerHeader(columns: _columns),
-                    ),
-                  ),
-                  Expanded(
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        return Scrollbar(
-                          thumbVisibility: true,
-                          child: SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: SizedBox(
-                              width: tableWidth,
-                              height: constraints.maxHeight,
-                              child: rows.isEmpty
-                                  ? const SizedBox()
-                                  : ListView.builder(
-                                      itemCount: rows.length,
-                                      itemBuilder: (context, index) {
-                                        return _EngineerDataRow(
-                                          index: index,
-                                          row: rows[index],
-                                          columns: _columns,
-                                        );
-                                      },
-                                    ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final tableWidth = math.max(
+                    baseTableWidth,
+                    constraints.maxWidth,
+                  );
+                  final scale = baseTableWidth <= 0
+                      ? 1.0
+                      : tableWidth / baseTableWidth;
+                  final columns = _columns
+                      .map(
+                        (column) => _EngineerColumn(
+                          title: column.title,
+                          width: column.width * scale,
+                        ),
+                      )
+                      .toList(growable: false);
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: SizedBox(
+                          width: tableWidth,
+                          child: _EngineerHeader(columns: columns),
+                        ),
+                      ),
+                      Expanded(
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            return Scrollbar(
+                              thumbVisibility: true,
+                              child: SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: SizedBox(
+                                  width: tableWidth,
+                                  height: constraints.maxHeight,
+                                  child: rows.isEmpty
+                                      ? const SizedBox()
+                                      : ListView.builder(
+                                          itemCount: rows.length,
+                                          itemBuilder: (context, index) {
+                                            return _EngineerDataRow(
+                                              index: index,
+                                              row: rows[index],
+                                              columns: columns,
+                                            );
+                                          },
+                                        ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
             ),
           ),

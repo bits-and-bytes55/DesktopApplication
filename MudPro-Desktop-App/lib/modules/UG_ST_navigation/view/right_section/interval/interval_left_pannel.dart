@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/interval/controller/interval_controller.dart';
@@ -274,11 +276,16 @@ class _IntervalTile extends StatefulWidget {
 class _IntervalTileState extends State<_IntervalTile> {
   bool _editing = false;
   late final TextEditingController _nameCtrl;
+  Timer? _renameDebounce;
+  String _lastSavedName = '';
+  String? _pendingRename;
+  bool _renameSaving = false;
 
   @override
   void initState() {
     super.initState();
     _nameCtrl = TextEditingController(text: widget.iv.name);
+    _lastSavedName = widget.iv.name.trim();
   }
 
   @override
@@ -286,21 +293,68 @@ class _IntervalTileState extends State<_IntervalTile> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.iv.id != widget.iv.id || !_editing) {
       _nameCtrl.text = widget.iv.name;
+      _lastSavedName = widget.iv.name.trim();
     }
   }
 
   @override
   void dispose() {
+    _renameDebounce?.cancel();
     _nameCtrl.dispose();
     super.dispose();
   }
 
   void _submitRename() {
+    _renameDebounce?.cancel();
     final next = _nameCtrl.text.trim();
-    if (next.isNotEmpty && next != widget.iv.name) {
-      widget.c.renameInterval(widget.iv, next);
+    unawaited(_saveRename(next, keepEditing: false));
+    if (mounted) {
+      setState(() => _editing = false);
     }
-    setState(() => _editing = false);
+  }
+
+  void _scheduleRenameSave(String value) {
+    _renameDebounce?.cancel();
+    final next = value.trim();
+    if (next.isEmpty || next == _lastSavedName) return;
+
+    _renameDebounce = Timer(const Duration(milliseconds: 450), () {
+      if (!mounted) return;
+      unawaited(_saveRename(next, keepEditing: true));
+    });
+  }
+
+  Future<void> _saveRename(
+    String value, {
+    required bool keepEditing,
+  }) async {
+    final next = value.trim();
+    if (next.isEmpty || next == _lastSavedName) return;
+
+    if (_renameSaving) {
+      _pendingRename = next;
+      return;
+    }
+
+    _renameSaving = true;
+    try {
+      final saved = await widget.c.renameInterval(widget.iv, next);
+      if (saved) {
+        _lastSavedName = next;
+      }
+    } finally {
+      _renameSaving = false;
+    }
+
+    final pending = _pendingRename;
+    _pendingRename = null;
+    if (pending != null && pending != _lastSavedName && mounted) {
+      await _saveRename(pending, keepEditing: true);
+    }
+
+    if (!keepEditing && mounted) {
+      setState(() => _editing = false);
+    }
   }
 
   Future<void> _showMenu(TapDownDetails details) async {
@@ -409,6 +463,7 @@ class _IntervalTileState extends State<_IntervalTile> {
                           border: InputBorder.none,
                           contentPadding: EdgeInsets.zero,
                         ),
+                        onChanged: _scheduleRenameSave,
                         onSubmitted: (_) => _submitRename(),
                         onEditingComplete: _submitRename,
                       )

@@ -741,13 +741,23 @@ class ProductsController extends GetxController {
   }
 
   bool _hasProductHeaders(Map<String, int> headers) {
-    return headers.keys.any(_isProductHeaderKey);
+    final keys = headers.keys.toSet();
+    if (keys.contains('product') ||
+        keys.contains('product name') ||
+        keys.contains('company brand name') ||
+        keys.contains('brand name')) {
+      return true;
+    }
+
+    if (keys.contains('code') && keys.contains('sg')) {
+      return true;
+    }
+
+    return keys.where(_isProductSpecificHeaderKey).length >= 2;
   }
 
-  bool _isProductHeaderKey(String key) {
+  bool _isProductSpecificHeaderKey(String key) {
     return const {
-      'record id',
-      'id',
       'product',
       'product name',
       'company brand name',

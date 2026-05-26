@@ -467,10 +467,22 @@ class _LegacyDrillingDataTableState extends State<_LegacyDrillingDataTable> {
 
   @override
   Widget build(BuildContext context) {
-    final dynamicWidth = widget.columns.length * _columnWidth;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const fixedWidth =
+            _indexWidth + _dateWidth + _mdWidth + _reportWidth;
+        final baseDynamicWidth = widget.columns.length * _columnWidth;
+        final availableDynamicWidth =
+            (constraints.maxWidth - 16 - fixedWidth)
+                .clamp(0, double.infinity)
+                .toDouble();
+        final dynamicWidth = math.max(baseDynamicWidth, availableDynamicWidth);
+        final columnWidth = widget.columns.isEmpty
+            ? _columnWidth
+            : dynamicWidth / widget.columns.length;
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
       child: Column(
         children: [
           Container(
@@ -490,7 +502,7 @@ class _LegacyDrillingDataTableState extends State<_LegacyDrillingDataTable> {
                       width: dynamicWidth,
                       child: Row(
                         children: widget.columns
-                            .map((column) => _headerCell(column.title, _columnWidth))
+                            .map((column) => _headerCell(column.title, columnWidth))
                             .toList(),
                       ),
                     ),
@@ -503,7 +515,7 @@ class _LegacyDrillingDataTableState extends State<_LegacyDrillingDataTable> {
             child: Row(
               children: [
                 SizedBox(
-                  width: _indexWidth + _dateWidth + _mdWidth + _reportWidth,
+                  width: fixedWidth,
                   child: ListView.builder(
                     itemCount: widget.rows.length,
                     itemBuilder: (context, index) {
@@ -542,7 +554,7 @@ class _LegacyDrillingDataTableState extends State<_LegacyDrillingDataTable> {
                               children: widget.columns.map((column) {
                                 return _dataCell(
                                   column.valueFor(row),
-                                  _columnWidth,
+                                  columnWidth,
                                   index,
                                 );
                               }).toList(),
@@ -558,6 +570,8 @@ class _LegacyDrillingDataTableState extends State<_LegacyDrillingDataTable> {
           ),
         ],
       ),
+        );
+      },
     );
   }
 

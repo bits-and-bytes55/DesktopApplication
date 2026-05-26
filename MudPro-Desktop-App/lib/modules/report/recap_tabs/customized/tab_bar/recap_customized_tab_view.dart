@@ -315,84 +315,95 @@ class _CustomizedHistoryTable extends StatelessWidget {
       );
     }
 
-    final tableWidth = _columns.fold<double>(
+    final baseTableWidth = _columns.fold<double>(
       0,
       (sum, column) => sum + column.width,
     );
 
-    return Scrollbar(
-      thumbVisibility: true,
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: SizedBox(
-            width: tableWidth,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _CustomizedTableRow(
-                  cells: _columns
-                      .map(
-                        (column) => _CustomizedCellData(
-                          text: column.title,
-                          width: column.width,
-                          alignment: Alignment.center,
-                          isHeader: true,
-                        ),
-                      )
-                      .toList(growable: false),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final tableWidth = math.max(
+          baseTableWidth,
+          (constraints.maxWidth - 16).clamp(0, double.infinity).toDouble(),
+        );
+        final scale =
+            baseTableWidth <= 0 ? 1.0 : tableWidth / baseTableWidth;
+
+        return Scrollbar(
+          thumbVisibility: true,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: SizedBox(
+                width: tableWidth,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _CustomizedTableRow(
+                      cells: _columns
+                          .map(
+                            (column) => _CustomizedCellData(
+                              text: column.title,
+                              width: column.width * scale,
+                              alignment: Alignment.center,
+                              isHeader: true,
+                            ),
+                          )
+                          .toList(growable: false),
+                    ),
+                    ...rows.map((row) => _buildRow(row, scale)),
+                  ],
                 ),
-                ...rows.map(_buildRow),
-              ],
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildRow(RecapCustomizedHistoryRow row) {
+  Widget _buildRow(RecapCustomizedHistoryRow row, double scale) {
     return _CustomizedTableRow(
       cells: [
         _CustomizedCellData(
           text: '${row.dayNumber}',
-          width: _columns[0].width,
+          width: _columns[0].width * scale,
           alignment: Alignment.center,
         ),
         _CustomizedCellData(
           text: row.reportLabel.isNotEmpty ? row.reportLabel : '-',
-          width: _columns[1].width,
+          width: _columns[1].width * scale,
           alignment: Alignment.centerLeft,
         ),
         _CustomizedCellData(
           text: row.reportDate.isNotEmpty ? row.reportDate : '-',
-          width: _columns[2].width,
+          width: _columns[2].width * scale,
           alignment: Alignment.centerLeft,
         ),
         _CustomizedCellData(
           text: _formatValue(row.mw, decimals: 2),
-          width: _columns[3].width,
+          width: _columns[3].width * scale,
           alignment: Alignment.centerRight,
         ),
         _CustomizedCellData(
           text: _formatValue(row.totalKwd, decimals: 2),
-          width: _columns[4].width,
+          width: _columns[4].width * scale,
           alignment: Alignment.centerRight,
         ),
         _CustomizedCellData(
           text: _formatValue(row.puWt, decimals: 2),
-          width: _columns[5].width,
+          width: _columns[5].width * scale,
           alignment: Alignment.centerRight,
         ),
         _CustomizedCellData(
           text: _formatValue(row.rpm, decimals: 2),
-          width: _columns[6].width,
+          width: _columns[6].width * scale,
           alignment: Alignment.centerRight,
         ),
         _CustomizedCellData(
           text: _formatValue(row.rop, decimals: 2),
-          width: _columns[7].width,
+          width: _columns[7].width * scale,
           alignment: Alignment.centerRight,
         ),
       ],

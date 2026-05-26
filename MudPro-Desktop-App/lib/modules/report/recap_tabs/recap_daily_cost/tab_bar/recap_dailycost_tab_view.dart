@@ -406,10 +406,22 @@ class _LegacyDailyCostTableState extends State<_LegacyDailyCostTable> {
 
   @override
   Widget build(BuildContext context) {
-    final dynamicWidth = widget.columns.length * _columnWidth;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const fixedWidth =
+            _indexWidth + _dateWidth + _mdWidth + _reportWidth;
+        final baseDynamicWidth = widget.columns.length * _columnWidth;
+        final availableDynamicWidth =
+            (constraints.maxWidth - 16 - fixedWidth)
+                .clamp(0, double.infinity)
+                .toDouble();
+        final dynamicWidth = math.max(baseDynamicWidth, availableDynamicWidth);
+        final columnWidth = widget.columns.isEmpty
+            ? _columnWidth
+            : dynamicWidth / widget.columns.length;
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
       child: Column(
         children: [
           Container(
@@ -429,7 +441,7 @@ class _LegacyDailyCostTableState extends State<_LegacyDailyCostTable> {
                       width: dynamicWidth,
                       child: Row(
                         children: widget.columns
-                            .map((column) => _headerCell(column, _columnWidth))
+                            .map((column) => _headerCell(column, columnWidth))
                             .toList(),
                       ),
                     ),
@@ -442,7 +454,7 @@ class _LegacyDailyCostTableState extends State<_LegacyDailyCostTable> {
             child: Row(
               children: [
                 SizedBox(
-                  width: _indexWidth + _dateWidth + _mdWidth + _reportWidth,
+                  width: fixedWidth,
                   child: ListView.builder(
                     itemCount: widget.rows.length,
                     itemBuilder: (context, index) {
@@ -487,7 +499,7 @@ class _LegacyDailyCostTableState extends State<_LegacyDailyCostTable> {
                                   _formatAmount(
                                     widget.valueForColumn(row, column),
                                   ),
-                                  _columnWidth,
+                                  columnWidth,
                                   index,
                                   alignRight: true,
                                 );
@@ -525,7 +537,7 @@ class _LegacyDailyCostTableState extends State<_LegacyDailyCostTable> {
                           );
                           return _totalValueCell(
                             _formatAmount(total),
-                            _columnWidth,
+                            columnWidth,
                           );
                         }).toList(),
                       ),
@@ -537,6 +549,8 @@ class _LegacyDailyCostTableState extends State<_LegacyDailyCostTable> {
           ),
         ],
       ),
+        );
+      },
     );
   }
 

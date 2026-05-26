@@ -377,14 +377,25 @@ class _LegacyDepthCostTableState extends State<_LegacyDepthCostTable> {
 
   @override
   Widget build(BuildContext context) {
-    final tableWidth =
-        _noWidth +
-        _mdWidth +
-        _reportWidth +
-        widget.columns.length * _columnWidth;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final baseTableWidth =
+            _noWidth +
+            _mdWidth +
+            _reportWidth +
+            widget.columns.length * _columnWidth;
+        final tableWidth = math.max(
+          baseTableWidth,
+          (constraints.maxWidth - 16).clamp(0, double.infinity).toDouble(),
+        );
+        final scale = baseTableWidth <= 0 ? 1.0 : tableWidth / baseTableWidth;
+        final noWidth = _noWidth * scale;
+        final mdWidth = _mdWidth * scale;
+        final reportWidth = _reportWidth * scale;
+        final columnWidth = _columnWidth * scale;
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
       child: Column(
         children: [
           SizedBox(
@@ -396,11 +407,11 @@ class _LegacyDepthCostTableState extends State<_LegacyDepthCostTable> {
                 width: tableWidth,
                 child: Row(
                   children: [
-                    _headerCell('No', _noWidth),
-                    _headerCell('MD (ft)', _mdWidth),
-                    _headerCell('Rpt #', _reportWidth),
+                    _headerCell('No', noWidth),
+                    _headerCell('MD (ft)', mdWidth),
+                    _headerCell('Rpt #', reportWidth),
                     ...widget.columns.map(
-                      (column) => _headerCell(column, _columnWidth),
+                      (column) => _headerCell(column, columnWidth),
                     ),
                   ],
                 ),
@@ -421,15 +432,15 @@ class _LegacyDepthCostTableState extends State<_LegacyDepthCostTable> {
                       height: _rowHeight,
                       child: Row(
                         children: [
-                          _dataCell('${index + 1}', _noWidth, index),
-                          _dataCell(_formatDepth(row.md), _mdWidth, index),
-                          _dataCell(row.reportLabel, _reportWidth, index),
+                          _dataCell('${index + 1}', noWidth, index),
+                          _dataCell(_formatDepth(row.md), mdWidth, index),
+                          _dataCell(row.reportLabel, reportWidth, index),
                           ...widget.columns.map(
                             (column) => _dataCell(
                               _formatTableAmount(
                                 widget.valueForColumn(row, column),
                               ),
-                              _columnWidth,
+                              columnWidth,
                               index,
                               alignRight: true,
                             ),
@@ -451,8 +462,8 @@ class _LegacyDepthCostTableState extends State<_LegacyDepthCostTable> {
                 width: tableWidth,
                 child: Row(
                   children: [
-                    _totalCell('Total', _noWidth + _mdWidth),
-                    _totalCell('', _reportWidth),
+                    _totalCell('Total', noWidth + mdWidth),
+                    _totalCell('', reportWidth),
                     ...widget.columns.map((column) {
                       final total = widget.rows.fold<double>(
                         0,
@@ -460,7 +471,7 @@ class _LegacyDepthCostTableState extends State<_LegacyDepthCostTable> {
                       );
                       return _totalCell(
                         _formatTableAmount(total),
-                        _columnWidth,
+                        columnWidth,
                         alignRight: true,
                       );
                     }),
@@ -471,6 +482,8 @@ class _LegacyDepthCostTableState extends State<_LegacyDepthCostTable> {
           ),
         ],
       ),
+        );
+      },
     );
   }
 

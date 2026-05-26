@@ -366,19 +366,19 @@ class FileIoUtils {
     final sheetNames = excel.tables.keys.toList();
     if (sheetNames.isEmpty) return null;
 
-    if (activeTabIndex == 1) {
+    final preferredNames = _sheetAliases(activeTabIndex);
+    for (final candidate in preferredNames) {
       for (final name in sheetNames) {
-        final table = excel.tables[name];
-        if (table != null && _sheetLooksLikeProducts(table)) {
+        if (name.trim().toLowerCase() == candidate) {
           return name;
         }
       }
     }
 
-    final preferredNames = _sheetAliases(activeTabIndex);
-    for (final candidate in preferredNames) {
+    if (activeTabIndex == 1) {
       for (final name in sheetNames) {
-        if (name.trim().toLowerCase() == candidate) {
+        final table = excel.tables[name];
+        if (table != null && _sheetLooksLikeProducts(table)) {
           return name;
         }
       }
@@ -415,15 +415,28 @@ class FileIoUtils {
           .map((cell) => _headerKey(_excelCellText(cell?.value)))
           .where((value) => value.isNotEmpty)
           .toSet();
-      if (headers.any(_isProductHeaderKey)) return true;
+      if (_hasProductHeaderSet(headers)) return true;
     }
     return false;
   }
 
-  static bool _isProductHeaderKey(String key) {
+  static bool _hasProductHeaderSet(Set<String> headers) {
+    if (headers.contains('product') ||
+        headers.contains('product name') ||
+        headers.contains('company brand name') ||
+        headers.contains('brand name')) {
+      return true;
+    }
+
+    if (headers.contains('code') && headers.contains('sg')) {
+      return true;
+    }
+
+    return headers.where(_isProductSpecificHeaderKey).length >= 2;
+  }
+
+  static bool _isProductSpecificHeaderKey(String key) {
     return const {
-      'record id',
-      'id',
       'product',
       'product name',
       'company brand name',

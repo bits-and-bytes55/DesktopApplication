@@ -284,7 +284,7 @@ class _BitHistoryTableState extends State<_BitHistoryTable> {
 
   @override
   Widget build(BuildContext context) {
-    final totalWidth =
+    const baseTotalWidth =
         _dayWidth +
         _reportWidth +
         _dateWidth +
@@ -297,8 +297,17 @@ class _BitHistoryTableState extends State<_BitHistoryTable> {
         _depthInWidth +
         _depthWidth;
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final totalWidth = math.max(
+          baseTotalWidth,
+          (constraints.maxWidth - 16).clamp(0, double.infinity).toDouble(),
+        );
+        final scale =
+            baseTotalWidth <= 0 ? 1.0 : totalWidth / baseTotalWidth;
+
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
       child: Column(
         children: [
           SizedBox(
@@ -308,19 +317,19 @@ class _BitHistoryTableState extends State<_BitHistoryTable> {
               scrollDirection: Axis.horizontal,
               child: SizedBox(
                 width: totalWidth,
-                child: const Row(
+                child: Row(
                   children: [
-                    _BitHeaderCell('Day', _dayWidth),
-                    _BitHeaderCell('Rpt #', _reportWidth),
-                    _BitHeaderCell('Date', _dateWidth),
-                    _BitHeaderCell('Mfr', _mfrWidth),
-                    _BitHeaderCell('Type', _typeWidth),
-                    _BitHeaderCell('Bit #', _bitNoWidth),
-                    _BitHeaderCell('Size (in)', _sizeInWidth),
-                    _BitHeaderCell('Size (mm)', _sizeMmWidth),
-                    _BitHeaderCell('TFA', _tfaWidth),
-                    _BitHeaderCell('Depth in', _depthInWidth),
-                    _BitHeaderCell('Depth', _depthWidth),
+                    _BitHeaderCell('Day', _dayWidth * scale),
+                    _BitHeaderCell('Rpt #', _reportWidth * scale),
+                    _BitHeaderCell('Date', _dateWidth * scale),
+                    _BitHeaderCell('Mfr', _mfrWidth * scale),
+                    _BitHeaderCell('Type', _typeWidth * scale),
+                    _BitHeaderCell('Bit #', _bitNoWidth * scale),
+                    _BitHeaderCell('Size (in)', _sizeInWidth * scale),
+                    _BitHeaderCell('Size (mm)', _sizeMmWidth * scale),
+                    _BitHeaderCell('TFA', _tfaWidth * scale),
+                    _BitHeaderCell('Depth in', _depthInWidth * scale),
+                    _BitHeaderCell('Depth', _depthWidth * scale),
                   ],
                 ),
               ),
@@ -340,47 +349,63 @@ class _BitHistoryTableState extends State<_BitHistoryTable> {
                       height: _rowHeight,
                       child: Row(
                         children: [
-                          _BitDataCell('${row.dayNumber}', _dayWidth, index),
-                          _BitDataCell(row.reportLabel, _reportWidth, index),
                           _BitDataCell(
-                            _formatDate(row.reportDate, row.createdAt),
-                            _dateWidth,
+                            '${row.dayNumber}',
+                            _dayWidth * scale,
                             index,
                           ),
-                          _BitDataCell(row.manufacturer, _mfrWidth, index),
-                          _BitDataCell(row.bitType, _typeWidth, index),
+                          _BitDataCell(
+                            row.reportLabel,
+                            _reportWidth * scale,
+                            index,
+                          ),
+                          _BitDataCell(
+                            _formatDate(row.reportDate, row.createdAt),
+                            _dateWidth * scale,
+                            index,
+                          ),
+                          _BitDataCell(
+                            row.manufacturer,
+                            _mfrWidth * scale,
+                            index,
+                          ),
+                          _BitDataCell(row.bitType, _typeWidth * scale, index),
                           _BitDataCell(
                             _formatNumber(
                               row.bitNumber,
                               digits: 0,
                               zeroAsDash: true,
                             ),
-                            _bitNoWidth,
+                            _bitNoWidth * scale,
                             index,
                             alignRight: true,
                           ),
-                          _BitDataCell(row.bitSizeText, _sizeInWidth, index),
+                          _BitDataCell(
+                            row.bitSizeText,
+                            _sizeInWidth * scale,
+                            index,
+                          ),
                           _BitDataCell(
                             _formatNumber(row.bitSizeMm, zeroAsDash: true),
-                            _sizeMmWidth,
+                            _sizeMmWidth * scale,
                             index,
                             alignRight: true,
                           ),
                           _BitDataCell(
                             _formatNumber(row.tfa, zeroAsDash: true, digits: 3),
-                            _tfaWidth,
+                            _tfaWidth * scale,
                             index,
                             alignRight: true,
                           ),
                           _BitDataCell(
                             _formatNumber(row.depthInFt, zeroAsDash: true),
-                            _depthInWidth,
+                            _depthInWidth * scale,
                             index,
                             alignRight: true,
                           ),
                           _BitDataCell(
                             _formatNumber(row.depthFt, zeroAsDash: true),
-                            _depthWidth,
+                            _depthWidth * scale,
                             index,
                             alignRight: true,
                           ),
@@ -394,6 +419,8 @@ class _BitHistoryTableState extends State<_BitHistoryTable> {
           ),
         ],
       ),
+        );
+      },
     );
   }
 }

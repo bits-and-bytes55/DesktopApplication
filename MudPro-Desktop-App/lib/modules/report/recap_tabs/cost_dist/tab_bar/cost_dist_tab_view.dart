@@ -274,11 +274,7 @@ class _CostDistSummaryTab extends StatelessWidget {
             flex: 7,
             child: Row(
               children: [
-                SizedBox(
-                  width: 880,
-                  child: _LegacySummaryPanel(controller: controller),
-                ),
-                const Expanded(child: SizedBox()),
+                Expanded(child: _LegacySummaryPanel(controller: controller)),
               ],
             ),
           ),
@@ -613,11 +609,26 @@ class _LegacyBreakdownPanel extends StatelessWidget {
             ),
           ),
           Expanded(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: SingleChildScrollView(
-                child: _LegacyBreakdownTable(controller: controller),
-              ),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final tableWidth =
+                    constraints.hasBoundedWidth &&
+                        constraints.maxWidth > _LegacyBreakdownTable.baseWidth
+                    ? constraints.maxWidth
+                    : _LegacyBreakdownTable.baseWidth;
+                return SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: SizedBox(
+                    width: tableWidth,
+                    child: SingleChildScrollView(
+                      child: _LegacyBreakdownTable(
+                        controller: controller,
+                        availableWidth: tableWidth,
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
           ),
         ],
@@ -628,27 +639,44 @@ class _LegacyBreakdownPanel extends StatelessWidget {
 
 class _LegacyBreakdownTable extends StatelessWidget {
   final RecapCostDistController controller;
+  final double? availableWidth;
 
-  const _LegacyBreakdownTable({required this.controller});
+  const _LegacyBreakdownTable({
+    required this.controller,
+    this.availableWidth,
+  });
+
+  static const List<double> _baseColumnWidths = [
+    110,
+    120,
+    80,
+    120,
+    84,
+    108,
+    84,
+    84,
+    100,
+    92,
+    90,
+    92,
+    92,
+    104,
+    92,
+  ];
+
+  static double get baseWidth => _baseColumnWidths.fold<double>(
+    0,
+    (total, width) => total + width,
+  );
 
   @override
   Widget build(BuildContext context) {
-    const widths = <int, TableColumnWidth>{
-      0: FixedColumnWidth(110),
-      1: FixedColumnWidth(120),
-      2: FixedColumnWidth(80),
-      3: FixedColumnWidth(120),
-      4: FixedColumnWidth(84),
-      5: FixedColumnWidth(108),
-      6: FixedColumnWidth(84),
-      7: FixedColumnWidth(84),
-      8: FixedColumnWidth(100),
-      9: FixedColumnWidth(92),
-      10: FixedColumnWidth(90),
-      11: FixedColumnWidth(92),
-      12: FixedColumnWidth(92),
-      13: FixedColumnWidth(104),
-      14: FixedColumnWidth(92),
+    final scale = availableWidth == null || availableWidth! <= baseWidth
+        ? 1.0
+        : availableWidth! / baseWidth;
+    final widths = <int, TableColumnWidth>{
+      for (var i = 0; i < _baseColumnWidths.length; i++)
+        i: FixedColumnWidth(_baseColumnWidths[i] * scale),
     };
 
     return Table(

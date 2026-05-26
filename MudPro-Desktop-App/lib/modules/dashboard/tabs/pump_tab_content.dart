@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -151,8 +152,8 @@ class _PumpPageState extends State<PumpPage> {
   static const int _initialPumpRows = 4;
   static const int _initialShakerRows = 4;
   static const int _initialSceRows = 4;
-  static const double _pumpTableWidth = 735;
-  static const double _shakerTableWidth = 762;
+  static const double _pumpTableWidth = 712;
+  static const double _shakerTableWidth = 760;
 
   @override
   void initState() {
@@ -498,12 +499,7 @@ class _PumpPageState extends State<PumpPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Pump table — fixed max width, narrower
-                    Expanded(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 780),
-                        child: _pumpTable(),
-                      ),
-                    ),
+                    Expanded(child: _pumpTable()),
                     const SizedBox(width: 12),
                     // Summary box — wider fixed width
                     SizedBox(width: 310, child: _summaryBox()),
@@ -514,7 +510,7 @@ class _PumpPageState extends State<PumpPage> {
               Align(
                 alignment: Alignment.centerLeft,
                 child: SizedBox(
-                  width: MediaQuery.of(context).size.width / 2,
+                  width: double.infinity,
                   child: Align(
                     alignment: Alignment.centerRight,
                     child: _screenAutoFillBar(),
@@ -526,10 +522,7 @@ class _PumpPageState extends State<PumpPage> {
                 flex: 3,
                 child: Align(
                   alignment: Alignment.centerLeft,
-                  child: SizedBox(
-                    width: MediaQuery.of(context).size.width / 2,
-                    child: _shakerTable(),
-                  ),
+                  child: SizedBox(width: double.infinity, child: _shakerTable()),
                 ),
               ),
               const SizedBox(height: 12),
@@ -538,7 +531,7 @@ class _PumpPageState extends State<PumpPage> {
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: SizedBox(
-                    width: MediaQuery.of(context).size.width / 2,
+                    width: double.infinity,
                     child: _otherSCETable(),
                   ),
                 ),
@@ -561,11 +554,21 @@ class _PumpPageState extends State<PumpPage> {
         children: [
           _tableHeader("Pump", Icons.settings),
           Expanded(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: SizedBox(
-                width: _pumpTableWidth,
-                child: Column(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                const baseCellWidth = 704.0;
+                const dividerWidth = 8.0;
+                final contentWidth = constraints.hasBoundedWidth
+                    ? math.max(_pumpTableWidth, constraints.maxWidth)
+                    : _pumpTableWidth;
+                final scale = (contentWidth - dividerWidth) / baseCellWidth;
+                double w(double width) => width * scale;
+
+                return SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: SizedBox(
+                    width: contentWidth,
+                    child: Column(
                   children: [
                     Container(
                       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -581,23 +584,23 @@ class _PumpPageState extends State<PumpPage> {
                       child: IntrinsicHeight(
                         child: Row(
                           children: [
-                            _headerCell("Model", 100),
+                             _headerCell("Model", w(100)),
                             _verticalDivider(),
-                            _headerCell("Type", 85),
+                            _headerCell("Type", w(85)),
                             _verticalDivider(),
-                            _headerCell("Liner ID\n(in)", 68),
+                            _headerCell("Liner ID\n(in)", w(68)),
                             _verticalDivider(),
-                            _headerCell("Rod OD\n(in)", 68),
+                            _headerCell("Rod OD\n(in)", w(68)),
                             _verticalDivider(),
-                            _headerCell("Stk. Length\n(in)", 80),
+                            _headerCell("Stk. Length\n(in)", w(80)),
                             _verticalDivider(),
-                            _headerCell("Efficiency\n(%)", 75),
+                            _headerCell("Efficiency\n(%)", w(75)),
                             _verticalDivider(),
-                            _headerCell("Displ.\n(bbl/stk)", 80),
+                            _headerCell("Displ.\n(bbl/stk)", w(80)),
                             _verticalDivider(),
-                            _headerCell("Stroke\n(stk/min)", 80),
+                            _headerCell("Stroke\n(stk/min)", w(80)),
                             _verticalDivider(),
-                            _headerCell("Rate\n(gpm)", 68),
+                            _headerCell("Rate\n(gpm)", w(68)),
                           ],
                         ),
                       ),
@@ -629,7 +632,7 @@ class _PumpPageState extends State<PumpPage> {
                                 child: Row(
                                   children: [
                                     _dataCell(
-                                      width: 100,
+                                      width: w(100),
                                       child: _pumpModelDropdown(
                                         row: row,
                                         models: models,
@@ -639,28 +642,28 @@ class _PumpPageState extends State<PumpPage> {
                                     ),
                                     _verticalDivider(),
                                     _dataCell(
-                                      width: 85,
+                                      width: w(85),
                                       child: Obx(
                                         () => _readOnlyCell(row.type.value),
                                       ),
                                     ),
                                     _verticalDivider(),
                                     _dataCell(
-                                      width: 68,
+                                      width: w(68),
                                       child: Obx(
                                         () => _readOnlyCell(row.linerId.value),
                                       ),
                                     ),
                                     _verticalDivider(),
                                     _dataCell(
-                                      width: 68,
+                                      width: w(68),
                                       child: Obx(
                                         () => _readOnlyCell(row.rodOd.value),
                                       ),
                                     ),
                                     _verticalDivider(),
                                     _dataCell(
-                                      width: 80,
+                                      width: w(80),
                                       child: Obx(
                                         () => _readOnlyCell(
                                           row.strokeLength.value,
@@ -669,7 +672,7 @@ class _PumpPageState extends State<PumpPage> {
                                     ),
                                     _verticalDivider(),
                                     _dataCell(
-                                      width: 75,
+                                      width: w(75),
                                       child: Obx(
                                         () =>
                                             _readOnlyCell(row.efficiency.value),
@@ -677,7 +680,7 @@ class _PumpPageState extends State<PumpPage> {
                                     ),
                                     _verticalDivider(),
                                     _dataCell(
-                                      width: 80,
+                                      width: w(80),
                                       child: Obx(
                                         () => _readOnlyCell(
                                           row.displacement.value.isEmpty
@@ -688,7 +691,7 @@ class _PumpPageState extends State<PumpPage> {
                                     ),
                                     _verticalDivider(),
                                     _dataCell(
-                                      width: 80,
+                                      width: w(80),
                                       child: _spmField(
                                         row: row,
                                         isLocked: isLocked,
@@ -697,7 +700,7 @@ class _PumpPageState extends State<PumpPage> {
                                     ),
                                     _verticalDivider(),
                                     _dataCell(
-                                      width: 68,
+                                      width: w(68),
                                       child: Obx(
                                         () => _readOnlyCell(
                                           row.rate.value.isEmpty
@@ -715,8 +718,10 @@ class _PumpPageState extends State<PumpPage> {
                       }),
                     ),
                   ],
-                ),
-              ),
+                    ),
+                  ),
+                );
+              },
             ),
           ),
         ],
@@ -831,11 +836,21 @@ class _PumpPageState extends State<PumpPage> {
         children: [
           _tableHeader("Shaker", Icons.filter_alt),
           Expanded(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: SizedBox(
-                width: _shakerTableWidth,
-                child: Column(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                const baseCellWidth = 749.0;
+                const dividerWidth = 11.0;
+                final contentWidth = constraints.hasBoundedWidth
+                    ? math.max(_shakerTableWidth, constraints.maxWidth)
+                    : _shakerTableWidth;
+                final scale = (contentWidth - dividerWidth) / baseCellWidth;
+                double w(double width) => width * scale;
+
+                return SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: SizedBox(
+                    width: contentWidth,
+                    child: Column(
                   children: [
                     Container(
                       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -851,21 +866,21 @@ class _PumpPageState extends State<PumpPage> {
                       child: IntrinsicHeight(
                         child: Row(
                           children: [
-                            _headerCell("Shaker", 100),
+                            _headerCell("Shaker", w(100)),
                             _verticalDivider(),
-                            _headerCell("Model", 120),
+                            _headerCell("Model", w(120)),
                             _verticalDivider(),
                             _headerCellWithSubheaders(
                               "Screen",
                               List.generate(
                                 _totalScreenCols,
-                                (i) => _subHeaderCell("${i + 1}", 48),
+                                (i) => _subHeaderCell("${i + 1}", w(48)),
                               ),
                             ),
                             _verticalDivider(),
-                            _headerCell("Time\n(hr)", 70),
+                            _headerCell("Time\n(hr)", w(70)),
                             _verticalDivider(),
-                            _headerCell("OOC Wt.\n(%)", 75),
+                            _headerCell("OOC Wt.\n(%)", w(75)),
                           ],
                         ),
                       ),
@@ -901,7 +916,7 @@ class _PumpPageState extends State<PumpPage> {
                                   child: Row(
                                     children: [
                                       _dataCell(
-                                        width: 100,
+                                        width: w(100),
                                         child: _shakerTypeDropdown(
                                           row: row,
                                           isLocked: isLocked,
@@ -910,7 +925,7 @@ class _PumpPageState extends State<PumpPage> {
                                       ),
                                       _verticalDivider(),
                                       _dataCell(
-                                        width: 120,
+                                        width: w(120),
                                         child: _shakerModelDropdown(
                                           row: row,
                                           models: shakerModels,
@@ -919,10 +934,10 @@ class _PumpPageState extends State<PumpPage> {
                                         ),
                                       ),
                                       _verticalDivider(),
-                                      ..._buildScreenCols(row, isLocked),
+                                      ..._buildScreenCols(row, isLocked, w),
                                       _verticalDivider(),
                                       _dataCell(
-                                        width: 70,
+                                        width: w(70),
                                         child: _rxTextField(
                                           row.time,
                                           isLocked,
@@ -932,7 +947,7 @@ class _PumpPageState extends State<PumpPage> {
                                       ),
                                       _verticalDivider(),
                                       _dataCell(
-                                        width: 75,
+                                        width: w(75),
                                         child: _rxTextField(
                                           row.oocWt,
                                           isLocked,
@@ -950,8 +965,10 @@ class _PumpPageState extends State<PumpPage> {
                       }),
                     ),
                   ],
-                ),
-              ),
+                    ),
+                  ),
+                );
+              },
             ),
           ),
         ],
@@ -1063,7 +1080,11 @@ class _PumpPageState extends State<PumpPage> {
     });
   }
 
-  List<Widget> _buildScreenCols(_ShakerRow row, bool isLocked) {
+  List<Widget> _buildScreenCols(
+    _ShakerRow row,
+    bool isLocked,
+    double Function(double) w,
+  ) {
     final fields = [
       row.screen1,
       row.screen2,
@@ -1079,7 +1100,7 @@ class _PumpPageState extends State<PumpPage> {
       final idx = i;
       cols.add(
         _dataCell(
-          width: 48,
+          width: w(48),
           child: Obx(() {
             final isEnabled = !isLocked && idx < row.enabledScreens.value;
             return TextField(
@@ -1258,10 +1279,23 @@ class _PumpPageState extends State<PumpPage> {
   // ═══════════════════════════════════════════════════════════
 
   Widget _otherSCETable() {
-    return Container(
-      constraints: const BoxConstraints(maxWidth: 580),
-      decoration: _boxStyle(),
-      child: Column(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const baseCellWidth = 485.0;
+        const dividerWidth = 5.0;
+        final contentWidth = constraints.hasBoundedWidth
+            ? math.max(baseCellWidth + dividerWidth, constraints.maxWidth)
+            : baseCellWidth + dividerWidth;
+        final scale = (contentWidth - dividerWidth) / baseCellWidth;
+        double w(double width) => width * scale;
+
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: SizedBox(
+            width: contentWidth,
+            child: Container(
+              decoration: _boxStyle(),
+              child: Column(
         children: [
           _tableHeader("Other SCE", Icons.build),
           Container(
@@ -1275,17 +1309,17 @@ class _PumpPageState extends State<PumpPage> {
             child: IntrinsicHeight(
               child: Row(
                 children: [
-                  _headerCell("SCE", 90),
+                  _headerCell("SCE", w(90)),
                   _verticalDivider(),
-                  _headerCell("Model", 110),
+                  _headerCell("Model", w(110)),
                   _verticalDivider(),
-                  _headerCell("U/F\n(ppg)", 70),
+                  _headerCell("U/F\n(ppg)", w(70)),
                   _verticalDivider(),
-                  _headerCell("O/F\n(ppg)", 70),
+                  _headerCell("O/F\n(ppg)", w(70)),
                   _verticalDivider(),
-                  _headerCell("Time\n(hr)", 70),
+                  _headerCell("Time\n(hr)", w(70)),
                   _verticalDivider(),
-                  _headerCell("OOC Wt.\n(%)", 75),
+                  _headerCell("OOC Wt.\n(%)", w(75)),
                 ],
               ),
             ),
@@ -1320,7 +1354,7 @@ class _PumpPageState extends State<PumpPage> {
                         child: Row(
                           children: [
                             _dataCell(
-                              width: 90,
+                              width: w(90),
                               child: _sceTypeDropdown(
                                 row: row,
                                 isLocked: isLocked,
@@ -1329,7 +1363,7 @@ class _PumpPageState extends State<PumpPage> {
                             ),
                             _verticalDivider(),
                             _dataCell(
-                              width: 110,
+                              width: w(110),
                               child: _sceModelDropdown(
                                 row: row,
                                 models: sceModels,
@@ -1339,7 +1373,7 @@ class _PumpPageState extends State<PumpPage> {
                             ),
                             _verticalDivider(),
                             _dataCell(
-                              width: 70,
+                              width: w(70),
                               child: _rxTextField(
                                 row.uf,
                                 isLocked,
@@ -1348,7 +1382,7 @@ class _PumpPageState extends State<PumpPage> {
                             ),
                             _verticalDivider(),
                             _dataCell(
-                              width: 70,
+                              width: w(70),
                               child: _rxTextField(
                                 row.of_,
                                 isLocked,
@@ -1357,7 +1391,7 @@ class _PumpPageState extends State<PumpPage> {
                             ),
                             _verticalDivider(),
                             _dataCell(
-                              width: 70,
+                              width: w(70),
                               child: _rxTextField(
                                 row.time,
                                 isLocked,
@@ -1366,7 +1400,7 @@ class _PumpPageState extends State<PumpPage> {
                             ),
                             _verticalDivider(),
                             _dataCell(
-                              width: 75,
+                              width: w(75),
                               child: _rxTextField(
                                 row.oocWt,
                                 isLocked,
@@ -1383,7 +1417,11 @@ class _PumpPageState extends State<PumpPage> {
             }),
           ),
         ],
-      ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
