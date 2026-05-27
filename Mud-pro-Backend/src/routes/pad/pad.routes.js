@@ -3,6 +3,7 @@ import {
   createPad,
   getPads,
   getPadById,
+  getPadClientLogo,
   updatePad,
   deletePad,
 } from "../../controllers/pad/pad.controller.js";
@@ -11,6 +12,7 @@ const router = express.Router();
 
 router.get("/", getPads);
 router.post("/", createPad);
+router.get("/:id/client-logo", getPadClientLogo);
 router.get("/:id", getPadById);
 router.put("/:id", updatePad);
 router.delete("/:id", deletePad);

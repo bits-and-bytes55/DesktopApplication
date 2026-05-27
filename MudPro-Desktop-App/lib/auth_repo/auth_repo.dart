@@ -1779,10 +1779,15 @@ class AuthRepository {
   // SHAKER CRUD
   // ══════════════════════════════════════════════════════════════════════════════
 
-  Future<Map<String, dynamic>> getShakers(String wellId) async {
+  Future<Map<String, dynamic>> getShakers(
+    String wellId, {
+    bool includeReportId = true,
+  }) async {
     try {
       final response = await http.get(
-        _uriWithReportId('${baseUrl}sce/shakers/$wellId'),
+        includeReportId
+            ? _uriWithReportId('${baseUrl}sce/shakers/$wellId')
+            : Uri.parse('${baseUrl}sce/shakers/$wellId'),
         headers: _headers,
       );
       final data = jsonDecode(response.body);
@@ -1800,13 +1805,18 @@ class AuthRepository {
 
   Future<Map<String, dynamic>> createShaker(
     String wellId,
-    Map<String, dynamic> shakerData,
-  ) async {
+    Map<String, dynamic> shakerData, {
+    bool includeReportId = true,
+  }) async {
     try {
       final response = await http.post(
-        _uriWithReportId('${baseUrl}sce/shakers/$wellId'),
+        includeReportId
+            ? _uriWithReportId('${baseUrl}sce/shakers/$wellId')
+            : Uri.parse('${baseUrl}sce/shakers/$wellId'),
         headers: _headers,
-        body: jsonEncode(_payloadWithReportId(shakerData)),
+        body: jsonEncode(
+          includeReportId ? _payloadWithReportId(shakerData) : shakerData,
+        ),
       );
       final data = jsonDecode(response.body);
       if (response.statusCode == 201 || response.statusCode == 200) {
@@ -1824,13 +1834,18 @@ class AuthRepository {
 
   Future<Map<String, dynamic>> updateShaker(
     String id,
-    Map<String, dynamic> shakerData,
-  ) async {
+    Map<String, dynamic> shakerData, {
+    bool includeReportId = true,
+  }) async {
     try {
       final response = await http.put(
-        _uriWithReportId('${baseUrl}sce/shakers/$id'),
+        includeReportId
+            ? _uriWithReportId('${baseUrl}sce/shakers/$id')
+            : Uri.parse('${baseUrl}sce/shakers/$id'),
         headers: _headers,
-        body: jsonEncode(_payloadWithReportId(shakerData)),
+        body: jsonEncode(
+          includeReportId ? _payloadWithReportId(shakerData) : shakerData,
+        ),
       );
       final data = jsonDecode(response.body);
       if (response.statusCode == 200) {
@@ -1866,10 +1881,15 @@ class AuthRepository {
   // OTHER SCE CRUD
   // ══════════════════════════════════════════════════════════════════════════════
 
-  Future<Map<String, dynamic>> getOtherSce(String wellId) async {
+  Future<Map<String, dynamic>> getOtherSce(
+    String wellId, {
+    bool includeReportId = true,
+  }) async {
     try {
       final response = await http.get(
-        _uriWithReportId('${baseUrl}sce/other-sce/$wellId'),
+        includeReportId
+            ? _uriWithReportId('${baseUrl}sce/other-sce/$wellId')
+            : Uri.parse('${baseUrl}sce/other-sce/$wellId'),
         headers: _headers,
       );
       final data = jsonDecode(response.body);
@@ -1887,13 +1907,18 @@ class AuthRepository {
 
   Future<Map<String, dynamic>> createOtherSce(
     String wellId,
-    Map<String, dynamic> sceData,
-  ) async {
+    Map<String, dynamic> sceData, {
+    bool includeReportId = true,
+  }) async {
     try {
       final response = await http.post(
-        _uriWithReportId('${baseUrl}sce/other-sce/$wellId'),
+        includeReportId
+            ? _uriWithReportId('${baseUrl}sce/other-sce/$wellId')
+            : Uri.parse('${baseUrl}sce/other-sce/$wellId'),
         headers: _headers,
-        body: jsonEncode(_payloadWithReportId(sceData)),
+        body: jsonEncode(
+          includeReportId ? _payloadWithReportId(sceData) : sceData,
+        ),
       );
       final data = jsonDecode(response.body);
       if (response.statusCode == 201 || response.statusCode == 200) {
@@ -1911,13 +1936,18 @@ class AuthRepository {
 
   Future<Map<String, dynamic>> updateOtherSce(
     String id,
-    Map<String, dynamic> sceData,
-  ) async {
+    Map<String, dynamic> sceData, {
+    bool includeReportId = true,
+  }) async {
     try {
       final response = await http.put(
-        _uriWithReportId('${baseUrl}sce/other-sce/$id'),
+        includeReportId
+            ? _uriWithReportId('${baseUrl}sce/other-sce/$id')
+            : Uri.parse('${baseUrl}sce/other-sce/$id'),
         headers: _headers,
-        body: jsonEncode(_payloadWithReportId(sceData)),
+        body: jsonEncode(
+          includeReportId ? _payloadWithReportId(sceData) : sceData,
+        ),
       );
       final data = jsonDecode(response.body);
       if (response.statusCode == 200) {

@@ -32,6 +32,9 @@ class SceController extends GetxController {
   final isSavingOtherSce = false.obs;
   final Map<int, Timer> _shakerAutosaveTimers = {};
   final Map<int, Timer> _otherSceAutosaveTimers = {};
+  final Set<int> _dirtyShakerRows = <int>{};
+  final Set<int> _dirtyOtherSceRows = <int>{};
+  Future<void>? _flushFuture;
 
   // ✅ FIX: maxScreenCols — driven by "No. of Screen" field from SCE data
   // Default 8 (all enabled). Updated when SCE data is loaded.
@@ -86,6 +89,51 @@ class SceController extends GetxController {
     super.onClose();
   }
 
+  Future<void> flushPendingAutosaves() {
+    final activeFlush = _flushFuture;
+    if (activeFlush != null) return activeFlush;
+
+    final future = _flushPendingAutosavesNow();
+    _flushFuture = future.whenComplete(() {
+      _flushFuture = null;
+    });
+    return _flushFuture!;
+  }
+
+  Future<void> _flushPendingAutosavesNow() async {
+    final shakerIndexes = _dirtyShakerRows.toList()..sort();
+    final otherSceIndexes = _dirtyOtherSceRows.toList()..sort();
+    _dirtyShakerRows.clear();
+    _dirtyOtherSceRows.clear();
+
+    for (final timer in _shakerAutosaveTimers.values) {
+      timer.cancel();
+    }
+    for (final timer in _otherSceAutosaveTimers.values) {
+      timer.cancel();
+    }
+    _shakerAutosaveTimers.clear();
+    _otherSceAutosaveTimers.clear();
+
+    for (final index in shakerIndexes) {
+      if (index < 0 || index >= shakers.length) continue;
+      final shaker = shakers[index];
+      if (!shaker.hasData) continue;
+      await saveShaker(index);
+    }
+
+    for (final index in otherSceIndexes) {
+      if (index < 0 || index >= otherSce.length) continue;
+      final sce = otherSce[index];
+      if (sce.type.value.trim().isEmpty && index < otherSceLabels.length) {
+        sce.type.value = otherSceLabels[index];
+      }
+      if (!sce.hasData) continue;
+      await saveOtherSce(index);
+    }
+
+  }
+
   // ================= INITIALIZATION =================
 
   void initializeEmptyShakers() {
@@ -117,6 +165,7 @@ class SceController extends GetxController {
 
   Future<void> loadSceData(String wellId) async {
     try {
+      await flushPendingAutosaves();
       isLoading.value = true;
       currentWellId = wellId;
 
@@ -134,9 +183,29 @@ class SceController extends GetxController {
 
   Future<void> loadShakers(String wellId) async {
     try {
-      final result = await repository.getShakers(wellId);
+      final result = await repository.getShakers(
+        wellId,
+        includeReportId: false,
+      );
       if (result['success']) {
-        final List<dynamic> shakerData = result['data'] ?? [];
+        final List<dynamic> shakerData = _mergeDuplicateRows(
+          result['data'] ?? [],
+          keyField: 'shaker',
+          mergeFields: const [
+            'model',
+            'screens',
+            'screen1',
+            'screen2',
+            'screen3',
+            'screen4',
+            'screen5',
+            'screen6',
+            'screen7',
+            'screen8',
+            'time',
+            'oocWt',
+          ],
+        );
 
         // Reset to empty with labels first
         initializeEmptyShakers();
@@ -180,9 +249,24 @@ class SceController extends GetxController {
 
   Future<void> loadOtherSce(String wellId) async {
     try {
-      final result = await repository.getOtherSce(wellId);
+      final result = await repository.getOtherSce(
+        wellId,
+        includeReportId: false,
+      );
       if (result['success']) {
-        final List<dynamic> sceData = result['data'] ?? [];
+        final List<dynamic> sceData = _mergeDuplicateRows(
+          result['data'] ?? [],
+          keyField: 'type',
+          mergeFields: const [
+            'model1',
+            'model2',
+            'model3',
+            'uf',
+            'of',
+            'time',
+            'oocWt',
+          ],
+        );
 
         // Reset to empty with labels
         initializeEmptyOtherSce();
@@ -204,6 +288,41 @@ class SceController extends GetxController {
       print('❌ Error loading other SCE: $e');
       initializeEmptyOtherSce();
     }
+  }
+
+  List<Map<String, dynamic>> _mergeDuplicateRows(
+    List<dynamic> rows, {
+    required String keyField,
+    required List<String> mergeFields,
+  }) {
+    final merged = <String, Map<String, dynamic>>{};
+
+    for (final raw in rows) {
+      if (raw is! Map) continue;
+      final item = Map<String, dynamic>.from(raw);
+      final key = item[keyField]?.toString().trim() ?? '';
+      if (key.isEmpty) continue;
+
+      final current = merged[key];
+      if (current == null) {
+        merged[key] = item;
+        continue;
+      }
+
+      current['_id'] = item['_id'] ?? current['_id'];
+      current['id'] = item['id'] ?? current['id'];
+      current[keyField] = key;
+      current['plot'] = current['plot'] == true || item['plot'] == true;
+
+      for (final field in mergeFields) {
+        final next = item[field]?.toString() ?? '';
+        if (next.trim().isNotEmpty) {
+          current[field] = next;
+        }
+      }
+    }
+
+    return merged.values.toList(growable: false);
   }
 
   // ================= SHAKER OPERATIONS =================
@@ -243,9 +362,17 @@ class SceController extends GetxController {
 
       Map<String, dynamic> result;
       if (shaker.id != null) {
-        result = await repository.updateShaker(shaker.id!, shaker.toJson());
+        result = await repository.updateShaker(
+          shaker.id!,
+          shaker.toJson(),
+          includeReportId: false,
+        );
       } else {
-        result = await repository.createShaker(currentWellId!, shaker.toJson());
+        result = await repository.createShaker(
+          currentWellId!,
+          shaker.toJson(),
+          includeReportId: false,
+        );
       }
 
       if (result['success']) {
@@ -308,6 +435,9 @@ class SceController extends GetxController {
   }
 
   void resetShakerRow(int index) {
+    _shakerAutosaveTimers[index]?.cancel();
+    _shakerAutosaveTimers.remove(index);
+    _dirtyShakerRows.remove(index);
     final label = index < shakerLabels.length
         ? shakerLabels[index]
         : shakers[index].shaker.value;
@@ -316,13 +446,18 @@ class SceController extends GetxController {
 
   void scheduleShakerAutosave(int index) {
     if (index < 0 || index >= shakers.length || currentWellId == null) return;
+    _dirtyShakerRows.add(index);
     _shakerAutosaveTimers[index]?.cancel();
     _shakerAutosaveTimers[index] = Timer(
       const Duration(milliseconds: 850),
       () async {
         final shaker = shakers[index];
-        if (!shaker.hasData) return;
+        if (!shaker.hasData) {
+          _dirtyShakerRows.remove(index);
+          return;
+        }
         await saveShaker(index);
+        _dirtyShakerRows.remove(index);
       },
     );
   }
@@ -341,9 +476,17 @@ class SceController extends GetxController {
 
       Map<String, dynamic> result;
       if (sce.id != null) {
-        result = await repository.updateOtherSce(sce.id!, sce.toJson());
+        result = await repository.updateOtherSce(
+          sce.id!,
+          sce.toJson(),
+          includeReportId: false,
+        );
       } else {
-        result = await repository.createOtherSce(currentWellId!, sce.toJson());
+        result = await repository.createOtherSce(
+          currentWellId!,
+          sce.toJson(),
+          includeReportId: false,
+        );
       }
 
       if (result['success']) {
@@ -409,6 +552,9 @@ class SceController extends GetxController {
   }
 
   void resetOtherSceRow(int index) {
+    _otherSceAutosaveTimers[index]?.cancel();
+    _otherSceAutosaveTimers.remove(index);
+    _dirtyOtherSceRows.remove(index);
     final label = index < otherSceLabels.length
         ? otherSceLabels[index]
         : otherSce[index].type.value;
@@ -417,6 +563,7 @@ class SceController extends GetxController {
 
   void scheduleOtherSceAutosave(int index) {
     if (index < 0 || index >= otherSce.length || currentWellId == null) return;
+    _dirtyOtherSceRows.add(index);
     _otherSceAutosaveTimers[index]?.cancel();
     _otherSceAutosaveTimers[index] = Timer(
       const Duration(milliseconds: 850),
@@ -425,8 +572,12 @@ class SceController extends GetxController {
         if (sce.type.value.trim().isEmpty && index < otherSceLabels.length) {
           sce.type.value = otherSceLabels[index];
         }
-        if (!sce.hasData) return;
+        if (!sce.hasData) {
+          _dirtyOtherSceRows.remove(index);
+          return;
+        }
         await saveOtherSce(index);
+        _dirtyOtherSceRows.remove(index);
       },
     );
   }
@@ -441,7 +592,10 @@ class SceController extends GetxController {
   Future<void> loadAvailableTypes(String wellId) async {
     try {
       // Load shakers
-      final shakerResult = await repository.getShakers(wellId);
+      final shakerResult = await repository.getShakers(
+        wellId,
+        includeReportId: false,
+      );
       if (shakerResult['success']) {
         final List<dynamic> shakerData = shakerResult['data'] ?? [];
 
@@ -468,7 +622,10 @@ class SceController extends GetxController {
       }
 
       // Load other SCE
-      final sceResult = await repository.getOtherSce(wellId);
+      final sceResult = await repository.getOtherSce(
+        wellId,
+        includeReportId: false,
+      );
       if (sceResult['success']) {
         final List<dynamic> sceData = sceResult['data'] ?? [];
 
@@ -514,7 +671,10 @@ class SceController extends GetxController {
 
   Future<Map<String, dynamic>?> getShakerDataByType(String type) async {
     try {
-      final result = await repository.getShakers(currentWellId ?? '');
+      final result = await repository.getShakers(
+        currentWellId ?? '',
+        includeReportId: false,
+      );
       if (result['success']) {
         final List<dynamic> shakerData = result['data'] ?? [];
         return shakerData.firstWhere(
@@ -531,7 +691,10 @@ class SceController extends GetxController {
 
   Future<Map<String, dynamic>?> getOtherSceDataByType(String type) async {
     try {
-      final result = await repository.getOtherSce(currentWellId ?? '');
+      final result = await repository.getOtherSce(
+        currentWellId ?? '',
+        includeReportId: false,
+      );
       if (result['success']) {
         final List<dynamic> sceData = result['data'] ?? [];
         return sceData.firstWhere(
@@ -550,7 +713,10 @@ class SceController extends GetxController {
 
   Future<Map<String, dynamic>?> getShakerDataByModel(String model) async {
     try {
-      final result = await repository.getShakers(currentWellId ?? '');
+      final result = await repository.getShakers(
+        currentWellId ?? '',
+        includeReportId: false,
+      );
       if (result['success']) {
         final List<dynamic> shakerData = result['data'] ?? [];
         return shakerData.firstWhere(
@@ -567,7 +733,10 @@ class SceController extends GetxController {
 
   Future<Map<String, dynamic>?> getOtherSceDataByModel(String model) async {
     try {
-      final result = await repository.getOtherSce(currentWellId ?? '');
+      final result = await repository.getOtherSce(
+        currentWellId ?? '',
+        includeReportId: false,
+      );
       if (result['success']) {
         final List<dynamic> sceData = result['data'] ?? [];
         return sceData.firstWhere(

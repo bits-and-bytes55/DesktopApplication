@@ -95,6 +95,38 @@ const loadDisplayRows = async (Model, { wellId, reportId }) => {
   );
 };
 
+const mergeDuplicateRows = (rows = [], keyField = "") => {
+  const merged = new Map();
+
+  for (const row of rows) {
+    const key = toText(row?.[keyField]);
+    if (!key) continue;
+
+    if (!merged.has(key)) {
+      merged.set(key, { ...row });
+      continue;
+    }
+
+    const current = merged.get(key);
+    current._id = row._id || current._id;
+    current.id = row.id || current.id;
+    current[keyField] = key;
+    current.plot = Boolean(current.plot || row.plot);
+
+    for (const [field, value] of Object.entries(row)) {
+      if (["_id", "id", "__v", "createdAt", "updatedAt", keyField, "plot"].includes(field)) {
+        continue;
+      }
+      const textValue = toText(value);
+      if (textValue) {
+        current[field] = value;
+      }
+    }
+  }
+
+  return [...merged.values()];
+};
+
 const ensureReportSet = async ({
   Model,
   wellId,
@@ -196,7 +228,10 @@ export const getShakers = async (req, res) => {
       });
     }
 
-    const shakers = await loadDisplayRows(Shaker, { wellId, reportId });
+    const shakers = mergeDuplicateRows(
+      await loadDisplayRows(Shaker, { wellId, reportId }),
+      "shaker"
+    );
     
     res.status(200).json({
       success: true,
@@ -427,7 +462,10 @@ export const getOtherSce = async (req, res) => {
       });
     }
 
-    const otherSce = await loadDisplayRows(OtherSce, { wellId, reportId });
+    const otherSce = mergeDuplicateRows(
+      await loadDisplayRows(OtherSce, { wellId, reportId }),
+      "type"
+    );
     
     res.status(200).json({
       success: true,

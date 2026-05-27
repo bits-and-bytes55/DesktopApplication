@@ -62,7 +62,14 @@ class _SceViewState extends State<SceView> {
   }
 
   @override
+  void deactivate() {
+    sceController.flushPendingAutosaves();
+    super.deactivate();
+  }
+
+  @override
   void dispose() {
+    sceController.flushPendingAutosaves();
     _wellWorker?.dispose();
     _reportWorker?.dispose();
     super.dispose();
