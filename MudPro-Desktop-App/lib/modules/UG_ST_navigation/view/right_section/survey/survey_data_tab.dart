@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/model/survey_model.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/survey/controller/survey_controller.dart';
@@ -197,18 +198,24 @@ class _SurveyDataTabState extends State<SurveyDataTab> {
             _editableCell(
               row.mdController,
               enabled: !controller.isLocked,
+              stationIndex: index,
+              stationColumnIndex: 0,
               onChanged: (value) =>
                   controller.updateStationField(index, 'md', value),
             ),
             _editableCell(
               row.incController,
               enabled: !controller.isLocked,
+              stationIndex: index,
+              stationColumnIndex: 1,
               onChanged: (value) =>
                   controller.updateStationField(index, 'inc', value),
             ),
             _editableCell(
               row.aziController,
               enabled: !controller.isLocked,
+              stationIndex: index,
+              stationColumnIndex: 2,
               onChanged: (value) =>
                   controller.updateStationField(index, 'azi', value),
             ),
@@ -554,6 +561,8 @@ class _SurveyDataTabState extends State<SurveyDataTab> {
     required bool enabled,
     required ValueChanged<String> onChanged,
     TextAlign textAlign = TextAlign.center,
+    int? stationIndex,
+    int? stationColumnIndex,
   }) {
     return Obx(() {
       final bg = controller.isLocked
@@ -561,20 +570,73 @@ class _SurveyDataTabState extends State<SurveyDataTab> {
           : (enabled ? Colors.white : _readOnlyBg);
       return Container(
         color: bg,
-        child: TextField(
-          controller: controllerField,
-          enabled: enabled,
-          textAlign: textAlign,
-          style: const TextStyle(fontSize: 12, color: Color(0xFF2F2F2F)),
-          decoration: const InputDecoration(
-            isDense: true,
-            border: InputBorder.none,
-            contentPadding: EdgeInsets.symmetric(horizontal: 5, vertical: 8),
+        child: Shortcuts(
+          shortcuts: const {
+            SingleActivator(LogicalKeyboardKey.keyV, control: true):
+                _PasteSurveyDataIntent(),
+          },
+          child: Actions(
+            actions: {
+              _PasteSurveyDataIntent: CallbackAction<_PasteSurveyDataIntent>(
+                onInvoke: (_) {
+                  if (stationIndex == null || stationColumnIndex == null) {
+                    return null;
+                  }
+                  _pasteSurveyStationData(stationIndex, stationColumnIndex);
+                  return null;
+                },
+              ),
+            },
+            child: TextField(
+              controller: controllerField,
+              enabled: enabled,
+              textAlign: textAlign,
+              style: const TextStyle(fontSize: 12, color: Color(0xFF2F2F2F)),
+              decoration: const InputDecoration(
+                isDense: true,
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.symmetric(horizontal: 5, vertical: 8),
+              ),
+              onChanged: onChanged,
+            ),
           ),
-          onChanged: onChanged,
         ),
       );
     });
+  }
+
+  Future<void> _pasteSurveyStationData(
+    int stationIndex,
+    int stationColumnIndex,
+  ) async {
+    if (controller.isLocked) return;
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    final parsed = _parseSurveyClipboardRows(
+      data?.text ?? '',
+      stationColumnIndex,
+    );
+    if (parsed.isEmpty) return;
+    controller.pasteStationTriples(stationIndex, parsed);
+  }
+
+  List<List<String>> _parseSurveyClipboardRows(String raw, int startColumn) {
+    final lines = raw
+        .replaceAll('\r\n', '\n')
+        .replaceAll('\r', '\n')
+        .split('\n')
+        .where((line) => line.trim().isNotEmpty);
+
+    final rows = <List<String>>[];
+    for (final line in lines) {
+      final cells = line.split('\t').map((cell) => cell.trim()).toList();
+      if (cells.every((cell) => cell.isEmpty)) continue;
+      final row = List<String>.filled(3, '');
+      for (var i = 0; i < cells.length && startColumn + i < 3; i++) {
+        row[startColumn + i] = cells[i];
+      }
+      rows.add(row);
+    }
+    return rows;
   }
 
   Widget _readonlyCell(String value) {
@@ -842,6 +904,10 @@ class _SurveyDataTabState extends State<SurveyDataTab> {
         break;
     }
   }
+}
+
+class _PasteSurveyDataIntent extends Intent {
+  const _PasteSurveyDataIntent();
 }
 
 class _SquareCrossPainter extends CustomPainter {

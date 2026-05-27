@@ -6,7 +6,7 @@ import 'package:mudpro_desktop_app/modules/report/recap_tabs/cum_cost/tab_bar/re
 import 'package:mudpro_desktop_app/modules/report/recap_tabs/customized/tab_bar/recap_customized_tab_view.dart';
 import 'package:mudpro_desktop_app/modules/report/recap_tabs/depth_cost/tab_bar/depth_cost_tab_view.dart';
 import 'package:mudpro_desktop_app/modules/report/recap_tabs/drilling_data/tab_bar/drilling_data_tab_view.dart';
-import 'package:mudpro_desktop_app/modules/report/recap_tabs/engineer/tab_bar/recap_engineer_tab_view.dart';
+import 'package:mudpro_desktop_app/modules/report/recap_tabs/drilling_data/tabs/engineer/tab_bar/recap_engineer_tab_view.dart';
 import 'package:mudpro_desktop_app/modules/report/recap_tabs/hydraulics/tab_bar/recap_hydraulics_tab_view.dart';
 import 'package:mudpro_desktop_app/modules/report/recap_tabs/interval/tab_bar/recap_interval_tab_view.dart';
 import 'package:mudpro_desktop_app/modules/report/recap_tabs/mud_prop/tab_bar/mud_prop_tab_view.dart';
