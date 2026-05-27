@@ -541,8 +541,11 @@ class PitController extends GetxController {
     return false;
   }
 
-  double storageCalculatedVolumeForPit(PitModel pit) {
-    final rows = volumeNameData['storageTable'];
+  double storageCalculatedVolumeForPit(
+    PitModel pit, {
+    Map<String, dynamic>? volumeNameData,
+  }) {
+    final rows = (volumeNameData ?? this.volumeNameData)['storageTable'];
     if (rows is List) {
       final match = rows.cast<dynamic>().firstWhereOrNull((row) {
         if (row is! Map) return false;

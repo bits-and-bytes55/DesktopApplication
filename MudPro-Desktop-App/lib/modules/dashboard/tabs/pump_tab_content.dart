@@ -7,12 +7,15 @@ import 'package:mudpro_desktop_app/modules/UG/controller/pump_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/sce_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
+import 'package:mudpro_desktop_app/modules/report_context/report_api_service.dart';
 import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 // ─── Local row model for Pump page ────────────────────────────────────────────
 class _PumpRow {
+  String? id;
+  int rowNumber = 0;
   final RxString model = ''.obs;
   final RxString type = ''.obs;
   final RxString linerId = ''.obs;
@@ -26,6 +29,7 @@ class _PumpRow {
   bool get hasData => model.value.isNotEmpty;
 
   void clear() {
+    id = null;
     model.value = '';
     type.value = '';
     linerId.value = '';
@@ -103,11 +107,18 @@ class _PumpPageState extends State<PumpPage> {
   late final PumpController pumpController;
   late final SceController sceController;
   late final DashboardController dashboard;
+  final ReportApiService _reportApi = ReportApiService();
   final List<Worker> _unitWorkers = <Worker>[];
   Worker? _wellWorker;
   Worker? _reportWorker;
   final Map<_ShakerRow, Timer> _shakerSaveTimers = {};
   final Map<_OtherSceRow, Timer> _otherSceSaveTimers = {};
+  final Map<_PumpRow, Timer> _pumpSaveTimers = {};
+  Timer? _pumpSummarySaveTimer;
+  final RxString _summaryPumpRate = ''.obs;
+  final RxString _summaryPumpPressure = ''.obs;
+  final RxString _summaryDhToolsLoss = ''.obs;
+  final RxString _summaryMotorLoss = ''.obs;
   late String _diameterUnit;
   late String _lengthUnit;
   late String _displacementUnit;
@@ -187,17 +198,24 @@ class _PumpPageState extends State<PumpPage> {
     _sceRows.addAll(List.generate(_initialSceRows, (_) => _OtherSceRow()));
     _wellWorker = ever<String>(
       padWellContext.selectedWellId,
-      (_) => _loadReportSceRows(),
+      (_) => _loadReportRows(),
     );
     _reportWorker = ever<String>(
       reportContext.selectedReportId,
-      (_) => _loadReportSceRows(),
+      (_) => _loadReportRows(),
     );
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadReportSceRows());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadReportRows());
+  }
+
+  @override
+  void deactivate() {
+    unawaited(_flushPendingPumpSaves());
+    super.deactivate();
   }
 
   @override
   void dispose() {
+    unawaited(_flushPendingPumpSaves());
     for (final timer in _shakerSaveTimers.values) {
       timer.cancel();
     }
@@ -324,8 +342,49 @@ class _PumpPageState extends State<PumpPage> {
 
   bool _sameSelectedReport(Map item) {
     final selectedReportId = reportContext.selectedReportId.value.trim();
-    if (selectedReportId.isEmpty) return true;
+    if (selectedReportId.isEmpty) return false;
     return (item['reportId']?.toString().trim() ?? '') == selectedReportId;
+  }
+
+  Future<void> _loadReportRows() async {
+    _loadPumpSummaryFields();
+    await Future.wait([_loadReportPumpRows(), _loadReportSceRows()]);
+  }
+
+  void _loadPumpSummaryFields() {
+    final values =
+        reportContext.selectedReport?.pumpRateAndPressure ??
+        const <String, String>{};
+    _summaryPumpRate.value = _summaryValue(values['pumpRate']);
+    _summaryPumpPressure.value = _summaryValue(values['pumpPressure']);
+    _summaryDhToolsLoss.value = _summaryValue(values['dhToolsPressureLoss']);
+    _summaryMotorLoss.value = _summaryValue(values['motorPressureLoss']);
+  }
+
+  String _summaryValue(String? value) {
+    final text = value?.trim() ?? '';
+    final parsed = double.tryParse(text);
+    if (parsed != null && parsed == 0) return '';
+    return text;
+  }
+
+  Future<void> _loadReportPumpRows() async {
+    final wellId = currentBackendWellId.trim();
+    if (wellId.isEmpty) return;
+
+    final result = await pumpController.repository.getPumps(wellId);
+    if (result['success'] != true) return;
+
+    final rows = (result['data'] as List? ?? const [])
+        .whereType<Map>()
+        .where(_sameSelectedReport)
+        .map(_pumpRowFromMap)
+        .toList(growable: true);
+
+    while (rows.length < _initialPumpRows) {
+      rows.add(_PumpRow()..rowNumber = rows.length + 1);
+    }
+    _pumpRows.assignAll(rows);
   }
 
   Future<void> _loadReportSceRows() async {
@@ -360,6 +419,22 @@ class _PumpPageState extends State<PumpPage> {
     }
   }
 
+  _PumpRow _pumpRowFromMap(Map item) {
+    final row = _PumpRow();
+    row.id = item['_id']?.toString() ?? item['id']?.toString();
+    row.rowNumber = int.tryParse(item['rowNumber']?.toString() ?? '') ?? 0;
+    row.model.value = item['model']?.toString() ?? '';
+    row.type.value = item['type']?.toString() ?? '';
+    row.linerId.value = item['linerId']?.toString() ?? '';
+    row.rodOd.value = item['rodOd']?.toString() ?? '';
+    row.strokeLength.value = item['strokeLength']?.toString() ?? '';
+    row.efficiency.value = item['efficiency']?.toString() ?? '';
+    row.displacement.value = item['displacement']?.toString() ?? '';
+    row.spm.value = item['spm']?.toString() ?? '';
+    row.rate.value = item['rate']?.toString() ?? '';
+    return row;
+  }
+
   _ShakerRow _shakerRowFromMap(Map item) {
     final row = _ShakerRow();
     row.id = item['_id']?.toString() ?? item['id']?.toString();
@@ -390,6 +465,149 @@ class _PumpPageState extends State<PumpPage> {
     row.time.value = item['time']?.toString() ?? '';
     row.oocWt.value = item['oocWt']?.toString() ?? '';
     return row;
+  }
+
+  void _scheduleSavePumpRow(_PumpRow row, int rowIndex) {
+    if (dashboard.isLocked.value ||
+        !row.hasData ||
+        reportContext.selectedReportId.value.trim().isEmpty ||
+        currentBackendWellId.trim().isEmpty) {
+      return;
+    }
+    row.rowNumber = row.rowNumber > 0 ? row.rowNumber : rowIndex + 1;
+    _pumpSaveTimers[row]?.cancel();
+    _pumpSaveTimers[row] = Timer(
+      const Duration(milliseconds: 850),
+      () => _savePumpRow(row, rowIndex),
+    );
+  }
+
+  void _savePumpRowNow(_PumpRow row, int rowIndex) {
+    _pumpSaveTimers.remove(row)?.cancel();
+    unawaited(_savePumpRow(row, rowIndex));
+  }
+
+  Future<void> _flushPendingPumpSaves() async {
+    final pendingPumpRows = _pumpSaveTimers.keys.toList();
+    for (final timer in _pumpSaveTimers.values) {
+      timer.cancel();
+    }
+    _pumpSaveTimers.clear();
+
+    final futures = <Future<void>>[];
+    for (final row in pendingPumpRows) {
+      final index = _pumpRows.indexOf(row);
+      if (index >= 0) {
+        futures.add(_savePumpRow(row, index));
+      }
+    }
+
+    if (_pumpSummarySaveTimer?.isActive ?? false) {
+      _pumpSummarySaveTimer?.cancel();
+      futures.add(_savePumpSummary());
+    }
+    _pumpSummarySaveTimer = null;
+
+    if (futures.isNotEmpty) {
+      await Future.wait(futures);
+    }
+  }
+
+  Future<void> _savePumpRow(_PumpRow row, int rowIndex) async {
+    if (!row.hasData ||
+        reportContext.selectedReportId.value.trim().isEmpty ||
+        currentBackendWellId.trim().isEmpty) {
+      return;
+    }
+    row.rowNumber = row.rowNumber > 0 ? row.rowNumber : rowIndex + 1;
+    final payload = {
+      'rowNumber': row.rowNumber,
+      'model': row.model.value.trim(),
+      'type': row.type.value.trim(),
+      'linerId': double.tryParse(row.linerId.value.trim()) ?? 0,
+      'rodOd': double.tryParse(row.rodOd.value.trim()) ?? 0,
+      'strokeLength': double.tryParse(row.strokeLength.value.trim()) ?? 0,
+      'efficiency': double.tryParse(row.efficiency.value.trim()) ?? 0,
+      'spm': double.tryParse(row.spm.value.trim()) ?? 0,
+    };
+
+    try {
+      final result = row.id == null
+          ? await pumpController.repository.createPump(
+              currentBackendWellId.trim(),
+              payload,
+            )
+          : await pumpController.repository.updatePump(row.id!, payload);
+
+      if (result['success'] == true) {
+        final data = result['data'];
+        if (data is Map) {
+          row.id = data['_id']?.toString() ?? row.id;
+          row.displacement.value =
+              data['displacement']?.toString() ?? row.displacement.value;
+          row.rate.value = data['rate']?.toString() ?? row.rate.value;
+        }
+      }
+    } catch (e) {
+      debugPrint('Pump report autosave error: $e');
+    }
+  }
+
+  void _scheduleSavePumpSummary() {
+    if (dashboard.isLocked.value ||
+        reportContext.selectedReportId.value.isEmpty) {
+      return;
+    }
+
+    _pumpSummarySaveTimer?.cancel();
+    _pumpSummarySaveTimer = Timer(
+      const Duration(milliseconds: 850),
+      _savePumpSummary,
+    );
+  }
+
+  Future<void> _savePumpSummary() async {
+    final reportId = reportContext.selectedReportId.value.trim();
+    if (reportId.isEmpty) return;
+
+    final existing =
+        reportContext.selectedReport?.pumpRateAndPressure ??
+        const <String, String>{};
+    final payload = {
+      'pumpRateAndPressure': {
+        ...existing,
+        'pumpRate': double.tryParse(_summaryPumpRate.value.trim()) ?? 0,
+        'pumpPressure': double.tryParse(_summaryPumpPressure.value.trim()) ?? 0,
+        'dhToolsPressureLoss':
+            double.tryParse(_summaryDhToolsLoss.value.trim()) ?? 0,
+        'motorPressureLoss': double.tryParse(_summaryMotorLoss.value.trim()) ?? 0,
+      },
+    };
+
+    try {
+      await _reportApi.updateReport(reportId, payload);
+      _applyPumpSummaryToContext(reportId);
+    } catch (e) {
+      debugPrint('Pump summary autosave error: $e');
+    }
+  }
+
+  void _applyPumpSummaryToContext(String reportId) {
+    final index = reportContext.reports.indexWhere(
+      (item) => item.id == reportId,
+    );
+    if (index < 0) return;
+
+    final existing = reportContext.reports[index].pumpRateAndPressure;
+    reportContext.reports[index] = reportContext.reports[index].copyWith(
+      pumpRateAndPressure: {
+        ...existing,
+        'pumpRate': _summaryPumpRate.value.trim(),
+        'pumpPressure': _summaryPumpPressure.value.trim(),
+        'dhToolsPressureLoss': _summaryDhToolsLoss.value.trim(),
+        'motorPressureLoss': _summaryMotorLoss.value.trim(),
+      },
+    );
   }
 
   void _scheduleSaveShakerRow(_ShakerRow row) {
@@ -738,28 +956,36 @@ class _PumpPageState extends State<PumpPage> {
     return Obx(() {
       final ctrl = TextEditingController(text: row.spm.value)
         ..selection = TextSelection.collapsed(offset: row.spm.value.length);
-      return TextField(
-        enabled: !isLocked,
-        controller: ctrl,
-        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-        onChanged: (val) {
-          row.spm.value = val;
-          row.recalculateRate();
-          // ✅ Auto-add row when last row has data
-          _checkAddPumpRow(rowIndex);
+      return Focus(
+        onFocusChange: (hasFocus) {
+          if (!hasFocus) {
+            _savePumpRowNow(row, rowIndex);
+          }
         },
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          fontSize: 9,
-          color: isLocked ? Colors.grey.shade400 : Colors.black87,
-          fontWeight: FontWeight.w500,
-        ),
-        decoration: InputDecoration(
-          border: InputBorder.none,
-          contentPadding: EdgeInsets.zero,
-          isDense: true,
-          filled: isLocked,
-          fillColor: isLocked ? Colors.grey.shade50 : null,
+        child: TextField(
+          enabled: !isLocked,
+          controller: ctrl,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          onChanged: (val) {
+            row.spm.value = val;
+            row.recalculateRate();
+          // ✅ Auto-add row when last row has data
+            _checkAddPumpRow(rowIndex);
+            _scheduleSavePumpRow(row, rowIndex);
+          },
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 9,
+            color: isLocked ? Colors.grey.shade400 : Colors.black87,
+            fontWeight: FontWeight.w500,
+          ),
+          decoration: InputDecoration(
+            border: InputBorder.none,
+            contentPadding: EdgeInsets.zero,
+            isDense: true,
+            filled: isLocked,
+            fillColor: isLocked ? Colors.grey.shade50 : null,
+          ),
         ),
       );
     });
@@ -793,8 +1019,8 @@ class _PumpPageState extends State<PumpPage> {
                     (p) => p.model.value == selected && p.hasData,
                   );
 
+                  row.model.value = selected;
                   if (source != null) {
-                    row.model.value = selected;
                     row.type.value = source.type.value;
                     row.linerId.value = source.linerId.value;
                     final rodVal = double.tryParse(source.rodOd.value) ?? 0;
@@ -807,6 +1033,7 @@ class _PumpPageState extends State<PumpPage> {
                   }
                   // ✅ Auto-add row when last row's model is selected
                   _checkAddPumpRow(rowIndex);
+                  _scheduleSavePumpRow(row, rowIndex);
                 },
           items: [
             const DropdownMenuItem<String?>(
@@ -1282,11 +1509,11 @@ class _PumpPageState extends State<PumpPage> {
     return LayoutBuilder(
       builder: (context, constraints) {
         const baseCellWidth = 485.0;
-        const dividerWidth = 5.0;
+        const dividerWidth = 6.0;
         final contentWidth = constraints.hasBoundedWidth
             ? math.max(baseCellWidth + dividerWidth, constraints.maxWidth)
             : baseCellWidth + dividerWidth;
-        final scale = (contentWidth - dividerWidth) / baseCellWidth;
+        final scale = (contentWidth - dividerWidth - 1) / baseCellWidth;
         double w(double width) => width * scale;
 
         return SingleChildScrollView(
@@ -1523,13 +1750,13 @@ class _PumpPageState extends State<PumpPage> {
               padding: const EdgeInsets.all(10),
               child: Column(
                 children: [
-                  _summaryItem("Pump Rate", "gpm"),
+                  _summaryItem("Pump Rate", "gpm", _summaryPumpRate),
                   const SizedBox(height: 8),
-                  _summaryItem("Pump Pressure", "psi"),
+                  _summaryItem("Pump Pressure", "psi", _summaryPumpPressure),
                   const SizedBox(height: 8),
-                  _summaryItem("DH Tools P. Loss", "psi"),
+                  _summaryItem("DH Tools P. Loss", "psi", _summaryDhToolsLoss),
                   const SizedBox(height: 8),
-                  _summaryItem("Motor P. Loss", "psi"),
+                  _summaryItem("Motor P. Loss", "psi", _summaryMotorLoss),
                 ],
               ),
             ),
@@ -1539,7 +1766,7 @@ class _PumpPageState extends State<PumpPage> {
     );
   }
 
-  Widget _summaryItem(String label, String unit) {
+  Widget _summaryItem(String label, String unit, RxString value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
@@ -1556,6 +1783,17 @@ class _PumpPageState extends State<PumpPage> {
             child: Obx(
               () => TextField(
                 enabled: !dashboard.isLocked.value,
+                controller: TextEditingController(text: value.value)
+                  ..selection = TextSelection.collapsed(
+                    offset: value.value.length,
+                  ),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                onChanged: (text) {
+                  value.value = text;
+                  _scheduleSavePumpSummary();
+                },
                 textAlign: TextAlign.right,
                 style: const TextStyle(fontSize: 9),
                 decoration: InputDecoration(

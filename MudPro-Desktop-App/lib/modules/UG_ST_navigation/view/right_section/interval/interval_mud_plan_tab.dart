@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/mud_controller.dart';
+import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/interval/controller/interval_controller.dart';
 
 const Color _impBorder = Color(0xFFC9CED6);
 const Color _impHeader = Color(0xFFF3F3F3);
@@ -17,8 +18,12 @@ class IntervalMudPlanTab extends StatefulWidget {
 class _IntervalMudPlanTabState extends State<IntervalMudPlanTab> {
   late final MudController c;
   late final DashboardController dashboard;
+  late final IntervalController intervalController;
   final ScrollController _propertyScrollCtrl = ScrollController();
   final ScrollController _rheologyScrollCtrl = ScrollController();
+  Worker? _intervalSelectionWorker;
+  String _activeScopeKey = '';
+  Future<void> _scopeUpdate = Future.value();
 
   static const _planSamples = ['L', 'H'];
   static const _planIndices = [3, 4];
@@ -30,13 +35,38 @@ class _IntervalMudPlanTabState extends State<IntervalMudPlanTab> {
         ? Get.find<MudController>()
         : Get.put(MudController());
     dashboard = Get.find<DashboardController>();
+    intervalController = Get.find<IntervalController>();
+    _intervalSelectionWorker = ever<IntervalItem?>(
+      intervalController.selected,
+      _applyIntervalScope,
+    );
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _applyIntervalScope(intervalController.selected.value),
+    );
+  }
+
+  @override
+  void deactivate() {
+    c.saveMudReportState(force: true);
+    super.deactivate();
   }
 
   @override
   void dispose() {
+    c.saveMudReportState(force: true);
+    _intervalSelectionWorker?.dispose();
     _propertyScrollCtrl.dispose();
     _rheologyScrollCtrl.dispose();
     super.dispose();
+  }
+
+  void _applyIntervalScope(IntervalItem? interval) {
+    final scopeKey = interval?.id.trim().isNotEmpty == true
+        ? 'interval:${interval!.id.trim()}'
+        : 'interval:none';
+    if (_activeScopeKey == scopeKey) return;
+    _activeScopeKey = scopeKey;
+    _scopeUpdate = _scopeUpdate.then((_) => c.useMudStateScope(scopeKey));
   }
 
   @override

@@ -101,8 +101,8 @@ class SceController extends GetxController {
   }
 
   Future<void> _flushPendingAutosavesNow() async {
-    final shakerIndexes = _dirtyShakerRows.toList()..sort();
-    final otherSceIndexes = _dirtyOtherSceRows.toList()..sort();
+    final hasPendingChanges =
+        _dirtyShakerRows.isNotEmpty || _dirtyOtherSceRows.isNotEmpty;
     _dirtyShakerRows.clear();
     _dirtyOtherSceRows.clear();
 
@@ -115,15 +115,15 @@ class SceController extends GetxController {
     _shakerAutosaveTimers.clear();
     _otherSceAutosaveTimers.clear();
 
-    for (final index in shakerIndexes) {
-      if (index < 0 || index >= shakers.length) continue;
+    if (!hasPendingChanges) return;
+
+    for (var index = 0; index < shakers.length; index++) {
       final shaker = shakers[index];
       if (!shaker.hasData) continue;
       await saveShaker(index);
     }
 
-    for (final index in otherSceIndexes) {
-      if (index < 0 || index >= otherSce.length) continue;
+    for (var index = 0; index < otherSce.length; index++) {
       final sce = otherSce[index];
       if (sce.type.value.trim().isEmpty && index < otherSceLabels.length) {
         sce.type.value = otherSceLabels[index];
@@ -360,20 +360,11 @@ class SceController extends GetxController {
       if (!shaker.hasData) return;
       isSavingShakers.value = true;
 
-      Map<String, dynamic> result;
-      if (shaker.id != null) {
-        result = await repository.updateShaker(
-          shaker.id!,
-          shaker.toJson(),
-          includeReportId: false,
-        );
-      } else {
-        result = await repository.createShaker(
-          currentWellId!,
-          shaker.toJson(),
-          includeReportId: false,
-        );
-      }
+      final result = await repository.createShaker(
+        currentWellId!,
+        shaker.toJson(),
+        includeReportId: false,
+      );
 
       if (result['success']) {
         _applySavedShaker(shaker, result['data']);
@@ -451,13 +442,7 @@ class SceController extends GetxController {
     _shakerAutosaveTimers[index] = Timer(
       const Duration(milliseconds: 850),
       () async {
-        final shaker = shakers[index];
-        if (!shaker.hasData) {
-          _dirtyShakerRows.remove(index);
-          return;
-        }
-        await saveShaker(index);
-        _dirtyShakerRows.remove(index);
+        await flushPendingAutosaves();
       },
     );
   }
@@ -474,20 +459,11 @@ class SceController extends GetxController {
       if (!sce.hasData) return;
       isSavingOtherSce.value = true;
 
-      Map<String, dynamic> result;
-      if (sce.id != null) {
-        result = await repository.updateOtherSce(
-          sce.id!,
-          sce.toJson(),
-          includeReportId: false,
-        );
-      } else {
-        result = await repository.createOtherSce(
-          currentWellId!,
-          sce.toJson(),
-          includeReportId: false,
-        );
-      }
+      final result = await repository.createOtherSce(
+        currentWellId!,
+        sce.toJson(),
+        includeReportId: false,
+      );
 
       if (result['success']) {
         _applySavedOtherSce(sce, result['data']);
@@ -568,16 +544,7 @@ class SceController extends GetxController {
     _otherSceAutosaveTimers[index] = Timer(
       const Duration(milliseconds: 850),
       () async {
-        final sce = otherSce[index];
-        if (sce.type.value.trim().isEmpty && index < otherSceLabels.length) {
-          sce.type.value = otherSceLabels[index];
-        }
-        if (!sce.hasData) {
-          _dirtyOtherSceRows.remove(index);
-          return;
-        }
-        await saveOtherSce(index);
-        _dirtyOtherSceRows.remove(index);
+        await flushPendingAutosaves();
       },
     );
   }

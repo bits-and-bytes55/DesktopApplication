@@ -5,6 +5,7 @@ import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/i
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/interval/interval_general_tab.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/interval/interval_left_pannel.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/interval/interval_mud_plan_tab.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/mud_controller.dart';
 
 const Color _ivBorder = Color(0xFFC9CED6);
 const Color _ivLocked = Color(0xFFFFF6C7);
@@ -26,6 +27,7 @@ class _IntervalViewState extends State<IntervalView>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(_saveMudPlanOnTabLeave);
 
     _ivCtrl = Get.isRegistered<IntervalController>()
         ? Get.find<IntervalController>()
@@ -42,9 +44,19 @@ class _IntervalViewState extends State<IntervalView>
 
   @override
   void dispose() {
+    _tabController.removeListener(_saveMudPlanOnTabLeave);
     _wellWorker?.dispose();
     _tabController.dispose();
     super.dispose();
+  }
+
+  void _saveMudPlanOnTabLeave() {
+    if (_tabController.previousIndex != 1 || _tabController.index == 1) {
+      return;
+    }
+    if (Get.isRegistered<MudController>()) {
+      Get.find<MudController>().saveMudReportState(force: true);
+    }
   }
 
   @override

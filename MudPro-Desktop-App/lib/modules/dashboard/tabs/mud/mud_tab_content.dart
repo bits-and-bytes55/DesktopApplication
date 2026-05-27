@@ -35,7 +35,9 @@ class _MudViewState extends State<MudView> {
   @override
   void initState() {
     super.initState();
-    c = Get.put(MudController());
+    c = Get.isRegistered<MudController>()
+        ? Get.find<MudController>()
+        : Get.put(MudController());
     dashboard = Get.find<DashboardController>();
     final options = AppUnits.controller;
     _unitSystemWorker = ever(
@@ -54,7 +56,10 @@ class _MudViewState extends State<MudView> {
       if (!loading) _convertMudValuesForActiveUnits();
     });
     WidgetsBinding.instance.addPostFrameCallback(
-      (_) => _convertMudValuesForActiveUnits(),
+      (_) {
+        c.useMudStateScope('');
+        _convertMudValuesForActiveUnits();
+      },
     );
   }
 

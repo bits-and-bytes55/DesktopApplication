@@ -253,10 +253,14 @@ class _PitPageState extends State<PitPage> {
               ),
             ),
             child: Obx(() {
+              final dataRows = controller.activePitRows;
               return LayoutBuilder(
                 builder: (context, constraints) {
                   return SingleChildScrollView(
-                    child: _buildActivePitsTableBody(constraints.maxHeight),
+                    child: _buildActivePitsTableBody(
+                      constraints.maxHeight,
+                      dataRows,
+                    ),
                   );
                 },
               );
@@ -294,8 +298,10 @@ class _PitPageState extends State<PitPage> {
     );
   }
 
-  Widget _buildActivePitsTableBody(double availableHeight) {
-    final dataRows = controller.activePitRows;
+  Widget _buildActivePitsTableBody(
+    double availableHeight,
+    List<PitModel> dataRows,
+  ) {
     final fillerRows = _fillerRowCount(
       availableHeight: availableHeight,
       dataRows: dataRows.length,
@@ -385,10 +391,18 @@ class _PitPageState extends State<PitPage> {
               ),
             ),
             child: Obx(() {
+              final dataRows = controller.storagePitRows;
+              final volumeNameData = Map<String, dynamic>.from(
+                controller.volumeNameData,
+              );
               return LayoutBuilder(
                 builder: (context, constraints) {
                   return SingleChildScrollView(
-                    child: _buildStorageTableBody(constraints.maxHeight),
+                    child: _buildStorageTableBody(
+                      constraints.maxHeight,
+                      dataRows,
+                      volumeNameData,
+                    ),
                   );
                 },
               );
@@ -428,8 +442,11 @@ class _PitPageState extends State<PitPage> {
     );
   }
 
-  Widget _buildStorageTableBody(double availableHeight) {
-    final dataRows = controller.storagePitRows;
+  Widget _buildStorageTableBody(
+    double availableHeight,
+    List<PitModel> dataRows,
+    Map<String, dynamic> volumeNameData,
+  ) {
     final fillerRows = _fillerRowCount(
       availableHeight: availableHeight,
       dataRows: dataRows.length,
@@ -464,7 +481,7 @@ class _PitPageState extends State<PitPage> {
             children: [
               _pitNameCell(ctrls, pit),
               _readOnlyCell(
-                _storageCalculatedVol(pit),
+                _storageCalculatedVol(pit, volumeNameData),
               ),
               _editableCellWithSave(ctrls, pit, 'volume'),
               _editableCellWithSave(ctrls, pit, 'density'),
@@ -966,7 +983,12 @@ class _PitPageState extends State<PitPage> {
     );
   }
 
-  String _storageCalculatedVol(PitModel pit) {
-    return controller.storageCalculatedVolumeForPit(pit).toStringAsFixed(2);
+  String _storageCalculatedVol(
+    PitModel pit,
+    Map<String, dynamic> volumeNameData,
+  ) {
+    return controller
+        .storageCalculatedVolumeForPit(pit, volumeNameData: volumeNameData)
+        .toStringAsFixed(2);
   }
 }

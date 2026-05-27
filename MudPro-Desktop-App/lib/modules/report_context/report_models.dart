@@ -12,6 +12,7 @@ class AppReport {
   final String internalNotes;
   final ReportAttachment? remarksAttachment;
   final List<String> operationSelections;
+  final Map<String, String> pumpRateAndPressure;
   final String createdAt;
 
   const AppReport({
@@ -28,6 +29,7 @@ class AppReport {
     required this.internalNotes,
     this.remarksAttachment,
     required this.operationSelections,
+    required this.pumpRateAndPressure,
     required this.createdAt,
   });
 
@@ -45,7 +47,26 @@ class AppReport {
     internalNotes: _text(json['internalNotes']),
     remarksAttachment: ReportAttachment.fromJson(json['remarksAttachment']),
     operationSelections: _stringList(json['operationSelections']),
+    pumpRateAndPressure: _stringMap(json['pumpRateAndPressure']),
     createdAt: _text(json['createdAt']),
+  );
+
+  AppReport copyWith({Map<String, String>? pumpRateAndPressure}) => AppReport(
+    id: id,
+    wellId: wellId,
+    reportNo: reportNo,
+    userReportNo: userReportNo,
+    reportDate: reportDate,
+    title: title,
+    notes: notes,
+    recommendedTreatment: recommendedTreatment,
+    remarks: remarks,
+    recapRemarks: recapRemarks,
+    internalNotes: internalNotes,
+    remarksAttachment: remarksAttachment,
+    operationSelections: operationSelections,
+    pumpRateAndPressure: pumpRateAndPressure ?? this.pumpRateAndPressure,
+    createdAt: createdAt,
   );
 
   String get displayName {
@@ -187,6 +208,15 @@ List<String> _stringList(dynamic value) {
     items.add(parsed);
   }
   return items;
+}
+
+Map<String, String> _stringMap(dynamic value) {
+  if (value is! Map) return const <String, String>{};
+  return Map<String, String>.fromEntries(
+    value.entries.map(
+      (entry) => MapEntry(_text(entry.key), _text(entry.value)),
+    ),
+  );
 }
 
 int _intValue(dynamic value) {

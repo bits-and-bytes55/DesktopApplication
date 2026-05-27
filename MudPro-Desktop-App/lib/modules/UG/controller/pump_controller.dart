@@ -91,8 +91,9 @@ class PumpController extends GetxController {
   void onFieldChanged(int index) {
     checkAndAddNewRow();
 
+    if (index >= pumps.length) return;
     final pump = pumps[index];
-    if (pump.id != null) {
+    if (pump.hasData) {
       _scheduleAutoUpdate(index);
     }
   }
@@ -114,7 +115,7 @@ class PumpController extends GetxController {
     if (index >= pumps.length) return;
 
     final pump = pumps[index];
-    if (pump.id == null || !pump.hasData) {
+    if (!pump.hasData || currentWellId.isEmpty) {
       updatingRows.remove(index);
       updatingRows.refresh();
       return;
@@ -122,12 +123,30 @@ class PumpController extends GetxController {
 
     try {
       final pumpData = pump.toJson();
-      final result = await repository.updatePump(pump.id!, pumpData);
+      final result = pump.id == null
+          ? await repository.createPump(
+              currentWellId,
+              pumpData,
+              includeReportScope: false,
+            )
+          : await repository.updatePump(
+              pump.id!,
+              pumpData,
+              includeReportScope: false,
+            );
 
       if (result['success']) {
-        final updated = PumpModel.fromJson(result['data'] as Map<String, dynamic>);
+        final updated = PumpModel.fromJson(
+          result['data'] as Map<String, dynamic>,
+        );
+        pump.id = updated.id ?? pump.id;
         pump.displacement.value = updated.displacement.value;
         pump.rate.value = updated.rate.value;
+        final modelText = pump.model.value.trim();
+        if (modelText.isNotEmpty && !availablePumpModels.contains(modelText)) {
+          availablePumpModels.add(modelText);
+          availablePumpModels.sort();
+        }
         print('✅ Auto-updated pump row ${index + 1}');
       } else {
         print('❌ Auto-update failed: ${result['message']}');
@@ -163,7 +182,10 @@ class PumpController extends GetxController {
       isLoading.value = true;
       currentWellId = wellId;
 
-      final result = await repository.getPumps(wellId);
+      final result = await repository.getPumps(
+        wellId,
+        includeReportScope: false,
+      );
       if (generation != _loadGeneration) return;
 
       if (result['success']) {
@@ -222,9 +244,17 @@ class PumpController extends GetxController {
       final pumpData = pump.toJson();
 
       if (pump.id != null) {
-        result = (await repository.updatePump(pump.id!, pumpData)) as Map<String, dynamic>;
+        result = (await repository.updatePump(
+          pump.id!,
+          pumpData,
+          includeReportScope: false,
+        )) as Map<String, dynamic>;
       } else {
-        result = (await repository.createPump(currentWellId, pumpData)) as Map<String, dynamic>;
+        result = (await repository.createPump(
+          currentWellId,
+          pumpData,
+          includeReportScope: false,
+        )) as Map<String, dynamic>;
       }
 
       if (result['success']) {
@@ -314,7 +344,10 @@ class PumpController extends GetxController {
 
     try {
       isLoading.value = true;
-      final result = await repository.deletePump(pump.id!);
+      final result = await repository.deletePump(
+        pump.id!,
+        includeReportScope: false,
+      );
 
       if (result['success']) {
         pumps.removeAt(index);
@@ -355,7 +388,10 @@ class PumpController extends GetxController {
   /// ✅ Fetch pump data by model for dropdown auto-fill
   Future<Map<String, dynamic>?> getPumpDataByModel(String model) async {
     try {
-      final result = await repository.getPumps(currentWellId);
+      final result = await repository.getPumps(
+        currentWellId,
+        includeReportScope: false,
+      );
       if (result['success']) {
         final List<dynamic> pumpData = result['data'] ?? [];
         return pumpData.firstWhere(

@@ -89,6 +89,8 @@ class MudController extends GetxController {
   Worker? _wellWorker;
   Worker? _reportWorker;
   bool _isApplyingSavedState = false;
+  final RxString _stateScopeKey = ''.obs;
+  final Map<String, Map<String, dynamic>> _stateCache = {};
 
   final solidSaveStatus = <String, RxString>{
     '0': 'idle'.obs,
@@ -395,7 +397,9 @@ class MudController extends GetxController {
     isLoading.value = true;
     _isApplyingSavedState = true;
     try {
-      final savedState = applySavedState ? await _fetchMudReportState() : null;
+      final cachedState = _stateCache[_mudStateCacheKey];
+      final savedState = cachedState ??
+          (applySavedState ? await _fetchMudReportState() : null);
       final savedFluidType = (savedState?['fluidType'] ?? '').toString().trim();
       if (savedFluidType.isNotEmpty) {
         selectedFluidType.value = savedFluidType;
@@ -627,12 +631,61 @@ class MudController extends GetxController {
 
   String get _wellId => currentBackendWellId.trim();
   String get _reportId => reportContext.selectedReportId.value.trim();
+  String get _effectiveReportId {
+    final scopeKey = _stateScopeKey.value.trim();
+    if (scopeKey.isEmpty) return _reportId;
+    final base = _reportId.isEmpty ? 'well' : _reportId;
+    return '$base::$scopeKey';
+  }
+
+  String get _mudStateCacheKey {
+    final well = _wellId.isEmpty ? 'well' : _wellId;
+    final report = _effectiveReportId.isEmpty ? 'default' : _effectiveReportId;
+    return '$well::$report';
+  }
 
   Uri _mudReportUri() {
     final base = Uri.parse('${_kBaseUrl}mud-report/$_wellId');
-    return _reportId.isEmpty
+    final reportId = _effectiveReportId;
+    return reportId.isEmpty
         ? base
-        : base.replace(queryParameters: {'reportId': _reportId});
+        : base.replace(queryParameters: {'reportId': reportId});
+  }
+
+  Future<void> useMudStateScope(String scopeKey) async {
+    final normalized = scopeKey.trim();
+    if (_stateScopeKey.value == normalized) return;
+    _cacheCurrentMudState();
+    if (!_isApplyingSavedState && _wellId.isNotEmpty) {
+      await saveMudReportState(force: true);
+    }
+    _isApplyingSavedState = true;
+    _resetMudStateDefaults();
+    _stateScopeKey.value = normalized;
+    _isApplyingSavedState = false;
+    await loadFluidTypeData(applySavedState: true);
+  }
+
+  void _resetMudStateDefaults() {
+    selectedFluidType.value = 'Water-based';
+    rheologyModel.value = 'Bingham';
+    rheologyCalculation.value = 'API (RP 13D)';
+    isCompletionFluid.value = false;
+    isWeightedMud.value = false;
+    sampleForCalculation.value = '1';
+    fluidnameController.clear();
+    oilSgController.text = '0.81';
+    hgsSgController.text = '4.10';
+    lgsSgController.text = '2.40';
+    shaleCecController.text = '15.00';
+    bentCecController.text = '65.00';
+    solidAnalysisResult.clear();
+    _initRheologyTable();
+  }
+
+  void _cacheCurrentMudState() {
+    if (_isApplyingSavedState) return;
+    _stateCache[_mudStateCacheKey] = _buildMudReportPayload();
   }
 
   Future<Map<String, dynamic>?> _fetchMudReportState() async {
@@ -754,7 +807,7 @@ class MudController extends GetxController {
 
   Map<String, dynamic> _buildMudReportPayload() => {
     'wellId': _wellId,
-    if (_reportId.isNotEmpty) 'reportId': _reportId,
+    if (_effectiveReportId.isNotEmpty) 'reportId': _effectiveReportId,
     'fluidName': fluidnameController.text.trim(),
     'fluidType': selectedFluidType.value,
     'isCompletionFluid': isCompletionFluid.value,
@@ -775,6 +828,7 @@ class MudController extends GetxController {
 
   void _scheduleMudReportSave() {
     if (_isApplyingSavedState || _wellId.isEmpty) return;
+    _cacheCurrentMudState();
     _mudStateSaveTimer?.cancel();
     _mudStateSaveTimer = Timer(
       _kSaveDebounce,
@@ -786,6 +840,7 @@ class MudController extends GetxController {
     if (_wellId.isEmpty) return;
     if (!force && _isApplyingSavedState) return;
     _mudStateSaveTimer?.cancel();
+    _cacheCurrentMudState();
     try {
       await http.put(
         _mudReportUri(),

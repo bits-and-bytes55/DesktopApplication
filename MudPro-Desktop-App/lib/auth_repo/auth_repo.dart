@@ -1672,9 +1672,14 @@ class AuthRepository {
   // PUMP CRUD
   // ══════════════════════════════════════════════════════════════════════════════
 
-  Future<Map<String, dynamic>> getPumps(String wellId) async {
+  Future<Map<String, dynamic>> getPumps(
+    String wellId, {
+    bool includeReportScope = true,
+  }) async {
     try {
-      final reportId = reportContext.selectedReportId.value.trim();
+      final reportId = includeReportScope
+          ? reportContext.selectedReportId.value.trim()
+          : '';
       final response = await http.get(
         Uri.parse('${baseUrl}pump').replace(
           queryParameters: {
@@ -1699,10 +1704,13 @@ class AuthRepository {
 
   Future<Map<String, dynamic>> createPump(
     String wellId,
-    Map<String, dynamic> pumpData,
-  ) async {
+    Map<String, dynamic> pumpData, {
+    bool includeReportScope = true,
+  }) async {
     try {
-      final reportId = reportContext.selectedReportId.value.trim();
+      final reportId = includeReportScope
+          ? reportContext.selectedReportId.value.trim()
+          : '';
       final payload = {
         ...pumpData,
         'wellId': wellId,
@@ -1729,10 +1737,13 @@ class AuthRepository {
 
   Future<Map<String, dynamic>> updatePump(
     String id,
-    Map<String, dynamic> pumpData,
-  ) async {
+    Map<String, dynamic> pumpData, {
+    bool includeReportScope = true,
+  }) async {
     try {
-      final reportId = reportContext.selectedReportId.value.trim();
+      final reportId = includeReportScope
+          ? reportContext.selectedReportId.value.trim()
+          : '';
       final payload = Map<String, dynamic>.from(pumpData);
       if (reportId.isNotEmpty) {
         payload['reportId'] = reportId;
@@ -1756,9 +1767,14 @@ class AuthRepository {
     }
   }
 
-  Future<Map<String, dynamic>> deletePump(String id) async {
+  Future<Map<String, dynamic>> deletePump(
+    String id, {
+    bool includeReportScope = true,
+  }) async {
     try {
-      final reportId = reportContext.selectedReportId.value.trim();
+      final reportId = includeReportScope
+          ? reportContext.selectedReportId.value.trim()
+          : '';
       final response = await http.delete(
         Uri.parse('${baseUrl}pump/$id').replace(
           queryParameters: {if (reportId.isNotEmpty) 'reportId': reportId},
