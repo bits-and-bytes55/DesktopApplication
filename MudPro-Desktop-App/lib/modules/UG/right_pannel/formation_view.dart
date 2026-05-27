@@ -1,15 +1,19 @@
 import 'dart:convert';
+import 'dart:ffi' hide Size;
+import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:ffi/ffi.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/UG_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/formation_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/formation_row_model.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
+import 'package:win32/win32.dart';
 
 class FormationView extends StatefulWidget {
   const FormationView({super.key});
@@ -31,12 +35,16 @@ class _FormationViewState extends State<FormationView> {
       ? Get.find<FormationController>()
       : Get.put(FormationController());
   final ScrollController _scrollController = ScrollController();
+  final Map<int, FocusNode> _lithologyFocusNodes = <int, FocusNode>{};
 
   FormationRow? _clipboard;
 
   @override
   void dispose() {
     _scrollController.dispose();
+    for (final node in _lithologyFocusNodes.values) {
+      node.dispose();
+    }
     super.dispose();
   }
 
@@ -287,8 +295,12 @@ class _FormationViewState extends State<FormationView> {
     );
   }
 
-  Widget _lithologyCell(FormationRow row, _FormationLayout layout) {
+  Widget _lithologyCell(FormationRow row, int index, _FormationLayout layout) {
     final imageBytes = _decodeLithologyImage(row.lithology.value);
+    final focusNode = _lithologyFocusNodes.putIfAbsent(
+      index,
+      () => FocusNode(debugLabel: 'Formation lithology $index'),
+    );
     final child = imageBytes == null
         ? Text(
             'No image data',
@@ -310,23 +322,295 @@ class _FormationViewState extends State<FormationView> {
             ),
           );
 
-    return InkWell(
-      onTap: _isLocked ? null : () => _pickLithologyImage(row),
-      child: Container(
-        width: layout.lithologyWidth,
-        height: _rowHeight,
-        alignment: Alignment.centerLeft,
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-        decoration: BoxDecoration(
-          color: _isLocked ? _highlightColor : Colors.white,
-          border: const Border(
-            right: BorderSide(color: _borderColor),
-            bottom: BorderSide(color: _borderColor),
+    return Focus(
+      focusNode: focusNode,
+      onKeyEvent: (node, event) {
+        final isPaste = HardwareKeyboard.instance.isControlPressed &&
+            event.logicalKey == LogicalKeyboardKey.keyV;
+        if (!_isLocked && isPaste && event is KeyDownEvent) {
+          _pasteLithologyImageFromClipboard(index);
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      },
+      child: InkWell(
+        canRequestFocus: true,
+        onTap: _isLocked ? null : () {},
+        onTapDown: _isLocked
+            ? null
+            : (details) async {
+                focusNode.requestFocus();
+                await _showLithologyMenu(details, row, index);
+              },
+        child: Container(
+          width: layout.lithologyWidth,
+          height: _rowHeight,
+          alignment: Alignment.centerLeft,
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+          decoration: BoxDecoration(
+            color: _isLocked ? _highlightColor : Colors.white,
+            border: const Border(
+              right: BorderSide(color: _borderColor),
+              bottom: BorderSide(color: _borderColor),
+            ),
           ),
+          child: child,
         ),
-        child: child,
       ),
     );
+  }
+
+  Future<void> _showLithologyMenu(
+    TapDownDetails details,
+    FormationRow row,
+    int index,
+  ) async {
+    final hasClipboardImage = _readWindowsClipboardImage() != null;
+    final action = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        details.globalPosition.dx,
+        details.globalPosition.dy,
+        details.globalPosition.dx,
+        details.globalPosition.dy,
+      ),
+      items: [
+        _menuItem('paste_image', 'Paste', 'Click', enabled: hasClipboardImage),
+        _menuItem('upload_image', 'Upload', 'Browse', enabled: true),
+        if (row.lithology.value.trim().isNotEmpty)
+          _menuItem('clear_image', 'Clear', 'Delete', enabled: !_isLocked),
+      ],
+    );
+
+    if (!mounted || action == null) return;
+    switch (action) {
+      case 'paste_image':
+        await _pasteLithologyImageFromClipboard(index);
+        break;
+      case 'upload_image':
+        await _pickLithologyImage(row);
+        break;
+      case 'clear_image':
+        controller.updateLithology(index, '');
+        break;
+    }
+  }
+
+  Future<bool> _pasteLithologyImageFromClipboard(int index) async {
+    final image = _readWindowsClipboardImage();
+    if (image == null || image.bytes.isEmpty) return false;
+    controller.updateLithology(
+      index,
+      'data:${image.mimeType};base64,${base64Encode(image.bytes)}',
+    );
+    return true;
+  }
+
+  _ClipboardImage? _readWindowsClipboardImage() {
+    if (!Platform.isWindows) return null;
+
+    if (OpenClipboard(0) == 0) return null;
+
+    try {
+      final pngBytes = _readRegisteredClipboardFormat(
+        const ['PNG', 'image/png'],
+      );
+      if (pngBytes != null && pngBytes.isNotEmpty) {
+        return _ClipboardImage(bytes: pngBytes, mimeType: 'image/png');
+      }
+
+      final dibFormat =
+          IsClipboardFormatAvailable(CF_DIBV5) != 0 ? CF_DIBV5 : CF_DIB;
+      if (IsClipboardFormatAvailable(dibFormat) == 0) return null;
+
+      final dibBytes = _readClipboardFormatBytes(dibFormat);
+      final bmpBytes = dibBytes == null ? null : _dibToBmpBytes(dibBytes);
+      if (bmpBytes != null && bmpBytes.isNotEmpty) {
+        return _ClipboardImage(bytes: bmpBytes, mimeType: 'image/bmp');
+      }
+
+      final bitmapBytes = _readBitmapClipboardBytes();
+      if (bitmapBytes != null && bitmapBytes.isNotEmpty) {
+        return _ClipboardImage(bytes: bitmapBytes, mimeType: 'image/bmp');
+      }
+      return null;
+    } catch (_) {
+      return null;
+    } finally {
+      CloseClipboard();
+    }
+  }
+
+  Uint8List? _readRegisteredClipboardFormat(List<String> names) {
+    for (final name in names) {
+      final namePointer = name.toNativeUtf16();
+      try {
+        final format = RegisterClipboardFormat(namePointer);
+        if (format != 0 && IsClipboardFormatAvailable(format) != 0) {
+          return _readClipboardFormatBytes(format);
+        }
+      } finally {
+        calloc.free(namePointer);
+      }
+    }
+    return null;
+  }
+
+  Uint8List? _readClipboardFormatBytes(int format) {
+    final rawHandle = GetClipboardData(format);
+    if (rawHandle == 0) return null;
+
+    final handle = Pointer.fromAddress(rawHandle);
+    final size = GlobalSize(handle);
+    if (size <= 0) return null;
+
+    final lockedMemory = GlobalLock(handle);
+    if (lockedMemory == nullptr) return null;
+
+    try {
+      return Uint8List.fromList(lockedMemory.cast<Uint8>().asTypedList(size));
+    } finally {
+      GlobalUnlock(handle);
+    }
+  }
+
+  Uint8List? _readBitmapClipboardBytes() {
+    if (IsClipboardFormatAvailable(CF_BITMAP) == 0) return null;
+
+    final hBitmap = GetClipboardData(CF_BITMAP);
+    if (hBitmap == 0) return null;
+
+    final hdc = CreateCompatibleDC(0);
+    if (hdc == 0) return null;
+
+    final bitmapInfo = calloc<BITMAPINFO>();
+    try {
+      bitmapInfo.ref.bmiHeader.biSize = sizeOf<BITMAPINFOHEADER>();
+
+      final headerResult = GetDIBits(
+        hdc,
+        hBitmap,
+        0,
+        0,
+        nullptr,
+        bitmapInfo,
+        DIB_RGB_COLORS,
+      );
+      if (headerResult == 0) return null;
+
+      final header = bitmapInfo.ref.bmiHeader;
+      final width = header.biWidth;
+      final height = header.biHeight < 0 ? -header.biHeight : header.biHeight;
+      final bitCount = header.biBitCount;
+      if (width <= 0 || height <= 0 || bitCount <= 0) return null;
+
+      final bytesPerLine = (((width * bitCount) + 31) ~/ 32) * 4;
+      final imageSize = header.biSizeImage > 0
+          ? header.biSizeImage
+          : bytesPerLine * height;
+      if (imageSize <= 0) return null;
+
+      final pixelBuffer = calloc<Uint8>(imageSize);
+      try {
+        final imageResult = GetDIBits(
+          hdc,
+          hBitmap,
+          0,
+          height,
+          pixelBuffer,
+          bitmapInfo,
+          DIB_RGB_COLORS,
+        );
+        if (imageResult == 0) return null;
+
+        final dibHeaderSize = bitmapInfo.ref.bmiHeader.biSize;
+        final dibBytes = Uint8List(dibHeaderSize + imageSize);
+        final dibView = ByteData.sublistView(dibBytes);
+
+        dibView.setUint32(0, bitmapInfo.ref.bmiHeader.biSize, Endian.little);
+        dibView.setInt32(4, bitmapInfo.ref.bmiHeader.biWidth, Endian.little);
+        dibView.setInt32(8, bitmapInfo.ref.bmiHeader.biHeight, Endian.little);
+        dibView.setUint16(12, bitmapInfo.ref.bmiHeader.biPlanes, Endian.little);
+        dibView.setUint16(
+          14,
+          bitmapInfo.ref.bmiHeader.biBitCount,
+          Endian.little,
+        );
+        dibView.setUint32(
+          16,
+          bitmapInfo.ref.bmiHeader.biCompression,
+          Endian.little,
+        );
+        dibView.setUint32(20, imageSize, Endian.little);
+        dibView.setInt32(
+          24,
+          bitmapInfo.ref.bmiHeader.biXPelsPerMeter,
+          Endian.little,
+        );
+        dibView.setInt32(
+          28,
+          bitmapInfo.ref.bmiHeader.biYPelsPerMeter,
+          Endian.little,
+        );
+        dibView.setUint32(
+          32,
+          bitmapInfo.ref.bmiHeader.biClrUsed,
+          Endian.little,
+        );
+        dibView.setUint32(
+          36,
+          bitmapInfo.ref.bmiHeader.biClrImportant,
+          Endian.little,
+        );
+        dibBytes.setRange(
+          dibHeaderSize,
+          dibHeaderSize + imageSize,
+          pixelBuffer.asTypedList(imageSize),
+        );
+        return _dibToBmpBytes(dibBytes);
+      } finally {
+        calloc.free(pixelBuffer);
+      }
+    } finally {
+      calloc.free(bitmapInfo);
+      DeleteDC(hdc);
+    }
+  }
+
+  Uint8List? _dibToBmpBytes(Uint8List dibBytes) {
+    if (dibBytes.length < 40) return null;
+
+    final dibData = ByteData.sublistView(dibBytes);
+    final dibHeaderSize = dibData.getUint32(0, Endian.little);
+    if (dibHeaderSize <= 0 || dibHeaderSize > dibBytes.length) return null;
+
+    final pixelOffset = 14 + _dibPixelOffset(dibData, dibBytes.length);
+    final fileSize = 14 + dibBytes.length;
+    final bmpBytes = Uint8List(fileSize);
+    final bmpData = ByteData.sublistView(bmpBytes);
+
+    bmpBytes[0] = 0x42;
+    bmpBytes[1] = 0x4D;
+    bmpData.setUint32(2, fileSize, Endian.little);
+    bmpData.setUint32(10, pixelOffset, Endian.little);
+    bmpBytes.setRange(14, fileSize, dibBytes);
+    return bmpBytes;
+  }
+
+  int _dibPixelOffset(ByteData dibData, int length) {
+    final headerSize = dibData.getUint32(0, Endian.little);
+    if (headerSize < 40 || length < headerSize) return headerSize;
+
+    final bitCount = dibData.getUint16(14, Endian.little);
+    final compression = dibData.getUint32(16, Endian.little);
+    final colorsUsed = dibData.getUint32(32, Endian.little);
+    final colorTableEntries = bitCount <= 8
+        ? (colorsUsed > 0 ? colorsUsed : 1 << bitCount)
+        : 0;
+    final bitfieldMaskBytes = compression == BI_BITFIELDS && headerSize == 40
+        ? 12
+        : 0;
+    return headerSize + bitfieldMaskBytes + (colorTableEntries * 4);
   }
 
   Future<void> _pickLithologyImage(FormationRow row) async {
@@ -458,7 +742,7 @@ class _FormationViewState extends State<FormationView> {
               FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,3}$')),
             ],
           ),
-          _lithologyCell(row, layout),
+          _lithologyCell(row, index, layout),
         ],
       ),
     );
@@ -517,7 +801,7 @@ class _FormationViewState extends State<FormationView> {
                   ],
                   onChanged: _isLocked
                       ? null
-                      : (value) => controller.setMode(value ?? 'Gradient'),
+                      : (value) => controller.setMode(value ?? 'Density'),
                   style: const TextStyle(
                     fontSize: 10,
                     color: Color(0xFF2F2F2F),
@@ -795,6 +1079,13 @@ class _FormationLayout {
   });
 }
 
+class _ClipboardImage {
+  final Uint8List bytes;
+  final String mimeType;
+
+  const _ClipboardImage({required this.bytes, required this.mimeType});
+}
+
 class _FormationGraphPainter extends CustomPainter {
   final String mode;
   final List<FormationGraphPoint> porePoints;
@@ -822,10 +1113,12 @@ class _FormationGraphPainter extends CustomPainter {
     final axisPaint = Paint()
       ..color = const Color(0xFFB7BDC7)
       ..strokeWidth = 1;
+    final chartBackgroundPaint = Paint()..color = Colors.white;
     final gridPaint = Paint()
       ..color = const Color(0xFFD8DCE3)
       ..strokeWidth = 1;
 
+    canvas.drawRect(chartRect, chartBackgroundPaint);
     canvas.drawRect(chartRect, axisPaint);
 
     final allPoints = [...porePoints, ...fracPoints];

@@ -77,6 +77,7 @@ class PlanPageView extends StatefulWidget {
 
 class _PlanPageViewState extends State<PlanPageView> {
   late final UgStController c;
+  final ScrollController _horizontalScroll = ScrollController();
   final ScrollController _verticalScroll = ScrollController();
   final TextEditingController _tdController = TextEditingController();
   final TextEditingController _daysController = TextEditingController();
@@ -92,6 +93,7 @@ class _PlanPageViewState extends State<PlanPageView> {
 
   @override
   void dispose() {
+    _horizontalScroll.dispose();
     _verticalScroll.dispose();
     _tdController.dispose();
     _daysController.dispose();
@@ -128,25 +130,35 @@ class _PlanPageViewState extends State<PlanPageView> {
             _summaryStrip(),
             const SizedBox(height: 6),
             Expanded(
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: SizedBox(
-                  width: _planTableWidth,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      border: Border.all(color: _planBorder),
-                    ),
-                    child: Column(
-                      children: [
-                        _header(),
-                        Expanded(
-                          child: c.isPlanLoading.value && c.planData.isEmpty
-                              ? const Center(child: CircularProgressIndicator())
-                              : _body(rowCount),
-                        ),
-                        _footer(),
-                      ],
+              child: Scrollbar(
+                controller: _horizontalScroll,
+                thumbVisibility: true,
+                trackVisibility: true,
+                notificationPredicate: (notification) =>
+                    notification.metrics.axis == Axis.horizontal,
+                child: SingleChildScrollView(
+                  controller: _horizontalScroll,
+                  scrollDirection: Axis.horizontal,
+                  child: SizedBox(
+                    width: _planTableWidth,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        border: Border.all(color: _planBorder),
+                      ),
+                      child: Column(
+                        children: [
+                          _header(),
+                          Expanded(
+                            child: c.isPlanLoading.value && c.planData.isEmpty
+                                ? const Center(
+                                    child: CircularProgressIndicator(),
+                                  )
+                                : _body(rowCount),
+                          ),
+                          _footer(),
+                        ],
+                      ),
                     ),
                   ),
                 ),

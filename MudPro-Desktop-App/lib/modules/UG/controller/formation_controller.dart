@@ -20,7 +20,7 @@ class FormationController extends GetxController {
   final isSaving = false.obs;
   final rows = <FormationRow>[].obs;
   final poreFromTop = true.obs;
-  final mode = 'Gradient'.obs;
+  final mode = 'Density'.obs;
   final isGraphVisible = false.obs;
   final showPoreGraph = true.obs;
   final showFracGraph = true.obs;
@@ -100,7 +100,7 @@ class FormationController extends GetxController {
       if (result['success'] == true) {
         final data = Map<String, dynamic>.from(result['data'] ?? {});
         poreFromTop.value = data['poreFromTop'] == true;
-        final incomingMode = (data['mode'] ?? 'Gradient').toString();
+        final incomingMode = (data['mode'] ?? 'Density').toString();
         mode.value = _normalizeMode(incomingMode);
 
         final incomingRows = (data['rows'] as List? ?? [])
@@ -130,7 +130,7 @@ class FormationController extends GetxController {
   void _resetToBlank() {
     rows.assignAll(List.generate(rowCount, (_) => FormationRow()));
     poreFromTop.value = true;
-    mode.value = 'Gradient';
+    mode.value = 'Density';
     _syncUgController();
   }
 
@@ -425,7 +425,7 @@ class FormationController extends GetxController {
       case 'Gradient':
         return value.trim();
       default:
-        return 'Gradient';
+        return 'Density';
     }
   }
 

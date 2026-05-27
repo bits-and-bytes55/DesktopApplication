@@ -8,15 +8,29 @@ import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/s
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/survey/survey_point_calculation_dialog.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 
-class SurveyDataTab extends StatelessWidget {
-  SurveyDataTab({super.key});
+class SurveyDataTab extends StatefulWidget {
+  const SurveyDataTab({super.key});
 
+  @override
+  State<SurveyDataTab> createState() => _SurveyDataTabState();
+}
+
+class _SurveyDataTabState extends State<SurveyDataTab> {
   final SurveyController controller = Get.find<SurveyController>();
+  final ScrollController _stationScrollController = ScrollController();
+  final ScrollController _annotationScrollController = ScrollController();
 
   static const _headerBg = Color(0xFFF4F4F4);
   static const _gridBorder = Color(0xFFC8CED6);
   static const _readOnlyBg = Color(0xFFFFF8C9);
   static const _lockedBg = Color(0xFFFFF1A6);
+
+  @override
+  void dispose() {
+    _stationScrollController.dispose();
+    _annotationScrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -125,8 +139,11 @@ class SurveyDataTab extends StatelessWidget {
           Expanded(
             child: Obx(
               () => Scrollbar(
+                controller: _stationScrollController,
                 thumbVisibility: true,
+                trackVisibility: true,
                 child: SingleChildScrollView(
+                  controller: _stationScrollController,
                   child: Column(
                     children: List.generate(
                       controller.stations.length,
@@ -348,8 +365,11 @@ class SurveyDataTab extends StatelessWidget {
           Expanded(
             child: Obx(
               () => Scrollbar(
+                controller: _annotationScrollController,
                 thumbVisibility: true,
+                trackVisibility: true,
                 child: SingleChildScrollView(
+                  controller: _annotationScrollController,
                   child: Column(
                     children: List.generate(
                       controller.annotations.length,
