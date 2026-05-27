@@ -21,6 +21,8 @@ class AppPad {
   final String killLineID;
   final String boostLineID;
   final String memo;
+  final String clientLogoUrl;
+  final String clientLogoPin;
   final List<AppWell> wells;
 
   const AppPad({
@@ -46,6 +48,8 @@ class AppPad {
     required this.killLineID,
     required this.boostLineID,
     required this.memo,
+    required this.clientLogoUrl,
+    required this.clientLogoPin,
     required this.wells,
   });
 
@@ -76,6 +80,8 @@ class AppPad {
       killLineID: _text(json['killLineID']),
       boostLineID: _text(json['boostLineID']),
       memo: _text(json['memo']),
+      clientLogoUrl: _text(json['clientLogoUrl']),
+      clientLogoPin: _text(json['clientLogoPin']),
       wells: wellsJson is List
           ? wellsJson
                 .whereType<Map>()
@@ -122,6 +128,8 @@ class AppPad {
     killLineID: killLineID,
     boostLineID: boostLineID,
     memo: memo,
+    clientLogoUrl: clientLogoUrl,
+    clientLogoPin: clientLogoPin,
     wells: wells ?? this.wells,
   );
 }

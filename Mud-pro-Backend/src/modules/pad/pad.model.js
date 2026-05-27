@@ -120,6 +120,18 @@ const padSchema = new mongoose.Schema(
       default: "",
       trim: true,
     },
+
+    clientLogoUrl: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    clientLogoPin: {
+      type: String,
+      default: "",
+      trim: true,
+    },
   },
   { timestamps: true }
 );

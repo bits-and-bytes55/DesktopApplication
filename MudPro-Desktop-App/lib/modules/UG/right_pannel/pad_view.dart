@@ -1,4 +1,11 @@
+import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:desktop_drop/desktop_drop.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/UG_controller.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
@@ -19,10 +26,12 @@ class _PadViewState extends State<PadView> {
 
   final ScrollController _leftScrollController = ScrollController();
   final ScrollController _memoScrollController = ScrollController();
+  final FocusNode _logoFocusNode = FocusNode(debugLabel: 'pad-client-logo');
 
   Worker? _padWorker;
   final List<Worker> _unitWorkers = <Worker>[];
   bool _isCreatingNewPad = false;
+  bool _isLogoDragging = false;
   String _locationType = 'Land';
   late String _lengthUnit;
   late String _diameterUnit;
@@ -31,6 +40,9 @@ class _PadViewState extends State<PadView> {
     for (final field in _padFields) field.key: TextEditingController(),
   };
   final TextEditingController _memoController = TextEditingController();
+  String _clientLogoUrl = '';
+  String _clientLogoBase64 = '';
+  String _pendingClientLogoPin = '';
 
   @override
   void initState() {
@@ -61,6 +73,7 @@ class _PadViewState extends State<PadView> {
     }
     _leftScrollController.dispose();
     _memoScrollController.dispose();
+    _logoFocusNode.dispose();
     for (final controller in _controllers.values) {
       controller.dispose();
     }
@@ -87,6 +100,9 @@ class _PadViewState extends State<PadView> {
       );
     }
     _memoController.text = pad.memo;
+    _clientLogoUrl = pad.clientLogoUrl;
+    _clientLogoBase64 = '';
+    _pendingClientLogoPin = '';
 
     setState(() {
       _locationType = pad.locationType.isEmpty ? 'Land' : pad.locationType;
@@ -99,6 +115,9 @@ class _PadViewState extends State<PadView> {
       controller.clear();
     }
     _memoController.clear();
+    _clientLogoUrl = '';
+    _clientLogoBase64 = '';
+    _pendingClientLogoPin = '';
   }
 
   void _startNewPad() {
@@ -197,6 +216,13 @@ class _PadViewState extends State<PadView> {
         ),
     };
 
+    if (_clientLogoBase64.isNotEmpty) {
+      payload['clientLogoBase64'] = _clientLogoBase64;
+      if (_pendingClientLogoPin.isNotEmpty) {
+        payload['clientLogoPin'] = _pendingClientLogoPin;
+      }
+    }
+
     if (!_hasMeaningfulData(payload)) {
       _showFeedback('Enter pad details before saving.', isSuccess: false);
       return;
@@ -254,6 +280,158 @@ class _PadViewState extends State<PadView> {
     } catch (e) {
       _showFeedback(_cleanError(e), isSuccess: false);
     }
+  }
+
+  Future<void> _pickClientLogo() async {
+    if (!await _ensureLogoChangeAllowed()) return;
+
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.image,
+      withData: true,
+    );
+    final file = result?.files.single;
+    final bytes = file?.bytes;
+    if (bytes == null || bytes.isEmpty) return;
+
+    _setClientLogoBytes(bytes, file?.extension ?? 'png');
+  }
+
+  Future<void> _pasteClientLogo() async {
+    if (!await _ensureLogoChangeAllowed()) return;
+
+    final path = await _clipboardImagePath();
+    if (path.isEmpty) {
+      _showFeedback('Copy an image file first, then paste here.', isSuccess: false);
+      return;
+    }
+
+    final file = File(path);
+    if (!await file.exists()) {
+      _showFeedback('Copied image file was not found.', isSuccess: false);
+      return;
+    }
+
+    final ext = path.split('.').last.toLowerCase();
+    if (!_isSupportedImageExtension(ext)) {
+      _showFeedback('Only PNG, JPG, JPEG, or WEBP images are supported.', isSuccess: false);
+      return;
+    }
+
+    _setClientLogoBytes(await file.readAsBytes(), ext);
+  }
+
+  Future<void> _dropClientLogo(DropDoneDetails detail) async {
+    if (detail.files.isEmpty) return;
+    if (!await _ensureLogoChangeAllowed()) return;
+
+    final file = detail.files.first;
+    final name = file.name.isNotEmpty ? file.name : file.path;
+    final ext = name.split('.').last.toLowerCase();
+    if (!_isSupportedImageExtension(ext)) {
+      _showFeedback('Only PNG, JPG, JPEG, or WEBP images are supported.', isSuccess: false);
+      return;
+    }
+
+    _setClientLogoBytes(await file.readAsBytes(), ext);
+  }
+
+  Future<String> _clipboardImagePath() async {
+    try {
+      if (Platform.isWindows) {
+        final result = await Process.run('powershell', [
+          '-NoProfile',
+          '-Command',
+          r'$files=Get-Clipboard -Format FileDropList; if($files){$files | Select-Object -First 1 -ExpandProperty FullName}',
+        ]);
+        final path = result.stdout.toString().trim().split(RegExp(r'\r?\n')).first.trim();
+        if (path.isNotEmpty) return path;
+      }
+    } catch (_) {
+      // Fall back to text clipboard below.
+    }
+
+    final textData = await Clipboard.getData(Clipboard.kTextPlain);
+    return textData?.text?.trim().replaceAll('"', '') ?? '';
+  }
+
+  bool _isSupportedImageExtension(String ext) {
+    return const {'png', 'jpg', 'jpeg', 'webp'}.contains(ext.toLowerCase());
+  }
+
+  void _setClientLogoBytes(Uint8List bytes, String extension) {
+    final ext = extension.toLowerCase() == 'jpeg'
+        ? 'jpg'
+        : extension.toLowerCase();
+    final mime = ext == 'webp' ? 'webp' : (ext == 'png' ? 'png' : 'jpeg');
+    setState(() {
+      _clientLogoBase64 = 'data:image/$mime;base64,${base64Encode(bytes)}';
+      _clientLogoUrl = _clientLogoBase64;
+    });
+  }
+
+  Future<bool> _ensureLogoChangeAllowed() async {
+    if (ugController.isLocked.value) return false;
+    final activePad = _activePad;
+    final savedPin = activePad?.clientLogoPin ?? '';
+
+    if (savedPin.isEmpty && _pendingClientLogoPin.isEmpty) {
+      final pin = await _askLogoPin(
+        title: 'Set Logo PIN',
+        label: 'New PIN',
+      );
+      if (pin == null || pin.trim().isEmpty) return false;
+      _pendingClientLogoPin = pin.trim();
+      return true;
+    }
+
+    if (savedPin.isEmpty) return true;
+
+    final enteredPin = await _askLogoPin(
+      title: 'Logo PIN',
+      label: 'Enter PIN',
+    );
+    if (enteredPin == null) return false;
+    if (enteredPin.trim() != savedPin) {
+      _showFeedback('Invalid PIN.', isSuccess: false);
+      return false;
+    }
+    return true;
+  }
+
+  Future<String?> _askLogoPin({
+    required String title,
+    required String label,
+  }) {
+    final controller = TextEditingController();
+    return Get.dialog<String>(
+      AlertDialog(
+        title: Text(title),
+        content: SizedBox(
+          width: 280,
+          child: TextField(
+            controller: controller,
+            autofocus: true,
+            obscureText: true,
+            decoration: InputDecoration(
+              labelText: label,
+              isDense: true,
+              border: const OutlineInputBorder(),
+            ),
+            onSubmitted: (_) => Get.back(result: controller.text),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(result: null),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Get.back(result: controller.text),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    ).whenComplete(controller.dispose);
   }
 
   @override
@@ -600,39 +778,18 @@ class _PadViewState extends State<PadView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          width: 250,
-          height: 190,
-          decoration: BoxDecoration(
-            border: Border.all(color: const Color(0xFF8E959D)),
-            color: Colors.white,
-          ),
-          child: Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.image_outlined,
-                  size: 28,
-                  color: Colors.grey.shade400,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  activePad?.displayName ?? 'Pad Preview',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
-                ),
-                if (activePad != null) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    'Linked Wells: $linkedWellCount',
-                    style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
-                  ),
-                ],
-              ],
+        const Padding(
+          padding: EdgeInsets.only(left: 2, bottom: 6),
+          child: Text(
+            'Client Logo',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF2F2F2F),
             ),
           ),
         ),
+        _buildClientLogoBox(isLocked, activePad, linkedWellCount),
         const SizedBox(height: 18),
         const Padding(
           padding: EdgeInsets.only(left: 2, bottom: 6),
@@ -679,6 +836,170 @@ class _PadViewState extends State<PadView> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildClientLogoBox(
+    bool isLocked,
+    AppPad? activePad,
+    int linkedWellCount,
+  ) {
+    final hasLogo = _clientLogoUrl.trim().isNotEmpty;
+
+    return DropTarget(
+      enable: !isLocked,
+      onDragEntered: (_) => setState(() => _isLogoDragging = true),
+      onDragExited: (_) => setState(() => _isLogoDragging = false),
+      onDragDone: isLocked
+          ? null
+          : (detail) async {
+              setState(() => _isLogoDragging = false);
+              await _dropClientLogo(detail);
+            },
+      child: KeyboardListener(
+        focusNode: _logoFocusNode,
+        onKeyEvent: (event) {
+          if (event is! KeyDownEvent) return;
+          final isPaste = HardwareKeyboard.instance.isControlPressed &&
+              event.logicalKey == LogicalKeyboardKey.keyV;
+          if (isPaste) {
+            _pasteClientLogo();
+          }
+        },
+        child: InkWell(
+          onTap: isLocked
+              ? null
+              : () {
+                  _logoFocusNode.requestFocus();
+                  _pickClientLogo();
+                },
+          child: Container(
+          width: 290,
+          height: 210,
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: _isLogoDragging
+                  ? const Color(0xFF2E74C9)
+                  : const Color(0xFF8E959D),
+              width: _isLogoDragging ? 2 : 1,
+            ),
+            color: _isLogoDragging ? const Color(0xFFEAF3FF) : Colors.white,
+          ),
+          child: Column(
+            children: [
+              Expanded(
+                child: Center(
+                  child: hasLogo
+                      ? _buildLogoPreview(_clientLogoUrl)
+                      : Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.image_outlined,
+                              size: 32,
+                              color: Colors.grey.shade400,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              activePad?.displayName ?? 'No logo selected',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                            if (activePad != null) ...[
+                              const SizedBox(height: 2),
+                              Text(
+                                'Linked Wells: $linkedWellCount',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.grey.shade500,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                ),
+              ),
+              Container(
+                height: 40,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                decoration: const BoxDecoration(
+                  border: Border(
+                    top: BorderSide(color: Color(0xFFD5D9DE)),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        hasLogo
+                            ? 'Click, paste, or drop to change'
+                            : 'Click, paste, or drop image',
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          color: isLocked
+                              ? Colors.grey.shade500
+                              : const Color(0xFF5F6B7A),
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Upload logo',
+                      icon: const Icon(Icons.upload_file, size: 16),
+                      visualDensity: VisualDensity.compact,
+                      padding: EdgeInsets.zero,
+                      onPressed: isLocked ? null : _pickClientLogo,
+                    ),
+                    IconButton(
+                      tooltip: 'Paste copied image file',
+                      icon: const Icon(Icons.content_paste, size: 16),
+                      visualDensity: VisualDensity.compact,
+                      padding: EdgeInsets.zero,
+                      onPressed: isLocked ? null : _pasteClientLogo,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          ),
+      ),
+      ),
+    );
+  }
+
+  Widget _buildLogoPreview(String logoUrl) {
+    final image = logoUrl.startsWith('data:image')
+        ? Image.memory(
+            base64Decode(logoUrl.split(',').last),
+            fit: BoxFit.contain,
+          )
+        : Image.network(
+            logoUrl,
+            fit: BoxFit.contain,
+            loadingBuilder: (context, child, progress) {
+              if (progress == null) return child;
+              return const SizedBox(
+                width: 28,
+                height: 28,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              );
+            },
+            errorBuilder: (context, error, stackTrace) => Icon(
+              Icons.broken_image_outlined,
+              size: 34,
+              color: Colors.grey.shade400,
+            ),
+          );
+
+    return Padding(
+      padding: const EdgeInsets.all(8),
+      child: ClipRect(
+        child: SizedBox.expand(child: image),
+      ),
     );
   }
 
