@@ -194,6 +194,14 @@ class FormationController extends GetxController {
     scheduleAutosave();
   }
 
+  void updateLithology(int index, String value) {
+    if (!_validIndex(index)) return;
+    rows[index].lithology.value = value;
+    rows.refresh();
+    _syncUgController();
+    scheduleAutosave();
+  }
+
   void clearRow(int index) {
     if (!_validIndex(index)) return;
     rows[index].clearRetainingReadOnlyDefaults();
@@ -264,12 +272,24 @@ class FormationController extends GetxController {
     final points = <FormationGraphPoint>[];
     for (final row in rows) {
       final tvd = _toDouble(row.tvd.value);
-      final grad = _toDouble(pore ? row.poreGrad.value : row.fracGrad.value);
-      if (tvd <= 0 || grad <= 0) continue;
-      points.add(FormationGraphPoint(gradient: grad, tvd: tvd));
+      final value = _toDouble(_graphValue(row, pore: pore));
+      if (tvd <= 0 || value <= 0) continue;
+      points.add(FormationGraphPoint(value: value, tvd: tvd));
     }
     points.sort((a, b) => a.tvd.compareTo(b.tvd));
     return points;
+  }
+
+  String _graphValue(FormationRow row, {required bool pore}) {
+    switch (mode.value) {
+      case 'Density':
+        return pore ? row.porePpg.value : row.fracPpg.value;
+      case 'Pressure':
+        return pore ? row.porePsi.value : row.fracPsi.value;
+      case 'Gradient':
+      default:
+        return pore ? row.poreGrad.value : row.fracGrad.value;
+    }
   }
 
   bool _validIndex(int index) => index >= 0 && index < rows.length;
@@ -570,8 +590,8 @@ class FormationController extends GetxController {
 }
 
 class FormationGraphPoint {
-  final double gradient;
+  final double value;
   final double tvd;
 
-  FormationGraphPoint({required this.gradient, required this.tvd});
+  FormationGraphPoint({required this.value, required this.tvd});
 }
