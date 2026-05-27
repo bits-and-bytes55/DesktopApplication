@@ -1,13 +1,17 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/UG_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/inventory_model.dart';
+import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/controller/product_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/controller/ug_inventory_product_controller.dart';
+import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/inventory_pickup/inventory_pickup_tabs.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/inventory_store/inventory_store.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/model/ug_inventory_product_model.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/model/products_model.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/mud_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
@@ -21,13 +25,22 @@ class InventoryProductsView extends StatefulWidget {
 
 class _InventoryProductsViewState extends State<InventoryProductsView> {
   final c = Get.find<UgController>();
+  final MudController? mudController = Get.isRegistered<MudController>()
+      ? Get.find<MudController>()
+      : null;
   final _repository = AuthRepository();
   final padWellC = padWellContext;
   static const int _minDisplayRows = 5;
 
-  String get wellId => padWellC.selectedWellId.value;
+  String get wellId {
+    final selectedWellId = padWellC.selectedWellId.value.trim();
+    if (selectedWellId.isNotEmpty) return selectedWellId;
+    return c.wellId.trim();
+  }
 
   bool _isLoading = false;
+  bool _isObmPickupOpening = false;
+  String _selectedPremixDescription = 'OBM 70/30';
   bool _productsInventorySaveInFlight = false;
   bool _productsInventorySaveQueued = false;
   Timer? _productsInventorySaveTimer;
@@ -469,8 +482,8 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
         child: Text(
           text,
           style: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w500,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
             color: Color(0xFF2F2F2F),
           ),
         ),
@@ -489,10 +502,14 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
         controller: controller,
         readOnly: c.isLocked.value,
         onChanged: onChanged,
-        style: const TextStyle(fontSize: 10, color: Colors.black87),
+        style: const TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w500,
+          color: Colors.black87,
+        ),
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: TextStyle(fontSize: 9, color: Colors.grey.shade400),
+          hintStyle: TextStyle(fontSize: 10, color: Colors.grey.shade400),
           isDense: true,
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 4,
@@ -526,13 +543,13 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
     }
 
     return Container(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(6),
       child: Column(
         children: [
           // ================= MAIN PRODUCTS TABLE =================
           Expanded(flex: 3, child: _buildProductsTable(store)),
 
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
 
           // ================= BOTTOM TABLES =================
           Expanded(
@@ -551,7 +568,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                   return Row(
                     children: [
                       Expanded(flex: 1, child: _premixedMudTable()),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 6),
                       Expanded(flex: 1, child: _obmTable()),
                     ],
                   );
@@ -569,58 +586,11 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(color: const Color(0xFFC9CDD3)),
       ),
       child: Column(
         children: [
-          // Table Header
-          Container(
-            height: 32,
-            decoration: BoxDecoration(
-              gradient: AppTheme.headerGradient,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(8),
-                topRight: Radius.circular(8),
-              ),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Row(
-              children: [
-                Icon(Icons.inventory, size: 16, color: Colors.white),
-                const SizedBox(width: 8),
-                Text(
-                  'Products Inventory',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
-                ),
-                const Spacer(),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 1,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Obx(
-                    () => Text(
-                      '${store.selectedProducts.length} items',
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          _inventorySectionTitle('Products'),
           Expanded(
             child: Obx(() {
               final productsToDisplay = store.selectedProducts;
@@ -643,90 +613,102 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                 );
               }
 
-              return Scrollbar(
-                controller: _mainVerticalScroll,
-                thumbVisibility: true,
-                child: SingleChildScrollView(
-                  controller: _mainHorizontalScroll,
-                  scrollDirection: Axis.horizontal,
-                  child: SingleChildScrollView(
+              return LayoutBuilder(
+                builder: (context, constraints) {
+                  final tableWidth = math.max(constraints.maxWidth, 1180.0);
+                  return Scrollbar(
                     controller: _mainVerticalScroll,
-                    child: Table(
+                    thumbVisibility: true,
+                    child: SingleChildScrollView(
+                      controller: _mainHorizontalScroll,
+                      scrollDirection: Axis.horizontal,
+                      child: SizedBox(
+                        width: tableWidth,
+                        child: SingleChildScrollView(
+                          controller: _mainVerticalScroll,
+                          child: Table(
                       border: TableBorder.all(
-                        color: Colors.grey.shade200,
+                        color: Colors.grey.shade300,
                         width: 1,
                       ),
                       defaultVerticalAlignment:
                           TableCellVerticalAlignment.middle,
                       columnWidths: const {
                         0: FixedColumnWidth(40),
-                        1: FixedColumnWidth(250),
-                        2: FixedColumnWidth(140),
-                        3: FixedColumnWidth(100),
-                        4: FixedColumnWidth(100),
-                        5: FixedColumnWidth(100),
-                        6: FixedColumnWidth(100),
-                        7: FixedColumnWidth(140),
-                        8: FixedColumnWidth(80),
-                        9: FixedColumnWidth(140),
-                        10: FixedColumnWidth(80),
+                        1: FlexColumnWidth(2.2),
+                        2: FlexColumnWidth(1),
+                        3: FlexColumnWidth(0.8),
+                        4: FlexColumnWidth(1.1),
+                        5: FlexColumnWidth(0.95),
+                        6: FlexColumnWidth(0.9),
+                        7: FlexColumnWidth(1.55),
+                        8: FlexColumnWidth(1),
+                        9: FlexColumnWidth(0.9),
+                        10: FlexColumnWidth(0.8),
+                        11: FlexColumnWidth(0.65),
                       },
                       children: [
                         // Header Row
                         TableRow(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                AppTheme.primaryColor.withOpacity(0.1),
-                                AppTheme.primaryColor.withOpacity(0.05),
-                              ],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                          ),
+                          decoration:
+                              const BoxDecoration(color: Color(0xFFF3F3F3)),
                           children: [
                             _tableHeaderCell('No'),
                             _tableHeaderCell('Product'),
                             _tableHeaderCell('Code'),
                             _tableHeaderCell('SG'),
                             _tableHeaderCell('Unit'),
-                            _tableHeaderCell('Price'),
+                            _tableHeaderCell('Price\n(Kwd)'),
                             _tableHeaderCell('Initial'),
                             _tableHeaderCell('Group'),
-                            _tableHeaderCell('Vol. Add'),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  _headerText('Concentration'),
-                                  const SizedBox(height: 2),
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceEvenly,
-                                    children: [
-                                      Expanded(
-                                        child: Center(
-                                          child: _headerText(
-                                            'Calculate',
-                                            size: 9,
-                                          ),
-                                        ),
-                                      ),
-                                      Expanded(
-                                        child: Center(
-                                          child: _headerText('Plot', size: 9),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
+                            _tableHeaderCheckboxCell(
+                              'Vol. Addition',
+                              productsToDisplay.isNotEmpty &&
+                                  productsToDisplay.every((p) => p.volAdd),
+                              (value) {
+                                for (final product in productsToDisplay) {
+                                  product.volAdd = value;
+                                }
+                                store.selectedProducts.refresh();
+                                _scheduleProductsInventorySave();
+                              },
                             ),
-                            _tableHeaderCell('Tax'),
+                            _tableHeaderCheckboxCell(
+                              'Calculate',
+                              productsToDisplay.isNotEmpty &&
+                                  productsToDisplay.every((p) => p.calculate),
+                              (value) {
+                                for (final product in productsToDisplay) {
+                                  product.calculate = value;
+                                }
+                                store.selectedProducts.refresh();
+                                _scheduleProductsInventorySave();
+                              },
+                            ),
+                            _tableHeaderCheckboxCell(
+                              'Plot',
+                              productsToDisplay.isNotEmpty &&
+                                  productsToDisplay.every((p) => p.plot),
+                              (value) {
+                                for (final product in productsToDisplay) {
+                                  product.plot = value;
+                                }
+                                store.selectedProducts.refresh();
+                                _scheduleProductsInventorySave();
+                              },
+                            ),
+                            _tableHeaderCheckboxCell(
+                              'Tax',
+                              productsToDisplay.isNotEmpty &&
+                                  productsToDisplay.every((p) => p.tax),
+                              (value) {
+                                for (final product in productsToDisplay) {
+                                  product.tax = value;
+                                }
+                                store.selectedProducts.refresh();
+                                _scheduleProductsInventorySave();
+                              },
+                            ),
                           ],
                         ),
                         // Data Rows
@@ -783,33 +765,16 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                               store.selectedProducts.refresh();
                               _scheduleProductsInventorySave();
                             }),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 1,
-                              ),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceEvenly,
-                                children: [
-                                  Expanded(
-                                    child: _checkboxCell(() => p.calculate, (
-                                      v,
-                                    ) {
-                                      p.calculate = v;
-                                      store.selectedProducts.refresh();
-                                      _scheduleProductsInventorySave();
-                                    }),
-                                  ),
-                                  Expanded(
-                                    child: _checkboxCell(() => p.plot, (v) {
-                                      p.plot = v;
-                                      store.selectedProducts.refresh();
-                                      _scheduleProductsInventorySave();
-                                    }),
-                                  ),
-                                ],
-                              ),
-                            ),
+                            _checkboxCell(() => p.calculate, (v) {
+                              p.calculate = v;
+                              store.selectedProducts.refresh();
+                              _scheduleProductsInventorySave();
+                            }),
+                            _checkboxCell(() => p.plot, (v) {
+                              p.plot = v;
+                              store.selectedProducts.refresh();
+                              _scheduleProductsInventorySave();
+                            }),
                             _checkboxCell(() => p.tax, (v) {
                               p.tax = v;
                               store.selectedProducts.refresh();
@@ -831,9 +796,12 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                           );
                         }),
                       ],
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
-                ),
+                  );
+                },
               );
             }),
           ),
@@ -854,7 +822,11 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       child: Text(
         label,
-        style: TextStyle(fontSize: 9, color: AppTheme.textPrimary),
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w500,
+          color: AppTheme.textPrimary,
+        ),
       ),
     );
   }
@@ -1205,16 +1177,21 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
         children: [
           _inventorySectionTitle('Pre-mixed Mud'),
           Expanded(
-            child: Scrollbar(
-              controller: _premixedVerticalScroll,
-              thumbVisibility: true,
-              child: SingleChildScrollView(
-                controller: _premixedHorizontalScroll,
-                scrollDirection: Axis.horizontal,
-                child: SingleChildScrollView(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final tableWidth = math.max(constraints.maxWidth, 610.0);
+                return Scrollbar(
                   controller: _premixedVerticalScroll,
-                  child: Obx(
-                    () => Table(
+                  thumbVisibility: true,
+                  child: SingleChildScrollView(
+                    controller: _premixedHorizontalScroll,
+                    scrollDirection: Axis.horizontal,
+                    child: SizedBox(
+                      width: tableWidth,
+                      child: SingleChildScrollView(
+                        controller: _premixedVerticalScroll,
+                        child: Obx(
+                          () => Table(
                       border: TableBorder.all(
                         color: Colors.grey.shade300,
                         width: 1,
@@ -1223,11 +1200,11 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                           TableCellVerticalAlignment.middle,
                       columnWidths: const {
                         0: FixedColumnWidth(40),
-                        1: FixedColumnWidth(180),
-                        2: FixedColumnWidth(80),
-                        3: FixedColumnWidth(110),
-                        4: FixedColumnWidth(100),
-                        5: FixedColumnWidth(60),
+                        1: FlexColumnWidth(2),
+                        2: FlexColumnWidth(0.9),
+                        3: FlexColumnWidth(1.35),
+                        4: FlexColumnWidth(1.15),
+                        5: FlexColumnWidth(0.7),
                       },
                       children: [
                         TableRow(
@@ -1248,13 +1225,23 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                           final e = entry.value;
                           final rowCells = [
                             _tableCell((index + 1).toString()),
-                            _editableTableCell(
-                              e.description,
-                              key: ValueKey('${e.id}-description'),
-                              onChanged: (v) {
-                                e.description = v;
-                                _schedulePremixedUpdate(e);
-                              },
+                            GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () => _selectPremixForObm(e.description),
+                              child: _editableTableCell(
+                                e.description,
+                                key: ValueKey('${e.id}-description'),
+                                onChanged: (v) {
+                                  final wasSelected =
+                                      _selectedPremixDescription ==
+                                      e.description.trim();
+                                  e.description = v;
+                                  if (wasSelected) {
+                                    _selectPremixForObm(v);
+                                  }
+                                  _schedulePremixedUpdate(e);
+                                },
+                              ),
                             ),
                             _editableTableCell(
                               e.mw,
@@ -1272,11 +1259,11 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                                 _schedulePremixedUpdate(e);
                               },
                             ),
-                            _editableTableCell(
-                              e.mudType,
-                              key: ValueKey('${e.id}-mudType'),
+                            _premixedMudTypeDropdown(
+                              value: e.mudType,
                               onChanged: (v) {
                                 e.mudType = v;
+                                c.premixed.refresh();
                                 _schedulePremixedUpdate(e);
                               },
                             ),
@@ -1324,10 +1311,13 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                                 hint: '',
                                 onChanged: (_) => _schedulePremixedDraftSave(),
                               ),
-                              _inventoryDraftCell(
-                                controller: c.premixedMudTypeController,
-                                hint: '',
-                                onChanged: (_) => _schedulePremixedDraftSave(),
+                              _premixedMudTypeDropdown(
+                                value: c.premixedMudTypeController.text,
+                                onChanged: (v) {
+                                  c.premixedMudTypeController.text = v;
+                                  setState(() {});
+                                  _schedulePremixedDraftSave();
+                                },
                               ),
                               Obx(
                                 () => _checkboxCell(
@@ -1349,10 +1339,13 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                           (_) => _emptyInventoryRow(columnCount: 6),
                         ),
                       ],
+                          ),
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ),
+                );
+              },
             ),
           ),
         ],
@@ -1362,8 +1355,8 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
 
   // ================= OBM TABLE =================
   Widget _obmTable() {
-    final fillerRows = _minDisplayRows > c.obm.length + 1
-        ? _minDisplayRows - (c.obm.length + 1)
+    final fillerRows = _minDisplayRows > c.obm.length
+        ? _minDisplayRows - c.obm.length
         : 0;
 
     return Container(
@@ -1373,18 +1366,45 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
       ),
       child: Column(
         children: [
-          _inventorySectionTitle('8.0 ppg'),
+          Row(
+            children: [
+              Expanded(child: _inventorySectionTitle(_selectedPremixDescription)),
+              SizedBox(
+                width: 36,
+                height: 28,
+                child: IconButton(
+                  padding: EdgeInsets.zero,
+                  visualDensity: VisualDensity.compact,
+                  tooltip: 'Inventory Pickup',
+                  icon: Icon(
+                    Icons.flash_on,
+                    size: 16,
+                    color: AppTheme.warningColor,
+                  ),
+                  onPressed: c.isLocked.value || _isObmPickupOpening
+                      ? null
+                      : () => _openObmInventoryPickup(),
+                ),
+              ),
+              const SizedBox(width: 4),
+            ],
+          ),
           Expanded(
-            child: Scrollbar(
-              controller: _obmVerticalScroll,
-              thumbVisibility: true,
-              child: SingleChildScrollView(
-                controller: _obmHorizontalScroll,
-                scrollDirection: Axis.horizontal,
-                child: SingleChildScrollView(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final tableWidth = math.max(constraints.maxWidth, 500.0);
+                return Scrollbar(
                   controller: _obmVerticalScroll,
-                  child: Obx(
-                    () => Table(
+                  thumbVisibility: true,
+                  child: SingleChildScrollView(
+                    controller: _obmHorizontalScroll,
+                    scrollDirection: Axis.horizontal,
+                    child: SizedBox(
+                      width: tableWidth,
+                      child: SingleChildScrollView(
+                        controller: _obmVerticalScroll,
+                        child: Obx(
+                          () => Table(
                       border: TableBorder.all(
                         color: Colors.grey.shade300,
                         width: 1,
@@ -1392,12 +1412,12 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                       defaultVerticalAlignment:
                           TableCellVerticalAlignment.middle,
                       columnWidths: const {
-                        0: FixedColumnWidth(40),
-                        1: FixedColumnWidth(180),
-                        2: FixedColumnWidth(100),
-                        3: FixedColumnWidth(80),
-                        4: FixedColumnWidth(80),
-                        5: FixedColumnWidth(80),
+                        0: FixedColumnWidth(34),
+                        1: FlexColumnWidth(2.2),
+                        2: FlexColumnWidth(1),
+                        3: FlexColumnWidth(0.8),
+                        4: FlexColumnWidth(0.8),
+                        5: FlexColumnWidth(0.9),
                       },
                       children: [
                         TableRow(
@@ -1418,30 +1438,9 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                           final e = entry.value;
                           final rowCells = [
                             _tableCell((index + 1).toString()),
-                            _editableTableCell(
-                              e.product,
-                              key: ValueKey('${e.id}-product'),
-                              onChanged: (v) {
-                                e.product = v;
-                                _scheduleObmUpdate(e);
-                              },
-                            ),
-                            _editableTableCell(
-                              e.code,
-                              key: ValueKey('${e.id}-code'),
-                              onChanged: (v) {
-                                e.code = v;
-                                _scheduleObmUpdate(e);
-                              },
-                            ),
-                            _editableTableCell(
-                              e.sg,
-                              key: ValueKey('${e.id}-sg'),
-                              onChanged: (v) {
-                                e.sg = v;
-                                _scheduleObmUpdate(e);
-                              },
-                            ),
+                            _readOnlyInventoryCell(e.product),
+                            _readOnlyInventoryCell(e.code),
+                            _readOnlyInventoryCell(e.sg),
                             _editableTableCell(
                               e.conc,
                               key: ValueKey('${e.id}-conc'),
@@ -1450,14 +1449,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                                 _scheduleObmUpdate(e);
                               },
                             ),
-                            _editableTableCell(
-                              e.unit,
-                              key: ValueKey('${e.id}-unit'),
-                              onChanged: (v) {
-                                e.unit = v;
-                                _scheduleObmUpdate(e);
-                              },
-                            ),
+                            _readOnlyInventoryCell(e.unit),
                           ];
 
                           return TableRow(
@@ -1475,53 +1467,18 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                             ),
                           );
                         }),
-                        TableRow(
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFFAFAFA),
-                          ),
-                          children: _wrapMenuCells(
-                            [
-                              _tableCell('${c.obm.length + 1}'),
-                              _inventoryDraftCell(
-                                controller: c.obmProductController,
-                                hint: '',
-                                onChanged: (_) => _scheduleObmDraftSave(),
-                              ),
-                              _inventoryDraftCell(
-                                controller: c.obmCodeController,
-                                hint: '',
-                                onChanged: (_) => _scheduleObmDraftSave(),
-                              ),
-                              _inventoryDraftCell(
-                                controller: c.obmSgController,
-                                hint: '',
-                                onChanged: (_) => _scheduleObmDraftSave(),
-                              ),
-                              _inventoryDraftCell(
-                                controller: c.obmConcController,
-                                hint: '',
-                                onChanged: (_) => _scheduleObmDraftSave(),
-                              ),
-                              _inventoryDraftCell(
-                                controller: c.obmUnitController,
-                                hint: '',
-                                onChanged: (_) => _scheduleObmDraftSave(),
-                              ),
-                            ],
-                            onAdd: c.isLocked.value
-                                ? null
-                                : () => _addObmFromDraft(),
-                          ),
-                        ),
                         ...List.generate(
                           fillerRows,
                           (_) => _emptyInventoryRow(columnCount: 6),
                         ),
                       ],
+                          ),
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ),
+                );
+              },
             ),
           ),
         ],
@@ -1639,6 +1596,91 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
     }
   }
 
+  Future<void> _openObmInventoryPickup() async {
+    if (_isObmPickupOpening) return;
+    setState(() => _isObmPickupOpening = true);
+
+    ProductsPickupController? pickupController;
+    if (Get.isRegistered<ProductsPickupController>(
+      tag: 'products_pickup_controller',
+    )) {
+      pickupController = Get.find<ProductsPickupController>(
+        tag: 'products_pickup_controller',
+      );
+      pickupController.selectedProductIndices.clear();
+      pickupController.selectedProducts.clear();
+    }
+
+    try {
+      await Navigator.of(context, rootNavigator: true).push<void>(
+        MaterialPageRoute(
+          builder: (_) =>
+              const InventoryPickupTabs(applyProductsToMainInventory: false),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isObmPickupOpening = false);
+      } else {
+        _isObmPickupOpening = false;
+      }
+    }
+    if (!mounted) return;
+
+    if (Get.isRegistered<ProductsPickupController>(
+      tag: 'products_pickup_controller',
+    )) {
+      pickupController = Get.find<ProductsPickupController>(
+        tag: 'products_pickup_controller',
+      );
+    }
+
+    final pickedProducts = pickupController?.selectedProducts.toList() ?? [];
+
+    if (pickedProducts.isEmpty) return;
+    if (wellId.isEmpty) {
+      _showToast('No well selected', isError: true);
+      return;
+    }
+
+    for (final product in pickedProducts) {
+      final name = product.product.trim();
+      final code = product.code.trim();
+      if (name.isEmpty && code.isEmpty) continue;
+
+      final exists = c.obm.any((item) {
+        return item.product.trim().toLowerCase() == name.toLowerCase() &&
+            item.code.trim().toLowerCase() == code.toLowerCase();
+      });
+      if (exists) continue;
+
+      final obm = ObmModel(
+        product: name,
+        code: code,
+        sg: product.sg.trim(),
+        conc: '',
+        unit: product.formattedUnit,
+      );
+
+      try {
+        final created = await _repository.createObm(wellId, obm);
+        c.obm.add(created);
+      } catch (_) {
+        c.obm.add(obm);
+        _scheduleProductsInventorySave();
+      }
+    }
+
+    c.obm.refresh();
+  }
+
+  void _selectPremixForObm(String description) {
+    final title = description.trim();
+    if (title.isEmpty) return;
+    if (_selectedPremixDescription == title) return;
+    setState(() => _selectedPremixDescription = title);
+  }
+
   // ================= HELPERS =================
 
   Future<bool> _showDeleteConfirmation(String itemType) async {
@@ -1668,8 +1710,8 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
   Widget _headerText(String text, {double? size}) => Text(
     text,
     style: TextStyle(
-      fontSize: size ?? 9,
-      fontWeight: FontWeight.w600,
+      fontSize: size ?? 10,
+      fontWeight: FontWeight.w700,
       color: AppTheme.textPrimary,
     ),
   );
@@ -1681,20 +1723,122 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
       textAlign: TextAlign.center,
       maxLines: 2,
       style: TextStyle(
-        fontSize: 9,
-        fontWeight: FontWeight.w600,
+        fontSize: 10,
+        fontWeight: FontWeight.w700,
         color: AppTheme.textPrimary,
       ),
     ),
   );
 
+  Widget _tableHeaderCheckboxCell(
+    String text,
+    bool value,
+    ValueChanged<bool> onChanged,
+  ) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Transform.scale(
+          scale: 0.7,
+          child: Checkbox(
+            value: value,
+            onChanged: c.isLocked.value ? null : (v) => onChanged(v ?? false),
+            visualDensity: VisualDensity.compact,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 2),
+          child: Text(
+            text,
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 9.5,
+              fontWeight: FontWeight.w700,
+              color: AppTheme.textPrimary,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _tableCell(String value) => Padding(
     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
     child: Text(
       value,
-      style: TextStyle(fontSize: 9, color: AppTheme.textPrimary),
+      style: TextStyle(
+        fontSize: 10,
+        fontWeight: FontWeight.w500,
+        color: AppTheme.textPrimary,
+      ),
     ),
   );
+
+  Widget _readOnlyInventoryCell(String value) => Container(
+    height: 28,
+    alignment: Alignment.centerLeft,
+    padding: const EdgeInsets.symmetric(horizontal: 6),
+    color: const Color(0xFFFFF9CC).withOpacity(0.45),
+    child: Text(
+      value,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(
+        fontSize: 10,
+        fontWeight: FontWeight.w500,
+        color: AppTheme.textPrimary,
+      ),
+    ),
+  );
+
+  Widget _premixedMudTypeDropdown({
+    required String value,
+    required ValueChanged<String> onChanged,
+  }) {
+    const options = ['Water-based', 'Oil-based', 'Synthetic'];
+    final cleanValue = value.trim();
+    final currentValue = options.contains(cleanValue)
+        ? cleanValue
+        : (mudController?.selectedFluidType.value.trim().isNotEmpty == true
+            ? mudController!.selectedFluidType.value
+            : options.first);
+
+    return Container(
+      height: 28,
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      color: const Color(0xFFFFF9CC),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: options.contains(currentValue) ? currentValue : options.first,
+          isExpanded: true,
+          iconSize: 16,
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w500,
+            color: AppTheme.textPrimary,
+          ),
+          items: options
+              .map(
+                (option) => DropdownMenuItem<String>(
+                  value: option,
+                  child: Text(
+                    option,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              )
+              .toList(),
+          onChanged: c.isLocked.value
+              ? null
+              : (selected) {
+                  if (selected != null) onChanged(selected);
+                },
+        ),
+      ),
+    );
+  }
 
   Widget _editableTableCell(
     String value, {
@@ -1705,7 +1849,11 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
     child: c.isLocked.value
         ? Text(
             value,
-            style: TextStyle(fontSize: 9, color: AppTheme.textPrimary),
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+              color: AppTheme.textPrimary,
+            ),
           )
         : _InventoryEditableTextCell(
             key: key,
@@ -1820,7 +1968,11 @@ class _InventoryEditableTextCellState
       controller: _controller,
       focusNode: _focusNode,
       onChanged: widget.onChanged,
-      style: TextStyle(fontSize: 9, color: AppTheme.textPrimary),
+      style: TextStyle(
+        fontSize: 10,
+        fontWeight: FontWeight.w500,
+        color: AppTheme.textPrimary,
+      ),
       decoration: const InputDecoration(
         isDense: true,
         contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 1),

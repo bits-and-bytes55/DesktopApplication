@@ -29,7 +29,7 @@ class ProductsPickupController extends GetxController {
     isLoading.value = true;
 
     try {
-      final result = await repository.getProducts(page: 1, limit: 1000);
+      final result = await repository.getProducts(page: 1, limit: 10000);
       
       if (result['success'] == true) {
         final List<ProductModel> fetchedProducts = result['products'] ?? [];

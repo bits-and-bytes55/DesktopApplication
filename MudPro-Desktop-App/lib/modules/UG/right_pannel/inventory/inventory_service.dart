@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/UG_controller.dart';
@@ -15,7 +17,9 @@ class InventoryServicesView extends StatefulWidget {
 
 class _InventoryServicesViewState extends State<InventoryServicesView> {
   final isLocked = false.obs;
-  final ScrollController _scrollController = ScrollController();
+  final ScrollController _packagesScrollController = ScrollController();
+  final ScrollController _engineeringScrollController = ScrollController();
+  final ScrollController _servicesScrollController = ScrollController();
   final c = Get.find<UgController>();
 
   bool _isLoading = false;
@@ -101,7 +105,9 @@ class _InventoryServicesViewState extends State<InventoryServicesView> {
 
   @override
   void dispose() {
-    _scrollController.dispose();
+    _packagesScrollController.dispose();
+    _engineeringScrollController.dispose();
+    _servicesScrollController.dispose();
     super.dispose();
   }
 
@@ -123,7 +129,7 @@ class _InventoryServicesViewState extends State<InventoryServicesView> {
     }
 
     return Padding(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(6),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -131,10 +137,8 @@ class _InventoryServicesViewState extends State<InventoryServicesView> {
             flex: 2,
             child: Column(
               children: [
-                const SizedBox(height: 4),
                 Expanded(child: _packagesTable(store)),
-                const SizedBox(height: 8),
-                const SizedBox(height: 4),
+                const SizedBox(height: 6),
                 Expanded(child: _engineeringTable(store)),
               ],
             ),
@@ -144,7 +148,6 @@ class _InventoryServicesViewState extends State<InventoryServicesView> {
             flex: 2,
             child: Column(
               children: [
-                const SizedBox(height: 4),
                 Expanded(child: _servicesTable(store)),
               ],
             ),
@@ -159,16 +162,11 @@ class _InventoryServicesViewState extends State<InventoryServicesView> {
       () => Container(
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.grey.shade300),
+          border: Border.all(color: const Color(0xFFC9CDD3)),
         ),
         child: Column(
           children: [
-            _tableHeader(
-              'Packages',
-              Icons.inventory,
-              store.selectedPackages.length,
-            ),
+            _sectionTitle('Package', hasHeaderCheckbox: true),
             Expanded(
               child: _table(
                 headers: const [
@@ -176,10 +174,11 @@ class _InventoryServicesViewState extends State<InventoryServicesView> {
                   'Package',
                   'Code',
                   'Unit',
-                  'Price (\$)',
+                  'Price\n(Kwd)',
                   'Initial',
                   'Tax',
                 ],
+                controller: _packagesScrollController,
                 rows: store.selectedPackages.asMap().entries.map((entry) {
                   return [
                     (entry.key + 1).toString(),
@@ -209,16 +208,11 @@ class _InventoryServicesViewState extends State<InventoryServicesView> {
       () => Container(
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.grey.shade300),
+          border: Border.all(color: const Color(0xFFC9CDD3)),
         ),
         child: Column(
           children: [
-            _tableHeader(
-              'Engineering',
-              Icons.engineering,
-              store.selectedEngineering.length,
-            ),
+            _sectionTitle('Engineering', hasHeaderCheckbox: true),
             Expanded(
               child: _table(
                 headers: const [
@@ -226,9 +220,10 @@ class _InventoryServicesViewState extends State<InventoryServicesView> {
                   'Engineering',
                   'Code',
                   'Unit',
-                  'Price (\$)',
+                  'Price\n(Kwd)',
                   'Tax',
                 ],
+                controller: _engineeringScrollController,
                 rows: store.selectedEngineering.asMap().entries.map((entry) {
                   return [
                     (entry.key + 1).toString(),
@@ -257,16 +252,11 @@ class _InventoryServicesViewState extends State<InventoryServicesView> {
       () => Container(
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.grey.shade300),
+          border: Border.all(color: const Color(0xFFC9CDD3)),
         ),
         child: Column(
           children: [
-            _tableHeader(
-              'Services',
-              Icons.miscellaneous_services,
-              store.selectedServices.length,
-            ),
+            _sectionTitle('Services', hasHeaderCheckbox: true),
             Expanded(
               child: _table(
                 headers: const [
@@ -274,9 +264,10 @@ class _InventoryServicesViewState extends State<InventoryServicesView> {
                   'Services',
                   'Code',
                   'Unit',
-                  'Price (\$)',
+                  'Price\n(Kwd)',
                   'Tax',
                 ],
+                controller: _servicesScrollController,
                 rows: store.selectedServices.asMap().entries.map((entry) {
                   return [
                     (entry.key + 1).toString(),
@@ -296,6 +287,38 @@ class _InventoryServicesViewState extends State<InventoryServicesView> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _sectionTitle(String title, {bool hasHeaderCheckbox = false}) {
+    return Container(
+      height: 28,
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      alignment: Alignment.centerLeft,
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              title,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF2F2F2F),
+              ),
+            ),
+          ),
+          if (hasHeaderCheckbox)
+            Transform.scale(
+              scale: 0.72,
+              child: Checkbox(
+                value: false,
+                onChanged: c.isLocked.value ? null : (_) {},
+                visualDensity: VisualDensity.compact,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -347,6 +370,7 @@ class _InventoryServicesViewState extends State<InventoryServicesView> {
   Widget _table({
     required List<String> headers,
     required List<List<dynamic>> rows,
+    required ScrollController controller,
     List<int> checkboxCols = const [],
     void Function(int rowIndex, int colIndex, dynamic value)? onChanged,
   }) {
@@ -369,45 +393,64 @@ class _InventoryServicesViewState extends State<InventoryServicesView> {
             5: FixedColumnWidth(55),
           };
 
-    return Scrollbar(
-      thumbVisibility: true,
-      controller: _scrollController,
-      child: SingleChildScrollView(
-        controller: _scrollController,
-        child: Table(
-          border: TableBorder(
-            horizontalInside: BorderSide(color: Colors.grey.shade200, width: 1),
-            bottom: BorderSide(color: Colors.grey.shade200, width: 1),
-          ),
-          defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-          columnWidths: columnWidths,
-          children: [
-            _headerRow(headers),
-            ...rows.asMap().entries.map((entry) {
-              final rowIndex = entry.key;
-              final row = entry.value;
-              return TableRow(
-                decoration: BoxDecoration(
-                  color: rowIndex.isEven ? Colors.white : AppTheme.cardColor,
-                ),
-                children: List.generate(row.length, (i) {
-                  if (checkboxCols.contains(i)) {
-                    return _checkboxCell(
-                      row[i],
-                      onChanged: (v) => onChanged?.call(rowIndex, i, v),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final tableWidth = math.max(
+          constraints.maxWidth,
+          headers.length == 7 ? 640.0 : 520.0,
+        );
+        return Scrollbar(
+          thumbVisibility: true,
+          controller: controller,
+          child: SingleChildScrollView(
+            controller: controller,
+            child: SizedBox(
+              width: tableWidth,
+              child: Table(
+                border: TableBorder.all(color: Colors.grey.shade300, width: 1),
+                defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+                columnWidths: columnWidths,
+                children: [
+                  _headerRow(headers),
+                  ...rows.asMap().entries.map((entry) {
+                    final rowIndex = entry.key;
+                    final row = entry.value;
+                    return TableRow(
+                      decoration: BoxDecoration(
+                        color: rowIndex.isEven
+                            ? Colors.white
+                            : const Color(0xFFFBFBFB),
+                      ),
+                      children: List.generate(row.length, (i) {
+                        if (checkboxCols.contains(i)) {
+                          return _checkboxCell(
+                            row[i],
+                            onChanged: (v) => onChanged?.call(rowIndex, i, v),
+                          );
+                        }
+                        return _editableCell(
+                          row[i].toString(),
+                          cellKey: 'r${rowIndex}_c$i',
+                          onChanged: (v) => onChanged?.call(rowIndex, i, v),
+                        );
+                      }),
                     );
-                  }
-                  return _editableCell(
-                    row[i].toString(),
-                    cellKey: 'r${rowIndex}_c$i',
-                    onChanged: (v) => onChanged?.call(rowIndex, i, v),
-                  );
-                }),
-              );
-            }),
-          ],
-        ),
-      ),
+                  }),
+                  ...List.generate(
+                    math.max(0, 8 - rows.length),
+                    (_) => TableRow(
+                      children: List.generate(
+                        headers.length,
+                        (_) => const SizedBox(height: 28),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -432,8 +475,8 @@ class _InventoryServicesViewState extends State<InventoryServicesView> {
               child: Text(
                 header,
                 style: TextStyle(
-                  fontSize: 9,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
                   color: AppTheme.textPrimary,
                 ),
               ),
@@ -454,13 +497,21 @@ class _InventoryServicesViewState extends State<InventoryServicesView> {
         () => isLocked.value
             ? Text(
                 value,
-                style: TextStyle(fontSize: 8.5, color: AppTheme.textPrimary),
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w500,
+                  color: AppTheme.textPrimary,
+                ),
               )
             : TextFormField(
                 key: ValueKey(cellKey ?? value),
                 initialValue: value,
                 onChanged: onChanged,
-                style: TextStyle(fontSize: 8.5, color: AppTheme.textPrimary),
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w500,
+                  color: AppTheme.textPrimary,
+                ),
                 decoration: const InputDecoration(
                   isDense: true,
                   contentPadding: EdgeInsets.symmetric(

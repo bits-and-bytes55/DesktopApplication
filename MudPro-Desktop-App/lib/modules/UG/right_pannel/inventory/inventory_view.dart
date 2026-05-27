@@ -155,7 +155,7 @@ class InventoryView extends StatelessWidget {
       ),
       child: Column(
         children: [
-          _footerRow('Bulk Tank Setup Fee (\$)', enabled: !c.isLocked.value),
+          _footerRow('Bulk Tank Setup Fee (Kwd)', enabled: !c.isLocked.value),
           const SizedBox(height: 8),
           _footerRow('Tax Rate (%)', enabled: !c.isLocked.value),
         ],

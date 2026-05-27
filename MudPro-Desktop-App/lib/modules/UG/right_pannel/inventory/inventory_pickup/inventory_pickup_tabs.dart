@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
-import 'package:mudpro_desktop_app/modules/UG/controller/UG_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/pickup_tabs/products_pickup_tab.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/pickup_tabs/services_pickup_tab.dart';
 
 class InventoryPickupTabs extends StatefulWidget {
-  const InventoryPickupTabs({super.key});
+  const InventoryPickupTabs({super.key, this.applyProductsToMainInventory = true});
+
+  final bool applyProductsToMainInventory;
 
   @override
   State<InventoryPickupTabs> createState() => _InventoryPickupTabsState();
 }
 
 class _InventoryPickupTabsState extends State<InventoryPickupTabs> {
-  final UgController c = Get.find<UgController>();
+  String _activeTab = 'Products';
 
   @override
   Widget build(BuildContext context) {
@@ -50,11 +50,12 @@ class _InventoryPickupTabsState extends State<InventoryPickupTabs> {
                     color: Colors.white,
                     border: Border.all(color: const Color(0xFFC7CBD2)),
                   ),
-                  child: Obx(
-                    () => c.inventoryTab.value == 'Products'
-                        ? ProductsPickupPage()
-                        : const ServicesPickupPage(),
-                  ),
+                  child: _activeTab == 'Products'
+                      ? ProductsPickupPage(
+                          applyToMainInventory:
+                              widget.applyProductsToMainInventory,
+                        )
+                      : const ServicesPickupPage(),
                 ),
               ),
             ],
@@ -65,35 +66,33 @@ class _InventoryPickupTabsState extends State<InventoryPickupTabs> {
   }
 
   Widget _tabButton({required String label, required String value}) {
-    return Obx(() {
-      final active = c.inventoryTab.value == value;
-      return GestureDetector(
-        onTap: () => c.inventoryTab.value = value,
-        child: Container(
-          height: 28,
-          padding: const EdgeInsets.symmetric(horizontal: 18),
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            border: Border(
-              left: const BorderSide(color: Color(0xFFC7CBD2)),
-              right: const BorderSide(color: Color(0xFFC7CBD2)),
-              top: const BorderSide(color: Color(0xFFC7CBD2)),
-              bottom: BorderSide(
-                color: active ? Colors.white : const Color(0xFFC7CBD2),
-              ),
-            ),
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: active ? FontWeight.w600 : FontWeight.w400,
-              color: const Color(0xFF2F2F2F),
+    final active = _activeTab == value;
+    return GestureDetector(
+      onTap: () => setState(() => _activeTab = value),
+      child: Container(
+        height: 28,
+        padding: const EdgeInsets.symmetric(horizontal: 18),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border(
+            left: const BorderSide(color: Color(0xFFC7CBD2)),
+            right: const BorderSide(color: Color(0xFFC7CBD2)),
+            top: const BorderSide(color: Color(0xFFC7CBD2)),
+            bottom: BorderSide(
+              color: active ? Colors.white : const Color(0xFFC7CBD2),
             ),
           ),
         ),
-      );
-    });
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: active ? FontWeight.w600 : FontWeight.w400,
+            color: const Color(0xFF2F2F2F),
+          ),
+        ),
+      ),
+    );
   }
 }

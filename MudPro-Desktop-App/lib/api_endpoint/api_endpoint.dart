@@ -1,7 +1,7 @@
 import 'package:mudpro_desktop_app/modules/installation/installation_identity.dart';
 
 class ApiEndpoint {
-  static const String baseUrl = "https://desktopapplication-ytim.onrender.com/api/";
+  static const String baseUrl = "https://desktopapplication-l46s.onrender.com/api/";
   static const String installationHeader = "X-MudPro-Installation-Id";
 
   static Map<String, String> get jsonHeaders => withInstallationHeaders({

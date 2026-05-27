@@ -253,8 +253,12 @@ class _PitPageState extends State<PitPage> {
               ),
             ),
             child: Obx(() {
-              return SingleChildScrollView(
-                child: _buildActivePitsTableBody(),
+              return LayoutBuilder(
+                builder: (context, constraints) {
+                  return SingleChildScrollView(
+                    child: _buildActivePitsTableBody(constraints.maxHeight),
+                  );
+                },
               );
             }),
           ),
@@ -290,8 +294,12 @@ class _PitPageState extends State<PitPage> {
     );
   }
 
-  Widget _buildActivePitsTableBody() {
+  Widget _buildActivePitsTableBody(double availableHeight) {
     final dataRows = controller.activePitRows;
+    final fillerRows = _fillerRowCount(
+      availableHeight: availableHeight,
+      dataRows: dataRows.length,
+    );
     return Table(
       border: TableBorder(
         horizontalInside: BorderSide(color: Colors.grey.shade300, width: 1),
@@ -325,7 +333,7 @@ class _PitPageState extends State<PitPage> {
           );
         }),
         ...List.generate(
-          kEmptyFillRows,
+          fillerRows,
           (_) => TableRow(
             children: [_emptyCell(), _emptyCell(), _emptyCell(), _emptyCell()],
           ),
@@ -377,8 +385,12 @@ class _PitPageState extends State<PitPage> {
               ),
             ),
             child: Obx(() {
-              return SingleChildScrollView(
-                child: _buildStorageTableBody(),
+              return LayoutBuilder(
+                builder: (context, constraints) {
+                  return SingleChildScrollView(
+                    child: _buildStorageTableBody(constraints.maxHeight),
+                  );
+                },
               );
             }),
           ),
@@ -416,8 +428,12 @@ class _PitPageState extends State<PitPage> {
     );
   }
 
-  Widget _buildStorageTableBody() {
+  Widget _buildStorageTableBody(double availableHeight) {
     final dataRows = controller.storagePitRows;
+    final fillerRows = _fillerRowCount(
+      availableHeight: availableHeight,
+      dataRows: dataRows.length,
+    );
     return Table(
       border: TableBorder(
         horizontalInside: BorderSide(color: Colors.grey.shade300, width: 1),
@@ -457,7 +473,7 @@ class _PitPageState extends State<PitPage> {
           );
         }),
         ...List.generate(
-          kEmptyFillRows,
+          fillerRows,
           (_) => TableRow(
             children: [
               _emptyCell(),
@@ -873,6 +889,18 @@ class _PitPageState extends State<PitPage> {
 
   // Editable cell — on save button hit from secondary tabbar,
   // also allows inline edit and triggers save + volume name refresh
+  int _fillerRowCount({
+    required double availableHeight,
+    required int dataRows,
+  }) {
+    if (!availableHeight.isFinite || availableHeight <= 0) {
+      return kEmptyFillRows;
+    }
+    final remainingHeight = availableHeight - (dataRows * kRowHeight);
+    final neededRows = (remainingHeight / kRowHeight).ceil();
+    return neededRows < kEmptyFillRows ? kEmptyFillRows : neededRows;
+  }
+
   Widget _editableCellWithSave(
     Map<String, TextEditingController> ctrls,
     PitModel pit,

@@ -712,13 +712,21 @@ class MudController extends GetxController {
     final savedRheology = _mapFromDynamic(data['rheologyTable']);
     if (savedRheology.isNotEmpty) {
       rheologyTable.clear();
-      savedRheology.forEach((key, value) {
+      final canonicalRows = _rheologyRowsForModel(rheologyModel.value);
+      final orderedKeys = <String>[
+        ...canonicalRows,
+        ...savedRheology.keys
+            .map((key) => key.toString())
+            .where((key) => !canonicalRows.contains(key)),
+      ];
+      for (final key in orderedKeys) {
+        final value = savedRheology[key];
         final values = _listFromDynamic(value);
         rheologyTable[key] = List.generate(
           samples.length,
           (index) => (index < values.length ? values[index] : '').obs,
         );
-      });
+      }
     }
   }
 
@@ -1576,26 +1584,50 @@ class MudController extends GetxController {
   }
 
   void _updateRheologyRows() {
-    final rows = rheologyModel.value == 'Bingham'
-        ? ['600', '300', '200', '100', '6', '3', 'PV (cP)', 'YP (lbf/100ft2)']
-        : rheologyModel.value == 'Power Law'
-        ? ['600', '300', '200', '100', '6', '3', 'n', 'K (lbf-s^n/100ft2)']
-        : [
-            '600',
-            '300',
-            '200',
-            '100',
-            '6',
-            '3',
-            'Yield Stress (lbf/100ft2)',
-            'n',
-            'K (lbf-s^n/100ft2)',
-          ];
+    final rows = _rheologyRowsForModel(rheologyModel.value);
     rheologyTable.clear();
     for (var r in rows) {
       rheologyTable[r] = List.generate(samples.length, (_) => ''.obs);
     }
     _setupMudStateWatchers();
+  }
+
+  List<String> _rheologyRowsForModel(String model) {
+    if (model == 'Bingham') {
+      return const [
+        '600',
+        '300',
+        '200',
+        '100',
+        '6',
+        '3',
+        'PV (cP)',
+        'YP (lbf/100ft2)',
+      ];
+    }
+    if (model == 'Power Law') {
+      return const [
+        '600',
+        '300',
+        '200',
+        '100',
+        '6',
+        '3',
+        'n',
+        'K (lbf-s^n/100ft2)',
+      ];
+    }
+    return const [
+      '600',
+      '300',
+      '200',
+      '100',
+      '6',
+      '3',
+      'Yield Stress (lbf/100ft2)',
+      'n',
+      'K (lbf-s^n/100ft2)',
+    ];
   }
 
   void calculateRheology() {

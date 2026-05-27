@@ -7,7 +7,9 @@ import 'package:mudpro_desktop_app/modules/company_setup/model/products_model.da
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class ProductsPickupPage extends StatefulWidget {
-  const ProductsPickupPage({super.key});
+  const ProductsPickupPage({super.key, this.applyToMainInventory = true});
+
+  final bool applyToMainInventory;
 
   @override
   State<ProductsPickupPage> createState() => _ProductsPickupPageState();
@@ -51,6 +53,11 @@ class _ProductsPickupPageState extends State<ProductsPickupPage> {
             ProductsPickupController(),
             tag: 'products_pickup_controller',
           );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!controller.isLoading.value) {
+        controller.loadProducts();
+      }
+    });
   }
 
   @override
@@ -450,11 +457,15 @@ class _ProductsPickupPageState extends State<ProductsPickupPage> {
             onPressed: controller.selectedProducts.isEmpty
                 ? null
                 : () {
-                    controller.applySelectedProducts();
+                    if (widget.applyToMainInventory) {
+                      controller.applySelectedProducts();
+                    }
                     Get.back();
                     Get.snackbar(
                       'Success',
-                      '${controller.selectedProducts.length} products applied to inventory',
+                      widget.applyToMainInventory
+                          ? '${controller.selectedProducts.length} products applied to inventory'
+                          : '${controller.selectedProducts.length} products selected',
                       snackPosition: SnackPosition.TOP,
                       backgroundColor: const Color(0xff10B981),
                       colorText: Colors.white,

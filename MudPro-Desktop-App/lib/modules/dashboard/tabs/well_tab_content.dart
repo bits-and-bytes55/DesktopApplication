@@ -2613,8 +2613,13 @@ class _DrillStringSectionState extends State<DrillStringSection> {
       : Get.put(WellGeneralController(), permanent: true);
   int? selectedRowIndex;
 
-  Future<void> _handleRowMenu(int rowIndex, TapDownDetails details) async {
+  void _selectDrillStringRow(int rowIndex) {
+    if (selectedRowIndex == rowIndex) return;
     setState(() => selectedRowIndex = rowIndex);
+  }
+
+  Future<void> _handleRowMenu(int rowIndex, TapDownDetails details) async {
+    _selectDrillStringRow(rowIndex);
     final action = await _showWellRowMenu(
       context,
       details,
@@ -2712,9 +2717,8 @@ class _DrillStringSectionState extends State<DrillStringSection> {
 
   void _adjustLength() {
     if (ds.entries.isEmpty) return;
-    final targetIndex = selectedRowIndex != null
-        ? selectedRowIndex!
-        : ds.entries.lastIndexWhere((entry) => entry.hasContent);
+    if (selectedRowIndex == null) return;
+    final targetIndex = selectedRowIndex!;
     if (targetIndex < 0 || targetIndex >= ds.entries.length) return;
 
     final mdValue = _parseNumber(wellGenCtrl.md.value);
@@ -3008,7 +3012,7 @@ class _DrillStringSectionState extends State<DrillStringSection> {
     bool sel = selectedRowIndex == rowIdx;
     final rowChildren = <Widget>[
       GestureDetector(
-        onTap: () => setState(() => selectedRowIndex = sel ? null : rowIdx),
+        onTap: () => _selectDrillStringRow(rowIdx),
         child: _noCell(rowIdx + 1, sel, AppTheme.primaryColor),
       ),
       _dsCell(entry.description, rowIdx),
@@ -3039,15 +3043,25 @@ class _DrillStringSectionState extends State<DrillStringSection> {
     padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
     child: Obx(
       () => c.isLocked.value
-          ? Container(
-              color: _cellFillColor(isLocked: true, editableWhenUnlocked: true),
-              child: SizedBox(
-                height: _kRowH,
-                child: Center(
-                  child: Text(
-                    ctrl.text,
-                    style: TextStyle(fontSize: 10, color: AppTheme.textPrimary),
-                    textAlign: TextAlign.center,
+          ? GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => _selectDrillStringRow(rowIdx),
+              child: Container(
+                color: _cellFillColor(
+                  isLocked: true,
+                  editableWhenUnlocked: true,
+                ),
+                child: SizedBox(
+                  height: _kRowH,
+                  child: Center(
+                    child: Text(
+                      ctrl.text,
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: AppTheme.textPrimary,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
                   ),
                 ),
               ),
@@ -3060,7 +3074,11 @@ class _DrillStringSectionState extends State<DrillStringSection> {
                   controller: ctrl,
                   style: const TextStyle(fontSize: 9),
                   textAlign: TextAlign.center,
-                  onChanged: (_) => ds.onCellChanged(rowIdx),
+                  onTap: () => _selectDrillStringRow(rowIdx),
+                  onChanged: (_) {
+                    _selectDrillStringRow(rowIdx);
+                    ds.onCellChanged(rowIdx);
+                  },
                   decoration: const InputDecoration(
                     isDense: true,
                     contentPadding: EdgeInsets.symmetric(
