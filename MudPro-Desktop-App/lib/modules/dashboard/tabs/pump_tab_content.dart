@@ -95,6 +95,15 @@ class _OtherSceRow {
   bool get hasData => type.value.isNotEmpty || model.value.isNotEmpty;
 }
 
+class _ReportSaveScope {
+  final String wellId;
+  final String reportId;
+
+  const _ReportSaveScope({required this.wellId, required this.reportId});
+
+  bool get isValid => wellId.trim().isNotEmpty && reportId.trim().isNotEmpty;
+}
+
 // ─── PumpPage ─────────────────────────────────────────────────────────────────
 class PumpPage extends StatefulWidget {
   const PumpPage({super.key});
@@ -114,7 +123,12 @@ class _PumpPageState extends State<PumpPage> {
   final Map<_ShakerRow, Timer> _shakerSaveTimers = {};
   final Map<_OtherSceRow, Timer> _otherSceSaveTimers = {};
   final Map<_PumpRow, Timer> _pumpSaveTimers = {};
+  final Map<_ShakerRow, _ReportSaveScope> _shakerSaveScopes = {};
+  final Map<_OtherSceRow, _ReportSaveScope> _otherSceSaveScopes = {};
+  final Map<_PumpRow, _ReportSaveScope> _pumpSaveScopes = {};
   Timer? _pumpSummarySaveTimer;
+  _ReportSaveScope? _pumpSummarySaveScope;
+  Map<String, String>? _pumpSummarySaveValues;
   final RxString _summaryPumpRate = ''.obs;
   final RxString _summaryPumpPressure = ''.obs;
   final RxString _summaryDhToolsLoss = ''.obs;
@@ -209,13 +223,13 @@ class _PumpPageState extends State<PumpPage> {
 
   @override
   void deactivate() {
-    unawaited(_flushPendingPumpSaves());
+    unawaited(_flushPendingPageSaves());
     super.deactivate();
   }
 
   @override
   void dispose() {
-    unawaited(_flushPendingPumpSaves());
+    unawaited(_flushPendingPageSaves());
     for (final timer in _shakerSaveTimers.values) {
       timer.cancel();
     }
@@ -467,27 +481,38 @@ class _PumpPageState extends State<PumpPage> {
     return row;
   }
 
+  _ReportSaveScope _currentSaveScope() {
+    return _ReportSaveScope(
+      wellId: currentBackendWellId.trim(),
+      reportId: reportContext.selectedReportId.value.trim(),
+    );
+  }
+
   void _scheduleSavePumpRow(_PumpRow row, int rowIndex) {
-    if (dashboard.isLocked.value ||
-        !row.hasData ||
-        reportContext.selectedReportId.value.trim().isEmpty ||
-        currentBackendWellId.trim().isEmpty) {
+    final scope = _currentSaveScope();
+    if (dashboard.isLocked.value || !row.hasData || !scope.isValid) {
       return;
     }
     row.rowNumber = row.rowNumber > 0 ? row.rowNumber : rowIndex + 1;
+    _pumpSaveScopes[row] = scope;
     _pumpSaveTimers[row]?.cancel();
     _pumpSaveTimers[row] = Timer(
       const Duration(milliseconds: 850),
-      () => _savePumpRow(row, rowIndex),
+      () {
+        _pumpSaveTimers.remove(row);
+        _pumpSaveScopes.remove(row);
+        unawaited(_savePumpRow(row, rowIndex, scope: scope));
+      },
     );
   }
 
   void _savePumpRowNow(_PumpRow row, int rowIndex) {
     _pumpSaveTimers.remove(row)?.cancel();
-    unawaited(_savePumpRow(row, rowIndex));
+    final scope = _pumpSaveScopes.remove(row) ?? _currentSaveScope();
+    unawaited(_savePumpRow(row, rowIndex, scope: scope));
   }
 
-  Future<void> _flushPendingPumpSaves() async {
+  Future<void> _flushPendingPageSaves() async {
     final pendingPumpRows = _pumpSaveTimers.keys.toList();
     for (final timer in _pumpSaveTimers.values) {
       timer.cancel();
@@ -497,26 +522,57 @@ class _PumpPageState extends State<PumpPage> {
     final futures = <Future<void>>[];
     for (final row in pendingPumpRows) {
       final index = _pumpRows.indexOf(row);
+      final scope = _pumpSaveScopes.remove(row);
       if (index >= 0) {
-        futures.add(_savePumpRow(row, index));
+        futures.add(_savePumpRow(row, index, scope: scope));
       }
     }
 
     if (_pumpSummarySaveTimer?.isActive ?? false) {
       _pumpSummarySaveTimer?.cancel();
-      futures.add(_savePumpSummary());
+      futures.add(
+        _savePumpSummary(
+          scope: _pumpSummarySaveScope,
+          values: _pumpSummarySaveValues,
+        ),
+      );
     }
     _pumpSummarySaveTimer = null;
+    _pumpSummarySaveScope = null;
+    _pumpSummarySaveValues = null;
+
+    final pendingShakerRows = _shakerSaveTimers.keys.toList();
+    for (final timer in _shakerSaveTimers.values) {
+      timer.cancel();
+    }
+    _shakerSaveTimers.clear();
+    for (final row in pendingShakerRows) {
+      futures.add(_saveShakerRow(row, scope: _shakerSaveScopes.remove(row)));
+    }
+
+    final pendingOtherSceRows = _otherSceSaveTimers.keys.toList();
+    for (final timer in _otherSceSaveTimers.values) {
+      timer.cancel();
+    }
+    _otherSceSaveTimers.clear();
+    for (final row in pendingOtherSceRows) {
+      futures.add(
+        _saveOtherSceRow(row, scope: _otherSceSaveScopes.remove(row)),
+      );
+    }
 
     if (futures.isNotEmpty) {
       await Future.wait(futures);
     }
   }
 
-  Future<void> _savePumpRow(_PumpRow row, int rowIndex) async {
-    if (!row.hasData ||
-        reportContext.selectedReportId.value.trim().isEmpty ||
-        currentBackendWellId.trim().isEmpty) {
+  Future<void> _savePumpRow(
+    _PumpRow row,
+    int rowIndex, {
+    _ReportSaveScope? scope,
+  }) async {
+    final targetScope = scope ?? _currentSaveScope();
+    if (!row.hasData || !targetScope.isValid) {
       return;
     }
     row.rowNumber = row.rowNumber > 0 ? row.rowNumber : rowIndex + 1;
@@ -532,12 +588,11 @@ class _PumpPageState extends State<PumpPage> {
     };
 
     try {
-      final result = row.id == null
-          ? await pumpController.repository.createPump(
-              currentBackendWellId.trim(),
-              payload,
-            )
-          : await pumpController.repository.updatePump(row.id!, payload);
+      final result = await pumpController.repository.createPump(
+        targetScope.wellId,
+        payload,
+        reportIdOverride: targetScope.reportId,
+      );
 
       if (result['success'] == true) {
         final data = result['data'];
@@ -554,45 +609,73 @@ class _PumpPageState extends State<PumpPage> {
   }
 
   void _scheduleSavePumpSummary() {
-    if (dashboard.isLocked.value ||
-        reportContext.selectedReportId.value.isEmpty) {
+    final scope = _currentSaveScope();
+    if (dashboard.isLocked.value || !scope.isValid) {
       return;
     }
 
+    final values = _currentPumpSummaryValues();
+    _pumpSummarySaveScope = scope;
+    _pumpSummarySaveValues = values;
     _pumpSummarySaveTimer?.cancel();
     _pumpSummarySaveTimer = Timer(
       const Duration(milliseconds: 850),
-      _savePumpSummary,
+      () {
+        _pumpSummarySaveTimer = null;
+        _pumpSummarySaveScope = null;
+        _pumpSummarySaveValues = null;
+        unawaited(_savePumpSummary(scope: scope, values: values));
+      },
     );
   }
 
-  Future<void> _savePumpSummary() async {
-    final reportId = reportContext.selectedReportId.value.trim();
+  Map<String, String> _currentPumpSummaryValues() {
+    return {
+      'pumpRate': _summaryPumpRate.value.trim(),
+      'pumpPressure': _summaryPumpPressure.value.trim(),
+      'dhToolsPressureLoss': _summaryDhToolsLoss.value.trim(),
+      'motorPressureLoss': _summaryMotorLoss.value.trim(),
+    };
+  }
+
+  Future<void> _savePumpSummary({
+    _ReportSaveScope? scope,
+    Map<String, String>? values,
+  }) async {
+    final reportId = (scope ?? _currentSaveScope()).reportId.trim();
     if (reportId.isEmpty) return;
 
-    final existing =
-        reportContext.selectedReport?.pumpRateAndPressure ??
-        const <String, String>{};
+    final nextValues = values ?? _currentPumpSummaryValues();
+    final reportIndex = reportContext.reports.indexWhere(
+      (item) => item.id == reportId,
+    );
+    final existing = reportIndex >= 0
+        ? reportContext.reports[reportIndex].pumpRateAndPressure
+        : const <String, String>{};
     final payload = {
       'pumpRateAndPressure': {
         ...existing,
-        'pumpRate': double.tryParse(_summaryPumpRate.value.trim()) ?? 0,
-        'pumpPressure': double.tryParse(_summaryPumpPressure.value.trim()) ?? 0,
+        'pumpRate': double.tryParse(nextValues['pumpRate'] ?? '') ?? 0,
+        'pumpPressure': double.tryParse(nextValues['pumpPressure'] ?? '') ?? 0,
         'dhToolsPressureLoss':
-            double.tryParse(_summaryDhToolsLoss.value.trim()) ?? 0,
-        'motorPressureLoss': double.tryParse(_summaryMotorLoss.value.trim()) ?? 0,
+            double.tryParse(nextValues['dhToolsPressureLoss'] ?? '') ?? 0,
+        'motorPressureLoss':
+            double.tryParse(nextValues['motorPressureLoss'] ?? '') ?? 0,
       },
     };
 
     try {
       await _reportApi.updateReport(reportId, payload);
-      _applyPumpSummaryToContext(reportId);
+      _applyPumpSummaryToContext(reportId, nextValues);
     } catch (e) {
       debugPrint('Pump summary autosave error: $e');
     }
   }
 
-  void _applyPumpSummaryToContext(String reportId) {
+  void _applyPumpSummaryToContext(
+    String reportId,
+    Map<String, String> values,
+  ) {
     final index = reportContext.reports.indexWhere(
       (item) => item.id == reportId,
     );
@@ -602,29 +685,34 @@ class _PumpPageState extends State<PumpPage> {
     reportContext.reports[index] = reportContext.reports[index].copyWith(
       pumpRateAndPressure: {
         ...existing,
-        'pumpRate': _summaryPumpRate.value.trim(),
-        'pumpPressure': _summaryPumpPressure.value.trim(),
-        'dhToolsPressureLoss': _summaryDhToolsLoss.value.trim(),
-        'motorPressureLoss': _summaryMotorLoss.value.trim(),
+        ...values,
       },
     );
   }
 
   void _scheduleSaveShakerRow(_ShakerRow row) {
-    if (dashboard.isLocked.value ||
-        !row.hasData ||
-        currentBackendWellId.trim().isEmpty) {
+    final scope = _currentSaveScope();
+    if (dashboard.isLocked.value || !row.hasData || !scope.isValid) {
       return;
     }
+    _shakerSaveScopes[row] = scope;
     _shakerSaveTimers[row]?.cancel();
     _shakerSaveTimers[row] = Timer(
       const Duration(milliseconds: 850),
-      () => _saveShakerRow(row),
+      () {
+        _shakerSaveTimers.remove(row);
+        _shakerSaveScopes.remove(row);
+        unawaited(_saveShakerRow(row, scope: scope));
+      },
     );
   }
 
-  Future<void> _saveShakerRow(_ShakerRow row) async {
-    if (!row.hasData || currentBackendWellId.trim().isEmpty) return;
+  Future<void> _saveShakerRow(
+    _ShakerRow row, {
+    _ReportSaveScope? scope,
+  }) async {
+    final targetScope = scope ?? _currentSaveScope();
+    if (!row.hasData || !targetScope.isValid) return;
     final payload = {
       'shaker': row.shakerType.value.trim(),
       'model': row.model.value.trim(),
@@ -646,33 +734,44 @@ class _PumpPageState extends State<PumpPage> {
 
     if ((payload['shaker'] as String).isEmpty) return;
 
-    final result = row.id == null
-        ? await sceController.repository.createShaker(
-            currentBackendWellId.trim(),
-            payload,
-          )
-        : await sceController.repository.updateShaker(row.id!, payload);
+    try {
+      final result = await sceController.repository.createShaker(
+        targetScope.wellId,
+        payload,
+        reportIdOverride: targetScope.reportId,
+      );
 
-    if (result['success'] == true) {
-      row.id = result['data']?['_id']?.toString() ?? row.id;
+      if (result['success'] == true) {
+        row.id = result['data']?['_id']?.toString() ?? row.id;
+      }
+    } catch (e) {
+      debugPrint('Shaker report autosave error: $e');
     }
   }
 
   void _scheduleSaveOtherSceRow(_OtherSceRow row) {
-    if (dashboard.isLocked.value ||
-        !row.hasData ||
-        currentBackendWellId.trim().isEmpty) {
+    final scope = _currentSaveScope();
+    if (dashboard.isLocked.value || !row.hasData || !scope.isValid) {
       return;
     }
+    _otherSceSaveScopes[row] = scope;
     _otherSceSaveTimers[row]?.cancel();
     _otherSceSaveTimers[row] = Timer(
       const Duration(milliseconds: 850),
-      () => _saveOtherSceRow(row),
+      () {
+        _otherSceSaveTimers.remove(row);
+        _otherSceSaveScopes.remove(row);
+        unawaited(_saveOtherSceRow(row, scope: scope));
+      },
     );
   }
 
-  Future<void> _saveOtherSceRow(_OtherSceRow row) async {
-    if (!row.hasData || currentBackendWellId.trim().isEmpty) return;
+  Future<void> _saveOtherSceRow(
+    _OtherSceRow row, {
+    _ReportSaveScope? scope,
+  }) async {
+    final targetScope = scope ?? _currentSaveScope();
+    if (!row.hasData || !targetScope.isValid) return;
     final payload = {
       'type': row.type.value.trim(),
       'model1': row.model.value.trim(),
@@ -685,15 +784,18 @@ class _PumpPageState extends State<PumpPage> {
 
     if ((payload['type'] as String).isEmpty) return;
 
-    final result = row.id == null
-        ? await sceController.repository.createOtherSce(
-            currentBackendWellId.trim(),
-            payload,
-          )
-        : await sceController.repository.updateOtherSce(row.id!, payload);
+    try {
+      final result = await sceController.repository.createOtherSce(
+        targetScope.wellId,
+        payload,
+        reportIdOverride: targetScope.reportId,
+      );
 
-    if (result['success'] == true) {
-      row.id = result['data']?['_id']?.toString() ?? row.id;
+      if (result['success'] == true) {
+        row.id = result['data']?['_id']?.toString() ?? row.id;
+      }
+    } catch (e) {
+      debugPrint('Other SCE report autosave error: $e');
     }
   }
 

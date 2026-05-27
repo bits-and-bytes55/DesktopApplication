@@ -4,7 +4,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:mudpro_desktop_app/modules/report/recap_tabs/engineer/controller/recap_engineer_controller.dart';
+import 'package:mudpro_desktop_app/modules/report/recap_tabs/drilling_data/tabs/engineer/controller/recap_engineer_controller.dart';
 
 const Color _engineerOuterBorder = Color(0xFF2F92E8);
 const Color _engineerCanvas = Color(0xFFF4F4F4);

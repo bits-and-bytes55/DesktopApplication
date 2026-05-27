@@ -18,17 +18,25 @@ class AuthRepository {
 
   String get _selectedReportId => reportContext.selectedReportId.value.trim();
 
-  Map<String, dynamic> _payloadWithReportId(Map<String, dynamic> body) {
+  String _resolveReportId(String? reportIdOverride) {
+    final override = reportIdOverride?.trim() ?? '';
+    return override.isNotEmpty ? override : _selectedReportId;
+  }
+
+  Map<String, dynamic> _payloadWithReportId(
+    Map<String, dynamic> body, {
+    String? reportIdOverride,
+  }) {
     final payload = Map<String, dynamic>.from(body);
-    final reportId = _selectedReportId;
+    final reportId = _resolveReportId(reportIdOverride);
     if (reportId.isNotEmpty) {
       payload['reportId'] = reportId;
     }
     return payload;
   }
 
-  Uri _uriWithReportId(String rawUrl) {
-    final reportId = _selectedReportId;
+  Uri _uriWithReportId(String rawUrl, {String? reportIdOverride}) {
+    final reportId = _resolveReportId(reportIdOverride);
     final uri = Uri.parse(rawUrl);
     if (reportId.isEmpty) return uri;
 
@@ -1706,10 +1714,11 @@ class AuthRepository {
     String wellId,
     Map<String, dynamic> pumpData, {
     bool includeReportScope = true,
+    String? reportIdOverride,
   }) async {
     try {
       final reportId = includeReportScope
-          ? reportContext.selectedReportId.value.trim()
+          ? _resolveReportId(reportIdOverride)
           : '';
       final payload = {
         ...pumpData,
@@ -1729,7 +1738,9 @@ class AuthRepository {
           'message': data['message'] ?? 'Pump created successfully',
         };
       }
-      throw Exception(data['message'] ?? 'Failed to create pump');
+      final message =
+          data['error'] ?? data['message'] ?? 'Failed to create pump';
+      throw Exception(message);
     } catch (e) {
       throw Exception('Error creating pump: $e');
     }
@@ -1761,7 +1772,9 @@ class AuthRepository {
           'message': data['message'] ?? 'Pump updated successfully',
         };
       }
-      throw Exception(data['message'] ?? 'Failed to update pump');
+      final message =
+          data['error'] ?? data['message'] ?? 'Failed to update pump';
+      throw Exception(message);
     } catch (e) {
       throw Exception('Error updating pump: $e');
     }
@@ -1823,15 +1836,24 @@ class AuthRepository {
     String wellId,
     Map<String, dynamic> shakerData, {
     bool includeReportId = true,
+    String? reportIdOverride,
   }) async {
     try {
       final response = await http.post(
         includeReportId
-            ? _uriWithReportId('${baseUrl}sce/shakers/$wellId')
+            ? _uriWithReportId(
+                '${baseUrl}sce/shakers/$wellId',
+                reportIdOverride: reportIdOverride,
+              )
             : Uri.parse('${baseUrl}sce/shakers/$wellId'),
         headers: _headers,
         body: jsonEncode(
-          includeReportId ? _payloadWithReportId(shakerData) : shakerData,
+          includeReportId
+              ? _payloadWithReportId(
+                  shakerData,
+                  reportIdOverride: reportIdOverride,
+                )
+              : shakerData,
         ),
       );
       final data = jsonDecode(response.body);
@@ -1842,7 +1864,9 @@ class AuthRepository {
           'message': data['message'] ?? 'Shaker created successfully',
         };
       }
-      throw Exception(data['message'] ?? 'Failed to create shaker');
+      final message =
+          data['error'] ?? data['message'] ?? 'Failed to create shaker';
+      throw Exception(message);
     } catch (e) {
       throw Exception('Error creating shaker: $e');
     }
@@ -1871,7 +1895,9 @@ class AuthRepository {
           'message': data['message'] ?? 'Shaker updated successfully',
         };
       }
-      throw Exception(data['message'] ?? 'Failed to update shaker');
+      final message =
+          data['error'] ?? data['message'] ?? 'Failed to update shaker';
+      throw Exception(message);
     } catch (e) {
       throw Exception('Error updating shaker: $e');
     }
@@ -1925,15 +1951,21 @@ class AuthRepository {
     String wellId,
     Map<String, dynamic> sceData, {
     bool includeReportId = true,
+    String? reportIdOverride,
   }) async {
     try {
       final response = await http.post(
         includeReportId
-            ? _uriWithReportId('${baseUrl}sce/other-sce/$wellId')
+            ? _uriWithReportId(
+                '${baseUrl}sce/other-sce/$wellId',
+                reportIdOverride: reportIdOverride,
+              )
             : Uri.parse('${baseUrl}sce/other-sce/$wellId'),
         headers: _headers,
         body: jsonEncode(
-          includeReportId ? _payloadWithReportId(sceData) : sceData,
+          includeReportId
+              ? _payloadWithReportId(sceData, reportIdOverride: reportIdOverride)
+              : sceData,
         ),
       );
       final data = jsonDecode(response.body);
@@ -1944,7 +1976,9 @@ class AuthRepository {
           'message': data['message'] ?? 'Other SCE created successfully',
         };
       }
-      throw Exception(data['message'] ?? 'Failed to create other SCE');
+      final message =
+          data['error'] ?? data['message'] ?? 'Failed to create other SCE';
+      throw Exception(message);
     } catch (e) {
       throw Exception('Error creating other SCE: $e');
     }
@@ -1973,7 +2007,9 @@ class AuthRepository {
           'message': data['message'] ?? 'Other SCE updated successfully',
         };
       }
-      throw Exception(data['message'] ?? 'Failed to update other SCE');
+      final message =
+          data['error'] ?? data['message'] ?? 'Failed to update other SCE';
+      throw Exception(message);
     } catch (e) {
       throw Exception('Error updating other SCE: $e');
     }

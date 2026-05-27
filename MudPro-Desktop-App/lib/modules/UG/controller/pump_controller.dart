@@ -123,17 +123,11 @@ class PumpController extends GetxController {
 
     try {
       final pumpData = pump.toJson();
-      final result = pump.id == null
-          ? await repository.createPump(
-              currentWellId,
-              pumpData,
-              includeReportScope: false,
-            )
-          : await repository.updatePump(
-              pump.id!,
-              pumpData,
-              includeReportScope: false,
-            );
+      final result = await repository.createPump(
+        currentWellId,
+        pumpData,
+        includeReportScope: false,
+      );
 
       if (result['success']) {
         final updated = PumpModel.fromJson(
@@ -243,19 +237,11 @@ class PumpController extends GetxController {
       Map<String, dynamic> result;
       final pumpData = pump.toJson();
 
-      if (pump.id != null) {
-        result = (await repository.updatePump(
-          pump.id!,
-          pumpData,
-          includeReportScope: false,
-        )) as Map<String, dynamic>;
-      } else {
-        result = (await repository.createPump(
-          currentWellId,
-          pumpData,
-          includeReportScope: false,
-        )) as Map<String, dynamic>;
-      }
+      result = (await repository.createPump(
+        currentWellId,
+        pumpData,
+        includeReportScope: false,
+      )) as Map<String, dynamic>;
 
       if (result['success']) {
         _applySavedPump(pump, result['data']);

@@ -166,12 +166,13 @@ const buildPumpPayload = ({
   reportNo,
   rowNumber,
 }) => {
-  const type = body.type ?? existing.type;
-  const linerId = body.linerId ?? existing.linerId;
-  const strokeLength = body.strokeLength ?? existing.strokeLength;
-  const efficiency = body.efficiency ?? existing.efficiency;
-  const spm = body.spm ?? existing.spm;
-  const rodOd = body.rodOd ?? existing.rodOd;
+  const cleanBody = cleanClone(body);
+  const type = cleanBody.type ?? existing.type;
+  const linerId = cleanBody.linerId ?? existing.linerId;
+  const strokeLength = cleanBody.strokeLength ?? existing.strokeLength;
+  const efficiency = cleanBody.efficiency ?? existing.efficiency;
+  const spm = cleanBody.spm ?? existing.spm;
+  const rodOd = cleanBody.rodOd ?? existing.rodOd;
   const displacement = calculateDisplacement(
     type,
     linerId,
@@ -183,7 +184,7 @@ const buildPumpPayload = ({
 
   return {
     ...cleanClone(existing),
-    ...body,
+    ...cleanBody,
     rowNumber: Number(rowNumber) || 1,
     displacement,
     rate,
@@ -278,6 +279,11 @@ class PumpController {
           ? await Pump.findOne({
               wellId: scope.wellId,
               reportId: scope.reportId,
+              rowNumber,
+            })
+          : scope.wellId
+          ? await Pump.findOne({
+              ...legacyPumpFilter(scope.wellId),
               rowNumber,
             })
           : null;
@@ -466,34 +472,37 @@ class PumpController {
           ? { ...pumpData, installationId }
           : pumpData;
 
-        if (itemWellId && itemReportId) {
-          return {
-            updateOne: {
-              filter: {
+        const filter =
+          itemWellId && itemReportId
+            ? {
                 wellId: itemWellId,
                 reportId: itemReportId,
                 rowNumber,
                 ...installationFilter,
-              },
-              update: { $set: scopedPumpData },
-              upsert: true,
-            },
-          };
-        }
+              }
+            : itemWellId
+            ? {
+                ...legacyPumpFilter(itemWellId),
+                rowNumber,
+                ...installationFilter,
+              }
+            : pump._id && mongoose.Types.ObjectId.isValid(pump._id)
+            ? { _id: pump._id, ...installationFilter }
+            : null;
 
-        if (pump._id && mongoose.Types.ObjectId.isValid(pump._id)) {
+        if (!filter) {
           return {
-            updateOne: {
-              filter: { _id: pump._id, ...installationFilter },
-              update: { $set: scopedPumpData },
-              upsert: false,
+            insertOne: {
+              document: scopedPumpData,
             },
           };
         }
 
         return {
-          insertOne: {
-            document: scopedPumpData,
+          updateOne: {
+            filter,
+            update: { $set: scopedPumpData },
+            upsert: true,
           },
         };
       });
