@@ -40,7 +40,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
 
   bool _isLoading = false;
   bool _isObmPickupOpening = false;
-  String _selectedPremixDescription = 'OBM 70/30';
+  String _selectedPremixDescription = '';
   bool _productsInventorySaveInFlight = false;
   bool _productsInventorySaveQueued = false;
   Timer? _productsInventorySaveTimer;
@@ -137,6 +137,19 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
       } else {
         c.obm.value = [];
       }
+      if (c.obm.isEmpty) {
+        try {
+          final inventorySnapshot =
+              await InventoryProductsService.getInventoryData(wellId);
+          final snapshotObm = inventorySnapshot['obm'];
+          if (snapshotObm is List) {
+            c.obm.value = snapshotObm
+                .map((item) => ObmModel.fromJson(Map<String, dynamic>.from(item)))
+                .toList();
+          }
+        } catch (_) {}
+      }
+      _syncObmHeaderWithPremix();
 
       print('✅ Data loaded successfully');
       print('Premixed count: ${premixedList.length}');
@@ -293,7 +306,9 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
 
   void _scheduleObmUpdate(ObmModel obm) {
     final id = obm.id?.trim() ?? '';
-    if (id.isEmpty || c.isLocked.value) return;
+    if (c.isLocked.value) return;
+    _scheduleProductsInventorySave();
+    if (id.isEmpty) return;
     _obmUpdateTimers[id]?.cancel();
     _obmUpdateTimers[id] = Timer(const Duration(milliseconds: 800), () async {
       try {
@@ -1225,23 +1240,15 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                           final e = entry.value;
                           final rowCells = [
                             _tableCell((index + 1).toString()),
-                            GestureDetector(
-                              behavior: HitTestBehavior.opaque,
+                            _editableTableCell(
+                              e.description,
+                              key: ValueKey('${e.id}-description'),
                               onTap: () => _selectPremixForObm(e.description),
-                              child: _editableTableCell(
-                                e.description,
-                                key: ValueKey('${e.id}-description'),
-                                onChanged: (v) {
-                                  final wasSelected =
-                                      _selectedPremixDescription ==
-                                      e.description.trim();
-                                  e.description = v;
-                                  if (wasSelected) {
-                                    _selectPremixForObm(v);
-                                  }
-                                  _schedulePremixedUpdate(e);
-                                },
-                              ),
+                              onChanged: (v) {
+                                e.description = v;
+                                _selectPremixForObm(v);
+                                _schedulePremixedUpdate(e);
+                              },
                             ),
                             _editableTableCell(
                               e.mw,
@@ -1511,6 +1518,9 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
       final created = await _repository.createPremixed(wellId, draft);
       c.premixed.add(created);
       c.premixed.refresh();
+      if (_selectedPremixDescription.trim().isEmpty) {
+        _selectPremixForObm(created.description);
+      }
       c.premixedDescController.clear();
       c.premixedMwController.clear();
       c.premixedLeasingFeeController.clear();
@@ -1662,16 +1672,11 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
         unit: product.formattedUnit,
       );
 
-      try {
-        final created = await _repository.createObm(wellId, obm);
-        c.obm.add(created);
-      } catch (_) {
-        c.obm.add(obm);
-        _scheduleProductsInventorySave();
-      }
+      c.obm.add(obm);
     }
 
     c.obm.refresh();
+    await _saveProductsInventorySnapshot();
   }
 
   void _selectPremixForObm(String description) {
@@ -1679,6 +1684,21 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
     if (title.isEmpty) return;
     if (_selectedPremixDescription == title) return;
     setState(() => _selectedPremixDescription = title);
+  }
+
+  void _syncObmHeaderWithPremix() {
+    final currentExists = c.premixed.any(
+      (item) =>
+          item.description.trim().isNotEmpty &&
+          item.description.trim() == _selectedPremixDescription,
+    );
+    if (currentExists) return;
+
+    final firstDescription = c.premixed
+        .map((item) => item.description.trim())
+        .firstWhere((description) => description.isNotEmpty, orElse: () => '');
+    if (firstDescription.isEmpty) return;
+    _selectedPremixDescription = firstDescription;
   }
 
   // ================= HELPERS =================
@@ -1843,6 +1863,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
   Widget _editableTableCell(
     String value, {
     Function(String)? onChanged,
+    VoidCallback? onTap,
     Key? key,
   }) => Padding(
     padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
@@ -1859,6 +1880,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
             key: key,
             value: value,
             onChanged: onChanged,
+            onTap: onTap,
           ),
   );
 
@@ -1922,10 +1944,12 @@ class _InventoryEditableTextCell extends StatefulWidget {
     super.key,
     required this.value,
     this.onChanged,
+    this.onTap,
   });
 
   final String value;
   final ValueChanged<String>? onChanged;
+  final VoidCallback? onTap;
 
   @override
   State<_InventoryEditableTextCell> createState() =>
@@ -1967,6 +1991,7 @@ class _InventoryEditableTextCellState
     return TextFormField(
       controller: _controller,
       focusNode: _focusNode,
+      onTap: widget.onTap,
       onChanged: widget.onChanged,
       style: TextStyle(
         fontSize: 10,
