@@ -566,6 +566,57 @@ class _PumpPageState extends State<PumpPage> {
     }
   }
 
+  Future<void> _saveCurrentPageNow() async {
+    if (dashboard.isLocked.value) return;
+    final scope = _currentSaveScope();
+    if (!scope.isValid) return;
+
+    for (final timer in _pumpSaveTimers.values) {
+      timer.cancel();
+    }
+    _pumpSaveTimers.clear();
+    _pumpSaveScopes.clear();
+    _pumpSummarySaveTimer?.cancel();
+    _pumpSummarySaveTimer = null;
+    _pumpSummarySaveScope = null;
+    _pumpSummarySaveValues = null;
+    for (final timer in _shakerSaveTimers.values) {
+      timer.cancel();
+    }
+    _shakerSaveTimers.clear();
+    _shakerSaveScopes.clear();
+    for (final timer in _otherSceSaveTimers.values) {
+      timer.cancel();
+    }
+    _otherSceSaveTimers.clear();
+    _otherSceSaveScopes.clear();
+
+    final futures = <Future<void>>[
+      _savePumpSummary(scope: scope, values: _currentPumpSummaryValues()),
+    ];
+
+    for (var index = 0; index < _pumpRows.length; index++) {
+      final row = _pumpRows[index];
+      if (row.hasData) {
+        futures.add(_savePumpRow(row, index, scope: scope));
+      }
+    }
+
+    for (final row in _shakerRows) {
+      if (row.hasData) {
+        futures.add(_saveShakerRow(row, scope: scope));
+      }
+    }
+
+    for (final row in _sceRows) {
+      if (row.hasData) {
+        futures.add(_saveOtherSceRow(row, scope: scope));
+      }
+    }
+
+    await Future.wait(futures);
+  }
+
   Future<void> _savePumpRow(
     _PumpRow row,
     int rowIndex, {
@@ -872,7 +923,7 @@ class _PumpPageState extends State<PumpPage> {
       decoration: _boxStyle(),
       child: Column(
         children: [
-          _tableHeader("Pump", Icons.settings),
+          _tableHeader("Pump", Icons.settings, trailing: _savePageButton()),
           Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) {
@@ -1135,7 +1186,7 @@ class _PumpPageState extends State<PumpPage> {
                   }
                   // ✅ Auto-add row when last row's model is selected
                   _checkAddPumpRow(rowIndex);
-                  _scheduleSavePumpRow(row, rowIndex);
+                  _savePumpRowNow(row, rowIndex);
                 },
           items: [
             const DropdownMenuItem<String?>(
@@ -1948,7 +1999,7 @@ class _PumpPageState extends State<PumpPage> {
   //  SHARED HELPERS
   // ═══════════════════════════════════════════════════════════
 
-  Widget _tableHeader(String title, IconData icon) {
+  Widget _tableHeader(String title, IconData icon, {Widget? trailing}) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -1971,9 +2022,41 @@ class _PumpPageState extends State<PumpPage> {
               color: Colors.white,
             ),
           ),
+          if (trailing != null) ...[
+            const Spacer(),
+            trailing,
+          ],
         ],
       ),
     );
+  }
+
+  Widget _savePageButton() {
+    return Obx(() {
+      final disabled =
+          dashboard.isLocked.value || !_currentSaveScope().isValid;
+      return Tooltip(
+        message: 'Save',
+        child: InkWell(
+          onTap: disabled ? null : () => unawaited(_saveCurrentPageNow()),
+          borderRadius: BorderRadius.circular(3),
+          child: Container(
+            width: 22,
+            height: 20,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: disabled ? Colors.white24 : Colors.white,
+              borderRadius: BorderRadius.circular(3),
+            ),
+            child: Icon(
+              Icons.save,
+              size: 13,
+              color: disabled ? Colors.white54 : AppTheme.primaryColor,
+            ),
+          ),
+        ),
+      );
+    });
   }
 
   Widget _headerCell(String text, double width) {

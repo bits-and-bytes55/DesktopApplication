@@ -110,6 +110,30 @@ const loadScopedPumps = async (wellId, reportId) => {
   );
 };
 
+let pumpIndexReady;
+const ensurePumpIndexes = async () => {
+  if (!pumpIndexReady) {
+    pumpIndexReady = (async () => {
+      try {
+        await Pump.collection.dropIndex("wellId_1_rowNumber_1");
+      } catch (error) {
+        if (error?.codeName !== "IndexNotFound" && error?.code !== 27) {
+          throw error;
+        }
+      }
+
+      await Pump.collection.createIndex({ rowNumber: 1 });
+      await Pump.collection.createIndex({
+        wellId: 1,
+        reportId: 1,
+        rowNumber: 1,
+      });
+    })();
+  }
+
+  return pumpIndexReady;
+};
+
 const loadDisplayPumps = async ({ wellId, reportId }) => {
   if (wellId && reportId) {
     return loadScopedPumps(wellId, reportId);
@@ -257,6 +281,7 @@ class PumpController {
 
   async createPump(req, res) {
     try {
+      await ensurePumpIndexes();
       const scope = resolveScope(req);
 
       if (req.body.wellId && !scope.wellId) {
@@ -329,6 +354,7 @@ class PumpController {
 
   async updatePump(req, res) {
     try {
+      await ensurePumpIndexes();
       const { id } = req.params;
       const existing = await Pump.findById(id);
 
@@ -438,6 +464,7 @@ class PumpController {
 
   async bulkUpsertPumps(req, res) {
     try {
+      await ensurePumpIndexes();
       const { pumps } = req.body;
       if (!Array.isArray(pumps)) {
         return res.status(400).json({
