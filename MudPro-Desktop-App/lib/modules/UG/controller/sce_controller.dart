@@ -32,6 +32,8 @@ class SceController extends GetxController {
   final isSavingOtherSce = false.obs;
   final Map<int, Timer> _shakerAutosaveTimers = {};
   final Map<int, Timer> _otherSceAutosaveTimers = {};
+  final Set<int> _dirtyShakerRows = <int>{};
+  final Set<int> _dirtyOtherSceRows = <int>{};
 
   // ✅ FIX: maxScreenCols — driven by "No. of Screen" field from SCE data
   // Default 8 (all enabled). Updated when SCE data is loaded.
@@ -86,6 +88,40 @@ class SceController extends GetxController {
     super.onClose();
   }
 
+  Future<void> flushPendingAutosaves() async {
+    final shakerIndexes = _dirtyShakerRows.toList()..sort();
+    final otherSceIndexes = _dirtyOtherSceRows.toList()..sort();
+
+    for (final timer in _shakerAutosaveTimers.values) {
+      timer.cancel();
+    }
+    for (final timer in _otherSceAutosaveTimers.values) {
+      timer.cancel();
+    }
+    _shakerAutosaveTimers.clear();
+    _otherSceAutosaveTimers.clear();
+
+    for (final index in shakerIndexes) {
+      if (index < 0 || index >= shakers.length) continue;
+      final shaker = shakers[index];
+      if (!shaker.hasData) continue;
+      await saveShaker(index);
+    }
+
+    for (final index in otherSceIndexes) {
+      if (index < 0 || index >= otherSce.length) continue;
+      final sce = otherSce[index];
+      if (sce.type.value.trim().isEmpty && index < otherSceLabels.length) {
+        sce.type.value = otherSceLabels[index];
+      }
+      if (!sce.hasData) continue;
+      await saveOtherSce(index);
+    }
+
+    _dirtyShakerRows.clear();
+    _dirtyOtherSceRows.clear();
+  }
+
   // ================= INITIALIZATION =================
 
   void initializeEmptyShakers() {
@@ -117,6 +153,7 @@ class SceController extends GetxController {
 
   Future<void> loadSceData(String wellId) async {
     try {
+      await flushPendingAutosaves();
       isLoading.value = true;
       currentWellId = wellId;
 
@@ -316,13 +353,18 @@ class SceController extends GetxController {
 
   void scheduleShakerAutosave(int index) {
     if (index < 0 || index >= shakers.length || currentWellId == null) return;
+    _dirtyShakerRows.add(index);
     _shakerAutosaveTimers[index]?.cancel();
     _shakerAutosaveTimers[index] = Timer(
       const Duration(milliseconds: 850),
       () async {
         final shaker = shakers[index];
-        if (!shaker.hasData) return;
+        if (!shaker.hasData) {
+          _dirtyShakerRows.remove(index);
+          return;
+        }
         await saveShaker(index);
+        _dirtyShakerRows.remove(index);
       },
     );
   }
@@ -417,6 +459,7 @@ class SceController extends GetxController {
 
   void scheduleOtherSceAutosave(int index) {
     if (index < 0 || index >= otherSce.length || currentWellId == null) return;
+    _dirtyOtherSceRows.add(index);
     _otherSceAutosaveTimers[index]?.cancel();
     _otherSceAutosaveTimers[index] = Timer(
       const Duration(milliseconds: 850),
@@ -425,8 +468,12 @@ class SceController extends GetxController {
         if (sce.type.value.trim().isEmpty && index < otherSceLabels.length) {
           sce.type.value = otherSceLabels[index];
         }
-        if (!sce.hasData) return;
+        if (!sce.hasData) {
+          _dirtyOtherSceRows.remove(index);
+          return;
+        }
         await saveOtherSce(index);
+        _dirtyOtherSceRows.remove(index);
       },
     );
   }
