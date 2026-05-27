@@ -2081,6 +2081,7 @@ class _OpenHoleSectionState extends State<OpenHoleSection> {
       : Get.put(WellGeneralController(), permanent: true);
   int? selectedRowIndex;
   late final List<List<TextEditingController>> _cellControllers;
+  late final List<List<FocusNode>> _cellFocusNodes;
   List<String> _lastAutoFirstRow = const ['', '', '', ''];
   final List<Worker> _unitWorkers = <Worker>[];
   Worker? _openHoleWorker;
@@ -2097,6 +2098,10 @@ class _OpenHoleSectionState extends State<OpenHoleSection> {
         (_) => TextEditingController(),
       ),
     );
+    _cellFocusNodes = List<List<FocusNode>>.generate(
+      3,
+      (_) => List<FocusNode>.generate(4, (_) => FocusNode()),
+    );
     _lengthUnit = AppUnits.length;
     _diameterUnit = AppUnits.diameter;
     _unitWorkers.addAll([
@@ -2109,6 +2114,7 @@ class _OpenHoleSectionState extends State<OpenHoleSection> {
     ]);
     _openHoleWorker = ever<int>(wellGenCtrl.openHoleRevision, (_) {
       if (!mounted) return;
+      if (_hasOpenHoleCellFocus) return;
       _loadRowsFromController();
       setState(() {});
     });
@@ -2123,12 +2129,20 @@ class _OpenHoleSectionState extends State<OpenHoleSection> {
         controller.dispose();
       }
     }
+    for (final row in _cellFocusNodes) {
+      for (final node in row) {
+        node.dispose();
+      }
+    }
     for (final worker in _unitWorkers) {
       worker.dispose();
     }
     _openHoleWorker?.dispose();
     super.dispose();
   }
+
+  bool get _hasOpenHoleCellFocus =>
+      _cellFocusNodes.any((row) => row.any((node) => node.hasFocus));
 
   void _handleUnitChange() {
     final nextLengthUnit = AppUnits.length;
@@ -2387,6 +2401,7 @@ class _OpenHoleSectionState extends State<OpenHoleSection> {
   Widget _editableOpenHoleCell(
     TextEditingController controller, {
     required bool enabled,
+    FocusNode? focusNode,
     TextInputType keyboardType = TextInputType.text,
     ValueChanged<String>? onChanged,
   }) {
@@ -2397,10 +2412,14 @@ class _OpenHoleSectionState extends State<OpenHoleSection> {
         height: _kRowH,
         child: TextField(
           controller: controller,
+          focusNode: focusNode,
           enabled: enabled,
           keyboardType: keyboardType,
+          textInputAction: TextInputAction.done,
+          selectAllOnFocus: false,
           textAlign: TextAlign.center,
           onChanged: onChanged,
+          onTap: () => _collapseFullSelectionToEnd(controller),
           decoration: InputDecoration(
             border: InputBorder.none,
             isDense: true,
@@ -2414,10 +2433,40 @@ class _OpenHoleSectionState extends State<OpenHoleSection> {
               editableWhenUnlocked: true,
             ),
           ),
+          onSubmitted: (_) {
+            onChanged?.call(controller.text);
+            _collapseSelectionToEnd(controller);
+          },
+          onEditingComplete: () {
+            onChanged?.call(controller.text);
+            _collapseSelectionToEnd(controller);
+          },
           style: TextStyle(fontSize: 9, color: AppTheme.textPrimary),
         ),
       ),
     );
+  }
+
+  void _collapseSelectionToEnd(TextEditingController controller) {
+    Future.microtask(() {
+      controller.selection = TextSelection.collapsed(
+        offset: controller.text.length,
+      );
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      controller.selection = TextSelection.collapsed(
+        offset: controller.text.length,
+      );
+    });
+  }
+
+  void _collapseFullSelectionToEnd(TextEditingController controller) {
+    final selection = controller.selection;
+    final isFullSelection =
+        selection.start == 0 && selection.end == controller.text.length;
+    if (controller.text.isNotEmpty && isFullSelection) {
+      _collapseSelectionToEnd(controller);
+    }
   }
 
   List<Widget> _buildRowCells(
@@ -2429,23 +2478,27 @@ class _OpenHoleSectionState extends State<OpenHoleSection> {
       _editableOpenHoleCell(
         controllers[0],
         enabled: enabled,
+        focusNode: _cellFocusNodes[rowIndex][0],
         onChanged: (_) => _syncRowToController(rowIndex),
       ),
       _editableOpenHoleCell(
         controllers[1],
         enabled: enabled,
+        focusNode: _cellFocusNodes[rowIndex][1],
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
         onChanged: (_) => _syncRowToController(rowIndex),
       ),
       _editableOpenHoleCell(
         controllers[2],
         enabled: enabled,
+        focusNode: _cellFocusNodes[rowIndex][2],
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
         onChanged: (_) => _syncRowToController(rowIndex),
       ),
       _editableOpenHoleCell(
         controllers[3],
         enabled: enabled,
+        focusNode: _cellFocusNodes[rowIndex][3],
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
         onChanged: (_) => _syncRowToController(rowIndex),
       ),

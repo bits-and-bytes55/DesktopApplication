@@ -336,6 +336,29 @@ class SurveyController extends GetxController {
     scheduleAutosave();
   }
 
+  void pasteStationTriples(int startIndex, List<List<String>> rows) {
+    if (isLocked || rows.isEmpty) return;
+    final safeStart = startIndex < 0 ? 0 : startIndex;
+    while (stations.length < safeStart + rows.length) {
+      stations.add(SurveyStationRow.blank());
+    }
+
+    for (var rowOffset = 0; rowOffset < rows.length; rowOffset++) {
+      final values = rows[rowOffset];
+      if (values.isEmpty) continue;
+      final station = stations[safeStart + rowOffset];
+      if (values.isNotEmpty) station.md = values[0];
+      if (values.length > 1) station.inc = values[1];
+      if (values.length > 2) station.azi = values[2];
+      station.syncEditableControllers();
+    }
+
+    selectedStationIndex.value = safeStart;
+    _padStations();
+    _recalculateAllRows();
+    scheduleAutosave();
+  }
+
   void updateAnnotationField(int index, String field, String value) {
     if (index < 0 || index >= annotations.length) return;
     final row = annotations[index];
