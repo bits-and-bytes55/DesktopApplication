@@ -1,5 +1,8 @@
+import 'dart:convert';
 import 'dart:math' as math;
+import 'dart:typed_data';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -285,32 +288,84 @@ class _FormationViewState extends State<FormationView> {
   }
 
   Widget _lithologyCell(FormationRow row, _FormationLayout layout) {
-    final text = row.lithology.value.trim().isEmpty
-        ? 'No image data'
-        : row.lithology.value;
-    return Container(
-      width: layout.lithologyWidth,
-      height: _rowHeight,
-      alignment: Alignment.centerLeft,
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      decoration: BoxDecoration(
-        color: _isLocked ? _highlightColor : Colors.white,
-        border: const Border(
-          right: BorderSide(color: _borderColor),
-          bottom: BorderSide(color: _borderColor),
+    final imageBytes = _decodeLithologyImage(row.lithology.value);
+    final child = imageBytes == null
+        ? Text(
+            'No image data',
+            style: const TextStyle(fontSize: 10, color: Color(0xFF4A4F57)),
+            overflow: TextOverflow.ellipsis,
+          )
+        : ClipRect(
+            child: Image.memory(
+              imageBytes,
+              width: layout.lithologyWidth - 8,
+              height: _rowHeight - 4,
+              fit: BoxFit.cover,
+              gaplessPlayback: true,
+              errorBuilder: (_, __, ___) => const Text(
+                'No image data',
+                style: TextStyle(fontSize: 10, color: Color(0xFF4A4F57)),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          );
+
+    return InkWell(
+      onTap: _isLocked ? null : () => _pickLithologyImage(row),
+      child: Container(
+        width: layout.lithologyWidth,
+        height: _rowHeight,
+        alignment: Alignment.centerLeft,
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        decoration: BoxDecoration(
+          color: _isLocked ? _highlightColor : Colors.white,
+          border: const Border(
+            right: BorderSide(color: _borderColor),
+            bottom: BorderSide(color: _borderColor),
+          ),
         ),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: 10,
-          color: row.lithology.value.trim().isEmpty
-              ? const Color(0xFF4A4F57)
-              : const Color(0xFF2F2F2F),
-        ),
-        overflow: TextOverflow.ellipsis,
+        child: child,
       ),
     );
+  }
+
+  Future<void> _pickLithologyImage(FormationRow row) async {
+    final index = controller.rows.indexOf(row);
+    if (index < 0) return;
+
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['png', 'jpg', 'jpeg', 'webp', 'bmp'],
+      withData: true,
+    );
+    final file = result?.files.single;
+    final bytes = file?.bytes;
+    if (bytes == null || bytes.isEmpty) return;
+
+    final extension = (file!.extension ?? 'png').toLowerCase();
+    final mime = extension == 'jpg' || extension == 'jpeg'
+        ? 'image/jpeg'
+        : extension == 'webp'
+            ? 'image/webp'
+            : extension == 'bmp'
+                ? 'image/bmp'
+                : 'image/png';
+    controller.updateLithology(
+      index,
+      'data:$mime;base64,${base64Encode(bytes)}',
+    );
+  }
+
+  Uint8List? _decodeLithologyImage(String value) {
+    final raw = value.trim();
+    if (!raw.startsWith('data:image/')) return null;
+    final commaIndex = raw.indexOf(',');
+    if (commaIndex < 0) return null;
+    try {
+      return base64Decode(raw.substring(commaIndex + 1));
+    } catch (_) {
+      return null;
+    }
   }
 
   Widget _buildRow(FormationRow row, int index, _FormationLayout layout) {
@@ -622,6 +677,7 @@ class _FormationViewState extends State<FormationView> {
             Expanded(
               child: CustomPaint(
                 painter: _FormationGraphPainter(
+                  mode: controller.mode.value,
                   porePoints: controller.showPoreGraph.value
                       ? controller.graphPoints(pore: true)
                       : const <FormationGraphPoint>[],
@@ -740,10 +796,12 @@ class _FormationLayout {
 }
 
 class _FormationGraphPainter extends CustomPainter {
+  final String mode;
   final List<FormationGraphPoint> porePoints;
   final List<FormationGraphPoint> fracPoints;
 
   const _FormationGraphPainter({
+    required this.mode,
     required this.porePoints,
     required this.fracPoints,
   });
@@ -771,26 +829,36 @@ class _FormationGraphPainter extends CustomPainter {
     canvas.drawRect(chartRect, axisPaint);
 
     final allPoints = [...porePoints, ...fracPoints];
-    final maxTvd = allPoints.isEmpty
-        ? 14.0
-        : math.max(14.0, allPoints.map((item) => item.tvd).reduce(math.max));
-    final maxGrad = allPoints.isEmpty
-        ? 30.0
-        : math.max(
-            30.0,
-            allPoints.map((item) => item.gradient).reduce(math.max),
-          );
+    final maxTvd = _niceAxisMax(
+      allPoints.isEmpty
+          ? 2000
+          : allPoints.map((item) => item.tvd).reduce(math.max),
+      minimum: 2000,
+      step: 500,
+    );
+    final maxValue = _niceAxisMax(
+      allPoints.isEmpty
+          ? _defaultValueAxisMax
+          : allPoints.map((item) => item.value).reduce(math.max),
+      minimum: _defaultValueAxisMax,
+      step: _valueAxisStep,
+    );
 
-    for (int i = 1; i < 6; i++) {
-      final dx = chartRect.left + (chartRect.width / 6) * i;
+    final yStep = _tvdAxisStep(maxTvd);
+    final xTicks = (maxValue / _valueAxisStep).round();
+    for (int i = 1; i < xTicks; i++) {
+      final value = i * _valueAxisStep;
+      final dx = chartRect.left + (value / maxValue) * chartRect.width;
       canvas.drawLine(
         Offset(dx, chartRect.top),
         Offset(dx, chartRect.bottom),
         gridPaint,
       );
     }
-    for (int i = 1; i < 7; i++) {
-      final dy = chartRect.top + (chartRect.height / 7) * i;
+    final yTicks = (maxTvd / yStep).round();
+    for (int i = 1; i < yTicks; i++) {
+      final tvd = i * yStep;
+      final dy = chartRect.top + (tvd / maxTvd) * chartRect.height;
       canvas.drawLine(
         Offset(chartRect.left, dy),
         Offset(chartRect.right, dy),
@@ -798,23 +866,67 @@ class _FormationGraphPainter extends CustomPainter {
       );
     }
 
-    _drawAxisLabels(canvas, chartRect, maxTvd, maxGrad);
-    _drawLine(canvas, chartRect, porePoints, maxTvd, maxGrad, Colors.green);
-    _drawLine(canvas, chartRect, fracPoints, maxTvd, maxGrad, Colors.red);
+    _drawAxisLabels(canvas, chartRect, maxTvd, maxValue);
+    _drawLine(canvas, chartRect, porePoints, maxTvd, maxValue, Colors.green);
+    _drawLine(canvas, chartRect, fracPoints, maxTvd, maxValue, Colors.red);
+  }
+
+  double get _defaultValueAxisMax {
+    switch (mode) {
+      case 'Density':
+        return 14;
+      case 'Pressure':
+        return 2000;
+      case 'Gradient':
+      default:
+        return 1;
+    }
+  }
+
+  double get _valueAxisStep {
+    switch (mode) {
+      case 'Density':
+        return 2;
+      case 'Pressure':
+        return 500;
+      case 'Gradient':
+      default:
+        return 0.1;
+    }
+  }
+
+  double _tvdAxisStep(double maxTvd) {
+    if (maxTvd <= 2000) return 500;
+    if (maxTvd <= 5000) return 1000;
+    return 2000;
+  }
+
+  double _niceAxisMax(
+    double value, {
+    required double minimum,
+    required double step,
+  }) {
+    final target = math.max(value, minimum);
+    return (target / step).ceil() * step;
   }
 
   void _drawAxisLabels(
     Canvas canvas,
     Rect rect,
     double maxTvd,
-    double maxGrad,
+    double maxValue,
   ) {
-    final labelStyle = const TextStyle(fontSize: 10, color: Color(0xFF4A4F57));
+    final labelStyle = const TextStyle(
+      fontSize: 10,
+      color: Color(0xFF4A4F57),
+    );
     final axisStyle = const TextStyle(fontSize: 11, color: Color(0xFF2F2F2F));
 
-    for (int i = 0; i <= 7; i++) {
-      final tvd = (maxTvd / 7) * i;
-      final y = rect.top + (rect.height / 7) * i;
+    final yStep = _tvdAxisStep(maxTvd);
+    final yTicks = (maxTvd / yStep).round();
+    for (int i = 0; i <= yTicks; i++) {
+      final tvd = i * yStep;
+      final y = rect.top + (tvd / maxTvd) * rect.height;
       final painter = TextPainter(
         text: TextSpan(text: tvd.toStringAsFixed(0), style: labelStyle),
         textDirection: TextDirection.ltr,
@@ -822,11 +934,12 @@ class _FormationGraphPainter extends CustomPainter {
       painter.paint(canvas, Offset(rect.left - painter.width - 8, y - 6));
     }
 
-    for (int i = 0; i <= 6; i++) {
-      final grad = (maxGrad / 6) * i;
-      final x = rect.left + (rect.width / 6) * i;
+    final xTicks = (maxValue / _valueAxisStep).round();
+    for (int i = 0; i <= xTicks; i++) {
+      final value = i * _valueAxisStep;
+      final x = rect.left + (value / maxValue) * rect.width;
       final painter = TextPainter(
-        text: TextSpan(text: grad.toStringAsFixed(0), style: labelStyle),
+        text: TextSpan(text: _formatAxisValue(value), style: labelStyle),
         textDirection: TextDirection.ltr,
       )..layout();
       painter.paint(canvas, Offset(x - (painter.width / 2), rect.bottom + 8));
@@ -847,7 +960,7 @@ class _FormationGraphPainter extends CustomPainter {
 
     final xAxis = TextPainter(
       text: TextSpan(
-        text: 'P. Gradient ${AppUnits.unitText('(psi/ft)')}',
+        text: _xAxisTitle,
         style: axisStyle,
       ),
       textDirection: TextDirection.ltr,
@@ -858,12 +971,31 @@ class _FormationGraphPainter extends CustomPainter {
     );
   }
 
+  String get _xAxisTitle {
+    switch (mode) {
+      case 'Density':
+        return 'Density ${AppUnits.unitText('(ppg)')}';
+      case 'Pressure':
+        return 'Pressure ${AppUnits.unitText('(psi)')}';
+      case 'Gradient':
+      default:
+        return 'P. Gradient ${AppUnits.unitText('(psi/ft)')}';
+    }
+  }
+
+  String _formatAxisValue(double value) {
+    if (mode == 'Gradient') {
+      return value.toStringAsFixed(1).replaceAll(RegExp(r'\.0$'), '');
+    }
+    return value.toStringAsFixed(0);
+  }
+
   void _drawLine(
     Canvas canvas,
     Rect rect,
     List<FormationGraphPoint> points,
     double maxTvd,
-    double maxGrad,
+    double maxValue,
     Color color,
   ) {
     if (points.isEmpty) return;
@@ -871,7 +1003,7 @@ class _FormationGraphPainter extends CustomPainter {
     path.moveTo(rect.left, rect.top);
     for (int i = 0; i < points.length; i++) {
       final point = points[i];
-      final x = rect.left + (point.gradient / maxGrad) * rect.width;
+      final x = rect.left + (point.value / maxValue) * rect.width;
       final y = rect.top + (point.tvd / maxTvd) * rect.height;
       path.lineTo(x, y);
     }
@@ -884,7 +1016,8 @@ class _FormationGraphPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _FormationGraphPainter oldDelegate) {
-    return oldDelegate.porePoints != porePoints ||
+    return oldDelegate.mode != mode ||
+        oldDelegate.porePoints != porePoints ||
         oldDelegate.fracPoints != fracPoints;
   }
 }
