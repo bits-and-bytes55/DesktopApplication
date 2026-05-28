@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/survey/controller/survey_controller.dart';
@@ -59,6 +57,12 @@ class SurveyDoglegTab extends StatelessWidget {
 class _DoglegGraphPainter extends CustomPainter {
   _DoglegGraphPainter({required this.points});
 
+  static const double _maxMd = 12000;
+  static const double _maxDogleg = 2;
+  static const int _gridDivisions = 12;
+  static const int _mdLabelDivisions = 6;
+  static const int _doglegLabelDivisions = 4;
+
   final List<dynamic> points;
 
   @override
@@ -77,11 +81,30 @@ class _DoglegGraphPainter extends CustomPainter {
       ..style = PaintingStyle.stroke;
 
     canvas.drawRect(plot, border);
-    for (var i = 0; i <= 10; i++) {
-      final x = plot.left + (plot.width * i / 10);
+    for (var i = 0; i <= _gridDivisions; i++) {
+      final x = plot.left + (plot.width * i / _gridDivisions);
       drawDashedLine(canvas, Offset(x, plot.top), Offset(x, plot.bottom), grid);
-      final y = plot.top + (plot.height * i / 10);
+      final y = plot.top + (plot.height * i / _gridDivisions);
       drawDashedLine(canvas, Offset(plot.left, y), Offset(plot.right, y), grid);
+    }
+
+    for (var i = 0; i <= _mdLabelDivisions; i++) {
+      final value = _maxMd * i / _mdLabelDivisions;
+      final py = plot.top + (plot.height * i / _mdLabelDivisions);
+      drawSurveyText(
+        canvas,
+        value.toStringAsFixed(0),
+        Offset(plot.left - 24, py - 7),
+      );
+    }
+    for (var i = 0; i <= _doglegLabelDivisions; i++) {
+      final value = _maxDogleg * i / _doglegLabelDivisions;
+      final px = plot.left + (plot.width * i / _doglegLabelDivisions);
+      drawSurveyText(
+        canvas,
+        value.toStringAsFixed(value == value.roundToDouble() ? 0 : 1),
+        Offset(px - 8, plot.bottom + 8),
+      );
     }
 
     if (points.isEmpty) {
@@ -93,20 +116,11 @@ class _DoglegGraphPainter extends CustomPainter {
       return;
     }
 
-    final maxMd = math.max(
-      1,
-      points.map((e) => e.md as double).reduce(math.max),
-    );
-    final maxDogleg = math.max(
-      5,
-      points.map((e) => e.dogleg as double).reduce(math.max),
-    );
-
     final path = Path();
     for (var i = 0; i < points.length; i++) {
       final point = points[i];
-      final px = plot.left + (point.dogleg / maxDogleg) * plot.width;
-      final py = plot.top + (point.md / maxMd) * plot.height;
+      final px = plot.left + (point.dogleg / _maxDogleg) * plot.width;
+      final py = plot.top + (point.md / _maxMd) * plot.height;
       if (i == 0) {
         path.moveTo(px, py);
       } else {
@@ -114,25 +128,6 @@ class _DoglegGraphPainter extends CustomPainter {
       }
     }
     canvas.drawPath(path, line);
-
-    for (var i = 0; i <= 5; i++) {
-      final value = maxMd * i / 5;
-      final py = plot.top + (plot.height * i / 5);
-      drawSurveyText(
-        canvas,
-        value.toStringAsFixed(0),
-        Offset(plot.left - 24, py - 7),
-      );
-    }
-    for (var i = 0; i <= 5; i++) {
-      final value = maxDogleg * i / 5;
-      final px = plot.left + (plot.width * i / 5);
-      drawSurveyText(
-        canvas,
-        value.toStringAsFixed(0),
-        Offset(px - 8, plot.bottom + 8),
-      );
-    }
   }
 
   @override

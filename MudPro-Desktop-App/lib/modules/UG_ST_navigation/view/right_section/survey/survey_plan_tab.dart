@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/survey/controller/survey_controller.dart';
@@ -90,6 +88,11 @@ class _PlanMarker {
 class _PlanGraphPainter extends CustomPainter {
   _PlanGraphPainter({required this.points, required this.markers});
 
+  static const double _axisMin = 0;
+  static const double _axisMax = 1200;
+  static const int _gridDivisions = 12;
+  static const int _labelDivisions = 6;
+
   final List<dynamic> points;
   final List<_PlanMarker> markers;
 
@@ -110,11 +113,35 @@ class _PlanGraphPainter extends CustomPainter {
       ..strokeJoin = StrokeJoin.round;
 
     canvas.drawRect(plot, border);
-    for (var i = 0; i <= 10; i++) {
-      final x = plot.left + (plot.width * i / 10);
+    for (var i = 0; i <= _gridDivisions; i++) {
+      final x = plot.left + (plot.width * i / _gridDivisions);
       drawDashedLine(canvas, Offset(x, plot.top), Offset(x, plot.bottom), grid);
-      final y = plot.top + (plot.height * i / 10);
+      final y = plot.top + (plot.height * i / _gridDivisions);
       drawDashedLine(canvas, Offset(plot.left, y), Offset(plot.right, y), grid);
+    }
+
+    const minX = _axisMin;
+    const minY = _axisMin;
+    const xRange = _axisMax - _axisMin;
+    const yRange = _axisMax - _axisMin;
+
+    for (var i = 0; i <= _labelDivisions; i++) {
+      final value = minY + (yRange * i / _labelDivisions);
+      final py = plot.bottom - (plot.height * i / _labelDivisions);
+      drawSurveyText(
+        canvas,
+        value.toStringAsFixed(0),
+        Offset(plot.left - 28, py - 7),
+      );
+    }
+    for (var i = 0; i <= _labelDivisions; i++) {
+      final value = minX + (xRange * i / _labelDivisions);
+      final px = plot.left + (plot.width * i / _labelDivisions);
+      drawSurveyText(
+        canvas,
+        value.toStringAsFixed(0),
+        Offset(px - 10, plot.bottom + 8),
+      );
     }
 
     if (points.isEmpty) {
@@ -125,25 +152,6 @@ class _PlanGraphPainter extends CustomPainter {
       );
       return;
     }
-
-    final minX = math.min(
-      0,
-      points.map((e) => e.eastWest as double).reduce(math.min),
-    );
-    final maxX = math.max(
-      0.5,
-      points.map((e) => e.eastWest as double).reduce(math.max),
-    );
-    final minY = math.min(
-      0,
-      points.map((e) => e.northSouth as double).reduce(math.min),
-    );
-    final maxY = math.max(
-      0.5,
-      points.map((e) => e.northSouth as double).reduce(math.max),
-    );
-    final xRange = (maxX - minX).abs() < 0.001 ? 1.0 : (maxX - minX);
-    final yRange = (maxY - minY).abs() < 0.001 ? 1.0 : (maxY - minY);
 
     final path = Path();
     for (var i = 0; i < points.length; i++) {
@@ -164,25 +172,6 @@ class _PlanGraphPainter extends CustomPainter {
       final py = plot.bottom - ((marker.y - minY) / yRange) * plot.height;
       drawSurveyMarker(canvas, Offset(px, py), marker.symbol);
       drawSurveyText(canvas, marker.label, Offset(px + 8, py - 10));
-    }
-
-    for (var i = 0; i <= 5; i++) {
-      final value = minY + (yRange * i / 5);
-      final py = plot.bottom - (plot.height * i / 5);
-      drawSurveyText(
-        canvas,
-        value.toStringAsFixed(1),
-        Offset(plot.left - 28, py - 7),
-      );
-    }
-    for (var i = 0; i <= 5; i++) {
-      final value = minX + (xRange * i / 5);
-      final px = plot.left + (plot.width * i / 5);
-      drawSurveyText(
-        canvas,
-        value.toStringAsFixed(1),
-        Offset(px - 10, plot.bottom + 8),
-      );
     }
   }
 

@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/survey/controller/survey_controller.dart';
@@ -90,6 +88,11 @@ class _SectionMarker {
 class _SectionGraphPainter extends CustomPainter {
   _SectionGraphPainter({required this.points, required this.markers});
 
+  static const double _axisMin = 0;
+  static const double _axisMax = 12000;
+  static const int _gridDivisions = 12;
+  static const int _labelDivisions = 6;
+
   final List<dynamic> points;
   final List<_SectionMarker> markers;
 
@@ -110,11 +113,34 @@ class _SectionGraphPainter extends CustomPainter {
       ..strokeJoin = StrokeJoin.round;
 
     canvas.drawRect(plot, border);
-    for (var i = 0; i <= 10; i++) {
-      final x = plot.left + (plot.width * i / 10);
+    for (var i = 0; i <= _gridDivisions; i++) {
+      final x = plot.left + (plot.width * i / _gridDivisions);
       drawDashedLine(canvas, Offset(x, plot.top), Offset(x, plot.bottom), grid);
-      final y = plot.top + (plot.height * i / 10);
+      final y = plot.top + (plot.height * i / _gridDivisions);
       drawDashedLine(canvas, Offset(plot.left, y), Offset(plot.right, y), grid);
+    }
+
+    const maxTvd = _axisMax;
+    const minX = _axisMin;
+    const xRange = _axisMax - _axisMin;
+
+    for (var i = 0; i <= _labelDivisions; i++) {
+      final value = maxTvd * i / _labelDivisions;
+      final py = plot.top + (plot.height * i / _labelDivisions);
+      drawSurveyText(
+        canvas,
+        value.toStringAsFixed(0),
+        Offset(plot.left - 24, py - 7),
+      );
+    }
+    for (var i = 0; i <= _labelDivisions; i++) {
+      final value = minX + (xRange * i / _labelDivisions);
+      final px = plot.left + (plot.width * i / _labelDivisions);
+      drawSurveyText(
+        canvas,
+        value.toStringAsFixed(0),
+        Offset(px - 8, plot.bottom + 8),
+      );
     }
 
     if (points.isEmpty) {
@@ -125,20 +151,6 @@ class _SectionGraphPainter extends CustomPainter {
       );
       return;
     }
-
-    final maxTvd = math.max(
-      1,
-      points.map((e) => e.tvd as double).reduce(math.max),
-    );
-    final minX = math.min(
-      0,
-      points.map((e) => e.vsec as double).reduce(math.min),
-    );
-    final maxX = math.max(
-      0.5,
-      points.map((e) => e.vsec as double).reduce(math.max),
-    );
-    final xRange = (maxX - minX).abs() < 0.001 ? 1.0 : (maxX - minX);
 
     final path = Path();
     for (var i = 0; i < points.length; i++) {
@@ -158,25 +170,6 @@ class _SectionGraphPainter extends CustomPainter {
       final py = plot.top + (marker.y / maxTvd) * plot.height;
       drawSurveyMarker(canvas, Offset(px, py), marker.symbol);
       drawSurveyText(canvas, marker.label, Offset(px + 8, py - 10));
-    }
-
-    for (var i = 0; i <= 5; i++) {
-      final value = maxTvd * i / 5;
-      final py = plot.top + (plot.height * i / 5);
-      drawSurveyText(
-        canvas,
-        value.toStringAsFixed(0),
-        Offset(plot.left - 24, py - 7),
-      );
-    }
-    for (var i = 0; i <= 5; i++) {
-      final value = minX + (xRange * i / 5);
-      final px = plot.left + (plot.width * i / 5);
-      drawSurveyText(
-        canvas,
-        value.toStringAsFixed(0),
-        Offset(px - 8, plot.bottom + 8),
-      );
     }
   }
 

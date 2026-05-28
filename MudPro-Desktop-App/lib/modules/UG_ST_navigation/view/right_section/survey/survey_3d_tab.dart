@@ -14,7 +14,7 @@ class Survey3DTab extends StatelessWidget {
   Widget build(BuildContext context) {
     return Obx(
       () => Container(
-        color: Colors.black,
+        color: Colors.white,
         child: Row(
           children: [
             Expanded(
@@ -146,30 +146,44 @@ class _Survey3DPainter extends CustomPainter {
   final double rotationY;
   final double zoom;
 
+  static const double _minEastWest = -12000;
+  static const double _maxEastWest = 12000;
+  static const double _minNorthSouth = 0;
+  static const double _maxNorthSouth = 12000;
+  static const double _maxTvd = 12000;
+  static const int _gridDivisions = 6;
+
   @override
   void paint(Canvas canvas, Size size) {
-    final frame = Rect.fromLTWH(76, 44, size.width - 150, size.height - 108);
+    final projection = _buildProjection(size);
     final gridPaint = Paint()
-      ..color = const Color(0xFFFFFFFF)
-      ..strokeWidth = 1;
+      ..color = const Color(0xFF444444)
+      ..strokeWidth = 0.9;
     final axisPaint = Paint()
-      ..color = const Color(0xFFE5E5E5)
+      ..color = const Color(0xFF202020)
       ..strokeWidth = 1.2;
     final pathPaint = Paint()
-      ..color = const Color(0xFFD6D6D6)
-      ..strokeWidth = 10
+      ..color = const Color(0xFF707070)
+      ..strokeWidth = 12
       ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
+      ..style = PaintingStyle.stroke;
+    final pathShadowPaint = Paint()
+      ..color = const Color(0xFF4A4A4A)
+      ..strokeWidth = 15
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
       ..style = PaintingStyle.stroke;
 
     final cube = [
-      const _V3(-1, -1, 0),
-      const _V3(1, -1, 0),
+      const _V3(0, 0, 0),
+      const _V3(1, 0, 0),
       const _V3(1, 1, 0),
-      const _V3(-1, 1, 0),
-      const _V3(-1, -1, 1),
-      const _V3(1, -1, 1),
+      const _V3(0, 1, 0),
+      const _V3(0, 0, 1),
+      const _V3(1, 0, 1),
       const _V3(1, 1, 1),
-      const _V3(-1, 1, 1),
+      const _V3(0, 1, 1),
     ];
     const cubeEdges = [
       [0, 1],
@@ -186,143 +200,225 @@ class _Survey3DPainter extends CustomPainter {
       [3, 7],
     ];
 
-    final projectedCube = cube
-        .map((point) => _project(point, frame.center, frame.size))
-        .toList();
+    final projectedCube = cube.map((point) {
+      return _project(point, projection);
+    }).toList();
 
     for (final edge in cubeEdges) {
       canvas.drawLine(
         projectedCube[edge[0]],
         projectedCube[edge[1]],
-        gridPaint,
+        axisPaint,
       );
     }
 
-    for (var i = 1; i < 5; i++) {
-      final t = i / 5;
-      final a = _interpolate(cube[0], cube[1], t);
-      final b = _interpolate(cube[3], cube[2], t);
-      final c = _interpolate(cube[4], cube[5], t);
-      final d = _interpolate(cube[7], cube[6], t);
+    for (var i = 1; i < _gridDivisions; i++) {
+      final t = i / _gridDivisions;
 
-      canvas.drawLine(
-        _project(a, frame.center, frame.size),
-        _project(b, frame.center, frame.size),
+      _draw3DLine(
+        canvas,
+        _V3(t, 0, 1),
+        _V3(t, 1, 1),
+        projection,
         gridPaint,
       );
-      canvas.drawLine(
-        _project(c, frame.center, frame.size),
-        _project(d, frame.center, frame.size),
+      _draw3DLine(
+        canvas,
+        _V3(0, t, 1),
+        _V3(1, t, 1),
+        projection,
+        gridPaint,
+      );
+      _draw3DLine(
+        canvas,
+        _V3(t, 1, 0),
+        _V3(t, 1, 1),
+        projection,
+        gridPaint,
+      );
+      _draw3DLine(
+        canvas,
+        _V3(0, t, 0),
+        _V3(0, t, 1),
+        projection,
+        gridPaint,
+      );
+      _draw3DLine(
+        canvas,
+        _V3(0, 1, t),
+        _V3(1, 1, t),
+        projection,
+        gridPaint,
+      );
+      _draw3DLine(
+        canvas,
+        _V3(1, 0, t),
+        _V3(1, 1, t),
+        projection,
         gridPaint,
       );
     }
 
     if (points.isNotEmpty) {
-      final minE = points.map((e) => e.eastWest as double).reduce(math.min);
-      final maxE = points.map((e) => e.eastWest as double).reduce(math.max);
-      final minN = points.map((e) => e.northSouth as double).reduce(math.min);
-      final maxN = points.map((e) => e.northSouth as double).reduce(math.max);
-      final maxT = math.max(
-        1.0,
-        points.map((e) => e.tvd as double).reduce(math.max),
-      );
-      final eRange = (maxE - minE).abs() < 0.001 ? 1.0 : (maxE - minE);
-      final nRange = (maxN - minN).abs() < 0.001 ? 1.0 : (maxN - minN);
-
       final path = Path();
       for (var i = 0; i < points.length; i++) {
         final point = points[i];
         final normalized = _V3(
-          ((point.eastWest - minE) / eRange) * 2 - 1,
-          ((point.northSouth - minN) / nRange) * 2 - 1,
-          (point.tvd / maxT),
+          _normalizeEastWest(point.eastWest as double),
+          _normalizeNorthSouth(point.northSouth as double),
+          _normalizeTvd(point.tvd as double),
         );
-        final projected = _project(normalized, frame.center, frame.size);
+        final projected = _project(normalized, projection);
         if (i == 0) {
           path.moveTo(projected.dx, projected.dy);
         } else {
           path.lineTo(projected.dx, projected.dy);
         }
       }
+      canvas.drawPath(path, pathShadowPaint);
       canvas.drawPath(path, pathPaint);
     }
 
-    canvas.drawLine(
-      _project(const _V3(-1, -1, 0), frame.center, frame.size),
-      _project(const _V3(1, -1, 0), frame.center, frame.size),
-      axisPaint,
-    );
-    canvas.drawLine(
-      _project(const _V3(-1, -1, 0), frame.center, frame.size),
-      _project(const _V3(-1, 1, 0), frame.center, frame.size),
-      axisPaint,
-    );
-    canvas.drawLine(
-      _project(const _V3(-1, -1, 0), frame.center, frame.size),
-      _project(const _V3(-1, -1, 1), frame.center, frame.size),
-      axisPaint,
-    );
+    _drawAxisLabels(canvas, projection);
 
     _drawLabel(
       canvas,
       'E+/- ${AppUnits.unitText('(ft)')}',
-      Offset(frame.left + 36, frame.bottom + 26),
+      _project(const _V3(0.5, 0, 1), projection) + const Offset(-34, 24),
     );
     _drawRotatedLabel(
       canvas,
       'N+/-S ${AppUnits.unitText('(ft)')}',
-      Offset(frame.right + 32, frame.center.dy - 20),
-      -0.88,
+      _project(const _V3(1, 0.5, 1), projection) + const Offset(28, 16),
+      0.78,
     );
     _drawRotatedLabel(
       canvas,
       'TVD ${AppUnits.unitText('(ft)')}',
-      Offset(frame.left - 36, frame.center.dy + 8),
+      _project(const _V3(1, 0, 0.5), projection) + const Offset(42, -12),
       -1.57,
     );
+    _drawViewTriad(canvas, size);
   }
 
-  _V3 _interpolate(_V3 a, _V3 b, double t) {
-    return _V3(
-      a.x + ((b.x - a.x) * t),
-      a.y + ((b.y - a.y) * t),
-      a.z + ((b.z - a.z) * t),
+  double _normalizeEastWest(double value) {
+    final normalized =
+        (value - _minEastWest) / (_maxEastWest - _minEastWest);
+    return normalized.clamp(0.0, 1.0).toDouble();
+  }
+
+  double _normalizeNorthSouth(double value) {
+    final normalized =
+        (value - _minNorthSouth) / (_maxNorthSouth - _minNorthSouth);
+    return normalized.clamp(0.0, 1.0).toDouble();
+  }
+
+  double _normalizeTvd(double value) {
+    return (value / _maxTvd).clamp(0.0, 1.0).toDouble();
+  }
+
+  void _draw3DLine(
+    Canvas canvas,
+    _V3 start,
+    _V3 end,
+    _Projection projection,
+    Paint paint,
+  ) {
+    canvas.drawLine(
+      _project(start, projection),
+      _project(end, projection),
+      paint,
     );
   }
 
-  Offset _project(_V3 point, Offset center, Size size) {
-    final rx = rotationX;
-    final ry = rotationY;
+  void _drawAxisLabels(Canvas canvas, _Projection projection) {
+    for (var i = 0; i <= _gridDivisions; i++) {
+      final t = i / _gridDivisions;
+      final east = _minEastWest + ((_maxEastWest - _minEastWest) * t);
+      final north = _minNorthSouth + ((_maxNorthSouth - _minNorthSouth) * t);
+      final tvd = _maxTvd * t;
 
-    final cosY = math.cos(ry);
-    final sinY = math.sin(ry);
-    final rotatedX = (point.x * cosY) - (point.y * sinY);
-    final rotatedY = (point.x * sinY) + (point.y * cosY);
+      _drawSmallLabel(
+        canvas,
+        east.toStringAsFixed(0),
+        _project(_V3(t, 0, 1), projection) + const Offset(-20, 8),
+      );
+      _drawSmallLabel(
+        canvas,
+        north.toStringAsFixed(0),
+        _project(_V3(1, t, 1), projection) + const Offset(6, 6),
+      );
+      _drawSmallLabel(
+        canvas,
+        tvd.toStringAsFixed(0),
+        _project(_V3(1, 0, t), projection) + const Offset(7, -5),
+      );
+    }
+  }
 
-    final cosX = math.cos(rx);
-    final sinX = math.sin(rx);
-    final finalY = (rotatedY * cosX) - (point.z * sinX);
-    final finalZ = (rotatedY * sinX) + (point.z * cosX);
+  _Projection _buildProjection(Size size) {
+    final side = math.min(size.width * 0.46, size.height * 0.58) * zoom;
+    final xVec = Offset(side * 0.72, side * 0.12);
+    final yVec = Offset(-side * 0.46, side * 0.24);
+    final zVec = Offset(0, side * 0.78);
+    final topCenter = Offset(size.width * 0.50, size.height * 0.28);
+    final origin = topCenter - ((xVec + yVec) / 2);
+    return _Projection(origin: origin, x: xVec, y: yVec, z: zVec);
+  }
 
-    const perspective = 2.8;
-    final scale = (math.min(size.width, size.height) / 3.9) * zoom;
-    final depthScale = perspective / (perspective + finalZ + 1.35);
-
-    return Offset(
-      center.dx + (rotatedX * scale * depthScale),
-      center.dy + (finalY * scale * depthScale),
-    );
+  Offset _project(_V3 point, _Projection projection) {
+    final yawDelta = (rotationY - 0.75).clamp(-0.6, 0.6).toDouble();
+    final pitchDelta = (rotationX + 0.55).clamp(-0.8, 0.8).toDouble();
+    final xVec = projection.x + Offset(yawDelta * 34, yawDelta * 5);
+    final yVec = projection.y + Offset(yawDelta * 20, yawDelta * 8);
+    final zVec = projection.z + Offset(0, pitchDelta * 26);
+    return projection.origin +
+        (xVec * point.x) +
+        (yVec * point.y) +
+        (zVec * point.z);
   }
 
   void _drawLabel(Canvas canvas, String text, Offset offset) {
     final painter = TextPainter(
       text: TextSpan(
         text: text,
-        style: const TextStyle(fontSize: 13, color: Colors.white),
+        style: const TextStyle(fontSize: 12, color: Color(0xFF202020)),
       ),
       textDirection: TextDirection.ltr,
     )..layout();
     painter.paint(canvas, offset);
+  }
+
+  void _drawSmallLabel(Canvas canvas, String text, Offset offset) {
+    final painter = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: const TextStyle(fontSize: 10, color: Color(0xFF202020)),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    painter.paint(canvas, offset);
+  }
+
+  void _drawViewTriad(Canvas canvas, Size size) {
+    final origin = Offset(size.width - 88, 54);
+    final paint = Paint()
+      ..color = const Color(0xFF202020)
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round;
+    final hintPaint = Paint()
+      ..color = const Color(0xFF909090)
+      ..strokeWidth = 1;
+
+    canvas.drawLine(origin, origin + const Offset(-28, -2), paint);
+    canvas.drawLine(origin, origin + const Offset(8, 4), paint);
+    canvas.drawLine(origin, origin + const Offset(0, 30), paint);
+    canvas.drawLine(
+      origin + const Offset(-10, -10),
+      origin + const Offset(22, -10),
+      hintPaint,
+    );
+    canvas.drawCircle(origin + const Offset(0, 30), 2.5, paint);
   }
 
   void _drawRotatedLabel(
@@ -353,4 +449,18 @@ class _V3 {
   final double x;
   final double y;
   final double z;
+}
+
+class _Projection {
+  const _Projection({
+    required this.origin,
+    required this.x,
+    required this.y,
+    required this.z,
+  });
+
+  final Offset origin;
+  final Offset x;
+  final Offset y;
+  final Offset z;
 }

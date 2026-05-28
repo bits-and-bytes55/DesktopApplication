@@ -354,15 +354,17 @@ class _PumpPageState extends State<PumpPage> {
     }
   }
 
-  bool _sameSelectedReport(Map item) {
-    final selectedReportId = reportContext.selectedReportId.value.trim();
-    if (selectedReportId.isEmpty) return false;
-    return (item['reportId']?.toString().trim() ?? '') == selectedReportId;
-  }
-
   Future<void> _loadReportRows() async {
+    final wellId = currentBackendWellId.trim();
+    if (wellId.isNotEmpty) {
+      sceController.currentWellId = wellId;
+    }
     _loadPumpSummaryFields();
-    await Future.wait([_loadReportPumpRows(), _loadReportSceRows()]);
+    await Future.wait([
+      if (wellId.isNotEmpty) sceController.loadAvailableTypes(wellId),
+      _loadReportPumpRows(),
+      _loadReportSceRows(),
+    ]);
   }
 
   void _loadPumpSummaryFields() {
@@ -384,14 +386,14 @@ class _PumpPageState extends State<PumpPage> {
 
   Future<void> _loadReportPumpRows() async {
     final wellId = currentBackendWellId.trim();
-    if (wellId.isEmpty) return;
+    final reportId = reportContext.selectedReportId.value.trim();
+    if (wellId.isEmpty || reportId.isEmpty) return;
 
     final result = await pumpController.repository.getPumps(wellId);
     if (result['success'] != true) return;
 
     final rows = (result['data'] as List? ?? const [])
         .whereType<Map>()
-        .where(_sameSelectedReport)
         .map(_pumpRowFromMap)
         .toList(growable: true);
 
@@ -403,7 +405,8 @@ class _PumpPageState extends State<PumpPage> {
 
   Future<void> _loadReportSceRows() async {
     final wellId = currentBackendWellId.trim();
-    if (wellId.isEmpty) return;
+    final reportId = reportContext.selectedReportId.value.trim();
+    if (wellId.isEmpty || reportId.isEmpty) return;
 
     final shakerResult = await sceController.repository.getShakers(wellId);
     final otherResult = await sceController.repository.getOtherSce(wellId);
@@ -411,7 +414,6 @@ class _PumpPageState extends State<PumpPage> {
     if (shakerResult['success'] == true) {
       final rows = (shakerResult['data'] as List? ?? const [])
           .whereType<Map>()
-          .where(_sameSelectedReport)
           .map(_shakerRowFromMap)
           .toList(growable: true);
       while (rows.length < _initialShakerRows) {
@@ -423,7 +425,6 @@ class _PumpPageState extends State<PumpPage> {
     if (otherResult['success'] == true) {
       final rows = (otherResult['data'] as List? ?? const [])
           .whereType<Map>()
-          .where(_sameSelectedReport)
           .map(_otherSceRowFromMap)
           .toList(growable: true);
       while (rows.length < _initialSceRows) {
@@ -564,57 +565,6 @@ class _PumpPageState extends State<PumpPage> {
     if (futures.isNotEmpty) {
       await Future.wait(futures);
     }
-  }
-
-  Future<void> _saveCurrentPageNow() async {
-    if (dashboard.isLocked.value) return;
-    final scope = _currentSaveScope();
-    if (!scope.isValid) return;
-
-    for (final timer in _pumpSaveTimers.values) {
-      timer.cancel();
-    }
-    _pumpSaveTimers.clear();
-    _pumpSaveScopes.clear();
-    _pumpSummarySaveTimer?.cancel();
-    _pumpSummarySaveTimer = null;
-    _pumpSummarySaveScope = null;
-    _pumpSummarySaveValues = null;
-    for (final timer in _shakerSaveTimers.values) {
-      timer.cancel();
-    }
-    _shakerSaveTimers.clear();
-    _shakerSaveScopes.clear();
-    for (final timer in _otherSceSaveTimers.values) {
-      timer.cancel();
-    }
-    _otherSceSaveTimers.clear();
-    _otherSceSaveScopes.clear();
-
-    final futures = <Future<void>>[
-      _savePumpSummary(scope: scope, values: _currentPumpSummaryValues()),
-    ];
-
-    for (var index = 0; index < _pumpRows.length; index++) {
-      final row = _pumpRows[index];
-      if (row.hasData) {
-        futures.add(_savePumpRow(row, index, scope: scope));
-      }
-    }
-
-    for (final row in _shakerRows) {
-      if (row.hasData) {
-        futures.add(_saveShakerRow(row, scope: scope));
-      }
-    }
-
-    for (final row in _sceRows) {
-      if (row.hasData) {
-        futures.add(_saveOtherSceRow(row, scope: scope));
-      }
-    }
-
-    await Future.wait(futures);
   }
 
   Future<void> _savePumpRow(
@@ -764,8 +714,14 @@ class _PumpPageState extends State<PumpPage> {
   }) async {
     final targetScope = scope ?? _currentSaveScope();
     if (!row.hasData || !targetScope.isValid) return;
+    final rowIndex = _shakerRows.indexOf(row);
+    final shakerKey = row.shakerType.value.trim().isNotEmpty
+        ? row.shakerType.value.trim()
+        : (rowIndex >= 0 ? '${rowIndex + 1}' : '');
+    if (shakerKey.isEmpty) return;
+    row.shakerType.value = shakerKey;
     final payload = {
-      'shaker': row.shakerType.value.trim(),
+      'shaker': shakerKey,
       'model': row.model.value.trim(),
       'screens': row.enabledScreens.value > 0
           ? row.enabledScreens.value.toString()
@@ -782,8 +738,6 @@ class _PumpPageState extends State<PumpPage> {
       'time': row.time.value.trim(),
       'oocWt': row.oocWt.value.trim(),
     };
-
-    if ((payload['shaker'] as String).isEmpty) return;
 
     try {
       final result = await sceController.repository.createShaker(
@@ -923,7 +877,7 @@ class _PumpPageState extends State<PumpPage> {
       decoration: _boxStyle(),
       child: Column(
         children: [
-          _tableHeader("Pump", Icons.settings, trailing: _savePageButton()),
+          _tableHeader("Pump", Icons.settings),
           Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) {
@@ -1268,6 +1222,8 @@ class _PumpPageState extends State<PumpPage> {
                     Expanded(
                       child: Obx(() {
                         final isLocked = dashboard.isLocked.value;
+                        final shakerTypes = sceController.availableShakerTypes
+                            .toList();
                         final shakerModels = sceController.availableShakerModels
                             .toList();
                         final rows = _shakerRows.toList();
@@ -1299,6 +1255,7 @@ class _PumpPageState extends State<PumpPage> {
                                         width: w(100),
                                         child: _shakerTypeDropdown(
                                           row: row,
+                                          types: shakerTypes,
                                           isLocked: isLocked,
                                           rowIndex: index,
                                         ),
@@ -1358,6 +1315,7 @@ class _PumpPageState extends State<PumpPage> {
 
   Widget _shakerTypeDropdown({
     required _ShakerRow row,
+    required List<String> types,
     required bool isLocked,
     required int rowIndex,
   }) {
@@ -1365,7 +1323,8 @@ class _PumpPageState extends State<PumpPage> {
       final current = row.shakerType.value.isEmpty
           ? null
           : row.shakerType.value;
-      final safe = _shakerTypes.contains(current) ? current : null;
+      final availableTypes = types.isNotEmpty ? types : _shakerTypes;
+      final safe = availableTypes.contains(current) ? current : null;
       return DropdownButtonHideUnderline(
         child: DropdownButton<String?>(
           value: safe,
@@ -1385,7 +1344,7 @@ class _PumpPageState extends State<PumpPage> {
               value: null,
               child: Text('', style: TextStyle(fontSize: 9)),
             ),
-            ..._shakerTypes.map(
+            ...availableTypes.map(
               (t) => DropdownMenuItem<String?>(
                 value: t,
                 child: Text(t, style: const TextStyle(fontSize: 9)),
@@ -1426,6 +1385,9 @@ class _PumpPageState extends State<PumpPage> {
                       final n =
                           int.tryParse(data['screens']?.toString() ?? '0') ?? 0;
                       row.enabledScreens.value = n;
+                    }
+                    if (row.shakerType.value.trim().isEmpty) {
+                      row.shakerType.value = '${rowIndex + 1}';
                     }
                     // ✅ Auto-add row when last row's model is selected
                     _checkAddShakerRow(rowIndex);
@@ -1999,7 +1961,7 @@ class _PumpPageState extends State<PumpPage> {
   //  SHARED HELPERS
   // ═══════════════════════════════════════════════════════════
 
-  Widget _tableHeader(String title, IconData icon, {Widget? trailing}) {
+  Widget _tableHeader(String title, IconData icon) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -2022,41 +1984,9 @@ class _PumpPageState extends State<PumpPage> {
               color: Colors.white,
             ),
           ),
-          if (trailing != null) ...[
-            const Spacer(),
-            trailing,
-          ],
         ],
       ),
     );
-  }
-
-  Widget _savePageButton() {
-    return Obx(() {
-      final disabled =
-          dashboard.isLocked.value || !_currentSaveScope().isValid;
-      return Tooltip(
-        message: 'Save',
-        child: InkWell(
-          onTap: disabled ? null : () => unawaited(_saveCurrentPageNow()),
-          borderRadius: BorderRadius.circular(3),
-          child: Container(
-            width: 22,
-            height: 20,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: disabled ? Colors.white24 : Colors.white,
-              borderRadius: BorderRadius.circular(3),
-            ),
-            child: Icon(
-              Icons.save,
-              size: 13,
-              color: disabled ? Colors.white54 : AppTheme.primaryColor,
-            ),
-          ),
-        ),
-      );
-    });
   }
 
   Widget _headerCell(String text, double width) {
