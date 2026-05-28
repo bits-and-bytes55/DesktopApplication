@@ -2,8 +2,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:mudpro_desktop_app/modules/UG_ST_navigation/model/survey_model.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/survey/controller/survey_controller.dart';
-import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 
 class Survey3DTab extends StatelessWidget {
   Survey3DTab({super.key});
@@ -12,309 +12,218 @@ class Survey3DTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Obx(
-      () => Container(
-        color: Colors.white,
-        child: Row(
-          children: [
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(10, 6, 6, 10),
-                child: CustomPaint(
-                  painter: _Survey3DPainter(
-                    points: controller.plotPoints,
-                    rotationX: controller.rotationX.value,
-                    rotationY: controller.rotationY.value,
-                    zoom: controller.zoom.value,
-                  ),
-                  child: const SizedBox.expand(),
-                ),
-              ),
-            ),
-            Container(
-              width: 34,
-              margin: const EdgeInsets.fromLTRB(0, 8, 8, 8),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border.all(color: const Color(0xFFC8CED6)),
-              ),
-              child: Column(
-                children: [
-                  const SizedBox(height: 6),
-                  _tool(
-                    icon: Icons.undo,
-                    tooltip: 'Rotate Left',
-                    onTap: controller.rotateLeft,
-                  ),
-                  _tool(
-                    icon: Icons.redo,
-                    tooltip: 'Rotate Right',
-                    onTap: controller.rotateRight,
-                  ),
-                  _tool(
-                    icon: Icons.keyboard_double_arrow_down,
-                    tooltip: 'Tilt Down',
-                    onTap: controller.rotateDown,
-                  ),
-                  _tool(
-                    icon: Icons.rotate_90_degrees_ccw,
-                    tooltip: 'Tilt Up',
-                    onTap: controller.rotateUp,
-                  ),
-                  _tool(
-                    icon: Icons.arrow_upward,
-                    tooltip: 'Move Up',
-                    onTap: controller.rotateUp,
-                  ),
-                  _tool(
-                    icon: Icons.arrow_downward,
-                    tooltip: 'Move Down',
-                    onTap: controller.rotateDown,
-                  ),
-                  _tool(
-                    icon: Icons.arrow_back,
-                    tooltip: 'Move Left',
-                    onTap: controller.rotateLeft,
-                  ),
-                  _tool(
-                    icon: Icons.arrow_forward,
-                    tooltip: 'Move Right',
-                    onTap: controller.rotateRight,
-                  ),
-                  _tool(
-                    icon: Icons.zoom_in,
-                    tooltip: 'Zoom In',
-                    onTap: controller.zoomIn,
-                  ),
-                  _tool(
-                    icon: Icons.zoom_out,
-                    tooltip: 'Zoom Out',
-                    onTap: controller.zoomOut,
-                  ),
-                  _tool(
-                    icon: Icons.camera_alt_outlined,
-                    tooltip: 'Reset View',
-                    onTap: controller.reset3DView,
-                  ),
-                  _tool(
-                    icon: Icons.center_focus_strong,
-                    tooltip: 'Center',
-                    onTap: controller.reset3DView,
-                  ),
-                  const Spacer(),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+    return Obx(() {
+      return WellPath3DViewer(
+        surveyPoints: controller.plotPoints.map(SurveyPoint.fromPlot).toList(),
+        zoom: controller.zoom.value,
+      );
+    });
   }
+}
 
-  Widget _tool({
-    required IconData icon,
-    required String tooltip,
-    required VoidCallback onTap,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Tooltip(
-        message: tooltip,
-        child: InkWell(
-          onTap: onTap,
-          child: SizedBox(
-            width: 26,
-            height: 26,
-            child: Icon(icon, size: 18, color: const Color(0xFF2A82E5)),
-          ),
+class WellPath3DViewer extends StatelessWidget {
+  const WellPath3DViewer({
+    super.key,
+    required this.surveyPoints,
+    required this.zoom,
+  });
+
+  final List<SurveyPoint> surveyPoints;
+  final double zoom;
+
+  @override
+  Widget build(BuildContext context) {
+    final bounds = _Survey3DBounds.fromPoints(surveyPoints);
+
+    return Container(
+      color: const Color(0xFFE5E5E5),
+      child: CustomPaint(
+        painter: WellPath3DPainter(
+          points: surveyPoints,
+          zoom: zoom,
+          minEastWest: bounds.minEastWest,
+          maxEastWest: bounds.maxEastWest,
+          minNorthSouth: bounds.minNorthSouth,
+          maxNorthSouth: bounds.maxNorthSouth,
+          maxTvd: bounds.maxTvd,
         ),
+        child: const SizedBox.expand(),
       ),
     );
   }
 }
 
-class _Survey3DPainter extends CustomPainter {
-  _Survey3DPainter({
-    required this.points,
-    required this.rotationX,
-    required this.rotationY,
-    required this.zoom,
+class SurveyPoint {
+  const SurveyPoint({
+    required this.md,
+    required this.inclination,
+    required this.azimuth,
+    required this.tvd,
+    required this.northing,
+    required this.easting,
   });
 
-  final List<dynamic> points;
-  final double rotationX;
-  final double rotationY;
-  final double zoom;
+  factory SurveyPoint.fromPlot(SurveyPlotPoint point) {
+    return SurveyPoint(
+      md: point.md,
+      inclination: point.inc,
+      azimuth: point.azi,
+      tvd: point.tvd,
+      northing: point.northSouth,
+      easting: point.eastWest,
+    );
+  }
 
-  static const double _minEastWest = -12000;
-  static const double _maxEastWest = 12000;
-  static const double _minNorthSouth = 0;
-  static const double _maxNorthSouth = 12000;
-  static const double _maxTvd = 12000;
-  static const int _gridDivisions = 6;
+  final double md;
+  final double inclination;
+  final double azimuth;
+  final double tvd;
+  final double northing;
+  final double easting;
+}
+
+class WellPath3DPainter extends CustomPainter {
+  WellPath3DPainter({
+    required this.points,
+    required this.zoom,
+    required this.minEastWest,
+    required this.maxEastWest,
+    required this.minNorthSouth,
+    required this.maxNorthSouth,
+    required this.maxTvd,
+  });
+
+  final List<SurveyPoint> points;
+  final double zoom;
+  final double minEastWest;
+  final double maxEastWest;
+  final double minNorthSouth;
+  final double maxNorthSouth;
+  final double maxTvd;
+
+  static const int _gridDivisions = 8;
 
   @override
   void paint(Canvas canvas, Size size) {
     final projection = _buildProjection(size);
-    final gridPaint = Paint()
-      ..color = const Color(0xFF444444)
-      ..strokeWidth = 0.9;
-    final axisPaint = Paint()
-      ..color = const Color(0xFF202020)
-      ..strokeWidth = 1.2;
-    final pathPaint = Paint()
-      ..color = const Color(0xFF707070)
-      ..strokeWidth = 12
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round
-      ..style = PaintingStyle.stroke;
-    final pathShadowPaint = Paint()
-      ..color = const Color(0xFF4A4A4A)
-      ..strokeWidth = 15
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round
-      ..style = PaintingStyle.stroke;
 
-    final cube = [
-      const _V3(0, 0, 0),
-      const _V3(1, 0, 0),
-      const _V3(1, 1, 0),
-      const _V3(0, 1, 0),
-      const _V3(0, 0, 1),
-      const _V3(1, 0, 1),
-      const _V3(1, 1, 1),
-      const _V3(0, 1, 1),
-    ];
-    const cubeEdges = [
-      [0, 1],
-      [1, 2],
-      [2, 3],
-      [3, 0],
-      [4, 5],
-      [5, 6],
-      [6, 7],
-      [7, 4],
-      [0, 4],
-      [1, 5],
-      [2, 6],
-      [3, 7],
-    ];
-
-    final projectedCube = cube.map((point) {
-      return _project(point, projection);
-    }).toList();
-
-    for (final edge in cubeEdges) {
-      canvas.drawLine(
-        projectedCube[edge[0]],
-        projectedCube[edge[1]],
-        axisPaint,
-      );
-    }
-
-    for (var i = 1; i < _gridDivisions; i++) {
-      final t = i / _gridDivisions;
-
-      _draw3DLine(
-        canvas,
-        _V3(t, 0, 1),
-        _V3(t, 1, 1),
-        projection,
-        gridPaint,
-      );
-      _draw3DLine(
-        canvas,
-        _V3(0, t, 1),
-        _V3(1, t, 1),
-        projection,
-        gridPaint,
-      );
-      _draw3DLine(
-        canvas,
-        _V3(t, 1, 0),
-        _V3(t, 1, 1),
-        projection,
-        gridPaint,
-      );
-      _draw3DLine(
-        canvas,
-        _V3(0, t, 0),
-        _V3(0, t, 1),
-        projection,
-        gridPaint,
-      );
-      _draw3DLine(
-        canvas,
-        _V3(0, 1, t),
-        _V3(1, 1, t),
-        projection,
-        gridPaint,
-      );
-      _draw3DLine(
-        canvas,
-        _V3(1, 0, t),
-        _V3(1, 1, t),
-        projection,
-        gridPaint,
-      );
-    }
+    _drawGrid(canvas, projection);
+    _drawBoundingBox(canvas, projection);
 
     if (points.isNotEmpty) {
-      final path = Path();
-      for (var i = 0; i < points.length; i++) {
-        final point = points[i];
-        final normalized = _V3(
-          _normalizeEastWest(point.eastWest as double),
-          _normalizeNorthSouth(point.northSouth as double),
-          _normalizeTvd(point.tvd as double),
+      _drawWellPath(canvas, projection);
+    }
+  }
+
+  _Projection _buildProjection(Size size) {
+    final side = math.min(size.width * 0.78, size.height * 0.92) * zoom;
+    final xVec = Offset(-side * 0.47, side * 0.09);
+    final yVec = Offset(side * 0.47, side * 0.09);
+    final zVec = Offset(0, side * 0.50);
+    final origin = Offset(size.width * 0.50, size.height * 0.11);
+    return _Projection(origin: origin, x: xVec, y: yVec, z: zVec);
+  }
+
+  void _drawGrid(Canvas canvas, _Projection projection) {
+    final gridPaint = Paint()
+      ..color = Colors.black
+      ..strokeWidth = 1.2
+      ..style = PaintingStyle.stroke;
+
+    for (var i = 0; i <= _gridDivisions; i++) {
+      final t = i / _gridDivisions;
+
+      _draw3DLine(canvas, _V3(0, t, 1), _V3(1, t, 1), projection, gridPaint);
+      _draw3DLine(canvas, _V3(t, 0, 1), _V3(t, 1, 1), projection, gridPaint);
+      if (i > 0) {
+        _draw3DLine(
+          canvas,
+          _V3(t, 0, 0),
+          _V3(t, 0, 1),
+          projection,
+          gridPaint,
         );
-        final projected = _project(normalized, projection);
-        if (i == 0) {
-          path.moveTo(projected.dx, projected.dy);
-        } else {
-          path.lineTo(projected.dx, projected.dy);
-        }
+        _draw3DLine(
+          canvas,
+          _V3(0, t, 0),
+          _V3(0, t, 1),
+          projection,
+          gridPaint,
+        );
       }
-      canvas.drawPath(path, pathShadowPaint);
-      canvas.drawPath(path, pathPaint);
+      if (i != 1) {
+        _draw3DLine(
+          canvas,
+          _V3(0, 0, t),
+          _V3(1, 0, t),
+          projection,
+          gridPaint,
+        );
+        _draw3DLine(
+          canvas,
+          _V3(0, 0, t),
+          _V3(0, 1, t),
+          projection,
+          gridPaint,
+        );
+      }
+    }
+  }
+
+  void _drawBoundingBox(Canvas canvas, _Projection projection) {
+    final boxPaint = Paint()
+      ..color = Colors.black
+      ..strokeWidth = 1.4
+      ..style = PaintingStyle.stroke;
+
+    _draw3DLine(canvas, _V3(0, 0, 1), _V3(1, 0, 1), projection, boxPaint);
+    _draw3DLine(canvas, _V3(1, 0, 1), _V3(1, 1, 1), projection, boxPaint);
+    _draw3DLine(canvas, _V3(1, 1, 1), _V3(0, 1, 1), projection, boxPaint);
+    _draw3DLine(canvas, _V3(0, 1, 1), _V3(0, 0, 1), projection, boxPaint);
+
+    _draw3DLine(canvas, _V3(0, 0, 0), _V3(1, 0, 0), projection, boxPaint);
+    _draw3DLine(canvas, _V3(1, 0, 0), _V3(1, 1, 0), projection, boxPaint);
+    _draw3DLine(canvas, _V3(1, 1, 0), _V3(0, 1, 0), projection, boxPaint);
+    _draw3DLine(canvas, _V3(0, 1, 0), _V3(0, 0, 0), projection, boxPaint);
+
+    _draw3DLine(canvas, _V3(0, 0, 0), _V3(0, 0, 0.58), projection, boxPaint);
+    _draw3DLine(canvas, _V3(1, 0, 0), _V3(1, 0, 1), projection, boxPaint);
+    _draw3DLine(canvas, _V3(1, 1, 0), _V3(1, 1, 1), projection, boxPaint);
+    _draw3DLine(canvas, _V3(0, 1, 0), _V3(0, 1, 1), projection, boxPaint);
+  }
+
+  void _drawWellPath(Canvas canvas, _Projection projection) {
+    final pathPaint = Paint()
+      ..color = const Color(0xFF4D4D4D)
+      ..strokeWidth = 5
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
+      ..style = PaintingStyle.stroke;
+    final shadowPaint = Paint()
+      ..color = const Color(0xFF777777)
+      ..strokeWidth = 8
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
+      ..style = PaintingStyle.stroke;
+
+    final path = Path();
+    final shadowPath = Path();
+
+    for (var i = 0; i < points.length; i++) {
+      final point = points[i];
+      final projected = _project(_normalPoint(point), projection);
+
+      if (i == 0) {
+        path.moveTo(projected.dx, projected.dy);
+        shadowPath.moveTo(projected.dx, projected.dy);
+      } else {
+        path.lineTo(projected.dx, projected.dy);
+        shadowPath.lineTo(projected.dx, projected.dy);
+      }
     }
 
-    _drawAxisLabels(canvas, projection);
-
-    _drawLabel(
-      canvas,
-      'E+/- ${AppUnits.unitText('(ft)')}',
-      _project(const _V3(0.5, 0, 1), projection) + const Offset(-34, 24),
-    );
-    _drawRotatedLabel(
-      canvas,
-      'N+/-S ${AppUnits.unitText('(ft)')}',
-      _project(const _V3(1, 0.5, 1), projection) + const Offset(28, 16),
-      0.78,
-    );
-    _drawRotatedLabel(
-      canvas,
-      'TVD ${AppUnits.unitText('(ft)')}',
-      _project(const _V3(1, 0, 0.5), projection) + const Offset(42, -12),
-      -1.57,
-    );
-    _drawViewTriad(canvas, size);
-  }
-
-  double _normalizeEastWest(double value) {
-    final normalized =
-        (value - _minEastWest) / (_maxEastWest - _minEastWest);
-    return normalized.clamp(0.0, 1.0).toDouble();
-  }
-
-  double _normalizeNorthSouth(double value) {
-    final normalized =
-        (value - _minNorthSouth) / (_maxNorthSouth - _minNorthSouth);
-    return normalized.clamp(0.0, 1.0).toDouble();
-  }
-
-  double _normalizeTvd(double value) {
-    return (value / _maxTvd).clamp(0.0, 1.0).toDouble();
+    canvas.drawPath(shadowPath, shadowPaint);
+    canvas.drawPath(path, pathPaint);
   }
 
   void _draw3DLine(
@@ -331,116 +240,92 @@ class _Survey3DPainter extends CustomPainter {
     );
   }
 
-  void _drawAxisLabels(Canvas canvas, _Projection projection) {
-    for (var i = 0; i <= _gridDivisions; i++) {
-      final t = i / _gridDivisions;
-      final east = _minEastWest + ((_maxEastWest - _minEastWest) * t);
-      final north = _minNorthSouth + ((_maxNorthSouth - _minNorthSouth) * t);
-      final tvd = _maxTvd * t;
-
-      _drawSmallLabel(
-        canvas,
-        east.toStringAsFixed(0),
-        _project(_V3(t, 0, 1), projection) + const Offset(-20, 8),
-      );
-      _drawSmallLabel(
-        canvas,
-        north.toStringAsFixed(0),
-        _project(_V3(1, t, 1), projection) + const Offset(6, 6),
-      );
-      _drawSmallLabel(
-        canvas,
-        tvd.toStringAsFixed(0),
-        _project(_V3(1, 0, t), projection) + const Offset(7, -5),
-      );
-    }
+  _V3 _normalPoint(SurveyPoint point) {
+    return _V3(
+      _normalize(point.easting, minEastWest, maxEastWest),
+      _normalize(point.northing, minNorthSouth, maxNorthSouth),
+      _normalize(point.tvd, 0, maxTvd),
+    );
   }
 
-  _Projection _buildProjection(Size size) {
-    final side = math.min(size.width * 0.46, size.height * 0.58) * zoom;
-    final xVec = Offset(side * 0.72, side * 0.12);
-    final yVec = Offset(-side * 0.46, side * 0.24);
-    final zVec = Offset(0, side * 0.78);
-    final topCenter = Offset(size.width * 0.50, size.height * 0.28);
-    final origin = topCenter - ((xVec + yVec) / 2);
-    return _Projection(origin: origin, x: xVec, y: yVec, z: zVec);
+  double _normalize(double value, double min, double max) {
+    if ((max - min).abs() < 0.0001) return 0.5;
+    return ((value - min) / (max - min)).clamp(0.0, 1.0).toDouble();
   }
 
   Offset _project(_V3 point, _Projection projection) {
-    final yawDelta = (rotationY - 0.75).clamp(-0.6, 0.6).toDouble();
-    final pitchDelta = (rotationX + 0.55).clamp(-0.8, 0.8).toDouble();
-    final xVec = projection.x + Offset(yawDelta * 34, yawDelta * 5);
-    final yVec = projection.y + Offset(yawDelta * 20, yawDelta * 8);
-    final zVec = projection.z + Offset(0, pitchDelta * 26);
     return projection.origin +
-        (xVec * point.x) +
-        (yVec * point.y) +
-        (zVec * point.z);
-  }
-
-  void _drawLabel(Canvas canvas, String text, Offset offset) {
-    final painter = TextPainter(
-      text: TextSpan(
-        text: text,
-        style: const TextStyle(fontSize: 12, color: Color(0xFF202020)),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    painter.paint(canvas, offset);
-  }
-
-  void _drawSmallLabel(Canvas canvas, String text, Offset offset) {
-    final painter = TextPainter(
-      text: TextSpan(
-        text: text,
-        style: const TextStyle(fontSize: 10, color: Color(0xFF202020)),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    painter.paint(canvas, offset);
-  }
-
-  void _drawViewTriad(Canvas canvas, Size size) {
-    final origin = Offset(size.width - 88, 54);
-    final paint = Paint()
-      ..color = const Color(0xFF202020)
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.round;
-    final hintPaint = Paint()
-      ..color = const Color(0xFF909090)
-      ..strokeWidth = 1;
-
-    canvas.drawLine(origin, origin + const Offset(-28, -2), paint);
-    canvas.drawLine(origin, origin + const Offset(8, 4), paint);
-    canvas.drawLine(origin, origin + const Offset(0, 30), paint);
-    canvas.drawLine(
-      origin + const Offset(-10, -10),
-      origin + const Offset(22, -10),
-      hintPaint,
-    );
-    canvas.drawCircle(origin + const Offset(0, 30), 2.5, paint);
-  }
-
-  void _drawRotatedLabel(
-    Canvas canvas,
-    String text,
-    Offset offset,
-    double angle,
-  ) {
-    canvas.save();
-    canvas.translate(offset.dx, offset.dy);
-    canvas.rotate(angle);
-    _drawLabel(canvas, text, Offset.zero);
-    canvas.restore();
+        (projection.x * point.x) +
+        (projection.y * point.y) +
+        (projection.z * point.z);
   }
 
   @override
-  bool shouldRepaint(covariant _Survey3DPainter oldDelegate) {
+  bool shouldRepaint(covariant WellPath3DPainter oldDelegate) {
     return oldDelegate.points != points ||
-        oldDelegate.rotationX != rotationX ||
-        oldDelegate.rotationY != rotationY ||
-        oldDelegate.zoom != zoom;
+        oldDelegate.zoom != zoom ||
+        oldDelegate.minEastWest != minEastWest ||
+        oldDelegate.maxEastWest != maxEastWest ||
+        oldDelegate.minNorthSouth != minNorthSouth ||
+        oldDelegate.maxNorthSouth != maxNorthSouth ||
+        oldDelegate.maxTvd != maxTvd;
   }
+}
+
+class _Survey3DBounds {
+  const _Survey3DBounds({
+    required this.minEastWest,
+    required this.maxEastWest,
+    required this.minNorthSouth,
+    required this.maxNorthSouth,
+    required this.maxTvd,
+  });
+
+  factory _Survey3DBounds.fromPoints(List<SurveyPoint> points) {
+    if (points.isEmpty) {
+      return const _Survey3DBounds(
+        minEastWest: -500,
+        maxEastWest: 2500,
+        minNorthSouth: 0,
+        maxNorthSouth: 3000,
+        maxTvd: 12000,
+      );
+    }
+
+    var minEastWest = 0.0;
+    var maxEastWest = 0.0;
+    var minNorthSouth = 0.0;
+    var maxNorthSouth = 0.0;
+    var maxTvd = 0.0;
+
+    for (final point in points) {
+      minEastWest = math.min(minEastWest, point.easting);
+      maxEastWest = math.max(maxEastWest, point.easting);
+      minNorthSouth = math.min(minNorthSouth, point.northing);
+      maxNorthSouth = math.max(maxNorthSouth, point.northing);
+      maxTvd = math.max(maxTvd, point.tvd);
+    }
+
+    final eastWestPadding =
+        math.max((maxEastWest - minEastWest).abs() * 0.2, 100.0).toDouble();
+    final northSouthPadding =
+        math.max((maxNorthSouth - minNorthSouth).abs() * 0.2, 100.0)
+            .toDouble();
+
+    return _Survey3DBounds(
+      minEastWest: minEastWest - eastWestPadding,
+      maxEastWest: maxEastWest + eastWestPadding,
+      minNorthSouth: minNorthSouth - northSouthPadding,
+      maxNorthSouth: maxNorthSouth + northSouthPadding,
+      maxTvd: math.max(maxTvd * 1.1, 12000.0).toDouble(),
+    );
+  }
+
+  final double minEastWest;
+  final double maxEastWest;
+  final double minNorthSouth;
+  final double maxNorthSouth;
+  final double maxTvd;
 }
 
 class _V3 {

@@ -33,7 +33,7 @@ class SurveyController extends GetxController {
   final selectedStationIndex = (-1).obs;
   final selectedAnnotationIndex = (-1).obs;
 
-  final rotationX = (-0.55).obs;
+  final rotationX = (0.55).obs;
   final rotationY = (0.75).obs;
   final zoom = 1.0.obs;
 
@@ -641,14 +641,18 @@ class SurveyController extends GetxController {
     return markers;
   }
 
-  void rotateLeft() => rotationY.value -= 0.12;
-  void rotateRight() => rotationY.value += 0.12;
-  void rotateUp() => rotationX.value -= 0.12;
-  void rotateDown() => rotationX.value += 0.12;
-  void zoomIn() => zoom.value = math.min(2.2, zoom.value + 0.1);
+  void rotateLeft() =>
+      rotationY.value = (rotationY.value - 0.1).clamp(-0.5, 1.5).toDouble();
+  void rotateRight() =>
+      rotationY.value = (rotationY.value + 0.1).clamp(-0.5, 1.5).toDouble();
+  void rotateUp() =>
+      rotationX.value = (rotationX.value - 0.1).clamp(-0.6, 0.6).toDouble();
+  void rotateDown() =>
+      rotationX.value = (rotationX.value + 0.1).clamp(-0.6, 0.6).toDouble();
+  void zoomIn() => zoom.value = math.min(1.5, zoom.value + 0.1);
   void zoomOut() => zoom.value = math.max(0.5, zoom.value - 0.1);
   void reset3DView() {
-    rotationX.value = -0.55;
+    rotationX.value = 0.55;
     rotationY.value = 0.75;
     zoom.value = 1.0;
   }
