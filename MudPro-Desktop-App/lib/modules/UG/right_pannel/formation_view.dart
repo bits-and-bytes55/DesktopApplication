@@ -15,6 +15,9 @@ import 'package:mudpro_desktop_app/modules/UG/model/formation_row_model.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:win32/win32.dart';
 
+const Color _formationPoreColor = Color(0xFF22A33B);
+const Color _formationFracColor = Color(0xFFFF2A2A);
+
 class FormationView extends StatefulWidget {
   const FormationView({super.key});
 
@@ -49,6 +52,8 @@ class _FormationViewState extends State<FormationView> {
   }
 
   bool get _isLocked => ugController.isLocked.value;
+
+  bool get _rowsReadOnly => _isLocked || controller.poreFromTop.value;
 
   bool _rowHasData(FormationRow row) => row.hasData;
 
@@ -86,7 +91,7 @@ class _FormationViewState extends State<FormationView> {
     required bool editableWhenUnlocked,
     bool highlightWhenReadOnly = true,
   }) {
-    if (_isLocked) return _highlightColor;
+    if (_rowsReadOnly) return _highlightColor;
     if (editableWhenUnlocked) return Colors.white;
     return highlightWhenReadOnly ? _highlightColor : Colors.white;
   }
@@ -116,9 +121,9 @@ class _FormationViewState extends State<FormationView> {
   Future<void> _showRowMenu(TapDownDetails details, int index) async {
     final row = controller.rows[index];
     final hasData = _rowHasData(row);
-    final canMoveToTop = !_isLocked && hasData && index > 0;
+    final canMoveToTop = !_rowsReadOnly && hasData && index > 0;
     final canMoveToBottom =
-        !_isLocked && hasData && index < controller.rows.length - 1;
+        !_rowsReadOnly && hasData && index < controller.rows.length - 1;
     final action = await showMenu<String>(
       context: context,
       position: RelativeRect.fromLTRB(
@@ -128,15 +133,15 @@ class _FormationViewState extends State<FormationView> {
         details.globalPosition.dy,
       ),
       items: [
-        _menuItem('cut', 'Cut', 'Ctrl+X', enabled: !_isLocked && hasData),
+        _menuItem('cut', 'Cut', 'Ctrl+X', enabled: !_rowsReadOnly && hasData),
         _menuItem('copy', 'Copy', 'Ctrl+C', enabled: hasData),
         _menuItem(
           'paste',
           'Paste',
           'Ctrl+V',
-          enabled: !_isLocked && _clipboard != null,
+          enabled: !_rowsReadOnly && _clipboard != null,
         ),
-        _menuItem('delete', 'Delete', 'Delete', enabled: !_isLocked && hasData),
+        _menuItem('delete', 'Delete', 'Delete', enabled: !_rowsReadOnly && hasData),
         const PopupMenuDivider(),
         _menuItem('top', 'To the Top', 'Ctrl+Up', enabled: canMoveToTop),
         _menuItem(
@@ -211,9 +216,9 @@ class _FormationViewState extends State<FormationView> {
       height: _rowHeight,
       alignment: Alignment.centerLeft,
       padding: const EdgeInsets.symmetric(horizontal: 5),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(
+      decoration: BoxDecoration(
+        color: _isLocked ? _highlightColor : Colors.white,
+        border: const Border(
           right: BorderSide(color: _borderColor),
           bottom: BorderSide(color: _borderColor),
         ),
@@ -248,7 +253,7 @@ class _FormationViewState extends State<FormationView> {
     TextAlign textAlign = TextAlign.left,
     List<TextInputFormatter>? inputFormatters,
   }) {
-    final isEditable = !_isLocked && editableWhenUnlocked;
+    final isEditable = !_rowsReadOnly && editableWhenUnlocked;
     return Container(
       width: width,
       height: _rowHeight,
@@ -266,6 +271,7 @@ class _FormationViewState extends State<FormationView> {
       ),
       child: isEditable
           ? TextFormField(
+              key: ValueKey(value),
               initialValue: value,
               onChanged: onChanged,
               textAlign: textAlign,
@@ -327,7 +333,7 @@ class _FormationViewState extends State<FormationView> {
       onKeyEvent: (node, event) {
         final isPaste = HardwareKeyboard.instance.isControlPressed &&
             event.logicalKey == LogicalKeyboardKey.keyV;
-        if (!_isLocked && isPaste && event is KeyDownEvent) {
+        if (!_rowsReadOnly && isPaste && event is KeyDownEvent) {
           _pasteLithologyImageFromClipboard(index);
           return KeyEventResult.handled;
         }
@@ -335,8 +341,8 @@ class _FormationViewState extends State<FormationView> {
       },
       child: InkWell(
         canRequestFocus: true,
-        onTap: _isLocked ? null : () {},
-        onTapDown: _isLocked
+        onTap: _rowsReadOnly ? null : () {},
+        onTapDown: _rowsReadOnly
             ? null
             : (details) async {
                 focusNode.requestFocus();
@@ -348,7 +354,7 @@ class _FormationViewState extends State<FormationView> {
           alignment: Alignment.centerLeft,
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
           decoration: BoxDecoration(
-            color: _isLocked ? _highlightColor : Colors.white,
+            color: _rowsReadOnly ? _highlightColor : Colors.white,
             border: const Border(
               right: BorderSide(color: _borderColor),
               bottom: BorderSide(color: _borderColor),
@@ -378,7 +384,7 @@ class _FormationViewState extends State<FormationView> {
         _menuItem('paste_image', 'Paste', 'Click', enabled: hasClipboardImage),
         _menuItem('upload_image', 'Upload', 'Browse', enabled: true),
         if (row.lithology.value.trim().isNotEmpty)
-          _menuItem('clear_image', 'Clear', 'Delete', enabled: !_isLocked),
+        _menuItem('clear_image', 'Clear', 'Delete', enabled: !_rowsReadOnly),
       ],
     );
 
@@ -699,7 +705,7 @@ class _FormationViewState extends State<FormationView> {
             ],
           ),
           _editableTextCell(
-            value: row.porePsi.value,
+            value: controller.calculatedPressureText(row, pore: true),
             onChanged: (value) =>
                 controller.updateValue(index, 'porePsi', value),
             width: layout.dataWidth,
@@ -732,7 +738,7 @@ class _FormationViewState extends State<FormationView> {
             ],
           ),
           _editableTextCell(
-            value: row.fracPsi.value,
+            value: controller.calculatedPressureText(row, pore: false),
             onChanged: (value) =>
                 controller.updateValue(index, 'fracPsi', value),
             width: layout.dataWidth,
@@ -887,17 +893,21 @@ class _FormationViewState extends State<FormationView> {
 
   Widget _tableBody(_FormationLayout layout) {
     return Obx(
-      () => Scrollbar(
-        controller: _scrollController,
-        thumbVisibility: true,
-        trackVisibility: true,
-        child: ListView.builder(
+      () {
+        final readOnly = _rowsReadOnly;
+        return Scrollbar(
           controller: _scrollController,
-          itemCount: controller.rows.length,
-          itemBuilder: (_, index) =>
-              _buildRow(controller.rows[index], index, layout),
-        ),
-      ),
+          thumbVisibility: true,
+          trackVisibility: true,
+          child: ListView.builder(
+            key: ValueKey(readOnly),
+            controller: _scrollController,
+            itemCount: controller.rows.length,
+            itemBuilder: (_, index) =>
+                _buildRow(controller.rows[index], index, layout),
+          ),
+        );
+      },
     );
   }
 
@@ -985,7 +995,7 @@ class _FormationViewState extends State<FormationView> {
                     horizontal: -4,
                     vertical: -4,
                   ),
-                  activeColor: Colors.green,
+                  activeColor: _formationPoreColor,
                 ),
                 const Text(
                   'Pore',
@@ -1001,7 +1011,7 @@ class _FormationViewState extends State<FormationView> {
                     horizontal: -4,
                     vertical: -4,
                   ),
-                  activeColor: Colors.red,
+                  activeColor: _formationFracColor,
                 ),
                 const Text(
                   'Frac',
@@ -1112,7 +1122,8 @@ class _FormationGraphPainter extends CustomPainter {
 
     final axisPaint = Paint()
       ..color = const Color(0xFFB7BDC7)
-      ..strokeWidth = 1;
+      ..strokeWidth = 1
+      ..style = PaintingStyle.stroke;
     final chartBackgroundPaint = Paint()..color = Colors.white;
     final gridPaint = Paint()
       ..color = const Color(0xFFD8DCE3)
@@ -1160,8 +1171,22 @@ class _FormationGraphPainter extends CustomPainter {
     }
 
     _drawAxisLabels(canvas, chartRect, maxTvd, maxValue);
-    _drawLine(canvas, chartRect, porePoints, maxTvd, maxValue, Colors.green);
-    _drawLine(canvas, chartRect, fracPoints, maxTvd, maxValue, Colors.red);
+    _drawLine(
+      canvas,
+      chartRect,
+      porePoints,
+      maxTvd,
+      maxValue,
+      _formationPoreColor,
+    );
+    _drawLine(
+      canvas,
+      chartRect,
+      fracPoints,
+      maxTvd,
+      maxValue,
+      _formationFracColor,
+    );
   }
 
   double get _defaultValueAxisMax {

@@ -105,7 +105,7 @@ class NozzleController extends GetxController {
         final diameter = entry.size32.value / 32.0;
         final rawArea = (3.141592653589793 * diameter * diameter) / 4.0;
         final area = double.parse(rawArea.toStringAsFixed(3));
-        final totalArea = area * entry.count.value;
+        final totalArea = rawArea * entry.count.value;
 
         entry.diameterInch.value = double.parse(diameter.toStringAsFixed(4));
         entry.area.value = area;

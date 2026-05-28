@@ -21,6 +21,9 @@ class _LeftReportTreeState extends State<LeftReportTree> {
 
   bool _rootExpanded = true;
   final Map<String, bool> _wellExpansion = <String, bool>{};
+  final FocusNode _padNameFocusNode = FocusNode(debugLabel: 'left-tree-pad-name');
+  final TextEditingController _padNameController = TextEditingController();
+  bool _isEditingPadName = false;
 
   Worker? _wellWorker;
 
@@ -40,6 +43,8 @@ class _LeftReportTreeState extends State<LeftReportTree> {
   @override
   void dispose() {
     _wellWorker?.dispose();
+    _padNameFocusNode.dispose();
+    _padNameController.dispose();
     super.dispose();
   }
 
@@ -136,6 +141,8 @@ class _LeftReportTreeState extends State<LeftReportTree> {
 
   Widget _buildRootNode(List<AppWell> wells) {
     return Obx(() {
+      final pad = padWellC.selectedPad ??
+          (padWellC.pads.isEmpty ? null : padWellC.pads.first);
       final selectedRoot =
           padWellC.selectedWellId.value.isNotEmpty ||
           reportC.selectedReportId.value.isNotEmpty ||
@@ -160,7 +167,8 @@ class _LeftReportTreeState extends State<LeftReportTree> {
               size: 16,
               color: AppTheme.primaryColor,
             ),
-            title: 'New Pad',
+            title: pad?.displayName ?? 'New Pad',
+            titleWidget: _buildPadTitle(pad, selectedRoot),
             subtitle: null,
             trailing: null,
             onTap: () {
@@ -192,6 +200,73 @@ class _LeftReportTreeState extends State<LeftReportTree> {
         ],
       );
     });
+  }
+
+  Widget _buildPadTitle(AppPad? pad, bool selected) {
+    final style = TextStyle(
+      fontSize: 11,
+      fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+      color: AppTheme.textPrimary,
+    );
+
+    if (_isEditingPadName && pad != null) {
+      return SizedBox(
+        height: 18,
+        child: TextField(
+          controller: _padNameController,
+          focusNode: _padNameFocusNode,
+          autofocus: true,
+          style: style,
+          decoration: const InputDecoration(
+            isDense: true,
+            border: InputBorder.none,
+            contentPadding: EdgeInsets.zero,
+          ),
+          onSubmitted: (_) => _commitPadName(pad),
+          onTapOutside: (_) => _commitPadName(pad),
+        ),
+      );
+    }
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: pad == null ? null : () => _startEditingPadName(pad),
+      child: Text(
+        pad?.displayName ?? 'New Pad',
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: style,
+      ),
+    );
+  }
+
+  void _startEditingPadName(AppPad pad) {
+    _padNameController.text = pad.displayName;
+    setState(() {
+      _isEditingPadName = true;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _padNameFocusNode.requestFocus();
+      _padNameController.selection = TextSelection(
+        baseOffset: 0,
+        extentOffset: _padNameController.text.length,
+      );
+    });
+  }
+
+  Future<void> _commitPadName(AppPad pad) async {
+    if (!_isEditingPadName) return;
+    final name = _padNameController.text.trim();
+    setState(() {
+      _isEditingPadName = false;
+    });
+    if (name.isEmpty || name == pad.displayName) return;
+
+    if (padWellC.selectedPadId.value != pad.id) {
+      padWellC.selectPad(pad.id);
+    }
+    await padWellC.updateSelectedPad(_padRenamePayload(pad, name));
   }
 
   Widget _buildWellNode(AppWell well) {
@@ -382,6 +457,7 @@ class _LeftReportTreeState extends State<LeftReportTree> {
     required Widget toggle,
     required Widget leading,
     required String title,
+    Widget? titleWidget,
     required String? subtitle,
     required Widget? trailing,
     required VoidCallback onTap,
@@ -415,20 +491,21 @@ class _LeftReportTreeState extends State<LeftReportTree> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: selected
-                              ? FontWeight.w700
-                              : FontWeight.w600,
-                          color: selected
-                              ? AppTheme.textPrimary
-                              : AppTheme.textPrimary,
-                        ),
-                      ),
+                      titleWidget ??
+                          Text(
+                            title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: selected
+                                  ? FontWeight.w700
+                                  : FontWeight.w600,
+                              color: selected
+                                  ? AppTheme.textPrimary
+                                  : AppTheme.textPrimary,
+                            ),
+                          ),
                       if (subtitle != null && subtitle.trim().isNotEmpty)
                         Text(
                           subtitle,
@@ -450,6 +527,30 @@ class _LeftReportTreeState extends State<LeftReportTree> {
       ),
     );
   }
+
+  Map<String, dynamic> _padRenamePayload(AppPad pad, String name) => {
+        'locationType': pad.locationType,
+        'fieldBlock': name,
+        'rig': pad.rig,
+        'countyParishOffshoreArea': pad.countyParishOffshoreArea,
+        'stateProvince': pad.stateProvince,
+        'country': pad.country,
+        'stockPoint': pad.stockPoint,
+        'phone': pad.phone,
+        'operator': pad.operator,
+        'operatorRep': pad.operatorRep,
+        'contractor': pad.contractor,
+        'contractorRep': pad.contractorRep,
+        'sl': pad.sl,
+        'airGap': pad.airGap,
+        'waterDepth': pad.waterDepth,
+        'riserOD': pad.riserOD,
+        'riserID': pad.riserID,
+        'chokeLineID': pad.chokeLineID,
+        'killLineID': pad.killLineID,
+        'boostLineID': pad.boostLineID,
+        'memo': pad.memo,
+      };
 
   Widget _treeToggle({
     required bool expanded,

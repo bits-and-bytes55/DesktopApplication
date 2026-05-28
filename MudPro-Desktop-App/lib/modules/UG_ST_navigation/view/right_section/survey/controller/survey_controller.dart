@@ -355,7 +355,7 @@ class SurveyController extends GetxController {
 
     selectedStationIndex.value = safeStart;
     _padStations();
-    _recalculateAllRows();
+    stations.refresh();
     scheduleAutosave();
   }
 
@@ -518,7 +518,7 @@ class SurveyController extends GetxController {
     if (isLocked) return;
     final next = importedRows.map((row) => row.clone()).toList();
     _replaceStations(next);
-    _recalculateAllRows();
+    stations.refresh();
     scheduleAutosave();
   }
 

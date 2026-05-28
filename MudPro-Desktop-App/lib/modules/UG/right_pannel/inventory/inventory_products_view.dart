@@ -1320,6 +1320,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                               ),
                               _premixedMudTypeDropdown(
                                 value: c.premixedMudTypeController.text,
+                                allowBlank: true,
                                 onChanged: (v) {
                                   c.premixedMudTypeController.text = v;
                                   setState(() {});
@@ -1336,7 +1337,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                                 ),
                               ),
                             ],
-                            onAdd: c.isLocked.value
+                            onAdd: c.isLocked.value || !_hasPremixedDraftData
                                 ? null
                                 : () => _addPremixedFromDraft(),
                           ),
@@ -1816,10 +1817,13 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
   Widget _premixedMudTypeDropdown({
     required String value,
     required ValueChanged<String> onChanged,
+    bool allowBlank = false,
   }) {
     const options = ['Water-based', 'Oil-based', 'Synthetic'];
     final cleanValue = value.trim();
-    final currentValue = options.contains(cleanValue)
+    final currentValue = allowBlank && cleanValue.isEmpty
+        ? ''
+        : options.contains(cleanValue)
         ? cleanValue
         : (mudController?.selectedFluidType.value.trim().isNotEmpty == true
             ? mudController!.selectedFluidType.value
@@ -1831,8 +1835,11 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
       color: const Color(0xFFFFF9CC),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
-          value: options.contains(currentValue) ? currentValue : options.first,
+          value: options.contains(currentValue)
+              ? currentValue
+              : (allowBlank ? null : options.first),
           isExpanded: true,
+          hint: const SizedBox.shrink(),
           iconSize: 16,
           style: TextStyle(
             fontSize: 10,
