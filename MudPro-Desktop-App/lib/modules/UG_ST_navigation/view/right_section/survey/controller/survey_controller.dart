@@ -641,10 +641,8 @@ class SurveyController extends GetxController {
     return markers;
   }
 
-  void rotateLeft() =>
-      rotationY.value = (rotationY.value - 0.1).clamp(-0.5, 1.5).toDouble();
-  void rotateRight() =>
-      rotationY.value = (rotationY.value + 0.1).clamp(-0.5, 1.5).toDouble();
+  void rotateLeft() => rotationY.value -= 0.1;
+  void rotateRight() => rotationY.value += 0.1;
   void rotateUp() =>
       rotationX.value = (rotationX.value - 0.1).clamp(-0.6, 0.6).toDouble();
   void rotateDown() =>
