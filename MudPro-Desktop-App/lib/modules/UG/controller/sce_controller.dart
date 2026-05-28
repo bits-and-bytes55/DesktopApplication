@@ -59,6 +59,31 @@ class SceController extends GetxController {
     'Mud Cleaner',
     'Dryer',
   ];
+
+  static String displayShakerLabel(String value) {
+    final text = value.trim();
+    final number = int.tryParse(text);
+    if (number != null && number >= 1 && number <= 10) {
+      return 'Shaker $number';
+    }
+    return text;
+  }
+
+  static bool isStandardShakerLabel(String value) {
+    final text = value.trim();
+    final number = int.tryParse(text);
+    if (number != null && number >= 1 && number <= 10) return true;
+
+    final lower = text.toLowerCase();
+    if (!lower.startsWith('shaker ')) return false;
+    final shakerNumber = int.tryParse(lower.replaceFirst('shaker ', '').trim());
+    return shakerNumber != null && shakerNumber >= 1 && shakerNumber <= 10;
+  }
+
+  bool _plotValue(dynamic value) {
+    if (value is bool) return value;
+    return value?.toString().toLowerCase() == 'true';
+  }
   static const List<String> otherSceLabels = [
     'Degasser',
     'Desander',
@@ -159,6 +184,34 @@ class SceController extends GetxController {
     for (int i = 0; i < 10; i++) {
       operationOtherSce.add(OtherSceModel(type: ''));
     }
+  }
+
+  void refreshAvailableTypesFromCurrentRows() {
+    final shakerTypes = <String>{};
+    final shakerModels = <String>{};
+    for (final shaker in shakers) {
+      if (!shaker.plot.value || !shaker.hasData) continue;
+      if (!isStandardShakerLabel(shaker.shaker.value)) continue;
+      final label = displayShakerLabel(shaker.shaker.value);
+      if (label.isNotEmpty) shakerTypes.add(label);
+      final model = shaker.model.value.trim();
+      if (model.isNotEmpty) shakerModels.add(model);
+    }
+
+    final sceTypes = <String>{};
+    final sceModels = <String>{};
+    for (final sce in otherSce) {
+      if (!sce.plot.value || !sce.hasData) continue;
+      final type = sce.type.value.trim();
+      if (type.isNotEmpty) sceTypes.add(type);
+      final model = sce.model1.value.trim();
+      if (model.isNotEmpty) sceModels.add(model);
+    }
+
+    availableShakerTypes.assignAll(shakerTypes.toList()..sort());
+    availableShakerModels.assignAll(shakerModels.toList()..sort());
+    availableOtherSceTypes.assignAll(sceTypes.toList()..sort());
+    availableOtherSceModels.assignAll(sceModels.toList()..sort());
   }
 
   // ================= LOAD DATA =================
@@ -437,6 +490,7 @@ class SceController extends GetxController {
 
   void scheduleShakerAutosave(int index) {
     if (index < 0 || index >= shakers.length || currentWellId == null) return;
+    refreshAvailableTypesFromCurrentRows();
     _dirtyShakerRows.add(index);
     _shakerAutosaveTimers[index]?.cancel();
     _shakerAutosaveTimers[index] = Timer(
@@ -539,6 +593,7 @@ class SceController extends GetxController {
 
   void scheduleOtherSceAutosave(int index) {
     if (index < 0 || index >= otherSce.length || currentWellId == null) return;
+    refreshAvailableTypesFromCurrentRows();
     _dirtyOtherSceRows.add(index);
     _otherSceAutosaveTimers[index]?.cancel();
     _otherSceAutosaveTimers[index] = Timer(
@@ -570,18 +625,18 @@ class SceController extends GetxController {
         final Set<String> shakerModels = {};
 
         for (var shaker in shakerData) {
+          if (!_plotValue(shaker['plot'])) continue;
+          if (!isStandardShakerLabel(shaker['shaker']?.toString() ?? '')) {
+            continue;
+          }
           if (shaker['shaker'] != null &&
               shaker['shaker'].toString().isNotEmpty) {
-            shakerTypes.add(shaker['shaker'].toString());
+            shakerTypes.add(displayShakerLabel(shaker['shaker'].toString()));
           }
           if (shaker['model'] != null &&
               shaker['model'].toString().isNotEmpty) {
             shakerModels.add(shaker['model'].toString());
           }
-        }
-
-        if (shakerTypes.isEmpty) {
-          shakerTypes.addAll(['Shaker', 'Cleaner', 'Degasser']);
         }
 
         availableShakerTypes.assignAll(shakerTypes.toList()..sort());
@@ -600,16 +655,13 @@ class SceController extends GetxController {
         final Set<String> sceModels = {};
 
         for (var sce in sceData) {
+          if (!_plotValue(sce['plot'])) continue;
           if (sce['type'] != null && sce['type'].toString().isNotEmpty) {
             sceTypes.add(sce['type'].toString());
           }
           if (sce['model1'] != null && sce['model1'].toString().isNotEmpty) {
             sceModels.add(sce['model1'].toString());
           }
-        }
-
-        if (sceTypes.isEmpty) {
-          sceTypes.addAll(['Degasser', 'Desander', 'Desilter', 'Centrifuge']);
         }
 
         availableOtherSceTypes.assignAll(sceTypes.toList()..sort());
@@ -645,7 +697,12 @@ class SceController extends GetxController {
       if (result['success']) {
         final List<dynamic> shakerData = result['data'] ?? [];
         return shakerData.firstWhere(
-          (shaker) => shaker['shaker'] == type,
+          (shaker) =>
+              _plotValue(shaker['plot']) &&
+              isStandardShakerLabel(shaker['shaker']?.toString() ?? '') &&
+              (shaker['shaker'] == type ||
+                  displayShakerLabel(shaker['shaker']?.toString() ?? '') ==
+                      type),
           orElse: () => null,
         );
       }
@@ -665,7 +722,7 @@ class SceController extends GetxController {
       if (result['success']) {
         final List<dynamic> sceData = result['data'] ?? [];
         return sceData.firstWhere(
-          (sce) => sce['type'] == type,
+          (sce) => _plotValue(sce['plot']) && sce['type'] == type,
           orElse: () => null,
         );
       }
@@ -687,7 +744,10 @@ class SceController extends GetxController {
       if (result['success']) {
         final List<dynamic> shakerData = result['data'] ?? [];
         return shakerData.firstWhere(
-          (shaker) => shaker['model'] == model,
+          (shaker) =>
+              _plotValue(shaker['plot']) &&
+              isStandardShakerLabel(shaker['shaker']?.toString() ?? '') &&
+              shaker['model'] == model,
           orElse: () => null,
         );
       }
@@ -707,7 +767,7 @@ class SceController extends GetxController {
       if (result['success']) {
         final List<dynamic> sceData = result['data'] ?? [];
         return sceData.firstWhere(
-          (sce) => sce['model1'] == model,
+          (sce) => _plotValue(sce['plot']) && sce['model1'] == model,
           orElse: () => null,
         );
       }

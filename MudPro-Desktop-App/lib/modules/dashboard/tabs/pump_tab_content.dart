@@ -150,15 +150,9 @@ class _PumpPageState extends State<PumpPage> {
   final RxList<_OtherSceRow> _sceRows = <_OtherSceRow>[].obs;
 
   final RxString _screenFillSelected = ''.obs;
+  int? _activeScreenRowIndex;
+  int? _activeScreenColumnIndex;
 
-  static const List<String> _shakerTypes = ['Shaker', 'Cleaner', 'Dryer'];
-  static const List<String> _otherSceTypes = [
-    'Degasser',
-    'Desander',
-    'Desilter',
-    'Centrifuge',
-    'Barite Rec.',
-  ];
   static const int _totalScreenCols = 8;
   static const List<String> _screenValueOptions = [
     '270',
@@ -179,6 +173,8 @@ class _PumpPageState extends State<PumpPage> {
   static const int _initialSceRows = 4;
   static const double _pumpTableWidth = 712;
   static const double _shakerTableWidth = 760;
+  static final Map<String, List<Map<String, dynamic>>> _cachedShakerRows = {};
+  static final Map<String, List<Map<String, dynamic>>> _cachedOtherSceRows = {};
 
   @override
   void initState() {
@@ -218,6 +214,10 @@ class _PumpPageState extends State<PumpPage> {
       reportContext.selectedReportId,
       (_) => _loadReportRows(),
     );
+    _unitWorkers.addAll([
+      ever(sceController.shakers, (_) => _loadReportSceRows()),
+      ever(sceController.otherSce, (_) => _loadReportSceRows()),
+    ]);
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadReportRows());
   }
 
@@ -407,32 +407,130 @@ class _PumpPageState extends State<PumpPage> {
     final wellId = currentBackendWellId.trim();
     final reportId = reportContext.selectedReportId.value.trim();
     if (wellId.isEmpty || reportId.isEmpty) return;
+    final cacheKey = '$wellId::$reportId';
 
-    final shakerResult = await sceController.repository.getShakers(wellId);
-    final otherResult = await sceController.repository.getOtherSce(wellId);
-
-    if (shakerResult['success'] == true) {
-      final rows = (shakerResult['data'] as List? ?? const [])
-          .whereType<Map>()
-          .map(_shakerRowFromMap)
-          .toList(growable: true);
+    final setupShakerResult = await sceController.repository.getShakers(
+      wellId,
+      includeReportId: false,
+    );
+    final setupOtherResult = await sceController.repository.getOtherSce(
+      wellId,
+      includeReportId: false,
+    );
+    final localSetupShakers = sceController.shakers
+        .where((row) => row.hasData)
+        .map((row) => row.toJson())
+        .toList(growable: false);
+    final localSetupOtherSce = sceController.otherSce
+        .where((row) => row.hasData)
+        .map((row) => row.toJson())
+        .toList(growable: false);
+    if (setupShakerResult['success'] == true || localSetupShakers.isNotEmpty) {
+      final cachedRows = _cachedShakerRows[cacheKey];
+      final rows = cachedRows == null
+          ? List.generate(_initialShakerRows, (_) => _ShakerRow())
+          : cachedRows.map(_shakerRowFromMap).toList(growable: true);
       while (rows.length < _initialShakerRows) {
         rows.add(_ShakerRow());
       }
+      _activeScreenRowIndex = null;
+      _activeScreenColumnIndex = null;
       _shakerRows.assignAll(rows);
     }
 
-    if (otherResult['success'] == true) {
-      final rows = (otherResult['data'] as List? ?? const [])
-          .whereType<Map>()
-          .map(_otherSceRowFromMap)
-          .toList(growable: true);
+    if (setupOtherResult['success'] == true || localSetupOtherSce.isNotEmpty) {
+      final cachedRows = _cachedOtherSceRows[cacheKey];
+      final rows = cachedRows == null
+          ? List.generate(_initialSceRows, (_) => _OtherSceRow())
+          : cachedRows.map(_otherSceRowFromMap).toList(growable: true);
       while (rows.length < _initialSceRows) {
         rows.add(_OtherSceRow());
       }
       _sceRows.assignAll(rows);
     }
   }
+
+  void _clearShakerRow(_ShakerRow row) {
+    row.id = null;
+    row.shakerType.value = '';
+    row.model.value = '';
+    row.enabledScreens.value = 0;
+    row.screen1.value = '';
+    row.screen2.value = '';
+    row.screen3.value = '';
+    row.screen4.value = '';
+    row.screen5.value = '';
+    row.screen6.value = '';
+    row.screen7.value = '';
+    row.screen8.value = '';
+    row.time.value = '';
+    row.oocWt.value = '';
+  }
+
+  void _clearOtherSceRow(_OtherSceRow row) {
+    row.id = null;
+    row.type.value = '';
+    row.model.value = '';
+    row.uf.value = '';
+    row.of_.value = '';
+    row.time.value = '';
+    row.oocWt.value = '';
+  }
+
+  void _rememberReportSceRows() {
+    final scope = _currentSaveScope();
+    if (!scope.isValid) return;
+    final cacheKey = '${scope.wellId}::${scope.reportId}';
+
+    final shakerRows = _shakerRows
+        .where((row) => row.hasData)
+        .map(_shakerRowToMap)
+        .toList(growable: false);
+    if (shakerRows.isEmpty) {
+      _cachedShakerRows.remove(cacheKey);
+    } else {
+      _cachedShakerRows[cacheKey] = shakerRows;
+    }
+
+    final otherRows = _sceRows
+        .where((row) => row.hasData)
+        .map(_otherSceRowToMap)
+        .toList(growable: false);
+    if (otherRows.isEmpty) {
+      _cachedOtherSceRows.remove(cacheKey);
+    } else {
+      _cachedOtherSceRows[cacheKey] = otherRows;
+    }
+  }
+
+  Map<String, dynamic> _shakerRowToMap(_ShakerRow row) => {
+    if (row.id != null) '_id': row.id,
+    'shaker': row.shakerType.value,
+    'model': row.model.value,
+    'screens': row.enabledScreens.value > 0
+        ? row.enabledScreens.value.toString()
+        : '',
+    'screen1': row.screen1.value,
+    'screen2': row.screen2.value,
+    'screen3': row.screen3.value,
+    'screen4': row.screen4.value,
+    'screen5': row.screen5.value,
+    'screen6': row.screen6.value,
+    'screen7': row.screen7.value,
+    'screen8': row.screen8.value,
+    'time': row.time.value,
+    'oocWt': row.oocWt.value,
+  };
+
+  Map<String, dynamic> _otherSceRowToMap(_OtherSceRow row) => {
+    if (row.id != null) '_id': row.id,
+    'type': row.type.value,
+    'model1': row.model.value,
+    'uf': row.uf.value,
+    'of': row.of_.value,
+    'time': row.time.value,
+    'oocWt': row.oocWt.value,
+  };
 
   _PumpRow _pumpRowFromMap(Map item) {
     final row = _PumpRow();
@@ -453,7 +551,9 @@ class _PumpPageState extends State<PumpPage> {
   _ShakerRow _shakerRowFromMap(Map item) {
     final row = _ShakerRow();
     row.id = item['_id']?.toString() ?? item['id']?.toString();
-    row.shakerType.value = item['shaker']?.toString() ?? '';
+    row.shakerType.value = SceController.displayShakerLabel(
+      item['shaker']?.toString() ?? '',
+    );
     row.model.value = item['model']?.toString() ?? '';
     row.screen1.value = item['screen1']?.toString() ?? '';
     row.screen2.value = item['screen2']?.toString() ?? '';
@@ -696,6 +796,7 @@ class _PumpPageState extends State<PumpPage> {
     if (dashboard.isLocked.value || !row.hasData || !scope.isValid) {
       return;
     }
+    _rememberReportSceRows();
     _shakerSaveScopes[row] = scope;
     _shakerSaveTimers[row]?.cancel();
     _shakerSaveTimers[row] = Timer(
@@ -717,7 +818,7 @@ class _PumpPageState extends State<PumpPage> {
     final rowIndex = _shakerRows.indexOf(row);
     final shakerKey = row.shakerType.value.trim().isNotEmpty
         ? row.shakerType.value.trim()
-        : (rowIndex >= 0 ? '${rowIndex + 1}' : '');
+        : (rowIndex >= 0 ? 'Shaker ${rowIndex + 1}' : '');
     if (shakerKey.isEmpty) return;
     row.shakerType.value = shakerKey;
     final payload = {
@@ -748,6 +849,7 @@ class _PumpPageState extends State<PumpPage> {
 
       if (result['success'] == true) {
         row.id = result['data']?['_id']?.toString() ?? row.id;
+        _rememberReportSceRows();
       }
     } catch (e) {
       debugPrint('Shaker report autosave error: $e');
@@ -759,6 +861,7 @@ class _PumpPageState extends State<PumpPage> {
     if (dashboard.isLocked.value || !row.hasData || !scope.isValid) {
       return;
     }
+    _rememberReportSceRows();
     _otherSceSaveScopes[row] = scope;
     _otherSceSaveTimers[row]?.cancel();
     _otherSceSaveTimers[row] = Timer(
@@ -798,6 +901,7 @@ class _PumpPageState extends State<PumpPage> {
 
       if (result['success'] == true) {
         row.id = result['data']?['_id']?.toString() ?? row.id;
+        _rememberReportSceRows();
       }
     } catch (e) {
       debugPrint('Other SCE report autosave error: $e');
@@ -1323,8 +1427,7 @@ class _PumpPageState extends State<PumpPage> {
       final current = row.shakerType.value.isEmpty
           ? null
           : row.shakerType.value;
-      final availableTypes = types.isNotEmpty ? types : _shakerTypes;
-      final safe = availableTypes.contains(current) ? current : null;
+      final safe = types.contains(current) ? current : null;
       return DropdownButtonHideUnderline(
         child: DropdownButton<String?>(
           value: safe,
@@ -1334,7 +1437,13 @@ class _PumpPageState extends State<PumpPage> {
           onChanged: isLocked
               ? null
               : (sel) {
-                  row.shakerType.value = sel ?? '';
+                  if (sel == null || sel.isEmpty) {
+                    _clearShakerRow(row);
+                    _rememberReportSceRows();
+                    _shakerRows.refresh();
+                    return;
+                  }
+                  row.shakerType.value = sel;
                   // ✅ Auto-add row when last row gets a type selected
                   _checkAddShakerRow(rowIndex);
                   _scheduleSaveShakerRow(row);
@@ -1344,7 +1453,7 @@ class _PumpPageState extends State<PumpPage> {
               value: null,
               child: Text('', style: TextStyle(fontSize: 9)),
             ),
-            ...availableTypes.map(
+            ...types.map(
               (t) => DropdownMenuItem<String?>(
                 value: t,
                 child: Text(t, style: const TextStyle(fontSize: 9)),
@@ -1374,11 +1483,19 @@ class _PumpPageState extends State<PumpPage> {
           onChanged: isLocked
               ? null
               : (sel) async {
-                  row.model.value = sel ?? '';
-                  if (sel != null && sel.isNotEmpty) {
+                  if (sel == null || sel.isEmpty) {
+                    _clearShakerRow(row);
+                    _rememberReportSceRows();
+                    _shakerRows.refresh();
+                    return;
+                  }
+                  row.model.value = sel;
+                  if (sel.isNotEmpty) {
                     final data = await sceController.getShakerDataByModel(sel);
                     if (data != null) {
-                      final apiType = data['shaker']?.toString() ?? '';
+                      final apiType = SceController.displayShakerLabel(
+                        data['shaker']?.toString() ?? '',
+                      );
                       if (row.shakerType.value.isEmpty && apiType.isNotEmpty) {
                         row.shakerType.value = apiType;
                       }
@@ -1387,7 +1504,7 @@ class _PumpPageState extends State<PumpPage> {
                       row.enabledScreens.value = n;
                     }
                     if (row.shakerType.value.trim().isEmpty) {
-                      row.shakerType.value = '${rowIndex + 1}';
+                      row.shakerType.value = 'Shaker ${rowIndex + 1}';
                     }
                     // ✅ Auto-add row when last row's model is selected
                     _checkAddShakerRow(rowIndex);
@@ -1447,11 +1564,17 @@ class _PumpPageState extends State<PumpPage> {
             final isEnabled = !isLocked && idx < row.enabledScreens.value;
             return TextField(
               enabled: isEnabled,
+              onTap: () {
+                _activeScreenRowIndex = _shakerRows.indexOf(row);
+                _activeScreenColumnIndex = idx;
+              },
               controller: TextEditingController(text: fields[idx].value)
                 ..selection = TextSelection.collapsed(
                   offset: fields[idx].value.length,
                 ),
               onChanged: (v) {
+                _activeScreenRowIndex = _shakerRows.indexOf(row);
+                _activeScreenColumnIndex = idx;
                 fields[idx].value = v;
                 _scheduleSaveShakerRow(row);
               },
@@ -1593,27 +1716,35 @@ class _PumpPageState extends State<PumpPage> {
   void _autoFillScreenValues() {
     final fillVal = _screenFillSelected.value.trim();
     if (fillVal.isEmpty) return;
-    for (final row in _shakerRows) {
-      if (row.model.value.isEmpty) continue;
-      final fields = [
-        row.screen1,
-        row.screen2,
-        row.screen3,
-        row.screen4,
-        row.screen5,
-        row.screen6,
-        row.screen7,
-        row.screen8,
-      ];
-      for (
-        int i = 0;
-        i < row.enabledScreens.value && i < _totalScreenCols;
-        i++
-      ) {
-        fields[i].value = fillVal;
-      }
-      _scheduleSaveShakerRow(row);
+    final rowIndex = _activeScreenRowIndex;
+    final columnIndex = _activeScreenColumnIndex;
+    if (rowIndex == null ||
+        columnIndex == null ||
+        rowIndex < 0 ||
+        rowIndex >= _shakerRows.length) {
+      return;
     }
+
+    final row = _shakerRows[rowIndex];
+    if (row.model.value.isEmpty ||
+        columnIndex < 0 ||
+        columnIndex >= row.enabledScreens.value ||
+        columnIndex >= _totalScreenCols) {
+      return;
+    }
+
+    final fields = [
+      row.screen1,
+      row.screen2,
+      row.screen3,
+      row.screen4,
+      row.screen5,
+      row.screen6,
+      row.screen7,
+      row.screen8,
+    ];
+    fields[columnIndex].value = fillVal;
+    _scheduleSaveShakerRow(row);
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -1669,6 +1800,7 @@ class _PumpPageState extends State<PumpPage> {
           Expanded(
             child: Obx(() {
               final isLocked = dashboard.isLocked.value;
+              final sceTypes = sceController.availableOtherSceTypes.toList();
               final sceModels = sceController.availableOtherSceModels.toList();
               final rows = _sceRows.toList(); // react to list changes
               return Scrollbar(
@@ -1699,6 +1831,7 @@ class _PumpPageState extends State<PumpPage> {
                               width: w(90),
                               child: _sceTypeDropdown(
                                 row: row,
+                                types: sceTypes,
                                 isLocked: isLocked,
                                 rowIndex: index,
                               ),
@@ -1769,12 +1902,13 @@ class _PumpPageState extends State<PumpPage> {
 
   Widget _sceTypeDropdown({
     required _OtherSceRow row,
+    required List<String> types,
     required bool isLocked,
     required int rowIndex,
   }) {
     return Obx(() {
       final current = row.type.value.isEmpty ? null : row.type.value;
-      final safe = _otherSceTypes.contains(current) ? current : null;
+      final safe = types.contains(current) ? current : null;
       return DropdownButtonHideUnderline(
         child: DropdownButton<String?>(
           value: safe,
@@ -1784,8 +1918,13 @@ class _PumpPageState extends State<PumpPage> {
           onChanged: isLocked
               ? null
               : (sel) {
-                  row.type.value = sel ?? '';
-                  if (sel == null) row.model.value = '';
+                  if (sel == null || sel.isEmpty) {
+                    _clearOtherSceRow(row);
+                    _rememberReportSceRows();
+                    _sceRows.refresh();
+                    return;
+                  }
+                  row.type.value = sel;
                   // ✅ Auto-add row when last row gets a type
                   _checkAddSceRow(rowIndex);
                   _scheduleSaveOtherSceRow(row);
@@ -1795,7 +1934,7 @@ class _PumpPageState extends State<PumpPage> {
               value: null,
               child: Text('', style: TextStyle(fontSize: 9)),
             ),
-            ..._otherSceTypes.map(
+            ...types.map(
               (t) => DropdownMenuItem<String?>(
                 value: t,
                 child: Text(t, style: const TextStyle(fontSize: 9)),
@@ -1825,7 +1964,13 @@ class _PumpPageState extends State<PumpPage> {
           onChanged: isLocked
               ? null
               : (sel) {
-                  row.model.value = sel ?? '';
+                  if (sel == null || sel.isEmpty) {
+                    _clearOtherSceRow(row);
+                    _rememberReportSceRows();
+                    _sceRows.refresh();
+                    return;
+                  }
+                  row.model.value = sel;
                   // ✅ Auto-add row when last row's model is selected
                   _checkAddSceRow(rowIndex);
                   _scheduleSaveOtherSceRow(row);
