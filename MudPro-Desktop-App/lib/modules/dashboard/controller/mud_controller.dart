@@ -423,6 +423,7 @@ class MudController extends GetxController {
       _setupAutoCalculations();
       if (savedState != null) {
         _applyMudReportState(savedState);
+        await refreshMudPropertyUnitsFromSetup();
         _setupAutoCalculations();
       }
       _setupSolidAnalysisWatchers();
@@ -458,6 +459,32 @@ class MudController extends GetxController {
     } catch (e) {
       debugPrint('[MudController] Left table fetch ERROR: $e');
       _addCommonFields();
+    }
+  }
+
+  Future<void> refreshMudPropertyUnitsFromSetup() async {
+    try {
+      final selected = await _mudPropsCtrl.getSelectedMudProperties();
+      final selectedProps = switch (selectedFluidType.value) {
+        'Water-based' => selected.waterBased,
+        'Oil-based' => selected.oilBased,
+        'Synthetic' => selected.synthetic,
+        _ => <MudPropertyItem>[],
+      };
+      final props = _normalizeMudProperties(selectedProps);
+      var changed = false;
+      for (final item in props) {
+        if (item.name.isEmpty || !propertyTable.containsKey(item.name)) {
+          continue;
+        }
+        if (propertyUnits[item.name] != item.unit) {
+          propertyUnits[item.name] = item.unit;
+          changed = true;
+        }
+      }
+      if (changed) propertyUnits.refresh();
+    } catch (e) {
+      debugPrint('[MudController] refresh mud property units ERROR: $e');
     }
   }
 

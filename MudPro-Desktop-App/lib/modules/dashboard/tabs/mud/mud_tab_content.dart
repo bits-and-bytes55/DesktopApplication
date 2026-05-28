@@ -27,10 +27,6 @@ class _MudViewState extends State<MudView> {
 
   final _propertyScrollCtrl = ScrollController();
   final _rheologyScrollCtrl = ScrollController();
-  Worker? _unitSystemWorker;
-  Worker? _customSystemWorker;
-  Worker? _customUnitsWorker;
-  Worker? _mudLoadingWorker;
 
   @override
   void initState() {
@@ -39,36 +35,16 @@ class _MudViewState extends State<MudView> {
         ? Get.find<MudController>()
         : Get.put(MudController());
     dashboard = Get.find<DashboardController>();
-    final options = AppUnits.controller;
-    _unitSystemWorker = ever(
-      options.unitSystem,
-      (_) => _convertMudValuesForActiveUnits(),
-    );
-    _customSystemWorker = ever(
-      options.selectedCustomSystemId,
-      (_) => _convertMudValuesForActiveUnits(),
-    );
-    _customUnitsWorker = ever(
-      options.customUnits,
-      (_) => _convertMudValuesForActiveUnits(),
-    );
-    _mudLoadingWorker = ever<bool>(c.isLoading, (loading) {
-      if (!loading) _convertMudValuesForActiveUnits();
-    });
     WidgetsBinding.instance.addPostFrameCallback(
-      (_) {
-        c.useMudStateScope('');
-        _convertMudValuesForActiveUnits();
+      (_) async {
+        await c.useMudStateScope('');
+        await c.refreshMudPropertyUnitsFromSetup();
       },
     );
   }
 
   @override
   void dispose() {
-    _unitSystemWorker?.dispose();
-    _customSystemWorker?.dispose();
-    _customUnitsWorker?.dispose();
-    _mudLoadingWorker?.dispose();
     _propertyScrollCtrl.dispose();
     _rheologyScrollCtrl.dispose();
     super.dispose();
@@ -523,65 +499,9 @@ class _MudViewState extends State<MudView> {
   }
 
   String _dynamicMudUnit(String name, String storedUnit) {
-    final key = name.toLowerCase().replaceAll('*', '').trim();
     final raw = storedUnit.trim();
-
-    if (key == 'ph' || raw == '-') return '';
-    if (key.contains('flowline') ||
-        key.contains('t. for pv') ||
-        key.contains('t. for hthp') ||
-        key.contains('hthp temp') ||
-        key.contains('rheology temp')) {
-      return AppUnits.strip(AppUnits.temperature);
-    }
-    if (key == 'depth' || key.startsWith('depth ')) {
-      return AppUnits.strip(AppUnits.length);
-    }
-    if (key == 'mw' || key.startsWith('mw ') || key.contains('mud weight')) {
-      return AppUnits.strip(AppUnits.mudWeight);
-    }
-    if (key.contains('funnel')) {
-      return AppUnits.strip(AppUnits.funnelViscosity);
-    }
-    if (key == 'pv' || key.startsWith('pv ')) {
-      return AppUnits.strip(AppUnits.viscosity);
-    }
-    if (key == 'yp' || key.startsWith('yp ') || key.contains('gel str')) {
-      return AppUnits.strip(AppUnits.yieldPoint);
-    }
-    if (key.contains('cake thickness')) {
-      return AppUnits.strip(AppUnits.nozzleDiameter);
-    }
-    if (key.contains('filtrate') && !key.contains('alkalinity')) {
-      final volumeUnit = AppUnits.strip(AppUnits.fluidVolume);
-      return raw.toLowerCase().contains('30min')
-          ? '$volumeUnit/30min'
-          : volumeUnit;
-    }
-    if (key.contains('solids') ||
-        key == 'oil' ||
-        key == 'water' ||
-        key.contains('sand content')) {
-      return '%';
-    }
-    if (key.contains('mbt') ||
-        key.contains('excess lime') ||
-        key.contains('lcm')) {
-      return AppUnits.strip(AppUnits.massVolumeRatio);
-    }
-    if (key.contains('alkalinity')) {
-      return AppUnits.strip(AppUnits.fluidVolume);
-    }
-    if (key.contains('calcium') ||
-        key.contains('chloride') ||
-        key.contains('hardness') ||
-        key == 'k+' ||
-        key == 'k') {
-      return AppUnits.strip(AppUnits.concentration);
-    }
-
-    if (raw.isEmpty) return '';
-    return AppUnits.strip(AppUnits.unitText(raw));
+    if (raw.isEmpty || raw == '-') return '';
+    return AppUnits.strip(raw);
   }
 
   void _convertMudValuesForActiveUnits() {
@@ -921,7 +841,6 @@ class _MudViewState extends State<MudView> {
                 border: Border(right: BorderSide(color: Colors.grey.shade200)),
               ),
               child: Obx(() {
-                AppUnits.signature;
                 final unit = c.propertyUnits[name] ?? '';
                 final displayName = _mudPropertyLabel(name, unit);
                 return Row(

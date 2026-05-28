@@ -497,7 +497,10 @@ class _SceViewState extends State<SceView> {
       onSecondaryTapDown: (details) => _showShakerMenu(details, index),
       child: Row(
         children: [
-          _labelCell(row.shaker.value, flex: 3),
+          _labelCell(
+            SceController.displayShakerLabel(row.shaker.value),
+            flex: 3,
+          ),
           _editableTextCell(
             value: row.model.value,
             flex: 3,

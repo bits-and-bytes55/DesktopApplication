@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/controller/mud_properties_controller.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/model/mud_properties_model.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/mud_controller.dart';
+import 'package:mudpro_desktop_app/modules/options/unit_definitions.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class DefaultMudPropertiesPage extends StatefulWidget {
@@ -26,6 +29,7 @@ class _DefaultMudPropertiesPageState extends State<DefaultMudPropertiesPage> {
 
   bool _isLoading = true;
   bool _isSaving = false;
+  final Map<String, String> _unitOverrides = {};
 
   @override
   void initState() {
@@ -39,6 +43,7 @@ class _DefaultMudPropertiesPageState extends State<DefaultMudPropertiesPage> {
       final selected = await _controller.getSelectedMudProperties();
       setState(() {
         _selected = selected;
+        _primeUnitOverrides();
         _isLoading = false;
       });
     } catch (e) {
@@ -55,6 +60,9 @@ class _DefaultMudPropertiesPageState extends State<DefaultMudPropertiesPage> {
         _selected = saved;
         _isSaving = false;
       });
+      if (Get.isRegistered<MudController>()) {
+        await Get.find<MudController>().refreshMudPropertyUnitsFromSetup();
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -80,21 +88,56 @@ class _DefaultMudPropertiesPageState extends State<DefaultMudPropertiesPage> {
     );
   }
 
+  void _primeUnitOverrides() {
+    _unitOverrides.clear();
+    for (final item in _selected.waterBased) {
+      _unitOverrides[_unitKey('water', item.name)] = item.unit;
+    }
+    for (final item in _selected.oilBased) {
+      _unitOverrides[_unitKey('oil', item.name)] = item.unit;
+    }
+    for (final item in _selected.synthetic) {
+      _unitOverrides[_unitKey('synthetic', item.name)] = item.unit;
+    }
+  }
+
+  String _unitKey(String col, String name) => '$col::${name.trim()}';
+
+  List<MudPropertyItem> _selectedList(String col) {
+    if (col == 'water') return _selected.waterBased;
+    if (col == 'oil') return _selected.oilBased;
+    return _selected.synthetic;
+  }
+
+  SelectedMudProperties _copyWithList(String col, List<MudPropertyItem> list) {
+    if (col == 'water') return _selected.copyWith(waterBased: list);
+    if (col == 'oil') return _selected.copyWith(oilBased: list);
+    return _selected.copyWith(synthetic: list);
+  }
+
+  bool _containsByName(List<MudPropertyItem> items, MudPropertyItem item) =>
+      items.any((selected) => selected.name == item.name);
+
+  String _currentUnit(String col, MudPropertyItem item) {
+    final override = _unitOverrides[_unitKey(col, item.name)];
+    if (override != null) return override;
+    final selected = _selectedList(col).where((e) => e.name == item.name);
+    if (selected.isNotEmpty) return selected.first.unit;
+    return item.unit;
+  }
+
+  MudPropertyItem _withCurrentUnit(String col, MudPropertyItem item) =>
+      MudPropertyItem(name: item.name, unit: _currentUnit(col, item));
+
   void _toggleItem(String col, MudPropertyItem item) {
     setState(() {
-      if (col == 'water') {
-        final list = List<MudPropertyItem>.from(_selected.waterBased);
-        list.contains(item) ? list.remove(item) : list.add(item);
-        _selected = _selected.copyWith(waterBased: list);
-      } else if (col == 'oil') {
-        final list = List<MudPropertyItem>.from(_selected.oilBased);
-        list.contains(item) ? list.remove(item) : list.add(item);
-        _selected = _selected.copyWith(oilBased: list);
-      } else if (col == 'synthetic') {
-        final list = List<MudPropertyItem>.from(_selected.synthetic);
-        list.contains(item) ? list.remove(item) : list.add(item);
-        _selected = _selected.copyWith(synthetic: list);
+      final list = List<MudPropertyItem>.from(_selectedList(col));
+      if (_containsByName(list, item)) {
+        list.removeWhere((selected) => selected.name == item.name);
+      } else {
+        list.add(_withCurrentUnit(col, item));
       }
+      _selected = _copyWithList(col, list);
     });
   }
 
@@ -102,21 +145,33 @@ class _DefaultMudPropertiesPageState extends State<DefaultMudPropertiesPage> {
     setState(() {
       if (col == 'water') {
         final allSelected = _staticData.waterBased
-            .every((item) => _selected.waterBased.contains(item));
+            .every((item) => _containsByName(_selected.waterBased, item));
         _selected = _selected.copyWith(
-          waterBased: allSelected ? [] : List.from(_staticData.waterBased),
+          waterBased: allSelected
+              ? []
+              : _staticData.waterBased
+                  .map((item) => _withCurrentUnit(col, item))
+                  .toList(),
         );
       } else if (col == 'oil') {
         final allSelected = _staticData.oilBased
-            .every((item) => _selected.oilBased.contains(item));
+            .every((item) => _containsByName(_selected.oilBased, item));
         _selected = _selected.copyWith(
-          oilBased: allSelected ? [] : List.from(_staticData.oilBased),
+          oilBased: allSelected
+              ? []
+              : _staticData.oilBased
+                  .map((item) => _withCurrentUnit(col, item))
+                  .toList(),
         );
       } else if (col == 'synthetic') {
         final allSelected = _staticData.synthetic
-            .every((item) => _selected.synthetic.contains(item));
+            .every((item) => _containsByName(_selected.synthetic, item));
         _selected = _selected.copyWith(
-          synthetic: allSelected ? [] : List.from(_staticData.synthetic),
+          synthetic: allSelected
+              ? []
+              : _staticData.synthetic
+                  .map((item) => _withCurrentUnit(col, item))
+                  .toList(),
         );
       }
     });
@@ -126,14 +181,56 @@ class _DefaultMudPropertiesPageState extends State<DefaultMudPropertiesPage> {
     if (col == 'water') {
       return _staticData.waterBased.isNotEmpty &&
           _staticData.waterBased
-              .every((i) => _selected.waterBased.contains(i));
+              .every((i) => _containsByName(_selected.waterBased, i));
     } else if (col == 'oil') {
       return _staticData.oilBased.isNotEmpty &&
-          _staticData.oilBased.every((i) => _selected.oilBased.contains(i));
+          _staticData.oilBased
+              .every((i) => _containsByName(_selected.oilBased, i));
     } else {
       return _staticData.synthetic.isNotEmpty &&
-          _staticData.synthetic.every((i) => _selected.synthetic.contains(i));
+          _staticData.synthetic
+              .every((i) => _containsByName(_selected.synthetic, i));
     }
+  }
+
+  void _changeUnit(String col, MudPropertyItem item, String unit) {
+    setState(() {
+      _unitOverrides[_unitKey(col, item.name)] = unit;
+      final list = List<MudPropertyItem>.from(_selectedList(col));
+      final index = list.indexWhere((selected) => selected.name == item.name);
+      if (index >= 0) {
+        list[index] = MudPropertyItem(name: item.name, unit: unit);
+        _selected = _copyWithList(col, list);
+      }
+    });
+  }
+
+  List<String> _unitOptionsFor(MudPropertyItem item) {
+    final key = item.name.toLowerCase().replaceAll('*', '').trim();
+    if (key.contains('flowline') ||
+        key.contains('t. for pv') ||
+        key.contains('t. for hthp') ||
+        key.contains('hthp temp') ||
+        key.contains('rheology temp')) {
+      return const ['degF', 'degC'];
+    }
+    if (key == 'depth' || key.startsWith('depth ')) {
+      return const ['m', 'ft'];
+    }
+    if (key == 'mw' || key.startsWith('mw ') || key.contains('mud weight')) {
+      return UnitDefinitions.parameterUnits['33']!
+          .map(_stripParens)
+          .toList(growable: false);
+    }
+    return [item.unit];
+  }
+
+  String _stripParens(String unit) {
+    final text = unit.trim();
+    if (text.startsWith('(') && text.endsWith(')')) {
+      return text.substring(1, text.length - 1);
+    }
+    return text;
   }
 
   @override
@@ -250,7 +347,7 @@ class _DefaultMudPropertiesPageState extends State<DefaultMudPropertiesPage> {
                               backgroundColor:
                                   AppTheme.primaryColor.withOpacity(0.03),
                             ),
-                            _buildUnitCell(index, _staticData.waterBased),
+                            _buildUnitCell('water', index, _staticData.waterBased),
                             _buildSelectableCell(
                               col: 'oil',
                               index: index,
@@ -259,7 +356,7 @@ class _DefaultMudPropertiesPageState extends State<DefaultMudPropertiesPage> {
                               backgroundColor:
                                   const Color(0xff8B4513).withOpacity(0.03),
                             ),
-                            _buildUnitCell(index, _staticData.oilBased),
+                            _buildUnitCell('oil', index, _staticData.oilBased),
                             _buildSelectableCell(
                               col: 'synthetic',
                               index: index,
@@ -268,7 +365,8 @@ class _DefaultMudPropertiesPageState extends State<DefaultMudPropertiesPage> {
                               backgroundColor:
                                   const Color(0xff20B2AA).withOpacity(0.03),
                             ),
-                            _buildUnitCell(index, _staticData.synthetic),
+                            _buildUnitCell(
+                                'synthetic', index, _staticData.synthetic),
                           ],
                         ),
                       );
@@ -350,12 +448,14 @@ class _DefaultMudPropertiesPageState extends State<DefaultMudPropertiesPage> {
     }
   }
 
-  Widget _buildUnitCell(int index, List<MudPropertyItem> items) {
+  Widget _buildUnitCell(String col, int index, List<MudPropertyItem> items) {
     final hasItem = index < items.length;
-    final unit = hasItem ? items[index].unit : '-';
+    final item = hasItem ? items[index] : null;
+    final unit = item == null ? '-' : _currentUnit(col, item);
+    final options = item == null ? const <String>[] : _unitOptionsFor(item);
     return Container(
       width: 80,
-      padding: const EdgeInsets.symmetric(horizontal: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 6),
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border(
@@ -363,15 +463,33 @@ class _DefaultMudPropertiesPageState extends State<DefaultMudPropertiesPage> {
         ),
       ),
       child: Center(
-        child: Text(
-          unit,
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w400,
-            color: Colors.grey.shade600,
-          ),
-          overflow: TextOverflow.ellipsis,
-        ),
+        child: item == null
+            ? Text(
+                unit,
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+              )
+            : DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: options.contains(unit) ? unit : options.first,
+                  isExpanded: true,
+                  isDense: true,
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+                  onChanged: (value) {
+                    if (value != null) _changeUnit(col, item, value);
+                  },
+                  items: options
+                      .map(
+                        (value) => DropdownMenuItem<String>(
+                          value: value,
+                          child: Text(
+                            value,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      )
+                      .toList(),
+                ),
+              ),
       ),
     );
   }
@@ -425,7 +543,8 @@ class _DefaultMudPropertiesPageState extends State<DefaultMudPropertiesPage> {
     final hasItem = index < items.length;
     final item = hasItem ? items[index] : null;
     final text = item?.name ?? '-';
-    final isSelected = item != null && selectedItems.contains(item);
+    final isSelected =
+        item != null && _containsByName(selectedItems, item);
 
     return Expanded(
       flex: 2,
