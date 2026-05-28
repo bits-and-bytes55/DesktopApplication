@@ -29,6 +29,7 @@ const calculateNozzleArea = (size32) => {
   const rawArea = (Math.PI * Math.pow(diameter, 2)) / 4;
   return {
     diameter: +diameter.toFixed(4),
+    rawArea,
     area: +rawArea.toFixed(3),
   };
 };
@@ -44,8 +45,8 @@ const processNozzles = (inputNozzles = []) => {
       return;
     }
 
-    const { diameter, area } = calculateNozzleArea(size32);
-    totalTFA += area * count;
+    const { diameter, rawArea, area } = calculateNozzleArea(size32);
+    totalTFA += rawArea * count;
     processedNozzles.push({
       count,
       size32,

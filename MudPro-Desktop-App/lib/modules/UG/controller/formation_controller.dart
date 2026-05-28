@@ -10,8 +10,7 @@ import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart
 
 class FormationController extends GetxController {
   static const int rowCount = 23;
-  static const double _ppgPerPsiPerFoot = 19.24;
-  static const double _psiPerFootPerPpg = 1 / _ppgPerPsiPerFoot;
+  static const double _psiPerFootPerPpg = 0.052;
 
   final UgController ugController = Get.find<UgController>();
   final AuthRepository _repository = AuthRepository();
@@ -292,6 +291,27 @@ class FormationController extends GetxController {
     }
   }
 
+  String calculatedPressureText(FormationRow row, {required bool pore}) {
+    if (mode.value != 'Density') {
+      return pore ? row.porePsi.value : row.fracPsi.value;
+    }
+    final tvd = _toBaseDouble(row.tvd.value, AppUnits.length, '(ft)');
+    final density = _toBaseDouble(
+      pore ? row.porePpg.value : row.fracPpg.value,
+      AppUnits.mudWeight,
+      '(ppg)',
+    );
+    if (tvd <= 0 || density <= 0) {
+      return pore ? row.porePsi.value : row.fracPsi.value;
+    }
+    return _formatDisplay(
+      density * _psiPerFootPerPpg * tvd,
+      '(psi)',
+      AppUnits.pressure,
+      _pressureFractionDigits,
+    );
+  }
+
   bool _validIndex(int index) => index >= 0 && index < rows.length;
 
   void _syncUgController() {
@@ -438,6 +458,7 @@ class FormationController extends GetxController {
 
   String _formatFixed(double value, int fractionDigits) {
     if (value <= 0) return '';
+    if (fractionDigits == 0) return value.round().toString();
     return value.toStringAsFixed(fractionDigits);
   }
 
