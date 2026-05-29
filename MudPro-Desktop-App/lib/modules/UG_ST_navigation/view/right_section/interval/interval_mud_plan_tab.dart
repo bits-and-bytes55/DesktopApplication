@@ -380,6 +380,12 @@ class _IntervalMudPlanTabState extends State<IntervalMudPlanTab> {
 }
 
 class _PropertyRow extends StatelessWidget {
+  static const Set<String> _mergedPropertyKeys = {
+    'Description',
+    'Sample from',
+    'Time Sample Taken (hh:mm)',
+  };
+
   final String label;
   final String rawKey;
   final List<RxString> values;
@@ -422,6 +428,8 @@ class _PropertyRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final mergePlanCells = _mergedPropertyKeys.contains(rawKey);
+
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onSecondaryTapDown: (details) => _showMenu(context, details),
@@ -451,19 +459,116 @@ class _PropertyRow extends StatelessWidget {
                 ),
               ),
             ),
-            ..._IntervalMudPlanTabState._planIndices.map((index) {
-              return Expanded(
-                child: _MudCell(
-                  value: values[index],
+            if (mergePlanCells)
+              Expanded(
+                flex: 2,
+                child: _MergedMudCell(
+                  primary: values[_IntervalMudPlanTabState._planIndices.first],
+                  secondary:
+                      values[_IntervalMudPlanTabState._planIndices.last],
                   readOnly: locked,
-                  align: TextAlign.center,
                 ),
-              );
-            }),
+              )
+            else
+              ..._IntervalMudPlanTabState._planIndices.map((index) {
+                return Expanded(
+                  child: _MudCell(
+                    value: values[index],
+                    readOnly: locked,
+                    align: TextAlign.center,
+                  ),
+                );
+              }),
           ],
         ),
       ),
     );
+  }
+}
+
+class _MergedMudCell extends StatefulWidget {
+  final RxString primary;
+  final RxString secondary;
+  final bool readOnly;
+
+  const _MergedMudCell({
+    required this.primary,
+    required this.secondary,
+    required this.readOnly,
+  });
+
+  @override
+  State<_MergedMudCell> createState() => _MergedMudCellState();
+}
+
+class _MergedMudCellState extends State<_MergedMudCell> {
+  late final TextEditingController _controller;
+
+  String get _displayValue {
+    final primaryValue = widget.primary.value;
+    if (primaryValue.trim().isNotEmpty) return primaryValue;
+    return widget.secondary.value;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: _displayValue);
+  }
+
+  @override
+  void didUpdateWidget(covariant _MergedMudCell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _syncControllerText();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _syncControllerText() {
+    final next = _displayValue;
+    if (_controller.text != next) {
+      _controller.value = TextEditingValue(
+        text: next,
+        selection: TextSelection.collapsed(offset: next.length),
+      );
+    }
+  }
+
+  void _mirrorValue(String value) {
+    widget.primary.value = value;
+    widget.secondary.value = value;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      _syncControllerText();
+
+      return Container(
+        height: 28,
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        decoration: const BoxDecoration(
+          color: _impCell,
+          border: Border(right: BorderSide(color: _impBorder)),
+        ),
+        child: TextField(
+          controller: _controller,
+          readOnly: widget.readOnly,
+          textAlign: TextAlign.center,
+          onChanged: _mirrorValue,
+          style: const TextStyle(fontSize: 10, color: Color(0xFF2F2F2F)),
+          decoration: const InputDecoration(
+            isDense: true,
+            border: InputBorder.none,
+            contentPadding: EdgeInsets.symmetric(vertical: 8),
+          ),
+        ),
+      );
+    });
   }
 }
 

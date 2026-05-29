@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/interval/controller/interval_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/mud_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/well_general_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/tabs/mud/apply_rheology_page.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/tabs/mud/solid_analysis_page.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
+import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 enum _MudPropertyMenuAction { cut, copy, paste, delete, top, bottom }
@@ -24,6 +27,8 @@ class _MudViewState extends State<MudView> {
 
   late MudController c;
   late DashboardController dashboard;
+  late WellGeneralController wellGeneral;
+  late IntervalController intervalCtrl;
 
   final _propertyScrollCtrl = ScrollController();
   final _rheologyScrollCtrl = ScrollController();
@@ -35,12 +40,83 @@ class _MudViewState extends State<MudView> {
         ? Get.find<MudController>()
         : Get.put(MudController());
     dashboard = Get.find<DashboardController>();
+    wellGeneral = Get.isRegistered<WellGeneralController>()
+        ? Get.find<WellGeneralController>()
+        : Get.put(WellGeneralController(), permanent: true);
+    intervalCtrl = Get.isRegistered<IntervalController>()
+        ? Get.find<IntervalController>()
+        : Get.put(IntervalController(), permanent: true);
     WidgetsBinding.instance.addPostFrameCallback(
       (_) async {
         await c.useMudStateScope('');
         await c.refreshMudPropertyUnitsFromSetup();
       },
     );
+  }
+
+  Future<String?> _selectedReportIntervalId() async {
+    final wellId = currentBackendWellId.trim();
+    if (wellId.isNotEmpty && intervalCtrl.wellId.value != wellId) {
+      intervalCtrl.wellId.value = wellId;
+    }
+    if (wellGeneral.interval.value.trim().isEmpty &&
+        !wellGeneral.isLoading.value) {
+      await wellGeneral.fetchLatest();
+    }
+    if (intervalCtrl.intervals.isEmpty &&
+        wellId.isNotEmpty &&
+        !intervalCtrl.isLoading.value) {
+      await intervalCtrl.fetchAll();
+    }
+
+    final selected = wellGeneral.interval.value.trim();
+    final items = intervalCtrl.intervals.toList()
+      ..sort((a, b) => a.order.compareTo(b.order));
+    if (selected.isEmpty) {
+      final current = intervalCtrl.selected.value?.id.trim() ?? '';
+      return current.isEmpty ? null : current;
+    }
+
+    final counts = <String, int>{};
+    for (final item in items) {
+      final name = item.name.trim();
+      if (name.isNotEmpty) counts[name] = (counts[name] ?? 0) + 1;
+    }
+
+    for (var i = 0; i < items.length; i++) {
+      final item = items[i];
+      final name = item.name.trim();
+      final duplicateLabel = (counts[name] ?? 0) > 1 ? '${i + 1}. $name' : name;
+      if (selected == item.id || selected == name || selected == duplicateLabel) {
+        return item.id;
+      }
+    }
+    return null;
+  }
+
+  Future<void> _importSelectedIntervalMudPlan() async {
+    if (dashboard.isLocked.value) return;
+    final intervalId = await _selectedReportIntervalId();
+    if (intervalId == null || intervalId.trim().isEmpty) {
+      Get.snackbar(
+        'Mud Properties',
+        'Select an interval in Well > General first.',
+        snackPosition: SnackPosition.BOTTOM,
+        duration: const Duration(seconds: 2),
+      );
+      return;
+    }
+
+    await c.useMudStateScope('');
+    final imported = await c.importMudPlanPropertiesFromInterval(intervalId);
+    if (!imported) {
+      Get.snackbar(
+        'Mud Properties',
+        'No Mud Plan data found for the selected interval.',
+        snackPosition: SnackPosition.BOTTOM,
+        duration: const Duration(seconds: 2),
+      );
+    }
   }
 
   @override
@@ -326,6 +402,22 @@ class _MudViewState extends State<MudView> {
                     fontWeight: FontWeight.w600,
                     color: Colors.white,
                     fontSize: 10.5,
+                  ),
+                ),
+                const Spacer(),
+                Tooltip(
+                  message: 'Load selected interval Mud Plan',
+                  child: InkWell(
+                    onTap: _importSelectedIntervalMudPlan,
+                    child: const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: Icon(
+                        Icons.file_download_outlined,
+                        size: 15,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
                 ),
               ],
