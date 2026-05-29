@@ -36,6 +36,12 @@ class SurveyController extends GetxController {
   final rotationX = (0.55).obs;
   final rotationY = (0.75).obs;
   final zoom = 1.0.obs;
+  final show3DGrid = true.obs;
+  final show3DAllQuadrants = false.obs;
+  final graph3DBackgroundColor = const Color(0xFFE5E5E5).obs;
+  final graph3DCylinderScale = 3.obs;
+  final graph3DMoveRotateZoomInterval = 5.obs;
+  final is3DAutoRotating = false.obs;
 
   final projectAziController = TextEditingController();
 
@@ -43,6 +49,7 @@ class SurveyController extends GetxController {
   Worker? _reportWorker;
   final List<Worker> _unitWorkers = <Worker>[];
   Timer? _autosaveTimer;
+  Timer? _autoRotate3DTimer;
 
   SurveyStationRow? _stationClipboard;
   SurveyAnnotationRow? _annotationClipboard;
@@ -118,6 +125,7 @@ class SurveyController extends GetxController {
   @override
   void onClose() {
     _autosaveTimer?.cancel();
+    _autoRotate3DTimer?.cancel();
     _wellWorker?.dispose();
     _reportWorker?.dispose();
     for (final worker in _unitWorkers) {
@@ -641,18 +649,61 @@ class SurveyController extends GetxController {
     return markers;
   }
 
-  void rotateLeft() => rotationY.value -= 0.1;
-  void rotateRight() => rotationY.value += 0.1;
-  void rotateUp() =>
-      rotationX.value = (rotationX.value - 0.1).clamp(-0.6, 0.6).toDouble();
-  void rotateDown() =>
-      rotationX.value = (rotationX.value + 0.1).clamp(-0.6, 0.6).toDouble();
-  void zoomIn() => zoom.value = math.min(1.5, zoom.value + 0.1);
-  void zoomOut() => zoom.value = math.max(0.5, zoom.value - 0.1);
+  double get _viewIntervalStep {
+    final interval = graph3DMoveRotateZoomInterval.value.clamp(1, 5);
+    return interval / 50;
+  }
+
+  void rotateLeft() => rotationY.value -= _viewIntervalStep;
+  void rotateRight() => rotationY.value += _viewIntervalStep;
+  void rotateUp() => rotationX.value -= _viewIntervalStep;
+  void rotateDown() => rotationX.value += _viewIntervalStep;
+  void zoomIn() => zoom.value = math.min(1.5, zoom.value + _viewIntervalStep);
+  void zoomOut() => zoom.value = math.max(0.5, zoom.value - _viewIntervalStep);
   void reset3DView() {
     rotationX.value = 0.55;
     rotationY.value = 0.75;
     zoom.value = 1.0;
+  }
+
+  void apply3DViewSettings({
+    required bool showGrid,
+    required bool showAllQuadrants,
+    required Color backgroundColor,
+    required int cylinderScale,
+    required int moveRotateZoomInterval,
+  }) {
+    show3DGrid.value = showGrid;
+    show3DAllQuadrants.value = showAllQuadrants;
+    graph3DBackgroundColor.value = backgroundColor;
+    graph3DCylinderScale.value = cylinderScale.clamp(1, 5).toInt();
+    graph3DMoveRotateZoomInterval.value =
+        moveRotateZoomInterval.clamp(1, 5).toInt();
+  }
+
+  void reset3DViewSettings() {
+    apply3DViewSettings(
+      showGrid: true,
+      showAllQuadrants: false,
+      backgroundColor: const Color(0xFFE5E5E5),
+      cylinderScale: 3,
+      moveRotateZoomInterval: 5,
+    );
+  }
+
+  void toggle3DAutoRotate() {
+    if (is3DAutoRotating.value) {
+      _autoRotate3DTimer?.cancel();
+      _autoRotate3DTimer = null;
+      is3DAutoRotating.value = false;
+      return;
+    }
+
+    is3DAutoRotating.value = true;
+    _autoRotate3DTimer?.cancel();
+    _autoRotate3DTimer = Timer.periodic(const Duration(milliseconds: 80), (_) {
+      rotationY.value += _viewIntervalStep / 4;
+    });
   }
 
   SurveyPlotPoint? pointForAnnotationMd(double md) {

@@ -397,7 +397,8 @@ class MudController extends GetxController {
     isLoading.value = true;
     _isApplyingSavedState = true;
     try {
-      final cachedState = _stateCache[_mudStateCacheKey];
+      final cachedState =
+          applySavedState ? _stateCache[_mudStateCacheKey] : null;
       final savedState = cachedState ??
           (applySavedState ? await _fetchMudReportState() : null);
       final savedFluidType = (savedState?['fluidType'] ?? '').toString().trim();
@@ -406,6 +407,7 @@ class MudController extends GetxController {
       }
 
       propertyTable.clear();
+      propertyUnits.clear();
       availableProperties.clear();
       solidAnalysisResult.clear();
       for (int i = 0; i < 3; i++) {
@@ -1647,9 +1649,14 @@ class MudController extends GetxController {
 
   bool isPropertyRemovable(String name) => !_basePropertyNames.contains(name);
 
-  void changeFluidType(String type) {
-    selectedFluidType.value = type;
-    loadFluidTypeData(applySavedState: false);
+  Future<void> changeFluidType(String type) async {
+    final normalized = type.trim();
+    if (normalized.isEmpty || normalized == selectedFluidType.value) return;
+    _mudStateSaveTimer?.cancel();
+    _isApplyingSavedState = true;
+    selectedFluidType.value = normalized;
+    await loadFluidTypeData(applySavedState: false);
+    _scheduleMudReportSave();
   }
 
   // ═══════════════════════════════════════════════════════════════════════════

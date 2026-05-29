@@ -19,6 +19,10 @@ class Survey3DTab extends StatelessWidget {
         rotationX: controller.rotationX.value,
         rotationY: controller.rotationY.value,
         zoom: controller.zoom.value,
+        backgroundColor: controller.graph3DBackgroundColor.value,
+        showGrid: controller.show3DGrid.value,
+        cylinderScale: controller.graph3DCylinderScale.value,
+        isAutoRotating: controller.is3DAutoRotating.value,
         onRotateLeft: controller.rotateLeft,
         onRotateRight: controller.rotateRight,
         onTiltDown: controller.rotateDown,
@@ -26,15 +30,168 @@ class Survey3DTab extends StatelessWidget {
         onZoomIn: controller.zoomIn,
         onZoomOut: controller.zoomOut,
         onReset: controller.reset3DView,
+        onCapture: () => debugPrint('3D capture screen requested'),
+        onSettings: () => _show3DViewSettings(context),
+        onStartRotate: controller.toggle3DAutoRotate,
+        onTopToBottom: () {
+          controller.rotationX.value = 1.15;
+          controller.rotationY.value = 0.75;
+        },
+        onBottomToTop: () {
+          controller.rotationX.value = -0.55;
+          controller.rotationY.value = 0.75;
+        },
+        onNorthToSouth: () {
+          controller.rotationX.value = 0.55;
+          controller.rotationY.value = 1.45;
+        },
+        onSouthToNorth: () {
+          controller.rotationX.value = 0.55;
+          controller.rotationY.value = 0.05;
+        },
         onPanUpdate: (details) {
           controller.rotationY.value += details.delta.dx * 0.01;
-          controller.rotationX.value =
-              (controller.rotationX.value + details.delta.dy * 0.005)
-                  .clamp(-0.6, 0.6)
-                  .toDouble();
+          controller.rotationX.value += details.delta.dy * 0.01;
         },
       );
     });
+  }
+
+  Future<void> _show3DViewSettings(BuildContext context) async {
+    var showGrid = controller.show3DGrid.value;
+    var showAllQuadrants = controller.show3DAllQuadrants.value;
+    var backgroundColor = controller.graph3DBackgroundColor.value;
+    var cylinderScale = controller.graph3DCylinderScale.value;
+    var moveInterval = controller.graph3DMoveRotateZoomInterval.value;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Dialog(
+              insetPadding: const EdgeInsets.all(24),
+              child: SizedBox(
+                width: 430,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _DialogTitleBar(
+                      title: '3D View Setting',
+                      onClose: () => Navigator.of(dialogContext).pop(),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(22, 10, 22, 16),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _SettingsCheckbox(
+                            label: 'Grid',
+                            value: showGrid,
+                            onChanged: (value) {
+                              setState(() => showGrid = value ?? false);
+                            },
+                          ),
+                          _SettingsCheckbox(
+                            label: 'All Quadrants',
+                            value: showAllQuadrants,
+                            onChanged: (value) {
+                              setState(
+                                () => showAllQuadrants = value ?? false,
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 10),
+                          _ColorGroup(
+                            backgroundColor: backgroundColor,
+                            onPickBackground: () async {
+                              final picked = await _showColorDialog(
+                                dialogContext,
+                                initialColor: backgroundColor,
+                              );
+                              if (picked != null) {
+                                setState(() => backgroundColor = picked);
+                              }
+                            },
+                          ),
+                          const SizedBox(height: 14),
+                          _SettingsDropdownRow(
+                            label: 'Cylinder Scale',
+                            value: cylinderScale,
+                            onChanged: (value) {
+                              if (value != null) {
+                                setState(() => cylinderScale = value);
+                              }
+                            },
+                          ),
+                          _SettingsDropdownRow(
+                            label: 'Move/Rotate/Zoom Interval',
+                            value: moveInterval,
+                            onChanged: (value) {
+                              if (value != null) {
+                                setState(() => moveInterval = value);
+                              }
+                            },
+                          ),
+                          _DisabledAngleRow(),
+                          const SizedBox(height: 18),
+                          Row(
+                            children: [
+                              _DialogButton(
+                                label: 'Default',
+                                onPressed: () {
+                                  setState(() {
+                                    showGrid = true;
+                                    showAllQuadrants = false;
+                                    backgroundColor = const Color(0xFFE5E5E5);
+                                    cylinderScale = 3;
+                                    moveInterval = 5;
+                                  });
+                                },
+                              ),
+                              const Spacer(),
+                              _DialogButton(
+                                label: 'OK',
+                                onPressed: () {
+                                  controller.apply3DViewSettings(
+                                    showGrid: showGrid,
+                                    showAllQuadrants: showAllQuadrants,
+                                    backgroundColor: backgroundColor,
+                                    cylinderScale: cylinderScale,
+                                    moveRotateZoomInterval: moveInterval,
+                                  );
+                                  Navigator.of(dialogContext).pop();
+                                },
+                              ),
+                              const SizedBox(width: 8),
+                              _DialogButton(
+                                label: 'Cancel',
+                                onPressed: () =>
+                                    Navigator.of(dialogContext).pop(),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<Color?> _showColorDialog(
+    BuildContext context, {
+    required Color initialColor,
+  }) {
+    return showDialog<Color>(
+      context: context,
+      builder: (_) => _ColorPickerDialog(initialColor: initialColor),
+    );
   }
 }
 
@@ -45,6 +202,10 @@ class WellPath3DViewer extends StatelessWidget {
     required this.rotationX,
     required this.rotationY,
     required this.zoom,
+    required this.backgroundColor,
+    required this.showGrid,
+    required this.cylinderScale,
+    required this.isAutoRotating,
     required this.onRotateLeft,
     required this.onRotateRight,
     required this.onTiltDown,
@@ -52,6 +213,13 @@ class WellPath3DViewer extends StatelessWidget {
     required this.onZoomIn,
     required this.onZoomOut,
     required this.onReset,
+    required this.onCapture,
+    required this.onSettings,
+    required this.onStartRotate,
+    required this.onTopToBottom,
+    required this.onBottomToTop,
+    required this.onNorthToSouth,
+    required this.onSouthToNorth,
     required this.onPanUpdate,
   });
 
@@ -59,6 +227,10 @@ class WellPath3DViewer extends StatelessWidget {
   final double rotationX;
   final double rotationY;
   final double zoom;
+  final Color backgroundColor;
+  final bool showGrid;
+  final int cylinderScale;
+  final bool isAutoRotating;
   final VoidCallback onRotateLeft;
   final VoidCallback onRotateRight;
   final VoidCallback onTiltDown;
@@ -66,6 +238,13 @@ class WellPath3DViewer extends StatelessWidget {
   final VoidCallback onZoomIn;
   final VoidCallback onZoomOut;
   final VoidCallback onReset;
+  final VoidCallback onCapture;
+  final VoidCallback onSettings;
+  final VoidCallback onStartRotate;
+  final VoidCallback onTopToBottom;
+  final VoidCallback onBottomToTop;
+  final VoidCallback onNorthToSouth;
+  final VoidCallback onSouthToNorth;
   final GestureDragUpdateCallback onPanUpdate;
 
   @override
@@ -73,7 +252,7 @@ class WellPath3DViewer extends StatelessWidget {
     final bounds = _Survey3DBounds.fromPoints(surveyPoints);
 
     return Container(
-      color: const Color(0xFFE5E5E5),
+      color: backgroundColor,
       child: Row(
         children: [
           Expanded(
@@ -85,6 +264,8 @@ class WellPath3DViewer extends StatelessWidget {
                   rotationX: rotationX,
                   rotationY: rotationY,
                   zoom: zoom,
+                  showGrid: showGrid,
+                  cylinderScale: cylinderScale,
                   minEastWest: bounds.minEastWest,
                   maxEastWest: bounds.maxEastWest,
                   eastWestAxisMax: bounds.eastWestAxisMax,
@@ -105,6 +286,14 @@ class WellPath3DViewer extends StatelessWidget {
             onZoomIn: onZoomIn,
             onZoomOut: onZoomOut,
             onReset: onReset,
+            onCapture: onCapture,
+            onSettings: onSettings,
+            onStartRotate: onStartRotate,
+            isAutoRotating: isAutoRotating,
+            onTopToBottom: onTopToBottom,
+            onBottomToTop: onBottomToTop,
+            onNorthToSouth: onNorthToSouth,
+            onSouthToNorth: onSouthToNorth,
           ),
         ],
       ),
@@ -121,6 +310,14 @@ class _Survey3DTools extends StatelessWidget {
     required this.onZoomIn,
     required this.onZoomOut,
     required this.onReset,
+    required this.onCapture,
+    required this.onSettings,
+    required this.onStartRotate,
+    required this.isAutoRotating,
+    required this.onTopToBottom,
+    required this.onBottomToTop,
+    required this.onNorthToSouth,
+    required this.onSouthToNorth,
   });
 
   final VoidCallback onRotateLeft;
@@ -130,6 +327,14 @@ class _Survey3DTools extends StatelessWidget {
   final VoidCallback onZoomIn;
   final VoidCallback onZoomOut;
   final VoidCallback onReset;
+  final VoidCallback onCapture;
+  final VoidCallback onSettings;
+  final VoidCallback onStartRotate;
+  final bool isAutoRotating;
+  final VoidCallback onTopToBottom;
+  final VoidCallback onBottomToTop;
+  final VoidCallback onNorthToSouth;
+  final VoidCallback onSouthToNorth;
 
   @override
   Widget build(BuildContext context) {
@@ -137,30 +342,44 @@ class _Survey3DTools extends StatelessWidget {
       width: 34,
       margin: const EdgeInsets.only(right: 4),
       color: const Color(0xFFEFEFEF),
-      child: Column(
-        children: [
-          const SizedBox(height: 8),
-          _tool(Icons.undo, 'Rotate Left', onRotateLeft),
-          _tool(Icons.redo, 'Rotate Right', onRotateRight),
-          _tool(Icons.keyboard_double_arrow_down, 'Tilt Down', onTiltDown),
-          _tool(Icons.rotate_90_degrees_ccw, 'Tilt Up', onTiltUp),
-          const _ToolDivider(),
-          _tool(Icons.arrow_upward, 'Tilt Up', onTiltUp),
-          _tool(Icons.arrow_downward, 'Tilt Down', onTiltDown),
-          _tool(Icons.arrow_back, 'Rotate Left', onRotateLeft),
-          _tool(Icons.arrow_forward, 'Rotate Right', onRotateRight),
-          const _ToolDivider(),
-          _tool(Icons.zoom_in, 'Zoom In', onZoomIn),
-          _tool(Icons.zoom_out, 'Zoom Out', onZoomOut),
-          const _ToolDivider(),
-          _tool(Icons.camera_alt_outlined, 'Camera', onReset),
-          _tool(Icons.pan_tool_alt, 'Pan', onReset),
-          _tool(Icons.rotate_left, 'Reset View', onReset),
-          _tool(Icons.view_in_ar, '3D View', onReset),
-          _tool(Icons.swap_vert, 'Depth Axis', onReset),
-          _tool(Icons.text_rotation_down, 'Label Axis', onReset),
-          const Spacer(),
-        ],
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            _tool(Icons.rotate_left, 'Rotate Left', onRotateLeft),
+            _tool(Icons.rotate_right, 'Rotate Right', onRotateRight),
+            _tool(Icons.keyboard_double_arrow_down, 'Rotate Down', onTiltDown),
+            _tool(Icons.keyboard_double_arrow_up, 'Rotate Up', onTiltUp),
+            const _ToolDivider(),
+            _tool(Icons.arrow_upward, 'Move Up', onTiltUp),
+            _tool(Icons.arrow_downward, 'Move Down', onTiltDown),
+            _tool(Icons.arrow_back, 'Move Left', onRotateLeft),
+            _tool(Icons.arrow_forward, 'Move Right', onRotateRight),
+            const _ToolDivider(),
+            _tool(Icons.zoom_in, 'Zoom In', onZoomIn),
+            _tool(Icons.zoom_out, 'Zoom Out', onZoomOut),
+            const _ToolDivider(),
+            _tool(
+              Icons.camera_alt_outlined,
+              'Capture Screen to Clipboard',
+              onCapture,
+            ),
+            _tool(Icons.settings, '3D View Settings', onSettings),
+            _tool(
+              isAutoRotating ? Icons.pause : Icons.play_arrow,
+              isAutoRotating ? 'Stop Rotate' : 'Start Rotate',
+              onStartRotate,
+            ),
+            _tool(Icons.home, 'Default View', onReset),
+            const _ToolDivider(),
+            _tool(Icons.vertical_align_bottom, 'Top to Bottom', onTopToBottom),
+            _tool(Icons.vertical_align_top, 'Bottom to Top', onBottomToTop),
+            _tool(Icons.south, 'North to South', onNorthToSouth),
+            _tool(Icons.north, 'South to North', onSouthToNorth),
+            const SizedBox(height: 8),
+          ],
+        ),
       ),
     );
   }
@@ -190,6 +409,637 @@ class _ToolDivider extends StatelessWidget {
       height: 1,
       margin: const EdgeInsets.symmetric(vertical: 4),
       color: const Color(0xFFD4D4D4),
+    );
+  }
+}
+
+class _DialogTitleBar extends StatelessWidget {
+  const _DialogTitleBar({required this.title, required this.onClose});
+
+  final String title;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 44,
+      padding: const EdgeInsets.only(left: 16, right: 8),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: Color(0xFFD8D8D8))),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              title,
+              style: const TextStyle(fontSize: 18, color: Color(0xFF222222)),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.close, size: 20),
+            onPressed: onClose,
+            splashRadius: 18,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SettingsCheckbox extends StatelessWidget {
+  const _SettingsCheckbox({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final String label;
+  final bool value;
+  final ValueChanged<bool?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 28,
+      child: CheckboxListTile(
+        value: value,
+        onChanged: onChanged,
+        dense: true,
+        contentPadding: EdgeInsets.zero,
+        controlAffinity: ListTileControlAffinity.leading,
+        title: Text(label, style: const TextStyle(fontSize: 13)),
+      ),
+    );
+  }
+}
+
+class _ColorGroup extends StatelessWidget {
+  const _ColorGroup({
+    required this.backgroundColor,
+    required this.onPickBackground,
+  });
+
+  final Color backgroundColor;
+  final VoidCallback onPickBackground;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+      decoration: BoxDecoration(
+        border: Border.all(color: const Color(0xFFE2E2E2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Transform.translate(
+            offset: const Offset(-4, -22),
+            child: Container(
+              color: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: const Text('Color', style: TextStyle(fontSize: 13)),
+            ),
+          ),
+          _ColorRow(
+            label: 'Well',
+            color: const Color(0xFF777777),
+            enabled: false,
+            onTap: () {},
+          ),
+          const SizedBox(height: 10),
+          _ColorRow(
+            label: 'Background',
+            color: backgroundColor,
+            enabled: true,
+            onTap: onPickBackground,
+          ),
+          const SizedBox(height: 10),
+          _ColorRow(
+            label: 'Grid + Legend',
+            color: Colors.black,
+            enabled: false,
+            onTap: () {},
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ColorRow extends StatelessWidget {
+  const _ColorRow({
+    required this.label,
+    required this.color,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  final String label;
+  final Color color;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        SizedBox(
+          width: 170,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              color: enabled ? const Color(0xFF333333) : Colors.grey,
+            ),
+          ),
+        ),
+        InkWell(
+          onTap: enabled ? onTap : null,
+          child: Container(
+            width: 26,
+            height: 26,
+            decoration: BoxDecoration(
+              color: enabled ? color : Colors.white,
+              border: Border.all(color: const Color(0xFFC8C8C8)),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x22000000),
+                  blurRadius: 1,
+                  offset: Offset(0, 1),
+                ),
+              ],
+            ),
+            child: enabled
+                ? null
+                : const Center(
+                    child: Text('...', style: TextStyle(color: Colors.grey)),
+                  ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SettingsDropdownRow extends StatelessWidget {
+  const _SettingsDropdownRow({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final String label;
+  final int value;
+  final ValueChanged<int?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(label, style: const TextStyle(fontSize: 13)),
+          ),
+          SizedBox(
+            width: 108,
+            height: 28,
+            child: DropdownButtonFormField<int>(
+              value: value,
+              decoration: const InputDecoration(
+                isDense: true,
+                contentPadding: EdgeInsets.symmetric(horizontal: 8),
+                border: OutlineInputBorder(),
+              ),
+              items: List.generate(
+                5,
+                (index) => DropdownMenuItem(
+                  value: index + 1,
+                  child: Text('${index + 1}'),
+                ),
+              ),
+              onChanged: onChanged,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DisabledAngleRow extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          const Expanded(
+            child: Text(
+              'Angle',
+              style: TextStyle(fontSize: 13, color: Color(0xFFB0B0B0)),
+            ),
+          ),
+          Container(
+            width: 108,
+            height: 28,
+            alignment: Alignment.centerRight,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF4F4F4),
+              border: Border.all(color: const Color(0xFFE2E2E2)),
+            ),
+            child: const Text(
+              '150',
+              style: TextStyle(fontSize: 13, color: Color(0xFF777777)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DialogButton extends StatelessWidget {
+  const _DialogButton({required this.label, required this.onPressed});
+
+  final String label;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 100,
+      height: 30,
+      child: OutlinedButton(
+        onPressed: onPressed,
+        style: OutlinedButton.styleFrom(
+          shape: const RoundedRectangleBorder(),
+          padding: EdgeInsets.zero,
+        ),
+        child: Text(label, style: const TextStyle(fontSize: 13)),
+      ),
+    );
+  }
+}
+
+class _ColorPickerDialog extends StatefulWidget {
+  const _ColorPickerDialog({required this.initialColor});
+
+  final Color initialColor;
+
+  @override
+  State<_ColorPickerDialog> createState() => _ColorPickerDialogState();
+}
+
+class _ColorPickerDialogState extends State<_ColorPickerDialog> {
+  static const List<Color> _basicColors = [
+    Color(0xFFFF8080),
+    Color(0xFFFFFF80),
+    Color(0xFF80FF80),
+    Color(0xFF00FF80),
+    Color(0xFF80FFFF),
+    Color(0xFF0080FF),
+    Color(0xFFFF80C0),
+    Color(0xFFFF80FF),
+    Color(0xFFFF0000),
+    Color(0xFFFFFF00),
+    Color(0xFF80FF00),
+    Color(0xFF00FF40),
+    Color(0xFF00FFFF),
+    Color(0xFF0000FF),
+    Color(0xFFC080FF),
+    Color(0xFFFF00FF),
+    Color(0xFFC00000),
+    Color(0xFFFF8000),
+    Color(0xFF00C000),
+    Color(0xFF008080),
+    Color(0xFF0080C0),
+    Color(0xFF8080FF),
+    Color(0xFF800080),
+    Color(0xFFFF0080),
+    Color(0xFF800000),
+    Color(0xFF804000),
+    Color(0xFF008000),
+    Color(0xFF004040),
+    Color(0xFF0000A0),
+    Color(0xFF000080),
+    Color(0xFF800040),
+    Color(0xFF8000FF),
+    Color(0xFF400000),
+    Color(0xFF804000),
+    Color(0xFF808000),
+    Color(0xFF004000),
+    Color(0xFF004040),
+    Color(0xFF808080),
+    Color(0xFF400040),
+    Color(0xFFFFFFFF),
+  ];
+
+  late Color _selectedColor;
+  late HSVColor _selectedHsv;
+  bool _expanded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedColor = widget.initialColor;
+    _selectedHsv = HSVColor.fromColor(_selectedColor);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      insetPadding: const EdgeInsets.all(24),
+      child: SizedBox(
+        width: _expanded ? 486.0 : 250.0,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _DialogTitleBar(
+              title: 'Color',
+              onClose: () => Navigator.of(context).pop(),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildPaletteColumn(),
+                  if (_expanded) ...[
+                    const SizedBox(width: 16),
+                    _buildCustomColumn(),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPaletteColumn() {
+    return SizedBox(
+      width: 226,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Basic colors:',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 5,
+            runSpacing: 5,
+            children: _basicColors.map(_colorCell).toList(),
+          ),
+          const SizedBox(height: 14),
+          const Text(
+            'Custom colors:',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 7,
+            runSpacing: 7,
+            children: List.generate(
+              16,
+              (_) => Container(
+                width: 18,
+                height: 18,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border.all(color: const Color(0xFFBEBEBE)),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: 226,
+            height: 28,
+            child: OutlinedButton(
+              onPressed: () => setState(() => _expanded = true),
+              style: OutlinedButton.styleFrom(
+                shape: const RoundedRectangleBorder(),
+                padding: EdgeInsets.zero,
+              ),
+              child: const Text(
+                'Define Custom Colors >>',
+                style: TextStyle(fontSize: 12),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              _DialogButton(
+                label: 'OK',
+                onPressed: () => Navigator.of(context).pop(_selectedColor),
+              ),
+              const SizedBox(width: 8),
+              _DialogButton(
+                label: 'Cancel',
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCustomColumn() {
+    return SizedBox(
+      width: 220,
+      child: Column(
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              GestureDetector(
+                onPanDown: (details) => _pickCustomColor(details.localPosition),
+                onPanUpdate: (details) =>
+                    _pickCustomColor(details.localPosition),
+                child: Container(
+                  width: 188,
+                  height: 188,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: const Color(0xFFB8B8B8)),
+                    gradient: const LinearGradient(
+                      colors: [
+                        Color(0xFFFF0000),
+                        Color(0xFFFFFF00),
+                        Color(0xFF00FF00),
+                        Color(0xFF00FFFF),
+                        Color(0xFF0000FF),
+                        Color(0xFFFF00FF),
+                        Color(0xFFFF0000),
+                      ],
+                    ),
+                  ),
+                  child: Align(
+                    alignment: Alignment(
+                      (_selectedHsv.hue / 180) - 1,
+                      (1 - _selectedHsv.saturation * 2),
+                    ),
+                    child: Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.black),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                width: 18,
+                height: 188,
+                decoration: BoxDecoration(
+                  border: Border.all(color: const Color(0xFFB8B8B8)),
+                  gradient: const LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Colors.white, Colors.black],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Container(
+                width: 60,
+                height: 44,
+                color: _selectedColor,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  children: [
+                    _ColorValueRow(label: 'Hue:', value: _selectedHsv.hue),
+                    _ColorValueRow(
+                      label: 'Sat:',
+                      value: _selectedHsv.saturation * 100,
+                    ),
+                    _ColorValueRow(
+                      label: 'Lum:',
+                      value: _selectedHsv.value * 100,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  children: [
+                    _ColorValueRow(label: 'Red:', value: _selectedColor.red),
+                    _ColorValueRow(
+                      label: 'Green:',
+                      value: _selectedColor.green,
+                    ),
+                    _ColorValueRow(label: 'Blue:', value: _selectedColor.blue),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            height: 28,
+            child: OutlinedButton(
+              onPressed: () {},
+              style: OutlinedButton.styleFrom(
+                shape: const RoundedRectangleBorder(),
+                padding: EdgeInsets.zero,
+              ),
+              child: const Text(
+                'Add to Custom Colors',
+                style: TextStyle(fontSize: 12),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _colorCell(Color color) {
+    final selected = color.value == _selectedColor.value;
+    return InkWell(
+      onTap: () {
+        setState(() {
+          _selectedColor = color;
+          _selectedHsv = HSVColor.fromColor(color);
+        });
+      },
+      child: Container(
+        width: 18,
+        height: 18,
+        padding: selected ? const EdgeInsets.all(2) : EdgeInsets.zero,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border.all(
+            color: selected ? Colors.black : const Color(0xFFBEBEBE),
+            width: selected ? 2 : 1,
+          ),
+        ),
+        child: Container(color: color),
+      ),
+    );
+  }
+
+  void _pickCustomColor(Offset position) {
+    final hue = ((position.dx.clamp(0, 188) / 188) * 360).toDouble();
+    final saturation = (1 - (position.dy.clamp(0, 188) / 188)).toDouble();
+    setState(() {
+      _selectedHsv = HSVColor.fromAHSV(1, hue, saturation, 1);
+      _selectedColor = _selectedHsv.toColor();
+    });
+  }
+}
+
+class _ColorValueRow extends StatelessWidget {
+  const _ColorValueRow({required this.label, required this.value});
+
+  final String label;
+  final num value;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 20,
+      child: Row(
+        children: [
+          SizedBox(
+            width: 40,
+            child: Text(label, style: const TextStyle(fontSize: 11)),
+          ),
+          Expanded(
+            child: Container(
+              height: 18,
+              alignment: Alignment.centerRight,
+              padding: const EdgeInsets.only(right: 4),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border.all(color: const Color(0xFFC8C8C8)),
+              ),
+              child: Text(
+                value.round().toString(),
+                style: const TextStyle(fontSize: 11),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -229,6 +1079,8 @@ class WellPath3DPainter extends CustomPainter {
     required this.rotationX,
     required this.rotationY,
     required this.zoom,
+    required this.showGrid,
+    required this.cylinderScale,
     required this.minEastWest,
     required this.maxEastWest,
     required this.eastWestAxisMax,
@@ -242,6 +1094,8 @@ class WellPath3DPainter extends CustomPainter {
   final double rotationX;
   final double rotationY;
   final double zoom;
+  final bool showGrid;
+  final int cylinderScale;
   final double minEastWest;
   final double maxEastWest;
   final double eastWestAxisMax;
@@ -256,7 +1110,9 @@ class WellPath3DPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final projection = _buildProjection(size);
 
-    _drawGrid(canvas, projection);
+    if (showGrid) {
+      _drawGrid(canvas, projection);
+    }
     _drawBoundingBox(canvas, projection);
 
     if (points.isNotEmpty) {
@@ -356,23 +1212,23 @@ class WellPath3DPainter extends CustomPainter {
   void _drawWellPath(Canvas canvas, _Projection projection) {
     final pathPaint = Paint()
       ..color = const Color(0xFF4D4D4D)
-      ..strokeWidth = 5
+      ..strokeWidth = 2.5 + cylinderScale.clamp(1, 5).toDouble()
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round
       ..style = PaintingStyle.stroke;
     final shadowPaint = Paint()
       ..color = const Color(0xFF777777)
-      ..strokeWidth = 8
+      ..strokeWidth = 5.5 + cylinderScale.clamp(1, 5).toDouble()
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round
       ..style = PaintingStyle.stroke;
 
     final path = Path();
     final shadowPath = Path();
+    final normalPoints = _centeredNormalPoints();
 
-    for (var i = 0; i < points.length; i++) {
-      final point = points[i];
-      final projected = _project(_normalPoint(point), projection);
+    for (var i = 0; i < normalPoints.length; i++) {
+      final projected = _project(normalPoints[i], projection);
 
       if (i == 0) {
         path.moveTo(projected.dx, projected.dy);
@@ -571,6 +1427,34 @@ class WellPath3DPainter extends CustomPainter {
     );
   }
 
+  List<_V3> _centeredNormalPoints() {
+    final normalPoints = points.map(_normalPoint).toList();
+    if (normalPoints.isEmpty) return normalPoints;
+
+    var minX = normalPoints.first.x;
+    var maxX = normalPoints.first.x;
+    var minY = normalPoints.first.y;
+    var maxY = normalPoints.first.y;
+
+    for (final point in normalPoints) {
+      minX = math.min(minX, point.x);
+      maxX = math.max(maxX, point.x);
+      minY = math.min(minY, point.y);
+      maxY = math.max(maxY, point.y);
+    }
+
+    final offsetX = 0.5 - ((minX + maxX) / 2);
+    final offsetY = 0.42 - ((minY + maxY) / 2);
+
+    return normalPoints.map((point) {
+      return _V3(
+        (point.x + offsetX).clamp(0.0, 1.0).toDouble(),
+        (point.y + offsetY).clamp(0.0, 1.0).toDouble(),
+        point.z,
+      );
+    }).toList();
+  }
+
   _V3 _normalPoint(SurveyPoint point) {
     return _V3(
       _normalize(point.easting, minEastWest, maxEastWest),
@@ -601,16 +1485,20 @@ class WellPath3DPainter extends CustomPainter {
     final pitch = rotationX - 0.55;
     final centeredX = point.x - 0.5;
     final centeredY = point.y - 0.5;
+    final centeredZ = point.z - 0.5;
     final cosYaw = math.cos(yaw);
     final sinYaw = math.sin(yaw);
-    final rotatedX = (centeredX * cosYaw) - (centeredY * sinYaw) + 0.5;
-    final rotatedY = (centeredX * sinYaw) + (centeredY * cosYaw) + 0.5;
-    final zVec = projection.z + Offset(0, pitch * 24);
+    final yawX = (centeredX * cosYaw) - (centeredY * sinYaw);
+    final yawY = (centeredX * sinYaw) + (centeredY * cosYaw);
+    final cosPitch = math.cos(pitch);
+    final sinPitch = math.sin(pitch);
+    final pitchedY = (yawY * cosPitch) - (centeredZ * sinPitch);
+    final pitchedZ = (yawY * sinPitch) + (centeredZ * cosPitch);
 
     return projection.origin +
-        (projection.x * rotatedX) +
-        (projection.y * rotatedY) +
-        (zVec * point.z);
+        (projection.x * (yawX + 0.5)) +
+        (projection.y * (pitchedY + 0.5)) +
+        (projection.z * (pitchedZ + 0.5));
   }
 
   _V3 _rightMostVerticalEdge(_Projection projection) {
@@ -707,6 +1595,8 @@ class WellPath3DPainter extends CustomPainter {
         oldDelegate.rotationX != rotationX ||
         oldDelegate.rotationY != rotationY ||
         oldDelegate.zoom != zoom ||
+        oldDelegate.showGrid != showGrid ||
+        oldDelegate.cylinderScale != cylinderScale ||
         oldDelegate.minEastWest != minEastWest ||
         oldDelegate.maxEastWest != maxEastWest ||
         oldDelegate.eastWestAxisMax != eastWestAxisMax ||
@@ -779,7 +1669,7 @@ class _Survey3DBounds {
 
   static double _roundedAxisMax(double value) {
     if (value <= 0) return 12000;
-    return (value / 2000).ceil() * 2000.0;
+    return math.max((value / 2000).ceil() * 2000.0, 12000.0).toDouble();
   }
 
   final double minEastWest;
