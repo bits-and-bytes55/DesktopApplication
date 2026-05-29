@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/survey/controller/survey_controller.dart';
@@ -89,9 +91,9 @@ class _PlanGraphPainter extends CustomPainter {
   _PlanGraphPainter({required this.points, required this.markers});
 
   static const double _axisMin = 0;
-  static const double _axisMax = 1200;
+  static const double _axisMinMax = 1200;
+  static const double _axisStep = 200;
   static const int _gridDivisions = 12;
-  static const int _labelDivisions = 6;
 
   final List<dynamic> points;
   final List<_PlanMarker> markers;
@@ -122,21 +124,33 @@ class _PlanGraphPainter extends CustomPainter {
 
     const minX = _axisMin;
     const minY = _axisMin;
-    const xRange = _axisMax - _axisMin;
-    const yRange = _axisMax - _axisMin;
+    final maxX = _axisMaxFor(
+      points.fold<double>(0, (maxValue, point) {
+        return math.max(maxValue, _numberValue(point.eastWest).abs());
+      }),
+    );
+    final maxY = _axisMaxFor(
+      points.fold<double>(0, (maxValue, point) {
+        return math.max(maxValue, _numberValue(point.northSouth).abs());
+      }),
+    );
+    final xRange = maxX - _axisMin;
+    final yRange = maxY - _axisMin;
+    final xLabelDivisions = (maxX / _axisStep).round();
+    final yLabelDivisions = (maxY / _axisStep).round();
 
-    for (var i = 0; i <= _labelDivisions; i++) {
-      final value = minY + (yRange * i / _labelDivisions);
-      final py = plot.bottom - (plot.height * i / _labelDivisions);
+    for (var i = 0; i <= yLabelDivisions; i++) {
+      final value = minY + (_axisStep * i);
+      final py = plot.bottom - (plot.height * (value - minY) / yRange);
       drawSurveyText(
         canvas,
         value.toStringAsFixed(0),
         Offset(plot.left - 28, py - 7),
       );
     }
-    for (var i = 0; i <= _labelDivisions; i++) {
-      final value = minX + (xRange * i / _labelDivisions);
-      final px = plot.left + (plot.width * i / _labelDivisions);
+    for (var i = 0; i <= xLabelDivisions; i++) {
+      final value = minX + (_axisStep * i);
+      final px = plot.left + (plot.width * (value - minX) / xRange);
       drawSurveyText(
         canvas,
         value.toStringAsFixed(0),
@@ -156,9 +170,14 @@ class _PlanGraphPainter extends CustomPainter {
     final path = Path();
     for (var i = 0; i < points.length; i++) {
       final point = points[i];
-      final px = plot.left + ((point.eastWest - minX) / xRange) * plot.width;
-      final py =
-          plot.bottom - ((point.northSouth - minY) / yRange) * plot.height;
+      final xRatio = ((_numberValue(point.eastWest) - minX) / xRange)
+          .clamp(0.0, 1.0)
+          .toDouble();
+      final yRatio = ((_numberValue(point.northSouth) - minY) / yRange)
+          .clamp(0.0, 1.0)
+          .toDouble();
+      final px = plot.left + xRatio * plot.width;
+      final py = plot.bottom - yRatio * plot.height;
       if (i == 0) {
         path.moveTo(px, py);
       } else {
@@ -168,11 +187,25 @@ class _PlanGraphPainter extends CustomPainter {
     canvas.drawPath(path, line);
 
     for (final marker in markers) {
-      final px = plot.left + ((marker.x - minX) / xRange) * plot.width;
-      final py = plot.bottom - ((marker.y - minY) / yRange) * plot.height;
+      final xRatio =
+          ((marker.x - minX) / xRange).clamp(0.0, 1.0).toDouble();
+      final yRatio =
+          ((marker.y - minY) / yRange).clamp(0.0, 1.0).toDouble();
+      final px = plot.left + xRatio * plot.width;
+      final py = plot.bottom - yRatio * plot.height;
       drawSurveyMarker(canvas, Offset(px, py), marker.symbol);
       drawSurveyText(canvas, marker.label, Offset(px + 8, py - 10));
     }
+  }
+
+  double _axisMaxFor(double value) {
+    if (value <= 0) return _axisMinMax;
+    return math.max((value / _axisStep).ceil() * _axisStep, _axisMinMax);
+  }
+
+  double _numberValue(dynamic value) {
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString() ?? '') ?? 0;
   }
 
   @override
