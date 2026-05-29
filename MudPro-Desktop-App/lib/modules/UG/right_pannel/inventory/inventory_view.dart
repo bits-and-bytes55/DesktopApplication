@@ -97,18 +97,11 @@ class InventoryView extends StatelessWidget {
   // ================= FOOTER — only Apply button changed =================
   Widget _inventoryFooter(BuildContext context) {
     return Container(
-      height: 160,
-      padding: const EdgeInsets.all(12),
+      height: 180,
+      padding: const EdgeInsets.fromLTRB(150, 10, 16, 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: const Color(0xFFF3F3F3),
         border: Border(top: BorderSide(color: Colors.grey.shade300, width: 1)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 4,
-            offset: const Offset(0, -2),
-          ),
-        ],
       ),
       child: LayoutBuilder(
         builder: (ctx, constraints) {
@@ -126,17 +119,15 @@ class InventoryView extends StatelessWidget {
               ),
             );
           } else {
-            return SingleChildScrollView(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(flex: 1, child: _feesBox()),
-                  const SizedBox(width: 12),
-                  Expanded(flex: 2, child: _applyPricesBox()),
-                  const SizedBox(width: 12),
-                  Expanded(flex: 1, child: _inventoryPickupBox(context)),
-                ],
-              ),
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(width: 330, child: _feesBox()),
+                const SizedBox(width: 16),
+                SizedBox(width: 370, child: _applyPricesBox()),
+                const SizedBox(width: 8),
+                SizedBox(width: 230, child: _inventoryPickupBox(context)),
+              ],
             );
           }
         },
@@ -146,17 +137,13 @@ class InventoryView extends StatelessWidget {
 
   // ── Fees box — UNCHANGED ──────────────────────────────────
   Widget _feesBox() {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade300),
-        borderRadius: BorderRadius.circular(6),
-        color: AppTheme.cardColor,
-      ),
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           _footerRow('Bulk Tank Setup Fee (Kwd)', enabled: !c.isLocked.value),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           _footerRow('Tax Rate (%)', enabled: !c.isLocked.value),
         ],
       ),
@@ -166,11 +153,10 @@ class InventoryView extends StatelessWidget {
   // ── Apply Changed Prices box — UNCHANGED ──────────────────
   Widget _applyPricesBox() {
     return Container(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
       decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade300),
-        borderRadius: BorderRadius.circular(6),
-        color: AppTheme.cardColor,
+        border: Border.all(color: const Color(0xFFC7C7C7)),
+        color: const Color(0xFFF3F3F3),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -178,7 +164,7 @@ class InventoryView extends StatelessWidget {
           Text(
             'Apply Changed Prices',
             style: TextStyle(
-              fontSize: 11,
+              fontSize: 14,
               fontWeight: FontWeight.w600,
               color: AppTheme.primaryColor,
             ),
@@ -202,7 +188,7 @@ class InventoryView extends StatelessWidget {
                         isDense: true,
                         border: OutlineInputBorder(
                           borderSide: BorderSide(color: Colors.grey.shade400),
-                          borderRadius: BorderRadius.circular(4),
+                          borderRadius: BorderRadius.circular(0),
                         ),
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 8,
@@ -226,47 +212,53 @@ class InventoryView extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        OutlinedButton.icon(
-          onPressed: () {
-            Get.to(() => const InventoryPickupTabs());
-          },
-          icon: Icon(Icons.launch, size: 14, color: AppTheme.primaryColor),
-          label: Text(
-            'Inventory Pickup',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: AppTheme.primaryColor,
+        SizedBox(
+          width: 225,
+          height: 34,
+          child: OutlinedButton(
+            onPressed: () {
+              Get.to(() => const InventoryPickupTabs());
+            },
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: Color(0xFFBEBEBE)),
+              foregroundColor: const Color(0xFF3B3B3B),
+              padding: EdgeInsets.zero,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(0),
+              ),
             ),
-          ),
-          style: OutlinedButton.styleFrom(
-            side: BorderSide(color: AppTheme.primaryColor),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(6),
+            child: Text(
+              'Inventory Pickup',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: AppTheme.textPrimary,
+              ),
             ),
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 68),
 
         // ✅ Apply button — now calls _applyAll
-        SizedBox(
-          height: 32,
-          child: Obx(
-            () => ElevatedButton(
-              onPressed: c.isLocked.value ? null : () => _applyAll(context),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryColor,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 4,
+        Align(
+          alignment: Alignment.centerLeft,
+          child: SizedBox(
+            width: 122,
+            height: 34,
+            child: Obx(
+              () => ElevatedButton(
+                onPressed: c.isLocked.value ? null : () => _applyAll(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryColor,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: Colors.grey.shade300,
+                  padding: EdgeInsets.zero,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(0),
+                  ),
                 ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(4),
-                ),
+                child: const Text('Apply', style: TextStyle(fontSize: 14)),
               ),
-              child: const Text('Apply', style: TextStyle(fontSize: 11)),
             ),
           ),
         ),
@@ -439,7 +431,7 @@ class InventoryView extends StatelessWidget {
         Expanded(
           child: Text(
             label,
-            style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+            style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
           ),
         ),
         SizedBox(
@@ -464,14 +456,14 @@ class InventoryView extends StatelessWidget {
                 isDense: true,
                 border: OutlineInputBorder(
                   borderSide: BorderSide(color: Colors.grey.shade400),
-                  borderRadius: BorderRadius.circular(4),
+                  borderRadius: BorderRadius.circular(0),
                 ),
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 8,
                   vertical: 4,
                 ),
               ),
-              style: const TextStyle(fontSize: 10),
+              style: const TextStyle(fontSize: 13),
             ),
           ),
         ),
@@ -494,7 +486,7 @@ class InventoryView extends StatelessWidget {
             activeColor: AppTheme.primaryColor,
           ),
         ),
-        Text(text, style: const TextStyle(fontSize: 10)),
+        Text(text, style: const TextStyle(fontSize: 13)),
       ],
     );
   }

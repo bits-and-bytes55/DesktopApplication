@@ -1115,13 +1115,41 @@ class MudController extends GetxController {
         }
       }
 
-      // ── 7. Excess Lime = Whole Mud Alkalinity (POM) × 1.295 ──────────────
+      // ── 7. Excess Lime = 0.26 × (Pm + Pf - Mf) ──────────────
       final elTarget = _excessLimeKey;
-      if (elTarget != null) {
-        _watchOneOpt(i, _alkalinityKey, elTarget, (a) {
-          final v = double.tryParse(a) ?? 0;
-          return v == 0 ? '' : (v * 1.295).toStringAsFixed(2);
-        });
+      final pmKey = _wholeMudAlkKey;
+      final pfKey = _filtAlkPfKey;
+      final mfKey = _filtAlkMfKey;
+      if (elTarget != null && pmKey != null && pfKey != null && mfKey != null) {
+        final pmList = propertyTable[pmKey];
+        final pfList = propertyTable[pfKey];
+        final mfList = propertyTable[mfKey];
+        final elList = propertyTable[elTarget];
+        if (pmList != null &&
+            pfList != null &&
+            mfList != null &&
+            elList != null &&
+            i < pmList.length &&
+            i < pfList.length &&
+            i < mfList.length &&
+            i < elList.length) {
+          void recalcExcessLime() {
+            final pm = double.tryParse(pmList[i].value) ?? 0;
+            final pf = double.tryParse(pfList[i].value) ?? 0;
+            final mf = double.tryParse(mfList[i].value) ?? 0;
+            if (pm == 0 && pf == 0 && mf == 0) {
+              elList[i].value = '';
+              return;
+            }
+            final el = (0.26 * (pm + pf - mf)).clamp(0.0, double.infinity);
+            elList[i].value = el.toStringAsFixed(2);
+          }
+
+          recalcExcessLime();
+          ever(pmList[i], (_) => recalcExcessLime());
+          ever(pfList[i], (_) => recalcExcessLime());
+          ever(mfList[i], (_) => recalcExcessLime());
+        }
       }
 
       // ── 8. CaCl2 Concentration (mg/l) = 1.565 × Whole Mud Chlorides ───────
@@ -1207,37 +1235,6 @@ class MudController extends GetxController {
 
       // ── WBM-only ──────────────────────────────────────────────────────────
       if (selectedFluidType.value == 'Water-based') {
-        // Sand Content = same formula as Oil/Water Ratio
-        final scTarget = _sandContentKey;
-        if (scTarget != null) {
-          _watchTwoOpt(i, _oilKey, _waterKey, scTarget, (a, b) {
-            final o = double.tryParse(a) ?? 0;
-            final w = double.tryParse(b) ?? 0;
-            if (o == 0 && w == 0) return '';
-            final total = o + w;
-            if (total == 0) return '';
-            return '${(100 * o / total).ceil()}/${(100 * w / total).floor()}';
-          });
-        }
-
-        // Filtrate Alkalinity (Mf) = MBT × 1.295
-        final filtMfTarget = _filtAlkMfKey;
-        if (filtMfTarget != null) {
-          _watchOneOpt(i, _mbtKey, filtMfTarget, (a) {
-            final v = double.tryParse(a) ?? 0;
-            return v == 0 ? '' : (v * 1.295).toStringAsFixed(2);
-          });
-        }
-
-        // Calcium = Pf × 1.565
-        final calciumTarget = _calciumKey;
-        if (calciumTarget != null) {
-          _watchOneOpt(i, _filtAlkPfKey, calciumTarget, (a) {
-            final v = double.tryParse(a) ?? 0;
-            return v == 0 ? '' : (v * 1.565).toStringAsFixed(2);
-          });
-        }
-
         // Mud Chlorides = 10000 × CaCl2%
         final mudChlTarget = _mudChloridesMglKey;
         if (mudChlTarget != null) {
@@ -1291,12 +1288,6 @@ class MudController extends GetxController {
       return true;
     // FIX: match any water phase salinity row (no 'ppm' requirement)
     if (k.contains('water phase salinity') || k.contains('water phase sal'))
-      return true;
-    if (k == 'sand content' || k.contains('sand content')) return true;
-    if (k.contains('filtrate alkalinity') &&
-        (k.contains('mf') || k.contains('(mf)')))
-      return true;
-    if (k == 'calcium' || (k.startsWith('calcium') && !k.contains('chloride')))
       return true;
     if ((k.contains('mud chloride') || k == 'mud chlorides') &&
         !k.contains('whole'))
