@@ -679,21 +679,29 @@ class MudController extends GetxController {
   String get _wellId => currentBackendWellId.trim();
   String get _reportId => reportContext.selectedReportId.value.trim();
   String get _effectiveReportId {
-    final scopeKey = _stateScopeKey.value.trim();
-    if (scopeKey.isEmpty) return _reportId;
+    return _effectiveReportIdForScope(_stateScopeKey.value);
+  }
+
+  String _effectiveReportIdForScope(String scopeKey) {
+    final normalizedScope = scopeKey.trim();
+    if (normalizedScope.isEmpty) return _reportId;
     final base = _reportId.isEmpty ? 'well' : _reportId;
-    return '$base::$scopeKey';
+    return '$base::$normalizedScope';
   }
 
   String get _mudStateCacheKey {
+    return _mudStateCacheKeyForReportId(_effectiveReportId);
+  }
+
+  String _mudStateCacheKeyForReportId(String reportId) {
     final well = _wellId.isEmpty ? 'well' : _wellId;
-    final report = _effectiveReportId.isEmpty ? 'default' : _effectiveReportId;
+    final report = reportId.trim().isEmpty ? 'default' : reportId.trim();
     return '$well::$report';
   }
 
-  Uri _mudReportUri() {
+  Uri _mudReportUri({String? reportIdOverride}) {
     final base = Uri.parse('${_kBaseUrl}mud-report/$_wellId');
-    final reportId = _effectiveReportId;
+    final reportId = (reportIdOverride ?? _effectiveReportId).trim();
     return reportId.isEmpty
         ? base
         : base.replace(queryParameters: {'reportId': reportId});
@@ -735,11 +743,13 @@ class MudController extends GetxController {
     _stateCache[_mudStateCacheKey] = _buildMudReportPayload();
   }
 
-  Future<Map<String, dynamic>?> _fetchMudReportState() async {
+  Future<Map<String, dynamic>?> _fetchMudReportState({
+    String? reportIdOverride,
+  }) async {
     if (_wellId.isEmpty) return null;
     try {
       final response = await http.get(
-        _mudReportUri(),
+        _mudReportUri(reportIdOverride: reportIdOverride),
         headers: ApiEndpoint.jsonHeaders,
       );
       if (response.statusCode != 200) return null;
@@ -753,30 +763,7 @@ class MudController extends GetxController {
     return null;
   }
 
-  void _applyMudReportState(Map<String, dynamic> data) {
-    fluidnameController.text = (data['fluidName'] ?? '').toString();
-    isCompletionFluid.value = data['isCompletionFluid'] == true;
-    isWeightedMud.value = data['isWeightedMud'] == true;
-
-    final savedModel = (data['rheologyModel'] ?? '').toString().trim();
-    if (savedModel.isNotEmpty) rheologyModel.value = savedModel;
-    final savedCalculation = (data['rheologyCalculation'] ?? '')
-        .toString()
-        .trim();
-    if (savedCalculation.isNotEmpty) {
-      rheologyCalculation.value = savedCalculation;
-    }
-    final savedSample = (data['sampleForCalculation'] ?? '').toString().trim();
-    if (savedSample.isNotEmpty) sampleForCalculation.value = savedSample;
-
-    oilSgController.text = (data['oilSg'] ?? oilSgController.text).toString();
-    hgsSgController.text = (data['hgsSg'] ?? hgsSgController.text).toString();
-    lgsSgController.text = (data['lgsSg'] ?? lgsSgController.text).toString();
-    shaleCecController.text = (data['shaleCec'] ?? shaleCecController.text)
-        .toString();
-    bentCecController.text = (data['bentCec'] ?? bentCecController.text)
-        .toString();
-
+  void _applyMudPropertyState(Map<String, dynamic> data) {
     final units = _mapFromDynamic(data['propertyUnits']);
     units.forEach((key, value) {
       final targetKey = selectedFluidType.value == 'Water-based'
@@ -808,6 +795,33 @@ class MudController extends GetxController {
         row[i].value = values[i];
       }
     });
+  }
+
+  void _applyMudReportState(Map<String, dynamic> data) {
+    fluidnameController.text = (data['fluidName'] ?? '').toString();
+    isCompletionFluid.value = data['isCompletionFluid'] == true;
+    isWeightedMud.value = data['isWeightedMud'] == true;
+
+    final savedModel = (data['rheologyModel'] ?? '').toString().trim();
+    if (savedModel.isNotEmpty) rheologyModel.value = savedModel;
+    final savedCalculation = (data['rheologyCalculation'] ?? '')
+        .toString()
+        .trim();
+    if (savedCalculation.isNotEmpty) {
+      rheologyCalculation.value = savedCalculation;
+    }
+    final savedSample = (data['sampleForCalculation'] ?? '').toString().trim();
+    if (savedSample.isNotEmpty) sampleForCalculation.value = savedSample;
+
+    oilSgController.text = (data['oilSg'] ?? oilSgController.text).toString();
+    hgsSgController.text = (data['hgsSg'] ?? hgsSgController.text).toString();
+    lgsSgController.text = (data['lgsSg'] ?? lgsSgController.text).toString();
+    shaleCecController.text = (data['shaleCec'] ?? shaleCecController.text)
+        .toString();
+    bentCecController.text = (data['bentCec'] ?? bentCecController.text)
+        .toString();
+
+    _applyMudPropertyState(data);
 
     final savedRheology = _mapFromDynamic(data['rheologyTable']);
     if (savedRheology.isNotEmpty) {
@@ -1694,6 +1708,64 @@ class MudController extends GetxController {
     selectedFluidType.value = normalized;
     await loadFluidTypeData(applySavedState: false);
     _scheduleMudReportSave();
+  }
+
+  Future<bool> importMudPlanPropertiesFromInterval(String intervalId) async {
+    final cleanIntervalId = intervalId.trim();
+    if (_wellId.isEmpty || cleanIntervalId.isEmpty) return false;
+
+    final sourceReportId = _effectiveReportIdForScope(
+      'interval:$cleanIntervalId',
+    );
+    final sourceCacheKey = _mudStateCacheKeyForReportId(sourceReportId);
+    final sourceState =
+        _stateCache[sourceCacheKey] ??
+        await _fetchMudReportState(reportIdOverride: sourceReportId);
+    if (sourceState == null) return false;
+
+    final sourceProperties = _mapFromDynamic(sourceState['propertyTable']);
+    if (sourceProperties.isEmpty) return false;
+
+    final sourceFluidType = (sourceState['fluidType'] ?? '')
+        .toString()
+        .trim();
+    final nextFluidType = sourceFluidType.isEmpty
+        ? selectedFluidType.value
+        : sourceFluidType;
+
+    isLoading.value = true;
+    _mudStateSaveTimer?.cancel();
+    _isApplyingSavedState = true;
+    try {
+      selectedFluidType.value = nextFluidType;
+      propertyTable.clear();
+      propertyUnits.clear();
+      availableProperties.clear();
+      solidAnalysisResult.clear();
+      for (int i = 0; i < 3; i++) {
+        _solidAnalysisIds[i] = null;
+      }
+
+      await Future.wait([
+        _loadLeftTableFromMudProperties(),
+        _loadDropdownFromOthers(),
+      ]);
+      _basePropertyNames
+        ..clear()
+        ..addAll(propertyTable.keys);
+
+      _applyMudPropertyState(sourceState);
+      _setupAutoCalculations();
+      _setupSolidAnalysisWatchers();
+      _setupMudStateWatchers();
+    } finally {
+      _isApplyingSavedState = false;
+      isLoading.value = false;
+    }
+
+    _cacheCurrentMudState();
+    await saveMudReportState(force: true);
+    return true;
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
