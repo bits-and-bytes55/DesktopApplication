@@ -97,16 +97,32 @@ class ProductsPickupController extends GetxController {
     selectedProducts.refresh();
   }
 
-  void applySelectedProducts() {
+  bool applySelectedProducts() {
     try {
       // Find the store (don't create new one)
       final store = Get.find<InventoryProductsStore>();
+      final existingNames = store.selectedProducts
+          .map((product) => product.product.trim().toLowerCase())
+          .where((name) => name.isNotEmpty)
+          .toSet();
+      final selectedNames = <String>{};
+
+      for (final product in selectedProducts) {
+        final name = product.product.trim().toLowerCase();
+        if (name.isEmpty) continue;
+        if (existingNames.contains(name) || !selectedNames.add(name)) {
+          showErrorAlert('Product already exists in inventory');
+          return false;
+        }
+      }
+
       store.mergeSelectedProducts(selectedProducts);
-      
       print('✅ Applied ${selectedProducts.length} products to inventory');
+      return true;
     } catch (e) {
       print('❌ Error applying products: $e');
       showErrorAlert('Failed to apply products. Please restart the app.');
+      return false;
     }
   }
 

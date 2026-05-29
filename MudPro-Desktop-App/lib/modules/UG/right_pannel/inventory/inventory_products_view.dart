@@ -144,7 +144,9 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
           final snapshotObm = inventorySnapshot['obm'];
           if (snapshotObm is List) {
             c.obm.value = snapshotObm
-                .map((item) => ObmModel.fromJson(Map<String, dynamic>.from(item)))
+                .map(
+                  (item) => ObmModel.fromJson(Map<String, dynamic>.from(item)),
+                )
                 .toList();
           }
         } catch (_) {}
@@ -253,6 +255,14 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
             c.premixedLeasingFeeController.text.trim().isNotEmpty ||
             c.premixedMudTypeController.text.trim().isNotEmpty ||
             c.premixedTaxNew.value);
+  }
+
+  bool get _hasAnyPremixedDraftData {
+    return c.premixedDescController.text.trim().isNotEmpty ||
+        c.premixedMwController.text.trim().isNotEmpty ||
+        c.premixedLeasingFeeController.text.trim().isNotEmpty ||
+        c.premixedMudTypeController.text.trim().isNotEmpty ||
+        c.premixedTaxNew.value;
   }
 
   bool get _hasObmDraftData {
@@ -616,9 +626,9 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                   onSecondaryTapDown: c.isLocked.value
                       ? null
                       : (details) => _showEmptyProductContextMenu(
-                            store,
-                            details.globalPosition,
-                          ),
+                          store,
+                          details.globalPosition,
+                        ),
                   child: Center(
                     child: Text(
                       'No products selected',
@@ -642,175 +652,190 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                         child: SingleChildScrollView(
                           controller: _mainVerticalScroll,
                           child: Table(
-                      border: TableBorder.all(
-                        color: Colors.grey.shade300,
-                        width: 1,
-                      ),
-                      defaultVerticalAlignment:
-                          TableCellVerticalAlignment.middle,
-                      columnWidths: const {
-                        0: FixedColumnWidth(40),
-                        1: FlexColumnWidth(2.2),
-                        2: FlexColumnWidth(1),
-                        3: FlexColumnWidth(0.8),
-                        4: FlexColumnWidth(1.1),
-                        5: FlexColumnWidth(0.95),
-                        6: FlexColumnWidth(0.9),
-                        7: FlexColumnWidth(1.55),
-                        8: FlexColumnWidth(1),
-                        9: FlexColumnWidth(0.9),
-                        10: FlexColumnWidth(0.8),
-                        11: FlexColumnWidth(0.65),
-                      },
-                      children: [
-                        // Header Row
-                        TableRow(
-                          decoration:
-                              const BoxDecoration(color: Color(0xFFF3F3F3)),
-                          children: [
-                            _tableHeaderCell('No'),
-                            _tableHeaderCell('Product'),
-                            _tableHeaderCell('Code'),
-                            _tableHeaderCell('SG'),
-                            _tableHeaderCell('Unit'),
-                            _tableHeaderCell('Price\n(Kwd)'),
-                            _tableHeaderCell('Initial'),
-                            _tableHeaderCell('Group'),
-                            _tableHeaderCheckboxCell(
-                              'Vol. Addition',
-                              productsToDisplay.isNotEmpty &&
-                                  productsToDisplay.every((p) => p.volAdd),
-                              (value) {
-                                for (final product in productsToDisplay) {
-                                  product.volAdd = value;
-                                }
-                                store.selectedProducts.refresh();
-                                _scheduleProductsInventorySave();
-                              },
+                            border: TableBorder.all(
+                              color: Colors.grey.shade300,
+                              width: 1,
                             ),
-                            _tableHeaderCheckboxCell(
-                              'Calculate',
-                              productsToDisplay.isNotEmpty &&
-                                  productsToDisplay.every((p) => p.calculate),
-                              (value) {
-                                for (final product in productsToDisplay) {
-                                  product.calculate = value;
-                                }
-                                store.selectedProducts.refresh();
-                                _scheduleProductsInventorySave();
-                              },
-                            ),
-                            _tableHeaderCheckboxCell(
-                              'Plot',
-                              productsToDisplay.isNotEmpty &&
-                                  productsToDisplay.every((p) => p.plot),
-                              (value) {
-                                for (final product in productsToDisplay) {
-                                  product.plot = value;
-                                }
-                                store.selectedProducts.refresh();
-                                _scheduleProductsInventorySave();
-                              },
-                            ),
-                            _tableHeaderCheckboxCell(
-                              'Tax',
-                              productsToDisplay.isNotEmpty &&
-                                  productsToDisplay.every((p) => p.tax),
-                              (value) {
-                                for (final product in productsToDisplay) {
-                                  product.tax = value;
-                                }
-                                store.selectedProducts.refresh();
-                                _scheduleProductsInventorySave();
-                              },
-                            ),
-                          ],
-                        ),
-                        // Data Rows
-                        ...productsToDisplay.asMap().entries.map((entry) {
-                          final index = entry.key;
-                          final p = entry.value;
-                          final rowCells = [
-                            _tableCell((index + 1).toString()),
-                            _productActionCell(p, store),
-                            _editableTableCell(
-                              p.code,
-                              key: ValueKey('product-${_productRowKey(p, index)}-code'),
-                              onChanged: (v) {
-                                p.code = v;
-                                _scheduleProductsInventorySave();
-                              },
-                            ),
-                            _editableTableCell(
-                              p.sg,
-                              key: ValueKey('product-${_productRowKey(p, index)}-sg'),
-                              onChanged: (v) {
-                                p.sg = v;
-                                _scheduleProductsInventorySave();
-                              },
-                            ),
-                            _tableCell(p.formattedUnit),
-                            _editableTableCell(
-                              p.a.isNotEmpty ? p.a : p.price,
-                              key: ValueKey('product-${_productRowKey(p, index)}-price'),
-                              onChanged: (v) {
-                                p.a = v;
-                                p.price = v;
-                                _scheduleProductsInventorySave();
-                              },
-                            ),
-                            _editableTableCell(
-                              p.initial,
-                              key: ValueKey('product-${_productRowKey(p, index)}-initial'),
-                              onChanged: (v) {
-                                p.initial = v;
-                                _scheduleProductsInventorySave();
-                              },
-                            ),
-                            _editableTableCell(
-                              p.group,
-                              key: ValueKey('product-${_productRowKey(p, index)}-group'),
-                              onChanged: (v) {
-                                p.group = v;
-                                _scheduleProductsInventorySave();
-                              },
-                            ),
-                            _checkboxCell(() => p.volAdd, (v) {
-                              p.volAdd = v;
-                              store.selectedProducts.refresh();
-                              _scheduleProductsInventorySave();
-                            }),
-                            _checkboxCell(() => p.calculate, (v) {
-                              p.calculate = v;
-                              store.selectedProducts.refresh();
-                              _scheduleProductsInventorySave();
-                            }),
-                            _checkboxCell(() => p.plot, (v) {
-                              p.plot = v;
-                              store.selectedProducts.refresh();
-                              _scheduleProductsInventorySave();
-                            }),
-                            _checkboxCell(() => p.tax, (v) {
-                              p.tax = v;
-                              store.selectedProducts.refresh();
-                              _scheduleProductsInventorySave();
-                            }),
-                          ];
+                            defaultVerticalAlignment:
+                                TableCellVerticalAlignment.middle,
+                            columnWidths: const {
+                              0: FixedColumnWidth(40),
+                              1: FlexColumnWidth(2.2),
+                              2: FlexColumnWidth(1),
+                              3: FlexColumnWidth(0.8),
+                              4: FlexColumnWidth(1.1),
+                              5: FlexColumnWidth(0.95),
+                              6: FlexColumnWidth(0.9),
+                              7: FlexColumnWidth(1.55),
+                              8: FlexColumnWidth(1),
+                              9: FlexColumnWidth(0.9),
+                              10: FlexColumnWidth(0.8),
+                              11: FlexColumnWidth(0.65),
+                            },
+                            children: [
+                              // Header Row
+                              TableRow(
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFFF3F3F3),
+                                ),
+                                children: [
+                                  _tableHeaderCell('No'),
+                                  _tableHeaderCell('Product'),
+                                  _tableHeaderCell('Code'),
+                                  _tableHeaderCell('SG'),
+                                  _tableHeaderCell('Unit'),
+                                  _tableHeaderCell('Price\n(Kwd)'),
+                                  _tableHeaderCell('Initial'),
+                                  _tableHeaderCell('Group'),
+                                  _tableHeaderCheckboxCell(
+                                    'Vol. Addition',
+                                    productsToDisplay.isNotEmpty &&
+                                        productsToDisplay.every(
+                                          (p) => p.volAdd,
+                                        ),
+                                    (value) {
+                                      for (final product in productsToDisplay) {
+                                        product.volAdd = value;
+                                      }
+                                      store.selectedProducts.refresh();
+                                      _scheduleProductsInventorySave();
+                                    },
+                                  ),
+                                  _tableHeaderCheckboxCell(
+                                    'Calculate',
+                                    productsToDisplay.isNotEmpty &&
+                                        productsToDisplay.every(
+                                          (p) => p.calculate,
+                                        ),
+                                    (value) {
+                                      for (final product in productsToDisplay) {
+                                        product.calculate = value;
+                                      }
+                                      store.selectedProducts.refresh();
+                                      _scheduleProductsInventorySave();
+                                    },
+                                  ),
+                                  _tableHeaderCheckboxCell(
+                                    'Plot',
+                                    productsToDisplay.isNotEmpty &&
+                                        productsToDisplay.every((p) => p.plot),
+                                    (value) {
+                                      for (final product in productsToDisplay) {
+                                        product.plot = value;
+                                      }
+                                      store.selectedProducts.refresh();
+                                      _scheduleProductsInventorySave();
+                                    },
+                                  ),
+                                  _tableHeaderCheckboxCell(
+                                    'Tax',
+                                    productsToDisplay.isNotEmpty &&
+                                        productsToDisplay.every((p) => p.tax),
+                                    (value) {
+                                      for (final product in productsToDisplay) {
+                                        product.tax = value;
+                                      }
+                                      store.selectedProducts.refresh();
+                                      _scheduleProductsInventorySave();
+                                    },
+                                  ),
+                                ],
+                              ),
+                              // Data Rows
+                              ...productsToDisplay.asMap().entries.map((entry) {
+                                final index = entry.key;
+                                final p = entry.value;
+                                final rowCells = [
+                                  _tableCell((index + 1).toString()),
+                                  _productActionCell(p, store),
+                                  _editableTableCell(
+                                    p.code,
+                                    key: ValueKey(
+                                      'product-${_productRowKey(p, index)}-code',
+                                    ),
+                                    onChanged: (v) {
+                                      p.code = v;
+                                      _scheduleProductsInventorySave();
+                                    },
+                                  ),
+                                  _editableTableCell(
+                                    p.sg,
+                                    key: ValueKey(
+                                      'product-${_productRowKey(p, index)}-sg',
+                                    ),
+                                    onChanged: (v) {
+                                      p.sg = v;
+                                      _scheduleProductsInventorySave();
+                                    },
+                                  ),
+                                  _tableCell(p.formattedUnit),
+                                  _editableTableCell(
+                                    p.a.isNotEmpty ? p.a : p.price,
+                                    key: ValueKey(
+                                      'product-${_productRowKey(p, index)}-price',
+                                    ),
+                                    onChanged: (v) {
+                                      p.a = v;
+                                      p.price = v;
+                                      _scheduleProductsInventorySave();
+                                    },
+                                  ),
+                                  _editableTableCell(
+                                    p.initial,
+                                    key: ValueKey(
+                                      'product-${_productRowKey(p, index)}-initial',
+                                    ),
+                                    onChanged: (v) {
+                                      p.initial = v;
+                                      _scheduleProductsInventorySave();
+                                    },
+                                  ),
+                                  _editableTableCell(
+                                    p.group,
+                                    key: ValueKey(
+                                      'product-${_productRowKey(p, index)}-group',
+                                    ),
+                                    onChanged: (v) {
+                                      p.group = v;
+                                      _scheduleProductsInventorySave();
+                                    },
+                                  ),
+                                  _checkboxCell(() => p.volAdd, (v) {
+                                    p.volAdd = v;
+                                    store.selectedProducts.refresh();
+                                    _scheduleProductsInventorySave();
+                                  }),
+                                  _checkboxCell(() => p.calculate, (v) {
+                                    p.calculate = v;
+                                    store.selectedProducts.refresh();
+                                    _scheduleProductsInventorySave();
+                                  }),
+                                  _checkboxCell(() => p.plot, (v) {
+                                    p.plot = v;
+                                    store.selectedProducts.refresh();
+                                    _scheduleProductsInventorySave();
+                                  }),
+                                  _checkboxCell(() => p.tax, (v) {
+                                    p.tax = v;
+                                    store.selectedProducts.refresh();
+                                    _scheduleProductsInventorySave();
+                                  }),
+                                ];
 
-                          return TableRow(
-                            decoration: BoxDecoration(
-                              color: index.isEven
-                                  ? Colors.white
-                                  : AppTheme.cardColor,
-                            ),
-                            children: _wrapProductMenuCells(
-                              rowCells,
-                              product: p,
-                              store: store,
-                            ),
-                          );
-                        }),
-                      ],
+                                return TableRow(
+                                  decoration: BoxDecoration(
+                                    color: index.isEven
+                                        ? Colors.white
+                                        : AppTheme.cardColor,
+                                  ),
+                                  children: _wrapProductMenuCells(
+                                    rowCells,
+                                    product: p,
+                                    store: store,
+                                  ),
+                                );
+                              }),
+                            ],
                           ),
                         ),
                       ),
@@ -871,10 +896,10 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
             onSecondaryTapDown: c.isLocked.value
                 ? null
                 : (details) => _showProductContextMenu(
-                      product,
-                      store,
-                      details.globalPosition,
-                    ),
+                    product,
+                    store,
+                    details.globalPosition,
+                  ),
             child: cell,
           ),
         )
@@ -957,8 +982,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
     ProductModel product,
     InventoryProductsStore store, {
     bool isNew = false,
-  }
-  ) async {
+  }) async {
     final productController = TextEditingController(text: product.product);
     final codeController = TextEditingController(text: product.code);
     final sgController = TextEditingController(text: product.sg);
@@ -1067,7 +1091,8 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                 ),
                 ElevatedButton(
                   onPressed: () {
-                    final hasDraftData = productController.text.trim().isNotEmpty ||
+                    final hasDraftData =
+                        productController.text.trim().isNotEmpty ||
                         codeController.text.trim().isNotEmpty ||
                         sgController.text.trim().isNotEmpty ||
                         unitNumController.text.trim().isNotEmpty ||
@@ -1207,146 +1232,156 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                         controller: _premixedVerticalScroll,
                         child: Obx(
                           () => Table(
-                      border: TableBorder.all(
-                        color: Colors.grey.shade300,
-                        width: 1,
-                      ),
-                      defaultVerticalAlignment:
-                          TableCellVerticalAlignment.middle,
-                      columnWidths: const {
-                        0: FixedColumnWidth(40),
-                        1: FlexColumnWidth(2),
-                        2: FlexColumnWidth(0.9),
-                        3: FlexColumnWidth(1.35),
-                        4: FlexColumnWidth(1.15),
-                        5: FlexColumnWidth(0.7),
-                      },
-                      children: [
-                        TableRow(
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFF3F3F3),
-                          ),
-                          children: [
-                            _tableHeaderCell('#'),
-                            _tableHeaderCell('Description'),
-                            _tableHeaderCell('MW\n(ppg)'),
-                            _tableHeaderCell('Leasing Fee\n(Kwd/bbl)'),
-                            _tableHeaderCell('Mud Type'),
-                            _tableHeaderCell('Tax'),
-                          ],
-                        ),
-                        ...c.premixed.asMap().entries.map((entry) {
-                          final index = entry.key;
-                          final e = entry.value;
-                          final rowCells = [
-                            _tableCell((index + 1).toString()),
-                            _editableTableCell(
-                              e.description,
-                              key: ValueKey('${e.id}-description'),
-                              onTap: () => _selectPremixForObm(e.description),
-                              onChanged: (v) {
-                                e.description = v;
-                                _selectPremixForObm(v);
-                                _schedulePremixedUpdate(e);
-                              },
+                            border: TableBorder.all(
+                              color: Colors.grey.shade300,
+                              width: 1,
                             ),
-                            _editableTableCell(
-                              e.mw,
-                              key: ValueKey('${e.id}-mw'),
-                              onChanged: (v) {
-                                e.mw = v;
-                                _schedulePremixedUpdate(e);
-                              },
-                            ),
-                            _editableTableCell(
-                              e.leasingFee,
-                              key: ValueKey('${e.id}-leasingFee'),
-                              onChanged: (v) {
-                                e.leasingFee = v;
-                                _schedulePremixedUpdate(e);
-                              },
-                            ),
-                            _premixedMudTypeDropdown(
-                              value: e.mudType,
-                              onChanged: (v) {
-                                e.mudType = v;
-                                c.premixed.refresh();
-                                _schedulePremixedUpdate(e);
-                              },
-                            ),
-                            _checkboxCell(() => e.tax, (v) {
-                              e.tax = v;
-                              c.premixed.refresh();
-                              _schedulePremixedUpdate(e);
-                            }),
-                          ];
+                            defaultVerticalAlignment:
+                                TableCellVerticalAlignment.middle,
+                            columnWidths: const {
+                              0: FixedColumnWidth(40),
+                              1: FlexColumnWidth(2),
+                              2: FlexColumnWidth(0.9),
+                              3: FlexColumnWidth(1.35),
+                              4: FlexColumnWidth(1.15),
+                              5: FlexColumnWidth(0.7),
+                            },
+                            children: [
+                              TableRow(
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFFF3F3F3),
+                                ),
+                                children: [
+                                  _tableHeaderCell('#'),
+                                  _tableHeaderCell('Description'),
+                                  _tableHeaderCell('MW\n(ppg)'),
+                                  _tableHeaderCell('Leasing Fee\n(Kwd/bbl)'),
+                                  _tableHeaderCell('Mud Type'),
+                                  _tableHeaderCell('Tax'),
+                                ],
+                              ),
+                              ...c.premixed.asMap().entries.map((entry) {
+                                final index = entry.key;
+                                final e = entry.value;
+                                final rowCells = [
+                                  _tableCell((index + 1).toString()),
+                                  _editableTableCell(
+                                    e.description,
+                                    key: ValueKey('${e.id}-description'),
+                                    onTap: () =>
+                                        _selectPremixForObm(e.description),
+                                    onChanged: (v) {
+                                      e.description = v;
+                                      _selectPremixForObm(v);
+                                      _schedulePremixedUpdate(e);
+                                    },
+                                  ),
+                                  _editableTableCell(
+                                    e.mw,
+                                    key: ValueKey('${e.id}-mw'),
+                                    onChanged: (v) {
+                                      e.mw = v;
+                                      _schedulePremixedUpdate(e);
+                                    },
+                                  ),
+                                  _editableTableCell(
+                                    e.leasingFee,
+                                    key: ValueKey('${e.id}-leasingFee'),
+                                    onChanged: (v) {
+                                      e.leasingFee = v;
+                                      _schedulePremixedUpdate(e);
+                                    },
+                                  ),
+                                  _premixedMudTypeDropdown(
+                                    value: e.mudType,
+                                    onChanged: (v) {
+                                      e.mudType = v;
+                                      c.premixed.refresh();
+                                      _schedulePremixedUpdate(e);
+                                    },
+                                  ),
+                                  _checkboxCell(() => e.tax, (v) {
+                                    e.tax = v;
+                                    c.premixed.refresh();
+                                    _schedulePremixedUpdate(e);
+                                  }),
+                                ];
 
-                          return TableRow(
-                            decoration: BoxDecoration(
-                              color: index.isEven
-                                  ? Colors.white
-                                  : const Color(0xFFFBFBFB),
-                            ),
-                            children: _wrapMenuCells(
-                              rowCells,
-                              onDelete:
-                                  c.isLocked.value || (e.id?.isEmpty ?? true)
-                                  ? null
-                                  : () => _deletePremixed(e.id!),
-                            ),
-                          );
-                        }),
-                        TableRow(
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFFAFAFA),
-                          ),
-                          children: _wrapMenuCells(
-                            [
-                              _tableCell('${c.premixed.length + 1}'),
-                              _inventoryDraftCell(
-                                controller: c.premixedDescController,
-                                hint: '',
-                                onChanged: (_) => _schedulePremixedDraftSave(),
-                              ),
-                              _inventoryDraftCell(
-                                controller: c.premixedMwController,
-                                hint: '',
-                                onChanged: (_) => _schedulePremixedDraftSave(),
-                              ),
-                              _inventoryDraftCell(
-                                controller: c.premixedLeasingFeeController,
-                                hint: '',
-                                onChanged: (_) => _schedulePremixedDraftSave(),
-                              ),
-                              _premixedMudTypeDropdown(
-                                value: c.premixedMudTypeController.text,
-                                allowBlank: true,
-                                onChanged: (v) {
-                                  c.premixedMudTypeController.text = v;
-                                  setState(() {});
-                                  _schedulePremixedDraftSave();
-                                },
-                              ),
-                              Obx(
-                                () => _checkboxCell(
-                                  () => c.premixedTaxNew.value,
-                                  (v) {
-                                    c.premixedTaxNew.value = v;
-                                    _schedulePremixedDraftSave();
-                                  },
+                                return TableRow(
+                                  decoration: BoxDecoration(
+                                    color: index.isEven
+                                        ? Colors.white
+                                        : const Color(0xFFFBFBFB),
+                                  ),
+                                  children: _wrapMenuCells(
+                                    rowCells,
+                                    onDelete: c.isLocked.value
+                                        ? null
+                                        : () => _deletePremixedItem(e),
+                                  ),
+                                );
+                              }),
+                              TableRow(
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFFFAFAFA),
+                                ),
+                                children: _wrapMenuCells(
+                                  [
+                                    _tableCell('${c.premixed.length + 1}'),
+                                    _inventoryDraftCell(
+                                      controller: c.premixedDescController,
+                                      hint: '',
+                                      onChanged: (_) =>
+                                          _schedulePremixedDraftSave(),
+                                    ),
+                                    _inventoryDraftCell(
+                                      controller: c.premixedMwController,
+                                      hint: '',
+                                      onChanged: (_) =>
+                                          _schedulePremixedDraftSave(),
+                                    ),
+                                    _inventoryDraftCell(
+                                      controller:
+                                          c.premixedLeasingFeeController,
+                                      hint: '',
+                                      onChanged: (_) =>
+                                          _schedulePremixedDraftSave(),
+                                    ),
+                                    _premixedMudTypeDropdown(
+                                      value: c.premixedMudTypeController.text,
+                                      allowBlank: true,
+                                      onChanged: (v) {
+                                        c.premixedMudTypeController.text = v;
+                                        setState(() {});
+                                        _schedulePremixedDraftSave();
+                                      },
+                                    ),
+                                    Obx(
+                                      () => _checkboxCell(
+                                        () => c.premixedTaxNew.value,
+                                        (v) {
+                                          c.premixedTaxNew.value = v;
+                                          _schedulePremixedDraftSave();
+                                        },
+                                      ),
+                                    ),
+                                  ],
+                                  onAdd:
+                                      c.isLocked.value || !_hasPremixedDraftData
+                                      ? null
+                                      : () => _addPremixedFromDraft(),
+                                  onDelete:
+                                      c.isLocked.value ||
+                                          !_hasAnyPremixedDraftData
+                                      ? null
+                                      : () async => _clearPremixedDraft(),
                                 ),
                               ),
+                              ...List.generate(
+                                fillerRows,
+                                (_) => _emptyInventoryRow(columnCount: 6),
+                              ),
                             ],
-                            onAdd: c.isLocked.value || !_hasPremixedDraftData
-                                ? null
-                                : () => _addPremixedFromDraft(),
-                          ),
-                        ),
-                        ...List.generate(
-                          fillerRows,
-                          (_) => _emptyInventoryRow(columnCount: 6),
-                        ),
-                      ],
                           ),
                         ),
                       ),
@@ -1376,7 +1411,9 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
         children: [
           Row(
             children: [
-              Expanded(child: _inventorySectionTitle(_selectedPremixDescription)),
+              Expanded(
+                child: _inventorySectionTitle(_selectedPremixDescription),
+              ),
               SizedBox(
                 width: 36,
                 height: 28,
@@ -1413,73 +1450,74 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                         controller: _obmVerticalScroll,
                         child: Obx(
                           () => Table(
-                      border: TableBorder.all(
-                        color: Colors.grey.shade300,
-                        width: 1,
-                      ),
-                      defaultVerticalAlignment:
-                          TableCellVerticalAlignment.middle,
-                      columnWidths: const {
-                        0: FixedColumnWidth(34),
-                        1: FlexColumnWidth(2.2),
-                        2: FlexColumnWidth(1),
-                        3: FlexColumnWidth(0.8),
-                        4: FlexColumnWidth(0.8),
-                        5: FlexColumnWidth(0.9),
-                      },
-                      children: [
-                        TableRow(
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFF3F3F3),
-                          ),
-                          children: [
-                            _tableHeaderCell('#'),
-                            _tableHeaderCell('Product'),
-                            _tableHeaderCell('Code'),
-                            _tableHeaderCell('SG'),
-                            _tableHeaderCell('Conc'),
-                            _tableHeaderCell('Unit'),
-                          ],
-                        ),
-                        ...c.obm.asMap().entries.map((entry) {
-                          final index = entry.key;
-                          final e = entry.value;
-                          final rowCells = [
-                            _tableCell((index + 1).toString()),
-                            _readOnlyInventoryCell(e.product),
-                            _readOnlyInventoryCell(e.code),
-                            _readOnlyInventoryCell(e.sg),
-                            _editableTableCell(
-                              e.conc,
-                              key: ValueKey('${e.id}-conc'),
-                              onChanged: (v) {
-                                e.conc = v;
-                                _scheduleObmUpdate(e);
-                              },
+                            border: TableBorder.all(
+                              color: Colors.grey.shade300,
+                              width: 1,
                             ),
-                            _readOnlyInventoryCell(e.unit),
-                          ];
+                            defaultVerticalAlignment:
+                                TableCellVerticalAlignment.middle,
+                            columnWidths: const {
+                              0: FixedColumnWidth(34),
+                              1: FlexColumnWidth(2.2),
+                              2: FlexColumnWidth(1),
+                              3: FlexColumnWidth(0.8),
+                              4: FlexColumnWidth(0.8),
+                              5: FlexColumnWidth(0.9),
+                            },
+                            children: [
+                              TableRow(
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFFF3F3F3),
+                                ),
+                                children: [
+                                  _tableHeaderCell('#'),
+                                  _tableHeaderCell('Product'),
+                                  _tableHeaderCell('Code'),
+                                  _tableHeaderCell('SG'),
+                                  _tableHeaderCell('Conc'),
+                                  _tableHeaderCell('Unit'),
+                                ],
+                              ),
+                              ...c.obm.asMap().entries.map((entry) {
+                                final index = entry.key;
+                                final e = entry.value;
+                                final rowCells = [
+                                  _tableCell((index + 1).toString()),
+                                  _readOnlyInventoryCell(e.product),
+                                  _readOnlyInventoryCell(e.code),
+                                  _readOnlyInventoryCell(e.sg),
+                                  _editableTableCell(
+                                    e.conc,
+                                    key: ValueKey('${e.id}-conc'),
+                                    onChanged: (v) {
+                                      e.conc = v;
+                                      _scheduleObmUpdate(e);
+                                    },
+                                  ),
+                                  _readOnlyInventoryCell(e.unit),
+                                ];
 
-                          return TableRow(
-                            decoration: BoxDecoration(
-                              color: index.isEven
-                                  ? Colors.white
-                                  : const Color(0xFFFBFBFB),
-                            ),
-                            children: _wrapMenuCells(
-                              rowCells,
-                              onDelete:
-                                  c.isLocked.value || (e.id?.isEmpty ?? true)
-                                  ? null
-                                  : () => _deleteObm(e.id!),
-                            ),
-                          );
-                        }),
-                        ...List.generate(
-                          fillerRows,
-                          (_) => _emptyInventoryRow(columnCount: 6),
-                        ),
-                      ],
+                                return TableRow(
+                                  decoration: BoxDecoration(
+                                    color: index.isEven
+                                        ? Colors.white
+                                        : const Color(0xFFFBFBFB),
+                                  ),
+                                  children: _wrapMenuCells(
+                                    rowCells,
+                                    onDelete:
+                                        c.isLocked.value ||
+                                            (e.id?.isEmpty ?? true)
+                                        ? null
+                                        : () => _deleteObm(e.id!),
+                                  ),
+                                );
+                              }),
+                              ...List.generate(
+                                fillerRows,
+                                (_) => _emptyInventoryRow(columnCount: 6),
+                              ),
+                            ],
                           ),
                         ),
                       ),
@@ -1550,6 +1588,31 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
     } catch (e) {
       _showToast('Failed to delete premixed', isError: true);
     }
+  }
+
+  Future<void> _deletePremixedItem(PremixModel premixed) async {
+    final id = premixed.id?.trim() ?? '';
+    if (id.isEmpty) {
+      final confirm = await _showDeleteConfirmation('Premixed');
+      if (!confirm) return;
+      c.premixed.remove(premixed);
+      c.premixed.refresh();
+      _showToast('Premixed removed');
+      return;
+    }
+
+    await _deletePremixed(id);
+  }
+
+  void _clearPremixedDraft() {
+    _premixedCreateTimer?.cancel();
+    c.premixedDescController.clear();
+    c.premixedMwController.clear();
+    c.premixedLeasingFeeController.clear();
+    c.premixedMudTypeController.clear();
+    c.premixedTaxNew.value = false;
+    if (mounted) setState(() {});
+    _showToast('Premixed draft cleared');
   }
 
   // ================= OBM CRUD OPERATIONS =================
@@ -1826,8 +1889,8 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
         : options.contains(cleanValue)
         ? cleanValue
         : (mudController?.selectedFluidType.value.trim().isNotEmpty == true
-            ? mudController!.selectedFluidType.value
-            : options.first);
+              ? mudController!.selectedFluidType.value
+              : options.first);
 
     return Container(
       height: 28,
@@ -1850,10 +1913,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
               .map(
                 (option) => DropdownMenuItem<String>(
                   value: option,
-                  child: Text(
-                    option,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                  child: Text(option, overflow: TextOverflow.ellipsis),
                 ),
               )
               .toList(),

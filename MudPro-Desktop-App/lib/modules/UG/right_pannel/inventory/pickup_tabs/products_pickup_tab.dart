@@ -457,8 +457,9 @@ class _ProductsPickupPageState extends State<ProductsPickupPage> {
             onPressed: controller.selectedProducts.isEmpty
                 ? null
                 : () {
-                    if (widget.applyToMainInventory) {
-                      controller.applySelectedProducts();
+                    if (widget.applyToMainInventory &&
+                        !controller.applySelectedProducts()) {
+                      return;
                     }
                     Get.back();
                     Get.snackbar(
