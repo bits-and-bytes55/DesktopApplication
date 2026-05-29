@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/UG_controller.dart';
@@ -98,7 +99,7 @@ class InventoryView extends StatelessWidget {
   Widget _inventoryFooter(BuildContext context) {
     return Container(
       height: 180,
-      padding: const EdgeInsets.fromLTRB(150, 10, 16, 10),
+      padding: const EdgeInsets.fromLTRB(10, 10, 16, 10),
       decoration: BoxDecoration(
         color: const Color(0xFFF3F3F3),
         border: Border(top: BorderSide(color: Colors.grey.shade300, width: 1)),
@@ -426,6 +427,7 @@ class InventoryView extends StatelessWidget {
 
   Widget _footerRow(String label, {required bool enabled}) {
     final c = Get.find<UgController>();
+    final isBulkTank = label.contains('Bulk Tank');
     return Row(
       children: [
         Expanded(
@@ -438,37 +440,64 @@ class InventoryView extends StatelessWidget {
           width: 90,
           height: 24,
           child: Obx(
-            () => TextField(
-              controller: TextEditingController(
-                text: label.contains('Bulk Tank')
-                    ? c.bulkTankSetupFee.value
-                    : c.taxRate.value,
-              ),
-              enabled: enabled,
-              onChanged: (value) {
-                if (label.contains('Bulk Tank')) {
-                  c.bulkTankSetupFee.value = value;
-                } else {
-                  c.taxRate.value = value;
-                }
-              },
-              decoration: InputDecoration(
-                isDense: true,
-                border: OutlineInputBorder(
-                  borderSide: BorderSide(color: Colors.grey.shade400),
-                  borderRadius: BorderRadius.circular(0),
+            () => Listener(
+              onPointerSignal: enabled
+                  ? (event) {
+                      if (event is PointerScrollEvent) {
+                        _adjustFooterValue(
+                          isBulkTank,
+                          event.scrollDelta.dy < 0,
+                        );
+                      }
+                    }
+                  : null,
+              child: TextField(
+                controller: TextEditingController(
+                  text: isBulkTank ? c.bulkTankSetupFee.value : c.taxRate.value,
                 ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 4,
+                enabled: enabled,
+                onChanged: (value) {
+                  if (isBulkTank) {
+                    c.bulkTankSetupFee.value = value;
+                  } else {
+                    c.taxRate.value = value;
+                  }
+                },
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
                 ),
+                decoration: InputDecoration(
+                  isDense: true,
+                  border: OutlineInputBorder(
+                    borderSide: BorderSide(color: Colors.grey.shade400),
+                    borderRadius: BorderRadius.circular(0),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                ),
+                style: const TextStyle(fontSize: 13),
               ),
-              style: const TextStyle(fontSize: 13),
             ),
           ),
         ),
       ],
     );
+  }
+
+  void _adjustFooterValue(bool isBulkTank, bool increase) {
+    final currentText = isBulkTank ? c.bulkTankSetupFee.value : c.taxRate.value;
+    final current = double.tryParse(currentText.trim()) ?? 0;
+    final next = (current + (increase ? 1 : -1)).clamp(0, double.infinity);
+    final nextText = next % 1 == 0
+        ? next.toInt().toString()
+        : next.toStringAsFixed(2);
+    if (isBulkTank) {
+      c.bulkTankSetupFee.value = nextText;
+    } else {
+      c.taxRate.value = nextText;
+    }
   }
 
   Widget _radioRow(String text) {
