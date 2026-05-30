@@ -149,10 +149,13 @@ class _MudViewState extends State<MudView> {
         !k.contains('adj') &&
         !k.contains('salt'))
       return true;
-    // Corrected Solids
-    if (k.contains('corrected solids') || k.contains('corr. solids'))
+    // Corrected Solids / Solids Adjusted for Salt
+    if (k.contains('corrected solids') ||
+        k.contains('corr. solids') ||
+        k.contains('solids adjusted') ||
+        k.contains('adjusted for salt'))
       return true;
-    // Excess Lime — auto-calc = Whole Mud Alkalinity (POM) × 1.295
+    // Excess Lime - auto-calc = 0.26 * (Pm + Pf - Mf)
     if (k.contains('excess lime')) return true;
     // CaCl2 Concentration (mg/l) — auto-calc = 1.565 × Whole Mud Chlorides
     if (k.contains('cacl2 concentration') ||
@@ -352,7 +355,10 @@ class _MudViewState extends State<MudView> {
                     value: c.isWeightedMud.value,
                     onChanged: dashboard.isLocked.value
                         ? null
-                        : (v) => c.isWeightedMud.value = v ?? false,
+                        : (v) {
+                            c.isWeightedMud.value = v ?? false;
+                            c.fetchSolidAnalysis();
+                          },
                     activeColor: AppTheme.primaryColor,
                     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),

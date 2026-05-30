@@ -151,7 +151,6 @@ class _PumpPageState extends State<PumpPage> {
 
   final RxString _screenFillSelected = ''.obs;
   int? _activeScreenRowIndex;
-  int? _activeScreenColumnIndex;
 
   static const int _totalScreenCols = 8;
   static const List<String> _screenValueOptions = [
@@ -434,7 +433,6 @@ class _PumpPageState extends State<PumpPage> {
         rows.add(_ShakerRow());
       }
       _activeScreenRowIndex = null;
-      _activeScreenColumnIndex = null;
       _shakerRows.assignAll(rows);
     }
 
@@ -597,14 +595,11 @@ class _PumpPageState extends State<PumpPage> {
     row.rowNumber = row.rowNumber > 0 ? row.rowNumber : rowIndex + 1;
     _pumpSaveScopes[row] = scope;
     _pumpSaveTimers[row]?.cancel();
-    _pumpSaveTimers[row] = Timer(
-      const Duration(milliseconds: 850),
-      () {
-        _pumpSaveTimers.remove(row);
-        _pumpSaveScopes.remove(row);
-        unawaited(_savePumpRow(row, rowIndex, scope: scope));
-      },
-    );
+    _pumpSaveTimers[row] = Timer(const Duration(milliseconds: 850), () {
+      _pumpSaveTimers.remove(row);
+      _pumpSaveScopes.remove(row);
+      unawaited(_savePumpRow(row, rowIndex, scope: scope));
+    });
   }
 
   void _savePumpRowNow(_PumpRow row, int rowIndex) {
@@ -719,15 +714,12 @@ class _PumpPageState extends State<PumpPage> {
     _pumpSummarySaveScope = scope;
     _pumpSummarySaveValues = values;
     _pumpSummarySaveTimer?.cancel();
-    _pumpSummarySaveTimer = Timer(
-      const Duration(milliseconds: 850),
-      () {
-        _pumpSummarySaveTimer = null;
-        _pumpSummarySaveScope = null;
-        _pumpSummarySaveValues = null;
-        unawaited(_savePumpSummary(scope: scope, values: values));
-      },
-    );
+    _pumpSummarySaveTimer = Timer(const Duration(milliseconds: 850), () {
+      _pumpSummarySaveTimer = null;
+      _pumpSummarySaveScope = null;
+      _pumpSummarySaveValues = null;
+      unawaited(_savePumpSummary(scope: scope, values: values));
+    });
   }
 
   Map<String, String> _currentPumpSummaryValues() {
@@ -773,10 +765,7 @@ class _PumpPageState extends State<PumpPage> {
     }
   }
 
-  void _applyPumpSummaryToContext(
-    String reportId,
-    Map<String, String> values,
-  ) {
+  void _applyPumpSummaryToContext(String reportId, Map<String, String> values) {
     final index = reportContext.reports.indexWhere(
       (item) => item.id == reportId,
     );
@@ -784,10 +773,7 @@ class _PumpPageState extends State<PumpPage> {
 
     final existing = reportContext.reports[index].pumpRateAndPressure;
     reportContext.reports[index] = reportContext.reports[index].copyWith(
-      pumpRateAndPressure: {
-        ...existing,
-        ...values,
-      },
+      pumpRateAndPressure: {...existing, ...values},
     );
   }
 
@@ -799,20 +785,14 @@ class _PumpPageState extends State<PumpPage> {
     _rememberReportSceRows();
     _shakerSaveScopes[row] = scope;
     _shakerSaveTimers[row]?.cancel();
-    _shakerSaveTimers[row] = Timer(
-      const Duration(milliseconds: 850),
-      () {
-        _shakerSaveTimers.remove(row);
-        _shakerSaveScopes.remove(row);
-        unawaited(_saveShakerRow(row, scope: scope));
-      },
-    );
+    _shakerSaveTimers[row] = Timer(const Duration(milliseconds: 850), () {
+      _shakerSaveTimers.remove(row);
+      _shakerSaveScopes.remove(row);
+      unawaited(_saveShakerRow(row, scope: scope));
+    });
   }
 
-  Future<void> _saveShakerRow(
-    _ShakerRow row, {
-    _ReportSaveScope? scope,
-  }) async {
+  Future<void> _saveShakerRow(_ShakerRow row, {_ReportSaveScope? scope}) async {
     final targetScope = scope ?? _currentSaveScope();
     if (!row.hasData || !targetScope.isValid) return;
     final rowIndex = _shakerRows.indexOf(row);
@@ -864,14 +844,11 @@ class _PumpPageState extends State<PumpPage> {
     _rememberReportSceRows();
     _otherSceSaveScopes[row] = scope;
     _otherSceSaveTimers[row]?.cancel();
-    _otherSceSaveTimers[row] = Timer(
-      const Duration(milliseconds: 850),
-      () {
-        _otherSceSaveTimers.remove(row);
-        _otherSceSaveScopes.remove(row);
-        unawaited(_saveOtherSceRow(row, scope: scope));
-      },
-    );
+    _otherSceSaveTimers[row] = Timer(const Duration(milliseconds: 850), () {
+      _otherSceSaveTimers.remove(row);
+      _otherSceSaveScopes.remove(row);
+      unawaited(_saveOtherSceRow(row, scope: scope));
+    });
   }
 
   Future<void> _saveOtherSceRow(
@@ -951,7 +928,10 @@ class _PumpPageState extends State<PumpPage> {
                 flex: 3,
                 child: Align(
                   alignment: Alignment.centerLeft,
-                  child: SizedBox(width: double.infinity, child: _shakerTable()),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: _shakerTable(),
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
@@ -998,155 +978,159 @@ class _PumpPageState extends State<PumpPage> {
                   child: SizedBox(
                     width: contentWidth,
                     child: Column(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade100,
-                        border: Border(
-                          bottom: BorderSide(
-                            color: Colors.grey.shade400,
-                            width: 1,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade100,
+                            border: Border(
+                              bottom: BorderSide(
+                                color: Colors.grey.shade400,
+                                width: 1,
+                              ),
+                            ),
+                          ),
+                          child: IntrinsicHeight(
+                            child: Row(
+                              children: [
+                                _headerCell("Model", w(100)),
+                                _verticalDivider(),
+                                _headerCell("Type", w(85)),
+                                _verticalDivider(),
+                                _headerCell("Liner ID\n(in)", w(68)),
+                                _verticalDivider(),
+                                _headerCell("Rod OD\n(in)", w(68)),
+                                _verticalDivider(),
+                                _headerCell("Stk. Length\n(in)", w(80)),
+                                _verticalDivider(),
+                                _headerCell("Efficiency\n(%)", w(75)),
+                                _verticalDivider(),
+                                _headerCell("Displ.\n(bbl/stk)", w(80)),
+                                _verticalDivider(),
+                                _headerCell("Stroke\n(stk/min)", w(80)),
+                                _verticalDivider(),
+                                _headerCell("Rate\n(gpm)", w(68)),
+                              ],
+                            ),
                           ),
                         ),
-                      ),
-                      child: IntrinsicHeight(
-                        child: Row(
-                          children: [
-                             _headerCell("Model", w(100)),
-                            _verticalDivider(),
-                            _headerCell("Type", w(85)),
-                            _verticalDivider(),
-                            _headerCell("Liner ID\n(in)", w(68)),
-                            _verticalDivider(),
-                            _headerCell("Rod OD\n(in)", w(68)),
-                            _verticalDivider(),
-                            _headerCell("Stk. Length\n(in)", w(80)),
-                            _verticalDivider(),
-                            _headerCell("Efficiency\n(%)", w(75)),
-                            _verticalDivider(),
-                            _headerCell("Displ.\n(bbl/stk)", w(80)),
-                            _verticalDivider(),
-                            _headerCell("Stroke\n(stk/min)", w(80)),
-                            _verticalDivider(),
-                            _headerCell("Rate\n(gpm)", w(68)),
-                          ],
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: Obx(() {
-                        final isLocked = dashboard.isLocked.value;
-                        final models = pumpController.availablePumpModels
-                            .toList();
-                        final rows = _pumpRows.toList();
-                        return ListView.builder(
-                          itemCount: rows.length,
-                          itemBuilder: (context, index) {
-                            final row = rows[index];
-                            return Container(
-                              height: 32,
-                              decoration: BoxDecoration(
-                                color: index % 2 == 0
-                                    ? Colors.white
-                                    : Colors.grey.shade50,
-                                border: Border(
-                                  bottom: BorderSide(
-                                    color: Colors.grey.shade300,
-                                    width: 0.5,
+                        Expanded(
+                          child: Obx(() {
+                            final isLocked = dashboard.isLocked.value;
+                            final models = pumpController.availablePumpModels
+                                .toList();
+                            final rows = _pumpRows.toList();
+                            return ListView.builder(
+                              itemCount: rows.length,
+                              itemBuilder: (context, index) {
+                                final row = rows[index];
+                                return Container(
+                                  height: 32,
+                                  decoration: BoxDecoration(
+                                    color: index % 2 == 0
+                                        ? Colors.white
+                                        : Colors.grey.shade50,
+                                    border: Border(
+                                      bottom: BorderSide(
+                                        color: Colors.grey.shade300,
+                                        width: 0.5,
+                                      ),
+                                    ),
                                   ),
-                                ),
-                              ),
-                              child: IntrinsicHeight(
-                                child: Row(
-                                  children: [
-                                    _dataCell(
-                                      width: w(100),
-                                      child: _pumpModelDropdown(
-                                        row: row,
-                                        models: models,
-                                        isLocked: isLocked,
-                                        rowIndex: index,
-                                      ),
-                                    ),
-                                    _verticalDivider(),
-                                    _dataCell(
-                                      width: w(85),
-                                      child: Obx(
-                                        () => _readOnlyCell(row.type.value),
-                                      ),
-                                    ),
-                                    _verticalDivider(),
-                                    _dataCell(
-                                      width: w(68),
-                                      child: Obx(
-                                        () => _readOnlyCell(row.linerId.value),
-                                      ),
-                                    ),
-                                    _verticalDivider(),
-                                    _dataCell(
-                                      width: w(68),
-                                      child: Obx(
-                                        () => _readOnlyCell(row.rodOd.value),
-                                      ),
-                                    ),
-                                    _verticalDivider(),
-                                    _dataCell(
-                                      width: w(80),
-                                      child: Obx(
-                                        () => _readOnlyCell(
-                                          row.strokeLength.value,
+                                  child: IntrinsicHeight(
+                                    child: Row(
+                                      children: [
+                                        _dataCell(
+                                          width: w(100),
+                                          child: _pumpModelDropdown(
+                                            row: row,
+                                            models: models,
+                                            isLocked: isLocked,
+                                            rowIndex: index,
+                                          ),
                                         ),
-                                      ),
-                                    ),
-                                    _verticalDivider(),
-                                    _dataCell(
-                                      width: w(75),
-                                      child: Obx(
-                                        () =>
-                                            _readOnlyCell(row.efficiency.value),
-                                      ),
-                                    ),
-                                    _verticalDivider(),
-                                    _dataCell(
-                                      width: w(80),
-                                      child: Obx(
-                                        () => _readOnlyCell(
-                                          row.displacement.value.isEmpty
-                                              ? '-'
-                                              : row.displacement.value,
+                                        _verticalDivider(),
+                                        _dataCell(
+                                          width: w(85),
+                                          child: Obx(
+                                            () => _readOnlyCell(row.type.value),
+                                          ),
                                         ),
-                                      ),
-                                    ),
-                                    _verticalDivider(),
-                                    _dataCell(
-                                      width: w(80),
-                                      child: _spmField(
-                                        row: row,
-                                        isLocked: isLocked,
-                                        rowIndex: index,
-                                      ),
-                                    ),
-                                    _verticalDivider(),
-                                    _dataCell(
-                                      width: w(68),
-                                      child: Obx(
-                                        () => _readOnlyCell(
-                                          row.rate.value.isEmpty
-                                              ? '-'
-                                              : row.rate.value,
+                                        _verticalDivider(),
+                                        _dataCell(
+                                          width: w(68),
+                                          child: Obx(
+                                            () => _readOnlyCell(
+                                              row.linerId.value,
+                                            ),
+                                          ),
                                         ),
-                                      ),
+                                        _verticalDivider(),
+                                        _dataCell(
+                                          width: w(68),
+                                          child: Obx(
+                                            () =>
+                                                _readOnlyCell(row.rodOd.value),
+                                          ),
+                                        ),
+                                        _verticalDivider(),
+                                        _dataCell(
+                                          width: w(80),
+                                          child: Obx(
+                                            () => _readOnlyCell(
+                                              row.strokeLength.value,
+                                            ),
+                                          ),
+                                        ),
+                                        _verticalDivider(),
+                                        _dataCell(
+                                          width: w(75),
+                                          child: Obx(
+                                            () => _readOnlyCell(
+                                              row.efficiency.value,
+                                            ),
+                                          ),
+                                        ),
+                                        _verticalDivider(),
+                                        _dataCell(
+                                          width: w(80),
+                                          child: Obx(
+                                            () => _readOnlyCell(
+                                              row.displacement.value.isEmpty
+                                                  ? '-'
+                                                  : row.displacement.value,
+                                            ),
+                                          ),
+                                        ),
+                                        _verticalDivider(),
+                                        _dataCell(
+                                          width: w(80),
+                                          child: _spmField(
+                                            row: row,
+                                            isLocked: isLocked,
+                                            rowIndex: index,
+                                          ),
+                                        ),
+                                        _verticalDivider(),
+                                        _dataCell(
+                                          width: w(68),
+                                          child: Obx(
+                                            () => _readOnlyCell(
+                                              row.rate.value.isEmpty
+                                                  ? '-'
+                                                  : row.rate.value,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                  ],
-                                ),
-                              ),
+                                  ),
+                                );
+                              },
                             );
-                          },
-                        );
-                      }),
-                    ),
-                  ],
+                          }),
+                        ),
+                      ],
                     ),
                   ),
                 );
@@ -1180,14 +1164,14 @@ class _PumpPageState extends State<PumpPage> {
           onChanged: (val) {
             row.spm.value = val;
             row.recalculateRate();
-          // ✅ Auto-add row when last row has data
+            // ✅ Auto-add row when last row has data
             _checkAddPumpRow(rowIndex);
             _scheduleSavePumpRow(row, rowIndex);
           },
           textAlign: TextAlign.center,
           style: TextStyle(
-            fontSize: 9,
-            color: isLocked ? Colors.grey.shade400 : Colors.black87,
+            fontSize: 11,
+            color: isLocked ? Colors.grey.shade600 : Colors.black,
             fontWeight: FontWeight.w500,
           ),
           decoration: InputDecoration(
@@ -1217,7 +1201,7 @@ class _PumpPageState extends State<PumpPage> {
           value: safeVal,
           isExpanded: true,
           isDense: true,
-          style: const TextStyle(fontSize: 9, color: Colors.black87),
+          style: const TextStyle(fontSize: 11, color: Colors.black),
           onChanged: isLocked
               ? null
               : (selected) {
@@ -1249,12 +1233,12 @@ class _PumpPageState extends State<PumpPage> {
           items: [
             const DropdownMenuItem<String?>(
               value: null,
-              child: Text('', style: TextStyle(fontSize: 9)),
+              child: Text('', style: TextStyle(fontSize: 11)),
             ),
             ...models.map(
               (m) => DropdownMenuItem<String?>(
                 value: m,
-                child: Text(m, style: const TextStyle(fontSize: 9)),
+                child: Text(m, style: const TextStyle(fontSize: 11)),
               ),
             ),
           ],
@@ -1289,123 +1273,125 @@ class _PumpPageState extends State<PumpPage> {
                   child: SizedBox(
                     width: contentWidth,
                     child: Column(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade100,
-                        border: Border(
-                          bottom: BorderSide(
-                            color: Colors.grey.shade400,
-                            width: 1,
-                          ),
-                        ),
-                      ),
-                      child: IntrinsicHeight(
-                        child: Row(
-                          children: [
-                            _headerCell("Shaker", w(100)),
-                            _verticalDivider(),
-                            _headerCell("Model", w(120)),
-                            _verticalDivider(),
-                            _headerCellWithSubheaders(
-                              "Screen",
-                              List.generate(
-                                _totalScreenCols,
-                                (i) => _subHeaderCell("${i + 1}", w(48)),
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade100,
+                            border: Border(
+                              bottom: BorderSide(
+                                color: Colors.grey.shade400,
+                                width: 1,
                               ),
                             ),
-                            _verticalDivider(),
-                            _headerCell("Time\n(hr)", w(70)),
-                            _verticalDivider(),
-                            _headerCell("OOC Wt.\n(%)", w(75)),
-                          ],
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: Obx(() {
-                        final isLocked = dashboard.isLocked.value;
-                        final shakerTypes = sceController.availableShakerTypes
-                            .toList();
-                        final shakerModels = sceController.availableShakerModels
-                            .toList();
-                        final rows = _shakerRows.toList();
-                        return Scrollbar(
-                          controller: shakerScrollController,
-                          thumbVisibility: true,
-                          child: ListView.builder(
-                            controller: shakerScrollController,
-                            itemCount: rows.length,
-                            itemBuilder: (ctx, index) {
-                              final row = rows[index];
-                              return Container(
-                                height: 30,
-                                decoration: BoxDecoration(
-                                  color: index % 2 == 0
-                                      ? Colors.white
-                                      : Colors.grey.shade50,
-                                  border: Border(
-                                    bottom: BorderSide(
-                                      color: Colors.grey.shade300,
-                                      width: 0.5,
-                                    ),
-                                  ),
-                                ),
-                                child: IntrinsicHeight(
-                                  child: Row(
-                                    children: [
-                                      _dataCell(
-                                        width: w(100),
-                                        child: _shakerTypeDropdown(
-                                          row: row,
-                                          types: shakerTypes,
-                                          isLocked: isLocked,
-                                          rowIndex: index,
-                                        ),
-                                      ),
-                                      _verticalDivider(),
-                                      _dataCell(
-                                        width: w(120),
-                                        child: _shakerModelDropdown(
-                                          row: row,
-                                          models: shakerModels,
-                                          isLocked: isLocked,
-                                          rowIndex: index,
-                                        ),
-                                      ),
-                                      _verticalDivider(),
-                                      ..._buildScreenCols(row, isLocked, w),
-                                      _verticalDivider(),
-                                      _dataCell(
-                                        width: w(70),
-                                        child: _rxTextField(
-                                          row.time,
-                                          isLocked,
-                                          onChanged: () =>
-                                              _scheduleSaveShakerRow(row),
-                                        ),
-                                      ),
-                                      _verticalDivider(),
-                                      _dataCell(
-                                        width: w(75),
-                                        child: _rxTextField(
-                                          row.oocWt,
-                                          isLocked,
-                                          onChanged: () =>
-                                              _scheduleSaveShakerRow(row),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            },
                           ),
-                        );
-                      }),
-                    ),
-                  ],
+                          child: IntrinsicHeight(
+                            child: Row(
+                              children: [
+                                _headerCell("Shaker", w(100)),
+                                _verticalDivider(),
+                                _headerCell("Model", w(120)),
+                                _verticalDivider(),
+                                _headerCellWithSubheaders(
+                                  "Screen",
+                                  List.generate(
+                                    _totalScreenCols,
+                                    (i) => _subHeaderCell("${i + 1}", w(48)),
+                                  ),
+                                ),
+                                _verticalDivider(),
+                                _headerCell("Time\n(hr)", w(70)),
+                                _verticalDivider(),
+                                _headerCell("OOC Wt.\n(%)", w(75)),
+                              ],
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: Obx(() {
+                            final isLocked = dashboard.isLocked.value;
+                            final shakerTypes = sceController
+                                .availableShakerTypes
+                                .toList();
+                            final shakerModels = sceController
+                                .availableShakerModels
+                                .toList();
+                            final rows = _shakerRows.toList();
+                            return Scrollbar(
+                              controller: shakerScrollController,
+                              thumbVisibility: true,
+                              child: ListView.builder(
+                                controller: shakerScrollController,
+                                itemCount: rows.length,
+                                itemBuilder: (ctx, index) {
+                                  final row = rows[index];
+                                  return Container(
+                                    height: 30,
+                                    decoration: BoxDecoration(
+                                      color: index % 2 == 0
+                                          ? Colors.white
+                                          : Colors.grey.shade50,
+                                      border: Border(
+                                        bottom: BorderSide(
+                                          color: Colors.grey.shade300,
+                                          width: 0.5,
+                                        ),
+                                      ),
+                                    ),
+                                    child: IntrinsicHeight(
+                                      child: Row(
+                                        children: [
+                                          _dataCell(
+                                            width: w(100),
+                                            child: _shakerTypeDropdown(
+                                              row: row,
+                                              types: shakerTypes,
+                                              isLocked: isLocked,
+                                              rowIndex: index,
+                                            ),
+                                          ),
+                                          _verticalDivider(),
+                                          _dataCell(
+                                            width: w(120),
+                                            child: _shakerModelDropdown(
+                                              row: row,
+                                              models: shakerModels,
+                                              isLocked: isLocked,
+                                              rowIndex: index,
+                                            ),
+                                          ),
+                                          _verticalDivider(),
+                                          ..._buildScreenCols(row, isLocked, w),
+                                          _verticalDivider(),
+                                          _dataCell(
+                                            width: w(70),
+                                            child: _rxTextField(
+                                              row.time,
+                                              isLocked,
+                                              onChanged: () =>
+                                                  _scheduleSaveShakerRow(row),
+                                            ),
+                                          ),
+                                          _verticalDivider(),
+                                          _dataCell(
+                                            width: w(75),
+                                            child: _rxTextField(
+                                              row.oocWt,
+                                              isLocked,
+                                              onChanged: () =>
+                                                  _scheduleSaveShakerRow(row),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            );
+                          }),
+                        ),
+                      ],
                     ),
                   ),
                 );
@@ -1433,10 +1419,10 @@ class _PumpPageState extends State<PumpPage> {
           value: safe,
           isExpanded: true,
           isDense: true,
-          style: const TextStyle(fontSize: 9, color: Colors.black87),
+          style: const TextStyle(fontSize: 11, color: Colors.black),
           onChanged: isLocked
               ? null
-              : (sel) {
+              : (sel) async {
                   if (sel == null || sel.isEmpty) {
                     _clearShakerRow(row);
                     _rememberReportSceRows();
@@ -1444,6 +1430,7 @@ class _PumpPageState extends State<PumpPage> {
                     return;
                   }
                   row.shakerType.value = sel;
+                  await _applyShakerScreensFromType(row);
                   // ✅ Auto-add row when last row gets a type selected
                   _checkAddShakerRow(rowIndex);
                   _scheduleSaveShakerRow(row);
@@ -1451,12 +1438,12 @@ class _PumpPageState extends State<PumpPage> {
           items: [
             const DropdownMenuItem<String?>(
               value: null,
-              child: Text('', style: TextStyle(fontSize: 9)),
+              child: Text('', style: TextStyle(fontSize: 11)),
             ),
             ...types.map(
               (t) => DropdownMenuItem<String?>(
                 value: t,
-                child: Text(t, style: const TextStyle(fontSize: 9)),
+                child: Text(t, style: const TextStyle(fontSize: 11)),
               ),
             ),
           ],
@@ -1479,7 +1466,7 @@ class _PumpPageState extends State<PumpPage> {
           value: safe,
           isExpanded: true,
           isDense: true,
-          style: const TextStyle(fontSize: 9, color: Colors.black87),
+          style: const TextStyle(fontSize: 11, color: Colors.black),
           onChanged: isLocked
               ? null
               : (sel) async {
@@ -1499,13 +1486,11 @@ class _PumpPageState extends State<PumpPage> {
                       if (row.shakerType.value.isEmpty && apiType.isNotEmpty) {
                         row.shakerType.value = apiType;
                       }
-                      final n =
-                          int.tryParse(data['screens']?.toString() ?? '0') ?? 0;
-                      row.enabledScreens.value = n;
                     }
                     if (row.shakerType.value.trim().isEmpty) {
                       row.shakerType.value = 'Shaker ${rowIndex + 1}';
                     }
+                    await _applyShakerScreensFromType(row);
                     // ✅ Auto-add row when last row's model is selected
                     _checkAddShakerRow(rowIndex);
                     _scheduleSaveShakerRow(row);
@@ -1525,12 +1510,12 @@ class _PumpPageState extends State<PumpPage> {
           items: [
             const DropdownMenuItem<String?>(
               value: null,
-              child: Text('', style: TextStyle(fontSize: 9)),
+              child: Text('', style: TextStyle(fontSize: 11)),
             ),
             ...models.map(
               (m) => DropdownMenuItem<String?>(
                 value: m,
-                child: Text(m, style: const TextStyle(fontSize: 9)),
+                child: Text(m, style: const TextStyle(fontSize: 11)),
               ),
             ),
           ],
@@ -1558,45 +1543,74 @@ class _PumpPageState extends State<PumpPage> {
     for (int i = 0; i < _totalScreenCols; i++) {
       final idx = i;
       cols.add(
-        _dataCell(
-          width: w(48),
-          child: Obx(() {
+        Obx(() {
             final isEnabled = !isLocked && idx < row.enabledScreens.value;
-            return TextField(
-              enabled: isEnabled,
-              onTap: () {
-                _activeScreenRowIndex = _shakerRows.indexOf(row);
-                _activeScreenColumnIndex = idx;
-              },
-              controller: TextEditingController(text: fields[idx].value)
-                ..selection = TextSelection.collapsed(
-                  offset: fields[idx].value.length,
-                ),
-              onChanged: (v) {
-                _activeScreenRowIndex = _shakerRows.indexOf(row);
-                _activeScreenColumnIndex = idx;
-                fields[idx].value = v;
-                _scheduleSaveShakerRow(row);
-              },
-              textAlign: TextAlign.center,
+            return _dataCell(
+              width: w(48),
+              backgroundColor: isEnabled ? null : Colors.grey.shade300,
+              child: TextField(
+                enabled: isEnabled,
+                onTap: () {
+                  _activeScreenRowIndex = _shakerRows.indexOf(row);
+                },
+                controller: TextEditingController(text: fields[idx].value)
+                  ..selection = TextSelection.collapsed(
+                    offset: fields[idx].value.length,
+                  ),
+                onChanged: (v) {
+                  _activeScreenRowIndex = _shakerRows.indexOf(row);
+                  fields[idx].value = v;
+                  _scheduleSaveShakerRow(row);
+                },
+                textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 9,
-                color: isEnabled ? Colors.black87 : Colors.grey.shade400,
+                fontSize: 11,
+                color: isEnabled ? Colors.black : Colors.grey.shade700,
               ),
-              decoration: InputDecoration(
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.zero,
-                isDense: true,
-                filled: !isEnabled,
-                fillColor: isEnabled ? null : Colors.grey.shade100,
+                decoration: const InputDecoration(
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.zero,
+                  isDense: true,
+                  filled: false,
+                ),
               ),
             );
           }),
-        ),
       );
       if (i < _totalScreenCols - 1) cols.add(_verticalDivider());
     }
     return cols;
+  }
+
+  Future<void> _applyShakerScreensFromType(_ShakerRow row) async {
+    final shakerType = row.shakerType.value.trim();
+    if (shakerType.isEmpty) {
+      row.enabledScreens.value = 0;
+      _clearDisabledShakerScreens(row);
+      return;
+    }
+
+    final data = await sceController.getShakerDataByType(shakerType);
+    final screenCount = int.tryParse(data?['screens']?.toString() ?? '') ?? 0;
+    row.enabledScreens.value = screenCount.clamp(0, _totalScreenCols);
+    _clearDisabledShakerScreens(row);
+  }
+
+  void _clearDisabledShakerScreens(_ShakerRow row) {
+    final fields = [
+      row.screen1,
+      row.screen2,
+      row.screen3,
+      row.screen4,
+      row.screen5,
+      row.screen6,
+      row.screen7,
+      row.screen8,
+    ];
+
+    for (var i = row.enabledScreens.value; i < fields.length; i++) {
+      fields[i].value = '';
+    }
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -1647,14 +1661,14 @@ class _PumpPageState extends State<PumpPage> {
                       hint: Text(
                         'Value',
                         style: TextStyle(
-                          fontSize: 9,
+                          fontSize: 11,
                           color: Colors.grey.shade400,
                         ),
                       ),
                       icon: const Icon(Icons.arrow_drop_down, size: 13),
                       style: const TextStyle(
-                        fontSize: 9,
-                        color: Colors.black87,
+                        fontSize: 11,
+                        color: Colors.black,
                       ),
                       menuMaxHeight: 200,
                       onChanged: isLocked
@@ -1672,7 +1686,7 @@ class _PumpPageState extends State<PumpPage> {
                                 ),
                                 child: Text(
                                   v,
-                                  style: const TextStyle(fontSize: 9),
+                                  style: const TextStyle(fontSize: 11),
                                 ),
                               ),
                             ),
@@ -1702,7 +1716,7 @@ class _PumpPageState extends State<PumpPage> {
                   ),
                   child: const Text(
                     'Fill',
-                    style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600),
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
                   ),
                 ),
               ),
@@ -1717,19 +1731,13 @@ class _PumpPageState extends State<PumpPage> {
     final fillVal = _screenFillSelected.value.trim();
     if (fillVal.isEmpty) return;
     final rowIndex = _activeScreenRowIndex;
-    final columnIndex = _activeScreenColumnIndex;
-    if (rowIndex == null ||
-        columnIndex == null ||
-        rowIndex < 0 ||
-        rowIndex >= _shakerRows.length) {
+    if (rowIndex == null || rowIndex < 0 || rowIndex >= _shakerRows.length) {
       return;
     }
 
     final row = _shakerRows[rowIndex];
-    if (row.model.value.isEmpty ||
-        columnIndex < 0 ||
-        columnIndex >= row.enabledScreens.value ||
-        columnIndex >= _totalScreenCols) {
+    final enabledCount = row.enabledScreens.value.clamp(0, _totalScreenCols);
+    if (row.shakerType.value.isEmpty || enabledCount <= 0) {
       return;
     }
 
@@ -1743,7 +1751,9 @@ class _PumpPageState extends State<PumpPage> {
       row.screen7,
       row.screen8,
     ];
-    fields[columnIndex].value = fillVal;
+    for (var i = 0; i < enabledCount; i++) {
+      fields[i].value = fillVal;
+    }
     _scheduleSaveShakerRow(row);
   }
 
@@ -1769,129 +1779,138 @@ class _PumpPageState extends State<PumpPage> {
             child: Container(
               decoration: _boxStyle(),
               child: Column(
-        children: [
-          _tableHeader("Other SCE", Icons.build),
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              border: Border(
-                bottom: BorderSide(color: Colors.grey.shade400, width: 1),
-              ),
-            ),
-            child: IntrinsicHeight(
-              child: Row(
                 children: [
-                  _headerCell("SCE", w(90)),
-                  _verticalDivider(),
-                  _headerCell("Model", w(110)),
-                  _verticalDivider(),
-                  _headerCell("U/F\n(ppg)", w(70)),
-                  _verticalDivider(),
-                  _headerCell("O/F\n(ppg)", w(70)),
-                  _verticalDivider(),
-                  _headerCell("Time\n(hr)", w(70)),
-                  _verticalDivider(),
-                  _headerCell("OOC Wt.\n(%)", w(75)),
+                  _tableHeader("Other SCE", Icons.build),
+                  Container(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      border: Border(
+                        bottom: BorderSide(
+                          color: Colors.grey.shade400,
+                          width: 1,
+                        ),
+                      ),
+                    ),
+                    child: IntrinsicHeight(
+                      child: Row(
+                        children: [
+                          _headerCell("SCE", w(90)),
+                          _verticalDivider(),
+                          _headerCell("Model", w(110)),
+                          _verticalDivider(),
+                          _headerCell("U/F\n(ppg)", w(70)),
+                          _verticalDivider(),
+                          _headerCell("O/F\n(ppg)", w(70)),
+                          _verticalDivider(),
+                          _headerCell("Time\n(hr)", w(70)),
+                          _verticalDivider(),
+                          _headerCell("OOC Wt.\n(%)", w(75)),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Obx(() {
+                      final isLocked = dashboard.isLocked.value;
+                      final sceTypes = sceController.availableOtherSceTypes
+                          .toList();
+                      final sceModels = sceController.availableOtherSceModels
+                          .toList();
+                      final rows = _sceRows.toList(); // react to list changes
+                      return Scrollbar(
+                        controller: sceScrollController,
+                        thumbVisibility: true,
+                        child: ListView.builder(
+                          controller: sceScrollController,
+                          itemCount: rows.length,
+                          itemBuilder: (ctx, index) {
+                            final row = rows[index];
+                            return Container(
+                              height: 30,
+                              decoration: BoxDecoration(
+                                color: index % 2 == 0
+                                    ? Colors.white
+                                    : Colors.grey.shade50,
+                                border: Border(
+                                  bottom: BorderSide(
+                                    color: Colors.grey.shade300,
+                                    width: 0.5,
+                                  ),
+                                ),
+                              ),
+                              child: IntrinsicHeight(
+                                child: Row(
+                                  children: [
+                                    _dataCell(
+                                      width: w(90),
+                                      child: _sceTypeDropdown(
+                                        row: row,
+                                        types: sceTypes,
+                                        isLocked: isLocked,
+                                        rowIndex: index,
+                                      ),
+                                    ),
+                                    _verticalDivider(),
+                                    _dataCell(
+                                      width: w(110),
+                                      child: _sceModelDropdown(
+                                        row: row,
+                                        models: sceModels,
+                                        isLocked: isLocked,
+                                        rowIndex: index,
+                                      ),
+                                    ),
+                                    _verticalDivider(),
+                                    _dataCell(
+                                      width: w(70),
+                                      child: _rxTextField(
+                                        row.uf,
+                                        isLocked,
+                                        onChanged: () =>
+                                            _scheduleSaveOtherSceRow(row),
+                                      ),
+                                    ),
+                                    _verticalDivider(),
+                                    _dataCell(
+                                      width: w(70),
+                                      child: _rxTextField(
+                                        row.of_,
+                                        isLocked,
+                                        onChanged: () =>
+                                            _scheduleSaveOtherSceRow(row),
+                                      ),
+                                    ),
+                                    _verticalDivider(),
+                                    _dataCell(
+                                      width: w(70),
+                                      child: _rxTextField(
+                                        row.time,
+                                        isLocked,
+                                        onChanged: () =>
+                                            _scheduleSaveOtherSceRow(row),
+                                      ),
+                                    ),
+                                    _verticalDivider(),
+                                    _dataCell(
+                                      width: w(75),
+                                      child: _rxTextField(
+                                        row.oocWt,
+                                        isLocked,
+                                        onChanged: () =>
+                                            _scheduleSaveOtherSceRow(row),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      );
+                    }),
+                  ),
                 ],
-              ),
-            ),
-          ),
-          Expanded(
-            child: Obx(() {
-              final isLocked = dashboard.isLocked.value;
-              final sceTypes = sceController.availableOtherSceTypes.toList();
-              final sceModels = sceController.availableOtherSceModels.toList();
-              final rows = _sceRows.toList(); // react to list changes
-              return Scrollbar(
-                controller: sceScrollController,
-                thumbVisibility: true,
-                child: ListView.builder(
-                  controller: sceScrollController,
-                  itemCount: rows.length,
-                  itemBuilder: (ctx, index) {
-                    final row = rows[index];
-                    return Container(
-                      height: 30,
-                      decoration: BoxDecoration(
-                        color: index % 2 == 0
-                            ? Colors.white
-                            : Colors.grey.shade50,
-                        border: Border(
-                          bottom: BorderSide(
-                            color: Colors.grey.shade300,
-                            width: 0.5,
-                          ),
-                        ),
-                      ),
-                      child: IntrinsicHeight(
-                        child: Row(
-                          children: [
-                            _dataCell(
-                              width: w(90),
-                              child: _sceTypeDropdown(
-                                row: row,
-                                types: sceTypes,
-                                isLocked: isLocked,
-                                rowIndex: index,
-                              ),
-                            ),
-                            _verticalDivider(),
-                            _dataCell(
-                              width: w(110),
-                              child: _sceModelDropdown(
-                                row: row,
-                                models: sceModels,
-                                isLocked: isLocked,
-                                rowIndex: index,
-                              ),
-                            ),
-                            _verticalDivider(),
-                            _dataCell(
-                              width: w(70),
-                              child: _rxTextField(
-                                row.uf,
-                                isLocked,
-                                onChanged: () => _scheduleSaveOtherSceRow(row),
-                              ),
-                            ),
-                            _verticalDivider(),
-                            _dataCell(
-                              width: w(70),
-                              child: _rxTextField(
-                                row.of_,
-                                isLocked,
-                                onChanged: () => _scheduleSaveOtherSceRow(row),
-                              ),
-                            ),
-                            _verticalDivider(),
-                            _dataCell(
-                              width: w(70),
-                              child: _rxTextField(
-                                row.time,
-                                isLocked,
-                                onChanged: () => _scheduleSaveOtherSceRow(row),
-                              ),
-                            ),
-                            _verticalDivider(),
-                            _dataCell(
-                              width: w(75),
-                              child: _rxTextField(
-                                row.oocWt,
-                                isLocked,
-                                onChanged: () => _scheduleSaveOtherSceRow(row),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              );
-            }),
-          ),
-        ],
               ),
             ),
           ),
@@ -1914,7 +1933,7 @@ class _PumpPageState extends State<PumpPage> {
           value: safe,
           isExpanded: true,
           isDense: true,
-          style: const TextStyle(fontSize: 9, color: Colors.black87),
+          style: const TextStyle(fontSize: 11, color: Colors.black),
           onChanged: isLocked
               ? null
               : (sel) {
@@ -1932,12 +1951,12 @@ class _PumpPageState extends State<PumpPage> {
           items: [
             const DropdownMenuItem<String?>(
               value: null,
-              child: Text('', style: TextStyle(fontSize: 9)),
+              child: Text('', style: TextStyle(fontSize: 11)),
             ),
             ...types.map(
               (t) => DropdownMenuItem<String?>(
                 value: t,
-                child: Text(t, style: const TextStyle(fontSize: 9)),
+                child: Text(t, style: const TextStyle(fontSize: 11)),
               ),
             ),
           ],
@@ -1960,7 +1979,7 @@ class _PumpPageState extends State<PumpPage> {
           value: safe,
           isExpanded: true,
           isDense: true,
-          style: const TextStyle(fontSize: 9, color: Colors.black87),
+          style: const TextStyle(fontSize: 11, color: Colors.black),
           onChanged: isLocked
               ? null
               : (sel) {
@@ -1980,13 +1999,13 @@ class _PumpPageState extends State<PumpPage> {
               value: null,
               child: Text(
                 '',
-                style: TextStyle(fontSize: 9, color: Colors.grey),
+                style: TextStyle(fontSize: 11, color: Colors.grey),
               ),
             ),
             ...models.map(
               (m) => DropdownMenuItem<String?>(
                 value: m,
-                child: Text(m, style: const TextStyle(fontSize: 9)),
+                child: Text(m, style: const TextStyle(fontSize: 11)),
               ),
             ),
           ],
@@ -2034,7 +2053,7 @@ class _PumpPageState extends State<PumpPage> {
           Expanded(
             child: Text(
               AppUnits.label(label),
-              style: const TextStyle(fontSize: 9, color: Colors.black87),
+              style: const TextStyle(fontSize: 11, color: Colors.black),
             ),
           ),
           SizedBox(
@@ -2055,16 +2074,16 @@ class _PumpPageState extends State<PumpPage> {
                   _scheduleSavePumpSummary();
                 },
                 textAlign: TextAlign.right,
-                style: const TextStyle(fontSize: 9),
+                style: const TextStyle(fontSize: 11, color: Colors.black),
                 decoration: InputDecoration(
                   hintText: "0.0",
                   hintStyle: TextStyle(
                     color: Colors.grey.shade400,
-                    fontSize: 9,
+                    fontSize: 11,
                   ),
                   suffix: Text(
                     AppUnits.unitSuffix(unit),
-                    style: const TextStyle(fontSize: 8, color: Colors.grey),
+                    style: const TextStyle(fontSize: 10, color: Colors.grey),
                   ),
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 6,
@@ -2124,7 +2143,7 @@ class _PumpPageState extends State<PumpPage> {
           Text(
             title,
             style: const TextStyle(
-              fontSize: 11,
+              fontSize: 13,
               fontWeight: FontWeight.w600,
               color: Colors.white,
             ),
@@ -2142,9 +2161,9 @@ class _PumpPageState extends State<PumpPage> {
         child: Text(
           AppUnits.label(text),
           style: const TextStyle(
-            fontSize: 8,
+            fontSize: 11,
             fontWeight: FontWeight.w600,
-            color: Colors.black87,
+            color: Colors.black,
           ),
           textAlign: TextAlign.center,
         ),
@@ -2160,9 +2179,9 @@ class _PumpPageState extends State<PumpPage> {
           child: Text(
             mainText,
             style: const TextStyle(
-              fontSize: 8,
+              fontSize: 11,
               fontWeight: FontWeight.w600,
-              color: Colors.black87,
+              color: Colors.black,
             ),
           ),
         ),
@@ -2176,7 +2195,7 @@ class _PumpPageState extends State<PumpPage> {
       width: width,
       child: Text(
         text,
-        style: const TextStyle(fontSize: 7, color: Colors.black54),
+        style: const TextStyle(fontSize: 10, color: Colors.black),
         textAlign: TextAlign.center,
       ),
     );
@@ -2184,9 +2203,14 @@ class _PumpPageState extends State<PumpPage> {
 
   Widget _verticalDivider() => Container(width: 1, color: Colors.grey.shade300);
 
-  Widget _dataCell({required Widget child, required double width}) {
-    return SizedBox(
+  Widget _dataCell({
+    required Widget child,
+    required double width,
+    Color? backgroundColor,
+  }) {
+    return Container(
       width: width,
+      color: backgroundColor,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 2),
         child: child,
@@ -2198,10 +2222,10 @@ class _PumpPageState extends State<PumpPage> {
     return Text(
       text.isEmpty ? '-' : text,
       style: TextStyle(
-        fontSize: 9,
+        fontSize: 11,
         color: text.isEmpty || text == '-'
-            ? Colors.grey.shade400
-            : Colors.black54,
+            ? Colors.grey.shade700
+            : Colors.black,
       ),
       textAlign: TextAlign.center,
       overflow: TextOverflow.ellipsis,
@@ -2225,7 +2249,7 @@ class _PumpPageState extends State<PumpPage> {
           onChanged?.call();
         },
         textAlign: TextAlign.center,
-        style: const TextStyle(fontSize: 9),
+        style: const TextStyle(fontSize: 11, color: Colors.black),
         decoration: const InputDecoration(
           border: InputBorder.none,
           contentPadding: EdgeInsets.zero,

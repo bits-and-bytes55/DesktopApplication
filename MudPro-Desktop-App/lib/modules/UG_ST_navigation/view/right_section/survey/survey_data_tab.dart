@@ -173,6 +173,7 @@ class _SurveyDataTabState extends State<SurveyDataTab> {
   }) {
     return Obx(() {
       final selected = controller.selectedStationIndex.value == index;
+      final canEdit = !controller.isLocked && !controller.plannedSurvey.value;
       return GestureDetector(
         onTap: () => controller.selectStation(index),
         onSecondaryTapDown: (details) async {
@@ -181,10 +182,10 @@ class _SurveyDataTabState extends State<SurveyDataTab> {
             context: context,
             position: details.globalPosition,
             allowPaste: controller.hasStationClipboard,
-            canDelete: !controller.isLocked && row.hasAnyData,
-            canMoveTop: !controller.isLocked && row.hasAnyData && index > 0,
+            canDelete: canEdit && row.hasAnyData,
+            canMoveTop: canEdit && row.hasAnyData && index > 0,
             canMoveBottom:
-                !controller.isLocked &&
+                canEdit &&
                 row.hasAnyData &&
                 index < controller.stations.length - 1,
           );
@@ -197,7 +198,7 @@ class _SurveyDataTabState extends State<SurveyDataTab> {
             _rowIndexCell(index, selected),
             _editableCell(
               row.mdController,
-              enabled: !controller.isLocked,
+              enabled: canEdit,
               stationIndex: index,
               stationColumnIndex: 0,
               onChanged: (value) =>
@@ -205,7 +206,7 @@ class _SurveyDataTabState extends State<SurveyDataTab> {
             ),
             _editableCell(
               row.incController,
-              enabled: !controller.isLocked,
+              enabled: canEdit,
               stationIndex: index,
               stationColumnIndex: 1,
               onChanged: (value) =>
@@ -213,7 +214,7 @@ class _SurveyDataTabState extends State<SurveyDataTab> {
             ),
             _editableCell(
               row.aziController,
-              enabled: !controller.isLocked,
+              enabled: canEdit,
               stationIndex: index,
               stationColumnIndex: 2,
               onChanged: (value) =>
@@ -232,7 +233,7 @@ class _SurveyDataTabState extends State<SurveyDataTab> {
 
   Widget _surveyToolbar(BuildContext context) {
     return Obx(() {
-      final canEdit = !controller.isLocked;
+      final canEdit = !controller.isLocked && !controller.plannedSurvey.value;
       return Container(
         width: 42,
         decoration: BoxDecoration(
@@ -260,7 +261,7 @@ class _SurveyDataTabState extends State<SurveyDataTab> {
             _toolButton(
               icon: Icons.file_upload_outlined,
               tooltip: 'Survey Import',
-              enabled: true,
+              enabled: canEdit,
               onTap: () => showDialog(
                 context: context,
                 builder: (_) => const SurveyImportDialog(),
@@ -347,7 +348,8 @@ class _SurveyDataTabState extends State<SurveyDataTab> {
                 children: [
                   Checkbox(
                     value: controller.annotationEnabled.value,
-                    onChanged: controller.isLocked
+                    onChanged:
+                        controller.isLocked || controller.plannedSurvey.value
                         ? null
                         : (value) =>
                               controller.setAnnotationEnabled(value ?? false),
@@ -406,7 +408,9 @@ class _SurveyDataTabState extends State<SurveyDataTab> {
     return Obx(() {
       final selected = controller.selectedAnnotationIndex.value == index;
       final enabled =
-          !controller.isLocked && controller.annotationEnabled.value;
+          !controller.isLocked &&
+          !controller.plannedSurvey.value &&
+          controller.annotationEnabled.value;
       return GestureDetector(
         onTap: () => controller.selectAnnotation(index),
         onSecondaryTapDown: (details) async {
@@ -454,12 +458,14 @@ class _SurveyDataTabState extends State<SurveyDataTab> {
       height: 30,
       child: Obx(() {
         final enabled =
-            !controller.isLocked && controller.projectAziEnabled.value;
+            !controller.isLocked &&
+            !controller.plannedSurvey.value &&
+            controller.projectAziEnabled.value;
         return Row(
           children: [
             Checkbox(
               value: controller.projectAziEnabled.value,
-              onChanged: controller.isLocked
+              onChanged: controller.isLocked || controller.plannedSurvey.value
                   ? null
                   : (value) => controller.setProjectAziEnabled(value ?? false),
               visualDensity: VisualDensity.compact,
@@ -472,9 +478,7 @@ class _SurveyDataTabState extends State<SurveyDataTab> {
               width: 108,
               height: 24,
               decoration: BoxDecoration(
-                color: controller.isLocked
-                    ? _lockedBg
-                    : (enabled ? Colors.white : _readOnlyBg),
+                color: _fieldBackground(enabled),
                 border: Border.all(color: _gridBorder),
               ),
               child: TextField(
@@ -556,6 +560,12 @@ class _SurveyDataTabState extends State<SurveyDataTab> {
     );
   }
 
+  Color _fieldBackground(bool enabled) {
+    if (controller.plannedSurvey.value) return _readOnlyBg;
+    if (controller.isLocked) return _lockedBg;
+    return enabled ? Colors.white : _readOnlyBg;
+  }
+
   Widget _editableCell(
     TextEditingController controllerField, {
     required bool enabled,
@@ -565,9 +575,7 @@ class _SurveyDataTabState extends State<SurveyDataTab> {
     int? stationColumnIndex,
   }) {
     return Obx(() {
-      final bg = controller.isLocked
-          ? _lockedBg
-          : (enabled ? Colors.white : _readOnlyBg);
+      final bg = _fieldBackground(enabled);
       return Container(
         color: bg,
         child: Shortcuts(
@@ -595,7 +603,10 @@ class _SurveyDataTabState extends State<SurveyDataTab> {
               decoration: const InputDecoration(
                 isDense: true,
                 border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(horizontal: 5, vertical: 8),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 5,
+                  vertical: 8,
+                ),
               ),
               onChanged: onChanged,
             ),
@@ -609,7 +620,7 @@ class _SurveyDataTabState extends State<SurveyDataTab> {
     int stationIndex,
     int stationColumnIndex,
   ) async {
-    if (controller.isLocked) return;
+    if (controller.isLocked || controller.plannedSurvey.value) return;
     final data = await Clipboard.getData(Clipboard.kTextPlain);
     final parsed = _parseSurveyClipboardRows(
       data?.text ?? '',
@@ -652,7 +663,7 @@ class _SurveyDataTabState extends State<SurveyDataTab> {
 
   Widget _symbolCell(int index, SurveyAnnotationRow row, bool enabled) {
     return Container(
-      color: controller.isLocked ? _lockedBg : Colors.white,
+      color: _fieldBackground(enabled),
       alignment: Alignment.center,
       child: SizedBox(
         width: 38,

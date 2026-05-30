@@ -129,6 +129,15 @@ class _DefaultMudPropertiesPageState extends State<DefaultMudPropertiesPage> {
   MudPropertyItem _withCurrentUnit(String col, MudPropertyItem item) =>
       MudPropertyItem(name: item.name, unit: _currentUnit(col, item));
 
+  String _displayName(String col, MudPropertyItem item) {
+    if (col == 'water' &&
+        (item.name == 'Filtrate Alkalinity (Pf)' ||
+            item.name == 'Filtrate Alkalinity (Mf)')) {
+      return 'Filtrate Alkalinity';
+    }
+    return item.name;
+  }
+
   void _toggleItem(String col, MudPropertyItem item) {
     setState(() {
       final list = List<MudPropertyItem>.from(_selectedList(col));
@@ -273,7 +282,7 @@ class _DefaultMudPropertiesPageState extends State<DefaultMudPropertiesPage> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(2),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.04),
@@ -287,12 +296,12 @@ class _DefaultMudPropertiesPageState extends State<DefaultMudPropertiesPage> {
         children: [
           // Header Row
           Container(
-            height: 44,
+            height: 38,
             decoration: BoxDecoration(
               color: AppTheme.primaryColor,
               borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(6),
-                topRight: Radius.circular(6),
+                topLeft: Radius.circular(2),
+                topRight: Radius.circular(2),
               ),
             ),
             child: Row(
@@ -324,7 +333,7 @@ class _DefaultMudPropertiesPageState extends State<DefaultMudPropertiesPage> {
                     itemCount: maxRows,
                     itemBuilder: (context, index) {
                       return Container(
-                        height: 42,
+                        height: 36,
                         decoration: BoxDecoration(
                           color: index % 2 == 0
                               ? Colors.white
@@ -542,7 +551,7 @@ class _DefaultMudPropertiesPageState extends State<DefaultMudPropertiesPage> {
   }) {
     final hasItem = index < items.length;
     final item = hasItem ? items[index] : null;
-    final text = item?.name ?? '-';
+    final text = item == null ? '-' : _displayName(col, item);
     final isSelected =
         item != null && _containsByName(selectedItems, item);
 
@@ -551,7 +560,7 @@ class _DefaultMudPropertiesPageState extends State<DefaultMudPropertiesPage> {
       child: GestureDetector(
         onTap: item != null ? () => _toggleItem(col, item) : null,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           decoration: BoxDecoration(
             color: isSelected
                 ? AppTheme.primaryColor.withOpacity(0.12)
