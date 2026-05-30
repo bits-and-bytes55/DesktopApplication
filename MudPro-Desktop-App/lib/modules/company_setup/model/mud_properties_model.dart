@@ -107,6 +107,7 @@ class MudPropertiesStaticData {
           MudPropertyItem(name: 'CaCl2 Wt. (%)', unit: '% wt'),
           MudPropertyItem(name: 'CaCl2', unit: 'mg/l'),
           MudPropertyItem(name: 'Brine Density', unit: 'ppg'),
+          MudPropertyItem(name: 'Brine Content (%)', unit: '%'),
           MudPropertyItem(name: 'Electrical Stability', unit: 'volts'),
           MudPropertyItem(name: 'Water Activity', unit: 'aw'),
           MudPropertyItem(name: 'Fine LCM', unit: 'lb/bbl'),

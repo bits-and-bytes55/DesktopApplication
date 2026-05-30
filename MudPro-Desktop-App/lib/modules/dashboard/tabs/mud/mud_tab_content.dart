@@ -345,33 +345,36 @@ class _MudViewState extends State<MudView> {
               ],
             ),
           ),
-          const SizedBox(width: 12),
           Obx(
-            () => Row(
-              children: [
-                Transform.scale(
-                  scale: 0.8,
-                  child: Checkbox(
-                    value: c.isWeightedMud.value,
-                    onChanged: dashboard.isLocked.value
-                        ? null
-                        : (v) {
-                            c.isWeightedMud.value = v ?? false;
-                            c.fetchSolidAnalysis();
-                          },
-                    activeColor: AppTheme.primaryColor,
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            () => c.selectedFluidType.value == 'Oil-based'
+                ? const SizedBox.shrink()
+                : Row(
+                    children: [
+                      const SizedBox(width: 12),
+                      Transform.scale(
+                        scale: 0.8,
+                        child: Checkbox(
+                          value: c.isWeightedMud.value,
+                          onChanged: dashboard.isLocked.value
+                              ? null
+                              : (v) {
+                                  c.isWeightedMud.value = v ?? false;
+                                  c.fetchSolidAnalysis();
+                                },
+                          activeColor: AppTheme.primaryColor,
+                          materialTapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
+                        ),
+                      ),
+                      Text(
+                        'Weighted Mud',
+                        style: AppTheme.caption.copyWith(
+                          color: AppTheme.textSecondary,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                Text(
-                  'Weighted Mud',
-                  style: AppTheme.caption.copyWith(
-                    color: AppTheme.textSecondary,
-                    fontSize: 11,
-                  ),
-                ),
-              ],
-            ),
           ),
         ],
       ),

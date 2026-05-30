@@ -26,7 +26,7 @@ class _SolidAnalysisDialogState extends State<SolidAnalysisDialog> {
 
   // ─── Row definitions ───────────────────────────────────────────────────────
 
-  static const _rows = [
+  static const _wbmRows = [
     _RowCfg('LGS (%)',              highlight: true,  lgsCheck: true),
     _RowCfg('LGS (lb/bbl)',         highlight: false),
     _RowCfg('HGS (%)',              highlight: false),
@@ -41,6 +41,24 @@ class _SolidAnalysisDialogState extends State<SolidAnalysisDialog> {
     _RowCfg('DS/Bent Ratio',        highlight: true,  dsCheck: true),
     _RowCfg('Avg. SG of Solids',   highlight: false),
   ];
+
+  static const _obmRows = [
+    _RowCfg('LGS (%)', highlight: false),
+    _RowCfg('LGS (lb/bbl)', highlight: false),
+    _RowCfg('HGS (%)', highlight: false),
+    _RowCfg('HGS (lb/bbl)', highlight: false),
+    _RowCfg('OBM Chemicals (%)', highlight: false),
+    _RowCfg('OBM Chemicals (lb/bbl)', highlight: false),
+    _RowCfg('Drill Solids (%)', highlight: false),
+    _RowCfg('Drill Solids (lb/bbl)', highlight: false),
+    _RowCfg('DS/Bent Ratio', highlight: false),
+    _RowCfg('Avg. SG of Solids', highlight: false),
+  ];
+
+  List<_RowCfg> get _rows {
+    final fluid = c.selectedFluidType.value.toLowerCase();
+    return fluid.contains('oil') ? _obmRows : _wbmRows;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -144,7 +162,7 @@ class _SolidAnalysisDialogState extends State<SolidAnalysisDialog> {
         if (c.isSolidAnalysisLoading.value && c.solidAnalysisResult.isEmpty) {
           return _skeleton();
         }
-        return _table();
+        return Obx(() => _table());
       }),
     );
   }
@@ -309,7 +327,8 @@ class _SolidAnalysisDialogState extends State<SolidAnalysisDialog> {
       ),
 
       // Legend
-      if (c.solidAnalysisResult.isNotEmpty)
+      if (c.solidAnalysisResult.isNotEmpty &&
+          !c.selectedFluidType.value.toLowerCase().contains('oil'))
         Padding(
           padding: const EdgeInsets.only(top: 8),
           child: Row(children: [
@@ -376,6 +395,31 @@ class _SolidAnalysisDialogState extends State<SolidAnalysisDialog> {
           ),
         ),
         const SizedBox(width: 12),
+        Obx(
+          () => c.selectedFluidType.value.toLowerCase().contains('oil')
+              ? Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: OutlinedButton(
+                    onPressed: c.fetchSolidAnalysis,
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 22,
+                        vertical: 8,
+                      ),
+                      side: BorderSide(color: Colors.grey.shade400),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      minimumSize: Size.zero,
+                    ),
+                    child: const Text(
+                      'Calculate',
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                  ),
+                )
+              : const SizedBox.shrink(),
+        ),
         OutlinedButton(
           onPressed: () => Navigator.of(context).pop(),
           style: OutlinedButton.styleFrom(
