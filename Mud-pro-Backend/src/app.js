@@ -5,7 +5,11 @@ import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
 import "./plugins/installationScopePlugin.js";
-import { installationContextMiddleware } from "./utils/installationContext.js";
+import {
+  installationContextMiddleware,
+  requireInstallationContext,
+} from "./utils/installationContext.js";
+import { verifyInstallationMachine } from "./middlewares/installationMachine.middleware.js";
 
 import operatorRoutes from "./routes/operator/operator.route.js";
 
@@ -115,6 +119,19 @@ app.get("/api/health", (req, res) => {
     timestamp: new Date().toISOString(),
   });
 });
+
+app.use("/api", (_req, res, next) => {
+  res.set({
+    "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+    Pragma: "no-cache",
+    Expires: "0",
+    "Surrogate-Control": "no-store",
+  });
+  next();
+});
+
+app.use("/api", requireInstallationContext);
+app.use("/api", verifyInstallationMachine);
 
 app.use("/api/engineers", engineerRoutes);
 app.use("/api/company", companyRoutes);

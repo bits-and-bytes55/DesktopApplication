@@ -6,7 +6,6 @@ import 'package:mudpro_desktop_app/api_endpoint/api_endpoint.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_models.dart';
 
 class PadWellApiService {
-  static const String _localDevBaseUrl = 'http://localhost:3000/api/';
   static Map<String, String> get _headers => ApiEndpoint.jsonHeaders;
 
   Future<List<AppPad>> fetchPads({bool includeWells = true}) async {
@@ -158,8 +157,7 @@ class PadWellApiService {
 
     throw Exception(
       'Pad/well backend routes are not available. '
-      'Deploy the latest backend or run local backend on '
-      '$_localDevBaseUrl '
+      'Deploy the latest backend. '
       'Tried: ${failures.join(' | ')}',
     );
   }
@@ -218,8 +216,7 @@ class PadWellApiService {
 
     throw Exception(
       '$defaultErrorMessage. '
-      'Deploy the latest backend or run local backend on '
-      '$_localDevBaseUrl '
+      'Deploy the latest backend. '
       'Tried: ${failures.join(' | ')}',
     );
   }
@@ -244,18 +241,7 @@ class PadWellApiService {
   }
 
   Iterable<String> get _candidateBaseUrls sync* {
-    final seen = <String>{};
-    final primary = ApiEndpoint.baseUrl;
-    final isPrimaryLocal = primary.contains('localhost') || primary.contains('127.0.0.1');
-    final sources = isPrimaryLocal
-        ? [primary, _localDevBaseUrl]
-        : [primary];
-    for (final baseUrl in sources) {
-      final normalized = baseUrl.endsWith('/') ? baseUrl : '$baseUrl/';
-      if (seen.add(normalized)) {
-        yield normalized;
-      }
-    }
+    yield* ApiEndpoint.candidateBaseUrls;
   }
 
   Map<String, dynamic> _decodeObject({

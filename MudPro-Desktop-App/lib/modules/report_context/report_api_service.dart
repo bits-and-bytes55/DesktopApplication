@@ -6,7 +6,6 @@ import 'package:mudpro_desktop_app/api_endpoint/api_endpoint.dart';
 import 'package:mudpro_desktop_app/modules/report_context/report_models.dart';
 
 class ReportApiService {
-  static const String _localDevBaseUrl = 'http://localhost:3000/api/';
   static Map<String, String> get _headers => ApiEndpoint.jsonHeaders;
 
   Future<List<AppReport>> fetchReports(String wellId) async {
@@ -139,8 +138,7 @@ class ReportApiService {
 
     throw Exception(
       'Report backend routes are not available. '
-      'Deploy the latest backend or run local backend on '
-      '$_localDevBaseUrl '
+      'Deploy the latest backend. '
       'Tried: ${failures.join(' | ')}',
     );
   }
@@ -196,8 +194,7 @@ class ReportApiService {
 
     throw Exception(
       '$defaultErrorMessage. '
-      'Deploy the latest backend or run local backend on '
-      '$_localDevBaseUrl '
+      'Deploy the latest backend. '
       'Tried: ${failures.join(' | ')}',
     );
   }
@@ -222,13 +219,7 @@ class ReportApiService {
   }
 
   Iterable<String> get _candidateBaseUrls sync* {
-    final seen = <String>{};
-    for (final baseUrl in [ApiEndpoint.baseUrl, _localDevBaseUrl]) {
-      final normalized = baseUrl.endsWith('/') ? baseUrl : '$baseUrl/';
-      if (seen.add(normalized)) {
-        yield normalized;
-      }
-    }
+    yield* ApiEndpoint.candidateBaseUrls;
   }
 
   Map<String, dynamic> _decodeObject({

@@ -142,10 +142,11 @@ class _PlanGraphPainter extends CustomPainter {
     for (var i = 0; i <= yLabelDivisions; i++) {
       final value = minY + (_axisStep * i);
       final py = plot.bottom - (plot.height * (value - minY) / yRange);
-      drawSurveyText(
+      _drawLeftAxisLabel(
         canvas,
         value.toStringAsFixed(0),
-        Offset(plot.left - 28, py - 7),
+        plot.left,
+        py,
       );
     }
     for (var i = 0; i <= xLabelDivisions; i++) {
@@ -206,6 +207,25 @@ class _PlanGraphPainter extends CustomPainter {
   double _numberValue(dynamic value) {
     if (value is num) return value.toDouble();
     return double.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  void _drawLeftAxisLabel(
+    Canvas canvas,
+    String text,
+    double plotLeft,
+    double centerY,
+  ) {
+    final painter = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: const TextStyle(fontSize: 12, color: Color(0xFF2F2F2F)),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    painter.paint(
+      canvas,
+      Offset(plotLeft - 10 - painter.width, centerY - (painter.height / 2)),
+    );
   }
 
   @override
