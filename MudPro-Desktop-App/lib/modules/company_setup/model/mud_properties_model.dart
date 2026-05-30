@@ -79,7 +79,7 @@ class MudPropertiesStaticData {
           MudPropertyItem(name: 'Depth', unit: 'm'),
           MudPropertyItem(name: '*MW', unit: 'ppg'),
           MudPropertyItem(name: 'Funnel Visc.', unit: 'sec'),
-          MudPropertyItem(name: 'Rheology Temp', unit: 'degF'), // Fixed from screen
+          MudPropertyItem(name: 'T. for PV', unit: 'degF'),
           MudPropertyItem(name: 'R600', unit: 'rpm'),
           MudPropertyItem(name: 'R300', unit: 'rpm'),
           MudPropertyItem(name: 'R200', unit: 'rpm'),
@@ -91,22 +91,26 @@ class MudPropertiesStaticData {
           MudPropertyItem(name: 'Gel Str. 10s', unit: 'lb/100ft²'),
           MudPropertyItem(name: 'Gel Str. 10m', unit: 'lb/100ft²'),
           MudPropertyItem(name: 'Gel Str. 30m', unit: 'lb/100ft²'),
+          MudPropertyItem(name: 'T. for HTHP', unit: 'degF'),
           MudPropertyItem(name: 'HTHP Filtrate', unit: 'ml'),
-          MudPropertyItem(name: 'HTHP Temp', unit: 'degF'),
           MudPropertyItem(name: 'HTHP Cake Thickness', unit: '1/32 in'),
           MudPropertyItem(name: '*Solids', unit: '% vol'),
-          MudPropertyItem(name: 'Corrected Solids', unit: '% vol'),
           MudPropertyItem(name: '*Oil', unit: '% vol'),
           MudPropertyItem(name: '*Water', unit: '% vol'),
           MudPropertyItem(name: 'Oil/water Ratio', unit: 'ratio'),
-          MudPropertyItem(name: 'Whole Mud Alkalinity (Pom)', unit: 'ml'),
-          MudPropertyItem(name: 'Electrical Stability', unit: 'volts'),
-          MudPropertyItem(name: 'Whole Mud Chlorides', unit: 'mg/l'),
+          MudPropertyItem(name: '*Alkalinity Mud (pom)', unit: 'ml'),
           MudPropertyItem(name: 'Excess Lime', unit: 'lb/bbl'),
-          MudPropertyItem(name: 'CaCl2 Concentration', unit: 'mg/l'),
-          MudPropertyItem(name: 'CaCl2', unit: '% wt'),
-          MudPropertyItem(name: 'Water phase Salinity (WPS)', unit: 'ppm'),
-          MudPropertyItem(name: 'Water phase Salinity (WPS)', unit: 'mg/l'),
+          MudPropertyItem(name: '*Chlorides Whole Mud', unit: 'mg/l'),
+          MudPropertyItem(name: 'Solids Adjusted for Salt (%)', unit: '% vol'),
+          MudPropertyItem(name: 'Salt Content Water Phase (%)', unit: '% wt'),
+          MudPropertyItem(name: 'WPS', unit: 'ppm'),
+          MudPropertyItem(name: 'CaCl2 Wt. (%)', unit: '% wt'),
+          MudPropertyItem(name: 'CaCl2', unit: 'mg/l'),
+          MudPropertyItem(name: 'Brine Density', unit: 'ppg'),
+          MudPropertyItem(name: 'Electrical Stability', unit: 'volts'),
+          MudPropertyItem(name: 'Water Activity', unit: 'aw'),
+          MudPropertyItem(name: 'Fine LCM', unit: 'lb/bbl'),
+          MudPropertyItem(name: 'Coarse LCM', unit: 'lb/bbl'),
         ],
         synthetic: [
           MudPropertyItem(name: 'Flowline T.', unit: 'degF'),
@@ -139,6 +143,8 @@ class MudPropertiesStaticData {
           MudPropertyItem(name: 'Brine Density', unit: 'ppg'),
           MudPropertyItem(name: 'Electrical Stability', unit: 'volts'),
           MudPropertyItem(name: 'Water Activity', unit: 'aw'),
+          MudPropertyItem(name: 'Fine LCM', unit: 'lb/bbl'),
+          MudPropertyItem(name: 'Coarse LCM', unit: 'lb/bbl'),
         ],
       );
 }
@@ -188,4 +194,4 @@ class SelectedMudProperties {
       synthetic: synthetic ?? this.synthetic,
     );
   }
-}
+}

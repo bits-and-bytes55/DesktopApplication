@@ -201,14 +201,15 @@ class MudController extends GetxController {
 
   String? get _cacl2PctWtKey => _findKey(
     (k) =>
-        k == 'cacl2' ||
         k == 'cacl2 (% wt)' ||
         k == 'cacl2 % wt' ||
+        k.contains('cacl2 wt') ||
         (k.startsWith('cacl2') && (k.contains('wt') || k.contains('%'))),
   );
 
   String? get _cacl2ConcKey => _findKey(
     (k) =>
+        k == 'cacl2' ||
         k.contains('cacl2 concentration') ||
         k.contains('cacl2 conc') ||
         k.contains('calcium chloride') ||
@@ -273,6 +274,7 @@ class MudController extends GetxController {
     (k) =>
         k == 'mud alkalinity' ||
         k == 'pm' ||
+        k.contains('alkalinity mud') ||
         k.contains('whole mud alkalinity') ||
         k.contains('alkalinity (pom)') ||
         k.contains('alkalinity(pom)') ||
@@ -281,7 +283,11 @@ class MudController extends GetxController {
 
   // FIX: Match any "water phase salinity" row — field name does NOT contain 'ppm'
   String? get _wpsSaltPercentKey => _findKey(
-    (k) => k.contains('water phase salinity') || k.contains('water phase sal'),
+    (k) =>
+        k == 'wps' ||
+        k.startsWith('wps ') ||
+        k.contains('water phase salinity') ||
+        k.contains('water phase sal'),
   );
 
   // Second WPS row (mg/l) — has 'mg' in name
@@ -1447,6 +1453,7 @@ class MudController extends GetxController {
     final weightedMud = (vals['isWeightedMud'] ?? 0) > 0;
     final fluid = selectedFluidType.value.toLowerCase();
     final isOilMud = fluid.contains('oil') || fluid.contains('synthetic');
+    final wbmSaltMassFraction = (chloridesMgl * 1.65) / 1000000;
     final saltWtPct = cacl2Pct > 0
         ? cacl2Pct
         : (wpsPpm > 0 ? wpsPpm / 10000 : 0.0);
@@ -1454,7 +1461,7 @@ class MudController extends GetxController {
         ? 0.99707 +
             (0.007923 * saltWtPct) +
             (0.00004964 * saltWtPct * saltWtPct)
-        : 1.0;
+        : 1.0 + wbmSaltMassFraction;
 
     double brineVol;
     final brineVolPct = vals['brineVolPct'] ?? 0;
@@ -1468,11 +1475,15 @@ class MudController extends GetxController {
 
     final dissolvedSolids = isOilMud
         ? (brineVol - waterVol)
-        : waterVol * ((chloridesMgl * 1.65) / 1000000) * (1.0 / 2.16);
+        : waterVol * wbmSaltMassFraction * (1.0 / 2.16);
+    final roundedDissolvedSolids = double.parse(
+      dissolvedSolids.toStringAsFixed(1),
+    );
     final corrSolidsPct = vals['corrSolidsPct'] ?? 0;
-    final correctedSolids = corrSolidsPct > 0
+    final rawCorrectedSolids = isOilMud && corrSolidsPct > 0
         ? corrSolidsPct
-        : (retortSolids - dissolvedSolids);
+        : (retortSolids - roundedDissolvedSolids);
+    final correctedSolids = double.parse(rawCorrectedSolids.toStringAsFixed(1));
     final safeCorrected = correctedSolids < 0 ? 0 : correctedSolids;
     final totalSolids = retortSolids > 0
         ? retortSolids
@@ -1508,7 +1519,7 @@ class MudController extends GetxController {
     }
     final bentPercent = lgsSG > 0 ? bentoniteLb / (3.5 * lgsSG) : 0;
     final drillSolidsPercent = lgsSG > 0 ? drillSolidsLb / (3.5 * lgsSG) : 0;
-    final dsBentRatio = bentoniteLb > 0 ? drillSolidsLb / bentoniteLb : 0;
+    final dsBentRatio = bentoniteLb != 0 ? drillSolidsLb / bentoniteLb : 0;
 
     double fmt(num v, [int digits = 2]) {
       final value = v.toDouble();
@@ -1525,7 +1536,9 @@ class MudController extends GetxController {
       'brineVol': fmt(brineVol),
       'totalSolids': fmt(totalSolids < 0 ? 0 : totalSolids),
       'correctedSolids': fmt(safeCorrected),
-      'dissolvedSolids': fmt(dissolvedSolids < 0 ? 0 : dissolvedSolids),
+      'dissolvedSolids': fmt(
+        roundedDissolvedSolids < 0 ? 0 : roundedDissolvedSolids,
+      ),
       'avgSG': fmt(avgSG),
       'hgsPercent': fmt(hgsPercent),
       'hgsLb': fmt(hgsLb),
