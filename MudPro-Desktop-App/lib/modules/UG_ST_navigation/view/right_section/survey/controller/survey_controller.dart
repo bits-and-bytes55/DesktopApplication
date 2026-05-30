@@ -39,8 +39,10 @@ class SurveyController extends GetxController {
   final show3DGrid = true.obs;
   final show3DAllQuadrants = false.obs;
   final graph3DBackgroundColor = const Color(0xFFE5E5E5).obs;
+  final graph3DGridLegendColor = Colors.black.obs;
   final graph3DCylinderScale = 3.obs;
   final graph3DMoveRotateZoomInterval = 5.obs;
+  final graph3DAngle = 150.obs;
   final is3DAutoRotating = false.obs;
 
   final projectAziController = TextEditingController();
@@ -664,21 +666,27 @@ class SurveyController extends GetxController {
     rotationX.value = 0.55;
     rotationY.value = 0.75;
     zoom.value = 1.0;
+    graph3DAngle.value = 150;
   }
 
   void apply3DViewSettings({
     required bool showGrid,
     required bool showAllQuadrants,
     required Color backgroundColor,
+    required Color gridLegendColor,
     required int cylinderScale,
     required int moveRotateZoomInterval,
+    required int angle,
   }) {
     show3DGrid.value = showGrid;
     show3DAllQuadrants.value = showAllQuadrants;
     graph3DBackgroundColor.value = backgroundColor;
+    graph3DGridLegendColor.value = gridLegendColor;
     graph3DCylinderScale.value = cylinderScale.clamp(1, 5).toInt();
     graph3DMoveRotateZoomInterval.value =
         moveRotateZoomInterval.clamp(1, 5).toInt();
+    graph3DAngle.value = angle.clamp(0, 360).toInt();
+    rotationY.value = 0.75 + ((graph3DAngle.value - 150) * math.pi / 180);
   }
 
   void reset3DViewSettings() {
@@ -686,8 +694,10 @@ class SurveyController extends GetxController {
       showGrid: true,
       showAllQuadrants: false,
       backgroundColor: const Color(0xFFE5E5E5),
+      gridLegendColor: Colors.black,
       cylinderScale: 3,
       moveRotateZoomInterval: 5,
+      angle: 150,
     );
   }
 

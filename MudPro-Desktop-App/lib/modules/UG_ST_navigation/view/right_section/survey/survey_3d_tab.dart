@@ -20,6 +20,7 @@ class Survey3DTab extends StatelessWidget {
         rotationY: controller.rotationY.value,
         zoom: controller.zoom.value,
         backgroundColor: controller.graph3DBackgroundColor.value,
+        gridLegendColor: controller.graph3DGridLegendColor.value,
         showGrid: controller.show3DGrid.value,
         cylinderScale: controller.graph3DCylinderScale.value,
         isAutoRotating: controller.is3DAutoRotating.value,
@@ -61,8 +62,10 @@ class Survey3DTab extends StatelessWidget {
     var showGrid = controller.show3DGrid.value;
     var showAllQuadrants = controller.show3DAllQuadrants.value;
     var backgroundColor = controller.graph3DBackgroundColor.value;
+    var gridLegendColor = controller.graph3DGridLegendColor.value;
     var cylinderScale = controller.graph3DCylinderScale.value;
     var moveInterval = controller.graph3DMoveRotateZoomInterval.value;
+    var angle = controller.graph3DAngle.value;
 
     await showDialog<void>(
       context: context,
@@ -104,6 +107,7 @@ class Survey3DTab extends StatelessWidget {
                           const SizedBox(height: 10),
                           _ColorGroup(
                             backgroundColor: backgroundColor,
+                            gridLegendColor: gridLegendColor,
                             onPickBackground: () async {
                               final picked = await _showColorDialog(
                                 dialogContext,
@@ -111,6 +115,15 @@ class Survey3DTab extends StatelessWidget {
                               );
                               if (picked != null) {
                                 setState(() => backgroundColor = picked);
+                              }
+                            },
+                            onPickGridLegend: () async {
+                              final picked = await _showColorDialog(
+                                dialogContext,
+                                initialColor: gridLegendColor,
+                              );
+                              if (picked != null) {
+                                setState(() => gridLegendColor = picked);
                               }
                             },
                           ),
@@ -133,7 +146,14 @@ class Survey3DTab extends StatelessWidget {
                               }
                             },
                           ),
-                          _DisabledAngleRow(),
+                          _AngleRow(
+                            value: angle,
+                            onChanged: (value) {
+                              if (value != null) {
+                                setState(() => angle = value);
+                              }
+                            },
+                          ),
                           const SizedBox(height: 18),
                           Row(
                             children: [
@@ -144,8 +164,10 @@ class Survey3DTab extends StatelessWidget {
                                     showGrid = true;
                                     showAllQuadrants = false;
                                     backgroundColor = const Color(0xFFE5E5E5);
+                                    gridLegendColor = Colors.black;
                                     cylinderScale = 3;
                                     moveInterval = 5;
+                                    angle = 150;
                                   });
                                 },
                               ),
@@ -157,8 +179,10 @@ class Survey3DTab extends StatelessWidget {
                                     showGrid: showGrid,
                                     showAllQuadrants: showAllQuadrants,
                                     backgroundColor: backgroundColor,
+                                    gridLegendColor: gridLegendColor,
                                     cylinderScale: cylinderScale,
                                     moveRotateZoomInterval: moveInterval,
+                                    angle: angle,
                                   );
                                   Navigator.of(dialogContext).pop();
                                 },
@@ -203,6 +227,7 @@ class WellPath3DViewer extends StatelessWidget {
     required this.rotationY,
     required this.zoom,
     required this.backgroundColor,
+    required this.gridLegendColor,
     required this.showGrid,
     required this.cylinderScale,
     required this.isAutoRotating,
@@ -228,6 +253,7 @@ class WellPath3DViewer extends StatelessWidget {
   final double rotationY;
   final double zoom;
   final Color backgroundColor;
+  final Color gridLegendColor;
   final bool showGrid;
   final int cylinderScale;
   final bool isAutoRotating;
@@ -265,6 +291,7 @@ class WellPath3DViewer extends StatelessWidget {
                   rotationY: rotationY,
                   zoom: zoom,
                   showGrid: showGrid,
+                  gridLegendColor: gridLegendColor,
                   cylinderScale: cylinderScale,
                   minEastWest: bounds.minEastWest,
                   maxEastWest: bounds.maxEastWest,
@@ -476,11 +503,15 @@ class _SettingsCheckbox extends StatelessWidget {
 class _ColorGroup extends StatelessWidget {
   const _ColorGroup({
     required this.backgroundColor,
+    required this.gridLegendColor,
     required this.onPickBackground,
+    required this.onPickGridLegend,
   });
 
   final Color backgroundColor;
+  final Color gridLegendColor;
   final VoidCallback onPickBackground;
+  final VoidCallback onPickGridLegend;
 
   @override
   Widget build(BuildContext context) {
@@ -517,9 +548,9 @@ class _ColorGroup extends StatelessWidget {
           const SizedBox(height: 10),
           _ColorRow(
             label: 'Grid + Legend',
-            color: Colors.black,
-            enabled: false,
-            onTap: () {},
+            color: gridLegendColor,
+            enabled: true,
+            onTap: onPickGridLegend,
           ),
         ],
       ),
@@ -628,9 +659,31 @@ class _SettingsDropdownRow extends StatelessWidget {
   }
 }
 
-class _DisabledAngleRow extends StatelessWidget {
+class _AngleRow extends StatelessWidget {
+  const _AngleRow({required this.value, required this.onChanged});
+
+  final int value;
+  final ValueChanged<int?> onChanged;
+
   @override
   Widget build(BuildContext context) {
+    const values = [
+      0,
+      30,
+      60,
+      90,
+      120,
+      150,
+      180,
+      210,
+      240,
+      270,
+      300,
+      330,
+      360,
+    ];
+    final selected = values.contains(value) ? value : 150;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
@@ -638,21 +691,28 @@ class _DisabledAngleRow extends StatelessWidget {
           const Expanded(
             child: Text(
               'Angle',
-              style: TextStyle(fontSize: 13, color: Color(0xFFB0B0B0)),
+              style: TextStyle(fontSize: 13),
             ),
           ),
-          Container(
+          SizedBox(
             width: 108,
             height: 28,
-            alignment: Alignment.centerRight,
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF4F4F4),
-              border: Border.all(color: const Color(0xFFE2E2E2)),
-            ),
-            child: const Text(
-              '150',
-              style: TextStyle(fontSize: 13, color: Color(0xFF777777)),
+            child: DropdownButtonFormField<int>(
+              value: selected,
+              decoration: const InputDecoration(
+                isDense: true,
+                contentPadding: EdgeInsets.symmetric(horizontal: 8),
+                border: OutlineInputBorder(),
+              ),
+              items: values
+                  .map(
+                    (item) => DropdownMenuItem<int>(
+                      value: item,
+                      child: Text('$item'),
+                    ),
+                  )
+                  .toList(),
+              onChanged: onChanged,
             ),
           ),
         ],
@@ -1080,6 +1140,7 @@ class WellPath3DPainter extends CustomPainter {
     required this.rotationY,
     required this.zoom,
     required this.showGrid,
+    required this.gridLegendColor,
     required this.cylinderScale,
     required this.minEastWest,
     required this.maxEastWest,
@@ -1095,6 +1156,7 @@ class WellPath3DPainter extends CustomPainter {
   final double rotationY;
   final double zoom;
   final bool showGrid;
+  final Color gridLegendColor;
   final int cylinderScale;
   final double minEastWest;
   final double maxEastWest;
@@ -1124,17 +1186,44 @@ class WellPath3DPainter extends CustomPainter {
   }
 
   _Projection _buildProjection(Size size) {
-    final side = math.min(size.width * 0.64, size.height * 0.76) * zoom;
+    final side = math.min(size.width * 0.56, size.height * 0.66) * zoom;
     final xVec = Offset(-side * 0.47, side * 0.09);
     final yVec = Offset(side * 0.47, side * 0.09);
     final zVec = Offset(0, side * 0.50);
-    final origin = Offset(size.width * 0.50, size.height * 0.11);
+    final baseProjection = _Projection(
+      origin: Offset.zero,
+      x: xVec,
+      y: yVec,
+      z: zVec,
+    );
+    final projectedCorners = const [
+      _V3(0, 0, 0),
+      _V3(1, 0, 0),
+      _V3(1, 1, 0),
+      _V3(0, 1, 0),
+      _V3(0, 0, 1),
+      _V3(1, 0, 1),
+      _V3(1, 1, 1),
+      _V3(0, 1, 1),
+    ].map((point) => _project(point, baseProjection)).toList();
+    var minX = projectedCorners.first.dx;
+    var maxX = projectedCorners.first.dx;
+    var minY = projectedCorners.first.dy;
+    var maxY = projectedCorners.first.dy;
+    for (final point in projectedCorners) {
+      minX = math.min(minX, point.dx);
+      maxX = math.max(maxX, point.dx);
+      minY = math.min(minY, point.dy);
+      maxY = math.max(maxY, point.dy);
+    }
+    final graphCenter = Offset((minX + maxX) / 2, (minY + maxY) / 2);
+    final origin = Offset(size.width * 0.5, size.height * 0.5) - graphCenter;
     return _Projection(origin: origin, x: xVec, y: yVec, z: zVec);
   }
 
   void _drawGrid(Canvas canvas, _Projection projection) {
     final gridPaint = Paint()
-      ..color = Colors.black
+      ..color = gridLegendColor
       ..strokeWidth = 1.2
       ..style = PaintingStyle.stroke;
     final eastWestStepCount = _eastWestStepCount();
@@ -1192,7 +1281,7 @@ class WellPath3DPainter extends CustomPainter {
 
   void _drawBoundingBox(Canvas canvas, _Projection projection) {
     final boxPaint = Paint()
-      ..color = Colors.black
+      ..color = gridLegendColor
       ..strokeWidth = 1.4
       ..style = PaintingStyle.stroke;
 
@@ -1212,13 +1301,13 @@ class WellPath3DPainter extends CustomPainter {
   void _drawWellPath(Canvas canvas, _Projection projection) {
     final pathPaint = Paint()
       ..color = const Color(0xFF4D4D4D)
-      ..strokeWidth = 2.5 + cylinderScale.clamp(1, 5).toDouble()
+      ..strokeWidth = 2.5 + (cylinderScale.clamp(1, 5).toDouble() * 2.2)
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round
       ..style = PaintingStyle.stroke;
     final shadowPaint = Paint()
       ..color = const Color(0xFF777777)
-      ..strokeWidth = 5.5 + cylinderScale.clamp(1, 5).toDouble()
+      ..strokeWidth = 5.5 + (cylinderScale.clamp(1, 5).toDouble() * 2.6)
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round
       ..style = PaintingStyle.stroke;
@@ -1245,17 +1334,15 @@ class WellPath3DPainter extends CustomPainter {
 
   void _drawNorthSouthLabels(Canvas canvas, _Projection projection) {
     final labelStyle = const TextStyle(
-      color: Colors.black,
       fontSize: 10,
-    );
+    ).copyWith(color: gridLegendColor);
     final titleStyle = const TextStyle(
-      color: Colors.black,
       fontSize: 11,
       fontWeight: FontWeight.w500,
-    );
+    ).copyWith(color: gridLegendColor);
     final eastWestStepCount = _eastWestStepCount();
     final stepCount = _northSouthStepCount();
-    final rowY = (stepCount - 0.5) / stepCount;
+    final rowY = (stepCount + 0.5) / stepCount;
     final valueSpacing = 1 / eastWestStepCount;
     final firstValueX = 0.5 / eastWestStepCount;
     final axisStart = _project(_V3(firstValueX, rowY, 1), projection);
@@ -1263,17 +1350,8 @@ class WellPath3DPainter extends CustomPainter {
       _V3(firstValueX + ((stepCount - 1) * valueSpacing), rowY, 1),
       projection,
     );
-    var axisAngle = math.atan2(
-      axisEnd.dy - axisStart.dy,
-      axisEnd.dx - axisStart.dx,
-    );
-    if (math.cos(axisAngle) < 0) {
-      axisAngle += math.pi;
-    }
-    if (axisAngle > math.pi) {
-      axisAngle -= math.pi * 2;
-    }
-    final valueAngle = axisAngle + 0.40;
+    final axisAngle = _readableAxisAngle(axisStart, axisEnd);
+    final valueAngle = axisAngle + 0.50;
 
     for (var i = 1; i <= stepCount; i++) {
       final value = i * 2000;
@@ -1282,16 +1360,11 @@ class WellPath3DPainter extends CustomPainter {
         _V3(valueX, rowY, 1),
         projection,
       );
-      final offset = _frontOutsideOffset(
-        position,
-        _project(_V3(valueX, 0, 1), projection),
-        24,
-      );
       _drawRotatedCenteredText(
         canvas,
         _formatAxisValue(value),
-        position + offset,
-        value == 2000 ? valueAngle - 0.12 : valueAngle,
+        position + const Offset(0, 5),
+        valueAngle,
         labelStyle,
       );
     }
@@ -1300,12 +1373,8 @@ class WellPath3DPainter extends CustomPainter {
     final lastTitleX = firstValueX + ((stepCount - 1) * valueSpacing);
     final titleStart = _project(_V3(firstTitleX, rowY, 1), projection);
     final titleEnd = _project(_V3(lastTitleX, rowY, 1), projection);
-    final titleCenterStart = _project(_V3(firstTitleX, 0, 1), projection);
-    final titleCenterEnd = _project(_V3(lastTitleX, 0, 1), projection);
     final titleBase = (titleStart + titleEnd) / 2;
-    final titleCenterBase = (titleCenterStart + titleCenterEnd) / 2;
-    final titlePosition =
-        titleBase + _frontOutsideOffset(titleBase, titleCenterBase, 75);
+    final titlePosition = titleBase + const Offset(0, 42);
     _drawRotatedCenteredText(
       canvas,
       'N+/S ${AppUnits.unitText('(ft)')}',
@@ -1317,17 +1386,15 @@ class WellPath3DPainter extends CustomPainter {
 
   void _drawEastWestLabels(Canvas canvas, _Projection projection) {
     final labelStyle = const TextStyle(
-      color: Colors.black,
       fontSize: 10,
-    );
+    ).copyWith(color: gridLegendColor);
     final titleStyle = const TextStyle(
-      color: Colors.black,
       fontSize: 11,
       fontWeight: FontWeight.w500,
-    );
+    ).copyWith(color: gridLegendColor);
     final eastWestStepCount = _eastWestStepCount();
     final northSouthStepCount = _northSouthStepCount();
-    final labelX = (eastWestStepCount - 0.5) / eastWestStepCount;
+    final labelX = (eastWestStepCount + 0.5) / eastWestStepCount;
     final axisStart = _project(
       _V3(labelX, 0.20 / northSouthStepCount, 1),
       projection,
@@ -1336,24 +1403,16 @@ class WellPath3DPainter extends CustomPainter {
       _V3(labelX, (northSouthStepCount - 0.5) / northSouthStepCount, 1),
       projection,
     );
-    final axisAngle = math.atan2(
-      axisEnd.dy - axisStart.dy,
-      axisEnd.dx - axisStart.dx,
-    );
+    final axisAngle = _readableAxisAngle(axisStart, axisEnd);
 
     for (var i = 0; i < northSouthStepCount; i++) {
       final value = -(i * 2000);
       final y = (i + 0.5) / northSouthStepCount;
       final edgePosition = _project(_V3(labelX, y, 1), projection);
-      final labelOffset = _frontOutsideOffset(
-        edgePosition,
-        _project(_V3(0, y, 1), projection),
-        24,
-      );
       _drawRotatedCenteredText(
         canvas,
         _formatAxisValue(value),
-        edgePosition + labelOffset,
+        edgePosition + const Offset(0, 5),
         axisAngle - 0.50,
         labelStyle,
       );
@@ -1363,12 +1422,8 @@ class WellPath3DPainter extends CustomPainter {
     final lastTitleY = (northSouthStepCount - 0.5) / northSouthStepCount;
     final titleStart = _project(_V3(labelX, firstTitleY, 1), projection);
     final titleEnd = _project(_V3(labelX, lastTitleY, 1), projection);
-    final titleCenterStart = _project(_V3(0, firstTitleY, 1), projection);
-    final titleCenterEnd = _project(_V3(0, lastTitleY, 1), projection);
     final titleBase = (titleStart + titleEnd) / 2;
-    final titleCenterBase = (titleCenterStart + titleCenterEnd) / 2;
-    final titlePosition =
-        titleBase + _frontOutsideOffset(titleBase, titleCenterBase, 75);
+    final titlePosition = titleBase + const Offset(0, 42);
     _drawRotatedCenteredText(
       canvas,
       'E+/W ${AppUnits.unitText('(ft)')}',
@@ -1379,22 +1434,19 @@ class WellPath3DPainter extends CustomPainter {
   }
 
   void _drawTvdLabels(Canvas canvas, _Projection projection) {
-    final edge = _rightMostVerticalEdge(projection);
     final labelStyle = const TextStyle(
-      color: Colors.black,
       fontSize: 10,
-    );
+    ).copyWith(color: gridLegendColor);
     final titleStyle = const TextStyle(
-      color: Colors.black,
       fontSize: 11,
       fontWeight: FontWeight.w500,
-    );
+    ).copyWith(color: gridLegendColor);
     final stepCount = _tvdStepCount();
 
     for (var i = 0; i <= stepCount; i++) {
       final value = i * 2000;
       final t = value / maxTvd;
-      final position = _project(_V3(edge.x, edge.y, t), projection);
+      final position = _project(_V3(0, 1, t), projection);
       _drawText(
         canvas,
         _formatAxisValue(value),
@@ -1403,7 +1455,7 @@ class WellPath3DPainter extends CustomPainter {
       );
     }
 
-    final titlePosition = _project(_V3(edge.x, edge.y, 0.5), projection);
+    final titlePosition = _project(const _V3(0, 1, 0.5), projection);
     _drawRotatedCenteredText(
       canvas,
       'TVD ${AppUnits.unitText('(ft)')}',
@@ -1501,26 +1553,6 @@ class WellPath3DPainter extends CustomPainter {
         (projection.z * (pitchedZ + 0.5));
   }
 
-  _V3 _rightMostVerticalEdge(_Projection projection) {
-    const edges = [
-      _V3(0, 0, 0),
-      _V3(1, 0, 0),
-      _V3(0, 1, 0),
-      _V3(1, 1, 0),
-    ];
-    var selected = edges.first;
-    var selectedX = _project(const _V3(0, 0, 0.5), projection).dx;
-
-    for (final edge in edges) {
-      final x = _project(_V3(edge.x, edge.y, 0.5), projection).dx;
-      if (x > selectedX) {
-        selected = edge;
-        selectedX = x;
-      }
-    }
-    return selected;
-  }
-
   Offset _outsideFromCenterOffset(Offset edge, Offset center, double distance) {
     final delta = edge - center;
     if (delta.distance < 0.001) return Offset(0, distance);
@@ -1536,6 +1568,17 @@ class WellPath3DPainter extends CustomPainter {
       offset = -offset;
     }
     return offset + const Offset(0, 10);
+  }
+
+  double _readableAxisAngle(Offset start, Offset end) {
+    var angle = math.atan2(end.dy - start.dy, end.dx - start.dx);
+    if (math.cos(angle) < 0) {
+      angle += math.pi;
+    }
+    if (angle > math.pi) {
+      angle -= math.pi * 2;
+    }
+    return angle;
   }
 
   String _formatAxisValue(int value) {
@@ -1596,6 +1639,7 @@ class WellPath3DPainter extends CustomPainter {
         oldDelegate.rotationY != rotationY ||
         oldDelegate.zoom != zoom ||
         oldDelegate.showGrid != showGrid ||
+        oldDelegate.gridLegendColor != gridLegendColor ||
         oldDelegate.cylinderScale != cylinderScale ||
         oldDelegate.minEastWest != minEastWest ||
         oldDelegate.maxEastWest != maxEastWest ||
