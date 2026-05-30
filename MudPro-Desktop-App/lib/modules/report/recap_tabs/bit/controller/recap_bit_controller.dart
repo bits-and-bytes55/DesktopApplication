@@ -262,7 +262,7 @@ class RecapBitController extends GetxController {
 
   Iterable<String> get _candidateBaseUrls sync* {
     final seen = <String>{};
-    for (final baseUrl in [ApiEndpoint.baseUrl, 'http://localhost:3000/api/']) {
+    for (final baseUrl in ApiEndpoint.candidateBaseUrls) {
       final normalized = baseUrl.endsWith('/') ? baseUrl : '$baseUrl/';
       if (seen.add(normalized)) {
         yield normalized;

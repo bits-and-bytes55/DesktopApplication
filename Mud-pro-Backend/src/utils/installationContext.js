@@ -12,9 +12,7 @@ export const normalizeInstallationId = (value) => {
 export const readInstallationId = (req) =>
   normalizeInstallationId(
     req.headers?.[INSTALLATION_HEADER] ??
-      req.headers?.["x-installation-id"] ??
-      req.query?.installationId ??
-      req.body?.installationId
+      req.headers?.["x-installation-id"]
   );
 
 export const runWithInstallationId = (installationId, callback) =>
@@ -27,4 +25,19 @@ export const installationContextMiddleware = (req, _res, next) => {
   const installationId = readInstallationId(req);
   req.installationId = installationId;
   runWithInstallationId(installationId, next);
+};
+
+export const requireInstallationContext = (req, res, next) => {
+  if (req.method === "OPTIONS") {
+    return next();
+  }
+
+  if (!req.installationId) {
+    return res.status(428).json({
+      success: false,
+      message: "Installation id is required",
+    });
+  }
+
+  return next();
 };
