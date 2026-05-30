@@ -4,6 +4,7 @@ class ApiEndpoint {
   static const String baseUrl = "https://desktopapplication-l46s.onrender.com/api/";
   static const String localDevBaseUrl = "http://localhost:3000/api/";
   static const String installationHeader = "X-MudPro-Installation-Id";
+  static const String machineHeader = "X-MudPro-Machine-Key";
   static const Map<String, String> noCacheHeaders = {
     'Cache-Control': 'no-cache, no-store, must-revalidate',
     'Pragma': 'no-cache',
@@ -33,10 +34,12 @@ class ApiEndpoint {
     Map<String, String> headers,
   ) {
     final id = InstallationIdentity.id.trim();
+    final machineKey = InstallationIdentity.machineKey.trim();
     return {
       ...noCacheHeaders,
       ...headers,
       if (id.isNotEmpty) installationHeader: id,
+      if (machineKey.isNotEmpty) machineHeader: machineKey,
     };
   }
 

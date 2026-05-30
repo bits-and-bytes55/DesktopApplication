@@ -9,6 +9,7 @@ import {
   installationContextMiddleware,
   requireInstallationContext,
 } from "./utils/installationContext.js";
+import { verifyInstallationMachine } from "./middlewares/installationMachine.middleware.js";
 
 import operatorRoutes from "./routes/operator/operator.route.js";
 
@@ -130,6 +131,7 @@ app.use("/api", (_req, res, next) => {
 });
 
 app.use("/api", requireInstallationContext);
+app.use("/api", verifyInstallationMachine);
 
 app.use("/api/engineers", engineerRoutes);
 app.use("/api/company", companyRoutes);
