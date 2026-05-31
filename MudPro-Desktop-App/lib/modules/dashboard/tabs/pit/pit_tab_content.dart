@@ -595,6 +595,10 @@ class _PitPageState extends State<PitPage> {
     }
 
     String formatValue(double v) => v.toStringAsFixed(2);
+    String formatSignedValue(double v) {
+      if (v.abs() <= 0.005) return '0.00';
+      return v > 0 ? '+${v.toStringAsFixed(2)}' : v.toStringAsFixed(2);
+    }
 
     final rows = [
       ['Hole Vol. Difference', formatValue(getValue('heldVolDifference'))],
@@ -602,7 +606,7 @@ class _PitPageState extends State<PitPage> {
       ['Active Pits', formatValue(getValue('activePits'))],
       ['Active System', formatValue(getValue('activeSystem'))],
       ['End Vol.', formatValue(getValue('endVol'))],
-      ['End Vol. - Active System', formatValue(getValue('endVolMinusActiveSystem'))],
+      ['End Vol. - Active System', formatSignedValue(getValue('endVolMinusActiveSystem'))],
       ['Total Storage', formatValue(getValue('totalStorage'))],
       ['Total on Location', formatValue(getValue('totalOnLocation'))],
       ['Previous Total on Location', formatValue(getValue('previousTotalOnLocation'))],
@@ -618,7 +622,7 @@ class _PitPageState extends State<PitPage> {
       children: rows.map((row) {
         final label = row[0];
         final value = row[1];
-        final numVal = double.tryParse(value) ?? 0.0;
+        final numVal = double.tryParse(value.replaceFirst('+', '')) ?? 0.0;
         final isNegativeWarning = label == 'End Vol. - Active System';
         final isRed = isNegativeWarning && numVal.abs() > 0.005;
         final rowBg = isRed ? Colors.red.shade50 : Colors.transparent;

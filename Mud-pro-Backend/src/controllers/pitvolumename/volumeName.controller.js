@@ -398,7 +398,6 @@ const buildOperationVolumeEffects = ({
   emptyFluidEntries = [],
 }) => {
   let activeSystemDelta = 0;
-  let transferActiveSystemDelta = 0;
   let endVolDelta = 0;
   const storageDeltaByPit = new Map();
 
@@ -464,12 +463,12 @@ const buildOperationVolumeEffects = ({
       : toNumber(item.totalTransferVol);
 
     if (isActiveSystemName(item.from)) {
-      transferActiveSystemDelta -= totalTransferVol;
+      endVolDelta -= totalTransferVol;
       for (const row of transfers) {
         addPitDelta(storageDeltaByPit, row?.pitName, toNumber(row?.volume));
       }
     } else {
-      transferActiveSystemDelta += totalTransferVol;
+      endVolDelta += totalTransferVol;
       addPitDelta(storageDeltaByPit, item.from, -totalTransferVol);
     }
   }
@@ -488,7 +487,6 @@ const buildOperationVolumeEffects = ({
 
   return {
     activeSystemDelta: round2(activeSystemDelta),
-    transferActiveSystemDelta: round2(transferActiveSystemDelta),
     endVolDelta: round2(endVolDelta),
     storageDeltaByPit,
   };
@@ -935,21 +933,13 @@ export const getVolumeNameCalculation = async (req, res) => {
       addPitDelta(calculatedVolumeByPit, pitName, volume);
     }
     const derivedActiveSystem = round2(activePits + heldVolDifference);
-    // Transfer Mud moves volume into/out of Active System. Other operation
-    // rows continue to affect End Vol. without changing measured pit rows.
-    const activeSystem = round2(
-      derivedActiveSystem + operationVolumeEffects.transferActiveSystemDelta
-    );
+    const activeSystem = derivedActiveSystem;
     const operationEndVol = round2(
       activeSystem + operationVolumeEffects.endVolDelta
     );
     const endVol =
       activeSystemVolume > 0
-        ? round2(
-            activeSystemVolume +
-              operationVolumeEffects.endVolDelta +
-              operationVolumeEffects.transferActiveSystemDelta
-          )
+        ? round2(activeSystemVolume + operationVolumeEffects.endVolDelta)
         : Math.abs(operationVolumeEffects.endVolDelta) >= 0.005
           ? operationEndVol
           : 0;
@@ -1059,8 +1049,6 @@ export const getVolumeNameCalculation = async (req, res) => {
               .toFixed(2)
           ),
           operationActiveSystemDelta: operationVolumeEffects.activeSystemDelta,
-          transferActiveSystemDelta:
-            operationVolumeEffects.transferActiveSystemDelta,
           operationEndVolDelta: operationVolumeEffects.endVolDelta,
           operationEndVol,
         },
