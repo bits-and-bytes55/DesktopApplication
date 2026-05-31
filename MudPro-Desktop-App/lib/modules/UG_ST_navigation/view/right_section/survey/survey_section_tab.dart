@@ -122,12 +122,21 @@ class _SectionGraphPainter extends CustomPainter {
       drawDashedLine(canvas, Offset(plot.left, y), Offset(plot.right, y), grid);
     }
 
-    final maxTvd = _axisMaxFor(
+    if (points.isEmpty) {
+      drawSurveyText(
+        canvas,
+        'No survey data',
+        Offset(plot.center.dx - 34, plot.center.dy - 8),
+      );
+      return;
+    }
+
+    final maxTvd = _tvdAxisMaxFor(
       points.fold<double>(0, (maxValue, point) {
         return math.max(maxValue, _numberValue(point.tvd));
       }),
     );
-    final maxX = _axisMaxFor(
+    final maxX = _sectionAxisMaxFor(
       points.fold<double>(0, (maxValue, point) {
         return math.max(maxValue, _numberValue(point.vsec));
       }),
@@ -155,15 +164,6 @@ class _SectionGraphPainter extends CustomPainter {
         value.toStringAsFixed(0),
         Offset(px - 8, plot.bottom + 8),
       );
-    }
-
-    if (points.isEmpty) {
-      drawSurveyText(
-        canvas,
-        'No survey data',
-        Offset(plot.center.dx - 34, plot.center.dy - 8),
-      );
-      return;
     }
 
     final path = Path();
@@ -195,9 +195,15 @@ class _SectionGraphPainter extends CustomPainter {
     }
   }
 
-  double _axisMaxFor(double value) {
+  double _tvdAxisMaxFor(double maxTvd) {
+    return _sectionAxisMaxFor(maxTvd);
+  }
+
+  double _sectionAxisMaxFor(double value) {
     if (value <= 0) return _axisMinMax;
-    return math.max((value / _axisStep).ceil() * _axisStep, _axisMinMax);
+
+    final roundedMax = (value / _axisStep).ceil() * _axisStep;
+    return math.max(roundedMax, _axisMinMax);
   }
 
   double _numberValue(dynamic value) {

@@ -235,7 +235,6 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     }
 
     _replaceDistributeRows(restoredRows);
-    _rebalanceDistributeVolumes();
   }
 
   void _replaceDistributeRows(List<DistributeRowData> rows) {
@@ -849,8 +848,14 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     DistributeRowData row,
     Map<String, dynamic> data,
   ) {
+    final index = distributeRows.indexOf(row);
+    final nextVolume = (data['volume'] ?? '').toString();
+    if (index >= 0 && !_canSetDistributeVolume(index, nextVolume)) {
+      _showDistributionLimitAlert();
+      return;
+    }
     row.pit = (data['pit'] ?? '').toString();
-    row.volume = (data['volume'] ?? '').toString();
+    row.volume = nextVolume;
     row.volumeController.text = row.volume;
   }
 
@@ -1071,6 +1076,12 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
 
   /// Called when user manually changes volume (triggered on every keystroke)
   void _onDistributeVolumeChanged(int index, String value) {
+    if (!_canSetDistributeVolume(index, value)) {
+      final row = distributeRows[index];
+      _setDistributeVolumeText(row, row.volume);
+      _showDistributionLimitAlert();
+      return;
+    }
     // Update internal value only
     distributeRows[index].volume = value;
     // We don't automatically trigger rebalance on every keypress for other rows
@@ -1088,6 +1099,10 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
   /// Legacy behavior: row 0 mirrors Total Vol.; storage rows stay manual.
   void _rebalanceDistributeVolumes() {
     if (distributeRows.isEmpty) return;
+    final hasManualDistributionRows = distributeRows.skip(1).any((row) {
+      return row.pit.trim().isNotEmpty || row.volume.trim().isNotEmpty;
+    });
+    if (hasManualDistributionRows) return;
 
     if (distributeRows[0].pit.isNotEmpty) {
       final formattedVol = totalVolumeDisplay.value.trim().isNotEmpty
@@ -1095,12 +1110,55 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
           : '0.000';
       distributeRows[0].volume = formattedVol;
       if (distributeRows[0].volumeController.text != formattedVol) {
-        distributeRows[0].volumeController.value = TextEditingValue(
-          text: formattedVol,
-          selection: TextSelection.collapsed(offset: formattedVol.length),
-        );
+        _setDistributeVolumeText(distributeRows[0], formattedVol);
       }
     }
+  }
+
+  double _parseVolume(String value) {
+    return double.tryParse(value.trim()) ?? 0.0;
+  }
+
+  double _distributedVolumeTotal({int? overrideIndex, String? overrideValue}) {
+    var total = 0.0;
+    for (var i = 0; i < distributeRows.length; i++) {
+      final row = distributeRows[i];
+      final value = i == overrideIndex ? overrideValue ?? '' : row.volume;
+      final parsed = _parseVolume(value);
+      if (parsed > 0) total += parsed;
+    }
+    return total;
+  }
+
+  bool _canSetDistributeVolume(int index, String value) {
+    final totalVolume = _parseVolume(totalVolumeDisplay.value);
+    if (totalVolume <= 0) return _parseVolume(value) <= 0;
+    final distributed = _distributedVolumeTotal(
+      overrideIndex: index,
+      overrideValue: value,
+    );
+    return distributed <= totalVolume + 0.0005;
+  }
+
+  bool _validateDistributionTotal() {
+    final totalVolume = _parseVolume(totalVolumeDisplay.value);
+    final distributed = _distributedVolumeTotal();
+    if (totalVolume <= 0) return distributed <= 0;
+    return distributed <= totalVolume + 0.0005;
+  }
+
+  void _setDistributeVolumeText(DistributeRowData row, String value) {
+    row.volumeController.value = TextEditingValue(
+      text: value,
+      selection: TextSelection.collapsed(offset: value.length),
+    );
+  }
+
+  void _showDistributionLimitAlert() {
+    _showToast(
+      'Distributed volume cannot exceed Total Vol. ${totalVolumeDisplay.value} bbl',
+      isError: true,
+    );
   }
 
   // ─────────────────────────────────────────────
@@ -1266,9 +1324,15 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     }
 
     _recalculateTotalVolume();
-    _rebalanceDistributeVolumes();
 
     final totalVolume = double.tryParse(totalVolumeDisplay.value) ?? 0.0;
+    if (!_validateDistributionTotal()) {
+      return {
+        'success': false,
+        'message':
+            'Distributed volume cannot exceed Total Vol. ${totalVolumeDisplay.value} bbl',
+      };
+    }
     final candidateRows = distributeRows
         .where(
           (row) => row.pit.trim().isNotEmpty || row.volume.trim().isNotEmpty,

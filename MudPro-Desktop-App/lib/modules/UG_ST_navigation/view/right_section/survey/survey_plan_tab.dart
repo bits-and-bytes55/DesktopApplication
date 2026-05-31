@@ -122,14 +122,23 @@ class _PlanGraphPainter extends CustomPainter {
       drawDashedLine(canvas, Offset(plot.left, y), Offset(plot.right, y), grid);
     }
 
+    if (points.isEmpty) {
+      drawSurveyText(
+        canvas,
+        'No survey data',
+        Offset(plot.center.dx - 34, plot.center.dy - 8),
+      );
+      return;
+    }
+
     const minX = _axisMin;
     const minY = _axisMin;
-    final maxX = _axisMaxFor(
+    final maxX = _planAxisMaxFor(
       points.fold<double>(0, (maxValue, point) {
         return math.max(maxValue, _numberValue(point.eastWest).abs());
       }),
     );
-    final maxY = _axisMaxFor(
+    final maxY = _planAxisMaxFor(
       points.fold<double>(0, (maxValue, point) {
         return math.max(maxValue, _numberValue(point.northSouth).abs());
       }),
@@ -157,15 +166,6 @@ class _PlanGraphPainter extends CustomPainter {
         value.toStringAsFixed(0),
         Offset(px - 10, plot.bottom + 8),
       );
-    }
-
-    if (points.isEmpty) {
-      drawSurveyText(
-        canvas,
-        'No survey data',
-        Offset(plot.center.dx - 34, plot.center.dy - 8),
-      );
-      return;
     }
 
     final path = Path();
@@ -199,9 +199,11 @@ class _PlanGraphPainter extends CustomPainter {
     }
   }
 
-  double _axisMaxFor(double value) {
+  double _planAxisMaxFor(double value) {
     if (value <= 0) return _axisMinMax;
-    return math.max((value / _axisStep).ceil() * _axisStep, _axisMinMax);
+
+    final roundedMax = (value / _axisStep).ceil() * _axisStep;
+    return math.max(roundedMax, _axisMinMax);
   }
 
   double _numberValue(dynamic value) {

@@ -90,6 +90,15 @@ class _DoglegGraphPainter extends CustomPainter {
       drawDashedLine(canvas, Offset(plot.left, y), Offset(plot.right, y), grid);
     }
 
+    if (points.isEmpty) {
+      drawSurveyText(
+        canvas,
+        'No survey data',
+        Offset(plot.center.dx - 34, plot.center.dy - 8),
+      );
+      return;
+    }
+
     final maxMd = _mdAxisMaxFor(
       points.fold<double>(0, (maxValue, point) {
         return math.max(maxValue, _numberValue(point.md));
@@ -121,15 +130,6 @@ class _DoglegGraphPainter extends CustomPainter {
         value.toStringAsFixed(value == value.roundToDouble() ? 0 : 1),
         Offset(px - 8, plot.bottom + 8),
       );
-    }
-
-    if (points.isEmpty) {
-      drawSurveyText(
-        canvas,
-        'No survey data',
-        Offset(plot.center.dx - 34, plot.center.dy - 8),
-      );
-      return;
     }
 
     final path = Path();

@@ -11,6 +11,7 @@ class InstallationIdentity {
   static String _id = '';
   static String _machineKey = '';
 
+
   static String get id => _id;
   static String get machineKey => _machineKey;
 
