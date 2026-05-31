@@ -7,6 +7,7 @@ import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_contro
 import 'package:mudpro_desktop_app/modules/dashboard/controller/well_general_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/tabs/mud/apply_rheology_page.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/tabs/mud/solid_analysis_page.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/mud/titration_dialog.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
@@ -347,6 +348,80 @@ class _MudViewState extends State<MudView> {
           ),
           Obx(
             () => c.selectedFluidType.value == 'Oil-based'
+                ? Row(
+                    children: [
+                      const SizedBox(width: 12),
+                      Text(
+                        'Salt Type',
+                        style: AppTheme.caption.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.textPrimary,
+                          fontSize: 11,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        height: 26,
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(2),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: c.selectedSaltType.value,
+                            items: const [
+                              DropdownMenuItem(
+                                value: 'CaCl2',
+                                child: Text(
+                                  'CaCl2',
+                                  style: TextStyle(fontSize: 11),
+                                ),
+                              ),
+                              DropdownMenuItem(
+                                value: 'NaCl',
+                                child: Text(
+                                  'NaCl',
+                                  style: TextStyle(fontSize: 11),
+                                ),
+                              ),
+                              DropdownMenuItem(
+                                value: 'NaCl + CaCl2',
+                                child: Text(
+                                  'NaCl + CaCl2',
+                                  style: TextStyle(fontSize: 11),
+                                ),
+                              ),
+                              DropdownMenuItem(
+                                value: 'Sodium Formate',
+                                child: Text(
+                                  'Sodium Formate',
+                                  style: TextStyle(fontSize: 11),
+                                ),
+                              ),
+                            ],
+                            onChanged: dashboard.isLocked.value
+                                ? null
+                                : (v) {
+                                    if (v != null) {
+                                      c.changeSaltType(v);
+                                    }
+                                  },
+                            style: AppTheme.caption.copyWith(
+                              color: AppTheme.textPrimary,
+                              fontSize: 11,
+                            ),
+                            isDense: true,
+                          ),
+                        ),
+                      ),
+                    ],
+                  )
+                : const SizedBox.shrink(),
+          ),
+          Obx(
+            () => c.selectedFluidType.value == 'Oil-based'
                 ? const SizedBox.shrink()
                 : Row(
                     children: [
@@ -505,6 +580,33 @@ class _MudViewState extends State<MudView> {
                     ),
                     child: Icon(
                       Icons.camera_alt_outlined,
+                      size: 14,
+                      color: AppTheme.primaryColor,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Tooltip(
+                message: 'Titration',
+                child: InkWell(
+                  onTap: () => showDialog(
+                    context: context,
+                    builder: (_) => const TitrationDialog(),
+                  ),
+                  borderRadius: BorderRadius.circular(3),
+                  child: Container(
+                    width: 24,
+                    height: 24,
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(3),
+                      border: Border.all(
+                        color: AppTheme.primaryColor.withOpacity(0.3),
+                      ),
+                    ),
+                    child: Icon(
+                      Icons.science_outlined,
                       size: 14,
                       color: AppTheme.primaryColor,
                     ),
@@ -1285,8 +1387,12 @@ class _MudViewState extends State<MudView> {
                                                                       .value
                                                                       .length,
                                                                 ),
-                                                      onChanged: (v) =>
-                                                          cell.value.value = v,
+                                                      onChanged: (v) {
+                                                        cell.value.value = v;
+                                                        c.handleRheologyInputChanged(
+                                                          cell.key,
+                                                        );
+                                                      },
                                                       style: AppTheme.caption
                                                           .copyWith(
                                                             color: AppTheme
