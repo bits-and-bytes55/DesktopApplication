@@ -62,6 +62,8 @@ class PitController extends GetxController {
   Timer? _transferAutoSaveTimer;
   final Map<String, Timer> _pitConfigUpdateTimers = {};
   bool _isApplyingTransferState = false;
+  bool _isSavingTransferMud = false;
+  bool _needsTransferMudResave = false;
   Worker? _wellWorker;
   Worker? _reportWorker;
   final List<Worker> _transferAutoSaveWorkers = <Worker>[];
@@ -1133,27 +1135,35 @@ class PitController extends GetxController {
     _transferAutoSaveTimer?.cancel();
     if (!_hasWellId) return {'success': false, 'message': 'Well ID missing'};
 
-    final authRepo = AuthRepository();
-    final clearedSavedRows = transferRows
-        .where(
-          (r) =>
-              r.savedId != null &&
-              (r.pitName.trim().isEmpty || r.volume.trim().isEmpty),
-        )
-        .toList();
-    final candidateRows = transferRows
-        .where(
-          (r) =>
-              !clearedSavedRows.contains(r) &&
-              (r.pitName.trim().isNotEmpty || r.volume.trim().isNotEmpty),
-        )
-        .toList();
-
-    if (candidateRows.isEmpty && clearedSavedRows.isEmpty) {
-      return {'success': true, 'message': 'No transfers to save'};
+    if (_isSavingTransferMud) {
+      _needsTransferMudResave = true;
+      return {'success': true, 'message': 'Transfer save queued'};
     }
+    _isSavingTransferMud = true;
+    _needsTransferMudResave = false;
+
+    final authRepo = AuthRepository();
 
     try {
+      final clearedSavedRows = transferRows
+          .where(
+            (r) =>
+                r.savedId != null &&
+                (r.pitName.trim().isEmpty || r.volume.trim().isEmpty),
+          )
+          .toList();
+      final candidateRows = transferRows
+          .where(
+            (r) =>
+                !clearedSavedRows.contains(r) &&
+                (r.pitName.trim().isNotEmpty || r.volume.trim().isNotEmpty),
+          )
+          .toList();
+
+      if (candidateRows.isEmpty && clearedSavedRows.isEmpty) {
+        return {'success': true, 'message': 'No transfers to save'};
+      }
+
       int successCount = 0;
       final List<String> errors = [];
       final validRows = <TransferRowData>[];
@@ -1233,6 +1243,12 @@ class PitController extends GetxController {
     } catch (e) {
       debugPrint('Error saving transfer mud batch: $e');
       return {'success': false, 'message': 'Error: $e'};
+    } finally {
+      _isSavingTransferMud = false;
+      if (_needsTransferMudResave) {
+        _needsTransferMudResave = false;
+        scheduleTransferMudAutoSave();
+      }
     }
   }
 

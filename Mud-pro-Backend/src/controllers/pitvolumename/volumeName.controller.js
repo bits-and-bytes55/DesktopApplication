@@ -455,9 +455,13 @@ const buildOperationVolumeEffects = ({
 
   for (const item of transferMudEntries) {
     const transfers = Array.isArray(item.transfers) ? item.transfers : [];
-    const totalTransferVol =
-      toNumber(item.totalTransferVol) ||
-      transfers.reduce((sum, row) => sum + toNumber(row?.volume), 0);
+    const rowTransferVol = transfers.reduce(
+      (sum, row) => sum + toNumber(row?.volume),
+      0
+    );
+    const totalTransferVol = transfers.length
+      ? rowTransferVol
+      : toNumber(item.totalTransferVol);
 
     if (isActiveSystemName(item.from)) {
       transferActiveSystemDelta -= totalTransferVol;
