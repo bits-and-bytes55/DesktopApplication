@@ -1,7 +1,7 @@
 import 'package:mudpro_desktop_app/modules/installation/installation_identity.dart';
 
 class ApiEndpoint {
-  static const String baseUrl = "https://desktopapplication-l46s.onrender.com/api/";
+  static const String baseUrl = "http://213.210.37.129/api/";
   static const String localDevBaseUrl = "http://localhost:3000/api/";
   static const String installationHeader = "X-MudPro-Installation-Id";
   static const String machineHeader = "X-MudPro-Machine-Key";
