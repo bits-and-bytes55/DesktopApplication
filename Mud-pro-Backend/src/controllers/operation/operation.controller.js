@@ -17,6 +17,10 @@ import MudLoss from "../../modules/mudloss/MudLoss.js";
 import MudLossStorage from "../../modules/mudlossstorage/MudLossStorage.js";
 import EmptyFluidActiveSystem from "../../modules/emptyfluidactivesystem/EmptyFluidActiveSystem.js";
 import { legacyReportScope } from "../../utils/reportScope.js";
+import {
+  readOperationInstanceKey,
+  withOperationInstanceScope,
+} from "../../utils/operationInstanceScope.js";
 
 const toNumber = (value) => {
   if (value === null || value === undefined || value === "") return 0;
@@ -224,6 +228,7 @@ export const deleteOperationData = async (req, res) => {
     const wellId = String(req.params.wellId ?? "").trim();
     const operationType = String(req.params.operationType ?? "").trim();
     const reportId = String(req.query.reportId ?? req.body?.reportId ?? "").trim();
+    const operationInstanceKey = readOperationInstanceKey(req);
 
     if (!wellId) {
       return res.status(400).json({
@@ -247,7 +252,11 @@ export const deleteOperationData = async (req, res) => {
     }
 
     const models = operationDataModels[operationType];
-    const filter = buildOperationDataFilter(wellId, reportId);
+    const filter = withOperationInstanceScope(
+      buildOperationDataFilter(wellId, reportId),
+      operationInstanceKey,
+      `${operationType}::legacy0`
+    );
     const results = await Promise.all(
       models.map(async (Model) => {
         const result = await Model.deleteMany(filter);

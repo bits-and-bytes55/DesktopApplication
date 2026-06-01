@@ -45,7 +45,9 @@ class PackageRowData {
 
 // ─── View ─────────────────────────────────────────────────────
 class ReceiveProductView extends StatefulWidget {
-  const ReceiveProductView({super.key});
+  const ReceiveProductView({super.key, required this.instanceKey});
+
+  final String instanceKey;
 
   @override
   State<ReceiveProductView> createState() => _ReceiveProductViewState();
@@ -54,7 +56,7 @@ class ReceiveProductView extends StatefulWidget {
 class _ReceiveProductViewState extends State<ReceiveProductView> {
   final DashboardController dashboardController =
       Get.find<DashboardController>();
-  final ReceiveProductController _apiController = ReceiveProductController();
+  late final ReceiveProductController _apiController;
   final InventorySnapshotController _inventorySnapshotController =
       InventorySnapshotController();
 
@@ -82,6 +84,9 @@ class _ReceiveProductViewState extends State<ReceiveProductView> {
   @override
   void initState() {
     super.initState();
+    _apiController = ReceiveProductController(
+      operationInstanceKey: widget.instanceKey,
+    );
     _inventoryStore = Get.find<InventoryProductsStore>();
     _loadProductsIfNeeded();
     _loadPackages();

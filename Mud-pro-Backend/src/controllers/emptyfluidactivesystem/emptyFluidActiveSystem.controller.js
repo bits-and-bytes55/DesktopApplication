@@ -1,6 +1,13 @@
 import EmptyFluidActiveSystem from "../../modules/emptyfluidactivesystem/EmptyFluidActiveSystem.js";
 import { getWritablePits } from "../../utils/pitReportState.js";
 import { buildScopedFilter, readReportId } from "../../utils/reportScope.js";
+import {
+  operationInstancePayload,
+  readOperationInstanceKey,
+  withOperationInstanceScope,
+} from "../../utils/operationInstanceScope.js";
+
+const LEGACY_OPERATION_INSTANCE_KEY = "emptyActiveSystem::legacy0";
 
 const toNumber = (value) => {
   if (!value) return 0;
@@ -41,6 +48,7 @@ export const createEmptyFluidActiveSystem = async (req, res) => {
   try {
     const wellId = getWellId(req);
     const reportId = readReportId(req);
+    const requestOperationInstanceKey = operationInstancePayload(req);
     const payloads = Array.isArray(req.body) ? req.body : [req.body];
 
     const created = [];
@@ -57,6 +65,8 @@ export const createEmptyFluidActiveSystem = async (req, res) => {
         const item = await EmptyFluidActiveSystem.create({
           wellId,
           reportId,
+          operationInstanceKey:
+            String(payload.operationInstanceKey || requestOperationInstanceKey).trim(),
           actionType,
           pitName: "",
           volume: dumpVol,
@@ -79,6 +89,8 @@ export const createEmptyFluidActiveSystem = async (req, res) => {
           clean.map((t) => ({
             wellId,
             reportId,
+            operationInstanceKey:
+              String(payload.operationInstanceKey || requestOperationInstanceKey).trim(),
             actionType,
             pitName: t.pitName,
             volume: t.volume,
@@ -110,7 +122,11 @@ export const getEmptyFluidList = async (req, res) => {
   const reportId = readReportId(req);
 
   const data = await EmptyFluidActiveSystem.find(
-    buildScopedFilter(wellId, reportId)
+    withOperationInstanceScope(
+      buildScopedFilter(wellId, reportId),
+      readOperationInstanceKey(req),
+      LEGACY_OPERATION_INSTANCE_KEY
+    )
   ).sort({
     createdAt: -1,
   });
@@ -125,7 +141,11 @@ export const getEmptyFluidById = async (req, res) => {
 
   const item = await EmptyFluidActiveSystem.findOne({
     _id: id,
-    ...buildScopedFilter(wellId, reportId),
+    ...withOperationInstanceScope(
+      buildScopedFilter(wellId, reportId),
+      readOperationInstanceKey(req),
+      LEGACY_OPERATION_INSTANCE_KEY
+    ),
   });
 
   if (!item) {
@@ -145,7 +165,11 @@ export const updateEmptyFluid = async (req, res) => {
 
     const existing = await EmptyFluidActiveSystem.findOne({
       _id: id,
-      ...buildScopedFilter(wellId, reportId),
+      ...withOperationInstanceScope(
+        buildScopedFilter(wellId, reportId),
+        readOperationInstanceKey(req),
+        LEGACY_OPERATION_INSTANCE_KEY
+      ),
     });
 
     if (!existing) throw new Error("Record not found");
@@ -169,14 +193,22 @@ export const deleteEmptyFluid = async (req, res) => {
 
     const existing = await EmptyFluidActiveSystem.findOne({
       _id: id,
-      ...buildScopedFilter(wellId, reportId),
+      ...withOperationInstanceScope(
+        buildScopedFilter(wellId, reportId),
+        readOperationInstanceKey(req),
+        LEGACY_OPERATION_INSTANCE_KEY
+      ),
     });
 
     if (!existing) throw new Error("Record not found");
 
     await EmptyFluidActiveSystem.deleteOne({
       _id: id,
-      ...buildScopedFilter(wellId, reportId),
+      ...withOperationInstanceScope(
+        buildScopedFilter(wellId, reportId),
+        readOperationInstanceKey(req),
+        LEGACY_OPERATION_INSTANCE_KEY
+      ),
     });
 
     res.json({ success: true, message: "Deleted successfully" });

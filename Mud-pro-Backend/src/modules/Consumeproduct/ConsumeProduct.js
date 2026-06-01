@@ -13,6 +13,12 @@ const consumeProductSchema = new mongoose.Schema(
       index: true,
     },
 
+    operationInstanceKey: {
+      type: String,
+      default: "",
+      index: true,
+    },
+
     product: {
       type: String,
       default: "",

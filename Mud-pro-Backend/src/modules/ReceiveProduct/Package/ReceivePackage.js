@@ -14,6 +14,12 @@ const receivePackageSchema = new mongoose.Schema(
       index: true,
     },
 
+    operationInstanceKey: {
+      type: String,
+      default: "",
+      index: true,
+    },
+
     packageName: {
       type: String,
       default: "",

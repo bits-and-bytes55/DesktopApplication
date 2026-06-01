@@ -13,7 +13,9 @@ import 'operation_desktop_ui.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class ConsumeServicesView extends StatefulWidget {
-  const ConsumeServicesView({super.key});
+  const ConsumeServicesView({super.key, required this.instanceKey});
+
+  final String instanceKey;
 
   @override
   State<ConsumeServicesView> createState() => _ConsumeServicesViewState();
@@ -22,7 +24,7 @@ class ConsumeServicesView extends StatefulWidget {
 class _ConsumeServicesViewState extends State<ConsumeServicesView> {
   final dashboardController = Get.find<DashboardController>();
   final serviceController = Get.put(ServiceController());
-  final consumeServiceController = ConsumeServiceController();
+  late final ConsumeServiceController consumeServiceController;
   final inventorySnapshotController = InventorySnapshotController();
 
   final RxString selectedMethod = "Used".obs;
@@ -71,6 +73,9 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
   @override
   void initState() {
     super.initState();
+    consumeServiceController = ConsumeServiceController(
+      operationInstanceKey: widget.instanceKey,
+    );
     _resetAllRows();
     Future.microtask(_reloadScopedData);
     _wellWorker = ever<String>(
@@ -1576,9 +1581,7 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
                             );
                             return DataRow(
                               color: MaterialStateProperty.all(
-                                i % 2 == 0
-                                    ? Colors.white
-                                    : Colors.grey.shade50,
+                                i % 2 == 0 ? Colors.white : Colors.grey.shade50,
                               ),
                               cells: title == 'Package'
                                   ? _withRowMenu(
@@ -1652,8 +1655,9 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
         width: w(80),
         rightAlign: true,
         bold: true,
-        colorForValue: (value) =>
-            (double.tryParse(value) ?? 0) < 0 ? Colors.red : Colors.grey.shade700,
+        colorForValue: (value) => (double.tryParse(value) ?? 0) < 0
+            ? Colors.red
+            : Colors.grey.shade700,
       ),
       _reactiveReadCell(
         text: () => row.cost > 0 ? row.cost.toStringAsFixed(2) : '',
@@ -1872,7 +1876,8 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
             style: AppTheme.bodySmall.copyWith(
               fontSize: 9,
               fontWeight: bold ? FontWeight.w600 : FontWeight.normal,
-              color: colorForValue?.call(value) ?? color ?? Colors.grey.shade800,
+              color:
+                  colorForValue?.call(value) ?? color ?? Colors.grey.shade800,
             ),
           );
         }),

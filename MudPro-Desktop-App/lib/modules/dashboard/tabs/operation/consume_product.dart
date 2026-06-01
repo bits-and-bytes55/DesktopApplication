@@ -21,7 +21,9 @@ import 'operation_desktop_ui.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class ConsumeProductView extends StatefulWidget {
-  const ConsumeProductView({super.key});
+  const ConsumeProductView({super.key, required this.instanceKey});
+
+  final String instanceKey;
 
   @override
   State<ConsumeProductView> createState() => _ConsumeProductViewState();
@@ -36,8 +38,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       ? Get.find<PitController>()
       : Get.put(PitController());
   final AuthRepository _authRepository = AuthRepository();
-  final ConsumeProductController consumeProductController =
-      ConsumeProductController();
+  late final ConsumeProductController consumeProductController;
   final ReceiveProductController _receiveProductController =
       ReceiveProductController();
   final ReturnProductController _returnProductController =
@@ -90,6 +91,9 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
   @override
   void initState() {
     super.initState();
+    consumeProductController = ConsumeProductController(
+      operationInstanceKey: widget.instanceKey,
+    );
     _inventoryStore = Get.find<InventoryProductsStore>();
     _saveBridge = Get.isRegistered<ConsumeProductSaveBridge>()
         ? Get.find<ConsumeProductSaveBridge>()
@@ -136,7 +140,9 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       return;
     }
     if (reportContext.selectedReportId.value.trim().isEmpty) return;
-    await pitController.fetchVolumeNameData();
+    await pitController.fetchVolumeNameData(
+      operationInstanceKey: widget.instanceKey,
+    );
     if (!mounted) return;
     _hydrateDistributionStateFromPitData();
   }
@@ -986,7 +992,9 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
         if (!mounted || dashboardController.isLocked.value) return;
         final result = await _saveDistributionState();
         if (result['success'] == true) {
-          await pitController.fetchVolumeNameData();
+          await pitController.fetchVolumeNameData(
+            operationInstanceKey: widget.instanceKey,
+          );
         }
       },
     );
@@ -1212,7 +1220,9 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
         if (result['success'] == true) {
           row.savedId = result['data']?['_id']?.toString();
           row.productName = productName;
-          await pitController.fetchVolumeNameData();
+          await pitController.fetchVolumeNameData(
+            operationInstanceKey: widget.instanceKey,
+          );
           debugPrint('✅ [CREATE] Done — savedId=${row.savedId}');
         } else {
           _showToast(result['message'] ?? 'Save failed', isError: true);
@@ -1241,7 +1251,9 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
           _showToast(result['message'] ?? 'Update failed', isError: true);
         }
       }
-      await pitController.fetchVolumeNameData();
+      await pitController.fetchVolumeNameData(
+        operationInstanceKey: widget.instanceKey,
+      );
       return result;
     } catch (e) {
       _showToast('Save error: $e', isError: true);
@@ -1293,7 +1305,9 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
         if (distributionResult['success'] == true) {
           await _refreshPitStateAfterConsumeProductSave();
         } else {
-          await pitController.fetchVolumeNameData();
+          await pitController.fetchVolumeNameData(
+            operationInstanceKey: widget.instanceKey,
+          );
         }
         await inventorySnapshotController.generateInventorySnapshot();
         _showToast('Deleted');
@@ -1309,7 +1323,9 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     await pitController.fetchAllPits();
     await pitController.fetchSelectedPits();
     await pitController.fetchUnselectedPits();
-    await pitController.fetchVolumeNameData();
+    await pitController.fetchVolumeNameData(
+      operationInstanceKey: widget.instanceKey,
+    );
     _hydrateDistributionStateFromPitData();
   }
 
@@ -1373,6 +1389,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     return _authRepository.saveConsumeProductVolumeName({
       'wellId': wellId,
       'reportId': reportId,
+      'operationInstanceKey': widget.instanceKey,
       'inputMethod': selectedMethod.value,
       'addWater': addWater.value,
       'addWaterVolume': addWater.value ? addWaterVolume : 0.0,
@@ -1990,9 +2007,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
         Obx(() {
           final isUsedMode = selectedMethod.value == "Used";
           return _editField(
-            key: ValueKey(
-              'used_${identityHashCode(row)}_$isUsedMode',
-            ),
+            key: ValueKey('used_${identityHashCode(row)}_$isUsedMode'),
             value: row.used,
             width: 75,
             locked: locked,
@@ -2755,15 +2770,12 @@ class ProductRowData {
 
   ({double amount, String unitClass}) _parseUnitValue() {
     final raw = unit.trim();
-    final match = RegExp(
-      r'^([0-9]*\.?[0-9]+)\s*([a-zA-Z]+)',
-    ).firstMatch(raw);
+    final match = RegExp(r'^([0-9]*\.?[0-9]+)\s*([a-zA-Z]+)').firstMatch(raw);
     final amount = match == null
         ? 1.0
-        : (double.tryParse(match.group(1) ?? '') ?? 1.0).clamp(
-            1.0,
-            double.infinity,
-          ).toDouble();
+        : (double.tryParse(match.group(1) ?? '') ?? 1.0)
+              .clamp(1.0, double.infinity)
+              .toDouble();
     return (
       amount: amount,
       unitClass: (match?.group(2) ?? raw).trim().toLowerCase(),

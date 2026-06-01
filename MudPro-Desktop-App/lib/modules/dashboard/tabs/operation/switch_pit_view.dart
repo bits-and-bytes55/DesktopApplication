@@ -6,7 +6,9 @@ import 'package:mudpro_desktop_app/theme/app_theme.dart';
 import '../../controller/dashboard_controller.dart';
 
 class SwitchPitView extends StatefulWidget {
-  const SwitchPitView({super.key});
+  const SwitchPitView({super.key, required this.instanceKey});
+
+  final String instanceKey;
 
   @override
   State<SwitchPitView> createState() => _SwitchPitViewState();
@@ -14,7 +16,8 @@ class SwitchPitView extends StatefulWidget {
 
 class _SwitchPitViewState extends State<SwitchPitView> {
   final PitController pitController = Get.put(PitController());
-  final DashboardController dashboardController = Get.find<DashboardController>();
+  final DashboardController dashboardController =
+      Get.find<DashboardController>();
 
   final ScrollController activePitScrollController = ScrollController();
   final ScrollController storagePitScrollController = ScrollController();
@@ -240,10 +243,7 @@ class _SwitchPitViewState extends State<SwitchPitView> {
               alignment: Alignment.center,
               child: Text(
                 "No active pits",
-                style: TextStyle(
-                  fontSize: 11,
-                  color: AppTheme.textSecondary,
-                ),
+                style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
               ),
             );
           }
@@ -263,7 +263,10 @@ class _SwitchPitViewState extends State<SwitchPitView> {
                     decoration: BoxDecoration(
                       color: index.isEven ? Colors.white : Colors.grey.shade50,
                       border: Border(
-                        bottom: BorderSide(color: Colors.grey.shade200, width: 1),
+                        bottom: BorderSide(
+                          color: Colors.grey.shade200,
+                          width: 1,
+                        ),
                       ),
                     ),
                     child: Table(
@@ -279,7 +282,9 @@ class _SwitchPitViewState extends State<SwitchPitView> {
                             _buildDataCell("${index + 1}"),
                             _buildDataCell(pit.pitName, isLeft: true),
                             _buildCheckboxCell(pit, true),
-                            _buildDataCell(pit.capacity.value.toStringAsFixed(2)),
+                            _buildDataCell(
+                              pit.capacity.value.toStringAsFixed(2),
+                            ),
                           ],
                         ),
                       ],
@@ -346,10 +351,7 @@ class _SwitchPitViewState extends State<SwitchPitView> {
               alignment: Alignment.center,
               child: Text(
                 "No storage pits",
-                style: TextStyle(
-                  fontSize: 11,
-                  color: AppTheme.textSecondary,
-                ),
+                style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
               ),
             );
           }
@@ -369,7 +371,10 @@ class _SwitchPitViewState extends State<SwitchPitView> {
                     decoration: BoxDecoration(
                       color: index.isEven ? Colors.white : Colors.grey.shade50,
                       border: Border(
-                        bottom: BorderSide(color: Colors.grey.shade200, width: 1),
+                        bottom: BorderSide(
+                          color: Colors.grey.shade200,
+                          width: 1,
+                        ),
                       ),
                     ),
                     child: Table(
@@ -401,10 +406,13 @@ class _SwitchPitViewState extends State<SwitchPitView> {
   // ===================================================
   // HELPER WIDGETS
   // ===================================================
-  
+
   Widget _buildHeaderCell(String text) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6), // Reduced padding
+      padding: const EdgeInsets.symmetric(
+        horizontal: 8,
+        vertical: 6,
+      ), // Reduced padding
       child: Obx(
         () => Text(
           AppUnits.label(text),
@@ -413,8 +421,9 @@ class _SwitchPitViewState extends State<SwitchPitView> {
             fontWeight: FontWeight.w600,
             color: AppTheme.primaryColor,
           ),
-          textAlign:
-              text == "#" || text == "Checked" ? TextAlign.center : TextAlign.left,
+          textAlign: text == "#" || text == "Checked"
+              ? TextAlign.center
+              : TextAlign.left,
         ),
       ),
     );
@@ -422,7 +431,10 @@ class _SwitchPitViewState extends State<SwitchPitView> {
 
   Widget _buildDataCell(String text, {bool isLeft = false}) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6), // Reduced padding
+      padding: const EdgeInsets.symmetric(
+        horizontal: 8,
+        vertical: 6,
+      ), // Reduced padding
       child: Text(
         text,
         style: TextStyle(
@@ -438,13 +450,18 @@ class _SwitchPitViewState extends State<SwitchPitView> {
 
   Widget _buildCheckboxCell(dynamic pit, bool isActive) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), // Reduced padding
+      padding: const EdgeInsets.symmetric(
+        horizontal: 8,
+        vertical: 4,
+      ), // Reduced padding
       alignment: Alignment.center,
       child: Obx(() {
         // For active pits: checkbox is checked when initialActive is true
         // For storage pits: checkbox is checked when initialActive is false (inverted)
-        bool checkboxValue = isActive ? pit.initialActive.value : !pit.initialActive.value;
-        
+        bool checkboxValue = isActive
+            ? pit.initialActive.value
+            : !pit.initialActive.value;
+
         return Transform.scale(
           scale: 0.85, // Slightly smaller checkbox
           child: Checkbox(
@@ -454,7 +471,7 @@ class _SwitchPitViewState extends State<SwitchPitView> {
                 : (v) async {
                     // Toggle the pit status
                     await pitController.togglePitActive(pit);
-                    
+
                     // Reload data to reflect changes
                     await _loadData();
                   },

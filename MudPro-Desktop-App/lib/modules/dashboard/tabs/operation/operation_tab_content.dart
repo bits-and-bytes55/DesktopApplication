@@ -402,10 +402,14 @@ class OperationPage extends StatelessWidget {
       case OperationType.consumeServices:
         return ConsumeServicesView(
           key: ValueKey('consumeServices-$instanceKey'),
+          instanceKey: instanceKey,
         );
 
       case OperationType.consumeProduct:
-        return ConsumeProductView(key: ValueKey('consumeProduct-$instanceKey'));
+        return ConsumeProductView(
+          key: ValueKey('consumeProduct-$instanceKey'),
+          instanceKey: instanceKey,
+        );
 
       case OperationType.mudLossActiveSystem:
         return MudLossActiveSystemView(
@@ -414,13 +418,22 @@ class OperationPage extends StatelessWidget {
         );
 
       case OperationType.receiveProduct:
-        return ReceiveProductView(key: ValueKey('receiveProduct-$instanceKey'));
+        return ReceiveProductView(
+          key: ValueKey('receiveProduct-$instanceKey'),
+          instanceKey: instanceKey,
+        );
 
       case OperationType.returnProduct:
-        return ReturnProductView(key: ValueKey('returnProduct-$instanceKey'));
+        return ReturnProductView(
+          key: ValueKey('returnProduct-$instanceKey'),
+          instanceKey: instanceKey,
+        );
 
       case OperationType.transferMud:
-        return TransferMudView(key: ValueKey('transferMud-$instanceKey'));
+        return TransferMudView(
+          key: ValueKey('transferMud-$instanceKey'),
+          instanceKey: instanceKey,
+        );
 
       case OperationType.receiveMud:
         return ReceiveMudView(
@@ -447,7 +460,10 @@ class OperationPage extends StatelessWidget {
         );
 
       case OperationType.switchPit:
-        return SwitchPitView(key: ValueKey('switchPit-$instanceKey'));
+        return SwitchPitView(
+          key: ValueKey('switchPit-$instanceKey'),
+          instanceKey: instanceKey,
+        );
 
       case OperationType.returnLostMud:
         return ReturnLostMudView(
@@ -456,11 +472,15 @@ class OperationPage extends StatelessWidget {
         );
 
       case OperationType.switchMudType:
-        return SwitchMudTypeView(key: ValueKey('switchMudType-$instanceKey'));
+        return SwitchMudTypeView(
+          key: ValueKey('switchMudType-$instanceKey'),
+          instanceKey: instanceKey,
+        );
 
       case OperationType.emptyActiveSystem:
         return EmptyActiveSystemView(
           key: ValueKey('emptyActiveSystem-$instanceKey'),
+          instanceKey: instanceKey,
         );
     }
   }

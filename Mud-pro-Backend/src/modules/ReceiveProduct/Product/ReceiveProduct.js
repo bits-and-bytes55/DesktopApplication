@@ -14,6 +14,12 @@ const receiveProductSchema = new mongoose.Schema(
       index: true,
     },
 
+    operationInstanceKey: {
+      type: String,
+      default: "",
+      index: true,
+    },
+
     productName: {
       type: String,
       default: "",

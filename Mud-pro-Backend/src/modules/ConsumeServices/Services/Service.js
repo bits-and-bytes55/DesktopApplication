@@ -14,6 +14,12 @@ const serviceSchema = new mongoose.Schema(
       index: true,
     },
 
+    operationInstanceKey: {
+      type: String,
+      default: "",
+      index: true,
+    },
+
     serviceName: {
       type: String,
       default: "",

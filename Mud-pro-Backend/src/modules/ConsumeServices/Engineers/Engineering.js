@@ -14,6 +14,12 @@ const engineeringSchema = new mongoose.Schema(
       index: true,
     },
 
+    operationInstanceKey: {
+      type: String,
+      default: "",
+      index: true,
+    },
+
     engineeringName: {
       type: String,
       default: "",

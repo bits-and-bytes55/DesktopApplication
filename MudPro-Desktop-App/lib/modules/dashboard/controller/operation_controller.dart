@@ -711,6 +711,43 @@ class OperationController extends GetxController {
     return deletedCount;
   }
 
+  Future<int> _deleteTransferMudInstance(
+    String wellId,
+    String instanceKey,
+  ) async {
+    final result = await _repository.getTransferMud(
+      wellId,
+      operationInstanceKey: instanceKey,
+    );
+    if (result['success'] != true) return 0;
+
+    final envelope = result['data'];
+    final items = envelope is Map<String, dynamic>
+        ? envelope['data']
+        : envelope is Map
+        ? Map<String, dynamic>.from(envelope)['data']
+        : envelope is List
+        ? envelope
+        : null;
+    final data = items is List
+        ? List<Map<String, dynamic>>.from(items)
+        : const <Map<String, dynamic>>[];
+    var deletedCount = 0;
+    for (final item in data) {
+      final id = (item['_id'] ?? item['id'] ?? '').toString().trim();
+      if (id.isEmpty) continue;
+      final deleteRes = await _repository.deleteTransferMud(
+        wellId,
+        id,
+        operationInstanceKey: instanceKey,
+      );
+      if (deleteRes['success'] == true) {
+        deletedCount++;
+      }
+    }
+    return deletedCount;
+  }
+
   Future<Map<String, dynamic>> deleteOperationRow(int index) async {
     if (index < 0 || index >= dropdownValues.length) {
       return {'success': false, 'message': 'Invalid operation row'};
@@ -738,6 +775,17 @@ class OperationController extends GetxController {
       if (sameOperationCount > 1) {
         if (operation == OperationType.addWater) {
           await _deleteAddWaterInstance(wellId, operationInstanceKeyAt(index));
+        } else if (operation == OperationType.transferMud) {
+          await _deleteTransferMudInstance(
+            wellId,
+            operationInstanceKeyAt(index),
+          );
+        } else {
+          await _repository.deleteOperationData(
+            wellId: wellId,
+            operationType: operation.name,
+            operationInstanceKey: operationInstanceKeyAt(index),
+          );
         }
         _removeOperationSelectionAt(index);
         await _saveOperationSelectionsNow();

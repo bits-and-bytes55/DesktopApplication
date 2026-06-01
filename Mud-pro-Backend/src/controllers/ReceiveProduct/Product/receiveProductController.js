@@ -5,19 +5,38 @@ import {
   readWellId,
   toText,
 } from "../../../utils/reportScope.js";
+import {
+  operationInstancePayload,
+  readOperationInstanceKey,
+  withOperationInstanceScope,
+} from "../../../utils/operationInstanceScope.js";
+
+const LEGACY_OPERATION_INSTANCE_KEY = "receiveProduct::legacy0";
 
 const getScope = (req) => {
   const wellId = readWellId(req);
   const reportId = readReportId(req);
 
   if (wellId) {
-    return { wellId, reportId, filter: buildScopedFilter(wellId, reportId) };
+    return {
+      wellId,
+      reportId,
+      filter: withOperationInstanceScope(
+        buildScopedFilter(wellId, reportId),
+        readOperationInstanceKey(req),
+        LEGACY_OPERATION_INSTANCE_KEY
+      ),
+    };
   }
 
   return {
     wellId,
     reportId,
-    filter: reportId ? { reportId } : {},
+    filter: withOperationInstanceScope(
+      reportId ? { reportId } : {},
+      readOperationInstanceKey(req),
+      LEGACY_OPERATION_INSTANCE_KEY
+    ),
   };
 };
 
@@ -25,16 +44,22 @@ const buildPayload = (req, existing = {}) => ({
   ...req.body,
   wellId: readWellId(req) || toText(existing.wellId),
   reportId: readReportId(req) || toText(existing.reportId),
+  operationInstanceKey: operationInstancePayload(req, existing),
 });
 
 const scopedIdFilter = (req) => {
   const wellId = readWellId(req);
   const reportId = readReportId(req);
-  return {
+  const filter = {
     _id: req.params.id,
     ...(wellId ? { wellId } : {}),
     ...(reportId ? { reportId } : {}),
   };
+  return withOperationInstanceScope(
+    filter,
+    readOperationInstanceKey(req),
+    LEGACY_OPERATION_INSTANCE_KEY
+  );
 };
 
 /**

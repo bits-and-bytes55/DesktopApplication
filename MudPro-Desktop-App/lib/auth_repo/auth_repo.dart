@@ -35,14 +35,26 @@ class AuthRepository {
     return payload;
   }
 
-  Uri _uriWithReportId(String rawUrl, {String? reportIdOverride}) {
+  Uri _uriWithReportId(
+    String rawUrl, {
+    String? reportIdOverride,
+    Map<String, String>? extraQuery,
+  }) {
     final reportId = _resolveReportId(reportIdOverride);
     final uri = Uri.parse(rawUrl);
-    if (reportId.isEmpty) return uri;
+    final query = {...uri.queryParameters};
+    if (reportId.isNotEmpty) {
+      query['reportId'] = reportId;
+    }
+    extraQuery?.forEach((key, value) {
+      final cleanValue = value.trim();
+      if (cleanValue.isNotEmpty) {
+        query[key] = cleanValue;
+      }
+    });
+    if (query.isEmpty) return uri;
 
-    return uri.replace(
-      queryParameters: {...uri.queryParameters, 'reportId': reportId},
-    );
+    return uri.replace(queryParameters: query);
   }
 
   String _messageFromResponse(
@@ -226,6 +238,7 @@ class AuthRepository {
   Future<Map<String, dynamic>> getVolumeNameCalculation(
     String wellId, {
     String? reportIdOverride,
+    String? operationInstanceKey,
   }) async {
     try {
       final reportId =
@@ -235,6 +248,8 @@ class AuthRepository {
         queryParameters: {
           'strictScope': 'true',
           if (reportId.isNotEmpty) 'reportId': reportId,
+          if ((operationInstanceKey ?? '').trim().isNotEmpty)
+            'operationInstanceKey': operationInstanceKey!.trim(),
         },
       );
       print('Hitting GET $uri');
@@ -254,9 +269,18 @@ class AuthRepository {
   }
 
   // ── Get Transfer Mud ─────────────────────────────────────────────────────────
-  Future<Map<String, dynamic>> getTransferMud(String wellId) async {
+  Future<Map<String, dynamic>> getTransferMud(
+    String wellId, {
+    String? operationInstanceKey,
+  }) async {
     try {
-      final uri = _uriWithReportId('${baseUrl}transfer-mud/$wellId');
+      final uri = _uriWithReportId(
+        '${baseUrl}transfer-mud/$wellId',
+        extraQuery: {
+          if ((operationInstanceKey ?? '').trim().isNotEmpty)
+            'operationInstanceKey': operationInstanceKey!.trim(),
+        },
+      );
       print('Hitting GET $uri');
       final response = await http.get(uri, headers: _headers);
       print('statuscode------${response.statusCode}');
@@ -525,10 +549,17 @@ class AuthRepository {
 
   Future<Map<String, dynamic>> deleteTransferMud(
     String wellId,
-    String id,
-  ) async {
+    String id, {
+    String? operationInstanceKey,
+  }) async {
     try {
-      final uri = _uriWithReportId('${baseUrl}transfer-mud/$wellId/$id');
+      final uri = _uriWithReportId(
+        '${baseUrl}transfer-mud/$wellId/$id',
+        extraQuery: {
+          if ((operationInstanceKey ?? '').trim().isNotEmpty)
+            'operationInstanceKey': operationInstanceKey!.trim(),
+        },
+      );
       print('Hitting DELETE $uri');
       final response = await http.delete(uri, headers: _headers);
       print('statuscode------${response.statusCode}');
@@ -606,10 +637,7 @@ class AuthRepository {
     try {
       final url = Uri.parse('$baseUrl${ApiEndpoint.getEngineersData}');
 
-      final response = await http.get(
-        url,
-        headers: ApiEndpoint.jsonHeaders,
-      );
+      final response = await http.get(url, headers: ApiEndpoint.jsonHeaders);
 
       final data = jsonDecode(response.body);
 
@@ -689,10 +717,7 @@ class AuthRepository {
       final url = Uri.parse(
         '$baseUrl${ApiEndpoint.deleteEngineer}/$engineerId',
       );
-      final response = await http.delete(
-        url,
-        headers: ApiEndpoint.jsonHeaders,
-      );
+      final response = await http.delete(url, headers: ApiEndpoint.jsonHeaders);
 
       final data = jsonDecode(response.body);
       print("statuscode------${response.statusCode}");
@@ -765,11 +790,7 @@ class AuthRepository {
       print('📝 Payload: $payload');
 
       final response = await http
-          .put(
-            url,
-            headers: ApiEndpoint.jsonHeaders,
-            body: jsonEncode(payload),
-          )
+          .put(url, headers: ApiEndpoint.jsonHeaders, body: jsonEncode(payload))
           .timeout(
             const Duration(seconds: 30),
             onTimeout: () {
@@ -809,10 +830,7 @@ class AuthRepository {
         ApiEndpoint.baseUrl + ApiEndpoint.getCompanyDetails,
       );
 
-      final response = await http.get(
-        url,
-        headers: ApiEndpoint.jsonHeaders,
-      );
+      final response = await http.get(url, headers: ApiEndpoint.jsonHeaders);
 
       final data = jsonDecode(response.body);
 
@@ -1463,10 +1481,7 @@ class AuthRepository {
           if (_selectedReportId.isNotEmpty) 'reportId': _selectedReportId,
         },
       );
-      final response = await http.delete(
-        uri,
-        headers: ApiEndpoint.jsonHeaders,
-      );
+      final response = await http.delete(uri, headers: ApiEndpoint.jsonHeaders);
 
       final data = jsonDecode(response.body);
 
@@ -1964,7 +1979,10 @@ class AuthRepository {
         headers: _headers,
         body: jsonEncode(
           includeReportId
-              ? _payloadWithReportId(sceData, reportIdOverride: reportIdOverride)
+              ? _payloadWithReportId(
+                  sceData,
+                  reportIdOverride: reportIdOverride,
+                )
               : sceData,
         ),
       );
@@ -2417,10 +2435,15 @@ class AuthRepository {
   Future<Map<String, dynamic>> deleteOperationData({
     required String wellId,
     required String operationType,
+    String? operationInstanceKey,
   }) async {
     try {
       final uri = _uriWithReportId(
         '${baseUrl}operations/data/$wellId/$operationType',
+        extraQuery: {
+          if ((operationInstanceKey ?? '').trim().isNotEmpty)
+            'operationInstanceKey': operationInstanceKey!.trim(),
+        },
       );
       print('Hitting DELETE $uri');
       final response = await http.delete(uri, headers: _headers);

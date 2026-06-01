@@ -43,6 +43,7 @@ class PitController extends GetxController {
   final notTreatedMud = false.obs;
   final selectedFromPit = 'Active System'.obs;
   final selectedRowIndex = 0.obs;
+  String _activeTransferOperationInstanceKey = '';
 
   final totalCapacity = 0.0.obs;
 
@@ -69,6 +70,8 @@ class PitController extends GetxController {
   final List<Worker> _transferAutoSaveWorkers = <Worker>[];
 
   bool get _hasWellId => currentWellId != null && currentWellId!.isNotEmpty;
+  bool get _hasTransferOperationInstance =>
+      _activeTransferOperationInstanceKey.trim().isNotEmpty;
 
   List<PitModel> _filterPitsForSelectedReport(List<PitModel> source) {
     final reportId = reportContext.selectedReportId.value.trim();
@@ -81,10 +84,9 @@ class PitController extends GetxController {
   List<PitModel> get activePitRows =>
       pits.where((pit) => pit.initialActive.value).toList();
 
-  List<PitModel> get storagePitRows =>
-      pits
-          .where((pit) => !pit.initialActive.value && _isVisibleStoragePit(pit))
-          .toList();
+  List<PitModel> get storagePitRows => pits
+      .where((pit) => !pit.initialActive.value && _isVisibleStoragePit(pit))
+      .toList();
 
   bool get isTransferFromActiveSystem =>
       selectedFromPit.value.trim().toLowerCase() == 'active system';
@@ -129,7 +131,7 @@ class PitController extends GetxController {
       currentWellId = wellId;
       fetchAllPits();
       fetchVolumeNameData();
-      fetchTransferMud();
+      if (_hasTransferOperationInstance) fetchTransferMud();
     });
     _reportWorker = ever<String>(reportContext.selectedReportId, (_) {
       _debounceTimer?.cancel();
@@ -137,7 +139,7 @@ class PitController extends GetxController {
       modifiedPitIds.clear();
       fetchAllPits();
       fetchVolumeNameData();
-      fetchTransferMud();
+      if (_hasTransferOperationInstance) fetchTransferMud();
     });
     _transferAutoSaveWorkers.addAll([
       ever<String>(selectedFromPit, (_) => scheduleTransferMudAutoSave()),
@@ -146,7 +148,7 @@ class PitController extends GetxController {
     if (_hasWellId) {
       fetchAllPits();
       fetchVolumeNameData();
-      fetchTransferMud();
+      if (_hasTransferOperationInstance) fetchTransferMud();
     }
   }
 
@@ -460,12 +462,15 @@ class PitController extends GetxController {
   }
 
   // ================= NEW VOLUME NAME & SAVE DATA =================
-  Future<void> fetchVolumeNameData() async {
+  Future<void> fetchVolumeNameData({String? operationInstanceKey}) async {
     if (!_hasWellId) return;
     isLoadingVolume.value = true;
     try {
       final authRepo = AuthRepository();
-      final result = await authRepo.getVolumeNameCalculation(currentWellId!);
+      final result = await authRepo.getVolumeNameCalculation(
+        currentWellId!,
+        operationInstanceKey: operationInstanceKey,
+      );
       if (result['success'] == true) {
         final inner = result['data'];
         // auth_repo wraps the raw JSON as result['data'], so the actual
@@ -955,14 +960,49 @@ class PitController extends GetxController {
 
   // ================= TRANSFER MUD OPERATIONS =================
 
+  Future<void> setTransferMudInstanceKey(String instanceKey) async {
+    final nextKey = instanceKey.trim();
+    if (nextKey.isEmpty) {
+      clearTransferMudLocalState();
+      _activeTransferOperationInstanceKey = '';
+      return;
+    }
+
+    if (_activeTransferOperationInstanceKey == nextKey &&
+        transferRows.isNotEmpty) {
+      return;
+    }
+
+    _transferAutoSaveTimer?.cancel();
+    if (_activeTransferOperationInstanceKey.isNotEmpty &&
+        _hasTransferData &&
+        !_isApplyingTransferState) {
+      await saveTransferMud();
+    }
+
+    _activeTransferOperationInstanceKey = nextKey;
+    clearTransferMudLocalState();
+    if (_hasWellId) {
+      await fetchTransferMud();
+    }
+  }
+
   Future<void> fetchTransferMud() async {
     _transferAutoSaveTimer?.cancel();
     if (!_hasWellId) return;
+    final instanceKey = _activeTransferOperationInstanceKey.trim();
+    if (instanceKey.isEmpty) {
+      clearTransferMudLocalState();
+      return;
+    }
     isLoadingTransfer.value = true;
     _isApplyingTransferState = true;
     try {
       final authRepo = AuthRepository();
-      final result = await authRepo.getTransferMud(currentWellId!);
+      final result = await authRepo.getTransferMud(
+        currentWellId!,
+        operationInstanceKey: instanceKey,
+      );
       if (result['success'] == true) {
         final List data = result['data'] is List
             ? result['data']
@@ -975,6 +1015,12 @@ class PitController extends GetxController {
         transferRows.clear();
 
         for (var item in data) {
+          final itemKey = (item['operationInstanceKey'] ?? '')
+              .toString()
+              .trim();
+          final isLegacyFirst =
+              itemKey.isEmpty && instanceKey == 'transferMud::legacy0';
+          if (itemKey != instanceKey && !isLegacyFirst) continue;
           detectedSource ??= item['from']?.toString().trim();
           final transfers = (item['transfers'] as List? ?? []);
           if (transfers.isEmpty) {
@@ -1134,6 +1180,10 @@ class PitController extends GetxController {
   Future<Map<String, dynamic>> saveTransferMud() async {
     _transferAutoSaveTimer?.cancel();
     if (!_hasWellId) return {'success': false, 'message': 'Well ID missing'};
+    final instanceKey = _activeTransferOperationInstanceKey.trim();
+    if (instanceKey.isEmpty) {
+      return {'success': false, 'message': 'Operation row missing'};
+    }
 
     if (_isSavingTransferMud) {
       _needsTransferMudResave = true;
@@ -1172,6 +1222,7 @@ class PitController extends GetxController {
         final deleteRes = await authRepo.deleteTransferMud(
           currentWellId!,
           row.savedId!,
+          operationInstanceKey: instanceKey,
         );
         if (deleteRes['success'] == true) {
           successCount++;
@@ -1205,6 +1256,7 @@ class PitController extends GetxController {
       for (final row in validRows) {
         final payload = {
           'wellId': currentWellId!,
+          'operationInstanceKey': instanceKey,
           'from': selectedFromPit.value,
           'transfers': [row.toTransferMap(notTreatedMud.value)],
         };
@@ -1266,6 +1318,7 @@ class PitController extends GetxController {
         final res = await authRepo.deleteTransferMud(
           currentWellId!,
           row.savedId!,
+          operationInstanceKey: _activeTransferOperationInstanceKey.trim(),
         );
         if (res['success'] != true) {
           _showAlert(

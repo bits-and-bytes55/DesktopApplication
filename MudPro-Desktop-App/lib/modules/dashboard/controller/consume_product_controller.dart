@@ -5,13 +5,18 @@ import 'package:mudpro_desktop_app/modules/report_context/report_context_control
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
 class ConsumeProductController {
+  ConsumeProductController({this.operationInstanceKey = ''});
+
   final String baseUrl = ApiEndpoint.baseUrl;
+  final String operationInstanceKey;
 
   Map<String, String> get _headers => ApiEndpoint.jsonHeaders;
 
   Map<String, dynamic> _withReportScope(Map<String, dynamic> payload) {
     final reportId = reportContext.selectedReportId.value.trim();
     if (reportId.isNotEmpty) payload['reportId'] = reportId;
+    final instanceKey = operationInstanceKey.trim();
+    if (instanceKey.isNotEmpty) payload['operationInstanceKey'] = instanceKey;
     return payload;
   }
 
@@ -21,6 +26,8 @@ class ConsumeProductController {
     return {
       if (wellId.isNotEmpty) 'wellId': wellId,
       if (reportId.isNotEmpty) 'reportId': reportId,
+      if (operationInstanceKey.trim().isNotEmpty)
+        'operationInstanceKey': operationInstanceKey.trim(),
     };
   }
 
@@ -224,6 +231,8 @@ class ConsumeProductController {
           'wellId': wellId,
           'strictScope': 'true',
           if (reportId.isNotEmpty) 'reportId': reportId,
+          if (operationInstanceKey.trim().isNotEmpty)
+            'operationInstanceKey': operationInstanceKey.trim(),
         },
       );
 

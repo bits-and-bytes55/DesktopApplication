@@ -2,6 +2,14 @@ import ConsumeProduct from "../../modules/Consumeproduct/ConsumeProduct.js";
 import ReceiveProduct from "../../modules/ReceiveProduct/Product/ReceiveProduct.js";
 import ReturnProduct from "../../modules/ReturnProduct/Product/ReturnProduct.js";
 import { legacyReportScope, readReportId } from "../../utils/reportScope.js";
+import {
+  operationInstancePayload,
+  readOperationInstanceKey,
+  recordMatchesOperationInstance,
+  withOperationInstanceScope,
+} from "../../utils/operationInstanceScope.js";
+
+const LEGACY_OPERATION_INSTANCE_KEY = "consumeProduct::legacy0";
 
 const toNumber = (value, fallback = 0) => {
   const numericValue = Number(value);
@@ -102,6 +110,9 @@ const buildConsumeProductPayload = (payload = {}, existing = {}) => {
   return {
     wellId: String(payload.wellId ?? existing.wellId ?? "").trim(),
     reportId: String(payload.reportId ?? existing.reportId ?? "").trim(),
+    operationInstanceKey: String(
+      payload.operationInstanceKey ?? existing.operationInstanceKey ?? ""
+    ).trim(),
     product: String(payload.product ?? existing.product ?? "").trim(),
     code: String(payload.code ?? existing.code ?? "").trim(),
     sg,
@@ -150,6 +161,7 @@ const escapeRegExp = (value) =>
 const requestRecordScope = (req) => ({
   wellId: String(req.query.wellId ?? req.body?.wellId ?? "").trim(),
   reportId: readReportId(req),
+  operationInstanceKey: readOperationInstanceKey(req),
 });
 
 const recordMatchesScope = (record, scope) => {
@@ -157,6 +169,15 @@ const recordMatchesScope = (record, scope) => {
     return false;
   }
   if (scope.reportId && String(record.reportId ?? "").trim() !== scope.reportId) {
+    return false;
+  }
+  if (
+    !recordMatchesOperationInstance(
+      record,
+      scope.operationInstanceKey,
+      LEGACY_OPERATION_INSTANCE_KEY
+    )
+  ) {
     return false;
   }
   return true;
@@ -191,9 +212,10 @@ const applyProductMovementFinal = async (payload) => {
 export const createConsumeProduct = async (req, res) => {
   try {
     const consumeProductPayload = await applyProductMovementFinal(buildConsumeProductPayload({
-      ...req.body,
-      reportId: req.body.reportId ?? readReportId(req),
-    }));
+        ...req.body,
+        reportId: req.body.reportId ?? readReportId(req),
+        operationInstanceKey: operationInstancePayload(req),
+      }));
 
     if (!consumeProductPayload.wellId) {
       return res.status(400).json({
@@ -230,6 +252,7 @@ export const getAllConsumeProducts = async (req, res) => {
     const filter = {};
     const wellId = String(req.query.wellId ?? "").trim();
     const reportId = String(req.query.reportId ?? "").trim();
+    const operationInstanceKey = readOperationInstanceKey(req);
 
     if (wellId) {
       filter.wellId = wellId;
@@ -241,12 +264,24 @@ export const getAllConsumeProducts = async (req, res) => {
     let products;
 
     if (wellId && reportId) {
-      products = await ConsumeProduct.find({ wellId, reportId }).sort({
+      products = await ConsumeProduct.find(
+        withOperationInstanceScope(
+          { wellId, reportId },
+          operationInstanceKey,
+          LEGACY_OPERATION_INSTANCE_KEY
+        )
+      ).sort({
         createdAt: 1,
         _id: 1,
       });
     } else {
-      products = await ConsumeProduct.find(filter).sort({
+      products = await ConsumeProduct.find(
+        withOperationInstanceScope(
+          filter,
+          operationInstanceKey,
+          LEGACY_OPERATION_INSTANCE_KEY
+        )
+      ).sort({
         createdAt: 1,
         _id: 1,
       });
@@ -297,6 +332,7 @@ export const updateConsumeProduct = async (req, res) => {
       {
         ...req.body,
         reportId: req.body.reportId ?? readReportId(req),
+        operationInstanceKey: operationInstancePayload(req, existing),
       },
       existing
     );

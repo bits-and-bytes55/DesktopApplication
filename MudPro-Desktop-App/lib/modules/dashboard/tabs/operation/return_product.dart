@@ -44,7 +44,9 @@ class PackageRowData {
 
 // ─── View ─────────────────────────────────────────────────────
 class ReturnProductView extends StatefulWidget {
-  const ReturnProductView({super.key});
+  const ReturnProductView({super.key, required this.instanceKey});
+
+  final String instanceKey;
 
   @override
   State<ReturnProductView> createState() => _ReturnProductViewState();
@@ -53,7 +55,7 @@ class ReturnProductView extends StatefulWidget {
 class _ReturnProductViewState extends State<ReturnProductView> {
   final DashboardController dashboardController =
       Get.find<DashboardController>();
-  final ReturnProductController _apiController = ReturnProductController();
+  late final ReturnProductController _apiController;
   final InventorySnapshotController _inventorySnapshotController =
       InventorySnapshotController();
 
@@ -82,6 +84,9 @@ class _ReturnProductViewState extends State<ReturnProductView> {
   @override
   void initState() {
     super.initState();
+    _apiController = ReturnProductController(
+      operationInstanceKey: widget.instanceKey,
+    );
     _inventoryStore = Get.find<InventoryProductsStore>();
     _loadProductsIfNeeded();
     _loadPackages();

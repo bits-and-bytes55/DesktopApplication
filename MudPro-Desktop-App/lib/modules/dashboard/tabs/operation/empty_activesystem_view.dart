@@ -4,10 +4,36 @@ import 'package:mudpro_desktop_app/modules/dashboard/controller/empty_Activesyst
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
-class EmptyActiveSystemView extends StatelessWidget {
-  EmptyActiveSystemView({super.key});
+class EmptyActiveSystemView extends StatefulWidget {
+  const EmptyActiveSystemView({super.key, required this.instanceKey});
 
-  final controller = Get.put(EmptyActiveSystemController());
+  final String instanceKey;
+
+  @override
+  State<EmptyActiveSystemView> createState() => _EmptyActiveSystemViewState();
+}
+
+class _EmptyActiveSystemViewState extends State<EmptyActiveSystemView> {
+  late final EmptyActiveSystemController controller;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = Get.put(
+      EmptyActiveSystemController(),
+      tag: widget.instanceKey,
+    );
+  }
+
+  @override
+  void dispose() {
+    if (Get.isRegistered<EmptyActiveSystemController>(
+      tag: widget.instanceKey,
+    )) {
+      Get.delete<EmptyActiveSystemController>(tag: widget.instanceKey);
+    }
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,122 +66,128 @@ class EmptyActiveSystemView extends StatelessWidget {
                 children: [
                   // Radio Buttons Row
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
                       border: Border(
                         bottom: BorderSide(color: Colors.grey.shade300),
                       ),
                     ),
-                    child: Obx(() => Row(
-                          children: [
-                            // Dump Radio
-                            InkWell(
-                              onTap: () => controller.isDumpSelected.value = true,
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 16,
-                                    height: 16,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: controller.isDumpSelected.value
-                                            ? AppTheme.primaryColor
-                                            : Colors.grey.shade400,
-                                        width: 2,
-                                      ),
-                                    ),
-                                    child: controller.isDumpSelected.value
-                                        ? Center(
-                                            child: Container(
-                                              width: 8,
-                                              height: 8,
-                                              decoration: BoxDecoration(
-                                                shape: BoxShape.circle,
-                                                color: AppTheme.primaryColor,
-                                              ),
-                                            ),
-                                          )
-                                        : null,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    "Dump",
-                                    style: AppTheme.bodySmall.copyWith(
-                                      fontSize: 12,
-                                      color: AppTheme.textPrimary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 24),
-                            // Transfer to Storage Radio
-                            InkWell(
-                              onTap: () => controller.isDumpSelected.value = false,
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 16,
-                                    height: 16,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: !controller.isDumpSelected.value
-                                            ? AppTheme.primaryColor
-                                            : Colors.grey.shade400,
-                                        width: 2,
-                                      ),
-                                    ),
-                                    child: !controller.isDumpSelected.value
-                                        ? Center(
-                                            child: Container(
-                                              width: 8,
-                                              height: 8,
-                                              decoration: BoxDecoration(
-                                                shape: BoxShape.circle,
-                                                color: AppTheme.primaryColor,
-                                              ),
-                                            ),
-                                          )
-                                        : null,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    "Transfer to Storage",
-                                    style: AppTheme.bodySmall.copyWith(
-                                      fontSize: 12,
-                                      color: AppTheme.textPrimary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const Spacer(),
-                            // Adjust Length Square Button
-                            Tooltip(
-                              message: "Adjust Length",
-                              child: InkWell(
-                                onTap: () {
-                                  // Adjust length action
-                                },
-                                child: Container(
-                                  width: 24,
-                                  height: 24,
+                    child: Obx(
+                      () => Row(
+                        children: [
+                          // Dump Radio
+                          InkWell(
+                            onTap: () => controller.isDumpSelected.value = true,
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 16,
+                                  height: 16,
                                   decoration: BoxDecoration(
-                                    color: AppTheme.primaryColor,
-                                    borderRadius: BorderRadius.circular(4),
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: controller.isDumpSelected.value
+                                          ? AppTheme.primaryColor
+                                          : Colors.grey.shade400,
+                                      width: 2,
+                                    ),
                                   ),
-                                  child: Icon(
-                                    Icons.tune,
-                                    size: 16,
-                                    color: Colors.white,
+                                  child: controller.isDumpSelected.value
+                                      ? Center(
+                                          child: Container(
+                                            width: 8,
+                                            height: 8,
+                                            decoration: BoxDecoration(
+                                              shape: BoxShape.circle,
+                                              color: AppTheme.primaryColor,
+                                            ),
+                                          ),
+                                        )
+                                      : null,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  "Dump",
+                                  style: AppTheme.bodySmall.copyWith(
+                                    fontSize: 12,
+                                    color: AppTheme.textPrimary,
                                   ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 24),
+                          // Transfer to Storage Radio
+                          InkWell(
+                            onTap: () =>
+                                controller.isDumpSelected.value = false,
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 16,
+                                  height: 16,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: !controller.isDumpSelected.value
+                                          ? AppTheme.primaryColor
+                                          : Colors.grey.shade400,
+                                      width: 2,
+                                    ),
+                                  ),
+                                  child: !controller.isDumpSelected.value
+                                      ? Center(
+                                          child: Container(
+                                            width: 8,
+                                            height: 8,
+                                            decoration: BoxDecoration(
+                                              shape: BoxShape.circle,
+                                              color: AppTheme.primaryColor,
+                                            ),
+                                          ),
+                                        )
+                                      : null,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  "Transfer to Storage",
+                                  style: AppTheme.bodySmall.copyWith(
+                                    fontSize: 12,
+                                    color: AppTheme.textPrimary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Spacer(),
+                          // Adjust Length Square Button
+                          Tooltip(
+                            message: "Adjust Length",
+                            child: InkWell(
+                              onTap: () {
+                                // Adjust length action
+                              },
+                              child: Container(
+                                width: 24,
+                                height: 24,
+                                decoration: BoxDecoration(
+                                  color: AppTheme.primaryColor,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Icon(
+                                  Icons.tune,
+                                  size: 16,
+                                  color: Colors.white,
                                 ),
                               ),
                             ),
-                          ],
-                        )),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
 
                   // Table
@@ -237,13 +269,15 @@ class EmptyActiveSystemView extends StatelessWidget {
                                           flex: 3,
                                           child: Padding(
                                             padding: const EdgeInsets.symmetric(
-                                                horizontal: 8),
+                                              horizontal: 8,
+                                            ),
                                             child: isEnabled
                                                 ? PopupMenuButton<String>(
                                                     enabled: isEnabled,
                                                     offset: const Offset(0, 0),
                                                     constraints: BoxConstraints(
-                                                      maxHeight: 180, // Fixed dropdown height
+                                                      maxHeight:
+                                                          180, // Fixed dropdown height
                                                       minWidth: 200,
                                                     ),
                                                     child: Container(
@@ -254,25 +288,23 @@ class EmptyActiveSystemView extends StatelessWidget {
                                                         children: [
                                                           Expanded(
                                                             child: Text(
-                                                              controller.pitValues[
-                                                                          index]
+                                                              controller
+                                                                      .pitValues[index]
                                                                       .isEmpty
                                                                   ? ""
                                                                   : controller
-                                                                          .pitValues[
-                                                                      index],
-                                                              style: AppTheme
-                                                                  .bodySmall
-                                                                  .copyWith(
+                                                                        .pitValues[index],
+                                                              style: AppTheme.bodySmall.copyWith(
                                                                 fontSize: 11,
-                                                                color: controller
-                                                                        .pitValues[
-                                                                            index]
+                                                                color:
+                                                                    controller
+                                                                        .pitValues[index]
                                                                         .isEmpty
-                                                                    ? Colors.grey
-                                                                        .shade400
+                                                                    ? Colors
+                                                                          .grey
+                                                                          .shade400
                                                                     : AppTheme
-                                                                        .textPrimary,
+                                                                          .textPrimary,
                                                               ),
                                                             ),
                                                           ),
@@ -281,44 +313,51 @@ class EmptyActiveSystemView extends StatelessWidget {
                                                                 .arrow_drop_down_rounded,
                                                             size: 18,
                                                             color: Colors
-                                                                .grey.shade600,
+                                                                .grey
+                                                                .shade600,
                                                           ),
                                                         ],
                                                       ),
                                                     ),
                                                     onSelected: (String value) {
                                                       controller.setPit(
-                                                          index, value);
+                                                        index,
+                                                        value,
+                                                      );
                                                       // Auto-generate next row if last row is filled
                                                       if (index ==
-                                                              controller.pitValues
+                                                              controller
+                                                                      .pitValues
                                                                       .length -
                                                                   1 &&
-                                                          controller.pitValues[
-                                                                  index] !=
+                                                          controller
+                                                                  .pitValues[index] !=
                                                               "") {
                                                         controller.addNewRow();
                                                       }
                                                     },
-                                                    itemBuilder:
-                                                        (BuildContext context) {
+                                                    itemBuilder: (BuildContext context) {
                                                       return controller
                                                           .unselectedPits
                                                           .map((pit) {
-                                                        return PopupMenuItem<
-                                                            String>(
-                                                          value: pit.pitName,
-                                                          height: 32,
-                                                          child: Text(
-                                                            pit.pitName,
-                                                            style: AppTheme
-                                                                .bodySmall
-                                                                .copyWith(
-                                                              fontSize: 11,
-                                                            ),
-                                                          ),
-                                                        );
-                                                      }).toList();
+                                                            return PopupMenuItem<
+                                                              String
+                                                            >(
+                                                              value:
+                                                                  pit.pitName,
+                                                              height: 32,
+                                                              child: Text(
+                                                                pit.pitName,
+                                                                style: AppTheme
+                                                                    .bodySmall
+                                                                    .copyWith(
+                                                                      fontSize:
+                                                                          11,
+                                                                    ),
+                                                              ),
+                                                            );
+                                                          })
+                                                          .toList();
                                                     },
                                                   )
                                                 : Container(
@@ -330,13 +369,14 @@ class EmptyActiveSystemView extends StatelessWidget {
                                                               .isEmpty
                                                           ? ""
                                                           : controller
-                                                              .pitValues[index],
+                                                                .pitValues[index],
                                                       style: AppTheme.bodySmall
                                                           .copyWith(
-                                                        fontSize: 11,
-                                                        color: Colors
-                                                            .grey.shade400,
-                                                      ),
+                                                            fontSize: 11,
+                                                            color: Colors
+                                                                .grey
+                                                                .shade400,
+                                                          ),
                                                     ),
                                                   ),
                                           ),
@@ -354,44 +394,49 @@ class EmptyActiveSystemView extends StatelessWidget {
                                           flex: 2,
                                           child: Padding(
                                             padding: const EdgeInsets.symmetric(
-                                                horizontal: 8),
+                                              horizontal: 8,
+                                            ),
                                             child: isEnabled
                                                 ? TextField(
-                                                    controller:
-                                                        controller
-                                                            .volControllers[index],
+                                                    controller: controller
+                                                        .volControllers[index],
                                                     enabled: isEnabled,
                                                     decoration: InputDecoration(
                                                       border: InputBorder.none,
                                                       isDense: true,
                                                       hintText: "",
                                                       contentPadding:
-                                                          const EdgeInsets
-                                                              .symmetric(
-                                                              vertical: 8),
+                                                          const EdgeInsets.symmetric(
+                                                            vertical: 8,
+                                                          ),
                                                     ),
                                                     style: AppTheme.bodySmall
                                                         .copyWith(
-                                                      fontSize: 11,
-                                                      color:
-                                                          AppTheme.textPrimary,
-                                                    ),
+                                                          fontSize: 11,
+                                                          color: AppTheme
+                                                              .textPrimary,
+                                                        ),
                                                     keyboardType:
                                                         TextInputType.number,
-                                                    onChanged: (val) => controller
-                                                        .setVolume(index, val),
+                                                    onChanged: (val) =>
+                                                        controller.setVolume(
+                                                          index,
+                                                          val,
+                                                        ),
                                                   )
                                                 : Container(
                                                     alignment:
                                                         Alignment.centerLeft,
                                                     child: Text(
-                                                      controller.volValues[index],
+                                                      controller
+                                                          .volValues[index],
                                                       style: AppTheme.bodySmall
                                                           .copyWith(
-                                                        fontSize: 11,
-                                                        color: Colors
-                                                            .grey.shade400,
-                                                      ),
+                                                            fontSize: 11,
+                                                            color: Colors
+                                                                .grey
+                                                                .shade400,
+                                                          ),
                                                     ),
                                                   ),
                                           ),
@@ -423,8 +468,10 @@ class EmptyActiveSystemView extends StatelessWidget {
                   // Cancel action
                 },
                 style: OutlinedButton.styleFrom(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   side: BorderSide(color: Colors.grey.shade400),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(6),
@@ -446,8 +493,10 @@ class EmptyActiveSystemView extends StatelessWidget {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primaryColor,
                   foregroundColor: Colors.white,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(6),
                   ),

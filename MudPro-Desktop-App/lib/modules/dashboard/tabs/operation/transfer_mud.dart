@@ -5,7 +5,9 @@ import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_contro
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class TransferMudView extends StatefulWidget {
-  const TransferMudView({super.key});
+  const TransferMudView({super.key, required this.instanceKey});
+
+  final String instanceKey;
 
   @override
   State<TransferMudView> createState() => _TransferMudViewState();
@@ -27,9 +29,18 @@ class _TransferMudViewState extends State<TransferMudView> {
     _loadData();
   }
 
+  @override
+  void didUpdateWidget(covariant TransferMudView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.instanceKey != widget.instanceKey) {
+      _loadData();
+    }
+  }
+
   Future<void> _loadData() async {
     try {
       await pitController.fetchUnselectedPits();
+      await pitController.setTransferMudInstanceKey(widget.instanceKey);
       // Initialize selectedFromPit if it's currently empty
       if (pitController.selectedFromPit.value.isEmpty) {
         pitController.selectedFromPit.value = kActiveSystem;

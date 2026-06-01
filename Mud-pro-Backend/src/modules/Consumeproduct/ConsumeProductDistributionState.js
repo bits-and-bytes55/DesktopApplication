@@ -29,6 +29,12 @@ const consumeProductDistributionStateSchema = new mongoose.Schema(
       index: true,
       trim: true,
     },
+    operationInstanceKey: {
+      type: String,
+      default: "",
+      index: true,
+      trim: true,
+    },
     inputMethod: {
       type: String,
       default: "Used",
@@ -55,11 +61,17 @@ const consumeProductDistributionStateSchema = new mongoose.Schema(
 );
 
 consumeProductDistributionStateSchema.index(
-  { wellId: 1, reportId: 1 },
+  { wellId: 1, reportId: 1, operationInstanceKey: 1 },
   { unique: true }
 );
 
-export default mongoose.model(
+const ConsumeProductDistributionState = mongoose.model(
   "ConsumeProductDistributionState",
   consumeProductDistributionStateSchema
 );
+
+ConsumeProductDistributionState.collection
+  .dropIndex("wellId_1_reportId_1")
+  .catch(() => {});
+
+export default ConsumeProductDistributionState;

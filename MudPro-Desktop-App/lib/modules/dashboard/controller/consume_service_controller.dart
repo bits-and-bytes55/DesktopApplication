@@ -6,7 +6,10 @@ import 'package:mudpro_desktop_app/modules/report_context/report_context_control
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
 class ConsumeServiceController {
+  ConsumeServiceController({this.operationInstanceKey = ''});
+
   final String baseUrl = ApiEndpoint.baseUrl;
+  final String operationInstanceKey;
 
   Map<String, String> get _headers => ApiEndpoint.jsonHeaders;
 
@@ -17,12 +20,16 @@ class ConsumeServiceController {
     return {
       if (_wellId.isNotEmpty) 'wellId': _wellId,
       if (reportId.isNotEmpty) 'reportId': reportId,
+      if (operationInstanceKey.trim().isNotEmpty)
+        'operationInstanceKey': operationInstanceKey.trim(),
     };
   }
 
   Map<String, dynamic> _withReportScope(Map<String, dynamic> payload) {
     final reportId = reportContext.selectedReportId.value.trim();
     if (reportId.isNotEmpty) payload['reportId'] = reportId;
+    final instanceKey = operationInstanceKey.trim();
+    if (instanceKey.isNotEmpty) payload['operationInstanceKey'] = instanceKey;
     return payload;
   }
 
@@ -39,15 +46,17 @@ class ConsumeServiceController {
         return {'success': false, 'message': 'No backend well selected'};
       }
 
-      final body = jsonEncode(_withReportScope({
-        'wellId': _wellId,
-        'packageName': packageName,
-        'code': code,
-        'unit': unit,
-        'price': price,
-        'initial': initial,
-        'used': used,
-      }));
+      final body = jsonEncode(
+        _withReportScope({
+          'wellId': _wellId,
+          'packageName': packageName,
+          'code': code,
+          'unit': unit,
+          'price': price,
+          'initial': initial,
+          'used': used,
+        }),
+      );
 
       final response = await http.post(
         Uri.parse('${baseUrl}cs/package'),
@@ -87,15 +96,17 @@ class ConsumeServiceController {
         return {'success': false, 'message': 'No backend well selected'};
       }
 
-      final body = jsonEncode(_withReportScope({
-        'wellId': _wellId,
-        'packageName': packageName,
-        'code': code,
-        'unit': unit,
-        'price': price,
-        'initial': initial,
-        'used': used,
-      }));
+      final body = jsonEncode(
+        _withReportScope({
+          'wellId': _wellId,
+          'packageName': packageName,
+          'code': code,
+          'unit': unit,
+          'price': price,
+          'initial': initial,
+          'used': used,
+        }),
+      );
 
       final response = await http.put(
         Uri.parse('${baseUrl}cs/package/$id'),
@@ -157,6 +168,8 @@ class ConsumeServiceController {
       final queryParameters = <String, String>{
         'wellId': _wellId,
         'reportId': reportId,
+        if (operationInstanceKey.trim().isNotEmpty)
+          'operationInstanceKey': operationInstanceKey.trim(),
       };
 
       final uri = Uri.parse(
@@ -189,14 +202,16 @@ class ConsumeServiceController {
         return {'success': false, 'message': 'No backend well selected'};
       }
 
-      final body = jsonEncode(_withReportScope({
-        'wellId': _wellId,
-        'serviceName': serviceName,
-        'code': code,
-        'unit': unit,
-        'price': price,
-        'usage': usage,
-      }));
+      final body = jsonEncode(
+        _withReportScope({
+          'wellId': _wellId,
+          'serviceName': serviceName,
+          'code': code,
+          'unit': unit,
+          'price': price,
+          'usage': usage,
+        }),
+      );
 
       final response = await http.post(
         Uri.parse('${baseUrl}cs/service'),
@@ -235,14 +250,16 @@ class ConsumeServiceController {
         return {'success': false, 'message': 'No backend well selected'};
       }
 
-      final body = jsonEncode(_withReportScope({
-        'wellId': _wellId,
-        'serviceName': serviceName,
-        'code': code,
-        'unit': unit,
-        'price': price,
-        'usage': usage,
-      }));
+      final body = jsonEncode(
+        _withReportScope({
+          'wellId': _wellId,
+          'serviceName': serviceName,
+          'code': code,
+          'unit': unit,
+          'price': price,
+          'usage': usage,
+        }),
+      );
 
       final response = await http.put(
         Uri.parse('${baseUrl}cs/service/$id'),
@@ -304,6 +321,8 @@ class ConsumeServiceController {
       final queryParameters = <String, String>{
         'wellId': _wellId,
         'reportId': reportId,
+        if (operationInstanceKey.trim().isNotEmpty)
+          'operationInstanceKey': operationInstanceKey.trim(),
       };
 
       final uri = Uri.parse(
@@ -336,14 +355,16 @@ class ConsumeServiceController {
         return {'success': false, 'message': 'No backend well selected'};
       }
 
-      final body = jsonEncode(_withReportScope({
-        'wellId': _wellId,
-        'engineeringName': engineeringName,
-        'code': code,
-        'unit': unit,
-        'price': price,
-        'usage': usage,
-      }));
+      final body = jsonEncode(
+        _withReportScope({
+          'wellId': _wellId,
+          'engineeringName': engineeringName,
+          'code': code,
+          'unit': unit,
+          'price': price,
+          'usage': usage,
+        }),
+      );
 
       final response = await http.post(
         Uri.parse('${baseUrl}cs/engineering'),
@@ -382,14 +403,16 @@ class ConsumeServiceController {
         return {'success': false, 'message': 'No backend well selected'};
       }
 
-      final body = jsonEncode(_withReportScope({
-        'wellId': _wellId,
-        'engineeringName': engineeringName,
-        'code': code,
-        'unit': unit,
-        'price': price,
-        'usage': usage,
-      }));
+      final body = jsonEncode(
+        _withReportScope({
+          'wellId': _wellId,
+          'engineeringName': engineeringName,
+          'code': code,
+          'unit': unit,
+          'price': price,
+          'usage': usage,
+        }),
+      );
 
       final response = await http.put(
         Uri.parse('${baseUrl}cs/engineering/$id'),
@@ -451,6 +474,8 @@ class ConsumeServiceController {
       final queryParameters = <String, String>{
         'wellId': _wellId,
         'reportId': reportId,
+        if (operationInstanceKey.trim().isNotEmpty)
+          'operationInstanceKey': operationInstanceKey.trim(),
       };
 
       final uri = Uri.parse(

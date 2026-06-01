@@ -4,11 +4,33 @@ import 'package:mudpro_desktop_app/modules/dashboard/controller/switch_mudtype_c
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
-class SwitchMudTypeView extends StatelessWidget {
-  SwitchMudTypeView({super.key});
+class SwitchMudTypeView extends StatefulWidget {
+  const SwitchMudTypeView({super.key, required this.instanceKey});
 
-  final controller = Get.put(SwitchMudTypeController());
+  final String instanceKey;
+
+  @override
+  State<SwitchMudTypeView> createState() => _SwitchMudTypeViewState();
+}
+
+class _SwitchMudTypeViewState extends State<SwitchMudTypeView> {
+  late final SwitchMudTypeController controller;
   final ScrollController scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    controller = Get.put(SwitchMudTypeController(), tag: widget.instanceKey);
+  }
+
+  @override
+  void dispose() {
+    scrollController.dispose();
+    if (Get.isRegistered<SwitchMudTypeController>(tag: widget.instanceKey)) {
+      Get.delete<SwitchMudTypeController>(tag: widget.instanceKey);
+    }
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -193,24 +215,26 @@ class SwitchMudTypeView extends StatelessWidget {
           Container(
             padding: const EdgeInsets.only(bottom: 16),
             decoration: BoxDecoration(
-              border: Border(
-                bottom: BorderSide(color: Colors.grey.shade200),
-              ),
+              border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
             ),
             child: Row(
               children: [
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: sectionIndex == 1 
-                      ? AppTheme.primaryColor.withOpacity(0.1)
-                      : AppTheme.successColor.withOpacity(0.1),
+                    color: sectionIndex == 1
+                        ? AppTheme.primaryColor.withOpacity(0.1)
+                        : AppTheme.successColor.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
-                    sectionIndex == 1 ? Icons.remove_circle_outline_rounded : Icons.add_circle_outline_rounded,
+                    sectionIndex == 1
+                        ? Icons.remove_circle_outline_rounded
+                        : Icons.add_circle_outline_rounded,
                     size: 20,
-                    color: sectionIndex == 1 ? AppTheme.primaryColor : AppTheme.successColor,
+                    color: sectionIndex == 1
+                        ? AppTheme.primaryColor
+                        : AppTheme.successColor,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -225,29 +249,33 @@ class SwitchMudTypeView extends StatelessWidget {
               ],
             ),
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           Row(
             children: [
               Expanded(
-                child: Obx(() => _enhancedTableWithRadio(
-                      label: "Transfer",
-                      isActive: selected.value == 0,
-                      onSelect: () => selected.value = 0,
-                      list: leftList,
-                      sectionEnabled: selected.value == 0,
-                    )),
+                child: Obx(
+                  () => _enhancedTableWithRadio(
+                    label: "Transfer",
+                    isActive: selected.value == 0,
+                    onSelect: () => selected.value = 0,
+                    list: leftList,
+                    sectionEnabled: selected.value == 0,
+                  ),
+                ),
               ),
               const SizedBox(width: 20),
               Expanded(
-                child: Obx(() => _enhancedTableWithRadio(
-                      label: "Make Storage",
-                      isActive: selected.value == 1,
-                      onSelect: () => selected.value = 1,
-                      list: rightList,
-                      sectionEnabled: selected.value == 1,
-                    )),
+                child: Obx(
+                  () => _enhancedTableWithRadio(
+                    label: "Make Storage",
+                    isActive: selected.value == 1,
+                    onSelect: () => selected.value = 1,
+                    list: rightList,
+                    sectionEnabled: selected.value == 1,
+                  ),
+                ),
               ),
             ],
           ),
@@ -276,14 +304,14 @@ class SwitchMudTypeView extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
-              color: isActive 
-                ? AppTheme.primaryColor.withOpacity(0.08)
-                : Colors.grey.shade50,
+              color: isActive
+                  ? AppTheme.primaryColor.withOpacity(0.08)
+                  : Colors.grey.shade50,
               borderRadius: BorderRadius.circular(6),
               border: Border.all(
-                color: isActive 
-                  ? AppTheme.primaryColor.withOpacity(0.3)
-                  : Colors.grey.shade200,
+                color: isActive
+                    ? AppTheme.primaryColor.withOpacity(0.3)
+                    : Colors.grey.shade200,
                 width: 1,
               ),
             ),
@@ -295,7 +323,9 @@ class SwitchMudTypeView extends StatelessWidget {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: isActive ? AppTheme.primaryColor : Colors.grey.shade400,
+                      color: isActive
+                          ? AppTheme.primaryColor
+                          : Colors.grey.shade400,
                       width: isActive ? 1.5 : 1,
                     ),
                   ),
@@ -317,16 +347,18 @@ class SwitchMudTypeView extends StatelessWidget {
                   label,
                   style: AppTheme.bodySmall.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: isActive ? AppTheme.primaryColor : AppTheme.textSecondary,
+                    color: isActive
+                        ? AppTheme.primaryColor
+                        : AppTheme.textSecondary,
                   ),
                 ),
               ],
             ),
           ),
         ),
-        
+
         const SizedBox(height: 12),
-        
+
         // Enhanced Data Table
         _enhancedDataTable(list, sectionEnabled),
       ],
@@ -337,175 +369,179 @@ class SwitchMudTypeView extends StatelessWidget {
   // ENHANCED DATA TABLE WITH WORKING DROPDOWN
   // =====================================================
   Widget _enhancedDataTable(RxList<String?> list, bool enabled) {
-    return Obx(() => Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Column(
-        children: [
-          // Table Header
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-            decoration: BoxDecoration(
-              color: AppTheme.cardColor,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(8),
-                topRight: Radius.circular(8),
-              ),
-              border: Border(
-                bottom: BorderSide(color: Colors.grey.shade200),
-              ),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    "Pit",
-                    style: AppTheme.bodySmall.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: AppTheme.textPrimary,
-                      fontSize: 11,
-                    ),
-                  ),
-                ),
-                SizedBox(
-                  width: 120,
-                  child: Text(
-                    AppUnits.label("Volume (bbl)"),
-                    style: AppTheme.bodySmall.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: AppTheme.textPrimary,
-                      fontSize: 11,
-                    ),
-                    textAlign: TextAlign.right,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          
-          // Table Rows
-          ...List.generate(
-            list.length,
-            (index) => Container(
+    return Obx(
+      () => Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey.shade200),
+        ),
+        child: Column(
+          children: [
+            // Table Header
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
               decoration: BoxDecoration(
-                color: index % 2 == 0 ? Colors.white : Colors.grey.shade50,
-                border: Border(
-                  bottom: BorderSide(
-                    color: index == list.length - 1 
-                      ? Colors.transparent 
-                      : Colors.grey.shade200,
-                  ),
+                color: AppTheme.cardColor,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(8),
+                  topRight: Radius.circular(8),
                 ),
+                border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
               ),
               child: Row(
                 children: [
-                  // Pit Column with Dropdown
                   Expanded(
-                    child: Container(
-                      height: 48,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: enabled
-                          ? DropdownButton<String>(
-                              value: list[index],
-                              isExpanded: true,
-                              underline: const SizedBox(),
-                              icon: Icon(
-                                Icons.arrow_drop_down_rounded,
-                                size: 20,
-                                color: Colors.grey.shade400,
-                              ),
-                              hint: Text(
-                                "Select pit",
-                                style: AppTheme.bodySmall.copyWith(
-                                  fontSize: 11,
-                                  color: Colors.grey.shade500,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              onChanged: (String? newValue) {
-                                if (newValue != null) {
-                                  list[index] = newValue;
-                                }
-                              },
-                              items: controller.pitList.map((String value) {
-                                return DropdownMenuItem<String>(
-                                  value: value,
-                                  child: Text(
-                                    value,
-                                    style: AppTheme.bodySmall.copyWith(
-                                      fontSize: 11,
-                                      color: AppTheme.textPrimary,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                );
-                              }).toList(),
-                            )
-                          : Container(
-                              alignment: Alignment.centerLeft,
-                              child: Text(
-                                list[index] ?? "Select pit",
-                                style: AppTheme.bodySmall.copyWith(
-                                  fontSize: 11,
-                                  color: list[index] == null 
-                                    ? Colors.grey.shade400 
-                                    : AppTheme.textPrimary,
-                                  fontWeight: FontWeight.w500,
-                                  fontStyle: list[index] == null ? FontStyle.italic : null,
-                                ),
-                              ),
-                            ),
+                    child: Text(
+                      "Pit",
+                      style: AppTheme.bodySmall.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.textPrimary,
+                        fontSize: 11,
+                      ),
                     ),
                   ),
-                  
-                  // Volume Column
                   SizedBox(
                     width: 120,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: enabled
-                          ? TextField(
-                              decoration: InputDecoration(
-                                border: InputBorder.none,
-                                isDense: true,
-                                hintText: "0.00",
-                                hintStyle: AppTheme.caption.copyWith(
-                                  color: Colors.grey.shade400,
-                                ),
-                                contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                              ),
-                              style: AppTheme.bodySmall.copyWith(
-                                fontSize: 11,
-                                color: AppTheme.textPrimary,
-                                fontWeight: FontWeight.w500,
-                              ),
-                              textAlign: TextAlign.right,
-                              keyboardType: TextInputType.number,
-                            )
-                          : Container(
-                              height: 48,
-                              alignment: Alignment.centerRight,
-                              child: Text(
-                                "0.00",
-                                style: AppTheme.bodySmall.copyWith(
-                                  fontSize: 11,
-                                  color: Colors.grey.shade400,
-                                  fontStyle: FontStyle.italic,
-                                ),
-                              ),
-                            ),
+                    child: Text(
+                      AppUnits.label("Volume (bbl)"),
+                      style: AppTheme.bodySmall.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.textPrimary,
+                        fontSize: 11,
+                      ),
+                      textAlign: TextAlign.right,
                     ),
                   ),
                 ],
               ),
             ),
-          ),
-        ],
+
+            // Table Rows
+            ...List.generate(
+              list.length,
+              (index) => Container(
+                decoration: BoxDecoration(
+                  color: index % 2 == 0 ? Colors.white : Colors.grey.shade50,
+                  border: Border(
+                    bottom: BorderSide(
+                      color: index == list.length - 1
+                          ? Colors.transparent
+                          : Colors.grey.shade200,
+                    ),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    // Pit Column with Dropdown
+                    Expanded(
+                      child: Container(
+                        height: 48,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: enabled
+                            ? DropdownButton<String>(
+                                value: list[index],
+                                isExpanded: true,
+                                underline: const SizedBox(),
+                                icon: Icon(
+                                  Icons.arrow_drop_down_rounded,
+                                  size: 20,
+                                  color: Colors.grey.shade400,
+                                ),
+                                hint: Text(
+                                  "Select pit",
+                                  style: AppTheme.bodySmall.copyWith(
+                                    fontSize: 11,
+                                    color: Colors.grey.shade500,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                onChanged: (String? newValue) {
+                                  if (newValue != null) {
+                                    list[index] = newValue;
+                                  }
+                                },
+                                items: controller.pitList.map((String value) {
+                                  return DropdownMenuItem<String>(
+                                    value: value,
+                                    child: Text(
+                                      value,
+                                      style: AppTheme.bodySmall.copyWith(
+                                        fontSize: 11,
+                                        color: AppTheme.textPrimary,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  );
+                                }).toList(),
+                              )
+                            : Container(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  list[index] ?? "Select pit",
+                                  style: AppTheme.bodySmall.copyWith(
+                                    fontSize: 11,
+                                    color: list[index] == null
+                                        ? Colors.grey.shade400
+                                        : AppTheme.textPrimary,
+                                    fontWeight: FontWeight.w500,
+                                    fontStyle: list[index] == null
+                                        ? FontStyle.italic
+                                        : null,
+                                  ),
+                                ),
+                              ),
+                      ),
+                    ),
+
+                    // Volume Column
+                    SizedBox(
+                      width: 120,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: enabled
+                            ? TextField(
+                                decoration: InputDecoration(
+                                  border: InputBorder.none,
+                                  isDense: true,
+                                  hintText: "0.00",
+                                  hintStyle: AppTheme.caption.copyWith(
+                                    color: Colors.grey.shade400,
+                                  ),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
+                                ),
+                                style: AppTheme.bodySmall.copyWith(
+                                  fontSize: 11,
+                                  color: AppTheme.textPrimary,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                textAlign: TextAlign.right,
+                                keyboardType: TextInputType.number,
+                              )
+                            : Container(
+                                height: 48,
+                                alignment: Alignment.centerRight,
+                                child: Text(
+                                  "0.00",
+                                  style: AppTheme.bodySmall.copyWith(
+                                    fontSize: 11,
+                                    color: Colors.grey.shade400,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
-    ));
+    );
   }
 
   // =====================================================
@@ -536,9 +572,7 @@ class SwitchMudTypeView extends StatelessWidget {
           Container(
             padding: const EdgeInsets.only(bottom: 16),
             decoration: BoxDecoration(
-              border: Border(
-                bottom: BorderSide(color: Colors.grey.shade200),
-              ),
+              border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
             ),
             child: Row(
               children: [
@@ -568,9 +602,9 @@ class SwitchMudTypeView extends StatelessWidget {
               ],
             ),
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           // Enhanced Data Table (enabled by default)
           _enhancedDataTable(list, true),
         ],
@@ -613,7 +647,11 @@ class SwitchMudTypeView extends StatelessWidget {
             ),
             child: Row(
               children: [
-                Icon(Icons.cancel_rounded, size: 18, color: AppTheme.textPrimary),
+                Icon(
+                  Icons.cancel_rounded,
+                  size: 18,
+                  color: AppTheme.textPrimary,
+                ),
                 const SizedBox(width: 8),
                 Text(
                   "Cancel",

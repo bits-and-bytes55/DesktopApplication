@@ -6,7 +6,10 @@ import 'package:mudpro_desktop_app/modules/report_context/report_context_control
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
 class ReturnProductController {
+  ReturnProductController({this.operationInstanceKey = ''});
+
   final String baseUrl = ApiEndpoint.baseUrl;
+  final String operationInstanceKey;
 
   Map<String, String> get _headers => ApiEndpoint.jsonHeaders;
 
@@ -17,12 +20,16 @@ class ReturnProductController {
     return {
       'wellId': _wellId,
       if (reportId.isNotEmpty) 'reportId': reportId,
+      if (operationInstanceKey.trim().isNotEmpty)
+        'operationInstanceKey': operationInstanceKey.trim(),
     };
   }
 
   Map<String, dynamic> _withReportScope(Map<String, dynamic> payload) {
     final reportId = reportContext.selectedReportId.value.trim();
     if (reportId.isNotEmpty) payload['reportId'] = reportId;
+    final instanceKey = operationInstanceKey.trim();
+    if (instanceKey.isNotEmpty) payload['operationInstanceKey'] = instanceKey;
     return payload;
   }
 
@@ -64,13 +71,15 @@ class ReturnProductController {
       final response = await http.post(
         Uri.parse('${baseUrl}return-product'),
         headers: _headers,
-        body: jsonEncode(_withReportScope({
-          'wellId': _wellId,
-          'productName': productName,
-          'code': code,
-          'unit': unit,
-          'amount': amount,
-        })),
+        body: jsonEncode(
+          _withReportScope({
+            'wellId': _wellId,
+            'productName': productName,
+            'code': code,
+            'unit': unit,
+            'amount': amount,
+          }),
+        ),
       );
 
       final responseData = jsonDecode(response.body);
@@ -87,10 +96,7 @@ class ReturnProductController {
         'message': responseData['message'] ?? 'Failed to return product',
       };
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Error: $e',
-      };
+      return {'success': false, 'message': 'Error: $e'};
     }
   }
 
@@ -109,13 +115,15 @@ class ReturnProductController {
       final response = await http.put(
         Uri.parse('${baseUrl}return-product/$id'),
         headers: _headers,
-        body: jsonEncode(_withReportScope({
-          'wellId': _wellId,
-          'productName': productName,
-          'code': code,
-          'unit': unit,
-          'amount': amount,
-        })),
+        body: jsonEncode(
+          _withReportScope({
+            'wellId': _wellId,
+            'productName': productName,
+            'code': code,
+            'unit': unit,
+            'amount': amount,
+          }),
+        ),
       );
 
       final responseData = jsonDecode(response.body);
@@ -132,10 +140,7 @@ class ReturnProductController {
         'message': responseData['message'] ?? 'Failed to update product',
       };
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Error: $e',
-      };
+      return {'success': false, 'message': 'Error: $e'};
     }
   }
 
@@ -150,10 +155,7 @@ class ReturnProductController {
 
       final responseData = jsonDecode(response.body);
       if (response.statusCode == 200) {
-        return {
-          'success': true,
-          'message': 'Product deleted successfully',
-        };
+        return {'success': true, 'message': 'Product deleted successfully'};
       }
 
       return {
@@ -161,10 +163,7 @@ class ReturnProductController {
         'message': responseData['message'] ?? 'Failed to delete product',
       };
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Error: $e',
-      };
+      return {'success': false, 'message': 'Error: $e'};
     }
   }
 
@@ -206,13 +205,15 @@ class ReturnProductController {
       final response = await http.post(
         Uri.parse('${baseUrl}return-package'),
         headers: _headers,
-        body: jsonEncode(_withReportScope({
-          'wellId': _wellId,
-          'packageName': packageName,
-          'code': code,
-          'unit': unit,
-          'amount': amount,
-        })),
+        body: jsonEncode(
+          _withReportScope({
+            'wellId': _wellId,
+            'packageName': packageName,
+            'code': code,
+            'unit': unit,
+            'amount': amount,
+          }),
+        ),
       );
 
       final responseData = jsonDecode(response.body);
@@ -229,10 +230,7 @@ class ReturnProductController {
         'message': responseData['message'] ?? 'Failed to return package',
       };
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Error: $e',
-      };
+      return {'success': false, 'message': 'Error: $e'};
     }
   }
 
@@ -251,13 +249,15 @@ class ReturnProductController {
       final response = await http.put(
         Uri.parse('${baseUrl}return-package/$id'),
         headers: _headers,
-        body: jsonEncode(_withReportScope({
-          'wellId': _wellId,
-          'packageName': packageName,
-          'code': code,
-          'unit': unit,
-          'amount': amount,
-        })),
+        body: jsonEncode(
+          _withReportScope({
+            'wellId': _wellId,
+            'packageName': packageName,
+            'code': code,
+            'unit': unit,
+            'amount': amount,
+          }),
+        ),
       );
 
       final responseData = jsonDecode(response.body);
@@ -274,10 +274,7 @@ class ReturnProductController {
         'message': responseData['message'] ?? 'Failed to update package',
       };
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Error: $e',
-      };
+      return {'success': false, 'message': 'Error: $e'};
     }
   }
 
@@ -292,10 +289,7 @@ class ReturnProductController {
 
       final responseData = jsonDecode(response.body);
       if (response.statusCode == 200) {
-        return {
-          'success': true,
-          'message': 'Package deleted successfully',
-        };
+        return {'success': true, 'message': 'Package deleted successfully'};
       }
 
       return {
@@ -303,10 +297,7 @@ class ReturnProductController {
         'message': responseData['message'] ?? 'Failed to delete package',
       };
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Error: $e',
-      };
+      return {'success': false, 'message': 'Error: $e'};
     }
   }
 
@@ -355,10 +346,7 @@ class ReturnProductController {
         'packageResults': packageResults,
       };
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Error saving data: $e',
-      };
+      return {'success': false, 'message': 'Error saving data: $e'};
     }
   }
 }

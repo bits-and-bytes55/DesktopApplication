@@ -9,6 +9,23 @@ const toNumber = (value) => {
 
 const round2 = (num) => Number(num.toFixed(2));
 const getWellId = (req) => String(req.params.wellId || "").trim();
+const readOperationInstanceKey = (req) =>
+  String(req.query.operationInstanceKey ?? req.body?.operationInstanceKey ?? "").trim();
+
+const operationInstanceFilter = (operationInstanceKey) => {
+  if (!operationInstanceKey) return {};
+  if (operationInstanceKey === "transferMud::legacy0") {
+    return {
+      $or: [
+        { operationInstanceKey },
+        { operationInstanceKey: { $exists: false } },
+        { operationInstanceKey: null },
+        { operationInstanceKey: "" },
+      ],
+    };
+  }
+  return { operationInstanceKey };
+};
 
 const normalizeTransfers = (transfers = []) => {
   return transfers
@@ -68,6 +85,7 @@ export const createTransferMud = async (req, res) => {
   try {
     const wellId = getWellId(req);
     const reportId = readReportId(req);
+    const operationInstanceKey = readOperationInstanceKey(req);
     const { from, transfers } = req.body;
 
     if (!reportId) {
@@ -94,6 +112,7 @@ export const createTransferMud = async (req, res) => {
     const item = await TransferMud.create({
       wellId,
       reportId,
+      operationInstanceKey,
       from: String(from).trim(),
       transfers: cleanTransfers,
       totalTransferVol,
@@ -118,6 +137,7 @@ export const createManyTransferMud = async (req, res) => {
   try {
     const wellId = getWellId(req);
     const reportId = readReportId(req);
+    const requestOperationInstanceKey = readOperationInstanceKey(req);
     const { entries } = req.body;
 
     if (!reportId) {
@@ -138,6 +158,9 @@ export const createManyTransferMud = async (req, res) => {
 
     for (const entry of entries) {
       const from = String(entry.from || "").trim();
+      const operationInstanceKey = String(
+        entry.operationInstanceKey || requestOperationInstanceKey || ""
+      ).trim();
       const transfers = Array.isArray(entry.transfers) ? entry.transfers : [];
 
       const { cleanTransfers, totalTransferVol } = await applyTransferToPits({
@@ -150,6 +173,7 @@ export const createManyTransferMud = async (req, res) => {
       const item = await TransferMud.create({
         wellId,
         reportId,
+        operationInstanceKey,
         from,
         transfers: cleanTransfers,
         totalTransferVol,
@@ -178,6 +202,7 @@ export const getTransferMudByWell = async (req, res) => {
   try {
     const wellId = getWellId(req);
     const reportId = readReportId(req);
+    const operationInstanceKey = readOperationInstanceKey(req);
 
     if (!reportId) {
       return res.status(200).json({
@@ -188,7 +213,11 @@ export const getTransferMudByWell = async (req, res) => {
     }
 
     const data = await TransferMud.find(
-      buildScopedFilter(wellId, reportId)
+      buildScopedFilter(
+        wellId,
+        reportId,
+        operationInstanceFilter(operationInstanceKey)
+      )
     ).sort({ createdAt: -1 });
 
     return res.status(200).json({
@@ -210,6 +239,7 @@ export const getTransferMudById = async (req, res) => {
   try {
     const wellId = getWellId(req);
     const reportId = readReportId(req);
+    const operationInstanceKey = readOperationInstanceKey(req);
     const { id } = req.params;
 
     if (!reportId) {
@@ -221,7 +251,11 @@ export const getTransferMudById = async (req, res) => {
 
     const data = await TransferMud.findOne({
       _id: id,
-      ...buildScopedFilter(wellId, reportId),
+      ...buildScopedFilter(
+        wellId,
+        reportId,
+        operationInstanceFilter(operationInstanceKey)
+      ),
     });
 
     if (!data) {
@@ -249,6 +283,7 @@ export const updateTransferMud = async (req, res) => {
   try {
     const wellId = getWellId(req);
     const reportId = readReportId(req);
+    const operationInstanceKey = readOperationInstanceKey(req);
     const { id } = req.params;
 
     if (!reportId) {
@@ -260,7 +295,11 @@ export const updateTransferMud = async (req, res) => {
 
     const existing = await TransferMud.findOne({
       _id: id,
-      ...buildScopedFilter(wellId, reportId),
+      ...buildScopedFilter(
+        wellId,
+        reportId,
+        operationInstanceFilter(operationInstanceKey)
+      ),
     });
 
     if (!existing) {
@@ -310,6 +349,9 @@ export const updateTransferMud = async (req, res) => {
     existing.transfers = cleanTransfers;
     existing.totalTransferVol = totalTransferVol;
     existing.reportId = reportId;
+    if (operationInstanceKey) {
+      existing.operationInstanceKey = operationInstanceKey;
+    }
     await existing.save();
 
     return res.status(200).json({
@@ -331,6 +373,7 @@ export const deleteTransferMud = async (req, res) => {
   try {
     const wellId = getWellId(req);
     const reportId = readReportId(req);
+    const operationInstanceKey = readOperationInstanceKey(req);
     const { id } = req.params;
 
     if (!reportId) {
@@ -342,7 +385,11 @@ export const deleteTransferMud = async (req, res) => {
 
     const data = await TransferMud.findOne({
       _id: id,
-      ...buildScopedFilter(wellId, reportId),
+      ...buildScopedFilter(
+        wellId,
+        reportId,
+        operationInstanceFilter(operationInstanceKey)
+      ),
     });
 
     if (!data) {
@@ -361,7 +408,11 @@ export const deleteTransferMud = async (req, res) => {
 
     await TransferMud.deleteOne({
       _id: id,
-      ...buildScopedFilter(wellId, reportId),
+      ...buildScopedFilter(
+        wellId,
+        reportId,
+        operationInstanceFilter(operationInstanceKey)
+      ),
     });
 
     return res.status(200).json({
