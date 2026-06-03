@@ -27,6 +27,11 @@ const emptyFluidActiveSystemSchema = new mongoose.Schema(
       default: "",
       trim: true,
     },
+    rowNumber: {
+      type: Number,
+      default: 0,
+      index: true,
+    },
     volume: {
       type: Number,
       required: true,

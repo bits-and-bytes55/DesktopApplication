@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 import 'package:flutter/material.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
+import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/pit_model.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
@@ -29,6 +30,7 @@ class EmptyActiveSystemController extends GetxController {
   Worker? _reportWorker;
   final List<Worker> _unitWorkers = [];
   late String _fluidVolumeUnit;
+  double _loadedTransferTotalBbl = 0;
 
   String get wellId => currentBackendWellId.trim();
 
@@ -197,6 +199,80 @@ class EmptyActiveSystemController extends GetxController {
     return double.tryParse(value.trim().replaceAll(',', '')) ?? 0;
   }
 
+  double _number(dynamic value) {
+    if (value is num) return value.toDouble();
+    return double.tryParse(
+          value?.toString().trim().replaceAll(',', '') ?? '',
+        ) ??
+        0;
+  }
+
+  Map<String, dynamic> _map(dynamic value) {
+    if (value is Map<String, dynamic>) return value;
+    if (value is Map) return Map<String, dynamic>.from(value);
+    return {};
+  }
+
+  Map<String, dynamic> _volumePayloadFromResponse(dynamic value) {
+    final envelope = _map(value);
+    final data = _map(envelope['data']);
+    if (data.containsKey('volumeName')) return data;
+    final nested = _map(data['data']);
+    if (nested.containsKey('volumeName')) return nested;
+    return envelope.containsKey('volumeName') ? envelope : {};
+  }
+
+  double _dumpVolumeFromPayload(Map<String, dynamic> payload) {
+    final volumeName = _map(payload['volumeName']);
+    final endVol = _number(volumeName['endVol']);
+    if (endVol > 0) return endVol;
+    final activeSystem = _number(volumeName['activeSystem']);
+    if (activeSystem > 0) return activeSystem;
+    final activePits = _number(volumeName['activePits']);
+    final hole = _number(volumeName['hole']);
+    final fallback = activePits + hole;
+    return fallback > 0 ? fallback : 0;
+  }
+
+  double _endVolFromPayload(Map<String, dynamic> payload) {
+    final volumeName = _map(payload['volumeName']);
+    return _number(volumeName['endVol']);
+  }
+
+  Future<double> _resolveEndVol() async {
+    if (Get.isRegistered<PitController>()) {
+      final current = Get.find<PitController>().volumeNameData;
+      final currentEndVol = _endVolFromPayload(
+        Map<String, dynamic>.from(current),
+      );
+      if (currentEndVol > 0) return currentEndVol;
+    }
+
+    final result = await _repository.getVolumeNameCalculation(wellId);
+    if (result['success'] != true) return 0;
+    return _endVolFromPayload(_volumePayloadFromResponse(result['data']));
+  }
+
+  Future<double> _resolveDumpVolume() async {
+    if (Get.isRegistered<PitController>()) {
+      final current = Get.find<PitController>().volumeNameData;
+      final currentVolume = _dumpVolumeFromPayload(
+        Map<String, dynamic>.from(current),
+      );
+      if (currentVolume > 0) return currentVolume;
+    }
+
+    final result = await _repository.getVolumeNameCalculation(wellId);
+    if (result['success'] != true) return 0;
+    return _dumpVolumeFromPayload(_volumePayloadFromResponse(result['data']));
+  }
+
+  Future<void> _refreshPitVolumeName() async {
+    if (Get.isRegistered<PitController>()) {
+      await Get.find<PitController>().fetchVolumeNameData();
+    }
+  }
+
   double _toBackendBbl(String value) {
     final parsed = _parseVolume(value);
     if (parsed <= 0) return 0;
@@ -205,9 +281,77 @@ class EmptyActiveSystemController extends GetxController {
   }
 
   void _clearTransferRows() {
+    _loadedTransferTotalBbl = 0;
     pitValues.assignAll(List<String>.generate(5, (_) => ""));
     volValues.assignAll(List<String>.generate(5, (_) => ""));
     _syncVolumeControllers();
+  }
+
+  bool transferRowHasData(int index) {
+    if (index < 0 || index >= pitValues.length) return false;
+    return pitValues[index].trim().isNotEmpty ||
+        volValues[index].trim().isNotEmpty;
+  }
+
+  void insertTransferRowAfter(int index) {
+    final insertAt = (index + 1).clamp(0, pitValues.length).toInt();
+    pitValues.insert(insertAt, '');
+    volValues.insert(insertAt, '');
+    _syncVolumeControllers();
+  }
+
+  List<Map<String, dynamic>> _transferPayloads() {
+    return List.generate(pitValues.length, (index) {
+      return {
+        'rowNumber': index + 1,
+        'pitName': pitValues[index].trim(),
+        'volume': _toBackendBbl(volValues[index]),
+      };
+    }).where((row) {
+      return (row['pitName'] as String).isNotEmpty &&
+          (row['volume'] as double) > 0;
+    }).toList();
+  }
+
+  Future<Map<String, dynamic>> _saveAfterTransferRowEdit() async {
+    if (_transferPayloads().isEmpty) {
+      final deleteResult = await _repository.deleteOperationData(
+        wellId: wellId,
+        operationType: 'emptyActiveSystem',
+        operationInstanceKey: instanceKey,
+      );
+      if (deleteResult['success'] == true) {
+        isDumpSelected.value = false;
+        _clearTransferRows();
+        await _refreshPitVolumeName();
+      }
+      return deleteResult;
+    }
+    return saveEmptyActiveSystem(allowEmptyTransferClear: true);
+  }
+
+  Future<Map<String, dynamic>> clearTransferRow(int index) async {
+    if (index < 0 || index >= pitValues.length) {
+      return {'success': false, 'message': 'Invalid row'};
+    }
+    pitValues[index] = '';
+    volValues[index] = '';
+    _syncVolumeControllers();
+    return _saveAfterTransferRowEdit();
+  }
+
+  Future<Map<String, dynamic>> deleteTransferRow(int index) async {
+    if (index < 0 || index >= pitValues.length) {
+      return {'success': false, 'message': 'Invalid row'};
+    }
+    pitValues.removeAt(index);
+    volValues.removeAt(index);
+    while (pitValues.length < 5) {
+      pitValues.add('');
+      volValues.add('');
+    }
+    _syncVolumeControllers();
+    return _saveAfterTransferRowEdit();
   }
 
   Future<void> load() async {
@@ -222,6 +366,7 @@ class EmptyActiveSystemController extends GetxController {
       final rows = _extractList(result['data']);
       if (rows.isEmpty) {
         isDumpSelected.value = true;
+        _loadedTransferTotalBbl = 0;
         _clearTransferRows();
         return;
       }
@@ -231,15 +376,25 @@ class EmptyActiveSystemController extends GetxController {
       final actionType = (first['actionType'] ?? '').toString();
       isDumpSelected.value = actionType != 'Transfer to Storage';
       if (isDumpSelected.value) {
+        _loadedTransferTotalBbl = 0;
         _clearTransferRows();
         return;
       }
 
       final pits = <String>[];
       final volumes = <String>[];
-      for (final row in rows.whereType<Map>()) {
+      var loadedTotal = 0.0;
+      final sortedRows = rows.whereType<Map>().toList()
+        ..sort((a, b) {
+          final aRow = _number(a['rowNumber']).toInt();
+          final bRow = _number(b['rowNumber']).toInt();
+          if (aRow != bRow) return aRow.compareTo(bRow);
+          return _number(a['createdAt']).compareTo(_number(b['createdAt']));
+        });
+      for (final row in sortedRows) {
         final pitName = (row['pitName'] ?? '').toString().trim();
         if (pitName.isEmpty) continue;
+        loadedTotal += _number(row['volume']);
         final volume = _convertText(
           (row['volume'] ?? '').toString(),
           '(bbl)',
@@ -252,6 +407,7 @@ class EmptyActiveSystemController extends GetxController {
         pits.add('');
         volumes.add('');
       }
+      _loadedTransferTotalBbl = loadedTotal;
       pitValues.assignAll(pits);
       volValues.assignAll(volumes);
       _syncVolumeControllers();
@@ -260,42 +416,77 @@ class EmptyActiveSystemController extends GetxController {
     }
   }
 
-  Future<Map<String, dynamic>> saveEmptyActiveSystem() async {
+  Future<Map<String, dynamic>> saveEmptyActiveSystem({
+    bool allowEmptyTransferClear = false,
+  }) async {
     if (wellId.isEmpty) {
       return {'success': false, 'message': 'No backend well selected'};
+    }
+
+    final dumpVolume = isDumpSelected.value ? await _resolveDumpVolume() : 0;
+    if (isDumpSelected.value && dumpVolume <= 0) {
+      await _refreshPitVolumeName();
+      return {'success': true, 'message': 'End Vol already 0'};
+    }
+
+    final transfers = _transferPayloads();
+
+    if (!isDumpSelected.value) {
+      if (transfers.isEmpty) {
+        if (!allowEmptyTransferClear) {
+          return {'success': false, 'message': 'Select storage and volume'};
+        }
+        final deleteResult = await _repository.deleteOperationData(
+          wellId: wellId,
+          operationType: 'emptyActiveSystem',
+          operationInstanceKey: instanceKey,
+        );
+        if (deleteResult['success'] == true) {
+          _loadedTransferTotalBbl = 0;
+          await load();
+          await _refreshPitVolumeName();
+        }
+        return deleteResult;
+      }
+
+      final endVol = await _resolveEndVol();
+      final availableEndVol = endVol + _loadedTransferTotalBbl;
+      if (availableEndVol <= 0.005) {
+        return {
+          'success': false,
+          'message': 'End Vol. is 0. Transfer to Storage cannot be executed.',
+        };
+      }
+
+      final transferTotal = transfers.fold<double>(
+        0,
+        (sum, row) => sum + (row['volume'] as double),
+      );
+      if (transferTotal - availableEndVol > 0.005) {
+        return {
+          'success': false,
+          'message':
+              'Transfer volume cannot exceed End Vol. ${availableEndVol.toStringAsFixed(2)} bbl',
+        };
+      }
     }
 
     final body = isDumpSelected.value
         ? {
             'actionType': 'Dump',
-            'volume': 0,
+            'volume': double.parse(dumpVolume.toStringAsFixed(2)),
             'operationInstanceKey': instanceKey,
           }
         : {
             'actionType': 'Transfer to Storage',
             'operationInstanceKey': instanceKey,
-            'transfers':
-                List.generate(pitValues.length, (index) {
-                      return {
-                        'pitName': pitValues[index].trim(),
-                        'volume': _toBackendBbl(volValues[index]),
-                      };
-                    })
-                    .where(
-                      (row) =>
-                          (row['pitName'] as String).isNotEmpty &&
-                          (row['volume'] as double) > 0,
-                    )
-                    .toList(),
+            'transfers': transfers,
           };
-
-    if (!isDumpSelected.value && (body['transfers'] as List).isEmpty) {
-      return {'success': false, 'message': 'Select storage and volume'};
-    }
 
     final result = await _repository.createEmptyActiveSystem(wellId, body);
     if (result['success'] == true) {
       await load();
+      await _refreshPitVolumeName();
     }
     return result;
   }

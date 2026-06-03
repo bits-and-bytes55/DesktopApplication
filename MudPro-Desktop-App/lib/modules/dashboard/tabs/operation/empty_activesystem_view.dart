@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/empty_Activesystem_controller.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
@@ -33,6 +34,67 @@ class _EmptyActiveSystemViewState extends State<EmptyActiveSystemView> {
       Get.delete<EmptyActiveSystemController>(tag: widget.instanceKey);
     }
     super.dispose();
+  }
+
+  Future<void> _showTransferRowMenuAt(Offset globalPosition, int index) async {
+    if (controller.isDumpSelected.value) return;
+    final overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox?;
+    if (overlay == null) return;
+
+    final hasData = controller.transferRowHasData(index);
+    final action = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromRect(
+        Rect.fromPoints(globalPosition, globalPosition),
+        Offset.zero & overlay.size,
+      ),
+      items: [
+        const PopupMenuItem<String>(value: 'insert', child: Text('Insert Row')),
+        PopupMenuItem<String>(
+          value: 'clear',
+          enabled: hasData,
+          child: const Text('Clear Row'),
+        ),
+        PopupMenuItem<String>(
+          value: 'delete',
+          enabled: controller.pitValues.length > 1,
+          child: const Text('Delete Row'),
+        ),
+        const PopupMenuDivider(),
+        PopupMenuItem<String>(
+          value: 'save',
+          enabled: hasData,
+          child: const Text('Save'),
+        ),
+      ],
+    );
+
+    if (!mounted || action == null) return;
+    switch (action) {
+      case 'insert':
+        controller.insertTransferRowAfter(index);
+        break;
+      case 'clear':
+        await _runRowAction(controller.clearTransferRow(index));
+        break;
+      case 'delete':
+        await _runRowAction(controller.deleteTransferRow(index));
+        break;
+      case 'save':
+        await _runRowAction(controller.saveEmptyActiveSystem());
+        break;
+    }
+  }
+
+  Future<void> _runRowAction(Future<Map<String, dynamic>> action) async {
+    final result = await action;
+    if (!mounted || result['success'] == true) return;
+    Get.snackbar(
+      'Error',
+      result['message']?.toString() ?? 'Operation failed',
+      snackPosition: SnackPosition.TOP,
+    );
   }
 
   @override
@@ -255,190 +317,193 @@ class _EmptyActiveSystemViewState extends State<EmptyActiveSystemView> {
                               child: Column(
                                 children: List.generate(
                                   controller.pitValues.length,
-                                  (index) => Container(
-                                    height: 36,
-                                    decoration: BoxDecoration(
-                                      border: Border(
-                                        bottom: BorderSide(
-                                          color: Colors.grey.shade200,
+                                  (index) => Listener(
+                                    behavior: HitTestBehavior.opaque,
+                                    onPointerDown: isEnabled
+                                        ? (event) {
+                                            if ((event.buttons &
+                                                    kSecondaryMouseButton) !=
+                                                0) {
+                                              _showTransferRowMenuAt(
+                                                event.position,
+                                                index,
+                                              );
+                                            }
+                                          }
+                                        : null,
+                                    child: Container(
+                                      height: 36,
+                                      decoration: BoxDecoration(
+                                        border: Border(
+                                          bottom: BorderSide(
+                                            color: Colors.grey.shade200,
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        // Pit Dropdown Column
-                                        Expanded(
-                                          flex: 3,
-                                          child: Padding(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 8,
-                                            ),
-                                            child: isEnabled
-                                                ? PopupMenuButton<String>(
-                                                    enabled: isEnabled,
-                                                    offset: const Offset(0, 0),
-                                                    constraints: BoxConstraints(
-                                                      maxHeight:
-                                                          180, // Fixed dropdown height
-                                                      minWidth: 200,
-                                                    ),
-                                                    child: Container(
-                                                      height: 36,
-                                                      alignment:
-                                                          Alignment.centerLeft,
-                                                      child: Row(
-                                                        children: [
-                                                          Expanded(
-                                                            child: Text(
-                                                              controller
-                                                                      .pitValues[index]
-                                                                      .isEmpty
-                                                                  ? ""
-                                                                  : controller
-                                                                        .pitValues[index],
-                                                              style: AppTheme.bodySmall.copyWith(
-                                                                fontSize: 11,
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .w700,
-                                                                color:
-                                                                    controller
+                                      child: Row(
+                                        children: [
+                                          // Pit Dropdown Column
+                                          Expanded(
+                                            flex: 3,
+                                            child: Padding(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 8,
+                                                  ),
+                                              child: isEnabled
+                                                  ? PopupMenuButton<String>(
+                                                      enabled: isEnabled,
+                                                      offset: const Offset(
+                                                        0,
+                                                        0,
+                                                      ),
+                                                      constraints: BoxConstraints(
+                                                        maxHeight:
+                                                            180, // Fixed dropdown height
+                                                        minWidth: 200,
+                                                      ),
+                                                      child: Container(
+                                                        height: 36,
+                                                        alignment: Alignment
+                                                            .centerLeft,
+                                                        child: Row(
+                                                          children: [
+                                                            Expanded(
+                                                              child: Text(
+                                                                controller
                                                                         .pitValues[index]
                                                                         .isEmpty
-                                                                    ? Colors
-                                                                          .grey
-                                                                          .shade400
-                                                                    : AppTheme
-                                                                          .textPrimary,
-                                                              ),
-                                                            ),
-                                                          ),
-                                                          Icon(
-                                                            Icons
-                                                                .arrow_drop_down_rounded,
-                                                            size: 18,
-                                                            color: Colors
-                                                                .grey
-                                                                .shade600,
-                                                          ),
-                                                        ],
-                                                      ),
-                                                    ),
-                                                    onSelected: (String value) {
-                                                      controller.setPit(
-                                                        index,
-                                                        value,
-                                                      );
-                                                      // Auto-generate next row if last row is filled
-                                                      if (index ==
-                                                              controller
-                                                                      .pitValues
-                                                                      .length -
-                                                                  1 &&
-                                                          controller
-                                                                  .pitValues[index] !=
-                                                              "") {
-                                                        controller.addNewRow();
-                                                      }
-                                                    },
-                                                    itemBuilder: (BuildContext context) {
-                                                      return controller.unselectedPits.map((
-                                                        pit,
-                                                      ) {
-                                                        return PopupMenuItem<
-                                                          String
-                                                        >(
-                                                          value: pit.pitName,
-                                                          height: 32,
-                                                          child: Text(
-                                                            pit.pitName,
-                                                            style: AppTheme
-                                                                .bodySmall
-                                                                .copyWith(
+                                                                    ? ""
+                                                                    : controller
+                                                                          .pitValues[index],
+                                                                style: AppTheme.bodySmall.copyWith(
                                                                   fontSize: 11,
                                                                   fontWeight:
                                                                       FontWeight
                                                                           .w700,
-                                                                  color: Colors
-                                                                      .black87,
+                                                                  color:
+                                                                      controller
+                                                                          .pitValues[index]
+                                                                          .isEmpty
+                                                                      ? Colors
+                                                                            .grey
+                                                                            .shade400
+                                                                      : AppTheme
+                                                                            .textPrimary,
                                                                 ),
-                                                          ),
-                                                        );
-                                                      }).toList();
-                                                    },
-                                                  )
-                                                : Container(
-                                                    alignment:
-                                                        Alignment.centerLeft,
-                                                    child: Text(
-                                                      controller
-                                                              .pitValues[index]
-                                                              .isEmpty
-                                                          ? ""
-                                                          : controller
-                                                                .pitValues[index],
-                                                      style: AppTheme.bodySmall
-                                                          .copyWith(
-                                                            fontSize: 11,
-                                                            fontWeight:
-                                                                FontWeight.w700,
-                                                            color:
-                                                                Colors.black87,
-                                                          ),
-                                                    ),
-                                                  ),
-                                          ),
-                                        ),
-
-                                        // Vertical Divider
-                                        Container(
-                                          width: 1,
-                                          height: 36,
-                                          color: Colors.grey.shade200,
-                                        ),
-
-                                        // Volume Column
-                                        Expanded(
-                                          flex: 2,
-                                          child: Padding(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 8,
-                                            ),
-                                            child: isEnabled
-                                                ? TextField(
-                                                    controller: controller
-                                                        .volControllers[index],
-                                                    enabled: isEnabled,
-                                                    decoration: InputDecoration(
-                                                      border: InputBorder.none,
-                                                      isDense: true,
-                                                      hintText: "",
-                                                      contentPadding:
-                                                          const EdgeInsets.symmetric(
-                                                            vertical: 8,
-                                                          ),
-                                                    ),
-                                                    style: AppTheme.bodySmall
-                                                        .copyWith(
-                                                          fontSize: 11,
-                                                          fontWeight:
-                                                              FontWeight.w700,
-                                                          color: Colors.black87,
+                                                              ),
+                                                            ),
+                                                            Icon(
+                                                              Icons
+                                                                  .arrow_drop_down_rounded,
+                                                              size: 18,
+                                                              color: Colors
+                                                                  .grey
+                                                                  .shade600,
+                                                            ),
+                                                          ],
                                                         ),
-                                                    keyboardType:
-                                                        TextInputType.number,
-                                                    onChanged: (val) =>
-                                                        controller.setVolume(
+                                                      ),
+                                                      onSelected: (String value) {
+                                                        controller.setPit(
                                                           index,
-                                                          val,
-                                                        ),
-                                                  )
-                                                : Container(
-                                                    alignment:
-                                                        Alignment.centerLeft,
-                                                    child: Text(
-                                                      controller
-                                                          .volValues[index],
+                                                          value,
+                                                        );
+                                                        // Auto-generate next row if last row is filled
+                                                        if (index ==
+                                                                controller
+                                                                        .pitValues
+                                                                        .length -
+                                                                    1 &&
+                                                            controller
+                                                                    .pitValues[index] !=
+                                                                "") {
+                                                          controller
+                                                              .addNewRow();
+                                                        }
+                                                      },
+                                                      itemBuilder: (BuildContext context) {
+                                                        return controller.unselectedPits.map((
+                                                          pit,
+                                                        ) {
+                                                          return PopupMenuItem<
+                                                            String
+                                                          >(
+                                                            value: pit.pitName,
+                                                            height: 32,
+                                                            child: Text(
+                                                              pit.pitName,
+                                                              style: AppTheme
+                                                                  .bodySmall
+                                                                  .copyWith(
+                                                                    fontSize:
+                                                                        11,
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .w700,
+                                                                    color: Colors
+                                                                        .black87,
+                                                                  ),
+                                                            ),
+                                                          );
+                                                        }).toList();
+                                                      },
+                                                    )
+                                                  : Container(
+                                                      alignment:
+                                                          Alignment.centerLeft,
+                                                      child: Text(
+                                                        controller
+                                                                .pitValues[index]
+                                                                .isEmpty
+                                                            ? ""
+                                                            : controller
+                                                                  .pitValues[index],
+                                                        style: AppTheme
+                                                            .bodySmall
+                                                            .copyWith(
+                                                              fontSize: 11,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w700,
+                                                              color: Colors
+                                                                  .black87,
+                                                            ),
+                                                      ),
+                                                    ),
+                                            ),
+                                          ),
+
+                                          // Vertical Divider
+                                          Container(
+                                            width: 1,
+                                            height: 36,
+                                            color: Colors.grey.shade200,
+                                          ),
+
+                                          // Volume Column
+                                          Expanded(
+                                            flex: 2,
+                                            child: Padding(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 8,
+                                                  ),
+                                              child: isEnabled
+                                                  ? TextField(
+                                                      controller: controller
+                                                          .volControllers[index],
+                                                      enabled: isEnabled,
+                                                      decoration: InputDecoration(
+                                                        border:
+                                                            InputBorder.none,
+                                                        isDense: true,
+                                                        hintText: "",
+                                                        contentPadding:
+                                                            const EdgeInsets.symmetric(
+                                                              vertical: 8,
+                                                            ),
+                                                      ),
                                                       style: AppTheme.bodySmall
                                                           .copyWith(
                                                             fontSize: 11,
@@ -447,11 +512,36 @@ class _EmptyActiveSystemViewState extends State<EmptyActiveSystemView> {
                                                             color:
                                                                 Colors.black87,
                                                           ),
+                                                      keyboardType:
+                                                          TextInputType.number,
+                                                      onChanged: (val) =>
+                                                          controller.setVolume(
+                                                            index,
+                                                            val,
+                                                          ),
+                                                    )
+                                                  : Container(
+                                                      alignment:
+                                                          Alignment.centerLeft,
+                                                      child: Text(
+                                                        controller
+                                                            .volValues[index],
+                                                        style: AppTheme
+                                                            .bodySmall
+                                                            .copyWith(
+                                                              fontSize: 11,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w700,
+                                                              color: Colors
+                                                                  .black87,
+                                                            ),
+                                                      ),
                                                     ),
-                                                  ),
+                                            ),
                                           ),
-                                        ),
-                                      ],
+                                        ],
+                                      ),
                                     ),
                                   ),
                                 ),
