@@ -3,6 +3,7 @@ import AddWater from "../../modules/addwater/AddWater.js";
 import { findWritablePitByName, getWritablePits } from "../../utils/pitReportState.js";
 import { buildScopedFilter, readReportId } from "../../utils/reportScope.js";
 
+
 const toNumber = (value) => {
   if (value === null || value === undefined || value === "") return 0;
   const n = Number(String(value).replace(/[^0-9.-]/g, ""));
