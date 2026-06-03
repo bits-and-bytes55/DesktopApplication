@@ -109,13 +109,14 @@ class PitController extends GetxController {
   }
 
   List<String> get transferDestinationOptions {
-    if (isTransferFromActiveSystem) {
-      return unselectedPits
-          .map((pit) => pit.pitName.trim())
-          .where((name) => name.isNotEmpty)
-          .toList();
+    final options = <String>['Active System'];
+    for (final pit in unselectedPits) {
+      final name = pit.pitName.trim();
+      if (name.isNotEmpty && !options.contains(name)) {
+        options.add(name);
+      }
     }
-    return const ['Active System'];
+    return options;
   }
 
   @override
@@ -1169,9 +1170,7 @@ class PitController extends GetxController {
       return 'Source and destination cannot be the same';
     }
     if (!transferDestinationOptions.contains(destination)) {
-      return isTransferFromActiveSystem
-          ? 'Destination must be a storage pit'
-          : 'Destination must be Active System';
+      return 'Select a valid destination';
     }
 
     return null;
@@ -1341,6 +1340,29 @@ class PitController extends GetxController {
     }
     await fetchAllPits();
     await fetchVolumeNameData();
+  }
+
+  Future<void> clearTransferRow(int index) async {
+    if (index < 0 || index >= transferRows.length) return;
+
+    final row = transferRows[index];
+    if ((row.savedId ?? '').isNotEmpty) {
+      await deleteTransferRow(index);
+      return;
+    }
+
+    row.pitName = '';
+    row.volume = '';
+    row.volumeController.clear();
+    transferRows.refresh();
+  }
+
+  void insertTransferRowAfter(int index) {
+    final insertAt = index < 0
+        ? 0
+        : (index + 1 > transferRows.length ? transferRows.length : index + 1);
+    transferRows.insert(insertAt, TransferRowData());
+    transferRows.refresh();
   }
 
   void checkAndAddTransferRow() {

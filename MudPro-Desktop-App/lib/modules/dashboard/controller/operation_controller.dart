@@ -439,7 +439,11 @@ class OperationController extends GetxController {
       OperationType.returnProduct: ['return product'],
       OperationType.transferMud: ['transfer mud'],
       OperationType.receiveMud: ['receive mud'],
-      OperationType.returnLostMud: ['return lost mud', 'return lost mud'],
+      OperationType.returnLostMud: [
+        'return mud',
+        'return lost mud',
+        'return lost mud',
+      ],
       OperationType.addWater: ['add water'],
       OperationType.switchPit: ['switch pit'],
       OperationType.switchMudType: ['switch mud type', 'switch mudtype'],

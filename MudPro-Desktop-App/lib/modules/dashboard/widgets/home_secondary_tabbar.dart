@@ -589,6 +589,9 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
               return;
             }
             final selectedOp = opCtrl.dropdownValues[selectedOpIndex];
+            final selectedOperationInstanceKey = opCtrl.operationInstanceKeyAt(
+              selectedOpIndex,
+            );
 
             if (selectedOp == OperationType.consumeProduct) {
               // ── Inventory Snapshot + Product Save ────────────────────────
@@ -652,8 +655,13 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
                 }
               }
             } else if (selectedOp == OperationType.returnLostMud) {
-              final returnLostCtrl = Get.isRegistered<ReturnLostMudController>()
-                  ? Get.find<ReturnLostMudController>()
+              final returnLostCtrl =
+                  Get.isRegistered<ReturnLostMudController>(
+                    tag: selectedOperationInstanceKey,
+                  )
+                  ? Get.find<ReturnLostMudController>(
+                      tag: selectedOperationInstanceKey,
+                    )
                   : null;
               if (returnLostCtrl != null) {
                 final res = await returnLostCtrl.saveReturnLostMud();

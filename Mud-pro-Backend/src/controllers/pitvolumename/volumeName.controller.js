@@ -484,8 +484,15 @@ const buildOperationVolumeEffects = ({
         addPitDelta(storageDeltaByPit, row?.pitName, toNumber(row?.volume));
       }
     } else {
-      endVolDelta += totalTransferVol;
       addPitDelta(storageDeltaByPit, item.from, -totalTransferVol);
+      for (const row of transfers) {
+        const volume = toNumber(row?.volume);
+        if (isActiveSystemName(row?.pitName)) {
+          endVolDelta += volume;
+        } else {
+          addPitDelta(storageDeltaByPit, row?.pitName, volume);
+        }
+      }
     }
   }
 
