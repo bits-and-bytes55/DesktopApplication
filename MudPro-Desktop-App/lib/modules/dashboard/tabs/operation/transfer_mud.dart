@@ -39,6 +39,7 @@ class _TransferMudViewState extends State<TransferMudView> {
 
   Future<void> _loadData() async {
     try {
+      await pitController.fetchSelectedPits();
       await pitController.fetchUnselectedPits();
       await pitController.setTransferMudInstanceKey(widget.instanceKey);
       // Initialize selectedFromPit if it's currently empty
@@ -103,7 +104,8 @@ class _TransferMudViewState extends State<TransferMudView> {
               borderRadius: BorderRadius.circular(4),
             ),
             child: Obx(() {
-              final unselectedPits = pitController.unselectedPits;
+              final transferPitOptions =
+                  pitController.transferDestinationOptions;
 
               return DropdownButtonHideUnderline(
                 child: DropdownButton<String>(
@@ -156,19 +158,25 @@ class _TransferMudViewState extends State<TransferMudView> {
                         ),
                       ),
                     ),
-                    ...unselectedPits.map((pit) {
-                      return DropdownMenuItem<String>(
-                        value: pit.pitName,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                          child: Text(
-                            pit.pitName,
-                            style: AppTheme.bodySmall.copyWith(fontSize: 10),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      );
-                    }),
+                    ...transferPitOptions
+                        .where((pitName) => pitName != kActiveSystem)
+                        .map((pitName) {
+                          return DropdownMenuItem<String>(
+                            value: pitName,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                              ),
+                              child: Text(
+                                pitName,
+                                style: AppTheme.bodySmall.copyWith(
+                                  fontSize: 10,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          );
+                        }),
                   ],
                   onChanged: dashboardController.isLocked.value
                       ? null

@@ -110,7 +110,7 @@ class PitController extends GetxController {
 
   List<String> get transferDestinationOptions {
     final options = <String>['Active System'];
-    for (final pit in unselectedPits) {
+    for (final pit in [...selectedPits, ...unselectedPits]) {
       final name = pit.pitName.trim();
       if (name.isNotEmpty && !options.contains(name)) {
         options.add(name);

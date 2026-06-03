@@ -403,6 +403,23 @@ const addPitDelta = (map, pitName, volume) => {
   map.set(key, round2((map.get(key) ?? 0) + amount));
 };
 
+const addNamedPitDelta = ({
+  pitName,
+  volume,
+  activePitNames,
+  activeDeltaByPit,
+  storageDeltaByPit,
+}) => {
+  const key = toText(pitName).toLowerCase();
+  if (!key) return;
+
+  addPitDelta(
+    activePitNames.has(key) ? activeDeltaByPit : storageDeltaByPit,
+    pitName,
+    volume
+  );
+};
+
 const buildOperationVolumeEffects = ({
   receivedMud = [],
   returnLostMud = [],
@@ -412,9 +429,11 @@ const buildOperationVolumeEffects = ({
   mudLossStorageEntries = [],
   transferMudEntries = [],
   emptyFluidEntries = [],
+  activePitNames = new Set(),
 }) => {
   let activeSystemDelta = 0;
   let endVolDelta = 0;
+  const activeDeltaByPit = new Map();
   const storageDeltaByPit = new Map();
 
   for (const item of addWaterEntries) {
@@ -481,16 +500,34 @@ const buildOperationVolumeEffects = ({
     if (isActiveSystemName(item.from)) {
       endVolDelta -= totalTransferVol;
       for (const row of transfers) {
-        addPitDelta(storageDeltaByPit, row?.pitName, toNumber(row?.volume));
+        addNamedPitDelta({
+          pitName: row?.pitName,
+          volume: toNumber(row?.volume),
+          activePitNames,
+          activeDeltaByPit,
+          storageDeltaByPit,
+        });
       }
     } else {
-      addPitDelta(storageDeltaByPit, item.from, -totalTransferVol);
+      addNamedPitDelta({
+        pitName: item.from,
+        volume: -totalTransferVol,
+        activePitNames,
+        activeDeltaByPit,
+        storageDeltaByPit,
+      });
       for (const row of transfers) {
         const volume = toNumber(row?.volume);
         if (isActiveSystemName(row?.pitName)) {
           endVolDelta += volume;
         } else {
-          addPitDelta(storageDeltaByPit, row?.pitName, volume);
+          addNamedPitDelta({
+            pitName: row?.pitName,
+            volume,
+            activePitNames,
+            activeDeltaByPit,
+            storageDeltaByPit,
+          });
         }
       }
     }
@@ -511,6 +548,7 @@ const buildOperationVolumeEffects = ({
   return {
     activeSystemDelta: round2(activeSystemDelta),
     endVolDelta: round2(endVolDelta),
+    activeDeltaByPit,
     storageDeltaByPit,
   };
 };
@@ -940,6 +978,9 @@ export const getVolumeNameCalculation = async (req, res) => {
 
     const activePitsList = pits.filter((pit) => pit.initialActive === true);
     const storagePitsList = pits.filter((pit) => pit.initialActive === false);
+    const activePitNames = new Set(
+      activePitsList.map((pit) => toText(pit.pitName).toLowerCase()).filter(Boolean)
+    );
 
     const activePits = Number(
       activePitsList.reduce((sum, pit) => sum + toNumber(pit.volume), 0).toFixed(2)
@@ -969,11 +1010,17 @@ export const getVolumeNameCalculation = async (req, res) => {
       mudLossStorageEntries,
       transferMudEntries,
       emptyFluidEntries,
+      activePitNames,
     });
+    const activePitsWithTransfer = activePitsList.reduce((sum, pit) => {
+      const key = toText(pit.pitName).toLowerCase();
+      const delta = operationVolumeEffects.activeDeltaByPit.get(key) ?? 0;
+      return sum + toNumber(pit.volume) + delta;
+    }, 0);
     for (const [pitName, volume] of operationVolumeEffects.storageDeltaByPit) {
       addPitDelta(calculatedVolumeByPit, pitName, volume);
     }
-    const derivedActiveSystem = round2(activePits + heldVolDifference);
+    const derivedActiveSystem = round2(activePitsWithTransfer + heldVolDifference);
     const activeSystem = derivedActiveSystem;
     const operationEndVol = round2(
       activeSystem + operationVolumeEffects.endVolDelta
@@ -1062,7 +1109,7 @@ export const getVolumeNameCalculation = async (req, res) => {
         volumeName: {
           heldVolDifference,
           hole,
-          activePits,
+          activePits: round2(activePitsWithTransfer),
           activeSystem,
           endVol,
           endVolMinusActiveSystem,
@@ -1105,15 +1152,19 @@ export const getVolumeNameCalculation = async (req, res) => {
           activeSystemVolume,
           distributions: distributionRows,
         },
-        activePitsTable: activePitsList.map((pit) => ({
-          _id: pit._id,
-          pitName: pit.pitName,
-          capacity: toNumber(pit.capacity),
-          measuredVol: toNumber(pit.volume),
-          mw: toNumber(pit.density),
-          mud: pit.fluidType || "",
-          reportId: pit.reportId || "",
-        })),
+        activePitsTable: activePitsList.map((pit) => {
+          const key = toText(pit.pitName).toLowerCase();
+          const delta = operationVolumeEffects.activeDeltaByPit.get(key) ?? 0;
+          return {
+            _id: pit._id,
+            pitName: pit.pitName,
+            capacity: toNumber(pit.capacity),
+            measuredVol: round2(toNumber(pit.volume) + delta),
+            mw: toNumber(pit.density),
+            mud: pit.fluidType || "",
+            reportId: pit.reportId || "",
+          };
+        }),
         storageTable: storagePitsList.map((pit) => ({
           _id: pit._id,
           pitName: pit.pitName,
