@@ -219,8 +219,20 @@ class MudLossStorageController extends GetxController {
   }
 
   Map<String, dynamic>? _extractEntity(dynamic value) {
+    if (value is List && value.isNotEmpty) {
+      final first = value.first;
+      if (first is Map) {
+        return Map<String, dynamic>.from(first);
+      }
+    }
     if (value is Map && value['data'] is Map) {
       return Map<String, dynamic>.from(value['data'] as Map);
+    }
+    if (value is Map && value['data'] is List && value['data'].isNotEmpty) {
+      final first = value['data'].first;
+      if (first is Map) {
+        return Map<String, dynamic>.from(first);
+      }
     }
     if (value is Map) {
       return Map<String, dynamic>.from(value);
@@ -458,7 +470,11 @@ class MudLossStorageController extends GetxController {
     final deletedIds = <String>{};
     for (var index = 0; index < filledRows.length; index++) {
       final row = filledRows[index];
-      final body = {...row.toBody(), 'operationInstanceKey': instanceKey};
+      final body = {
+        ...row.toBody(),
+        'rowNumber': rows.indexOf(row) + 1,
+        'operationInstanceKey': instanceKey,
+      };
       final result = row.id.value.isNotEmpty
           ? await _repository.updateMudLossStorage(wellId, row.id.value, body)
           : await _repository.createMudLossStorage(wellId, body);

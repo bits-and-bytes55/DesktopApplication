@@ -44,6 +44,55 @@ const round2 = (value) => {
   return Number.isFinite(n) ? Number(n.toFixed(2)) : 0;
 };
 
+const itemTime = (item = {}) =>
+  new Date(item.updatedAt || item.createdAt || 0).getTime();
+
+const mudLossStorageLogicalKey = (item = {}) => {
+  const operationInstanceKey = toText(item.operationInstanceKey);
+  const rowNumber = Number(item.rowNumber) || 0;
+  if (operationInstanceKey && rowNumber > 0) {
+    return `${operationInstanceKey}::row:${rowNumber}`;
+  }
+
+  const storage = toText(item.storage).toLowerCase();
+  if (operationInstanceKey && storage) {
+    return `${operationInstanceKey}::legacy:${storage}`;
+  }
+
+  return String(item._id || item.id || "");
+};
+
+const normalizeMudLossStorageItems = (items = []) => {
+  const latestByKey = new Map();
+
+  for (const item of items) {
+    const key = mudLossStorageLogicalKey(item);
+    if (!key) continue;
+    const existing = latestByKey.get(key);
+    if (!existing || itemTime(item) >= itemTime(existing)) {
+      latestByKey.set(key, item);
+    }
+  }
+
+  const rowBasedStorageKeys = new Set();
+  for (const item of latestByKey.values()) {
+    const operationInstanceKey = toText(item.operationInstanceKey);
+    const rowNumber = Number(item.rowNumber) || 0;
+    const storage = toText(item.storage).toLowerCase();
+    if (operationInstanceKey && rowNumber > 0 && storage) {
+      rowBasedStorageKeys.add(`${operationInstanceKey}::${storage}`);
+    }
+  }
+
+  return Array.from(latestByKey.values()).filter((item) => {
+    const operationInstanceKey = toText(item.operationInstanceKey);
+    const rowNumber = Number(item.rowNumber) || 0;
+    const storage = toText(item.storage).toLowerCase();
+    if (!operationInstanceKey || rowNumber > 0 || !storage) return true;
+    return !rowBasedStorageKeys.has(`${operationInstanceKey}::${storage}`);
+  });
+};
+
 const calculatePipeVolume = ({ id, length }) => {
   const idIn = toNumber(id);
   const lengthFt = toNumber(length);
@@ -928,6 +977,8 @@ export const getVolumeNameCalculation = async (req, res) => {
           scopedOperationFilter({ wellId, reportId: reportMeta.reportId })
         ).sort({ createdAt: 1, _id: 1 }),
       ]);
+    const normalizedMudLossStorageEntries =
+      normalizeMudLossStorageItems(mudLossStorageEntries);
 
     const md = toNumber(wellGeneral?.md);
 
@@ -998,7 +1049,7 @@ export const getVolumeNameCalculation = async (req, res) => {
       addWaterEntries,
       otherVolAdditions,
       mudLossEntries,
-      mudLossStorageEntries,
+      mudLossStorageEntries: normalizedMudLossStorageEntries,
       transferMudEntries,
       emptyFluidEntries,
       activePitNames,
@@ -1047,7 +1098,9 @@ export const getVolumeNameCalculation = async (req, res) => {
     );
 
     const mudLossStorageTotal = Number(
-      mudLossStorageEntries.reduce((sum, item) => sum + toNumber(item.totalLoss), 0).toFixed(2)
+      normalizedMudLossStorageEntries
+        .reduce((sum, item) => sum + toNumber(item.totalLoss), 0)
+        .toFixed(2)
     );
 
     const otherVolAdditionTotal = Number(
