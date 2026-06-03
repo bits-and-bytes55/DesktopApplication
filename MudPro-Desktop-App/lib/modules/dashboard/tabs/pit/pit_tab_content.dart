@@ -39,8 +39,7 @@ class _PitPageState extends State<PitPage> {
     super.dispose();
   }
 
-  String _volumeValidationKey(PitModel pit) =>
-      pit.id?.trim().isNotEmpty == true
+  String _volumeValidationKey(PitModel pit) => pit.id?.trim().isNotEmpty == true
       ? pit.id!
       : identityHashCode(pit).toString();
 
@@ -254,12 +253,16 @@ class _PitPageState extends State<PitPage> {
             ),
             child: Obx(() {
               final dataRows = controller.activePitRows;
+              final volumeNameData = Map<String, dynamic>.from(
+                controller.volumeNameData,
+              );
               return LayoutBuilder(
                 builder: (context, constraints) {
                   return SingleChildScrollView(
                     child: _buildActivePitsTableBody(
                       constraints.maxHeight,
                       dataRows,
+                      volumeNameData,
                     ),
                   );
                 },
@@ -301,6 +304,7 @@ class _PitPageState extends State<PitPage> {
   Widget _buildActivePitsTableBody(
     double availableHeight,
     List<PitModel> dataRows,
+    Map<String, dynamic> volumeNameData,
   ) {
     final fillerRows = _fillerRowCount(
       availableHeight: availableHeight,
@@ -325,9 +329,19 @@ class _PitPageState extends State<PitPage> {
           final ctrls = controller.getPitCtrl(
             pitKey,
             pitName: pit.pitName,
-            vol: pit.volume?.value ?? 0,
-            density: pit.density?.value ?? 0,
-            fluid: pit.fluidType?.value ?? '',
+            vol: controller.activeMeasuredVolumeForPit(
+              pit,
+              volumeNameData: volumeNameData,
+            ),
+            density: controller.activeMwForPit(
+              pit,
+              volumeNameData: volumeNameData,
+            ),
+            fluid: controller.activeMudForPit(
+              pit,
+              volumeNameData: volumeNameData,
+            ),
+            syncExisting: true,
           );
           return TableRow(
             children: [
@@ -480,9 +494,7 @@ class _PitPageState extends State<PitPage> {
           return TableRow(
             children: [
               _pitNameCell(ctrls, pit),
-              _readOnlyCell(
-                _storageCalculatedVol(pit, volumeNameData),
-              ),
+              _readOnlyCell(_storageCalculatedVol(pit, volumeNameData)),
               _editableCellWithSave(ctrls, pit, 'volume'),
               _editableCellWithSave(ctrls, pit, 'density'),
               _editableCellWithSave(ctrls, pit, 'fluidType'),
@@ -606,10 +618,16 @@ class _PitPageState extends State<PitPage> {
       ['Active Pits', formatValue(getValue('activePits'))],
       ['Active System', formatValue(getValue('activeSystem'))],
       ['End Vol.', formatValue(getValue('endVol'))],
-      ['End Vol. - Active System', formatSignedValue(getValue('endVolMinusActiveSystem'))],
+      [
+        'End Vol. - Active System',
+        formatSignedValue(getValue('endVolMinusActiveSystem')),
+      ],
       ['Total Storage', formatValue(getValue('totalStorage'))],
       ['Total on Location', formatValue(getValue('totalOnLocation'))],
-      ['Previous Total on Location', formatValue(getValue('previousTotalOnLocation'))],
+      [
+        'Previous Total on Location',
+        formatValue(getValue('previousTotalOnLocation')),
+      ],
     ];
 
     return Table(
@@ -871,10 +889,7 @@ class _PitPageState extends State<PitPage> {
     );
   }
 
-  Widget _pitNameCell(
-    Map<String, TextEditingController> ctrls,
-    PitModel pit,
-  ) {
+  Widget _pitNameCell(Map<String, TextEditingController> ctrls, PitModel pit) {
     final ctrl = ctrls['pitName']!;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
@@ -959,8 +974,7 @@ class _PitPageState extends State<PitPage> {
             focusedBorder: InputBorder.none,
           ),
           onChanged: (val) {
-            if (field == 'volume' &&
-                !_validateMeasuredVolume(ctrl, pit, val)) {
+            if (field == 'volume' && !_validateMeasuredVolume(ctrl, pit, val)) {
               return;
             }
             if (pit.id != null && pit.id!.isNotEmpty) {

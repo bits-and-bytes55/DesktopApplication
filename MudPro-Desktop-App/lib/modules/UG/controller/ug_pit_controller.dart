@@ -497,6 +497,7 @@ class PitController extends GetxController {
     double vol = 0,
     double density = 0,
     String fluid = '',
+    bool syncExisting = false,
   }) {
     if (!activePitControllers.containsKey(pitId)) {
       activePitControllers[pitId] = {
@@ -505,8 +506,24 @@ class PitController extends GetxController {
         'density': TextEditingController(text: density.toStringAsFixed(2)),
         'fluidType': TextEditingController(text: fluid),
       };
+    } else if (syncExisting &&
+        !pitId.contains('-draft-') &&
+        !modifiedPitIds.contains(pitId)) {
+      final ctrls = activePitControllers[pitId]!;
+      _syncControllerText(ctrls['pitName'], pitName);
+      _syncControllerText(ctrls['volume'], vol.toStringAsFixed(2));
+      _syncControllerText(ctrls['density'], density.toStringAsFixed(2));
+      _syncControllerText(ctrls['fluidType'], fluid);
     }
     return activePitControllers[pitId]!;
+  }
+
+  void _syncControllerText(TextEditingController? ctrl, String value) {
+    if (ctrl == null || ctrl.text == value) return;
+    ctrl.value = TextEditingValue(
+      text: value,
+      selection: TextSelection.collapsed(offset: value.length),
+    );
   }
 
   Future<void> prepareMeasuredVolumeReportCheck() async {
@@ -575,6 +592,48 @@ class PitController extends GetxController {
     }
 
     return 0.0;
+  }
+
+  Map<dynamic, dynamic>? activeTableRowForPit(
+    PitModel pit, {
+    Map<String, dynamic>? volumeNameData,
+  }) {
+    final rows = (volumeNameData ?? this.volumeNameData)['activePitsTable'];
+    if (rows is! List) return null;
+
+    final pitId = pit.id?.trim() ?? '';
+    final pitName = pit.pitName.trim().toLowerCase();
+
+    return rows.cast<dynamic>().firstWhereOrNull((row) {
+          if (row is! Map) return false;
+          final rowId = row['_id']?.toString().trim() ?? '';
+          final rowName = row['pitName']?.toString().trim().toLowerCase() ?? '';
+          return (pitId.isNotEmpty && rowId == pitId) ||
+              (pitName.isNotEmpty && rowName == pitName);
+        })
+        as Map<dynamic, dynamic>?;
+  }
+
+  double activeMeasuredVolumeForPit(
+    PitModel pit, {
+    Map<String, dynamic>? volumeNameData,
+  }) {
+    final row = activeTableRowForPit(pit, volumeNameData: volumeNameData);
+    if (row == null) return pit.volume?.value ?? 0.0;
+    return _calculateDouble(row['measuredVol'] ?? row['volume']);
+  }
+
+  double activeMwForPit(PitModel pit, {Map<String, dynamic>? volumeNameData}) {
+    final row = activeTableRowForPit(pit, volumeNameData: volumeNameData);
+    if (row == null) return pit.density?.value ?? 0.0;
+    return _calculateDouble(row['mw'] ?? row['density']);
+  }
+
+  String activeMudForPit(PitModel pit, {Map<String, dynamic>? volumeNameData}) {
+    final row = activeTableRowForPit(pit, volumeNameData: volumeNameData);
+    if (row == null) return pit.fluidType?.value ?? '';
+    return (row['mud'] ?? row['fluidType'] ?? pit.fluidType?.value ?? '')
+        .toString();
   }
 
   // Refined: Update only modified pits individually via PUT /pit/:id

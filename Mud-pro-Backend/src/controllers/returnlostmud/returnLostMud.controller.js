@@ -101,7 +101,7 @@ const prepareReturnLostMudData = async (wellId, reportId, payload) => {
     costOfLostPreTax !== null &&
     costOfLostPreTax !== ""
       ? round2(toNumber(costOfLostPreTax))
-      : round2(lost * premixedLeasingFee);
+      : premixedLeasingFee;
 
   return {
     wellId: safeWellId,
