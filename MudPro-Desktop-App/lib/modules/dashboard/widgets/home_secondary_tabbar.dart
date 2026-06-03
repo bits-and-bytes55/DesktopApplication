@@ -28,6 +28,7 @@ import 'package:mudpro_desktop_app/modules/dashboard/controller/mud_loss_active_
 import 'package:mudpro_desktop_app/modules/dashboard/controller/nozzle_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/other_vol_addition_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/mud_loss_storage_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/empty_Activesystem_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/UG_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/well_view.dart';
@@ -723,6 +724,27 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
                 } else {
                   errorMessages.add(
                     'Mud Loss - Storage: ${res['message'] ?? 'Failed'}',
+                  );
+                }
+              }
+            } else if (selectedOp == OperationType.emptyActiveSystem) {
+              final emptyActiveSystemCtrl =
+                  Get.isRegistered<EmptyActiveSystemController>(
+                    tag: selectedOperationInstanceKey,
+                  )
+                  ? Get.find<EmptyActiveSystemController>(
+                      tag: selectedOperationInstanceKey,
+                    )
+                  : null;
+              if (emptyActiveSystemCtrl != null) {
+                final res = await emptyActiveSystemCtrl.saveEmptyActiveSystem();
+                if (res['success'] == true) {
+                  successMessage =
+                      res['message']?.toString() ??
+                      'Empty Active System saved successfully';
+                } else {
+                  errorMessages.add(
+                    'Empty Active System: ${res['message'] ?? 'Failed'}',
                   );
                 }
               }

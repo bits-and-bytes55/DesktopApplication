@@ -5,7 +5,7 @@ import 'package:mudpro_desktop_app/modules/report_context/report_context_control
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
 const _pitReviewBorder = Color(0xFFC8C8C8);
-const _pitReviewHeaderFill = Color(0xFFF3F3F3);
+const _pitReviewHeaderFill = Color(0xFF6EA0D4);
 const _pitReviewValueFill = Color(0xFFFFF8CC);
 
 class PitReviewController extends GetxController {
@@ -473,8 +473,8 @@ class _PitReviewHeaderCell extends StatelessWidget {
         textAlign: TextAlign.center,
         style: const TextStyle(
           fontSize: 10.5,
-          fontWeight: FontWeight.w500,
-          color: Color(0xFF444444),
+          fontWeight: FontWeight.w700,
+          color: Colors.white,
         ),
       ),
     );

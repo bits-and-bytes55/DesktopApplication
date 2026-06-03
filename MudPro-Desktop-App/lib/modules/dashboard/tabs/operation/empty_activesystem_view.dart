@@ -20,7 +20,7 @@ class _EmptyActiveSystemViewState extends State<EmptyActiveSystemView> {
   void initState() {
     super.initState();
     controller = Get.put(
-      EmptyActiveSystemController(),
+      EmptyActiveSystemController(instanceKey: widget.instanceKey),
       tag: widget.instanceKey,
     );
   }
@@ -55,7 +55,7 @@ class _EmptyActiveSystemViewState extends State<EmptyActiveSystemView> {
 
           // ================= RADIO BUTTONS + TABLE =================
           SizedBox(
-            width: MediaQuery.of(context).size.width * 0.4, // Decreased width
+            width: double.infinity,
             child: Container(
               decoration: BoxDecoration(
                 color: Colors.white,
@@ -113,7 +113,8 @@ class _EmptyActiveSystemViewState extends State<EmptyActiveSystemView> {
                                   "Dump",
                                   style: AppTheme.bodySmall.copyWith(
                                     fontSize: 12,
-                                    color: AppTheme.textPrimary,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.black87,
                                   ),
                                 ),
                               ],
@@ -156,7 +157,8 @@ class _EmptyActiveSystemViewState extends State<EmptyActiveSystemView> {
                                   "Transfer to Storage",
                                   style: AppTheme.bodySmall.copyWith(
                                     fontSize: 12,
-                                    color: AppTheme.textPrimary,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.black87,
                                   ),
                                 ),
                               ],
@@ -296,6 +298,9 @@ class _EmptyActiveSystemViewState extends State<EmptyActiveSystemView> {
                                                                         .pitValues[index],
                                                               style: AppTheme.bodySmall.copyWith(
                                                                 fontSize: 11,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w700,
                                                                 color:
                                                                     controller
                                                                         .pitValues[index]
@@ -337,27 +342,29 @@ class _EmptyActiveSystemViewState extends State<EmptyActiveSystemView> {
                                                       }
                                                     },
                                                     itemBuilder: (BuildContext context) {
-                                                      return controller
-                                                          .unselectedPits
-                                                          .map((pit) {
-                                                            return PopupMenuItem<
-                                                              String
-                                                            >(
-                                                              value:
-                                                                  pit.pitName,
-                                                              height: 32,
-                                                              child: Text(
-                                                                pit.pitName,
-                                                                style: AppTheme
-                                                                    .bodySmall
-                                                                    .copyWith(
-                                                                      fontSize:
-                                                                          11,
-                                                                    ),
-                                                              ),
-                                                            );
-                                                          })
-                                                          .toList();
+                                                      return controller.unselectedPits.map((
+                                                        pit,
+                                                      ) {
+                                                        return PopupMenuItem<
+                                                          String
+                                                        >(
+                                                          value: pit.pitName,
+                                                          height: 32,
+                                                          child: Text(
+                                                            pit.pitName,
+                                                            style: AppTheme
+                                                                .bodySmall
+                                                                .copyWith(
+                                                                  fontSize: 11,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .w700,
+                                                                  color: Colors
+                                                                      .black87,
+                                                                ),
+                                                          ),
+                                                        );
+                                                      }).toList();
                                                     },
                                                   )
                                                 : Container(
@@ -373,9 +380,10 @@ class _EmptyActiveSystemViewState extends State<EmptyActiveSystemView> {
                                                       style: AppTheme.bodySmall
                                                           .copyWith(
                                                             fontSize: 11,
-                                                            color: Colors
-                                                                .grey
-                                                                .shade400,
+                                                            fontWeight:
+                                                                FontWeight.w700,
+                                                            color:
+                                                                Colors.black87,
                                                           ),
                                                     ),
                                                   ),
@@ -413,8 +421,9 @@ class _EmptyActiveSystemViewState extends State<EmptyActiveSystemView> {
                                                     style: AppTheme.bodySmall
                                                         .copyWith(
                                                           fontSize: 11,
-                                                          color: AppTheme
-                                                              .textPrimary,
+                                                          fontWeight:
+                                                              FontWeight.w700,
+                                                          color: Colors.black87,
                                                         ),
                                                     keyboardType:
                                                         TextInputType.number,
@@ -433,9 +442,10 @@ class _EmptyActiveSystemViewState extends State<EmptyActiveSystemView> {
                                                       style: AppTheme.bodySmall
                                                           .copyWith(
                                                             fontSize: 11,
-                                                            color: Colors
-                                                                .grey
-                                                                .shade400,
+                                                            fontWeight:
+                                                                FontWeight.w700,
+                                                            color:
+                                                                Colors.black87,
                                                           ),
                                                     ),
                                                   ),
@@ -487,8 +497,16 @@ class _EmptyActiveSystemViewState extends State<EmptyActiveSystemView> {
               ),
               const SizedBox(width: 8),
               ElevatedButton(
-                onPressed: () {
-                  // Execute action
+                onPressed: () async {
+                  final result = await controller.saveEmptyActiveSystem();
+                  Get.snackbar(
+                    result['success'] == true ? 'Saved' : 'Error',
+                    result['message']?.toString() ??
+                        (result['success'] == true
+                            ? 'Empty Active System saved'
+                            : 'Failed to save Empty Active System'),
+                    snackPosition: SnackPosition.TOP,
+                  );
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primaryColor,

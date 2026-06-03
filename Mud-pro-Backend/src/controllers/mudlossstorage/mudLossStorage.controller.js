@@ -126,9 +126,9 @@ const assertStorageHasAvailableVolume = async ({
     storagePitFilter({ wellId, reportId, storage })
   ).sort({ createdAt: -1, _id: -1 });
 
-  const measuredVolume = round2(toNumber(pit?.volume));
-  if (!pit || measuredVolume <= 0) {
-    throw makeValidationError(`Storage ${storage} has no available volume`);
+  const capacity = round2(toNumber(pit?.capacity));
+  if (!pit || capacity <= 0) {
+    throw makeValidationError(`Storage ${storage} has no capacity set`);
   }
 
   const existingFilter = buildScopedFilter(wellId, reportId, { storage });
@@ -152,15 +152,15 @@ const assertStorageHasAvailableVolume = async ({
   const existingLoss = round2(
     existingRows.reduce((sum, item) => sum + toNumber(item.totalLoss), 0)
   );
-  const available = round2(measuredVolume - existingLoss);
+  const available = round2(capacity - existingLoss);
 
   if (available <= 0) {
-    throw makeValidationError(`Storage ${storage} has no available volume`);
+    throw makeValidationError(`Storage ${storage} has no available capacity`);
   }
 
   if (toNumber(totalLoss) > available) {
     throw makeValidationError(
-      `Storage ${storage} loss cannot exceed ${available.toFixed(2)} bbl`
+      `Storage ${storage} loss cannot exceed capacity (${available.toFixed(2)} bbl available)`
     );
   }
 };

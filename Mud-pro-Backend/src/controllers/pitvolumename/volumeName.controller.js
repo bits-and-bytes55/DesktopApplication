@@ -482,6 +482,7 @@ const buildOperationVolumeEffects = ({
 }) => {
   let activeSystemDelta = 0;
   let endVolDelta = 0;
+  let forceEndVolZero = false;
   const activeDeltaByPit = new Map();
   const storageDeltaByPit = new Map();
 
@@ -576,8 +577,7 @@ const buildOperationVolumeEffects = ({
   for (const item of emptyFluidEntries) {
     const volume = toNumber(item.volume || item.totalVolume);
     if (item.actionType === "Dump") {
-      activeSystemDelta -= volume;
-      endVolDelta -= volume;
+      forceEndVolZero = true;
     } else if (item.actionType === "Transfer to Storage") {
       activeSystemDelta -= volume;
       endVolDelta -= volume;
@@ -588,6 +588,7 @@ const buildOperationVolumeEffects = ({
   return {
     activeSystemDelta: round2(activeSystemDelta),
     endVolDelta: round2(endVolDelta),
+    forceEndVolZero,
     activeDeltaByPit,
     storageDeltaByPit,
   };
@@ -1064,11 +1065,12 @@ export const getVolumeNameCalculation = async (req, res) => {
     }
     const derivedActiveSystem = round2(activePitsWithTransfer + heldVolDifference);
     const activeSystem = derivedActiveSystem;
-    const operationEndVol = round2(
-      activeSystem + operationVolumeEffects.endVolDelta
-    );
-    const endVol =
-      activeSystemVolume > 0
+    const operationEndVol = operationVolumeEffects.forceEndVolZero
+      ? 0
+      : round2(activeSystem + operationVolumeEffects.endVolDelta);
+    const endVol = operationVolumeEffects.forceEndVolZero
+      ? 0
+      : activeSystemVolume > 0
         ? round2(activeSystemVolume + operationVolumeEffects.endVolDelta)
         : Math.abs(operationVolumeEffects.endVolDelta) >= 0.005
           ? operationEndVol
