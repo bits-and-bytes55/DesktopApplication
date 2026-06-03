@@ -20,7 +20,10 @@ class _MudLossStorageViewState extends State<MudLossStorageView> {
   final DashboardController dashboardController =
       Get.find<DashboardController>();
   final PitController pitController = Get.find<PitController>();
+  final ScrollController _verticalScrollController = ScrollController();
+  final ScrollController _horizontalScrollController = ScrollController();
   late final MudLossStorageController controller;
+  static Map<String, String>? _rowClipboard;
 
   int selectedRowIndex = 0;
 
@@ -40,6 +43,8 @@ class _MudLossStorageViewState extends State<MudLossStorageView> {
   @override
   void dispose() {
     unawaited(controller.flushPendingAutoSave());
+    _verticalScrollController.dispose();
+    _horizontalScrollController.dispose();
     super.dispose();
   }
 
@@ -54,58 +59,95 @@ class _MudLossStorageViewState extends State<MudLossStorageView> {
           Text(
             'Mud Loss - Storage',
             style: AppTheme.bodySmall.copyWith(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: AppTheme.textPrimary,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: Colors.black87,
             ),
           ),
           const SizedBox(height: 10),
-          Obx(() {
-            if (controller.isLoading.value) {
-              return Container(
-                width: 690,
-                height: 688,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border.all(color: Colors.grey.shade400),
-                ),
-                child: SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: AppTheme.primaryColor,
+          Expanded(
+            child: Obx(() {
+              if (controller.isLoading.value) {
+                return Container(
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border.all(color: Colors.grey.shade400),
                   ),
-                ),
-              );
-            }
+                  child: SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppTheme.primaryColor,
+                    ),
+                  ),
+                );
+              }
 
-            return SizedBox(
-              width: 690,
-              child: Table(
-                border: TableBorder.all(
-                  color: Colors.grey.shade400,
-                  width: 1,
-                ),
-                columnWidths: const {
-                  0: FixedColumnWidth(24),
-                  1: FixedColumnWidth(36),
-                  2: FixedColumnWidth(226),
-                  3: FixedColumnWidth(150),
-                  4: FixedColumnWidth(113),
-                  5: FixedColumnWidth(113),
+              return LayoutBuilder(
+                builder: (context, constraints) {
+                  final tableWidth = constraints.maxWidth < 720
+                      ? 720.0
+                      : constraints.maxWidth;
+                  return Scrollbar(
+                    controller: _verticalScrollController,
+                    thumbVisibility: true,
+                    notificationPredicate: (notification) =>
+                        notification.metrics.axis == Axis.vertical,
+                    child: SingleChildScrollView(
+                      controller: _verticalScrollController,
+                      child: Scrollbar(
+                        controller: _horizontalScrollController,
+                        thumbVisibility: constraints.maxWidth < 720,
+                        notificationPredicate: (notification) =>
+                            notification.metrics.axis == Axis.horizontal,
+                        child: SingleChildScrollView(
+                          controller: _horizontalScrollController,
+                          scrollDirection: Axis.horizontal,
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.translucent,
+                            onSecondaryTapDown: (details) =>
+                                _handleTableRightClick(context, details),
+                            child: SizedBox(
+                              width: tableWidth,
+                              child: Table(
+                                border: TableBorder.all(
+                                  color: Colors.grey.shade400,
+                                  width: 1,
+                                ),
+                                columnWidths: const {
+                                  0: FixedColumnWidth(28),
+                                  1: FixedColumnWidth(42),
+                                  2: FlexColumnWidth(2.1),
+                                  3: FlexColumnWidth(1.25),
+                                  4: FlexColumnWidth(1.25),
+                                  5: FlexColumnWidth(1.25),
+                                },
+                                defaultVerticalAlignment:
+                                    TableCellVerticalAlignment.middle,
+                                children: [
+                                  _headerRow(),
+                                  ...List.generate(controller.rows.length, (
+                                    index,
+                                  ) {
+                                    return _dataRow(
+                                      index,
+                                      controller.rows[index],
+                                    );
+                                  }),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
                 },
-                defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-                children: [
-                  _headerRow(),
-                  ...List.generate(controller.rows.length, (index) {
-                    return _dataRow(index, controller.rows[index]);
-                  }),
-                ],
-              ),
-            );
-          }),
+              );
+            }),
+          ),
         ],
       ),
     );
@@ -113,7 +155,7 @@ class _MudLossStorageViewState extends State<MudLossStorageView> {
 
   TableRow _headerRow() {
     return TableRow(
-      decoration: BoxDecoration(color: Colors.grey.shade100),
+      decoration: const BoxDecoration(color: AppTheme.primaryColor),
       children: [
         _headerCell(''),
         _headerCell(''),
@@ -147,9 +189,9 @@ class _MudLossStorageViewState extends State<MudLossStorageView> {
         text,
         textAlign: TextAlign.center,
         style: AppTheme.bodySmall.copyWith(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: AppTheme.textPrimary,
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: Colors.white,
           height: 1.15,
         ),
       ),
@@ -178,9 +220,9 @@ class _MudLossStorageViewState extends State<MudLossStorageView> {
         child: Text(
           '${index + 1}',
           style: AppTheme.bodySmall.copyWith(
-            fontSize: 11,
-            color: Colors.grey.shade700,
-            fontWeight: FontWeight.w500,
+            fontSize: 12,
+            color: Colors.black87,
+            fontWeight: FontWeight.w700,
           ),
         ),
       ),
@@ -220,9 +262,9 @@ class _MudLossStorageViewState extends State<MudLossStorageView> {
               ),
             ),
             style: AppTheme.bodySmall.copyWith(
-              fontSize: 11,
-              color: AppTheme.textPrimary,
-              fontWeight: FontWeight.w500,
+              fontSize: 12,
+              color: Colors.black87,
+              fontWeight: FontWeight.w700,
             ),
             dropdownColor: Colors.white,
             menuMaxHeight: 220,
@@ -234,7 +276,11 @@ class _MudLossStorageViewState extends State<MudLossStorageView> {
                   child: Text(
                     pitName,
                     overflow: TextOverflow.ellipsis,
-                    style: AppTheme.bodySmall.copyWith(fontSize: 11),
+                    style: AppTheme.bodySmall.copyWith(
+                      fontSize: 12,
+                      color: Colors.black87,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               );
@@ -262,9 +308,9 @@ class _MudLossStorageViewState extends State<MudLossStorageView> {
         textAlign: TextAlign.right,
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
         style: AppTheme.bodySmall.copyWith(
-          fontSize: 11,
-          color: AppTheme.textPrimary,
-          fontWeight: FontWeight.w500,
+          fontSize: 12,
+          color: Colors.black87,
+          fontWeight: FontWeight.w700,
         ),
         decoration: InputDecoration(
           border: InputBorder.none,
@@ -295,6 +341,104 @@ class _MudLossStorageViewState extends State<MudLossStorageView> {
           controller.scheduleAutoSave();
         },
       ),
+    );
+  }
+
+  void _handleTableRightClick(BuildContext context, TapDownDetails details) {
+    const headerHeight = 48.0;
+    const rowHeight = 32.0;
+    final localY = details.localPosition.dy;
+    if (localY >= headerHeight) {
+      final rowIndex = ((localY - headerHeight) / rowHeight).floor();
+      if (rowIndex >= 0 && rowIndex < controller.rows.length) {
+        setState(() => selectedRowIndex = rowIndex);
+      }
+    }
+    _showContextMenu(context, details.globalPosition);
+  }
+
+  Future<void> _showContextMenu(BuildContext context, Offset position) async {
+    if (dashboardController.isLocked.value) return;
+    final selected = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        position.dx,
+        position.dy,
+        position.dx,
+        position.dy,
+      ),
+      items: [
+        _menuItem('cut', Icons.content_cut, 'Cut'),
+        _menuItem('copy', Icons.copy, 'Copy'),
+        _menuItem('paste', Icons.content_paste, 'Paste'),
+        _menuItem('save', Icons.save_outlined, 'Save'),
+        _menuItem('delete', Icons.delete_outline, 'Delete'),
+        _menuItem('clear', Icons.clear, 'Clear'),
+      ],
+    );
+    if (selected == null || selectedRowIndex >= controller.rows.length) {
+      return;
+    }
+
+    final row = controller.rows[selectedRowIndex];
+    switch (selected) {
+      case 'cut':
+        _rowClipboard = controller.rowSnapshot(row);
+        await _runRowAction(controller.deleteRow(row));
+        break;
+      case 'copy':
+        _rowClipboard = controller.rowSnapshot(row);
+        break;
+      case 'paste':
+        final snapshot = _rowClipboard;
+        if (snapshot == null) return;
+        controller.applyRowSnapshot(row, snapshot);
+        await _runRowAction(controller.save());
+        break;
+      case 'save':
+        await _runRowAction(controller.save());
+        break;
+      case 'delete':
+        await _runRowAction(controller.deleteRow(row));
+        break;
+      case 'clear':
+        await _runRowAction(controller.deleteRow(row));
+        break;
+    }
+    if (mounted) setState(() {});
+  }
+
+  PopupMenuItem<String> _menuItem(String value, IconData icon, String label) {
+    return PopupMenuItem<String>(
+      value: value,
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: Colors.black87),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: AppTheme.bodySmall.copyWith(
+              fontSize: 12,
+              color: Colors.black87,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _runRowAction(Future<Map<String, dynamic>> action) async {
+    final result = await action;
+    if (result['success'] == true) return;
+    Get.snackbar(
+      'Mud Loss - Storage',
+      (result['message'] ?? 'Action failed').toString(),
+      snackPosition: SnackPosition.TOP,
+      backgroundColor: Colors.redAccent,
+      colorText: Colors.white,
+      margin: const EdgeInsets.all(12),
+      duration: const Duration(seconds: 3),
     );
   }
 }

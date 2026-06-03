@@ -11,6 +11,8 @@ class ReturnLostMudView extends StatelessWidget {
         tag: instanceKey,
       );
 
+  static Map<String, dynamic>? _clipboard;
+
   final String instanceKey;
   final ReturnLostMudController controller;
   final DashboardController dashboardController =
@@ -30,20 +32,90 @@ class ReturnLostMudView extends StatelessWidget {
           const SizedBox(height: 16),
 
           Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _buildPremixedMudSection(),
-                  const SizedBox(height: 16),
-                  _buildDataTable(),
-                ],
+            child: GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onSecondaryTapDown: (details) =>
+                  _showReturnLostMudMenu(context, details),
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _buildPremixedMudSection(),
+                    const SizedBox(height: 16),
+                    _buildDataTable(),
+                  ],
+                ),
               ),
             ),
           ),
         ],
       ),
     );
+  }
+
+  PopupMenuItem<String> _menuItem(
+    String value,
+    String label, {
+    required bool enabled,
+  }) {
+    final color = enabled ? Colors.black87 : Colors.grey.shade400;
+    return PopupMenuItem<String>(
+      value: enabled ? value : null,
+      enabled: enabled,
+      height: 30,
+      child: Text(label, style: TextStyle(fontSize: 12, color: color)),
+    );
+  }
+
+  Future<void> _showReturnLostMudMenu(
+    BuildContext context,
+    TapDownDetails details,
+  ) async {
+    final canEdit = !dashboardController.isLocked.value;
+    final hasData = controller.hasReturnLostData;
+    final action = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        details.globalPosition.dx,
+        details.globalPosition.dy,
+        details.globalPosition.dx,
+        details.globalPosition.dy,
+      ),
+      items: [
+        _menuItem('cut', 'Cut', enabled: canEdit && hasData),
+        _menuItem('copy', 'Copy', enabled: hasData),
+        _menuItem('paste', 'Paste', enabled: canEdit && _clipboard != null),
+        const PopupMenuDivider(height: 4),
+        _menuItem('save', 'Save', enabled: canEdit && hasData),
+        _menuItem('delete', 'Delete', enabled: canEdit && hasData),
+        _menuItem('clear', 'Clear', enabled: canEdit && hasData),
+      ],
+    );
+
+    switch (action) {
+      case 'cut':
+        _clipboard = controller.formSnapshot();
+        await controller.deleteCurrentRecord(silent: false);
+        break;
+      case 'copy':
+        _clipboard = controller.formSnapshot();
+        break;
+      case 'paste':
+        final snapshot = _clipboard;
+        if (snapshot == null) return;
+        controller.applyFormSnapshot(snapshot);
+        await controller.saveReturnLostMud(silent: true);
+        break;
+      case 'save':
+        await controller.saveReturnLostMud();
+        break;
+      case 'delete':
+        await controller.deleteCurrentRecord();
+        break;
+      case 'clear':
+        await controller.deleteCurrentRecord();
+        break;
+    }
   }
 
   Widget _buildHeader() {

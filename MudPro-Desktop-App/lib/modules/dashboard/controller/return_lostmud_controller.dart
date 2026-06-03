@@ -162,11 +162,25 @@ class ReturnLostMudController extends GetxController {
   bool get _isReturnLostFormEmpty =>
       selectedPremixed.value == null &&
       selectedPit.value == null &&
+      selectedPitId.value.trim().isEmpty &&
       toController.text.trim().isEmpty &&
       volReturnedController.text.trim().isEmpty &&
       bolController.text.trim().isEmpty &&
       volLostController.text.trim().isEmpty &&
       costOfLostController.text.trim().isEmpty;
+
+  bool get hasReturnLostData =>
+      recordId.value?.trim().isNotEmpty == true ||
+      selectedPremixed.value != null ||
+      selectedPitId.value.trim().isNotEmpty ||
+      toController.text.trim().isNotEmpty ||
+      volReturnedController.text.trim().isNotEmpty ||
+      bolController.text.trim().isNotEmpty ||
+      volLostController.text.trim().isNotEmpty ||
+      costOfLostController.text.trim().isNotEmpty ||
+      mw.value.trim().isNotEmpty ||
+      mudType.value.trim().isNotEmpty ||
+      isLeased.value;
 
   bool get _hasAutoSavableData {
     if (_isReturnLostFormEmpty) {
@@ -581,7 +595,136 @@ class ReturnLostMudController extends GetxController {
     }
   }
 
+  Map<String, dynamic> formSnapshot() {
+    return {
+      'isPremixedMud': isPremixedMud.value,
+      'selectedPremixedId': selectedPremixedId.value,
+      'premixedMud': selectedPremixed.value?.description ?? '',
+      'selectedPitId': selectedPitId.value,
+      'from': selectedFromName,
+      'to': toController.text,
+      'volReturned': volReturnedController.text,
+      'mw': mw.value,
+      'mudType': mudType.value,
+      'bol': bolController.text,
+      'volLost': volLostController.text,
+      'costOfLostPreTax': costOfLostController.text,
+      'leased': isLeased.value,
+    };
+  }
+
+  void applyFormSnapshot(Map<String, dynamic> snapshot) {
+    _autoSaveTimer?.cancel();
+    _isApplyingState = true;
+
+    isPremixedMud.value = snapshot['isPremixedMud'] == true;
+
+    final premixedId = (snapshot['selectedPremixedId'] ?? '').toString();
+    final premixedName = (snapshot['premixedMud'] ?? '').toString().trim();
+    PremixModel? premixed;
+    for (final item in premixedList) {
+      if ((premixedId.isNotEmpty && item.id == premixedId) ||
+          (premixedName.isNotEmpty &&
+              item.description.trim().toLowerCase() ==
+                  premixedName.toLowerCase())) {
+        premixed = item;
+        break;
+      }
+    }
+    selectedPremixed.value = premixed;
+    selectedPremixedId.value = premixed?.id ?? '';
+
+    final fromId = (snapshot['selectedPitId'] ?? '').toString();
+    final fromName = (snapshot['from'] ?? '').toString().trim();
+    if (fromId == activeSystemFromId ||
+        fromName.toLowerCase() == 'active system') {
+      selectedPitId.value = activeSystemFromId;
+      selectedPit.value = null;
+    } else {
+      PitModel? pit;
+      for (final item in pitsList) {
+        if ((fromId.isNotEmpty && item.id == fromId) ||
+            (fromName.isNotEmpty &&
+                item.pitName.trim().toLowerCase() == fromName.toLowerCase())) {
+          pit = item;
+          break;
+        }
+      }
+      selectedPit.value = pit;
+      selectedPitId.value = pit?.id ?? '';
+    }
+
+    toController.text = (snapshot['to'] ?? '').toString();
+    volReturnedController.text = (snapshot['volReturned'] ?? '').toString();
+    mw.value = (snapshot['mw'] ?? premixed?.mw ?? '').toString();
+    mudType.value = (snapshot['mudType'] ?? premixed?.mudType ?? '').toString();
+    bolController.text = (snapshot['bol'] ?? '').toString();
+    volLostController.text = (snapshot['volLost'] ?? '').toString();
+    costOfLostController.text = (snapshot['costOfLostPreTax'] ?? '').toString();
+    isLeased.value = snapshot['leased'] == true;
+
+    _isApplyingState = false;
+    _scheduleAutoSave();
+  }
+
+  Future<Map<String, dynamic>> deleteCurrentRecord({
+    bool silent = false,
+  }) async {
+    _autoSaveTimer?.cancel();
+    final currentWellId = wellId;
+    final currentRecordId = recordId.value?.trim() ?? '';
+
+    if (currentRecordId.isEmpty) {
+      clearCurrentForm();
+      if (!silent) _showToast('Data cleared', isError: false);
+      return {'success': true, 'message': 'Data cleared'};
+    }
+
+    if (currentWellId == null) {
+      if (!silent) _showToast('Well ID not found', isError: true);
+      return {'success': false, 'message': 'Well ID not found'};
+    }
+
+    isSaving.value = true;
+    try {
+      final result = await _repository.deleteReturnLostMud(
+        currentWellId,
+        currentRecordId,
+      );
+      if (result['success'] == true) {
+        clearCurrentForm();
+        await _refreshPitState();
+        if (!silent) _showToast('Data deleted successfully', isError: false);
+        return {
+          'success': true,
+          'message': 'Return / Lost Mud deleted successfully',
+        };
+      }
+
+      if (!silent) {
+        _showToast(result['message'] ?? 'Failed to delete data', isError: true);
+      }
+      return {
+        'success': false,
+        'message': result['message'] ?? 'Failed to delete data',
+      };
+    } catch (e) {
+      print('Error deleting return/lost mud: $e');
+      if (!silent) _showToast('Failed to delete data', isError: true);
+      return {'success': false, 'message': 'Failed to delete data'};
+    } finally {
+      isSaving.value = false;
+    }
+  }
+
   // ================= CLEAR FORM =================
+
+  void clearCurrentForm() {
+    _autoSaveTimer?.cancel();
+    _isApplyingState = true;
+    _clearForm();
+    _isApplyingState = false;
+  }
 
   void _clearForm() {
     isPremixedMud.value = false;

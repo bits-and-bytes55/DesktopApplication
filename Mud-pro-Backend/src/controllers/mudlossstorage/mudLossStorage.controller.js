@@ -1,6 +1,5 @@
 import Pit from "../../modules/pit/pit.model.js";
 import MudLossStorage from "../../modules/mudlossstorage/MudLossStorage.js";
-import { findWritablePitByName } from "../../utils/pitReportState.js";
 import { buildScopedFilter, readReportId } from "../../utils/reportScope.js";
 
 const toNumber = (value) => {
@@ -11,12 +10,17 @@ const toNumber = (value) => {
 
 const round2 = (num) => Number(num.toFixed(2));
 const getWellId = (req) => String(req.params.wellId || "").trim();
+const makeValidationError = (message) => {
+  const error = new Error(message);
+  error.statusCode = 400;
+  return error;
+};
 
 const prepareMudLossStorageData = (wellId, reportId, payload = {}) => {
   const { storage, dump, evaporation, pitCleaning } = payload;
 
   if (!wellId || !storage) {
-    throw new Error("wellId and storage are required");
+    throw makeValidationError("wellId and storage are required");
   }
 
   const safeStorage = String(storage).trim();
@@ -28,7 +32,9 @@ const prepareMudLossStorageData = (wellId, reportId, payload = {}) => {
   const totalLoss = round2(dumpVol + evaporationVol + pitCleaningVol);
 
   if (totalLoss <= 0) {
-    throw new Error("At least one storage mud loss value must be greater than 0");
+    throw makeValidationError(
+      "At least one storage mud loss value must be greater than 0"
+    );
   }
 
   return {
@@ -41,6 +47,51 @@ const prepareMudLossStorageData = (wellId, reportId, payload = {}) => {
     pitCleaning: pitCleaningVol,
     totalLoss,
   };
+};
+
+const storagePitFilter = ({ wellId, reportId, storage }) => ({
+  ...buildScopedFilter(wellId, reportId, {
+    pitName: storage,
+    initialActive: false,
+  }),
+});
+
+const assertStorageHasAvailableVolume = async ({
+  wellId,
+  reportId,
+  storage,
+  totalLoss,
+  excludeId = "",
+}) => {
+  const pit = await Pit.findOne(
+    storagePitFilter({ wellId, reportId, storage })
+  ).sort({ createdAt: -1, _id: -1 });
+
+  const measuredVolume = round2(toNumber(pit?.volume));
+  if (!pit || measuredVolume <= 0) {
+    throw makeValidationError(`Storage ${storage} has no available volume`);
+  }
+
+  const existingFilter = buildScopedFilter(wellId, reportId, { storage });
+  if (excludeId) {
+    existingFilter._id = { $ne: excludeId };
+  }
+
+  const existingRows = await MudLossStorage.find(existingFilter).lean();
+  const existingLoss = round2(
+    existingRows.reduce((sum, item) => sum + toNumber(item.totalLoss), 0)
+  );
+  const available = round2(measuredVolume - existingLoss);
+
+  if (available <= 0) {
+    throw makeValidationError(`Storage ${storage} has no available volume`);
+  }
+
+  if (toNumber(totalLoss) > available) {
+    throw makeValidationError(
+      `Storage ${storage} loss cannot exceed ${available.toFixed(2)} bbl`
+    );
+  }
 };
 
 const deductFromStoragePit = async ({ wellId, reportId, storage, totalLoss }) => {
@@ -69,6 +120,13 @@ export const createMudLossStorage = async (req, res) => {
     for (const payload of payloads) {
       const prepared = prepareMudLossStorageData(wellId, reportId, payload);
 
+      await assertStorageHasAvailableVolume({
+        wellId: prepared.wellId,
+        reportId: prepared.reportId,
+        storage: prepared.storage,
+        totalLoss: prepared.totalLoss,
+      });
+
       await deductFromStoragePit({
         wellId: prepared.wellId,
         reportId: prepared.reportId,
@@ -90,9 +148,12 @@ export const createMudLossStorage = async (req, res) => {
       data: createdItems,
     });
   } catch (error) {
-    return res.status(500).json({
+    const statusCode = error.statusCode || 500;
+    return res.status(statusCode).json({
       success: false,
-      message: "Failed to save Mud Loss - Storage",
+      message: error.statusCode
+        ? error.message
+        : "Failed to save Mud Loss - Storage",
       error: error.message,
     });
   }
@@ -188,6 +249,14 @@ export const updateMudLossStorage = async (req, res) => {
 
     const prepared = prepareMudLossStorageData(wellId, reportId, mergedPayload);
 
+    await assertStorageHasAvailableVolume({
+      wellId: prepared.wellId,
+      reportId: prepared.reportId,
+      storage: prepared.storage,
+      totalLoss: prepared.totalLoss,
+      excludeId: id,
+    });
+
     await deductFromStoragePit({
       wellId: prepared.wellId,
       reportId: prepared.reportId,
@@ -211,9 +280,12 @@ export const updateMudLossStorage = async (req, res) => {
       data: existing,
     });
   } catch (error) {
-    return res.status(500).json({
+    const statusCode = error.statusCode || 500;
+    return res.status(statusCode).json({
       success: false,
-      message: "Failed to update Mud Loss - Storage",
+      message: error.statusCode
+        ? error.message
+        : "Failed to update Mud Loss - Storage",
       error: error.message,
     });
   }

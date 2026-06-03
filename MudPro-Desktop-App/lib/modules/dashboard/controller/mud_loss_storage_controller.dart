@@ -90,6 +90,10 @@ class MudLossStorageController extends GetxController {
   bool _isApplyingState = false;
   String _loadedWellId = '';
   String _loadedReportId = '';
+  String _lastValidationMessage = '';
+  DateTime? _lastValidationAt;
+  final Map<String, double> _savedTotalsById = {};
+  final Map<String, String> _savedStorageById = {};
 
   Worker? _wellWorker;
   Worker? _reportWorker;
@@ -124,6 +128,94 @@ class MudLossStorageController extends GetxController {
 
   String _formatVolume(dynamic value) {
     return MudLossStorageEntry.formatVolume(value);
+  }
+
+  double _parseNumber(String value) =>
+      double.tryParse(value.trim().replaceAll(',', '')) ?? 0;
+
+  double _rowTotal(MudLossStorageEntry row) {
+    return _parseNumber(row.dump.value) +
+        _parseNumber(row.evaporation.value) +
+        _parseNumber(row.pitCleaning.value);
+  }
+
+  String _normalizedStorage(String value) => value.trim().toLowerCase();
+
+  double _savedLossForStorage(String storage) {
+    final normalized = _normalizedStorage(storage);
+    var total = 0.0;
+    for (final entry in _savedTotalsById.entries) {
+      if (_normalizedStorage(_savedStorageById[entry.key] ?? '') ==
+          normalized) {
+        total += entry.value;
+      }
+    }
+    return total;
+  }
+
+  double _storageAvailableVolume(String storage) {
+    if (!Get.isRegistered<PitController>()) return 0;
+    final pitCtrl = Get.find<PitController>();
+    final normalized = _normalizedStorage(storage);
+    if (normalized.isEmpty) return 0;
+
+    final storageRows = pitCtrl.volumeNameData['storageTable'];
+    if (storageRows is List) {
+      for (final rawRow in storageRows) {
+        if (rawRow is! Map) continue;
+        final pitName = (rawRow['pitName'] ?? '').toString().trim();
+        if (_normalizedStorage(pitName) != normalized) continue;
+        final calculated = _parseNumber(
+          (rawRow['calculatedVol'] ?? '').toString(),
+        );
+        final measured = _parseNumber((rawRow['measuredVol'] ?? '').toString());
+        final base = calculated.abs() >= 0.005 ? calculated : measured;
+        return base + _savedLossForStorage(storage);
+      }
+    }
+
+    for (final pit in pitCtrl.unselectedPits) {
+      if (_normalizedStorage(pit.pitName) == normalized) {
+        return (pit.volume?.value ?? 0) + _savedLossForStorage(storage);
+      }
+    }
+    return 0;
+  }
+
+  void _showValidationMessage(String message) {
+    final cleanMessage = message.trim();
+    if (cleanMessage.isEmpty) return;
+
+    final now = DateTime.now();
+    if (_lastValidationMessage == cleanMessage &&
+        _lastValidationAt != null &&
+        now.difference(_lastValidationAt!) < const Duration(seconds: 2)) {
+      return;
+    }
+    _lastValidationMessage = cleanMessage;
+    _lastValidationAt = now;
+
+    Get.snackbar(
+      'Mud Loss - Storage',
+      cleanMessage,
+      snackPosition: SnackPosition.TOP,
+      backgroundColor: Colors.redAccent,
+      colorText: Colors.white,
+      margin: const EdgeInsets.all(12),
+      duration: const Duration(seconds: 3),
+    );
+  }
+
+  void _rememberSavedRow(MudLossStorageEntry row) {
+    final id = row.id.value.trim();
+    if (id.isEmpty) return;
+    _savedTotalsById[id] = _rowTotal(row);
+    _savedStorageById[id] = row.storage.value.trim();
+  }
+
+  void _forgetSavedRow(String id) {
+    _savedTotalsById.remove(id);
+    _savedStorageById.remove(id);
   }
 
   Map<String, dynamic>? _extractEntity(dynamic value) {
@@ -188,6 +280,8 @@ class MudLossStorageController extends GetxController {
 
   void _resetRows() {
     _disposeRows();
+    _savedTotalsById.clear();
+    _savedStorageById.clear();
     _ensureMinimumRows();
   }
 
@@ -250,17 +344,19 @@ class MudLossStorageController extends GetxController {
           : const [];
 
       _disposeRows();
+      _savedTotalsById.clear();
+      _savedStorageById.clear();
       for (final rawItem in items) {
         final item = Map<String, dynamic>.from(rawItem as Map);
-        rows.add(
-          MudLossStorageEntry(
-            id: (item['_id'] ?? item['id'] ?? '').toString(),
-            storage: (item['storage'] ?? '').toString(),
-            dump: _formatVolume(item['dump']),
-            evaporation: _formatVolume(item['evaporation']),
-            pitCleaning: _formatVolume(item['pitCleaning']),
-          ),
+        final entry = MudLossStorageEntry(
+          id: (item['_id'] ?? item['id'] ?? '').toString(),
+          storage: (item['storage'] ?? '').toString(),
+          dump: _formatVolume(item['dump']),
+          evaporation: _formatVolume(item['evaporation']),
+          pitCleaning: _formatVolume(item['pitCleaning']),
         );
+        rows.add(entry);
+        _rememberSavedRow(entry);
       }
       _ensureMinimumRows();
       ensureTrailingRow();
@@ -298,7 +394,29 @@ class MudLossStorageController extends GetxController {
       }
     }
 
+    final totalsByStorage = <String, double>{};
+    final storageLabels = <String, String>{};
+    for (final row in filledRows) {
+      final storage = row.storage.value.trim();
+      final key = _normalizedStorage(storage);
+      totalsByStorage[key] = (totalsByStorage[key] ?? 0) + _rowTotal(row);
+      storageLabels[key] = storage;
+    }
+
+    for (final entry in totalsByStorage.entries) {
+      final storage = storageLabels[entry.key] ?? entry.key;
+      final available = _storageAvailableVolume(storage);
+      if (available <= 0.005) {
+        errors.add('Storage $storage has no available volume');
+      } else if (entry.value > available + 0.005) {
+        errors.add(
+          'Storage $storage loss cannot exceed ${_formatVolume(available)} bbl',
+        );
+      }
+    }
+
     if (errors.isNotEmpty) {
+      _showValidationMessage(errors.first);
       return {'success': false, 'message': errors.join(' | ')};
     }
 
@@ -316,6 +434,7 @@ class MudLossStorageController extends GetxController {
         );
         if (result['success'] == true) {
           successCount++;
+          _forgetSavedRow(row.id.value);
           row.id.value = '';
         } else {
           errors.add(result['message']?.toString() ?? 'Delete failed');
@@ -339,10 +458,7 @@ class MudLossStorageController extends GetxController {
     final deletedIds = <String>{};
     for (var index = 0; index < filledRows.length; index++) {
       final row = filledRows[index];
-      final body = {
-        ...row.toBody(),
-        'operationInstanceKey': instanceKey,
-      };
+      final body = {...row.toBody(), 'operationInstanceKey': instanceKey};
       final result = row.id.value.isNotEmpty
           ? await _repository.updateMudLossStorage(wellId, row.id.value, body)
           : await _repository.createMudLossStorage(wellId, body);
@@ -352,6 +468,7 @@ class MudLossStorageController extends GetxController {
         if (savedId != null && savedId.isNotEmpty) {
           row.id.value = savedId;
         }
+        _rememberSavedRow(row);
         successCount++;
       } else {
         errors.add('Row ${index + 1}: ${result['message']}');
@@ -366,6 +483,7 @@ class MudLossStorageController extends GetxController {
       final deleteRes = await _repository.deleteMudLossStorage(wellId, id);
       if (deleteRes['success'] == true) {
         deletedIds.add(id);
+        _forgetSavedRow(id);
         successCount++;
       } else {
         errors.add(deleteRes['message']?.toString() ?? 'Delete failed');
@@ -389,5 +507,69 @@ class MudLossStorageController extends GetxController {
           ? 'Mud Loss - Storage saved successfully'
           : 'Saved $successCount changes, errors: ${errors.join(", ")}',
     };
+  }
+
+  Map<String, String> rowSnapshot(MudLossStorageEntry row) {
+    return {
+      'storage': row.storage.value,
+      'dump': row.dump.value,
+      'evaporation': row.evaporation.value,
+      'pitCleaning': row.pitCleaning.value,
+    };
+  }
+
+  void applyRowSnapshot(MudLossStorageEntry row, Map<String, String> snapshot) {
+    _setRowText(row, storage: snapshot['storage'] ?? '');
+    _setRowText(row, dump: snapshot['dump'] ?? '');
+    _setRowText(row, evaporation: snapshot['evaporation'] ?? '');
+    _setRowText(row, pitCleaning: snapshot['pitCleaning'] ?? '');
+    ensureTrailingRow();
+  }
+
+  void clearRowLocal(MudLossStorageEntry row) {
+    _setRowText(row, storage: '');
+    _setRowText(row, dump: '');
+    _setRowText(row, evaporation: '');
+    _setRowText(row, pitCleaning: '');
+  }
+
+  Future<Map<String, dynamic>> deleteRow(MudLossStorageEntry row) async {
+    _autoSaveTimer?.cancel();
+    final id = row.id.value.trim();
+    if (id.isEmpty) {
+      clearRowLocal(row);
+      return {'success': true, 'message': 'Row cleared'};
+    }
+
+    final result = await _repository.deleteMudLossStorage(wellId, id);
+    if (result['success'] == true) {
+      _forgetSavedRow(id);
+      row.id.value = '';
+      clearRowLocal(row);
+      await _refreshPitState();
+    }
+    return result;
+  }
+
+  void _setRowText(
+    MudLossStorageEntry row, {
+    String? storage,
+    String? dump,
+    String? evaporation,
+    String? pitCleaning,
+  }) {
+    if (storage != null) row.storage.value = storage;
+    if (dump != null) {
+      row.dump.value = dump;
+      row.dumpController.text = dump;
+    }
+    if (evaporation != null) {
+      row.evaporation.value = evaporation;
+      row.evaporationController.text = evaporation;
+    }
+    if (pitCleaning != null) {
+      row.pitCleaning.value = pitCleaning;
+      row.pitCleaningController.text = pitCleaning;
+    }
   }
 }
