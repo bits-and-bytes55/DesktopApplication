@@ -52,21 +52,29 @@ export const createEmptyFluidActiveSystem = async (req, res) => {
     const payloads = Array.isArray(req.body) ? req.body : [req.body];
 
     const created = [];
+    const clearedInstanceKeys = new Set();
 
     for (const payload of payloads) {
       const { actionType, transfers = [], volume } = payload;
+      const operationInstanceKey = String(
+        payload.operationInstanceKey || requestOperationInstanceKey
+      ).trim();
+
+      if (operationInstanceKey && !clearedInstanceKeys.has(operationInstanceKey)) {
+        await EmptyFluidActiveSystem.deleteMany(
+          buildScopedFilter(wellId, reportId, { operationInstanceKey })
+        );
+        clearedInstanceKeys.add(operationInstanceKey);
+      }
 
       // ---------- DUMP ----------
       if (actionType === "Dump") {
         const dumpVol = round2(toNumber(volume));
 
-        if (dumpVol <= 0) throw new Error("Invalid dump volume");
-
         const item = await EmptyFluidActiveSystem.create({
           wellId,
           reportId,
-          operationInstanceKey:
-            String(payload.operationInstanceKey || requestOperationInstanceKey).trim(),
+          operationInstanceKey,
           actionType,
           pitName: "",
           volume: dumpVol,
@@ -78,8 +86,12 @@ export const createEmptyFluidActiveSystem = async (req, res) => {
 
       // ---------- TRANSFER ----------
       if (actionType === "Transfer to Storage") {
-        const clean = transfers.map((t) => ({
+        const clean = transfers.map((t, index) => ({
           pitName: String(t.pitName).trim(),
+          rowNumber: Math.max(
+            1,
+            Math.trunc(toNumber(t.rowNumber)) || index + 1
+          ),
           volume: round2(toNumber(t.volume)),
         }));
 
@@ -89,10 +101,10 @@ export const createEmptyFluidActiveSystem = async (req, res) => {
           clean.map((t) => ({
             wellId,
             reportId,
-            operationInstanceKey:
-              String(payload.operationInstanceKey || requestOperationInstanceKey).trim(),
+            operationInstanceKey,
             actionType,
             pitName: t.pitName,
+            rowNumber: t.rowNumber,
             volume: t.volume,
             totalVolume: total,
           }))
@@ -128,7 +140,8 @@ export const getEmptyFluidList = async (req, res) => {
       LEGACY_OPERATION_INSTANCE_KEY
     )
   ).sort({
-    createdAt: -1,
+    rowNumber: 1,
+    createdAt: 1,
   });
 
   res.json({ success: true, count: data.length, data });

@@ -17,6 +17,11 @@ const mudLossStorageSchema = new mongoose.Schema(
       default: "",
       index: true,
     },
+    rowNumber: {
+      type: Number,
+      default: 0,
+      index: true,
+    },
     storage: {
       type: String,
       required: true,

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/empty_Activesystem_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/mud_loss_active_system_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/mud_loss_storage_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/other_vol_addition_controller.dart';
@@ -439,7 +440,11 @@ class OperationController extends GetxController {
       OperationType.returnProduct: ['return product'],
       OperationType.transferMud: ['transfer mud'],
       OperationType.receiveMud: ['receive mud'],
-      OperationType.returnLostMud: ['return lost mud', 'return lost mud'],
+      OperationType.returnLostMud: [
+        'return mud',
+        'return lost mud',
+        'return lost mud',
+      ],
       OperationType.addWater: ['add water'],
       OperationType.switchPit: ['switch pit'],
       OperationType.switchMudType: ['switch mud type', 'switch mudtype'],
@@ -674,6 +679,11 @@ class OperationController extends GetxController {
       case OperationType.mudLossStorage:
         if (Get.isRegistered<MudLossStorageController>()) {
           Get.find<MudLossStorageController>().clearLocalState();
+        }
+        break;
+      case OperationType.emptyActiveSystem:
+        if (Get.isRegistered<EmptyActiveSystemController>()) {
+          Get.find<EmptyActiveSystemController>().clearLocalState();
         }
         break;
       default:

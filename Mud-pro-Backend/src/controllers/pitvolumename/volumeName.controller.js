@@ -44,6 +44,55 @@ const round2 = (value) => {
   return Number.isFinite(n) ? Number(n.toFixed(2)) : 0;
 };
 
+const itemTime = (item = {}) =>
+  new Date(item.updatedAt || item.createdAt || 0).getTime();
+
+const mudLossStorageLogicalKey = (item = {}) => {
+  const operationInstanceKey = toText(item.operationInstanceKey);
+  const rowNumber = Number(item.rowNumber) || 0;
+  if (operationInstanceKey && rowNumber > 0) {
+    return `${operationInstanceKey}::row:${rowNumber}`;
+  }
+
+  const storage = toText(item.storage).toLowerCase();
+  if (operationInstanceKey && storage) {
+    return `${operationInstanceKey}::legacy:${storage}`;
+  }
+
+  return String(item._id || item.id || "");
+};
+
+const normalizeMudLossStorageItems = (items = []) => {
+  const latestByKey = new Map();
+
+  for (const item of items) {
+    const key = mudLossStorageLogicalKey(item);
+    if (!key) continue;
+    const existing = latestByKey.get(key);
+    if (!existing || itemTime(item) >= itemTime(existing)) {
+      latestByKey.set(key, item);
+    }
+  }
+
+  const rowBasedStorageKeys = new Set();
+  for (const item of latestByKey.values()) {
+    const operationInstanceKey = toText(item.operationInstanceKey);
+    const rowNumber = Number(item.rowNumber) || 0;
+    const storage = toText(item.storage).toLowerCase();
+    if (operationInstanceKey && rowNumber > 0 && storage) {
+      rowBasedStorageKeys.add(`${operationInstanceKey}::${storage}`);
+    }
+  }
+
+  return Array.from(latestByKey.values()).filter((item) => {
+    const operationInstanceKey = toText(item.operationInstanceKey);
+    const rowNumber = Number(item.rowNumber) || 0;
+    const storage = toText(item.storage).toLowerCase();
+    if (!operationInstanceKey || rowNumber > 0 || !storage) return true;
+    return !rowBasedStorageKeys.has(`${operationInstanceKey}::${storage}`);
+  });
+};
+
 const calculatePipeVolume = ({ id, length }) => {
   const idIn = toNumber(id);
   const lengthFt = toNumber(length);
@@ -403,6 +452,23 @@ const addPitDelta = (map, pitName, volume) => {
   map.set(key, round2((map.get(key) ?? 0) + amount));
 };
 
+const addNamedPitDelta = ({
+  pitName,
+  volume,
+  activePitNames,
+  activeDeltaByPit,
+  storageDeltaByPit,
+}) => {
+  const key = toText(pitName).toLowerCase();
+  if (!key) return;
+
+  addPitDelta(
+    activePitNames.has(key) ? activeDeltaByPit : storageDeltaByPit,
+    pitName,
+    volume
+  );
+};
+
 const buildOperationVolumeEffects = ({
   receivedMud = [],
   returnLostMud = [],
@@ -412,9 +478,12 @@ const buildOperationVolumeEffects = ({
   mudLossStorageEntries = [],
   transferMudEntries = [],
   emptyFluidEntries = [],
+  activePitNames = new Set(),
 }) => {
   let activeSystemDelta = 0;
   let endVolDelta = 0;
+  let forceEndVolZero = false;
+  const activeDeltaByPit = new Map();
   const storageDeltaByPit = new Map();
 
   for (const item of addWaterEntries) {
@@ -440,16 +509,7 @@ const buildOperationVolumeEffects = ({
   for (const item of returnLostMud) {
     const returned = toNumber(item.volReturned);
     const lost = toNumber(item.volLost);
-
-    if (isActiveSystemName(item.from)) {
-      endVolDelta -= lost;
-    } else {
-      addPitDelta(storageDeltaByPit, item.from, -returned);
-    }
-
-    if (!isActiveSystemName(item.to) && !isIgnoredDestination(item.to)) {
-      addPitDelta(storageDeltaByPit, item.to, returned);
-    }
+    endVolDelta -= returned + lost;
   }
 
   for (const item of otherVolAdditions) {
@@ -481,19 +541,43 @@ const buildOperationVolumeEffects = ({
     if (isActiveSystemName(item.from)) {
       endVolDelta -= totalTransferVol;
       for (const row of transfers) {
-        addPitDelta(storageDeltaByPit, row?.pitName, toNumber(row?.volume));
+        addNamedPitDelta({
+          pitName: row?.pitName,
+          volume: toNumber(row?.volume),
+          activePitNames,
+          activeDeltaByPit,
+          storageDeltaByPit,
+        });
       }
     } else {
-      endVolDelta += totalTransferVol;
-      addPitDelta(storageDeltaByPit, item.from, -totalTransferVol);
+      addNamedPitDelta({
+        pitName: item.from,
+        volume: -totalTransferVol,
+        activePitNames,
+        activeDeltaByPit,
+        storageDeltaByPit,
+      });
+      for (const row of transfers) {
+        const volume = toNumber(row?.volume);
+        if (isActiveSystemName(row?.pitName)) {
+          endVolDelta += volume;
+        } else {
+          addNamedPitDelta({
+            pitName: row?.pitName,
+            volume,
+            activePitNames,
+            activeDeltaByPit,
+            storageDeltaByPit,
+          });
+        }
+      }
     }
   }
 
   for (const item of emptyFluidEntries) {
     const volume = toNumber(item.volume || item.totalVolume);
     if (item.actionType === "Dump") {
-      activeSystemDelta -= volume;
-      endVolDelta -= volume;
+      forceEndVolZero = true;
     } else if (item.actionType === "Transfer to Storage") {
       activeSystemDelta -= volume;
       endVolDelta -= volume;
@@ -504,6 +588,8 @@ const buildOperationVolumeEffects = ({
   return {
     activeSystemDelta: round2(activeSystemDelta),
     endVolDelta: round2(endVolDelta),
+    forceEndVolZero,
+    activeDeltaByPit,
     storageDeltaByPit,
   };
 };
@@ -892,6 +978,8 @@ export const getVolumeNameCalculation = async (req, res) => {
           scopedOperationFilter({ wellId, reportId: reportMeta.reportId })
         ).sort({ createdAt: 1, _id: 1 }),
       ]);
+    const normalizedMudLossStorageEntries =
+      normalizeMudLossStorageItems(mudLossStorageEntries);
 
     const md = toNumber(wellGeneral?.md);
 
@@ -933,6 +1021,9 @@ export const getVolumeNameCalculation = async (req, res) => {
 
     const activePitsList = pits.filter((pit) => pit.initialActive === true);
     const storagePitsList = pits.filter((pit) => pit.initialActive === false);
+    const activePitNames = new Set(
+      activePitsList.map((pit) => toText(pit.pitName).toLowerCase()).filter(Boolean)
+    );
 
     const activePits = Number(
       activePitsList.reduce((sum, pit) => sum + toNumber(pit.volume), 0).toFixed(2)
@@ -959,20 +1050,27 @@ export const getVolumeNameCalculation = async (req, res) => {
       addWaterEntries,
       otherVolAdditions,
       mudLossEntries,
-      mudLossStorageEntries,
+      mudLossStorageEntries: normalizedMudLossStorageEntries,
       transferMudEntries,
       emptyFluidEntries,
+      activePitNames,
     });
+    const activePitsWithTransfer = activePitsList.reduce((sum, pit) => {
+      const key = toText(pit.pitName).toLowerCase();
+      const delta = operationVolumeEffects.activeDeltaByPit.get(key) ?? 0;
+      return sum + toNumber(pit.volume) + delta;
+    }, 0);
     for (const [pitName, volume] of operationVolumeEffects.storageDeltaByPit) {
       addPitDelta(calculatedVolumeByPit, pitName, volume);
     }
-    const derivedActiveSystem = round2(activePits + heldVolDifference);
+    const derivedActiveSystem = round2(activePitsWithTransfer + heldVolDifference);
     const activeSystem = derivedActiveSystem;
-    const operationEndVol = round2(
-      activeSystem + operationVolumeEffects.endVolDelta
-    );
-    const endVol =
-      activeSystemVolume > 0
+    const operationEndVol = operationVolumeEffects.forceEndVolZero
+      ? 0
+      : round2(activeSystem + operationVolumeEffects.endVolDelta);
+    const endVol = operationVolumeEffects.forceEndVolZero
+      ? 0
+      : activeSystemVolume > 0
         ? round2(activeSystemVolume + operationVolumeEffects.endVolDelta)
         : Math.abs(operationVolumeEffects.endVolDelta) >= 0.005
           ? operationEndVol
@@ -1002,7 +1100,9 @@ export const getVolumeNameCalculation = async (req, res) => {
     );
 
     const mudLossStorageTotal = Number(
-      mudLossStorageEntries.reduce((sum, item) => sum + toNumber(item.totalLoss), 0).toFixed(2)
+      normalizedMudLossStorageEntries
+        .reduce((sum, item) => sum + toNumber(item.totalLoss), 0)
+        .toFixed(2)
     );
 
     const otherVolAdditionTotal = Number(
@@ -1055,7 +1155,7 @@ export const getVolumeNameCalculation = async (req, res) => {
         volumeName: {
           heldVolDifference,
           hole,
-          activePits,
+          activePits: round2(activePitsWithTransfer),
           activeSystem,
           endVol,
           endVolMinusActiveSystem,
@@ -1098,15 +1198,19 @@ export const getVolumeNameCalculation = async (req, res) => {
           activeSystemVolume,
           distributions: distributionRows,
         },
-        activePitsTable: activePitsList.map((pit) => ({
-          _id: pit._id,
-          pitName: pit.pitName,
-          capacity: toNumber(pit.capacity),
-          measuredVol: toNumber(pit.volume),
-          mw: toNumber(pit.density),
-          mud: pit.fluidType || "",
-          reportId: pit.reportId || "",
-        })),
+        activePitsTable: activePitsList.map((pit) => {
+          const key = toText(pit.pitName).toLowerCase();
+          const delta = operationVolumeEffects.activeDeltaByPit.get(key) ?? 0;
+          return {
+            _id: pit._id,
+            pitName: pit.pitName,
+            capacity: toNumber(pit.capacity),
+            measuredVol: round2(toNumber(pit.volume) + delta),
+            mw: toNumber(pit.density),
+            mud: pit.fluidType || "",
+            reportId: pit.reportId || "",
+          };
+        }),
         storageTable: storagePitsList.map((pit) => ({
           _id: pit._id,
           pitName: pit.pitName,

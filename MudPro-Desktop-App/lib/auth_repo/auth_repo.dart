@@ -2432,6 +2432,56 @@ class AuthRepository {
   }
 
   // ══════════════════════════════════════════════════════════════════════════════
+  Future<Map<String, dynamic>> createEmptyActiveSystem(
+    String wellId,
+    Map<String, dynamic> body,
+  ) async {
+    try {
+      final payload = _payloadWithReportId(body);
+      final response = await http.post(
+        Uri.parse('${baseUrl}empty-fluid-active-system/$wellId'),
+        headers: _headers,
+        body: jsonEncode(payload),
+      );
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200 || response.statusCode == 201,
+        'data': data['data'],
+        'message': _messageFromResponse(
+          data,
+          response.statusCode,
+          'Empty Active System saved successfully',
+        ),
+      };
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> getEmptyActiveSystemList(
+    String wellId, {
+    String? operationInstanceKey,
+  }) async {
+    try {
+      final uri = _uriWithReportId(
+        '${baseUrl}empty-fluid-active-system/$wellId',
+        extraQuery: {
+          if ((operationInstanceKey ?? '').trim().isNotEmpty)
+            'operationInstanceKey': operationInstanceKey!.trim(),
+        },
+      );
+      final response = await http.get(uri, headers: _headers);
+      final data = jsonDecode(response.body);
+      return {
+        'success': response.statusCode == 200,
+        'data': data,
+        'message': data['message'] ?? '',
+      };
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
   Future<Map<String, dynamic>> deleteOperationData({
     required String wellId,
     required String operationType,

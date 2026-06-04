@@ -59,7 +59,16 @@ const applyTransferToPits = async ({ wellId, reportId, from, transfers }) => {
     cleanTransfers.reduce((sum, item) => sum + item.volume, 0)
   );
 
-  if (from === "Active System") {
+  const cleanFrom = String(from).trim();
+  const fromIsActiveSystem = cleanFrom.toLowerCase() === "active system";
+
+  for (const item of cleanTransfers) {
+    if (item.pitName.toLowerCase() === cleanFrom.toLowerCase()) {
+      throw new Error("Source and destination cannot be the same");
+    }
+  }
+
+  if (fromIsActiveSystem) {
     return {
       cleanTransfers,
       totalTransferVol,
@@ -67,16 +76,10 @@ const applyTransferToPits = async ({ wellId, reportId, from, transfers }) => {
     };
   }
 
-  for (const item of cleanTransfers) {
-    if (item.pitName !== "Active System") {
-      throw new Error("When source is storage, destination must be 'Active System'");
-    }
-  }
-
   return {
     cleanTransfers,
     totalTransferVol,
-    direction: "Storage to Active System",
+    direction: "Storage Transfer",
   };
 };
 

@@ -4,6 +4,7 @@ import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
+import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class VolumeSnapshotController extends GetxController {
   final AuthRepository _repo = AuthRepository();
@@ -957,14 +958,14 @@ class VolumeSnapshotPage extends StatelessWidget {
     return Container(
       height: 28,
       alignment: Alignment.center,
-      color: const Color(0xFFF7F7F7),
+      color: AppTheme.primaryColor,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Text(
         text,
         style: const TextStyle(
           fontSize: 10.5,
-          fontWeight: FontWeight.w500,
-          color: Color(0xFF444444),
+          fontWeight: FontWeight.w700,
+          color: Colors.white,
         ),
       ),
     );

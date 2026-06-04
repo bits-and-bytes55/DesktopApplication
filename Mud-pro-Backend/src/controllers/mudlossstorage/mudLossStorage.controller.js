@@ -1,6 +1,5 @@
 import Pit from "../../modules/pit/pit.model.js";
 import MudLossStorage from "../../modules/mudlossstorage/MudLossStorage.js";
-import { findWritablePitByName } from "../../utils/pitReportState.js";
 import { buildScopedFilter, readReportId } from "../../utils/reportScope.js";
 
 const toNumber = (value) => {
@@ -11,12 +10,19 @@ const toNumber = (value) => {
 
 const round2 = (num) => Number(num.toFixed(2));
 const getWellId = (req) => String(req.params.wellId || "").trim();
+const normalizeText = (value) => String(value ?? "").trim();
+const normalizeKeyText = (value) => normalizeText(value).toLowerCase();
+const makeValidationError = (message) => {
+  const error = new Error(message);
+  error.statusCode = 400;
+  return error;
+};
 
 const prepareMudLossStorageData = (wellId, reportId, payload = {}) => {
   const { storage, dump, evaporation, pitCleaning } = payload;
 
   if (!wellId || !storage) {
-    throw new Error("wellId and storage are required");
+    throw makeValidationError("wellId and storage are required");
   }
 
   const safeStorage = String(storage).trim();
@@ -28,19 +34,135 @@ const prepareMudLossStorageData = (wellId, reportId, payload = {}) => {
   const totalLoss = round2(dumpVol + evaporationVol + pitCleaningVol);
 
   if (totalLoss <= 0) {
-    throw new Error("At least one storage mud loss value must be greater than 0");
+    throw makeValidationError(
+      "At least one storage mud loss value must be greater than 0"
+    );
   }
 
   return {
     wellId,
     reportId,
     operationInstanceKey: String(payload.operationInstanceKey || "").trim(),
+    rowNumber: Number(payload.rowNumber) || 0,
     storage: safeStorage,
     dump: dumpVol,
     evaporation: evaporationVol,
     pitCleaning: pitCleaningVol,
     totalLoss,
   };
+};
+
+const mudLossStorageLogicalKey = (item = {}) => {
+  const operationInstanceKey = normalizeText(item.operationInstanceKey);
+  const rowNumber = Number(item.rowNumber) || 0;
+  if (operationInstanceKey && rowNumber > 0) {
+    return `${operationInstanceKey}::row:${rowNumber}`;
+  }
+
+  const storage = normalizeKeyText(item.storage);
+  if (operationInstanceKey && storage) {
+    return `${operationInstanceKey}::legacy:${storage}`;
+  }
+
+  return String(item._id || item.id || "");
+};
+
+const itemTime = (item = {}) =>
+  new Date(item.updatedAt || item.createdAt || 0).getTime();
+
+const normalizeMudLossStorageItems = (items = []) => {
+  const latestByKey = new Map();
+
+  for (const item of items) {
+    const key = mudLossStorageLogicalKey(item);
+    if (!key) continue;
+    const existing = latestByKey.get(key);
+    if (!existing || itemTime(item) >= itemTime(existing)) {
+      latestByKey.set(key, item);
+    }
+  }
+
+  const rowBasedStorageKeys = new Set();
+  for (const item of latestByKey.values()) {
+    const operationInstanceKey = normalizeText(item.operationInstanceKey);
+    const rowNumber = Number(item.rowNumber) || 0;
+    const storage = normalizeKeyText(item.storage);
+    if (operationInstanceKey && rowNumber > 0 && storage) {
+      rowBasedStorageKeys.add(`${operationInstanceKey}::${storage}`);
+    }
+  }
+
+  return Array.from(latestByKey.values())
+    .filter((item) => {
+      const operationInstanceKey = normalizeText(item.operationInstanceKey);
+      const rowNumber = Number(item.rowNumber) || 0;
+      const storage = normalizeKeyText(item.storage);
+      if (!operationInstanceKey || rowNumber > 0 || !storage) return true;
+      return !rowBasedStorageKeys.has(`${operationInstanceKey}::${storage}`);
+    })
+    .sort((left, right) => {
+      const leftRow = Number(left.rowNumber) || 0;
+      const rightRow = Number(right.rowNumber) || 0;
+      if (leftRow !== rightRow) return leftRow - rightRow;
+      return itemTime(right) - itemTime(left);
+    });
+};
+
+const storagePitFilter = ({ wellId, reportId, storage }) => ({
+  ...buildScopedFilter(wellId, reportId, {
+    pitName: storage,
+    initialActive: false,
+  }),
+});
+
+const assertStorageHasAvailableVolume = async ({
+  wellId,
+  reportId,
+  storage,
+  totalLoss,
+  excludeId = "",
+}) => {
+  const pit = await Pit.findOne(
+    storagePitFilter({ wellId, reportId, storage })
+  ).sort({ createdAt: -1, _id: -1 });
+
+  const capacity = round2(toNumber(pit?.capacity));
+  if (!pit || capacity <= 0) {
+    throw makeValidationError(`Storage ${storage} has no capacity set`);
+  }
+
+  const existingFilter = buildScopedFilter(wellId, reportId, { storage });
+  const excludeLogicalKey =
+    typeof excludeId === "object"
+      ? excludeId.logicalKey || ""
+      : "";
+  const excludeRecordId =
+    typeof excludeId === "object" ? excludeId.id || "" : excludeId;
+  if (excludeRecordId) {
+    existingFilter._id = { $ne: excludeRecordId };
+  }
+
+  const existingRows = normalizeMudLossStorageItems(
+    await MudLossStorage.find(existingFilter).lean()
+  ).filter(
+    (item) =>
+      !excludeLogicalKey ||
+      mudLossStorageLogicalKey(item) !== excludeLogicalKey
+  );
+  const existingLoss = round2(
+    existingRows.reduce((sum, item) => sum + toNumber(item.totalLoss), 0)
+  );
+  const available = round2(capacity - existingLoss);
+
+  if (available <= 0) {
+    throw makeValidationError(`Storage ${storage} has no available capacity`);
+  }
+
+  if (toNumber(totalLoss) > available) {
+    throw makeValidationError(
+      `Storage ${storage} loss cannot exceed capacity (${available.toFixed(2)} bbl available)`
+    );
+  }
 };
 
 const deductFromStoragePit = async ({ wellId, reportId, storage, totalLoss }) => {
@@ -68,6 +190,26 @@ export const createMudLossStorage = async (req, res) => {
 
     for (const payload of payloads) {
       const prepared = prepareMudLossStorageData(wellId, reportId, payload);
+      const logicalKey = mudLossStorageLogicalKey(prepared);
+      const existing =
+        prepared.operationInstanceKey && prepared.rowNumber > 0
+          ? await MudLossStorage.findOne(
+              buildScopedFilter(wellId, reportId, {
+                operationInstanceKey: prepared.operationInstanceKey,
+                rowNumber: prepared.rowNumber,
+              })
+            ).sort({ updatedAt: -1, createdAt: -1, _id: -1 })
+          : null;
+
+      await assertStorageHasAvailableVolume({
+        wellId: prepared.wellId,
+        reportId: prepared.reportId,
+        storage: prepared.storage,
+        totalLoss: prepared.totalLoss,
+        excludeId: existing
+          ? { id: existing._id, logicalKey }
+          : { logicalKey },
+      });
 
       await deductFromStoragePit({
         wellId: prepared.wellId,
@@ -76,7 +218,20 @@ export const createMudLossStorage = async (req, res) => {
         totalLoss: prepared.totalLoss,
       });
 
-      const item = await MudLossStorage.create(prepared);
+      let item = existing;
+      if (item) {
+        item.storage = prepared.storage;
+        item.dump = prepared.dump;
+        item.evaporation = prepared.evaporation;
+        item.pitCleaning = prepared.pitCleaning;
+        item.totalLoss = prepared.totalLoss;
+        item.reportId = prepared.reportId;
+        item.operationInstanceKey = prepared.operationInstanceKey;
+        item.rowNumber = prepared.rowNumber;
+        await item.save();
+      } else {
+        item = await MudLossStorage.create(prepared);
+      }
       createdItems.push(item);
     }
 
@@ -90,9 +245,12 @@ export const createMudLossStorage = async (req, res) => {
       data: createdItems,
     });
   } catch (error) {
-    return res.status(500).json({
+    const statusCode = error.statusCode || 500;
+    return res.status(statusCode).json({
       success: false,
-      message: "Failed to save Mud Loss - Storage",
+      message: error.statusCode
+        ? error.message
+        : "Failed to save Mud Loss - Storage",
       error: error.message,
     });
   }
@@ -103,9 +261,9 @@ export const getMudLossStorageList = async (req, res) => {
     const wellId = getWellId(req);
     const reportId = readReportId(req);
 
-    const items = await MudLossStorage.find(
+    const items = normalizeMudLossStorageItems(await MudLossStorage.find(
       buildScopedFilter(wellId, reportId)
-    ).sort({ createdAt: -1 });
+    ).sort({ createdAt: -1 }).lean());
 
     return res.status(200).json({
       success: true,
@@ -184,9 +342,19 @@ export const updateMudLossStorage = async (req, res) => {
       pitCleaning: req.body.pitCleaning ?? existing.pitCleaning,
       operationInstanceKey:
         req.body.operationInstanceKey ?? existing.operationInstanceKey ?? "",
+      rowNumber: req.body.rowNumber ?? existing.rowNumber ?? 0,
     };
 
     const prepared = prepareMudLossStorageData(wellId, reportId, mergedPayload);
+    const logicalKey = mudLossStorageLogicalKey(prepared);
+
+    await assertStorageHasAvailableVolume({
+      wellId: prepared.wellId,
+      reportId: prepared.reportId,
+      storage: prepared.storage,
+      totalLoss: prepared.totalLoss,
+      excludeId: { id, logicalKey },
+    });
 
     await deductFromStoragePit({
       wellId: prepared.wellId,
@@ -202,6 +370,7 @@ export const updateMudLossStorage = async (req, res) => {
     existing.totalLoss = prepared.totalLoss;
     existing.reportId = prepared.reportId;
     existing.operationInstanceKey = prepared.operationInstanceKey;
+    existing.rowNumber = prepared.rowNumber;
 
     await existing.save();
 
@@ -211,9 +380,12 @@ export const updateMudLossStorage = async (req, res) => {
       data: existing,
     });
   } catch (error) {
-    return res.status(500).json({
+    const statusCode = error.statusCode || 500;
+    return res.status(statusCode).json({
       success: false,
-      message: "Failed to update Mud Loss - Storage",
+      message: error.statusCode
+        ? error.message
+        : "Failed to update Mud Loss - Storage",
       error: error.message,
     });
   }

@@ -1516,13 +1516,13 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
                       scrollDirection: Axis.vertical,
                       child: Obx(
                         () => DataTable(
-                          headingRowHeight: 26,
-                          dataRowHeight: 26,
+                          headingRowHeight: 34,
+                          dataRowHeight: 34,
                           columnSpacing: 0,
                           horizontalMargin: 0,
                           dividerThickness: 0,
                           headingRowColor: MaterialStateProperty.all(
-                            Colors.grey.shade50,
+                            AppTheme.primaryColor,
                           ),
                           border: TableBorder(
                             verticalInside: BorderSide(
@@ -1533,12 +1533,14 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
                             ),
                           ),
                           headingTextStyle: AppTheme.bodySmall.copyWith(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                            color: color,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
                           ),
                           dataTextStyle: AppTheme.bodySmall.copyWith(
-                            fontSize: 9,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.black,
                           ),
                           columns: headers
                               .map(

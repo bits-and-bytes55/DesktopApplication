@@ -109,13 +109,14 @@ class PitController extends GetxController {
   }
 
   List<String> get transferDestinationOptions {
-    if (isTransferFromActiveSystem) {
-      return unselectedPits
-          .map((pit) => pit.pitName.trim())
-          .where((name) => name.isNotEmpty)
-          .toList();
+    final options = <String>['Active System'];
+    for (final pit in [...selectedPits, ...unselectedPits]) {
+      final name = pit.pitName.trim();
+      if (name.isNotEmpty && !options.contains(name)) {
+        options.add(name);
+      }
     }
-    return const ['Active System'];
+    return options;
   }
 
   @override
@@ -496,6 +497,7 @@ class PitController extends GetxController {
     double vol = 0,
     double density = 0,
     String fluid = '',
+    bool syncExisting = false,
   }) {
     if (!activePitControllers.containsKey(pitId)) {
       activePitControllers[pitId] = {
@@ -504,8 +506,24 @@ class PitController extends GetxController {
         'density': TextEditingController(text: density.toStringAsFixed(2)),
         'fluidType': TextEditingController(text: fluid),
       };
+    } else if (syncExisting &&
+        !pitId.contains('-draft-') &&
+        !modifiedPitIds.contains(pitId)) {
+      final ctrls = activePitControllers[pitId]!;
+      _syncControllerText(ctrls['pitName'], pitName);
+      _syncControllerText(ctrls['volume'], vol.toStringAsFixed(2));
+      _syncControllerText(ctrls['density'], density.toStringAsFixed(2));
+      _syncControllerText(ctrls['fluidType'], fluid);
     }
     return activePitControllers[pitId]!;
+  }
+
+  void _syncControllerText(TextEditingController? ctrl, String value) {
+    if (ctrl == null || ctrl.text == value) return;
+    ctrl.value = TextEditingValue(
+      text: value,
+      selection: TextSelection.collapsed(offset: value.length),
+    );
   }
 
   Future<void> prepareMeasuredVolumeReportCheck() async {
@@ -574,6 +592,48 @@ class PitController extends GetxController {
     }
 
     return 0.0;
+  }
+
+  Map<dynamic, dynamic>? activeTableRowForPit(
+    PitModel pit, {
+    Map<String, dynamic>? volumeNameData,
+  }) {
+    final rows = (volumeNameData ?? this.volumeNameData)['activePitsTable'];
+    if (rows is! List) return null;
+
+    final pitId = pit.id?.trim() ?? '';
+    final pitName = pit.pitName.trim().toLowerCase();
+
+    return rows.cast<dynamic>().firstWhereOrNull((row) {
+          if (row is! Map) return false;
+          final rowId = row['_id']?.toString().trim() ?? '';
+          final rowName = row['pitName']?.toString().trim().toLowerCase() ?? '';
+          return (pitId.isNotEmpty && rowId == pitId) ||
+              (pitName.isNotEmpty && rowName == pitName);
+        })
+        as Map<dynamic, dynamic>?;
+  }
+
+  double activeMeasuredVolumeForPit(
+    PitModel pit, {
+    Map<String, dynamic>? volumeNameData,
+  }) {
+    final row = activeTableRowForPit(pit, volumeNameData: volumeNameData);
+    if (row == null) return pit.volume?.value ?? 0.0;
+    return _calculateDouble(row['measuredVol'] ?? row['volume']);
+  }
+
+  double activeMwForPit(PitModel pit, {Map<String, dynamic>? volumeNameData}) {
+    final row = activeTableRowForPit(pit, volumeNameData: volumeNameData);
+    if (row == null) return pit.density?.value ?? 0.0;
+    return _calculateDouble(row['mw'] ?? row['density']);
+  }
+
+  String activeMudForPit(PitModel pit, {Map<String, dynamic>? volumeNameData}) {
+    final row = activeTableRowForPit(pit, volumeNameData: volumeNameData);
+    if (row == null) return pit.fluidType?.value ?? '';
+    return (row['mud'] ?? row['fluidType'] ?? pit.fluidType?.value ?? '')
+        .toString();
   }
 
   // Refined: Update only modified pits individually via PUT /pit/:id
@@ -1169,9 +1229,7 @@ class PitController extends GetxController {
       return 'Source and destination cannot be the same';
     }
     if (!transferDestinationOptions.contains(destination)) {
-      return isTransferFromActiveSystem
-          ? 'Destination must be a storage pit'
-          : 'Destination must be Active System';
+      return 'Select a valid destination';
     }
 
     return null;
@@ -1341,6 +1399,29 @@ class PitController extends GetxController {
     }
     await fetchAllPits();
     await fetchVolumeNameData();
+  }
+
+  Future<void> clearTransferRow(int index) async {
+    if (index < 0 || index >= transferRows.length) return;
+
+    final row = transferRows[index];
+    if ((row.savedId ?? '').isNotEmpty) {
+      await deleteTransferRow(index);
+      return;
+    }
+
+    row.pitName = '';
+    row.volume = '';
+    row.volumeController.clear();
+    transferRows.refresh();
+  }
+
+  void insertTransferRowAfter(int index) {
+    final insertAt = index < 0
+        ? 0
+        : (index + 1 > transferRows.length ? transferRows.length : index + 1);
+    transferRows.insert(insertAt, TransferRowData());
+    transferRows.refresh();
   }
 
   void checkAndAddTransferRow() {
