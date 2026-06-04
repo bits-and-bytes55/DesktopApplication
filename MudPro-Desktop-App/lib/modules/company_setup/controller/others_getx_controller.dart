@@ -2,6 +2,7 @@ import 'package:get/get.dart';
 import 'package:flutter/material.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/controller/others_controller.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/model/others_model.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/mud_controller.dart';
 
 class OthersGetxController extends GetxController {
   final OthersController _apiController = OthersController();
@@ -22,12 +23,24 @@ class OthersGetxController extends GetxController {
   final RxBool isSyntheticSaving = false.obs;
 
   // New rows for each table
-  final RxList<TextEditingController> newActivityRows = <TextEditingController>[].obs;
-  final RxList<TextEditingController> newAdditionRows = <TextEditingController>[].obs;
-  final RxList<TextEditingController> newLossRows = <TextEditingController>[].obs;
-  final RxList<TextEditingController> newWaterRows = <TextEditingController>[].obs;
-  final RxList<TextEditingController> newOilRows = <TextEditingController>[].obs;
-  final RxList<TextEditingController> newSyntheticRows = <TextEditingController>[].obs;
+  final RxList<TextEditingController> newActivityRows =
+      <TextEditingController>[].obs;
+  final RxList<TextEditingController> newAdditionRows =
+      <TextEditingController>[].obs;
+  final RxList<TextEditingController> newLossRows =
+      <TextEditingController>[].obs;
+  final RxList<TextEditingController> newWaterRows =
+      <TextEditingController>[].obs;
+  final RxList<TextEditingController> newOilRows =
+      <TextEditingController>[].obs;
+  final RxList<TextEditingController> newSyntheticRows =
+      <TextEditingController>[].obs;
+
+  Future<void> _refreshMudAddRows() async {
+    if (Get.isRegistered<MudController>()) {
+      await Get.find<MudController>().refreshAvailablePropertiesFromOthers();
+    }
+  }
 
   @override
   void onInit() {
@@ -43,7 +56,7 @@ class OthersGetxController extends GetxController {
     _clearList(newWaterRows);
     _clearList(newOilRows);
     _clearList(newSyntheticRows);
-    
+
     for (int i = 0; i < 5; i++) {
       newActivityRows.add(TextEditingController());
       newAdditionRows.add(TextEditingController());
@@ -66,14 +79,17 @@ class OthersGetxController extends GetxController {
     _emptyText(newWaterRows);
     _emptyText(newOilRows);
     _emptyText(newSyntheticRows);
-    
+
     // Ensure minimum rows
-    while (newActivityRows.length < 5) newActivityRows.add(TextEditingController());
-    while (newAdditionRows.length < 5) newAdditionRows.add(TextEditingController());
+    while (newActivityRows.length < 5)
+      newActivityRows.add(TextEditingController());
+    while (newAdditionRows.length < 5)
+      newAdditionRows.add(TextEditingController());
     while (newLossRows.length < 5) newLossRows.add(TextEditingController());
     while (newWaterRows.length < 5) newWaterRows.add(TextEditingController());
     while (newOilRows.length < 5) newOilRows.add(TextEditingController());
-    while (newSyntheticRows.length < 5) newSyntheticRows.add(TextEditingController());
+    while (newSyntheticRows.length < 5)
+      newSyntheticRows.add(TextEditingController());
   }
 
   void _emptyText(RxList<TextEditingController> list) {
@@ -110,7 +126,8 @@ class OthersGetxController extends GetxController {
     try {
       final List<ActivityItem> items = [];
       for (var ctrl in newActivityRows) {
-        if (ctrl.text.isNotEmpty) items.add(ActivityItem(description: ctrl.text));
+        if (ctrl.text.isNotEmpty)
+          items.add(ActivityItem(description: ctrl.text));
       }
       if (items.isEmpty) return;
       await _apiController.addActivities(items);
@@ -167,6 +184,7 @@ class OthersGetxController extends GetxController {
       await _apiController.addWaterBased(items);
       _resetNewRows();
       await fetchAllData();
+      await _refreshMudAddRows();
       Get.snackbar('Success', 'Water-based saved');
     } finally {
       isWaterSaving.value = false;
@@ -184,6 +202,7 @@ class OthersGetxController extends GetxController {
       await _apiController.addOilBased(items);
       _resetNewRows();
       await fetchAllData();
+      await _refreshMudAddRows();
       Get.snackbar('Success', 'Oil-based saved');
     } finally {
       isOilSaving.value = false;
@@ -201,6 +220,7 @@ class OthersGetxController extends GetxController {
       await _apiController.addSynthetic(items);
       _resetNewRows();
       await fetchAllData();
+      await _refreshMudAddRows();
       Get.snackbar('Success', 'Synthetic saved');
     } finally {
       isSyntheticSaving.value = false;
@@ -209,24 +229,70 @@ class OthersGetxController extends GetxController {
 
   // ─── Delete Actions ───────────────────────────────────────────────────────
 
-  Future<void> deleteActivity(String id) async { if (await _confirmDelete('activity')) { await _apiController.deleteActivity(id); await fetchAllData(); } }
-  Future<void> deleteAddition(String id) async { if (await _confirmDelete('addition')) { await _apiController.deleteAddition(id); await fetchAllData(); } }
-  Future<void> deleteLoss(String id) async { if (await _confirmDelete('loss')) { await _apiController.deleteLoss(id); await fetchAllData(); } }
-  Future<void> deleteWaterBased(String id) async { if (await _confirmDelete('water-based')) { await _apiController.deleteWaterBased(id); await fetchAllData(); } }
-  Future<void> deleteOilBased(String id) async { if (await _confirmDelete('oil-based')) { await _apiController.deleteOilBased(id); await fetchAllData(); } }
-  Future<void> deleteSynthetic(String id) async { if (await _confirmDelete('synthetic')) { await _apiController.deleteSynthetic(id); await fetchAllData(); } }
+  Future<void> deleteActivity(String id) async {
+    if (await _confirmDelete('activity')) {
+      await _apiController.deleteActivity(id);
+      await fetchAllData();
+    }
+  }
+
+  Future<void> deleteAddition(String id) async {
+    if (await _confirmDelete('addition')) {
+      await _apiController.deleteAddition(id);
+      await fetchAllData();
+    }
+  }
+
+  Future<void> deleteLoss(String id) async {
+    if (await _confirmDelete('loss')) {
+      await _apiController.deleteLoss(id);
+      await fetchAllData();
+    }
+  }
+
+  Future<void> deleteWaterBased(String id) async {
+    if (await _confirmDelete('water-based')) {
+      await _apiController.deleteWaterBased(id);
+      await fetchAllData();
+      await _refreshMudAddRows();
+    }
+  }
+
+  Future<void> deleteOilBased(String id) async {
+    if (await _confirmDelete('oil-based')) {
+      await _apiController.deleteOilBased(id);
+      await fetchAllData();
+      await _refreshMudAddRows();
+    }
+  }
+
+  Future<void> deleteSynthetic(String id) async {
+    if (await _confirmDelete('synthetic')) {
+      await _apiController.deleteSynthetic(id);
+      await fetchAllData();
+      await _refreshMudAddRows();
+    }
+  }
 
   Future<bool> _confirmDelete(String type) async {
     return await Get.dialog<bool>(
-      AlertDialog(
-        title: const Text('Confirm Delete'),
-        content: Text('Are you sure you want to delete this $type?'),
-        actions: [
-          TextButton(onPressed: () => Get.back(result: false), child: const Text('Cancel')),
-          ElevatedButton(onPressed: () => Get.back(result: true), style: ElevatedButton.styleFrom(backgroundColor: Colors.red), child: const Text('Delete')),
-        ],
-      )
-    ) ?? false;
+          AlertDialog(
+            title: const Text('Confirm Delete'),
+            content: Text('Are you sure you want to delete this $type?'),
+            actions: [
+              TextButton(
+                onPressed: () => Get.back(result: false),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () => Get.back(result: true),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                child: const Text('Delete'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
   }
 
   // ─── Edit Logic ───────────────────────────────────────────────────────────
@@ -234,18 +300,27 @@ class OthersGetxController extends GetxController {
   void showEditDialog(dynamic item, String type) {
     final ctrl = TextEditingController();
     String currentText = '';
-    if (item is ActivityItem) currentText = item.description;
-    else if (item is AdditionItem) currentText = item.name;
-    else if (item is LossItem) currentText = item.name;
-    else if (item is WaterBasedItem) currentText = item.name;
-    else if (item is OilBasedItem) currentText = item.name;
-    else if (item is SyntheticItem) currentText = item.name;
+    if (item is ActivityItem)
+      currentText = item.description;
+    else if (item is AdditionItem)
+      currentText = item.name;
+    else if (item is LossItem)
+      currentText = item.name;
+    else if (item is WaterBasedItem)
+      currentText = item.name;
+    else if (item is OilBasedItem)
+      currentText = item.name;
+    else if (item is SyntheticItem)
+      currentText = item.name;
     ctrl.text = currentText;
 
     Get.dialog(
       AlertDialog(
         title: Text('Edit $type'),
-        content: TextField(controller: ctrl, decoration: const InputDecoration(labelText: 'Description')),
+        content: TextField(
+          controller: ctrl,
+          decoration: const InputDecoration(labelText: 'Description'),
+        ),
         actions: [
           TextButton(onPressed: () => Get.back(), child: const Text('Cancel')),
           ElevatedButton(
@@ -256,22 +331,51 @@ class OthersGetxController extends GetxController {
             child: const Text('Save'),
           ),
         ],
-      )
+      ),
     );
   }
 
   Future<void> _updateItem(dynamic item, String newText, String type) async {
     final id = item.id!;
     dynamic result;
-    if (item is ActivityItem) result = await _apiController.updateActivity(id, ActivityItem(id: id, description: newText));
-    else if (item is AdditionItem) result = await _apiController.updateAddition(id, AdditionItem(id: id, name: newText));
-    else if (item is LossItem) result = await _apiController.updateLoss(id, LossItem(id: id, name: newText));
-    else if (item is WaterBasedItem) result = await _apiController.updateWaterBased(id, WaterBasedItem(id: id, name: newText));
-    else if (item is OilBasedItem) result = await _apiController.updateOilBased(id, OilBasedItem(id: id, name: newText));
-    else if (item is SyntheticItem) result = await _apiController.updateSynthetic(id, SyntheticItem(id: id, name: newText));
+    if (item is ActivityItem)
+      result = await _apiController.updateActivity(
+        id,
+        ActivityItem(id: id, description: newText),
+      );
+    else if (item is AdditionItem)
+      result = await _apiController.updateAddition(
+        id,
+        AdditionItem(id: id, name: newText),
+      );
+    else if (item is LossItem)
+      result = await _apiController.updateLoss(
+        id,
+        LossItem(id: id, name: newText),
+      );
+    else if (item is WaterBasedItem)
+      result = await _apiController.updateWaterBased(
+        id,
+        WaterBasedItem(id: id, name: newText),
+      );
+    else if (item is OilBasedItem)
+      result = await _apiController.updateOilBased(
+        id,
+        OilBasedItem(id: id, name: newText),
+      );
+    else if (item is SyntheticItem)
+      result = await _apiController.updateSynthetic(
+        id,
+        SyntheticItem(id: id, name: newText),
+      );
 
     if (result['success'] == true) {
       await fetchAllData();
+      if (item is WaterBasedItem ||
+          item is OilBasedItem ||
+          item is SyntheticItem) {
+        await _refreshMudAddRows();
+      }
       Get.snackbar('Success', 'Item updated');
     } else {
       Get.snackbar('Error', result['message'] ?? 'Update failed');
@@ -560,16 +664,14 @@ class OthersGetxController extends GetxController {
 
     return {
       'success': true,
-      'message': 'Others imported successfully. Updated: $updated, Added: $inserted',
+      'message':
+          'Others imported successfully. Updated: $updated, Added: $inserted',
       'updated': updated,
       'inserted': inserted,
     };
   }
 
-  T? _matchOtherItem<T>(
-    _ImportedOtherRow row,
-    _OthersContext<T> context,
-  ) {
+  T? _matchOtherItem<T>(_ImportedOtherRow row, _OthersContext<T> context) {
     final recordId = row.recordId.trim();
     if (recordId.isNotEmpty && context.byId.containsKey(recordId)) {
       return context.byId[recordId];

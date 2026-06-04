@@ -1,333 +1,602 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/mud_controller.dart';
-import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
-class ApplyRheologyPage extends StatelessWidget {
+class ApplyRheologyPage extends StatefulWidget {
   const ApplyRheologyPage({super.key});
+
+  @override
+  State<ApplyRheologyPage> createState() => _ApplyRheologyPageState();
+}
+
+class _ApplyRheologyPageState extends State<ApplyRheologyPage> {
+  int _sampleIndex = 0;
+  int _dialRevision = 0;
 
   @override
   Widget build(BuildContext context) {
     final c = Get.find<MudController>();
 
     return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
-      appBar: AppBar(
-        title: const Text('Rheology', style: TextStyle(fontSize: 14)),
-        backgroundColor: AppTheme.primaryColor,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, size: 18),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        toolbarHeight: 44,
-      ),
+      backgroundColor: Colors.white,
       body: Obx(() {
-        return Row(children: [
-          SizedBox(width: 420, child: _buildRheologyTable(c)),
-          VerticalDivider(width: 1, color: Colors.grey.shade300),
-          Expanded(child: _buildGraph(c)),
-        ]);
+        return Stack(
+          children: [
+            Row(
+              children: [
+                SizedBox(width: 590, child: _buildRheologyTable(c)),
+                Expanded(child: _buildGraph(c)),
+              ],
+            ),
+            Positioned(
+              top: 6,
+              right: 8,
+              child: SizedBox(
+                width: 28,
+                height: 28,
+                child: IconButton(
+                  padding: EdgeInsets.zero,
+                  splashRadius: 16,
+                  icon: const Icon(Icons.close, size: 18),
+                  color: Colors.black87,
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ),
+            ),
+          ],
+        );
       }),
     );
   }
 
   Widget _buildRheologyTable(MudController c) {
+    if (_sampleIndex >= c.samples.length) _sampleIndex = 0;
+    final fitted = _ChartPainter(
+      c: c,
+      sampleIndex: _sampleIndex,
+    )._buildSample(_sampleIndex);
+    final fit = fitted?.fit;
+    final pv = _binghamPv(c, _sampleIndex);
+    final yp = _binghamYp(c, _sampleIndex);
+    final allAligned =
+        fitted != null &&
+        fitted.points.every((p) => p.diff.abs() <= _ChartPainter._threshold);
+
     return Container(
-      padding: const EdgeInsets.all(12),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-          decoration: BoxDecoration(
-            color: AppTheme.primaryColor,
-            borderRadius: BorderRadius.circular(4),
+      padding: const EdgeInsets.only(left: 4, top: 12, right: 18, bottom: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Edit the dial readings:',
+            style: TextStyle(fontSize: 13, color: Colors.black),
           ),
-          child: const Text('Rheology',
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 11)),
-        ),
-        const SizedBox(height: 8),
-
-        // Model label
-        Row(children: [
-          Text('Model',
-              style: TextStyle(fontSize: 11, color: AppTheme.textPrimary, fontWeight: FontWeight.w600)),
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey.shade300),
-              borderRadius: BorderRadius.circular(3),
-            ),
-            child: Text(c.rheologyModel.value,
-                style: TextStyle(fontSize: 11, color: AppTheme.textPrimary)),
+          const SizedBox(height: 14),
+          Row(
+            children: const [
+              SizedBox(width: 190, child: _PlainHeader('RPM')),
+              SizedBox(width: 190, child: _PlainHeader('Dial')),
+              SizedBox(width: 115, child: _PlainHeader('Model')),
+              SizedBox(width: 70, child: _PlainHeader('Diff')),
+            ],
           ),
-        ]),
-        const SizedBox(height: 8),
-
-        // Table
-        Expanded(
-          child: Container(
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey.shade200),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Column(children: [
-              // Header
-              Container(
-                height: 32,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
-                  border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(4), topRight: Radius.circular(4)),
-                ),
-                child: Row(children: [
-                  _tableHeaderCell('RPM/Property', width: 160),
-                  ...c.samples.map((s) => Expanded(
-                        child: Container(
-                          alignment: Alignment.center,
-                          padding: const EdgeInsets.symmetric(horizontal: 4),
-                          decoration: BoxDecoration(
-                            border: Border(right: BorderSide(color: Colors.grey.shade200))),
-                          child: Text(s,
-                              style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppTheme.textPrimary)),
-                        ),
-                      )),
-                ]),
-              ),
-              // Rows
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Column(
-                    children: c.rheologyTable.entries.map((entry) {
-                      final isCalcRow = double.tryParse(entry.key) == null;
-                      return Container(
-                        height: 30,
-                        decoration: BoxDecoration(
-                          color: isCalcRow ? const Color(0xFFFFFDE7) : Colors.white,
-                          border: Border(bottom: BorderSide(color: Colors.grey.shade100)),
-                        ),
-                        child: Row(children: [
-                          Container(
-                            width: 160,
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
-                            decoration: BoxDecoration(
-                              border: Border(right: BorderSide(color: Colors.grey.shade200))),
-                            child: Text(entry.key,
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color: AppTheme.textSecondary,
-                                  fontWeight: isCalcRow ? FontWeight.w600 : FontWeight.normal,
-                                ),
-                                overflow: TextOverflow.ellipsis),
-                          ),
-                          ...entry.value.asMap().entries.map((cell) {
-                            final isLast = cell.key == entry.value.length - 1;
-                            return Expanded(
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 4),
-                                decoration: BoxDecoration(
-                                  border: Border(right: BorderSide(
-                                    color: isLast ? Colors.transparent : Colors.grey.shade200))),
-                                child: Obx(() => Text(
-                                      cell.value.value.isEmpty ? '-' : cell.value.value,
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        color: cell.value.value.isEmpty
-                                            ? Colors.grey.shade400
-                                            : AppTheme.textPrimary,
-                                        fontWeight: isCalcRow ? FontWeight.w600 : FontWeight.normal,
-                                      ),
-                                    )),
-                              ),
-                            );
-                          }),
-                        ]),
-                      );
-                    }).toList(),
+          const SizedBox(height: 6),
+          ..._ChartPainter._rpmRows.map((rpm) {
+            final value = c.rheologyTable['$rpm']?[_sampleIndex].value ?? '';
+            final point = fitted?.pointForRpm(rpm);
+            final offCurve =
+                point != null && point.diff.abs() > _ChartPainter._threshold;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 190,
+                    child: Text('$rpm', style: const TextStyle(fontSize: 13)),
                   ),
-                ),
+                  SizedBox(
+                    width: 190,
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: _dialCell(c, rpm, value),
+                    ),
+                  ),
+                  SizedBox(
+                    width: 115,
+                    child: Text(
+                      point == null ? '-' : point.model.toStringAsFixed(1),
+                      textAlign: TextAlign.right,
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                  ),
+                  SizedBox(
+                    width: 70,
+                    child: Text(
+                      point == null ? '-' : _signedOne(point.diff),
+                      textAlign: TextAlign.right,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: offCurve
+                            ? const Color(0xFFE24B4A)
+                            : const Color(0xFF00796B),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ]),
+            );
+          }),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              SizedBox(
+                width: 300,
+                child: _summaryBlock('PV (cP)', pv?.toStringAsFixed(0) ?? '-'),
+              ),
+              _summaryBlock('YP (lbf/100ft2)', yp?.toStringAsFixed(0) ?? '-'),
+            ],
+          ),
+          const SizedBox(height: 22),
+          const Text('Herschel-Bulkley fit', style: TextStyle(fontSize: 12)),
+          Text(
+            't0=${fit == null ? '-' : fit.t0.toStringAsFixed(2)} '
+            'K=${fit == null ? '-' : fit.k.toStringAsFixed(4)} '
+            'n=${fit == null ? '-' : fit.n.toStringAsFixed(3)}',
+            style: const TextStyle(fontSize: 12),
+          ),
+          const Spacer(),
+          Padding(
+            padding: const EdgeInsets.only(left: 15, bottom: 20),
+            child: Text(
+              allAligned
+                  ? 'All readings aligned. Every point is within 3 units of the model curve, so the rheology is self-consistent. Try changing a dial value to see a point go off-curve.'
+                  : 'One or more readings are off-curve. Adjust the red reading until it falls back on the model curve.',
+              style: const TextStyle(fontSize: 12, color: Color(0xFF00695C)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _signedOne(double value) {
+    final text = value.toStringAsFixed(1);
+    return value > 0 ? '+$text' : text;
+  }
+
+  Widget _summaryBlock(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 13)),
+        const SizedBox(height: 4),
+        Text(value, style: const TextStyle(fontSize: 18)),
+      ],
+    );
+  }
+
+  double? _binghamPv(MudController c, int sampleIndex) {
+    final r600 = double.tryParse(
+      c.rheologyTable['600']?[sampleIndex].value ?? '',
+    );
+    final r300 = double.tryParse(
+      c.rheologyTable['300']?[sampleIndex].value ?? '',
+    );
+    if (r600 == null || r300 == null) return null;
+    return r600 - r300;
+  }
+
+  double? _binghamYp(MudController c, int sampleIndex) {
+    final pv = _binghamPv(c, sampleIndex);
+    final r300 = double.tryParse(
+      c.rheologyTable['300']?[sampleIndex].value ?? '',
+    );
+    if (pv == null || r300 == null) return null;
+    return r300 - pv;
+  }
+
+  Widget _dialCell(MudController c, int rpm, String value) {
+    void setDial(double next) {
+      final normalized = next < 0 ? 0.0 : next;
+      c.rheologyTable['$rpm']?[_sampleIndex].value = _formatDial(normalized);
+      c.calculateRheology();
+      setState(() => _dialRevision++);
+    }
+
+    final currentValue = double.tryParse(value) ?? 0;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          width: 56,
+          child: TextFormField(
+            key: ValueKey('rheo-dial-$_sampleIndex-$rpm-$_dialRevision'),
+            initialValue: value,
+            textAlign: TextAlign.center,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            style: const TextStyle(fontSize: 13, color: Colors.black),
+            decoration: InputDecoration(
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 4,
+                vertical: 6,
+              ),
+              filled: false,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.zero,
+                borderSide: BorderSide(color: Colors.grey.shade500),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.zero,
+                borderSide: BorderSide(color: Colors.grey.shade500),
+              ),
+            ),
+            onChanged: (v) {
+              c.rheologyTable['$rpm']?[_sampleIndex].value = v;
+              c.calculateRheology();
+            },
           ),
         ),
-      ]),
+        const SizedBox(width: 3),
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _dialStepButton(
+              icon: Icons.keyboard_arrow_up,
+              onTap: () => setDial(currentValue + 1),
+            ),
+            const SizedBox(height: 2),
+            _dialStepButton(
+              icon: Icons.keyboard_arrow_down,
+              onTap: () => setDial(currentValue - 1),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  String _formatDial(double value) {
+    if (value % 1 == 0) return value.toStringAsFixed(0);
+    return value.toStringAsFixed(1);
+  }
+
+  Widget _dialStepButton({
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 18,
+        height: 13,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: const Color(0xFFF8F8F8),
+          border: Border.all(color: Colors.grey.shade500),
+        ),
+        child: Icon(icon, size: 12, color: Colors.black87),
+      ),
     );
   }
 
   Widget _buildGraph(MudController c) {
     return Container(
-      padding: const EdgeInsets.all(16),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('Shear Stress vs. Shear Rate',
-            style: TextStyle(
-                fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
-        const SizedBox(height: 12),
-        Expanded(
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border.all(color: Colors.grey.shade200),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: _RheologyChart(c: c),
+      padding: const EdgeInsets.only(top: 22, right: 20, bottom: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: _RheologyChart(c: c, sampleIndex: _sampleIndex),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 16,
+            children: [
+              _legendDot(const Color(0xFF185FA5), 'Model curve', line: true),
+              _legendDot(const Color(0xFF0F6E56), 'On curve'),
+              _legendDot(const Color(0xFFE24B4A), 'Off curve'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _legendDot(Color color, String label, {bool line = false}) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: line ? 24 : 10,
+          height: line ? 2 : 10,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(line ? 1 : 5),
           ),
         ),
-        const SizedBox(height: 8),
-        // Legend
-        Wrap(
-          spacing: 16,
-          children: List.generate(c.samples.length, (i) {
-            final color = _sampleColor(i);
-            return Row(mainAxisSize: MainAxisSize.min, children: [
-              Container(width: 24, height: 2, color: color),
-              const SizedBox(width: 4),
-              Text('Sample ${c.samples[i]}', style: const TextStyle(fontSize: 10)),
-            ]);
-          }),
-        ),
-      ]),
+        const SizedBox(width: 4),
+        Text(label, style: const TextStyle(fontSize: 10)),
+      ],
     );
-  }
-
-  Widget _tableHeaderCell(String text, {double? width}) {
-    Widget child = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: BoxDecoration(border: Border(right: BorderSide(color: Colors.grey.shade200))),
-      child: Text(text,
-          style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppTheme.textPrimary),
-          overflow: TextOverflow.ellipsis),
-    );
-    if (width != null) return SizedBox(width: width, child: child);
-    return child;
-  }
-
-  static Color _sampleColor(int index) {
-    const colors = [
-      Color(0xFF1565C0), Color(0xFF2E7D32), Color(0xFFC62828),
-      Color(0xFFE65100), Color(0xFF6A1B9A),
-    ];
-    return colors[index % colors.length];
   }
 }
 
 class _RheologyChart extends StatelessWidget {
   final MudController c;
-  const _RheologyChart({required this.c});
+  final int sampleIndex;
 
-  static const Map<String, double> _shearRates = {
-    '600': 1021.8, '300': 510.9, '200': 340.6, '100': 170.3, '6': 10.2, '3': 5.1,
-  };
+  const _RheologyChart({required this.c, required this.sampleIndex});
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(builder: (ctx, constraints) {
-      return CustomPaint(
-        size: Size(constraints.maxWidth, constraints.maxHeight),
-        painter: _ChartPainter(c: c, shearRates: _shearRates),
-      );
-    });
+    return LayoutBuilder(
+      builder: (ctx, constraints) {
+        return CustomPaint(
+          size: Size(constraints.maxWidth, constraints.maxHeight),
+          painter: _ChartPainter(c: c, sampleIndex: sampleIndex),
+        );
+      },
+    );
+  }
+}
+
+class _PlainHeader extends StatelessWidget {
+  const _PlainHeader(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: const TextStyle(
+        fontSize: 13,
+        color: Colors.black,
+        fontWeight: FontWeight.w700,
+      ),
+    );
   }
 }
 
 class _ChartPainter extends CustomPainter {
+  static const double _rateFactor = 1.7034;
+  static const double _stressFactor = 1.066;
+  static const double _threshold = 3.0;
+  static const List<int> _rpmRows = [600, 300, 200, 100, 6, 3];
+  static const Color _curveColor = Color(0xFF185FA5);
+  static const Color _okColor = Color(0xFF0F6E56);
+  static const Color _badColor = Color(0xFFE24B4A);
+
   final MudController c;
-  final Map<String, double> shearRates;
+  final int sampleIndex;
 
-  _ChartPainter({required this.c, required this.shearRates});
-
-  static const _colors = [
-    Color(0xFF1565C0), Color(0xFF2E7D32), Color(0xFFC62828),
-    Color(0xFFE65100), Color(0xFF6A1B9A),
-  ];
+  _ChartPainter({required this.c, required this.sampleIndex});
 
   @override
   void paint(Canvas canvas, Size size) {
-    const leftPad = 50.0, rightPad = 16.0, topPad = 16.0, bottomPad = 40.0;
+    const leftPad = 58.0, rightPad = 18.0, topPad = 18.0, bottomPad = 46.0;
     final chartW = size.width - leftPad - rightPad;
     final chartH = size.height - topPad - bottomPad;
+    if (chartW <= 0 || chartH <= 0) return;
 
-    final List<List<Offset>> samplePoints = List.generate(c.samples.length, (_) => []);
-
-    for (var entry in c.rheologyTable.entries) {
-      final sr = shearRates[entry.key];
-      if (sr == null) continue;
-      for (int i = 0; i < entry.value.length; i++) {
-        final ss = double.tryParse(entry.value[i].value);
-        if (ss != null && ss > 0) samplePoints[i].add(Offset(sr, ss));
-      }
-    }
-
-    for (var pts in samplePoints) {
-      pts.sort((a, b) => a.dx.compareTo(b.dx));
-    }
-
-    double maxX = 1200, maxY = 50;
-    for (var pts in samplePoints) {
-      for (var p in pts) {
-        if (p.dx > maxX) maxX = p.dx;
-        if (p.dy > maxY) maxY = p.dy;
-      }
-    }
-    maxY = (maxY * 1.2).ceilToDouble();
-    maxY = maxY < 10 ? 10 : maxY;
+    final samples = _buildSamples();
+    const double maxX = 1100;
+    const double maxY = 70;
 
     // Background
     canvas.drawRect(
-        Rect.fromLTWH(leftPad, topPad, chartW, chartH),
-        Paint()..color = Colors.white);
+      Rect.fromLTWH(leftPad, topPad, chartW, chartH),
+      Paint()..color = Colors.white,
+    );
 
     // Grid
-    final gridPaint = Paint()..color = const Color(0xFFE0E8F0)..strokeWidth = 0.7;
-    for (int i = 0; i <= 6; i++) {
-      final x = leftPad + (i / 6) * chartW;
+    final gridPaint = Paint()
+      ..color = const Color(0xFFE0E8F0)
+      ..strokeWidth = 0.7;
+    for (final v in const [0, 200, 400, 600, 800, 1000, 1100]) {
+      final x = leftPad + (v / maxX) * chartW;
       canvas.drawLine(Offset(x, topPad), Offset(x, topPad + chartH), gridPaint);
-      _drawText(canvas, ((i / 6) * maxX).round().toString(),
-          Offset(x, topPad + chartH + 4), 9, Colors.grey.shade600, center: true);
+      _drawText(
+        canvas,
+        v.toString(),
+        Offset(x, topPad + chartH + 8),
+        9,
+        Colors.grey.shade600,
+        center: true,
+      );
     }
-    for (int i = 0; i <= 5; i++) {
-      final y = topPad + chartH - (i / 5) * chartH;
-      canvas.drawLine(Offset(leftPad, y), Offset(leftPad + chartW, y), gridPaint);
-      _drawText(canvas, ((i / 5) * maxY).round().toString(),
-          Offset(leftPad - 4, y), 9, Colors.grey.shade600, rightAlign: true);
+    for (int v = 0; v <= maxY; v += 10) {
+      final y = topPad + chartH - (v / maxY) * chartH;
+      canvas.drawLine(
+        Offset(leftPad, y),
+        Offset(leftPad + chartW, y),
+        gridPaint,
+      );
+      _drawText(
+        canvas,
+        v.toString(),
+        Offset(leftPad - 7, y),
+        9,
+        Colors.grey.shade600,
+        rightAlign: true,
+      );
     }
 
-    _drawText(canvas, 'Shear Rate (1/s)',
-        Offset(leftPad + chartW / 2, topPad + chartH + 28), 10, Colors.grey.shade700, center: true);
+    _drawText(
+      canvas,
+      'Shear rate (1/s)',
+      Offset(leftPad + chartW / 2, topPad + chartH + 32),
+      10,
+      Colors.grey.shade700,
+      center: true,
+    );
+    _drawRotatedText(
+      canvas,
+      'Shear stress (lbf/100ft2)',
+      Offset(16, topPad + chartH / 2),
+      10,
+      Colors.grey.shade700,
+    );
 
-    canvas.drawRect(Rect.fromLTWH(leftPad, topPad, chartW, chartH),
-        Paint()..color = Colors.grey.shade400..strokeWidth = 1..style = PaintingStyle.stroke);
+    canvas.drawRect(
+      Rect.fromLTWH(leftPad, topPad, chartW, chartH),
+      Paint()
+        ..color = Colors.grey.shade400
+        ..strokeWidth = 1
+        ..style = PaintingStyle.stroke,
+    );
 
-    // Plot lines
-    for (int s = 0; s < samplePoints.length; s++) {
-      final pts = samplePoints[s];
-      if (pts.length < 2) continue;
+    if (samples.isEmpty) {
+      _drawText(
+        canvas,
+        'Enter rheology readings to view the curve',
+        Offset(leftPad + chartW / 2, topPad + chartH / 2),
+        11,
+        Colors.grey.shade500,
+        center: true,
+      );
+      return;
+    }
+
+    for (final sample in samples) {
       final linePaint = Paint()
-        ..color = _colors[s % _colors.length]..strokeWidth = 2..style = PaintingStyle.stroke;
+        ..color = samples.length == 1
+            ? _curveColor
+            : _curveColor.withValues(alpha: 0.58)
+        ..strokeWidth = samples.length == 1 ? 3 : 2
+        ..style = PaintingStyle.stroke;
       final path = Path();
-      bool first = true;
-      for (var p in pts) {
+      for (var i = 0; i < sample.curve.length; i++) {
+        final p = sample.curve[i];
         final px = leftPad + (p.dx / maxX) * chartW;
         final py = topPad + chartH - (p.dy / maxY) * chartH;
-        first ? path.moveTo(px, py) : path.lineTo(px, py);
-        first = false;
+        if (i == 0) {
+          path.moveTo(px, py);
+        } else {
+          path.lineTo(px, py);
+        }
       }
       canvas.drawPath(path, linePaint);
-      for (var p in pts) {
+
+      for (final p in sample.points) {
+        final dot = Offset(
+          leftPad + (p.rate / maxX) * chartW,
+          topPad + chartH - (p.measured / maxY) * chartH,
+        );
+        final offCurve = p.diff.abs() > _threshold;
         canvas.drawCircle(
-            Offset(leftPad + (p.dx / maxX) * chartW, topPad + chartH - (p.dy / maxY) * chartH),
-            3, Paint()..color = _colors[s % _colors.length]);
+          dot,
+          offCurve ? 6 : 5,
+          Paint()..color = offCurve ? _badColor : _okColor,
+        );
+        canvas.drawCircle(
+          dot,
+          offCurve ? 6 : 5,
+          Paint()
+            ..color = Colors.white
+            ..strokeWidth = 1.2
+            ..style = PaintingStyle.stroke,
+        );
       }
     }
   }
 
-  void _drawText(Canvas canvas, String text, Offset pos, double size, Color color,
-      {bool center = false, bool rightAlign = false}) {
+  List<_FittedSample> _buildSamples() {
+    final sample = _buildSample(sampleIndex);
+    return sample == null ? <_FittedSample>[] : <_FittedSample>[sample];
+  }
+
+  _FittedSample? _buildSample(int sampleIndex) {
+    final readings = <_Reading>[];
+    for (final rpm in _rpmRows) {
+      final dial = double.tryParse(
+        c.rheologyTable['$rpm']?[sampleIndex].value ?? '',
+      );
+      if (dial != null && dial > 0) {
+        readings.add(_Reading(rpm: rpm, dial: dial));
+      }
+    }
+    if (readings.length < 3) return null;
+    final fit = _fitHb(readings);
+    if (fit == null) return null;
+    final curve = <Offset>[];
+    for (double rate = 0; rate <= 1050; rate += 15) {
+      curve.add(Offset(rate, _modelStress(fit, rate)));
+    }
+    final points = readings.map((r) {
+      final rate = r.rpm * _rateFactor;
+      final measured = r.dial * _stressFactor;
+      final model = _modelStress(fit, rate);
+      return _QcPoint(
+        rpm: r.rpm,
+        rate: rate,
+        measured: measured,
+        model: model,
+        diff: measured - model,
+      );
+    }).toList();
+    return _FittedSample(fit: fit, curve: curve, points: points);
+  }
+
+  _HbFit? _fitHb(List<_Reading> readings) {
+    final rates = readings.map((r) => r.rpm * _rateFactor).toList();
+    final stresses = readings.map((r) => r.dial * _stressFactor).toList();
+    _HbFit? best;
+
+    for (double n = 0.2; n <= 1.2001; n += 0.002) {
+      final x = rates.map((v) => _pow(v, n)).toList();
+      final count = x.length;
+      var sx = 0.0, sy = 0.0, sxx = 0.0, sxy = 0.0;
+      for (var i = 0; i < count; i++) {
+        sx += x[i];
+        sy += stresses[i];
+        sxx += x[i] * x[i];
+        sxy += x[i] * stresses[i];
+      }
+      final den = count * sxx - sx * sx;
+      if (den.abs() < 1e-9) continue;
+      final k = (count * sxy - sx * sy) / den;
+      final t0 = (sy - k * sx) / count;
+      var sse = 0.0;
+      for (var j = 0; j < count; j++) {
+        final model = t0 + k * x[j];
+        final err = stresses[j] - model;
+        sse += err * err;
+      }
+      if (best == null || sse < best.sse) {
+        best = _HbFit(t0: t0, k: k, n: n, sse: sse);
+      }
+    }
+    return best;
+  }
+
+  double _modelStress(_HbFit fit, double rate) {
+    return fit.t0 + fit.k * _pow(rate, fit.n);
+  }
+
+  double _pow(double base, double exp) {
+    if (base <= 0) return 0;
+    return math.pow(base, exp).toDouble();
+  }
+
+  void _drawText(
+    Canvas canvas,
+    String text,
+    Offset pos,
+    double size,
+    Color color, {
+    bool center = false,
+    bool rightAlign = false,
+  }) {
     final tp = TextPainter(
-      text: TextSpan(text: text, style: TextStyle(fontSize: size, color: color)),
+      text: TextSpan(
+        text: text,
+        style: TextStyle(fontSize: size, color: color),
+      ),
       textDirection: TextDirection.ltr,
     )..layout();
     double dx = pos.dx;
@@ -336,6 +605,76 @@ class _ChartPainter extends CustomPainter {
     tp.paint(canvas, Offset(dx, pos.dy - tp.height / 2));
   }
 
+  void _drawRotatedText(
+    Canvas canvas,
+    String text,
+    Offset pos,
+    double size,
+    Color color,
+  ) {
+    canvas.save();
+    canvas.translate(pos.dx, pos.dy);
+    canvas.rotate(-1.57079632679);
+    _drawText(canvas, text, Offset.zero, size, color, center: true);
+    canvas.restore();
+  }
+
   @override
   bool shouldRepaint(_ChartPainter old) => true;
+}
+
+class _Reading {
+  const _Reading({required this.rpm, required this.dial});
+
+  final int rpm;
+  final double dial;
+}
+
+class _HbFit {
+  const _HbFit({
+    required this.t0,
+    required this.k,
+    required this.n,
+    required this.sse,
+  });
+
+  final double t0;
+  final double k;
+  final double n;
+  final double sse;
+}
+
+class _QcPoint {
+  const _QcPoint({
+    required this.rpm,
+    required this.rate,
+    required this.measured,
+    required this.model,
+    required this.diff,
+  });
+
+  final int rpm;
+  final double rate;
+  final double measured;
+  final double model;
+  final double diff;
+}
+
+class _FittedSample {
+  const _FittedSample({
+    required this.fit,
+    required this.curve,
+    required this.points,
+  });
+
+  final _HbFit fit;
+  final List<Offset> curve;
+  final List<_QcPoint> points;
+
+  _QcPoint? pointForRpm(int rpm) {
+    for (final point in points) {
+      if (point.rpm == rpm) return point;
+    }
+    return null;
+  }
 }
