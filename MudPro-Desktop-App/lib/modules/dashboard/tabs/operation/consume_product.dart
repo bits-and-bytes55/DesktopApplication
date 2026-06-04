@@ -1742,9 +1742,9 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
             child: Text(
               "Consume Product",
               style: AppTheme.bodySmall.copyWith(
-                fontWeight: FontWeight.w500,
+                fontWeight: FontWeight.w700,
                 fontSize: 12,
-                color: AppTheme.textPrimary,
+                color: Colors.black,
               ),
             ),
           ),
@@ -1762,7 +1762,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                     horizontalMargin: 0,
                     dividerThickness: 0,
                     headingRowColor: MaterialStateProperty.all(
-                      Colors.grey.shade100,
+                      AppTheme.primaryColor,
                     ),
                     border: TableBorder(
                       verticalInside: BorderSide(color: Colors.grey.shade300),
@@ -1770,10 +1770,14 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                     ),
                     headingTextStyle: AppTheme.bodySmall.copyWith(
                       fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                      color: AppTheme.textPrimary,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
                     ),
-                    dataTextStyle: AppTheme.bodySmall.copyWith(fontSize: 10),
+                    dataTextStyle: AppTheme.bodySmall.copyWith(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.black,
+                    ),
                     columns: headers
                         .map(
                           (h) => DataColumn(
@@ -1784,15 +1788,6 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                                   : Alignment.centerLeft,
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 8,
-                              ),
-                              decoration: BoxDecoration(
-                                color:
-                                    (h == 'Used' &&
-                                            selectedMethod.value == 'Used') ||
-                                        (h == 'Final' &&
-                                            selectedMethod.value == 'Final')
-                                    ? const Color(0xFFD6EAF8)
-                                    : null,
                               ),
                               child: Text(AppUnits.label(h)),
                             ),
@@ -1871,8 +1866,8 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                     row.productName,
                     style: AppTheme.bodySmall.copyWith(
                       fontSize: 10,
-                      color: Colors.black87,
-                      fontWeight: FontWeight.w500,
+                      color: Colors.black,
+                      fontWeight: FontWeight.w700,
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -1887,7 +1882,11 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                           value: p,
                           child: Text(
                             p.product,
-                            style: AppTheme.bodySmall.copyWith(fontSize: 10),
+                            style: AppTheme.bodySmall.copyWith(
+                              fontSize: 10,
+                              color: Colors.black,
+                              fontWeight: FontWeight.w700,
+                            ),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
@@ -1922,7 +1921,8 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                   "Select",
                   style: AppTheme.bodySmall.copyWith(
                     fontSize: 10,
-                    color: Colors.grey,
+                    color: Colors.black,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
                 isExpanded: true,
@@ -1936,7 +1936,11 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                         value: p,
                         child: Text(
                           p.product,
-                          style: AppTheme.bodySmall.copyWith(fontSize: 10),
+                          style: AppTheme.bodySmall.copyWith(
+                            fontSize: 10,
+                            color: Colors.black,
+                            fontWeight: FontWeight.w700,
+                          ),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
@@ -2034,7 +2038,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
               style: AppTheme.bodySmall.copyWith(
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
-                color: fv < 0 ? Colors.red : Colors.grey.shade700,
+                color: fv < 0 ? Colors.red : Colors.black,
               ),
             ),
           );
@@ -2056,8 +2060,8 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
               textAlign: TextAlign.right,
               style: AppTheme.bodySmall.copyWith(
                 fontSize: 10,
-                fontWeight: FontWeight.w600,
-                color: AppTheme.primaryColor,
+                fontWeight: FontWeight.w700,
+                color: Colors.black,
               ),
             );
           }),
@@ -2079,7 +2083,8 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
               textAlign: TextAlign.right,
               style: AppTheme.bodySmall.copyWith(
                 fontSize: 10,
-                color: AppTheme.primaryColor,
+                fontWeight: FontWeight.w700,
+                color: Colors.black,
               ),
             );
           }),
@@ -2096,7 +2101,11 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
         text,
         textAlign: right ? TextAlign.right : TextAlign.left,
         overflow: TextOverflow.ellipsis,
-        style: AppTheme.bodySmall.copyWith(fontSize: 10),
+        style: AppTheme.bodySmall.copyWith(
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          color: Colors.black,
+        ),
       ),
     );
   }
@@ -2117,7 +2126,11 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       child: TextFormField(
         initialValue: value,
         enabled: !locked,
-        style: AppTheme.bodySmall.copyWith(fontSize: 10),
+        style: AppTheme.bodySmall.copyWith(
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          color: Colors.black,
+        ),
         textAlign: TextAlign.right,
         keyboardType: const TextInputType.numberWithOptions(
           signed: true,
