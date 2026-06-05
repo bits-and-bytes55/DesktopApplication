@@ -1068,10 +1068,11 @@ export const getVolumeNameCalculation = async (req, res) => {
     const operationEndVol = operationVolumeEffects.forceEndVolZero
       ? 0
       : round2(activeSystem + operationVolumeEffects.endVolDelta);
+    const endVolBase = Math.max(activeSystemVolume, activeSystem);
     const endVol = operationVolumeEffects.forceEndVolZero
       ? 0
-      : activeSystemVolume > 0
-        ? round2(activeSystemVolume + operationVolumeEffects.endVolDelta)
+      : endVolBase > 0
+        ? round2(endVolBase + operationVolumeEffects.endVolDelta)
         : Math.abs(operationVolumeEffects.endVolDelta) >= 0.005
           ? operationEndVol
           : 0;
