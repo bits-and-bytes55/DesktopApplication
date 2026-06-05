@@ -2606,15 +2606,30 @@ class MudController extends GetxController {
   void changeModel(String model) {
     rheologyModel.value = model;
     _updateRheologyRows();
+    calculateRheology();
     _setupMudStateWatchers();
     _scheduleMudReportSave();
   }
 
   void _updateRheologyRows() {
     final rows = _rheologyRowsForModel(rheologyModel.value);
+    final previousValues = <String, List<String>>{};
+    for (final entry in rheologyTable.entries) {
+      previousValues[entry.key] = entry.value
+          .map((cell) => cell.value)
+          .toList();
+    }
     rheologyTable.clear();
     for (var r in rows) {
-      rheologyTable[r] = List.generate(samples.length, (_) => ''.obs);
+      final previousRow = previousValues[r];
+      rheologyTable[r] = List.generate(
+        samples.length,
+        (index) =>
+            (previousRow != null && index < previousRow.length
+                    ? previousRow[index]
+                    : '')
+                .obs,
+      );
     }
     _setupMudStateWatchers();
   }
@@ -2679,7 +2694,7 @@ class MudController extends GetxController {
             _clearRheologyRows(i, const ['n', 'K (lbf-s^n/100ft2)']);
           } else {
             final n = 3.32 * _log10(r600 / r300);
-            final k = r300 / _pow(511, n);
+            final k = r600 / _pow(1022, n);
             rheologyTable['n']?[i].value = n.toStringAsFixed(3);
             rheologyTable['K (lbf-s^n/100ft2)']?[i].value = k.toStringAsFixed(
               3,
@@ -2702,7 +2717,7 @@ class MudController extends GetxController {
             _clearRheologyRows(i, const ['n', 'K (lbf-s^n/100ft2)']);
           } else {
             final n = 3.32 * _log10(adjusted600 / adjusted300);
-            final k = adjusted300 / _pow(511, n);
+            final k = adjusted600 / _pow(1022, n);
             rheologyTable['n']?[i].value = n.toStringAsFixed(3);
             rheologyTable['K (lbf-s^n/100ft2)']?[i].value = k.toStringAsFixed(
               3,
@@ -2739,7 +2754,7 @@ class MudController extends GetxController {
         }
         break;
     }
-    rheologyTable.refresh();
+    calculateRheology();
     _scheduleMudReportSave();
   }
 
