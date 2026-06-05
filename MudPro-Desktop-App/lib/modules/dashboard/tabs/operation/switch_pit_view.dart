@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart';
+import 'package:mudpro_desktop_app/modules/UG/model/pit_model.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 import '../../controller/dashboard_controller.dart';
@@ -23,6 +24,8 @@ class _SwitchPitViewState extends State<SwitchPitView> {
   final ScrollController activePitScrollController = ScrollController();
   final ScrollController storagePitScrollController = ScrollController();
   final RxBool notTreatedMud = false.obs;
+  final Map<String, TextEditingController> _activeVolumeControllers = {};
+  final Set<String> _checkedActionKeys = {};
   int selectedActiveIndex = 0;
   int selectedStorageIndex = 0;
 
@@ -43,6 +46,9 @@ class _SwitchPitViewState extends State<SwitchPitView> {
 
   @override
   void dispose() {
+    for (final controller in _activeVolumeControllers.values) {
+      controller.dispose();
+    }
     activePitScrollController.dispose();
     storagePitScrollController.dispose();
     super.dispose();
@@ -243,10 +249,7 @@ class _SwitchPitViewState extends State<SwitchPitView> {
                               fill: _editableFill,
                             ),
                             _buildCheckboxCell(pit, true),
-                            _buildDataCell(
-                              pit.capacity.value.toStringAsFixed(2),
-                              isRight: true,
-                            ),
+                            _buildEditableVolumeCell(pit),
                           ],
                         ),
                       ],
@@ -451,16 +454,37 @@ class _SwitchPitViewState extends State<SwitchPitView> {
     );
   }
 
-  Widget _buildCheckboxCell(dynamic pit, bool isActive) {
+  Widget _buildEditableVolumeCell(PitModel pit) {
+    final controller = _controllerForPit(pit);
+    return Container(
+      height: _rowHeight,
+      alignment: Alignment.centerRight,
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: TextField(
+        controller: controller,
+        enabled: !dashboardController.isLocked.value,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        textAlign: TextAlign.right,
+        style: AppTheme.bodySmall.copyWith(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: Colors.black,
+        ),
+        decoration: const InputDecoration(
+          isDense: true,
+          border: InputBorder.none,
+          contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 5),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCheckboxCell(PitModel pit, bool isActive) {
     return Container(
       height: _rowHeight,
       alignment: Alignment.center,
       child: Obx(() {
-        // For active pits: checkbox is checked when initialActive is true
-        // For storage pits: checkbox is checked when initialActive is false (inverted)
-        bool checkboxValue = isActive
-            ? pit.initialActive.value
-            : !pit.initialActive.value;
+        final checkboxValue = _checkedActionKeys.contains(_pitKey(pit));
 
         return Transform.scale(
           scale: 0.82,
@@ -468,13 +492,7 @@ class _SwitchPitViewState extends State<SwitchPitView> {
             value: checkboxValue,
             onChanged: dashboardController.isLocked.value
                 ? null
-                : (v) async {
-                    // Toggle the pit status
-                    await pitController.togglePitActive(pit);
-
-                    // Reload data to reflect changes
-                    await _loadData();
-                  },
+                : (value) => _handleSwitchAction(pit, isActive),
             activeColor: AppTheme.primaryColor,
             checkColor: Colors.white,
             shape: RoundedRectangleBorder(
@@ -488,9 +506,99 @@ class _SwitchPitViewState extends State<SwitchPitView> {
     );
   }
 
+  TextEditingController _controllerForPit(PitModel pit) {
+    final key = _pitKey(pit);
+    final existing = _activeVolumeControllers[key];
+    if (existing != null) return existing;
+
+    final controller = TextEditingController(
+      text: _formatVolume(_availableVolume(pit)),
+    );
+    _activeVolumeControllers[key] = controller;
+    return controller;
+  }
+
+  String _pitKey(PitModel pit) {
+    final id = pit.id?.trim() ?? '';
+    return id.isNotEmpty ? id : pit.pitName.trim();
+  }
+
+  double _availableVolume(PitModel pit) {
+    return pit.volume?.value ?? 0.0;
+  }
+
+  double _parseVolume(String value) {
+    return double.tryParse(value.trim().replaceAll(',', '')) ?? 0.0;
+  }
+
+  String _formatVolume(double value) {
+    return value.toStringAsFixed(2);
+  }
+
+  void _showSwitchError(String message) {
+    Get.snackbar(
+      'Switch Pit',
+      message,
+      snackPosition: SnackPosition.TOP,
+      backgroundColor: Colors.redAccent,
+      colorText: Colors.white,
+      margin: const EdgeInsets.all(12),
+      duration: const Duration(seconds: 3),
+    );
+  }
+
+  Future<void> _handleSwitchAction(PitModel pit, bool isActive) async {
+    if (dashboardController.isLocked.value) return;
+
+    final key = _pitKey(pit);
+    _checkedActionKeys.add(key);
+    setState(() {});
+
+    final available = _availableVolume(pit);
+    double transferVolume = available;
+
+    if (isActive) {
+      transferVolume = _parseVolume(_controllerForPit(pit).text);
+      if (transferVolume <= 0) {
+        _checkedActionKeys.remove(key);
+        setState(() {});
+        _showSwitchError('Enter transfer volume greater than 0');
+        return;
+      }
+      if (available <= 0) {
+        _checkedActionKeys.remove(key);
+        setState(() {});
+        _showSwitchError('${pit.pitName} has no measured volume');
+        return;
+      }
+      if (transferVolume > available + 0.005) {
+        _checkedActionKeys.remove(key);
+        setState(() {});
+        _showSwitchError(
+          'Transfer volume cannot exceed ${_formatVolume(available)} bbl',
+        );
+        return;
+      }
+    }
+
+    final result = await pitController.switchPitStatusWithVolume(
+      pit: pit,
+      initialActive: !isActive,
+      volume: transferVolume,
+    );
+
+    _checkedActionKeys.remove(key);
+    _activeVolumeControllers.remove(key)?.dispose();
+    setState(() {});
+
+    if (result['success'] == true) {
+      await _loadData();
+    }
+  }
+
   Future<void> _showPitRowMenu({
     required Offset position,
-    required dynamic pit,
+    required PitModel pit,
     required bool isActive,
   }) async {
     final canEdit = !dashboardController.isLocked.value;
@@ -541,8 +649,7 @@ class _SwitchPitViewState extends State<SwitchPitView> {
         await Clipboard.setData(ClipboardData(text: pit.pitName.toString()));
         break;
       case 'move':
-        await pitController.togglePitActive(pit);
-        await _loadData();
+        await _handleSwitchAction(pit, isActive);
         break;
       case 'delete':
         await pitController.deletePit(pit);

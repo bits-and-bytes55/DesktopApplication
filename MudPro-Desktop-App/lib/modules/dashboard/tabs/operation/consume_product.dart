@@ -2187,7 +2187,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: AppTheme.primaryColor,
               border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
             ),
             child: Row(
@@ -2195,9 +2195,9 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                 Text(
                   "Distribute to",
                   style: AppTheme.bodySmall.copyWith(
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w700,
                     fontSize: 12,
-                    color: AppTheme.textPrimary,
+                    color: Colors.black,
                   ),
                 ),
                 const Spacer(),
@@ -2235,7 +2235,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
           // ── Table header ──
           Container(
             decoration: BoxDecoration(
-              color: Colors.grey.shade100,
+              color: AppTheme.primaryColor,
               border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
             ),
             child: Row(
@@ -2322,6 +2322,8 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                                   enabled: !dashboardController.isLocked.value,
                                   style: AppTheme.bodySmall.copyWith(
                                     fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.black,
                                   ),
                                   textAlign: TextAlign.right,
                                   keyboardType:
@@ -2387,7 +2389,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       // Empty option to clear selection
       DropdownMenuItem<String>(
         value: kEmpty,
-        child: Text('', style: AppTheme.bodySmall.copyWith(fontSize: 10)),
+        child: Text('', style: AppTheme.bodySmall.copyWith(fontSize: 11)),
       ),
       // Active System fixed option
       DropdownMenuItem<String>(
@@ -2403,9 +2405,9 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
             Text(
               kActiveSystem,
               style: AppTheme.bodySmall.copyWith(
-                fontSize: 10,
-                color: AppTheme.primaryColor,
-                fontWeight: FontWeight.w600,
+                fontSize: 11,
+                color: Colors.black,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ],
@@ -2417,7 +2419,11 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
           value: pitName,
           child: Text(
             pitName,
-            style: AppTheme.bodySmall.copyWith(fontSize: 10),
+            style: AppTheme.bodySmall.copyWith(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              color: Colors.black,
+            ),
             overflow: TextOverflow.ellipsis,
           ),
         ),
@@ -2440,7 +2446,8 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
         ),
         style: AppTheme.bodySmall.copyWith(
           fontSize: 10,
-          color: AppTheme.textPrimary,
+          color: Colors.black,
+          fontWeight: FontWeight.w700,
         ),
         menuMaxHeight: 250,
         items: items,
@@ -2500,7 +2507,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
           style: AppTheme.bodySmall.copyWith(
             fontSize: 10,
             fontWeight: FontWeight.w600,
-            color: AppTheme.successColor,
+            color: Colors.black,
           ),
         ),
       ),
@@ -2573,7 +2580,8 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                           "Add Water",
                           style: AppTheme.bodySmall.copyWith(
                             fontSize: 10,
-                            fontWeight: FontWeight.w500,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.black,
                           ),
                         ),
                       ],
@@ -2596,7 +2604,8 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                 "Total Vol.",
                 style: AppTheme.bodySmall.copyWith(
                   fontSize: 10,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.black,
                 ),
               ),
               const SizedBox(width: 6),
@@ -2634,7 +2643,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                               style: AppTheme.bodySmall.copyWith(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w700,
-                                color: AppTheme.primaryColor,
+                                color: Colors.black,
                               ),
                             ),
                           ),
@@ -2653,8 +2662,8 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                               "bbl",
                               style: AppTheme.bodySmall.copyWith(
                                 fontSize: 10,
-                                color: AppTheme.primaryColor,
-                                fontWeight: FontWeight.w600,
+                                color: Colors.black,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
                           ),
@@ -2689,7 +2698,8 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                     "Active System follows Total Vol. Storage pit rows are saved separately for Volume Name End Vol. calculations.",
                     style: AppTheme.bodySmall.copyWith(
                       fontSize: 9,
-                      color: Colors.amber.shade900,
+                      color: Colors.black,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
@@ -2715,7 +2725,11 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
             child: TextField(
               controller: waterVolumeController,
               enabled: !dashboardController.isLocked.value,
-              style: AppTheme.bodySmall.copyWith(fontSize: 10),
+              style: AppTheme.bodySmall.copyWith(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: Colors.black,
+              ),
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(
                 isDense: true,
@@ -2746,8 +2760,8 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                 "bbl",
                 style: AppTheme.bodySmall.copyWith(
                   fontSize: 10,
-                  color: AppTheme.primaryColor,
-                  fontWeight: FontWeight.w600,
+                  color: Colors.black,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ),

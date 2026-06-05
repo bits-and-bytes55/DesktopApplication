@@ -773,6 +773,47 @@ class PitController extends GetxController {
     }
   }
 
+  Future<Map<String, dynamic>> switchPitStatusWithVolume({
+    required PitModel pit,
+    required bool initialActive,
+    double? volume,
+  }) async {
+    final pitId = pit.id?.trim() ?? '';
+    if (pitId.isEmpty) {
+      return {'success': false, 'message': 'Pit is not saved yet'};
+    }
+
+    try {
+      final authRepo = AuthRepository();
+      final result = await authRepo.updatePit(
+        id: pitId,
+        pitName: pit.pitName.trim(),
+        capacity: pit.capacity.value,
+        initialActive: initialActive,
+        volume: volume ?? pit.volume?.value,
+        density: pit.density?.value,
+        fluidType: pit.fluidType?.value,
+      );
+
+      if (result['success'] == true) {
+        _showAlert(
+          initialActive ? 'Moved to active pit' : 'Moved to storage',
+          isError: false,
+        );
+        await fetchAllPits();
+        await fetchVolumeNameData();
+      } else {
+        _showAlert(result['message'] ?? 'Failed to update pit', isError: true);
+      }
+
+      return result;
+    } catch (e) {
+      debugPrint('Error switching pit status: $e');
+      _showAlert('Error updating pit', isError: true);
+      return {'success': false, 'message': 'Error updating pit'};
+    }
+  }
+
   void schedulePitConfigSave(PitModel pit) {
     final pitId = pit.id?.trim() ?? '';
     if (pitId.isEmpty) {
