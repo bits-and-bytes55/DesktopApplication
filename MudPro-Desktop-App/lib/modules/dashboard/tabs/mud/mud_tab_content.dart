@@ -47,12 +47,10 @@ class _MudViewState extends State<MudView> {
     intervalCtrl = Get.isRegistered<IntervalController>()
         ? Get.find<IntervalController>()
         : Get.put(IntervalController(), permanent: true);
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) async {
-        await c.useMudStateScope('');
-        await c.refreshMudPropertyUnitsFromSetup();
-      },
-    );
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await c.useMudStateScope('');
+      await c.refreshMudPropertyUnitsFromSetup();
+    });
   }
 
   Future<String?> _selectedReportIntervalId() async {
@@ -88,7 +86,9 @@ class _MudViewState extends State<MudView> {
       final item = items[i];
       final name = item.name.trim();
       final duplicateLabel = (counts[name] ?? 0) > 1 ? '${i + 1}. $name' : name;
-      if (selected == item.id || selected == name || selected == duplicateLabel) {
+      if (selected == item.id ||
+          selected == name ||
+          selected == duplicateLabel) {
         return item.id;
       }
     }
@@ -1363,12 +1363,13 @@ class _MudViewState extends State<MudView> {
                                                           details,
                                                           currentValue:
                                                               cell.value.value,
-                                                          onValueChanged:
-                                                              (value) =>
-                                                                  cell
-                                                                          .value
-                                                                          .value =
-                                                                      value,
+                                                          onValueChanged: (value) {
+                                                            cell.value.value =
+                                                                value;
+                                                            c.handleRheologyInputChanged(
+                                                              cell.key,
+                                                            );
+                                                          },
                                                         ),
                                                     child: TextField(
                                                       key: ValueKey(

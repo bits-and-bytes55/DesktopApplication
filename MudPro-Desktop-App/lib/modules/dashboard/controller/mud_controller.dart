@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
@@ -507,6 +508,9 @@ class MudController extends GetxController {
       final savedState =
           cachedState ??
           (applySavedState ? await _fetchMudReportState() : null);
+      if (applySavedState && savedState == null) {
+        _resetMudStateDefaults();
+      }
       final savedFluidType = (savedState?['fluidType'] ?? '').toString().trim();
       if (savedFluidType.isNotEmpty) {
         selectedFluidType.value = savedFluidType;
@@ -2854,7 +2858,7 @@ class MudController extends GetxController {
   // MATH HELPERS
   // ═══════════════════════════════════════════════════════════════════════════
 
-  double _log10(double x) => x > 0 ? 0.4342944819 * _ln(x) : 0;
+  double _log10(double x) => x > 0 ? math.log(x) / math.ln10 : 0;
 
   double _cacl2BrineSg(double saltWtPct) =>
       0.99707 + (0.007923 * saltWtPct) + (0.00004964 * saltWtPct * saltWtPct);
@@ -3013,26 +3017,8 @@ class MudController extends GetxController {
     return chlorideFromNacl <= 0 ? 0 : 1.648 * chlorideFromNacl;
   }
 
-  double _ln(double x) {
-    if (x <= 0) return 0;
-    double r = 0, y = (x - 1) / (x + 1), y2 = y * y, t = y;
-    for (int i = 0; i < 50; i++) {
-      r += t / (2 * i + 1);
-      t *= y2;
-    }
-    return 2 * r;
-  }
-
   double _pow(double base, double exp) =>
-      base <= 0 ? 0 : _expM(exp * _ln(base));
-  double _expM(double x) {
-    double r = 1, t = 1;
-    for (int i = 1; i <= 50; i++) {
-      t *= x / i;
-      r += t;
-    }
-    return r;
-  }
+      base <= 0 ? 0 : math.pow(base, exp).toDouble();
 
   // ═══════════════════════════════════════════════════════════════════════════
   // DISPOSE
