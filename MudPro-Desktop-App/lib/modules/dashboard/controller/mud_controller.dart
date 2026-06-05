@@ -135,6 +135,7 @@ class MudController extends GetxController {
   bool _isApplyingSavedState = false;
   final RxString _stateScopeKey = ''.obs;
   final Map<String, Map<String, dynamic>> _stateCache = {};
+  final Set<String> _cleanNewReportIds = <String>{};
 
   final solidSaveStatus = <String, RxString>{
     '0': 'idle'.obs,
@@ -501,14 +502,21 @@ class MudController extends GetxController {
   Future<void> loadFluidTypeData({bool applySavedState = true}) async {
     isLoading.value = true;
     _isApplyingSavedState = true;
+    final reportIdForLoad = _reportId;
+    final forceCleanState =
+        applySavedState &&
+        reportIdForLoad.isNotEmpty &&
+        _cleanNewReportIds.remove(reportIdForLoad);
     try {
-      final cachedState = applySavedState
+      final cachedState = applySavedState && !forceCleanState
           ? _stateCache[_mudStateCacheKey]
           : null;
       final savedState =
           cachedState ??
-          (applySavedState ? await _fetchMudReportState() : null);
-      if (applySavedState && savedState == null) {
+          (applySavedState && !forceCleanState
+              ? await _fetchMudReportState()
+              : null);
+      if (applySavedState && (savedState == null || forceCleanState)) {
         _resetMudStateDefaults();
       }
       final savedFluidType = (savedState?['fluidType'] ?? '').toString().trim();
@@ -545,6 +553,9 @@ class MudController extends GetxController {
       }
       _setupSolidAnalysisWatchers();
       _setupMudStateWatchers();
+      if (forceCleanState) {
+        await saveMudReportState(force: true);
+      }
     } catch (e) {
       debugPrint('[MudController] loadFluidTypeData error: $e');
     } finally {
@@ -925,6 +936,13 @@ class MudController extends GetxController {
     _clearMudBottomSections();
     solidAnalysisResult.clear();
     _initRheologyTable();
+  }
+
+  void markNewReportMudStateClean(String reportId) {
+    final normalized = reportId.trim();
+    if (normalized.isEmpty) return;
+    _cleanNewReportIds.add(normalized);
+    _stateCache.remove(_mudStateCacheKeyForReportId(normalized));
   }
 
   void _clearMudBottomSections() {
