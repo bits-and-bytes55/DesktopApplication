@@ -30,6 +30,15 @@ class _DefaultMudPropertiesPageState extends State<DefaultMudPropertiesPage> {
   bool _isLoading = true;
   bool _isSaving = false;
   final Map<String, String> _unitOverrides = {};
+  final Map<String, String> _formatOverrides = {};
+  static const List<String> _formatOptions = [
+    'Default',
+    '0',
+    '0.0',
+    '0.00',
+    '0.000',
+    '0.0000',
+  ];
 
   @override
   void initState() {
@@ -90,14 +99,18 @@ class _DefaultMudPropertiesPageState extends State<DefaultMudPropertiesPage> {
 
   void _primeUnitOverrides() {
     _unitOverrides.clear();
+    _formatOverrides.clear();
     for (final item in _selected.waterBased) {
       _unitOverrides[_unitKey('water', item.name)] = item.unit;
+      _formatOverrides[_unitKey('water', item.name)] = item.format;
     }
     for (final item in _selected.oilBased) {
       _unitOverrides[_unitKey('oil', item.name)] = item.unit;
+      _formatOverrides[_unitKey('oil', item.name)] = item.format;
     }
     for (final item in _selected.synthetic) {
       _unitOverrides[_unitKey('synthetic', item.name)] = item.unit;
+      _formatOverrides[_unitKey('synthetic', item.name)] = item.format;
     }
   }
 
@@ -126,8 +139,22 @@ class _DefaultMudPropertiesPageState extends State<DefaultMudPropertiesPage> {
     return item.unit;
   }
 
+  String _currentFormat(String col, MudPropertyItem item) {
+    final override = _formatOverrides[_unitKey(col, item.name)];
+    if (override != null && override.trim().isNotEmpty) return override;
+    final selected = _selectedList(col).where((e) => e.name == item.name);
+    if (selected.isNotEmpty && selected.first.format.trim().isNotEmpty) {
+      return selected.first.format;
+    }
+    return item.format;
+  }
+
   MudPropertyItem _withCurrentUnit(String col, MudPropertyItem item) =>
-      MudPropertyItem(name: item.name, unit: _currentUnit(col, item));
+      MudPropertyItem(
+        name: item.name,
+        unit: _currentUnit(col, item),
+        format: _currentFormat(col, item),
+      );
 
   String _displayName(String col, MudPropertyItem item) {
     if (col == 'water' &&
@@ -208,7 +235,27 @@ class _DefaultMudPropertiesPageState extends State<DefaultMudPropertiesPage> {
       final list = List<MudPropertyItem>.from(_selectedList(col));
       final index = list.indexWhere((selected) => selected.name == item.name);
       if (index >= 0) {
-        list[index] = MudPropertyItem(name: item.name, unit: unit);
+        list[index] = MudPropertyItem(
+          name: item.name,
+          unit: unit,
+          format: _currentFormat(col, item),
+        );
+        _selected = _copyWithList(col, list);
+      }
+    });
+  }
+
+  void _changeFormat(String col, MudPropertyItem item, String format) {
+    setState(() {
+      _formatOverrides[_unitKey(col, item.name)] = format;
+      final list = List<MudPropertyItem>.from(_selectedList(col));
+      final index = list.indexWhere((selected) => selected.name == item.name);
+      if (index >= 0) {
+        list[index] = MudPropertyItem(
+          name: item.name,
+          unit: _currentUnit(col, item),
+          format: format,
+        );
         _selected = _copyWithList(col, list);
       }
     });
@@ -310,12 +357,15 @@ class _DefaultMudPropertiesPageState extends State<DefaultMudPropertiesPage> {
                 _buildHeaderCell('Water-based', null,
                     col: 'water', showSelectAll: true, flex: 2),
                 _buildHeaderCell('Unit', 80, isFixed: true),
+                _buildHeaderCell('Format', 82, isFixed: true),
                 _buildHeaderCell('Oil-based', null,
                     col: 'oil', showSelectAll: true, flex: 2),
                 _buildHeaderCell('Unit', 80, isFixed: true),
+                _buildHeaderCell('Format', 82, isFixed: true),
                 _buildHeaderCell('Synthetic', null,
                     col: 'synthetic', showSelectAll: true, flex: 2),
                 _buildHeaderCell('Unit', 80, isFixed: true),
+                _buildHeaderCell('Format', 82, isFixed: true),
               ],
             ),
           ),
@@ -357,6 +407,8 @@ class _DefaultMudPropertiesPageState extends State<DefaultMudPropertiesPage> {
                                   AppTheme.primaryColor.withOpacity(0.03),
                             ),
                             _buildUnitCell('water', index, _staticData.waterBased),
+                            _buildFormatCell(
+                                'water', index, _staticData.waterBased),
                             _buildSelectableCell(
                               col: 'oil',
                               index: index,
@@ -366,6 +418,7 @@ class _DefaultMudPropertiesPageState extends State<DefaultMudPropertiesPage> {
                                   const Color(0xff8B4513).withOpacity(0.03),
                             ),
                             _buildUnitCell('oil', index, _staticData.oilBased),
+                            _buildFormatCell('oil', index, _staticData.oilBased),
                             _buildSelectableCell(
                               col: 'synthetic',
                               index: index,
@@ -375,6 +428,8 @@ class _DefaultMudPropertiesPageState extends State<DefaultMudPropertiesPage> {
                                   const Color(0xff20B2AA).withOpacity(0.03),
                             ),
                             _buildUnitCell(
+                                'synthetic', index, _staticData.synthetic),
+                            _buildFormatCell(
                                 'synthetic', index, _staticData.synthetic),
                           ],
                         ),
@@ -494,6 +549,48 @@ class _DefaultMudPropertiesPageState extends State<DefaultMudPropertiesPage> {
                             value,
                             overflow: TextOverflow.ellipsis,
                           ),
+                        ),
+                      )
+                      .toList(),
+                ),
+              ),
+      ),
+    );
+  }
+
+  Widget _buildFormatCell(String col, int index, List<MudPropertyItem> items) {
+    final hasItem = index < items.length;
+    final item = hasItem ? items[index] : null;
+    final format = item == null ? '-' : _currentFormat(col, item);
+    return Container(
+      width: 82,
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          right: BorderSide(color: Colors.grey.shade300, width: 1),
+        ),
+      ),
+      child: Center(
+        child: item == null
+            ? Text(
+                format,
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+              )
+            : DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: _formatOptions.contains(format) ? format : 'Default',
+                  isExpanded: true,
+                  isDense: true,
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+                  onChanged: (value) {
+                    if (value != null) _changeFormat(col, item, value);
+                  },
+                  items: _formatOptions
+                      .map(
+                        (value) => DropdownMenuItem<String>(
+                          value: value,
+                          child: Text(value, overflow: TextOverflow.ellipsis),
                         ),
                       )
                       .toList(),
