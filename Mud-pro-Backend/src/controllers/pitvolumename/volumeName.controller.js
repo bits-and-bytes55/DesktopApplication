@@ -93,6 +93,33 @@ const normalizeMudLossStorageItems = (items = []) => {
   });
 };
 
+const normalizeAddWaterItems = (items = []) => {
+  const latestTargetByInstance = new Map();
+
+  for (const item of items) {
+    const operationInstanceKey = toText(item.operationInstanceKey);
+    if (!operationInstanceKey) continue;
+
+    const current = latestTargetByInstance.get(operationInstanceKey);
+    const currentTime = itemTime(item);
+    if (!current || currentTime >= current.time) {
+      latestTargetByInstance.set(operationInstanceKey, {
+        target: toText(item.to).toLowerCase(),
+        time: currentTime,
+      });
+    }
+  }
+
+  return items.filter((item) => {
+    const operationInstanceKey = toText(item.operationInstanceKey);
+    if (!operationInstanceKey) return true;
+
+    const latest = latestTargetByInstance.get(operationInstanceKey);
+    if (!latest) return true;
+    return toText(item.to).toLowerCase() === latest.target;
+  });
+};
+
 const calculatePipeVolume = ({ id, length }) => {
   const idIn = toNumber(id);
   const lengthFt = toNumber(length);
@@ -527,7 +554,6 @@ const buildOperationVolumeEffects = ({
       activeSystemDelta += volume;
       addPitDelta(activeDeltaByPit, item.to, volume);
     } else {
-      endVolDelta += volume;
       addPitDelta(storageDeltaByPit, item.to, volume);
     }
   }
@@ -1018,6 +1044,7 @@ export const getVolumeNameCalculation = async (req, res) => {
       ]);
     const normalizedMudLossStorageEntries =
       normalizeMudLossStorageItems(mudLossStorageEntries);
+    const normalizedAddWaterEntries = normalizeAddWaterItems(addWaterEntries);
 
     const md = toNumber(wellGeneral?.md);
 
@@ -1085,7 +1112,7 @@ export const getVolumeNameCalculation = async (req, res) => {
     const operationVolumeEffects = buildOperationVolumeEffects({
       receivedMud,
       returnLostMud,
-      addWaterEntries,
+      addWaterEntries: normalizedAddWaterEntries,
       otherVolAdditions,
       mudLossEntries,
       mudLossStorageEntries: normalizedMudLossStorageEntries,
@@ -1104,7 +1131,7 @@ export const getVolumeNameCalculation = async (req, res) => {
     const derivedActiveSystem = round2(activePitsWithTransfer + heldVolDifference);
     const activeSystem = derivedActiveSystem;
     const adjustedActiveSystemWater = calculateAdjustedActiveSystemWater({
-      addWaterEntries,
+      addWaterEntries: normalizedAddWaterEntries,
       activePitsList,
     });
     const pendingActiveSystemWater = round2(
@@ -1147,7 +1174,9 @@ export const getVolumeNameCalculation = async (req, res) => {
     );
 
     const addWaterTotal = Number(
-      addWaterEntries.reduce((sum, item) => sum + toNumber(item.volume), 0).toFixed(2)
+      normalizedAddWaterEntries
+        .reduce((sum, item) => sum + toNumber(item.volume), 0)
+        .toFixed(2)
     );
 
     const mudLossTotal = Number(
