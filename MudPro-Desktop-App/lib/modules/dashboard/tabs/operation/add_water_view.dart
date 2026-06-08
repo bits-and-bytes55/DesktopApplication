@@ -332,13 +332,13 @@ class _AddWaterViewState extends State<AddWaterView> {
     return Padding(
       padding: const EdgeInsets.all(12),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
             "Add Water",
             style: AppTheme.titleMedium.copyWith(
               fontSize: 14,
-              fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
               color: AppTheme.textPrimary,
             ),
           ),
@@ -346,7 +346,7 @@ class _AddWaterViewState extends State<AddWaterView> {
           Align(
             alignment: Alignment.centerLeft,
             child: SizedBox(
-              width: 300,
+              width: double.infinity,
               child: Container(
                 decoration: BoxDecoration(
                   color: Colors.white,
@@ -363,17 +363,12 @@ class _AddWaterViewState extends State<AddWaterView> {
                 child: Obx(() {
                   _syncExtraControllers();
                   return Column(
-                    mainAxisSize: MainAxisSize.min,
+                      mainAxisSize: MainAxisSize.max,
                     children: [
                       Container(
                         height: 36,
                         decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              AppTheme.primaryColor.withOpacity(0.95),
-                              AppTheme.primaryColor,
-                            ],
-                          ),
+                          color: AppTheme.primaryColor,
                           borderRadius: const BorderRadius.only(
                             topLeft: Radius.circular(8),
                             topRight: Radius.circular(8),
@@ -401,15 +396,15 @@ class _AddWaterViewState extends State<AddWaterView> {
                                     margin: const EdgeInsets.only(right: 6),
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
-                                      color: Colors.white.withOpacity(0.8),
+                                      color: Colors.black,
                                     ),
                                   ),
                                   Text(
                                     "To",
                                     style: AppTheme.bodySmall.copyWith(
                                       fontSize: 11,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.white,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.black,
                                     ),
                                   ),
                                 ],
@@ -447,15 +442,15 @@ class _AddWaterViewState extends State<AddWaterView> {
                                             _selectedTo.value,
                                             style: AppTheme.bodySmall.copyWith(
                                               fontSize: 11,
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.w500,
+                                              color: Colors.black,
+                                              fontWeight: FontWeight.w700,
                                             ),
                                           ),
                                         ),
                                         const Icon(
                                           Icons.arrow_drop_down_rounded,
                                           size: 16,
-                                          color: Colors.white,
+                                          color: Colors.black,
                                         ),
                                       ],
                                     ),
@@ -525,7 +520,7 @@ class _AddWaterViewState extends State<AddWaterView> {
                       Container(
                         height: 36,
                         decoration: BoxDecoration(
-                          color: AppTheme.primaryColor.withOpacity(0.08),
+                    color: AppTheme.primaryColor,
                           border: Border(
                             bottom: BorderSide(color: Colors.grey.shade300),
                           ),
@@ -552,15 +547,15 @@ class _AddWaterViewState extends State<AddWaterView> {
                                     margin: const EdgeInsets.only(right: 6),
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
-                                      color: AppTheme.primaryColor,
+                                      color: Colors.black,
                                     ),
                                   ),
                                   Text(
                                     "Vol. (bbl)",
                                     style: AppTheme.bodySmall.copyWith(
                                       fontSize: 11,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppTheme.primaryColor,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.black,
                                     ),
                                   ),
                                 ],
@@ -587,8 +582,8 @@ class _AddWaterViewState extends State<AddWaterView> {
                                   ),
                                   style: AppTheme.bodySmall.copyWith(
                                     fontSize: 11,
-                                    color: AppTheme.textPrimary,
-                                    fontWeight: FontWeight.w500,
+                                    color: Colors.black,
+                                    fontWeight: FontWeight.w700,
                                   ),
                                   controller: _mainVolController,
                                   onChanged: (val) {
@@ -655,8 +650,8 @@ class _AddWaterViewState extends State<AddWaterView> {
                                     ),
                                     style: AppTheme.bodySmall.copyWith(
                                       fontSize: 11,
-                                      color: AppTheme.textPrimary,
-                                      fontWeight: FontWeight.w500,
+                                      color: Colors.black,
+                                      fontWeight: FontWeight.w700,
                                     ),
                                     keyboardType: TextInputType.number,
                                     onChanged: (val) {

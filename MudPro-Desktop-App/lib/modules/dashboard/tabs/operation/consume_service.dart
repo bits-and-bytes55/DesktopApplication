@@ -1479,15 +1479,15 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: AppTheme.primaryColor,
               border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
             ),
             child: Text(
               title,
               style: AppTheme.bodySmall.copyWith(
-                fontWeight: FontWeight.w500,
+                fontWeight: FontWeight.w700,
                 fontSize: 12,
-                color: AppTheme.textPrimary,
+                color: Colors.black,
               ),
             ),
           ),
@@ -1535,7 +1535,7 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
                           headingTextStyle: AppTheme.bodySmall.copyWith(
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
-                            color: Colors.white,
+                            color: Colors.black,
                           ),
                           dataTextStyle: AppTheme.bodySmall.copyWith(
                             fontSize: 10,

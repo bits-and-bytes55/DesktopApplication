@@ -481,6 +481,7 @@ const buildOperationVolumeEffects = ({
   activePitNames = new Set(),
 }) => {
   let activeSystemDelta = 0;
+  let addWaterActiveSystemDelta = 0;
   let endVolDelta = 0;
   let forceEndVolZero = false;
   const activeDeltaByPit = new Map();
@@ -491,6 +492,7 @@ const buildOperationVolumeEffects = ({
     endVolDelta += volume;
     if (isActiveSystemName(item.to)) {
       activeSystemDelta += volume;
+      addWaterActiveSystemDelta += volume;
     } else {
       addPitDelta(storageDeltaByPit, item.to, volume);
     }
@@ -499,9 +501,10 @@ const buildOperationVolumeEffects = ({
   for (const item of receivedMud) {
     const volume = toNumber(item.netVolume);
     endVolDelta += volume;
-    if (isActiveSystemName(item.to)) {
-      activeSystemDelta += volume;
-    } else {
+      if (isActiveSystemName(item.to)) {
+        activeSystemDelta += volume;
+        addWaterActiveSystemDelta += volume;
+      } else {
       addPitDelta(storageDeltaByPit, item.to, volume);
     }
   }
@@ -587,6 +590,7 @@ const buildOperationVolumeEffects = ({
 
   return {
     activeSystemDelta: round2(activeSystemDelta),
+    addWaterActiveSystemDelta: round2(addWaterActiveSystemDelta),
     endVolDelta: round2(endVolDelta),
     forceEndVolZero,
     activeDeltaByPit,
@@ -1064,11 +1068,13 @@ export const getVolumeNameCalculation = async (req, res) => {
       addPitDelta(calculatedVolumeByPit, pitName, volume);
     }
     const derivedActiveSystem = round2(activePitsWithTransfer + heldVolDifference);
-    const activeSystem = derivedActiveSystem;
+    const activeSystem = round2(
+      derivedActiveSystem + operationVolumeEffects.addWaterActiveSystemDelta
+    );
     const operationEndVol = operationVolumeEffects.forceEndVolZero
       ? 0
-      : round2(activeSystem + operationVolumeEffects.endVolDelta);
-    const endVolBase = Math.max(activeSystemVolume, activeSystem);
+      : round2(derivedActiveSystem + operationVolumeEffects.endVolDelta);
+    const endVolBase = Math.max(activeSystemVolume, derivedActiveSystem);
     const endVol = operationVolumeEffects.forceEndVolZero
       ? 0
       : endVolBase > 0
