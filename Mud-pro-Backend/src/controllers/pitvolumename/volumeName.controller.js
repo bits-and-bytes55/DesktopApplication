@@ -439,6 +439,36 @@ const buildCalculatedVolumeMap = (distributionRows = []) => {
 const isActiveSystemName = (value) =>
   toText(value).toLowerCase() === "active system";
 
+const calculateAdjustedActiveSystemWater = ({
+  addWaterEntries = [],
+  activePitsList = [],
+}) => {
+  const activeSystemWaterEntries = addWaterEntries.filter(
+    (item) => isActiveSystemName(item?.to) && toNumber(item?.volume) > 0
+  );
+  if (!activeSystemWaterEntries.length) return 0;
+
+  const totalWater = round2(
+    activeSystemWaterEntries.reduce(
+      (sum, item) => sum + toNumber(item?.volume),
+      0
+    )
+  );
+  const waterTimes = activeSystemWaterEntries
+    .map((item) => itemTime(item))
+    .filter((time) => Number.isFinite(time) && time > 0);
+  if (!waterTimes.length) return 0;
+
+  const firstWaterTime = Math.min(...waterTimes);
+  const adjustedActivePitVolume = activePitsList.reduce((sum, pit) => {
+    const pitTime = itemTime(pit);
+    if (!Number.isFinite(pitTime) || pitTime < firstWaterTime) return sum;
+    return sum + toNumber(pit?.volume);
+  }, 0);
+
+  return round2(Math.min(totalWater, Math.max(0, adjustedActivePitVolume)));
+};
+
 const isIgnoredDestination = (value) => {
   const key = toText(value).toLowerCase();
   return !key || key === "imp";
@@ -1073,15 +1103,31 @@ export const getVolumeNameCalculation = async (req, res) => {
     }
     const derivedActiveSystem = round2(activePitsWithTransfer + heldVolDifference);
     const activeSystem = derivedActiveSystem;
+    const adjustedActiveSystemWater = calculateAdjustedActiveSystemWater({
+      addWaterEntries,
+      activePitsList,
+    });
+    const pendingActiveSystemWater = round2(
+      Math.max(
+        0,
+        operationVolumeEffects.addWaterActiveSystemDelta -
+          adjustedActiveSystemWater
+      )
+    );
+    const effectiveEndVolDelta = round2(
+      operationVolumeEffects.endVolDelta -
+        operationVolumeEffects.addWaterActiveSystemDelta +
+        pendingActiveSystemWater
+    );
     const operationEndVol = operationVolumeEffects.forceEndVolZero
       ? 0
-      : round2(derivedActiveSystem + operationVolumeEffects.endVolDelta);
+      : round2(derivedActiveSystem + effectiveEndVolDelta);
     const endVolBase = Math.max(activeSystemVolume, derivedActiveSystem);
     const endVol = operationVolumeEffects.forceEndVolZero
       ? 0
       : endVolBase > 0
-        ? round2(endVolBase + operationVolumeEffects.endVolDelta)
-        : Math.abs(operationVolumeEffects.endVolDelta) >= 0.005
+        ? round2(endVolBase + effectiveEndVolDelta)
+        : Math.abs(effectiveEndVolDelta) >= 0.005
           ? operationEndVol
           : 0;
     const endVolMinusActiveSystem = Number(
@@ -1192,8 +1238,9 @@ export const getVolumeNameCalculation = async (req, res) => {
               .toFixed(2)
           ),
           operationActiveSystemDelta: operationVolumeEffects.activeSystemDelta,
-          operationEndVolDelta: operationVolumeEffects.endVolDelta,
+          operationEndVolDelta: effectiveEndVolDelta,
           operationEndVol,
+          pendingActiveSystemWater,
         },
         consumeProductDistribution: {
           inputMethod: toText(primaryDistributionState?.inputMethod) || "Used",
