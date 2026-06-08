@@ -269,6 +269,9 @@ class _AddWaterViewState extends State<AddWaterView> {
       final result = existingId.isNotEmpty
           ? await _repository.updateAddWater(wellId, existingId, body)
           : await _repository.createAddWater(wellId, body);
+      if (result['success'] != true) {
+        throw Exception(result['message'] ?? 'Failed to save Add Water');
+      }
       if (result['success'] == true && existingId.isEmpty) {
         final savedData = _extractEntity(result['data']);
         final savedId = (savedData?['_id'] ?? savedData?['id'])?.toString();
@@ -294,12 +297,20 @@ class _AddWaterViewState extends State<AddWaterView> {
     await _refreshPitState();
   }
 
+  Future<void> _saveSafely() async {
+    try {
+      await _save();
+    } catch (e) {
+      debugPrint('Add Water save error: $e');
+    }
+  }
+
   void _scheduleAutoSave() {
     if (_isApplyingState || _isLoading.value || !_hasData) return;
     _autoSaveTimer?.cancel();
     _autoSaveTimer = Timer(const Duration(milliseconds: 850), () async {
       if (_isApplyingState || _isLoading.value || !_hasData) return;
-      await _save();
+      await _saveSafely();
     });
   }
 
@@ -332,13 +343,13 @@ class _AddWaterViewState extends State<AddWaterView> {
     return Padding(
       padding: const EdgeInsets.all(12),
       child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
             "Add Water",
             style: AppTheme.titleMedium.copyWith(
               fontSize: 14,
-                      fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w700,
               color: AppTheme.textPrimary,
             ),
           ),
@@ -363,18 +374,19 @@ class _AddWaterViewState extends State<AddWaterView> {
                 child: Obx(() {
                   _syncExtraControllers();
                   return Column(
-                      mainAxisSize: MainAxisSize.max,
+                    mainAxisSize: MainAxisSize.max,
                     children: [
                       Container(
                         height: 36,
                         decoration: BoxDecoration(
-                          color: AppTheme.primaryColor,
+                          color: Colors.white,
                           borderRadius: const BorderRadius.only(
                             topLeft: Radius.circular(8),
                             topRight: Radius.circular(8),
                           ),
                         ),
                         child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             Container(
                               width: 80,
@@ -382,13 +394,18 @@ class _AddWaterViewState extends State<AddWaterView> {
                                 horizontal: 8,
                               ),
                               decoration: BoxDecoration(
+                                color: AppTheme.primaryColor,
+                                borderRadius: const BorderRadius.only(
+                                  topLeft: Radius.circular(8),
+                                ),
                                 border: Border(
                                   right: BorderSide(
-                                    color: Colors.white.withOpacity(0.3),
+                                    color: Colors.grey.shade300,
                                   ),
                                 ),
                               ),
                               child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Container(
                                     width: 6,
@@ -428,18 +445,19 @@ class _AddWaterViewState extends State<AddWaterView> {
                                       horizontal: 8,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: Colors.white.withOpacity(0.2),
+                                      color: Colors.white,
                                       borderRadius: BorderRadius.circular(4),
                                       border: Border.all(
-                                        color: Colors.white.withOpacity(0.3),
+                                        color: Colors.grey.shade300,
                                       ),
                                     ),
-                                    alignment: Alignment.centerLeft,
+                                    alignment: Alignment.center,
                                     child: Row(
                                       children: [
                                         Expanded(
                                           child: Text(
                                             _selectedTo.value,
+                                            textAlign: TextAlign.center,
                                             style: AppTheme.bodySmall.copyWith(
                                               fontSize: 11,
                                               color: Colors.black,
@@ -469,16 +487,6 @@ class _AddWaterViewState extends State<AddWaterView> {
                                             fontSize: 11,
                                             fontWeight: FontWeight.w600,
                                             color: AppTheme.primaryColor,
-                                          ),
-                                        ),
-                                      ),
-                                      PopupMenuItem<String>(
-                                        value: "",
-                                        height: 32,
-                                        child: Text(
-                                          "",
-                                          style: AppTheme.bodySmall.copyWith(
-                                            fontSize: 11,
                                           ),
                                         ),
                                       ),
@@ -520,12 +528,13 @@ class _AddWaterViewState extends State<AddWaterView> {
                       Container(
                         height: 36,
                         decoration: BoxDecoration(
-                    color: AppTheme.primaryColor,
+                          color: Colors.white,
                           border: Border(
                             bottom: BorderSide(color: Colors.grey.shade300),
                           ),
                         ),
                         child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             Container(
                               width: 80,
@@ -533,6 +542,7 @@ class _AddWaterViewState extends State<AddWaterView> {
                                 horizontal: 8,
                               ),
                               decoration: BoxDecoration(
+                                color: AppTheme.primaryColor,
                                 border: Border(
                                   right: BorderSide(
                                     color: Colors.grey.shade300,
@@ -540,6 +550,7 @@ class _AddWaterViewState extends State<AddWaterView> {
                                 ),
                               ),
                               child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Container(
                                     width: 6,
@@ -568,6 +579,7 @@ class _AddWaterViewState extends State<AddWaterView> {
                                 ),
                                 child: TextField(
                                   enabled: !dashboardController.isLocked.value,
+                                  textAlign: TextAlign.center,
                                   decoration: InputDecoration(
                                     border: InputBorder.none,
                                     isDense: true,
@@ -589,6 +601,8 @@ class _AddWaterViewState extends State<AddWaterView> {
                                   onChanged: (val) {
                                     _mainVol.value = val;
                                   },
+                                  onSubmitted: (_) => _saveSafely(),
+                                  onEditingComplete: _saveSafely,
                                   keyboardType: TextInputType.number,
                                 ),
                               ),
@@ -640,6 +654,7 @@ class _AddWaterViewState extends State<AddWaterView> {
                                     controller: _extraVolControllers[index],
                                     enabled:
                                         !dashboardController.isLocked.value,
+                                    textAlign: TextAlign.center,
                                     decoration: const InputDecoration(
                                       border: InputBorder.none,
                                       isDense: true,
@@ -661,6 +676,8 @@ class _AddWaterViewState extends State<AddWaterView> {
                                         _extraRows.add("");
                                       }
                                     },
+                                    onSubmitted: (_) => _saveSafely(),
+                                    onEditingComplete: _saveSafely,
                                   ),
                                 ),
                               ),

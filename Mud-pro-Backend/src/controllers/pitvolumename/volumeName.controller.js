@@ -489,11 +489,15 @@ const buildOperationVolumeEffects = ({
 
   for (const item of addWaterEntries) {
     const volume = toNumber(item.volume);
-    endVolDelta += volume;
     if (isActiveSystemName(item.to)) {
+      endVolDelta += volume;
       activeSystemDelta += volume;
       addWaterActiveSystemDelta += volume;
+    } else if (activePitNames.has(toText(item.to).toLowerCase())) {
+      activeSystemDelta += volume;
+      addPitDelta(activeDeltaByPit, item.to, volume);
     } else {
+      endVolDelta += volume;
       addPitDelta(storageDeltaByPit, item.to, volume);
     }
   }
@@ -1068,9 +1072,7 @@ export const getVolumeNameCalculation = async (req, res) => {
       addPitDelta(calculatedVolumeByPit, pitName, volume);
     }
     const derivedActiveSystem = round2(activePitsWithTransfer + heldVolDifference);
-    const activeSystem = round2(
-      derivedActiveSystem + operationVolumeEffects.addWaterActiveSystemDelta
-    );
+    const activeSystem = derivedActiveSystem;
     const operationEndVol = operationVolumeEffects.forceEndVolZero
       ? 0
       : round2(derivedActiveSystem + operationVolumeEffects.endVolDelta);
