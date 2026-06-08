@@ -437,9 +437,11 @@ const cleanDistributionRows = (items = []) =>
     }))
     .filter((item) => item.pitName && item.volume > 0);
 
-const buildCalculatedVolumeMap = (distributionRows = []) => {
+const buildCalculatedVolumeMap = (distributionRows = [], activePitNames = new Set()) => {
   const calculatedVolumeByPit = new Map();
+  const activeDeltaByPit = new Map();
   let activeSystemVolume = 0;
+  const activeSystemRows = [];
 
   for (const row of distributionRows) {
     const key = toText(row.pitName).toLowerCase();
@@ -447,6 +449,12 @@ const buildCalculatedVolumeMap = (distributionRows = []) => {
 
     if (key === "active system") {
       activeSystemVolume = Number((activeSystemVolume + toNumber(row.volume)).toFixed(2));
+      activeSystemRows.push(row);
+      continue;
+    }
+
+    if (activePitNames.has(key)) {
+      addPitDelta(activeDeltaByPit, row.pitName, row.volume);
       continue;
     }
 
@@ -460,6 +468,8 @@ const buildCalculatedVolumeMap = (distributionRows = []) => {
   return {
     activeSystemVolume,
     calculatedVolumeByPit,
+    activeDeltaByPit,
+    activeSystemRows,
   };
 };
 
@@ -468,11 +478,17 @@ const isActiveSystemName = (value) =>
 
 const calculateAdjustedActiveSystemWater = ({
   addWaterEntries = [],
+  activeSystemDistributionRows = [],
   activePitsList = [],
 }) => {
-  const activeSystemWaterEntries = addWaterEntries.filter(
-    (item) => isActiveSystemName(item?.to) && toNumber(item?.volume) > 0
-  );
+  const activeSystemWaterEntries = [
+    ...addWaterEntries.filter(
+      (item) => isActiveSystemName(item?.to) && toNumber(item?.volume) > 0
+    ),
+    ...activeSystemDistributionRows.filter(
+      (item) => toNumber(item?.volume) > 0
+    ),
+  ];
   if (!activeSystemWaterEntries.length) return 0;
 
   const totalWater = round2(
@@ -1099,11 +1115,20 @@ export const getVolumeNameCalculation = async (req, res) => {
     );
 
     const distributionRows = (distributionStates ?? []).flatMap((state) =>
-      cleanDistributionRows(state?.distributions ?? [])
+      cleanDistributionRows(state?.distributions ?? []).map((row) => ({
+        ...row,
+        updatedAt: state?.updatedAt,
+        createdAt: state?.createdAt,
+        operationInstanceKey: state?.operationInstanceKey,
+      }))
     );
     const primaryDistributionState = (distributionStates ?? [])[0];
-    const { activeSystemVolume, calculatedVolumeByPit } =
-      buildCalculatedVolumeMap(distributionRows);
+    const {
+      activeSystemVolume,
+      calculatedVolumeByPit,
+      activeDeltaByPit: distributionActiveDeltaByPit,
+      activeSystemRows: distributionActiveSystemRows,
+    } = buildCalculatedVolumeMap(distributionRows, activePitNames);
     for (const pit of storagePitsList) {
       const key = toText(pit.pitName).toLowerCase();
       if (!key || calculatedVolumeByPit.has(key)) continue;
@@ -1122,7 +1147,9 @@ export const getVolumeNameCalculation = async (req, res) => {
     });
     const activePitsWithTransfer = activePitsList.reduce((sum, pit) => {
       const key = toText(pit.pitName).toLowerCase();
-      const delta = operationVolumeEffects.activeDeltaByPit.get(key) ?? 0;
+      const delta =
+        (operationVolumeEffects.activeDeltaByPit.get(key) ?? 0) +
+        (distributionActiveDeltaByPit.get(key) ?? 0);
       return sum + toNumber(pit.volume) + delta;
     }, 0);
     for (const [pitName, volume] of operationVolumeEffects.storageDeltaByPit) {
@@ -1132,14 +1159,14 @@ export const getVolumeNameCalculation = async (req, res) => {
     const activeSystem = derivedActiveSystem;
     const adjustedActiveSystemWater = calculateAdjustedActiveSystemWater({
       addWaterEntries: normalizedAddWaterEntries,
+      activeSystemDistributionRows: distributionActiveSystemRows,
       activePitsList,
     });
+    const activeSystemPendingInput = round2(
+      operationVolumeEffects.addWaterActiveSystemDelta + activeSystemVolume
+    );
     const pendingActiveSystemWater = round2(
-      Math.max(
-        0,
-        operationVolumeEffects.addWaterActiveSystemDelta -
-          adjustedActiveSystemWater
-      )
+      Math.max(0, activeSystemPendingInput - adjustedActiveSystemWater)
     );
     const effectiveEndVolDelta = round2(
       operationVolumeEffects.endVolDelta -
@@ -1149,7 +1176,7 @@ export const getVolumeNameCalculation = async (req, res) => {
     const operationEndVol = operationVolumeEffects.forceEndVolZero
       ? 0
       : round2(derivedActiveSystem + effectiveEndVolDelta);
-    const endVolBase = Math.max(activeSystemVolume, derivedActiveSystem);
+    const endVolBase = derivedActiveSystem;
     const endVol = operationVolumeEffects.forceEndVolZero
       ? 0
       : endVolBase > 0
@@ -1285,7 +1312,9 @@ export const getVolumeNameCalculation = async (req, res) => {
         },
         activePitsTable: activePitsList.map((pit) => {
           const key = toText(pit.pitName).toLowerCase();
-          const delta = operationVolumeEffects.activeDeltaByPit.get(key) ?? 0;
+          const delta =
+            (operationVolumeEffects.activeDeltaByPit.get(key) ?? 0) +
+            (distributionActiveDeltaByPit.get(key) ?? 0);
           return {
             _id: pit._id,
             pitName: pit.pitName,
