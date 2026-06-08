@@ -31,6 +31,21 @@ const Color _kGridHeaderColor = Color(0xFFF1F1F1);
 const Color _kEditableCellColor = Color(0xFFFFF7CC);
 const Color _kSelectedRowColor = Color(0xFFDCE8F7);
 const Color _kAltRowColor = Color(0xFFFBFBFB);
+const TextStyle _kWellHeaderTextStyle = TextStyle(
+  fontSize: 11,
+  fontWeight: FontWeight.w700,
+  color: Colors.black,
+);
+const TextStyle _kWellInputTextStyle = TextStyle(
+  fontSize: 10,
+  fontWeight: FontWeight.w700,
+  color: Colors.black,
+);
+const TextStyle _kWellSmallInputTextStyle = TextStyle(
+  fontSize: 9,
+  fontWeight: FontWeight.w700,
+  color: Colors.black,
+);
 
 Color _cellFillColor({
   required bool isLocked,
@@ -76,14 +91,8 @@ Widget _sectionTitle(String title) => Container(
   width: double.infinity,
   padding: const EdgeInsets.symmetric(horizontal: 6),
   alignment: Alignment.centerLeft,
-  child: Text(
-    title,
-    style: const TextStyle(
-      fontSize: 11,
-      fontWeight: FontWeight.w500,
-      color: Colors.black87,
-    ),
-  ),
+  color: AppTheme.primaryColor,
+  child: Text(title, style: _kWellHeaderTextStyle),
 );
 
 Widget _toolButton({
@@ -909,7 +918,7 @@ class _GeneralSectionState extends State<GeneralSection> {
       alignment: Alignment.center,
       child: Text(
         text,
-        style: TextStyle(fontSize: 10, color: AppTheme.textPrimary),
+        style: _kWellInputTextStyle,
         textAlign: TextAlign.center,
         overflow: TextOverflow.ellipsis,
       ),
@@ -938,7 +947,7 @@ class _GeneralSectionState extends State<GeneralSection> {
                 child: TextField(
                   controller: ctrl,
                   onChanged: (val) => _sync(),
-                  style: const TextStyle(fontSize: 10),
+                  style: _kWellInputTextStyle,
                   textAlign: TextAlign.center,
                   decoration: const InputDecoration(
                     isDense: true,
@@ -984,7 +993,7 @@ class _GeneralSectionState extends State<GeneralSection> {
                 child: TextField(
                   controller: ctrl,
                   onChanged: (val) => _sync(),
-                  style: const TextStyle(fontSize: 10),
+                  style: _kWellInputTextStyle,
                   textAlign: TextAlign.center,
                   decoration: const InputDecoration(
                     isDense: true,
@@ -1054,6 +1063,7 @@ class _GeneralSectionState extends State<GeneralSection> {
                               _displayDate,
                               style: const TextStyle(
                                 fontSize: 10,
+                                fontWeight: FontWeight.w700,
                                 color: Colors.black,
                               ),
                               overflow: TextOverflow.ellipsis,
@@ -1099,6 +1109,7 @@ class _GeneralSectionState extends State<GeneralSection> {
                         icon: const Icon(Icons.arrow_drop_down, size: 13),
                         style: const TextStyle(
                           fontSize: 10,
+                          fontWeight: FontWeight.w700,
                           color: Colors.black,
                         ),
                         menuMaxHeight: 200,
@@ -1113,10 +1124,7 @@ class _GeneralSectionState extends State<GeneralSection> {
                               (t) => DropdownMenuItem(
                                 value: t,
                                 child: Center(
-                                  child: Text(
-                                    t,
-                                    style: const TextStyle(fontSize: 10),
-                                  ),
+                                  child: Text(t, style: _kWellInputTextStyle),
                                 ),
                               ),
                             )
@@ -1159,6 +1167,7 @@ class _GeneralSectionState extends State<GeneralSection> {
                         icon: const Icon(Icons.arrow_drop_down, size: 13),
                         style: const TextStyle(
                           fontSize: 10,
+                          fontWeight: FontWeight.w700,
                           color: Colors.black,
                         ),
                         menuMaxHeight: 200,
@@ -1170,7 +1179,7 @@ class _GeneralSectionState extends State<GeneralSection> {
                                 child: Center(
                                   child: Text(
                                     o,
-                                    style: const TextStyle(fontSize: 10),
+                                    style: _kWellInputTextStyle,
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
@@ -1231,6 +1240,7 @@ class _GeneralSectionState extends State<GeneralSection> {
                         icon: const Icon(Icons.arrow_drop_down, size: 13),
                         style: const TextStyle(
                           fontSize: 10,
+                          fontWeight: FontWeight.w700,
                           color: Colors.black,
                         ),
                         menuMaxHeight: 200,
@@ -1242,7 +1252,7 @@ class _GeneralSectionState extends State<GeneralSection> {
                                 child: Center(
                                   child: Text(
                                     "${e.firstName} ${e.lastName}",
-                                    style: const TextStyle(fontSize: 10),
+                                    style: _kWellInputTextStyle,
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
@@ -1345,7 +1355,7 @@ Widget _eCell(
               child: Center(
                 child: Text(
                   ctrl.text,
-                  style: TextStyle(fontSize: 9, color: AppTheme.textPrimary),
+                  style: _kWellSmallInputTextStyle,
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -1360,7 +1370,7 @@ Widget _eCell(
               height: _kRowH,
               child: TextField(
                 controller: ctrl,
-                style: const TextStyle(fontSize: 9),
+                style: _kWellSmallInputTextStyle,
                 textAlign: TextAlign.center,
                 readOnly: readOnly,
                 onChanged: onChanged,
@@ -1672,11 +1682,11 @@ class _MiddlePortionState extends State<MiddlePortion> {
       child: c.isLocked.value
           ? Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
-              child: Text(ctrl.text, style: const TextStyle(fontSize: 10)),
+              child: Text(ctrl.text, style: _kWellInputTextStyle),
             )
           : TextField(
               controller: ctrl,
-              style: const TextStyle(fontSize: 10),
+              style: _kWellInputTextStyle,
               decoration: const InputDecoration(
                 isDense: true,
                 contentPadding: EdgeInsets.symmetric(
@@ -1776,23 +1786,18 @@ class _CasedHoleSectionState extends State<CasedHoleSection> {
           Container(
             height: _kHeaderH,
             padding: const EdgeInsets.symmetric(horizontal: 6),
+            color: AppTheme.primaryColor,
             child: Row(
               children: [
-                const Text(
-                  "Cased Hole",
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.black87,
-                  ),
-                ),
+                const Text("Cased Hole", style: _kWellHeaderTextStyle),
                 Expanded(
                   child: Center(
                     child: Text(
                       "Add New Casing",
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 10,
-                        color: Colors.grey.shade800,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black,
                       ),
                     ),
                   ),
@@ -1854,6 +1859,7 @@ class _CasedHoleSectionState extends State<CasedHoleSection> {
                               icon: const Icon(Icons.arrow_drop_down, size: 13),
                               style: const TextStyle(
                                 fontSize: 9,
+                                fontWeight: FontWeight.w700,
                                 color: Colors.black,
                               ),
                               menuMaxHeight: 200,
@@ -1865,7 +1871,9 @@ class _CasedHoleSectionState extends State<CasedHoleSection> {
                               items: casings
                                   .where(
                                     (csg) =>
-                                        csg.description.value.trim().isNotEmpty &&
+                                        csg.description.value
+                                            .trim()
+                                            .isNotEmpty &&
                                         csg.toc.value.trim() !=
                                             kCasedHoleTocMarker,
                                   )
@@ -1874,7 +1882,7 @@ class _CasedHoleSectionState extends State<CasedHoleSection> {
                                       value: csg,
                                       child: Text(
                                         csg.description.value,
-                                        style: const TextStyle(fontSize: 9),
+                                        style: _kWellSmallInputTextStyle,
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
@@ -1927,41 +1935,36 @@ class _CasedHoleSectionState extends State<CasedHoleSection> {
                 };
                 return Column(
                   children: [
-                    Obx(
-                      () {
-                        final unitSignature = AppUnits.signature;
-                        return Table(
-                          key: ValueKey(unitSignature),
-                          border: _headerTableBorder(),
-                          defaultVerticalAlignment:
-                              TableCellVerticalAlignment.middle,
-                          columnWidths: columnWidths,
-                          children: [
-                            TableRow(
-                              decoration: BoxDecoration(
-                                color: _kGridHeaderColor,
-                              ),
-                              children:
-                                  [
-                                        'No.',
-                                        'Description',
-                                        'OD\n${AppUnits.unitText('in')}',
-                                        'Wt.\n${AppUnits.unitText('lb/ft')}',
-                                        'ID\n${AppUnits.unitText('in')}',
-                                        'Top\n${AppUnits.unitText('ft')}',
-                                        'Shoe\n${AppUnits.unitText('ft')}',
-                                        'Len.\n${AppUnits.unitText('ft')}',
-                                      ]
-                                      .map(
-                                        (h) =>
-                                            _hCell(h, AppTheme.primaryColor),
-                                      )
-                                      .toList(),
-                            ),
-                          ],
-                        );
-                      },
-                    ),
+                    Obx(() {
+                      final unitSignature = AppUnits.signature;
+                      return Table(
+                        key: ValueKey(unitSignature),
+                        border: _headerTableBorder(),
+                        defaultVerticalAlignment:
+                            TableCellVerticalAlignment.middle,
+                        columnWidths: columnWidths,
+                        children: [
+                          TableRow(
+                            decoration: BoxDecoration(color: _kGridHeaderColor),
+                            children:
+                                [
+                                      'No.',
+                                      'Description',
+                                      'OD\n${AppUnits.unitText('in')}',
+                                      'Wt.\n${AppUnits.unitText('lb/ft')}',
+                                      'ID\n${AppUnits.unitText('in')}',
+                                      'Top\n${AppUnits.unitText('ft')}',
+                                      'Shoe\n${AppUnits.unitText('ft')}',
+                                      'Len.\n${AppUnits.unitText('ft')}',
+                                    ]
+                                    .map(
+                                      (h) => _hCell(h, AppTheme.primaryColor),
+                                    )
+                                    .toList(),
+                          ),
+                        ],
+                      );
+                    }),
                     Expanded(
                       child: SingleChildScrollView(
                         scrollDirection: Axis.vertical,
@@ -2441,7 +2444,7 @@ class _OpenHoleSectionState extends State<OpenHoleSection> {
             onChanged?.call(controller.text);
             _collapseSelectionToEnd(controller);
           },
-          style: TextStyle(fontSize: 9, color: AppTheme.textPrimary),
+          style: _kWellSmallInputTextStyle,
         ),
       ),
     );
@@ -2518,16 +2521,10 @@ class _OpenHoleSectionState extends State<OpenHoleSection> {
             Container(
               height: _kHeaderH,
               padding: const EdgeInsets.symmetric(horizontal: 6),
+              color: AppTheme.primaryColor,
               child: Row(
                 children: [
-                  const Text(
-                    "Open Hole",
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.black87,
-                    ),
-                  ),
+                  const Text("Open Hole", style: _kWellHeaderTextStyle),
                   const Spacer(),
                   Obx(
                     () => _toolButton(
@@ -2864,16 +2861,10 @@ class _DrillStringSectionState extends State<DrillStringSection> {
           Container(
             height: _kHeaderH,
             padding: const EdgeInsets.symmetric(horizontal: 6),
+            color: AppTheme.primaryColor,
             child: Row(
               children: [
-                const Text(
-                  "Drill String",
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.black87,
-                  ),
-                ),
+                const Text("Drill String", style: _kWellHeaderTextStyle),
                 const Spacer(),
                 Obx(
                   () => _toolButton(
@@ -3109,10 +3100,7 @@ class _DrillStringSectionState extends State<DrillStringSection> {
                   child: Center(
                     child: Text(
                       ctrl.text,
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: AppTheme.textPrimary,
-                      ),
+                      style: _kWellInputTextStyle,
                       textAlign: TextAlign.center,
                     ),
                   ),
@@ -3125,7 +3113,7 @@ class _DrillStringSectionState extends State<DrillStringSection> {
                 height: _kRowH,
                 child: TextField(
                   controller: ctrl,
-                  style: const TextStyle(fontSize: 9),
+                  style: _kWellSmallInputTextStyle,
                   textAlign: TextAlign.center,
                   onTap: () => _selectDrillStringRow(rowIdx),
                   onChanged: (_) {
@@ -3475,7 +3463,7 @@ class _BitSectionState extends State<BitSection> {
                   alignment: Alignment.center,
                   child: Text(
                     ctrl.text,
-                    style: TextStyle(fontSize: 9, color: AppTheme.textPrimary),
+                    style: _kWellSmallInputTextStyle,
                     textAlign: TextAlign.center,
                   ),
                 ),
@@ -3487,7 +3475,7 @@ class _BitSectionState extends State<BitSection> {
                 height: _kRowH,
                 child: TextField(
                   controller: ctrl,
-                  style: const TextStyle(fontSize: 9),
+                  style: _kWellSmallInputTextStyle,
                   textAlign: TextAlign.center,
                   onChanged: (value) => _syncBitField(key, value),
                   decoration: const InputDecoration(
@@ -3812,7 +3800,7 @@ class _NozzleSectionState extends State<NozzleSection> {
                 child: Center(
                   child: Text(
                     ctrl.text,
-                    style: TextStyle(fontSize: 9, color: AppTheme.textPrimary),
+                    style: _kWellSmallInputTextStyle,
                     textAlign: TextAlign.center,
                   ),
                 ),
@@ -3825,7 +3813,7 @@ class _NozzleSectionState extends State<NozzleSection> {
                 child: TextField(
                   controller: ctrl,
                   focusNode: focusNode,
-                  style: const TextStyle(fontSize: 10),
+                  style: _kWellInputTextStyle,
                   textAlign: TextAlign.center,
                   keyboardType: TextInputType.number,
                   onChanged: onChanged,
@@ -4192,10 +4180,7 @@ class _TimeDistributionSectionState extends State<TimeDistributionSection> {
                                           alignment: Alignment.centerLeft,
                                           child: Text(
                                             currentActivity,
-                                            style: TextStyle(
-                                              fontSize: 9,
-                                              color: AppTheme.textPrimary,
-                                            ),
+                                            style: _kWellSmallInputTextStyle,
                                           ),
                                         ),
                                       )
@@ -4235,6 +4220,7 @@ class _TimeDistributionSectionState extends State<TimeDistributionSection> {
                                                   ),
                                                   style: const TextStyle(
                                                     fontSize: 9,
+                                                    fontWeight: FontWeight.w700,
                                                     color: Colors.black,
                                                   ),
                                                   menuMaxHeight: 200,
@@ -4261,9 +4247,7 @@ class _TimeDistributionSectionState extends State<TimeDistributionSection> {
                                                             child: Text(
                                                               o,
                                                               style:
-                                                                  const TextStyle(
-                                                                    fontSize: 9,
-                                                                  ),
+                                                                  _kWellSmallInputTextStyle,
                                                               overflow:
                                                                   TextOverflow
                                                                       .ellipsis,
@@ -4289,10 +4273,7 @@ class _TimeDistributionSectionState extends State<TimeDistributionSection> {
                                         child: Center(
                                           child: Text(
                                             timeCtrl.text,
-                                            style: TextStyle(
-                                              fontSize: 9,
-                                              color: AppTheme.textPrimary,
-                                            ),
+                                            style: _kWellSmallInputTextStyle,
                                             textAlign: TextAlign.center,
                                           ),
                                         ),
@@ -4303,7 +4284,7 @@ class _TimeDistributionSectionState extends State<TimeDistributionSection> {
                                           height: _kRowH,
                                           child: TextField(
                                             controller: timeCtrl,
-                                            style: const TextStyle(fontSize: 9),
+                                            style: _kWellSmallInputTextStyle,
                                             textAlign: TextAlign.center,
                                             keyboardType: TextInputType.number,
                                             onChanged: (v) {
