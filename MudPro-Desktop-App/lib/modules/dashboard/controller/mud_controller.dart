@@ -102,6 +102,7 @@ class MudController extends GetxController {
 
   final propertyTable = <String, List<RxString>>{}.obs;
   final propertyUnits = <String, String>{}.obs;
+  final propertyFormats = <String, String>{}.obs;
   final availableProperties = <String>[].obs;
   final rheologyTable = <String, List<RxString>>{}.obs;
   final Set<String> _basePropertyNames = <String>{};
@@ -135,6 +136,7 @@ class MudController extends GetxController {
   bool _isApplyingSavedState = false;
   final RxString _stateScopeKey = ''.obs;
   final Map<String, Map<String, dynamic>> _stateCache = {};
+  final Set<String> _cleanNewReportIds = <String>{};
 
   final solidSaveStatus = <String, RxString>{
     '0': 'idle'.obs,
@@ -501,14 +503,21 @@ class MudController extends GetxController {
   Future<void> loadFluidTypeData({bool applySavedState = true}) async {
     isLoading.value = true;
     _isApplyingSavedState = true;
+    final reportIdForLoad = _reportId;
+    final forceCleanState =
+        applySavedState &&
+        reportIdForLoad.isNotEmpty &&
+        _cleanNewReportIds.remove(reportIdForLoad);
     try {
-      final cachedState = applySavedState
+      final cachedState = applySavedState && !forceCleanState
           ? _stateCache[_mudStateCacheKey]
           : null;
       final savedState =
           cachedState ??
-          (applySavedState ? await _fetchMudReportState() : null);
-      if (applySavedState && savedState == null) {
+          (applySavedState && !forceCleanState
+              ? await _fetchMudReportState()
+              : null);
+      if (applySavedState && (savedState == null || forceCleanState)) {
         _resetMudStateDefaults();
       }
       final savedFluidType = (savedState?['fluidType'] ?? '').toString().trim();
@@ -523,6 +532,7 @@ class MudController extends GetxController {
       _clearMudBottomSections();
       propertyTable.clear();
       propertyUnits.clear();
+      propertyFormats.clear();
       availableProperties.clear();
       solidAnalysisResult.clear();
       for (int i = 0; i < 3; i++) {
@@ -545,6 +555,9 @@ class MudController extends GetxController {
       }
       _setupSolidAnalysisWatchers();
       _setupMudStateWatchers();
+      if (forceCleanState) {
+        await saveMudReportState(force: true);
+      }
     } catch (e) {
       debugPrint('[MudController] loadFluidTypeData error: $e');
     } finally {
@@ -571,6 +584,7 @@ class MudController extends GetxController {
             (_) => ''.obs,
           );
           propertyUnits[item.name] = item.unit;
+          propertyFormats[item.name] = item.format;
         }
       }
     } catch (e) {
@@ -598,8 +612,15 @@ class MudController extends GetxController {
           propertyUnits[item.name] = item.unit;
           changed = true;
         }
+        if (propertyFormats[item.name] != item.format) {
+          propertyFormats[item.name] = item.format;
+          changed = true;
+        }
       }
-      if (changed) propertyUnits.refresh();
+      if (changed) {
+        propertyUnits.refresh();
+        propertyFormats.refresh();
+      }
     } catch (e) {
       debugPrint('[MudController] refresh mud property units ERROR: $e');
     }
@@ -637,6 +658,7 @@ class MudController extends GetxController {
     ]) {
       propertyTable[field] = List.generate(samples.length, (_) => ''.obs);
       propertyUnits[field] = '';
+      propertyFormats[field] = 'Default';
     }
   }
 
@@ -651,6 +673,7 @@ class MudController extends GetxController {
       final canonical = _canonicalWaterBasedProperty(
         item.name,
         unit: item.unit,
+        format: item.format,
       );
       byName[canonical.name] = canonical;
     }
@@ -753,7 +776,11 @@ class MudController extends GetxController {
     }
   }
 
-  MudPropertyItem _canonicalWaterBasedProperty(String name, {String? unit}) {
+  MudPropertyItem _canonicalWaterBasedProperty(
+    String name, {
+    String? unit,
+    String? format,
+  }) {
     final key = _normalizeLabel(name);
     MudPropertyItem? row;
     for (final item in _legacyWaterBasedRows) {
@@ -763,12 +790,18 @@ class MudController extends GetxController {
       }
     }
     final dynamicUnit = (unit ?? '').trim();
+    final dynamicFormat = (format ?? '').trim();
     if (row == null) {
-      return MudPropertyItem(name: name, unit: dynamicUnit);
+      return MudPropertyItem(
+        name: name,
+        unit: dynamicUnit,
+        format: dynamicFormat.isNotEmpty ? dynamicFormat : 'Default',
+      );
     }
     return MudPropertyItem(
       name: row.name,
       unit: dynamicUnit.isNotEmpty ? dynamicUnit : row.unit,
+      format: dynamicFormat.isNotEmpty ? dynamicFormat : row.format,
     );
   }
 
@@ -927,6 +960,13 @@ class MudController extends GetxController {
     _initRheologyTable();
   }
 
+  void markNewReportMudStateClean(String reportId) {
+    final normalized = reportId.trim();
+    if (normalized.isEmpty) return;
+    _cleanNewReportIds.add(normalized);
+    _stateCache.remove(_mudStateCacheKeyForReportId(normalized));
+  }
+
   void _clearMudBottomSections() {
     oilSgController.clear();
     hgsSgController.clear();
@@ -974,6 +1014,22 @@ class MudController extends GetxController {
       final unitValue = value.toString();
       if (unitValue.trim().isNotEmpty) {
         propertyUnits[targetKey] = unitValue;
+      }
+    });
+
+    final formats = _mapFromDynamic(data['propertyFormats']);
+    formats.forEach((key, value) {
+      final targetKey = selectedFluidType.value == 'Water-based'
+          ? _canonicalWaterBasedProperty(key, format: value.toString()).name
+          : key;
+      if (selectedFluidType.value == 'Oil-based' &&
+          _isOilSaltManagedRow(targetKey) &&
+          !propertyTable.containsKey(targetKey)) {
+        return;
+      }
+      final formatValue = value.toString();
+      if (formatValue.trim().isNotEmpty) {
+        propertyFormats[targetKey] = formatValue;
       }
     });
 
@@ -1084,6 +1140,7 @@ class MudController extends GetxController {
     'samples': samples,
     'propertyTable': _stringTable(propertyTable),
     'propertyUnits': Map<String, String>.from(propertyUnits),
+    'propertyFormats': Map<String, String>.from(propertyFormats),
     'rheologyModel': rheologyModel.value,
     'rheologyCalculation': rheologyCalculation.value,
     'rheologyTable': _stringTable(rheologyTable),
@@ -1233,7 +1290,7 @@ class MudController extends GetxController {
         }
         final solids = 100 - (oil + water);
         propertyTable[targetKey]?[i].value = solids < 100
-            ? solids.toStringAsFixed(2)
+            ? _formatMudPropertyValue(targetKey, solids, fallbackDigits: 2)
             : '';
       }
 
@@ -1392,8 +1449,11 @@ class MudController extends GetxController {
               dissolvedSolids = water * saltMassFraction * (1.0 / 2.16);
             }
             final solidsAdjusted = retortSolids - dissolvedSolids;
-            tgt[i].value = (solidsAdjusted < 0 ? 0.0 : solidsAdjusted)
-                .toStringAsFixed(1);
+            tgt[i].value = _formatMudPropertyValue(
+              csTarget,
+              solidsAdjusted < 0 ? 0.0 : solidsAdjusted,
+              fallbackDigits: 1,
+            );
           }
         }
 
@@ -1472,7 +1532,11 @@ class MudController extends GetxController {
             final fw = water / 100;
             final rawExcessLime = isOilMud ? pm * 1.295 : 0.26 * (pm - fw * pf);
             final excessLime = rawExcessLime < 0 ? 0.0 : rawExcessLime;
-            elList[i].value = excessLime.toStringAsFixed(2);
+            elList[i].value = _formatMudPropertyValue(
+              elTarget,
+              excessLime,
+              fallbackDigits: 2,
+            );
           }
 
           recalcExcessLime();
@@ -1997,6 +2061,27 @@ class MudController extends GetxController {
   // SOLID ANALYSIS WATCHERS & SAVE
   // ═══════════════════════════════════════════════════════════════════════════
 
+  int? _digitsFromFormat(String? format) {
+    final text = (format ?? '').trim();
+    if (text.isEmpty || text == 'Default') return null;
+    final dot = text.indexOf('.');
+    if (dot < 0) return 0;
+    return text.length - dot - 1;
+  }
+
+  String _formatMudPropertyValue(
+    String? propertyKey,
+    num value, {
+    int fallbackDigits = 2,
+  }) {
+    final digits =
+        _digitsFromFormat(propertyKey == null ? null : propertyFormats[propertyKey]) ??
+        fallbackDigits;
+    final numeric = value.toDouble();
+    if (numeric.isNaN || numeric.isInfinite) return '';
+    return numeric.toStringAsFixed(digits);
+  }
+
   void _setupSolidAnalysisWatchers() {
     for (int si = 0; si < 3; si++) {
       final sampleIdx = si;
@@ -2123,6 +2208,7 @@ class MudController extends GetxController {
     final wpsPpm = vals['wpsPpm'] ?? 0;
     final cacl2Pct = vals['cacl2Pct'] ?? 0;
     final naclPct = vals['naclPct'] ?? 0;
+    final brineDensityPpg = vals['brineDensityPpg'] ?? 0;
     final oilSG = vals['oilSG'] ?? 0.81;
     final hgsSG = vals['hgsSG'] ?? 4.20;
     final lgsSG = vals['lgsSG'] ?? 2.60;
@@ -2144,14 +2230,18 @@ class MudController extends GetxController {
           )
         : null;
     final brineSG = isOilMud
-        ? (oilSalt?.brineSG ?? 1.0)
+        ? (brineDensityPpg > 0
+              ? brineDensityPpg / 8.345
+              : oilSalt?.brineSG ?? 1.0)
         : 1.0 + wbmSaltMassFraction;
 
     double brineVol;
-    if (isOilMud && oilSalt != null) {
+    final brineVolPct = vals['brineVolPct'] ?? 0;
+    if (isOilMud && brineVolPct > 0) {
+      brineVol = brineVolPct;
+    } else if (isOilMud && oilSalt != null) {
       brineVol = oilSalt.brineVolPct;
     } else {
-      final brineVolPct = vals['brineVolPct'] ?? 0;
       brineVol = brineVolPct > 0 ? brineVolPct : waterVol;
     }
 
@@ -2163,10 +2253,13 @@ class MudController extends GetxController {
     );
     final corrSolidsPct = vals['corrSolidsPct'] ?? 0;
     final rawCorrectedSolids = isOilMud
-        ? (oilSalt?.correctedSolidsPct ??
-              (corrSolidsPct > 0
-                  ? corrSolidsPct
-                  : (retortSolids - roundedDissolvedSolids)))
+        ? (corrSolidsPct > 0
+              ? corrSolidsPct
+              : (oilSalt?.correctedSolidsPct != null
+                    ? double.parse(
+                        oilSalt!.correctedSolidsPct.toStringAsFixed(1),
+                      )
+                    : (retortSolids - roundedDissolvedSolids)))
         : (retortSolids - roundedDissolvedSolids);
     final correctedSolids = rawCorrectedSolids;
     final safeCorrected = correctedSolids < 0 ? 0 : correctedSolids;
@@ -2178,8 +2271,9 @@ class MudController extends GetxController {
     var lgsPercent = safeCorrected;
     var avgSG = safeCorrected > 0 ? lgsSG : 0.0;
     if (weightedMud && hgsSG != lgsSG && safeCorrected > 0) {
+      final mudVolumeDensity = isOilMud ? (mw / 8.345 * 100) : (mw * 42 / 3.5);
       hgsPercent =
-          ((mw * 42 / 3.5) -
+          (mudVolumeDensity -
               oilVol * oilSG -
               brineVol * brineSG -
               safeCorrected * lgsSG) /
@@ -2433,6 +2527,7 @@ class MudController extends GetxController {
       'cacl2Pct': saltPctForSolids, // CaCl2 % wt, or derived from chlorides
       'naclPct': naclPct,
       'brineVolPct': readField(_brineVolPctKey), // Brine % vol (L62) if exists
+      'brineDensityPpg': readField(_brineDensitySgKey),
       'corrSolidsPct': readField(
         _corrSolidsValueKey,
       ), // Corrected Solids % (L45)
@@ -2494,11 +2589,13 @@ class MudController extends GetxController {
 
     final previousTable = _stringTable(propertyTable);
     final previousUnits = Map<String, String>.from(propertyUnits);
+    final previousFormats = Map<String, String>.from(propertyFormats);
     _mudStateSaveTimer?.cancel();
     _isApplyingSavedState = true;
     try {
       propertyTable.clear();
       propertyUnits.clear();
+      propertyFormats.clear();
       availableProperties.clear();
       solidAnalysisResult.clear();
       for (int i = 0; i < 3; i++) {
@@ -2512,7 +2609,7 @@ class MudController extends GetxController {
       _basePropertyNames
         ..clear()
         ..addAll(propertyTable.keys);
-      _restorePropertyValues(previousTable, previousUnits);
+      _restorePropertyValues(previousTable, previousUnits, previousFormats);
       _setupAutoCalculations();
       _setupSolidAnalysisWatchers();
       _setupMudStateWatchers();
@@ -2525,6 +2622,7 @@ class MudController extends GetxController {
   void _restorePropertyValues(
     Map<String, List<String>> previousTable,
     Map<String, String> previousUnits,
+    Map<String, String> previousFormats,
   ) {
     for (final entry in propertyTable.entries) {
       final values = previousTable[entry.key];
@@ -2536,6 +2634,11 @@ class MudController extends GetxController {
     for (final entry in previousUnits.entries) {
       if (propertyUnits.containsKey(entry.key) && entry.value.isNotEmpty) {
         propertyUnits[entry.key] = entry.value;
+      }
+    }
+    for (final entry in previousFormats.entries) {
+      if (propertyFormats.containsKey(entry.key) && entry.value.isNotEmpty) {
+        propertyFormats[entry.key] = entry.value;
       }
     }
   }
@@ -2573,6 +2676,7 @@ class MudController extends GetxController {
       _clearMudBottomSections();
       propertyTable.clear();
       propertyUnits.clear();
+      propertyFormats.clear();
       availableProperties.clear();
       solidAnalysisResult.clear();
       for (int i = 0; i < 3; i++) {

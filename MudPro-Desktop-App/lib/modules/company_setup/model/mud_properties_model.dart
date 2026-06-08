@@ -1,31 +1,39 @@
 class MudPropertyItem {
   final String name;
   final String unit;
+  final String format;
 
-  MudPropertyItem({required this.name, required this.unit});
+  MudPropertyItem({
+    required this.name,
+    required this.unit,
+    this.format = 'Default',
+  });
 
   factory MudPropertyItem.fromJson(Map<String, dynamic> json) {
     return MudPropertyItem(
       name: json['name'] ?? '',
       unit: json['unit'] ?? '',
+      format: json['format'] ?? 'Default',
     );
   }
 
   Map<String, dynamic> toJson() => {
         'name': name,
         'unit': unit,
+        'format': format,
       };
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is MudPropertyItem &&
+          other is MudPropertyItem &&
           runtimeType == other.runtimeType &&
           name == other.name &&
-          unit == other.unit;
+          unit == other.unit &&
+          format == other.format;
 
   @override
-  int get hashCode => name.hashCode ^ unit.hashCode;
+  int get hashCode => name.hashCode ^ unit.hashCode ^ format.hashCode;
 }
 
 class MudPropertiesStaticData {

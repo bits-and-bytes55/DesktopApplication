@@ -53,6 +53,10 @@ class _ApplyRheologyPageState extends State<ApplyRheologyPage> {
 
   Widget _buildRheologyTable(MudController c) {
     if (_sampleIndex >= c.samples.length) _sampleIndex = 0;
+    const rpmCol = 70.0;
+    const dialCol = 130.0;
+    const modelCol = 110.0;
+    const diffCol = 80.0;
     final fitted = _ChartPainter(
       c: c,
       sampleIndex: _sampleIndex,
@@ -65,7 +69,7 @@ class _ApplyRheologyPageState extends State<ApplyRheologyPage> {
         fitted.points.every((p) => p.diff.abs() <= _ChartPainter._threshold);
 
     return Container(
-      padding: const EdgeInsets.only(left: 4, top: 12, right: 18, bottom: 10),
+      padding: const EdgeInsets.only(left: 8, top: 12, right: 18, bottom: 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -76,10 +80,10 @@ class _ApplyRheologyPageState extends State<ApplyRheologyPage> {
           const SizedBox(height: 14),
           Row(
             children: const [
-              SizedBox(width: 190, child: _PlainHeader('RPM')),
-              SizedBox(width: 190, child: _PlainHeader('Dial')),
-              SizedBox(width: 115, child: _PlainHeader('Model')),
-              SizedBox(width: 70, child: _PlainHeader('Diff')),
+              SizedBox(width: rpmCol, child: _PlainHeader('RPM')),
+              SizedBox(width: dialCol, child: _PlainHeader('Dial')),
+              SizedBox(width: modelCol, child: _PlainHeader('Model')),
+              SizedBox(width: diffCol, child: _PlainHeader('Diff')),
             ],
           ),
           const SizedBox(height: 6),
@@ -93,18 +97,18 @@ class _ApplyRheologyPageState extends State<ApplyRheologyPage> {
               child: Row(
                 children: [
                   SizedBox(
-                    width: 190,
+                    width: rpmCol,
                     child: Text('$rpm', style: const TextStyle(fontSize: 13)),
                   ),
                   SizedBox(
-                    width: 190,
+                    width: dialCol,
                     child: Align(
                       alignment: Alignment.centerLeft,
                       child: _dialCell(c, rpm, value),
                     ),
                   ),
                   SizedBox(
-                    width: 115,
+                    width: modelCol,
                     child: Text(
                       point == null ? '-' : point.model.toStringAsFixed(1),
                       textAlign: TextAlign.right,
@@ -112,7 +116,7 @@ class _ApplyRheologyPageState extends State<ApplyRheologyPage> {
                     ),
                   ),
                   SizedBox(
-                    width: 70,
+                    width: diffCol,
                     child: Text(
                       point == null ? '-' : _signedOne(point.diff),
                       textAlign: TextAlign.right,
@@ -132,7 +136,7 @@ class _ApplyRheologyPageState extends State<ApplyRheologyPage> {
           Row(
             children: [
               SizedBox(
-                width: 300,
+                width: rpmCol + dialCol + modelCol,
                 child: _summaryBlock('PV (cP)', pv?.toStringAsFixed(0) ?? '-'),
               ),
               _summaryBlock('YP (lbf/100ft2)', yp?.toStringAsFixed(0) ?? '-'),

@@ -18,6 +18,7 @@ import '../../options/options_page.dart';
 
 // ── Import controllers needed for save ──
 import 'package:mudpro_desktop_app/modules/dashboard/controller/well_general_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/mud_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/operation_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/recievemud_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/cased_hole_controller.dart';
@@ -1566,6 +1567,9 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
 
       final createdReportId = _dialogEntityId(result['data']);
       if (createdReportId.isNotEmpty) {
+        if (Get.isRegistered<MudController>()) {
+          Get.find<MudController>().markNewReportMudStateClean(createdReportId);
+        }
         reportC.selectReport(createdReportId);
         controller.navigate('report:$createdReportId');
       }
