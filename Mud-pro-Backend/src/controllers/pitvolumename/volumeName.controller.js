@@ -155,6 +155,26 @@ const normalizeAddWaterItems = (items = []) => {
   });
 };
 
+const normalizeOtherVolAdditionItems = (items = []) => {
+  const latestByInstance = new Map();
+  const unscopedItems = [];
+
+  for (const item of items) {
+    const operationInstanceKey = toText(item.operationInstanceKey);
+    if (!operationInstanceKey) {
+      unscopedItems.push(item);
+      continue;
+    }
+
+    const existing = latestByInstance.get(operationInstanceKey);
+    if (!existing || itemTime(item) >= itemTime(existing)) {
+      latestByInstance.set(operationInstanceKey, item);
+    }
+  }
+
+  return [...latestByInstance.values(), ...unscopedItems];
+};
+
 const rawCylinderVolume = ({ id, length }) => {
   const idIn = toNumber(id);
   const lengthFt = toNumber(length);
@@ -1151,6 +1171,8 @@ export const getVolumeNameCalculation = async (req, res) => {
     const normalizedMudLossStorageEntries =
       normalizeMudLossStorageItems(mudLossStorageEntries);
     const normalizedAddWaterEntries = normalizeAddWaterItems(addWaterEntries);
+    const normalizedOtherVolAdditions =
+      normalizeOtherVolAdditionItems(otherVolAdditions);
 
     const md = toNumber(wellGeneral?.md);
 
@@ -1232,7 +1254,7 @@ export const getVolumeNameCalculation = async (req, res) => {
       receivedMud,
       returnLostMud,
       addWaterEntries: normalizedAddWaterEntries,
-      otherVolAdditions,
+      otherVolAdditions: normalizedOtherVolAdditions,
       mudLossEntries,
       mudLossStorageEntries: normalizedMudLossStorageEntries,
       transferMudEntries,
@@ -1311,7 +1333,9 @@ export const getVolumeNameCalculation = async (req, res) => {
     );
 
     const otherVolAdditionTotal = Number(
-      otherVolAdditions.reduce((sum, item) => sum + toNumber(item.totalVolume), 0).toFixed(2)
+      normalizedOtherVolAdditions
+        .reduce((sum, item) => sum + toNumber(item.totalVolume), 0)
+        .toFixed(2)
     );
 
     const ledgerTotalOnLocation = Number(

@@ -13,99 +13,100 @@ class OtherVolAdditionActiveSystemView extends StatelessWidget {
 
   final String instanceKey;
   final OtherVolAdditionController controller;
-  final DashboardController dashboardController = Get.find<DashboardController>();
+  final DashboardController dashboardController =
+      Get.find<DashboardController>();
 
   @override
   Widget build(BuildContext context) {
     return Container(
       color: Colors.grey.shade100,
       padding: const EdgeInsets.fromLTRB(6, 8, 12, 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Other Vol. Addition - Active System',
-            style: AppTheme.bodySmall.copyWith(
-              fontSize: 12,
-              color: AppTheme.textPrimary,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Row(
+      child: _OtherVolScrollArea(
+        child: SizedBox(
+          width: 470,
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SizedBox(
-                width: 384,
-                child: Obx(() {
-                  if (controller.isLoading.value) {
-                    return Container(
-                      height: 212,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        border: Border.all(color: Colors.grey.shade400),
-                      ),
-                      child: SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: AppTheme.primaryColor,
-                        ),
-                      ),
-                    );
-                  }
-
-                  return Table(
-                    border: TableBorder.all(
-                      color: Colors.grey.shade400,
-                      width: 1,
-                    ),
-                    columnWidths: const {
-                      0: FixedColumnWidth(230),
-                      1: FixedColumnWidth(152),
-                    },
-                    defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-                    children: [
-                      _headerRow(),
-                      _inputRow(
-                        'Formation',
-                        controller.formationController,
-                      ),
-                      _inputRow(
-                        'Cuttings',
-                        controller.cuttingsController,
-                      ),
-                      _inputRow(
-                        'Volume Not Fluid',
-                        controller.volumeNotFluidController,
-                      ),
-                      _dropdownRow(),
-                      _blankRow(),
-                    ],
-                  );
-                }),
+              Text(
+                'Other Vol. Addition - Active System',
+                style: AppTheme.bodySmall.copyWith(
+                  fontSize: 12,
+                  color: Colors.black,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
-              const SizedBox(width: 6),
-              Padding(
-                padding: const EdgeInsets.only(top: 76),
-                child: _helpButton(context),
+              const SizedBox(height: 8),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: 384,
+                    child: Obx(() {
+                      if (controller.isLoading.value) {
+                        return Container(
+                          height: 212,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            border: Border.all(color: Colors.grey.shade400),
+                          ),
+                          child: SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppTheme.primaryColor,
+                            ),
+                          ),
+                        );
+                      }
+
+                      return Table(
+                        border: TableBorder.all(
+                          color: Colors.grey.shade400,
+                          width: 1,
+                        ),
+                        columnWidths: const {
+                          0: FixedColumnWidth(230),
+                          1: FixedColumnWidth(152),
+                        },
+                        defaultVerticalAlignment:
+                            TableCellVerticalAlignment.middle,
+                        children: [
+                          _headerRow(),
+                          _inputRow(
+                            'Formation',
+                            controller.formationController,
+                          ),
+                          _inputRow('Cuttings', controller.cuttingsController),
+                          _inputRow(
+                            'Volume Not Fluid',
+                            controller.volumeNotFluidController,
+                          ),
+                          _dropdownRow(),
+                          _blankRow(),
+                        ],
+                      );
+                    }),
+                  ),
+                  const SizedBox(width: 6),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 76),
+                    child: _helpButton(context),
+                  ),
+                ],
               ),
             ],
           ),
-        ],
+        ),
       ),
     );
   }
 
   TableRow _headerRow() {
     return TableRow(
-      decoration: BoxDecoration(color: Colors.grey.shade100),
-      children: [
-        _headerCell('Addition'),
-        _headerCell('Vol.\n(bbl)'),
-      ],
+      decoration: BoxDecoration(color: AppTheme.primaryColor),
+      children: [_headerCell('Addition'), _headerCell('Vol.\n(bbl)')],
     );
   }
 
@@ -120,8 +121,9 @@ class OtherVolAdditionActiveSystemView extends StatelessWidget {
           child: Text(
             label,
             style: AppTheme.bodySmall.copyWith(
-              fontSize: 11,
-              color: AppTheme.textPrimary,
+              fontSize: 12,
+              color: Colors.black,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ),
@@ -136,9 +138,9 @@ class OtherVolAdditionActiveSystemView extends StatelessWidget {
                 decimal: true,
               ),
               style: AppTheme.bodySmall.copyWith(
-                fontSize: 11,
-                color: AppTheme.textPrimary,
-                fontWeight: FontWeight.w500,
+                fontSize: 12,
+                color: Colors.black,
+                fontWeight: FontWeight.w700,
               ),
               decoration: InputDecoration(
                 border: InputBorder.none,
@@ -178,8 +180,9 @@ class OtherVolAdditionActiveSystemView extends StatelessWidget {
                   child: Text(
                     'Select',
                     style: AppTheme.bodySmall.copyWith(
-                      fontSize: 11,
-                      color: Colors.grey.shade600,
+                      fontSize: 12,
+                      color: Colors.black,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
@@ -202,9 +205,9 @@ class OtherVolAdditionActiveSystemView extends StatelessWidget {
                   ),
                 ),
                 style: AppTheme.bodySmall.copyWith(
-                  fontSize: 11,
-                  color: AppTheme.textPrimary,
-                  fontWeight: FontWeight.w500,
+                  fontSize: 12,
+                  color: Colors.black,
+                  fontWeight: FontWeight.w700,
                 ),
                 dropdownColor: Colors.white,
                 menuMaxHeight: 180,
@@ -216,7 +219,11 @@ class OtherVolAdditionActiveSystemView extends StatelessWidget {
                       child: Text(
                         label,
                         overflow: TextOverflow.ellipsis,
-                        style: AppTheme.bodySmall.copyWith(fontSize: 11),
+                        style: AppTheme.bodySmall.copyWith(
+                          fontSize: 12,
+                          color: Colors.black,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                   );
@@ -249,9 +256,9 @@ class OtherVolAdditionActiveSystemView extends StatelessWidget {
                 decimal: true,
               ),
               style: AppTheme.bodySmall.copyWith(
-                fontSize: 11,
-                color: AppTheme.textPrimary,
-                fontWeight: FontWeight.w500,
+                fontSize: 12,
+                color: Colors.black,
+                fontWeight: FontWeight.w700,
               ),
               decoration: InputDecoration(
                 border: InputBorder.none,
@@ -290,9 +297,9 @@ class OtherVolAdditionActiveSystemView extends StatelessWidget {
         text,
         textAlign: TextAlign.center,
         style: AppTheme.bodySmall.copyWith(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: AppTheme.textPrimary,
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: Colors.black,
         ),
       ),
     );
@@ -411,16 +418,14 @@ class OtherVolAdditionActiveSystemView extends StatelessWidget {
                             volDrilledController,
                             fillColor: const Color(0xFFFFFFE8),
                           ),
-                          _dialogDropdownRow(
-                            'Shaker Bypass',
-                            shakerBypass,
-                            (value) {
-                              setState(() {
-                                shakerBypass = value ?? 'No';
-                                recalculate();
-                              });
-                            },
-                          ),
+                          _dialogDropdownRow('Shaker Bypass', shakerBypass, (
+                            value,
+                          ) {
+                            setState(() {
+                              shakerBypass = value ?? 'No';
+                              recalculate();
+                            });
+                          }),
                           _dialogInputRow(
                             'Shaker Efficiency (%)',
                             efficiencyController,
@@ -580,5 +585,52 @@ class OtherVolAdditionActiveSystemView extends StatelessWidget {
 
   String _formatNumber(double value) {
     return value.toStringAsFixed(2);
+  }
+}
+
+class _OtherVolScrollArea extends StatefulWidget {
+  const _OtherVolScrollArea({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_OtherVolScrollArea> createState() => _OtherVolScrollAreaState();
+}
+
+class _OtherVolScrollAreaState extends State<_OtherVolScrollArea> {
+  final ScrollController _verticalController = ScrollController();
+  final ScrollController _horizontalController = ScrollController();
+
+  @override
+  void dispose() {
+    _verticalController.dispose();
+    _horizontalController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scrollbar(
+      controller: _verticalController,
+      thumbVisibility: true,
+      trackVisibility: true,
+      notificationPredicate: (notification) =>
+          notification.metrics.axis == Axis.vertical,
+      child: SingleChildScrollView(
+        controller: _verticalController,
+        child: Scrollbar(
+          controller: _horizontalController,
+          thumbVisibility: true,
+          trackVisibility: true,
+          notificationPredicate: (notification) =>
+              notification.metrics.axis == Axis.horizontal,
+          child: SingleChildScrollView(
+            controller: _horizontalController,
+            scrollDirection: Axis.horizontal,
+            child: widget.child,
+          ),
+        ),
+      ),
+    );
   }
 }

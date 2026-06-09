@@ -72,6 +72,12 @@ class _ReturnProductViewState extends State<ReturnProductView> {
 
   // ✅ BOL No. field — same as ReceiveProductView
   final TextEditingController bolController = TextEditingController();
+  final ScrollController _productHorizontalScrollController =
+      ScrollController();
+  final ScrollController _productVerticalScrollController = ScrollController();
+  final ScrollController _packageHorizontalScrollController =
+      ScrollController();
+  final ScrollController _packageVerticalScrollController = ScrollController();
 
   final RxString alertMessage = ''.obs;
   final RxBool alertIsError = false.obs;
@@ -768,8 +774,9 @@ class _ReturnProductViewState extends State<ReturnProductView> {
                     Text(
                       "BOL No.",
                       style: AppTheme.bodySmall.copyWith(
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w700,
                         fontSize: 11,
+                        color: Colors.black,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -784,7 +791,11 @@ class _ReturnProductViewState extends State<ReturnProductView> {
                           () => TextField(
                             controller: bolController,
                             enabled: !dashboardController.isLocked.value,
-                            style: AppTheme.bodySmall.copyWith(fontSize: 11),
+                            style: AppTheme.bodySmall.copyWith(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.black,
+                            ),
                             decoration: InputDecoration(
                               isDense: true,
                               contentPadding: const EdgeInsets.symmetric(
@@ -832,8 +843,9 @@ class _ReturnProductViewState extends State<ReturnProductView> {
                             Text(
                               "Return All Inventory",
                               style: AppTheme.bodySmall.copyWith(
-                                fontWeight: FontWeight.w600,
+                                fontWeight: FontWeight.w700,
                                 fontSize: 11,
+                                color: Colors.black,
                               ),
                             ),
                           ],
@@ -892,6 +904,9 @@ class _ReturnProductViewState extends State<ReturnProductView> {
                           headers: ["No", "Product", "Code", "Unit", "Amount"],
                           color: AppTheme.primaryColor,
                           itemNameGetter: (item) => item.product,
+                          horizontalController:
+                              _productHorizontalScrollController,
+                          verticalController: _productVerticalScrollController,
                         ),
                         const SizedBox(height: 16),
                         _buildCompactTable<PackageRowData, PackageItem>(
@@ -914,6 +929,9 @@ class _ReturnProductViewState extends State<ReturnProductView> {
                           headers: ["No", "Package", "Code", "Unit", "Amount"],
                           color: AppTheme.successColor,
                           itemNameGetter: (item) => item.name,
+                          horizontalController:
+                              _packageHorizontalScrollController,
+                          verticalController: _packageVerticalScrollController,
                         ),
                       ],
                     ),
@@ -939,6 +957,8 @@ class _ReturnProductViewState extends State<ReturnProductView> {
     required List<String> headers,
     required Color color,
     required String Function(I) itemNameGetter,
+    required ScrollController horizontalController,
+    required ScrollController verticalController,
     Widget? trailing,
   }) {
     return Container(
@@ -951,7 +971,7 @@ class _ReturnProductViewState extends State<ReturnProductView> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: AppTheme.primaryColor,
               border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
             ),
             child: Row(
@@ -959,9 +979,9 @@ class _ReturnProductViewState extends State<ReturnProductView> {
                 Text(
                   title,
                   style: AppTheme.bodySmall.copyWith(
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w700,
                     fontSize: 12,
-                    color: AppTheme.textPrimary,
+                    color: Colors.black,
                   ),
                 ),
                 const Spacer(),
@@ -971,283 +991,331 @@ class _ReturnProductViewState extends State<ReturnProductView> {
           ),
           SizedBox(
             height: 200,
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: SizedBox(
-                width: _getTableWidth(headers),
-                child: Column(
-                  children: [
-                    _buildColumnHeaders(headers, color),
-                    Expanded(
-                      child: Obx(
-                        () => SingleChildScrollView(
-                          child: Column(
-                            children: List.generate(rows.length, (index) {
-                              final isSelected =
-                                  selectedRowIndex.value == index;
+            child: Scrollbar(
+              controller: verticalController,
+              thumbVisibility: true,
+              trackVisibility: true,
+              notificationPredicate: (notification) =>
+                  notification.metrics.axis == Axis.vertical,
+              child: Scrollbar(
+                controller: horizontalController,
+                thumbVisibility: true,
+                trackVisibility: true,
+                notificationPredicate: (notification) =>
+                    notification.metrics.axis == Axis.horizontal,
+                child: SingleChildScrollView(
+                  controller: horizontalController,
+                  scrollDirection: Axis.horizontal,
+                  child: SizedBox(
+                    width: _getTableWidth(headers),
+                    child: Column(
+                      children: [
+                        _buildColumnHeaders(headers, color),
+                        Expanded(
+                          child: Obx(
+                            () => SingleChildScrollView(
+                              controller: verticalController,
+                              child: Column(
+                                children: List.generate(rows.length, (index) {
+                                  final isSelected =
+                                      selectedRowIndex.value == index;
 
-                              String selItem = '';
-                              String code = '';
-                              String unit = '';
-                              bool isSavingRow = false;
-                              bool isDeletingRow = false;
-                              TextEditingController? amtCtrl;
+                                  String selItem = '';
+                                  String code = '';
+                                  String unit = '';
+                                  bool isSavingRow = false;
+                                  bool isDeletingRow = false;
+                                  TextEditingController? amtCtrl;
 
-                              if (T == ProductRowData) {
-                                final r = rows[index] as ProductRowData;
-                                selItem = r.selectedItem;
-                                code = r.code;
-                                unit = r.unit;
-                                isSavingRow = r.isSaving;
-                                isDeletingRow = r.isDeleting;
-                                amtCtrl = r.amountController;
-                              } else if (T == PackageRowData) {
-                                final r = rows[index] as PackageRowData;
-                                selItem = r.selectedItem;
-                                code = r.code;
-                                unit = r.unit;
-                                isSavingRow = r.isSaving;
-                                isDeletingRow = r.isDeleting;
-                                amtCtrl = r.amountController;
-                              }
+                                  if (T == ProductRowData) {
+                                    final r = rows[index] as ProductRowData;
+                                    selItem = r.selectedItem;
+                                    code = r.code;
+                                    unit = r.unit;
+                                    isSavingRow = r.isSaving;
+                                    isDeletingRow = r.isDeleting;
+                                    amtCtrl = r.amountController;
+                                  } else if (T == PackageRowData) {
+                                    final r = rows[index] as PackageRowData;
+                                    selItem = r.selectedItem;
+                                    code = r.code;
+                                    unit = r.unit;
+                                    isSavingRow = r.isSaving;
+                                    isDeletingRow = r.isDeleting;
+                                    amtCtrl = r.amountController;
+                                  }
 
-                              final menuHandler = T == ProductRowData
-                                  ? (TapDownDetails details) =>
-                                        _showProductRowMenu(details, index)
-                                  : (TapDownDetails details) =>
-                                        _showPackageRowMenu(details, index);
+                                  final menuHandler = T == ProductRowData
+                                      ? (TapDownDetails details) =>
+                                            _showProductRowMenu(details, index)
+                                      : (TapDownDetails details) =>
+                                            _showPackageRowMenu(details, index);
 
-                              return GestureDetector(
-                                behavior: HitTestBehavior.opaque,
-                                onSecondaryTapDown: menuHandler,
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    color: index % 2 == 0
-                                        ? Colors.white
-                                        : Colors.grey.shade50,
-                                    border: Border(
-                                      bottom: BorderSide(
-                                        color: Colors.grey.shade200,
-                                        width: 0.5,
-                                      ),
-                                    ),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      _cell(
-                                        50,
-                                        Text(
-                                          '${index + 1}',
-                                          style: AppTheme.bodySmall.copyWith(
-                                            fontSize: 10,
+                                  return GestureDetector(
+                                    behavior: HitTestBehavior.opaque,
+                                    onSecondaryTapDown: menuHandler,
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: index % 2 == 0
+                                            ? Colors.white
+                                            : Colors.grey.shade50,
+                                        border: Border(
+                                          bottom: BorderSide(
+                                            color: Colors.grey.shade200,
+                                            width: 0.5,
                                           ),
                                         ),
-                                        center: true,
                                       ),
-
-                                      GestureDetector(
-                                        onTap: () =>
-                                            selectedRowIndex.value = index,
-                                        child: Container(
-                                          width: 350,
-                                          height: 32,
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            border: Border(
-                                              right: BorderSide(
-                                                color: Colors.grey.shade300,
-                                                width: 0.5,
-                                              ),
+                                      child: Row(
+                                        children: [
+                                          _cell(
+                                            50,
+                                            Text(
+                                              '${index + 1}',
+                                              style: AppTheme.bodySmall
+                                                  .copyWith(
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.w700,
+                                                    color: Colors.black,
+                                                  ),
                                             ),
+                                            center: true,
                                           ),
-                                          child: Row(
-                                            children: [
-                                              Icon(
-                                                isSelected
-                                                    ? Icons.arrow_drop_down
-                                                    : Icons.arrow_right,
-                                                size: 16,
-                                                color: isSelected
-                                                    ? AppTheme.primaryColor
-                                                    : Colors.grey.shade400,
-                                              ),
-                                              const SizedBox(width: 4),
-                                              Expanded(
-                                                child: DropdownButtonHideUnderline(
-                                                  child: DropdownButton<I>(
-                                                    value: selItem.isNotEmpty
-                                                        ? dropdownItems
-                                                              .firstWhereOrNull(
-                                                                (item) =>
-                                                                    itemNameGetter(
-                                                                      item,
-                                                                    ) ==
-                                                                    selItem,
-                                                              )
-                                                        : null,
-                                                    hint: selItem.isNotEmpty
-                                                        ? Text(
-                                                            selItem,
-                                                            style: AppTheme
-                                                                .bodySmall
-                                                                .copyWith(
-                                                                  fontSize: 10,
-                                                                  color: Colors
-                                                                      .black87,
-                                                                ),
-                                                            overflow:
-                                                                TextOverflow
-                                                                    .ellipsis,
-                                                          )
-                                                        : Text(
-                                                            "",
-                                                            style: AppTheme
-                                                                .bodySmall
-                                                                .copyWith(
-                                                                  fontSize: 10,
-                                                                  color: Colors
-                                                                      .grey,
-                                                                ),
-                                                          ),
-                                                    isExpanded: true,
-                                                    isDense: true,
-                                                    icon:
-                                                        const SizedBox.shrink(),
-                                                    style: AppTheme.bodySmall
-                                                        .copyWith(
-                                                          fontSize: 10,
-                                                          color: AppTheme
-                                                              .textPrimary,
-                                                        ),
-                                                    menuMaxHeight: 250,
-                                                    items: dropdownItems
-                                                        .map(
-                                                          (
-                                                            item,
-                                                          ) => DropdownMenuItem<I>(
-                                                            value: item,
-                                                            child: Text(
-                                                              itemNameGetter(
-                                                                item,
-                                                              ),
-                                                              style: AppTheme
-                                                                  .bodySmall
-                                                                  .copyWith(
-                                                                    fontSize:
-                                                                        10,
-                                                                  ),
-                                                              overflow:
-                                                                  TextOverflow
-                                                                      .ellipsis,
-                                                            ),
-                                                          ),
-                                                        )
-                                                        .toList(),
-                                                    onChanged:
-                                                        dashboardController
-                                                            .isLocked
-                                                            .value
-                                                        ? null
-                                                        : (I? value) {
-                                                            if (value != null) {
-                                                              selectedRowIndex
-                                                                      .value =
-                                                                  index;
-                                                              onDropdownChanged(
-                                                                index,
-                                                                value,
-                                                              );
-                                                            }
-                                                          },
+
+                                          GestureDetector(
+                                            onTap: () =>
+                                                selectedRowIndex.value = index,
+                                            child: Container(
+                                              width: 350,
+                                              height: 32,
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 8,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                border: Border(
+                                                  right: BorderSide(
+                                                    color: Colors.grey.shade300,
+                                                    width: 0.5,
                                                   ),
                                                 ),
                                               ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-
-                                      _cell(
-                                        150,
-                                        Text(
-                                          code,
-                                          style: AppTheme.bodySmall.copyWith(
-                                            fontSize: 10,
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-
-                                      _cell(
-                                        150,
-                                        Text(
-                                          unit,
-                                          style: AppTheme.bodySmall.copyWith(
-                                            fontSize: 10,
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-
-                                      _cell(
-                                        150,
-                                        TextField(
-                                          controller: amtCtrl,
-                                          enabled: !dashboardController
-                                              .isLocked
-                                              .value,
-                                          style: AppTheme.bodySmall.copyWith(
-                                            fontSize: 10,
-                                          ),
-                                          textAlign: TextAlign.right,
-                                          decoration: const InputDecoration(
-                                            isDense: true,
-                                            contentPadding:
-                                                EdgeInsets.symmetric(
-                                                  horizontal: 4,
-                                                  vertical: 6,
-                                                ),
-                                            border: InputBorder.none,
-                                          ),
-                                          keyboardType:
-                                              TextInputType.numberWithOptions(
-                                                decimal: true,
+                                              child: Row(
+                                                children: [
+                                                  Icon(
+                                                    isSelected
+                                                        ? Icons.arrow_drop_down
+                                                        : Icons.arrow_right,
+                                                    size: 16,
+                                                    color: isSelected
+                                                        ? AppTheme.primaryColor
+                                                        : Colors.grey.shade400,
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                  Expanded(
+                                                    child: DropdownButtonHideUnderline(
+                                                      child: DropdownButton<I>(
+                                                        value:
+                                                            selItem.isNotEmpty
+                                                            ? dropdownItems
+                                                                  .firstWhereOrNull(
+                                                                    (item) =>
+                                                                        itemNameGetter(
+                                                                          item,
+                                                                        ) ==
+                                                                        selItem,
+                                                                  )
+                                                            : null,
+                                                        hint: selItem.isNotEmpty
+                                                            ? Text(
+                                                                selItem,
+                                                                style: AppTheme
+                                                                    .bodySmall
+                                                                    .copyWith(
+                                                                      fontSize:
+                                                                          10,
+                                                                      color: Colors
+                                                                          .black,
+                                                                      fontWeight:
+                                                                          FontWeight
+                                                                              .w700,
+                                                                    ),
+                                                                overflow:
+                                                                    TextOverflow
+                                                                        .ellipsis,
+                                                              )
+                                                            : Text(
+                                                                "",
+                                                                style: AppTheme
+                                                                    .bodySmall
+                                                                    .copyWith(
+                                                                      fontSize:
+                                                                          10,
+                                                                      color: Colors
+                                                                          .grey,
+                                                                    ),
+                                                              ),
+                                                        isExpanded: true,
+                                                        isDense: true,
+                                                        icon:
+                                                            const SizedBox.shrink(),
+                                                        style: AppTheme
+                                                            .bodySmall
+                                                            .copyWith(
+                                                              fontSize: 10,
+                                                              color:
+                                                                  Colors.black,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w700,
+                                                            ),
+                                                        menuMaxHeight: 250,
+                                                        items: dropdownItems
+                                                            .map(
+                                                              (
+                                                                item,
+                                                              ) => DropdownMenuItem<I>(
+                                                                value: item,
+                                                                child: Text(
+                                                                  itemNameGetter(
+                                                                    item,
+                                                                  ),
+                                                                  style: AppTheme
+                                                                      .bodySmall
+                                                                      .copyWith(
+                                                                        fontSize:
+                                                                            10,
+                                                                        color: Colors
+                                                                            .black,
+                                                                        fontWeight:
+                                                                            FontWeight.w700,
+                                                                      ),
+                                                                  overflow:
+                                                                      TextOverflow
+                                                                          .ellipsis,
+                                                                ),
+                                                              ),
+                                                            )
+                                                            .toList(),
+                                                        onChanged:
+                                                            dashboardController
+                                                                .isLocked
+                                                                .value
+                                                            ? null
+                                                            : (I? value) {
+                                                                if (value !=
+                                                                    null) {
+                                                                  selectedRowIndex
+                                                                          .value =
+                                                                      index;
+                                                                  onDropdownChanged(
+                                                                    index,
+                                                                    value,
+                                                                  );
+                                                                }
+                                                              },
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
-                                          onChanged: (val) {
-                                            if (T == ProductRowData) {
-                                              (rows[index] as ProductRowData)
-                                                      .amount =
-                                                  val;
-                                              _scheduleAutoSaveRow(
-                                                'product',
-                                                index,
-                                              );
-                                            } else if (T == PackageRowData) {
-                                              (rows[index] as PackageRowData)
-                                                      .amount =
-                                                  val;
-                                              _scheduleAutoSaveRow(
-                                                'package',
-                                                index,
-                                              );
-                                            }
-                                          },
-                                          onSubmitted: (_) => onSaveRow(index),
-                                        ),
-                                        noBorder: true,
+                                            ),
+                                          ),
+
+                                          _cell(
+                                            150,
+                                            Text(
+                                              code,
+                                              style: AppTheme.bodySmall
+                                                  .copyWith(
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.w700,
+                                                    color: Colors.black,
+                                                  ),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+
+                                          _cell(
+                                            150,
+                                            Text(
+                                              unit,
+                                              style: AppTheme.bodySmall
+                                                  .copyWith(
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.w700,
+                                                    color: Colors.black,
+                                                  ),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+
+                                          _cell(
+                                            150,
+                                            TextField(
+                                              controller: amtCtrl,
+                                              enabled: !dashboardController
+                                                  .isLocked
+                                                  .value,
+                                              style: AppTheme.bodySmall
+                                                  .copyWith(
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.w700,
+                                                    color: Colors.black,
+                                                  ),
+                                              textAlign: TextAlign.right,
+                                              decoration: const InputDecoration(
+                                                isDense: true,
+                                                contentPadding:
+                                                    EdgeInsets.symmetric(
+                                                      horizontal: 4,
+                                                      vertical: 6,
+                                                    ),
+                                                border: InputBorder.none,
+                                              ),
+                                              keyboardType:
+                                                  TextInputType.numberWithOptions(
+                                                    decimal: true,
+                                                  ),
+                                              onChanged: (val) {
+                                                if (T == ProductRowData) {
+                                                  (rows[index]
+                                                              as ProductRowData)
+                                                          .amount =
+                                                      val;
+                                                  _scheduleAutoSaveRow(
+                                                    'product',
+                                                    index,
+                                                  );
+                                                } else if (T ==
+                                                    PackageRowData) {
+                                                  (rows[index]
+                                                              as PackageRowData)
+                                                          .amount =
+                                                      val;
+                                                  _scheduleAutoSaveRow(
+                                                    'package',
+                                                    index,
+                                                  );
+                                                }
+                                              },
+                                              onSubmitted: (_) =>
+                                                  onSaveRow(index),
+                                            ),
+                                            noBorder: true,
+                                          ),
+                                        ],
                                       ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            }),
+                                    ),
+                                  );
+                                }),
+                              ),
+                            ),
                           ),
                         ),
-                      ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -1260,7 +1328,7 @@ class _ReturnProductViewState extends State<ReturnProductView> {
   Widget _buildColumnHeaders(List<String> headers, Color color) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
+        color: AppTheme.primaryColor,
         border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
       ),
       child: Row(
@@ -1281,8 +1349,8 @@ class _ReturnProductViewState extends State<ReturnProductView> {
                   h,
                   style: AppTheme.bodySmall.copyWith(
                     fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.textPrimary,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black,
                   ),
                 ),
               ),
@@ -1385,6 +1453,10 @@ class _ReturnProductViewState extends State<ReturnProductView> {
     _cancelAutoSaves();
     _inventorySnapshotRefreshTimer?.cancel();
     bolController.dispose(); // ✅ BOL controller dispose
+    _productHorizontalScrollController.dispose();
+    _productVerticalScrollController.dispose();
+    _packageHorizontalScrollController.dispose();
+    _packageVerticalScrollController.dispose();
     for (final r in productRows) r.dispose();
     for (final r in packageRows) r.dispose();
     super.dispose();

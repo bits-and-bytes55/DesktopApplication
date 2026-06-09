@@ -15,7 +15,8 @@ class SwitchMudTypeView extends StatefulWidget {
 
 class _SwitchMudTypeViewState extends State<SwitchMudTypeView> {
   late final SwitchMudTypeController controller;
-  final ScrollController scrollController = ScrollController();
+  final ScrollController _verticalScrollController = ScrollController();
+  final ScrollController _horizontalScrollController = ScrollController();
 
   @override
   void initState() {
@@ -25,7 +26,8 @@ class _SwitchMudTypeViewState extends State<SwitchMudTypeView> {
 
   @override
   void dispose() {
-    scrollController.dispose();
+    _verticalScrollController.dispose();
+    _horizontalScrollController.dispose();
     if (Get.isRegistered<SwitchMudTypeController>(tag: widget.instanceKey)) {
       Get.delete<SwitchMudTypeController>(tag: widget.instanceKey);
     }
@@ -36,51 +38,72 @@ class _SwitchMudTypeViewState extends State<SwitchMudTypeView> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
-      body: SingleChildScrollView(
-        controller: scrollController,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ================= ENHANCED HEADER =================
-              // _buildHeader(),
+      body: Scrollbar(
+        controller: _verticalScrollController,
+        thumbVisibility: true,
+        trackVisibility: true,
+        notificationPredicate: (notification) =>
+            notification.metrics.axis == Axis.vertical,
+        child: SingleChildScrollView(
+          controller: _verticalScrollController,
+          child: Scrollbar(
+            controller: _horizontalScrollController,
+            thumbVisibility: true,
+            trackVisibility: true,
+            notificationPredicate: (notification) =>
+                notification.metrics.axis == Axis.horizontal,
+            child: SingleChildScrollView(
+              controller: _horizontalScrollController,
+              scrollDirection: Axis.horizontal,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minWidth: 1000),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // ================= ENHANCED HEADER =================
+                      // _buildHeader(),
 
-              // const SizedBox(height: 20),
+                      // const SizedBox(height: 20),
 
-              /// SECTION 1
-              _enhancedTwoTableSection(
-                title: "1. Remove Mud from Active Pits",
-                selected: controller.section1Selected,
-                leftList: controller.section1Left,
-                rightList: controller.section1Right,
-                sectionIndex: 1,
+                      /// SECTION 1
+                      _enhancedTwoTableSection(
+                        title: "1. Remove Mud from Active Pits",
+                        selected: controller.section1Selected,
+                        leftList: controller.section1Left,
+                        rightList: controller.section1Right,
+                        sectionIndex: 1,
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      /// SECTION 2
+                      _enhancedTwoTableSection(
+                        title: "2. Fill Active Pits",
+                        selected: controller.section2Selected,
+                        leftList: controller.section2Left,
+                        rightList: controller.section2Right,
+                        sectionIndex: 2,
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      /// SECTION 3
+                      _enhancedSingleTableSection(
+                        title: "3. Displace Fluid in Hole to Storage",
+                        list: controller.section3,
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // ================= ACTION BUTTONS =================
+                      _buildActionButtons(),
+                    ],
+                  ),
+                ),
               ),
-
-              const SizedBox(height: 20),
-
-              /// SECTION 2
-              _enhancedTwoTableSection(
-                title: "2. Fill Active Pits",
-                selected: controller.section2Selected,
-                leftList: controller.section2Left,
-                rightList: controller.section2Right,
-                sectionIndex: 2,
-              ),
-
-              const SizedBox(height: 20),
-
-              /// SECTION 3
-              _enhancedSingleTableSection(
-                title: "3. Displace Fluid in Hole to Storage",
-                list: controller.section3,
-              ),
-
-              const SizedBox(height: 24),
-
-              // ================= ACTION BUTTONS =================
-              _buildActionButtons(),
-            ],
+            ),
           ),
         ),
       ),
@@ -241,8 +264,8 @@ class _SwitchMudTypeViewState extends State<SwitchMudTypeView> {
                 Text(
                   title,
                   style: AppTheme.bodyLarge.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.textPrimary,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black,
                     fontSize: 16,
                   ),
                 ),
@@ -346,10 +369,8 @@ class _SwitchMudTypeViewState extends State<SwitchMudTypeView> {
                 Text(
                   label,
                   style: AppTheme.bodySmall.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: isActive
-                        ? AppTheme.primaryColor
-                        : AppTheme.textSecondary,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black,
                   ),
                 ),
               ],
@@ -381,7 +402,7 @@ class _SwitchMudTypeViewState extends State<SwitchMudTypeView> {
             Container(
               padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
               decoration: BoxDecoration(
-                color: AppTheme.cardColor,
+                color: AppTheme.primaryColor,
                 borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(8),
                   topRight: Radius.circular(8),
@@ -395,8 +416,8 @@ class _SwitchMudTypeViewState extends State<SwitchMudTypeView> {
                       "Pit",
                       style: AppTheme.bodySmall.copyWith(
                         fontWeight: FontWeight.w700,
-                        color: AppTheme.textPrimary,
-                        fontSize: 11,
+                        color: Colors.black,
+                        fontSize: 12,
                       ),
                     ),
                   ),
@@ -406,8 +427,8 @@ class _SwitchMudTypeViewState extends State<SwitchMudTypeView> {
                       AppUnits.label("Volume (bbl)"),
                       style: AppTheme.bodySmall.copyWith(
                         fontWeight: FontWeight.w700,
-                        color: AppTheme.textPrimary,
-                        fontSize: 11,
+                        color: Colors.black,
+                        fontSize: 12,
                       ),
                       textAlign: TextAlign.right,
                     ),
@@ -450,9 +471,9 @@ class _SwitchMudTypeViewState extends State<SwitchMudTypeView> {
                                 hint: Text(
                                   "Select pit",
                                   style: AppTheme.bodySmall.copyWith(
-                                    fontSize: 11,
-                                    color: Colors.grey.shade500,
-                                    fontWeight: FontWeight.w500,
+                                    fontSize: 12,
+                                    color: Colors.black,
+                                    fontWeight: FontWeight.w700,
                                   ),
                                 ),
                                 onChanged: (String? newValue) {
@@ -466,9 +487,9 @@ class _SwitchMudTypeViewState extends State<SwitchMudTypeView> {
                                     child: Text(
                                       value,
                                       style: AppTheme.bodySmall.copyWith(
-                                        fontSize: 11,
-                                        color: AppTheme.textPrimary,
-                                        fontWeight: FontWeight.w500,
+                                        fontSize: 12,
+                                        color: Colors.black,
+                                        fontWeight: FontWeight.w700,
                                       ),
                                       overflow: TextOverflow.ellipsis,
                                     ),
@@ -480,11 +501,9 @@ class _SwitchMudTypeViewState extends State<SwitchMudTypeView> {
                                 child: Text(
                                   list[index] ?? "Select pit",
                                   style: AppTheme.bodySmall.copyWith(
-                                    fontSize: 11,
-                                    color: list[index] == null
-                                        ? Colors.grey.shade400
-                                        : AppTheme.textPrimary,
-                                    fontWeight: FontWeight.w500,
+                                    fontSize: 12,
+                                    color: Colors.black,
+                                    fontWeight: FontWeight.w700,
                                     fontStyle: list[index] == null
                                         ? FontStyle.italic
                                         : null,
@@ -506,16 +525,17 @@ class _SwitchMudTypeViewState extends State<SwitchMudTypeView> {
                                   isDense: true,
                                   hintText: "0.00",
                                   hintStyle: AppTheme.caption.copyWith(
-                                    color: Colors.grey.shade400,
+                                    color: Colors.black,
+                                    fontWeight: FontWeight.w700,
                                   ),
                                   contentPadding: const EdgeInsets.symmetric(
                                     vertical: 12,
                                   ),
                                 ),
                                 style: AppTheme.bodySmall.copyWith(
-                                  fontSize: 11,
-                                  color: AppTheme.textPrimary,
-                                  fontWeight: FontWeight.w500,
+                                  fontSize: 12,
+                                  color: Colors.black,
+                                  fontWeight: FontWeight.w700,
                                 ),
                                 textAlign: TextAlign.right,
                                 keyboardType: TextInputType.number,
@@ -526,8 +546,9 @@ class _SwitchMudTypeViewState extends State<SwitchMudTypeView> {
                                 child: Text(
                                   "0.00",
                                   style: AppTheme.bodySmall.copyWith(
-                                    fontSize: 11,
-                                    color: Colors.grey.shade400,
+                                    fontSize: 12,
+                                    color: Colors.black,
+                                    fontWeight: FontWeight.w700,
                                     fontStyle: FontStyle.italic,
                                   ),
                                 ),
@@ -593,8 +614,8 @@ class _SwitchMudTypeViewState extends State<SwitchMudTypeView> {
                   child: Text(
                     title,
                     style: AppTheme.bodyLarge.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.textPrimary,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.black,
                       fontSize: 16,
                     ),
                   ),

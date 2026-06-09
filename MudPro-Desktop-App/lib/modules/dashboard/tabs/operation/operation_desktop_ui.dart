@@ -294,6 +294,9 @@ Future<List<ProductModel>?> showSelectProductsDialog({
   final selectedKeys = <String>{};
   var sortBy = 'group';
   final sorted = List<ProductModel>.from(products);
+  final horizontalController = ScrollController();
+  final verticalController = ScrollController();
+  const tableWidth = 1112.0;
 
   void sortList() {
     sorted.sort((a, b) {
@@ -310,7 +313,7 @@ Future<List<ProductModel>?> showSelectProductsDialog({
 
   sortList();
 
-  return showDialog<List<ProductModel>>(
+  final dialogFuture = showDialog<List<ProductModel>>(
     context: context,
     builder: (dialogContext) {
       return StatefulBuilder(
@@ -328,21 +331,35 @@ Future<List<ProductModel>?> showSelectProductsDialog({
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        Text(
-                          title,
-                          style: AppTheme.bodyLarge.copyWith(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w500,
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryColor,
+                        border: Border(
+                          bottom: BorderSide(color: Colors.grey.shade300),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Text(
+                            title,
+                            style: AppTheme.bodyLarge.copyWith(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.black,
+                            ),
                           ),
-                        ),
-                        const Spacer(),
-                        IconButton(
-                          onPressed: () => Navigator.of(dialogContext).pop(),
-                          icon: const Icon(Icons.close),
-                        ),
-                      ],
+                          const Spacer(),
+                          IconButton(
+                            onPressed: () => Navigator.of(dialogContext).pop(),
+                            icon: const Icon(Icons.close, color: Colors.black),
+                          ),
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 8),
                     Row(
@@ -386,65 +403,92 @@ Future<List<ProductModel>?> showSelectProductsDialog({
                         decoration: BoxDecoration(
                           border: Border.all(color: Colors.grey.shade300),
                         ),
-                        child: SingleChildScrollView(
-                          child: Table(
-                            border: TableBorder.symmetric(
-                              inside: BorderSide(color: Colors.grey.shade300),
-                            ),
-                            columnWidths: const {
-                              0: FixedColumnWidth(42),
-                              1: FixedColumnWidth(220),
-                              2: FixedColumnWidth(320),
-                              3: FixedColumnWidth(140),
-                              4: FixedColumnWidth(120),
-                              5: FixedColumnWidth(150),
-                              6: FixedColumnWidth(120),
-                            },
-                            children: [
-                              TableRow(
-                                decoration: BoxDecoration(
-                                  color: Colors.grey.shade100,
-                                ),
-                                children: [
-                                  const SizedBox(height: 34),
-                                  _tableHeader('Group'),
-                                  _tableHeader('Product'),
-                                  _tableHeader('Code'),
-                                  _tableHeader('SG'),
-                                  _tableHeader('Unit'),
-                                  _tableHeader('Used'),
-                                ],
-                              ),
-                              ...sorted.map((product) {
-                                final key = product.id ?? product.product;
-                                final checked = selectedKeys.contains(key);
-                                return TableRow(
-                                  children: [
-                                    SizedBox(
-                                      height: 34,
-                                      child: Checkbox(
-                                        value: checked,
-                                        onChanged: (value) {
-                                          setState(() {
-                                            if (value == true) {
-                                              selectedKeys.add(key);
-                                            } else {
-                                              selectedKeys.remove(key);
-                                            }
-                                          });
-                                        },
+                        child: Scrollbar(
+                          controller: verticalController,
+                          thumbVisibility: true,
+                          trackVisibility: true,
+                          notificationPredicate: (notification) =>
+                              notification.metrics.axis == Axis.vertical,
+                          child: Scrollbar(
+                            controller: horizontalController,
+                            thumbVisibility: true,
+                            trackVisibility: true,
+                            notificationPredicate: (notification) =>
+                                notification.metrics.axis == Axis.horizontal,
+                            child: SingleChildScrollView(
+                              controller: horizontalController,
+                              scrollDirection: Axis.horizontal,
+                              child: SizedBox(
+                                width: tableWidth,
+                                child: SingleChildScrollView(
+                                  controller: verticalController,
+                                  child: Table(
+                                    border: TableBorder.symmetric(
+                                      inside: BorderSide(
+                                        color: Colors.grey.shade300,
                                       ),
                                     ),
-                                    _tableCell(product.group),
-                                    _tableCell(product.product),
-                                    _tableCell(product.code),
-                                    _tableCell(product.sg),
-                                    _tableCell(product.formattedUnit),
-                                    _tableCell(product.initial),
-                                  ],
-                                );
-                              }),
-                            ],
+                                    columnWidths: const {
+                                      0: FixedColumnWidth(42),
+                                      1: FixedColumnWidth(220),
+                                      2: FixedColumnWidth(320),
+                                      3: FixedColumnWidth(140),
+                                      4: FixedColumnWidth(120),
+                                      5: FixedColumnWidth(150),
+                                      6: FixedColumnWidth(120),
+                                    },
+                                    children: [
+                                      TableRow(
+                                        decoration: BoxDecoration(
+                                          color: AppTheme.primaryColor,
+                                        ),
+                                        children: [
+                                          const SizedBox(height: 34),
+                                          _tableHeader('Group'),
+                                          _tableHeader('Product'),
+                                          _tableHeader('Code'),
+                                          _tableHeader('SG'),
+                                          _tableHeader('Unit'),
+                                          _tableHeader('Used'),
+                                        ],
+                                      ),
+                                      ...sorted.map((product) {
+                                        final key =
+                                            product.id ?? product.product;
+                                        final checked = selectedKeys.contains(
+                                          key,
+                                        );
+                                        return TableRow(
+                                          children: [
+                                            SizedBox(
+                                              height: 34,
+                                              child: Checkbox(
+                                                value: checked,
+                                                onChanged: (value) {
+                                                  setState(() {
+                                                    if (value == true) {
+                                                      selectedKeys.add(key);
+                                                    } else {
+                                                      selectedKeys.remove(key);
+                                                    }
+                                                  });
+                                                },
+                                              ),
+                                            ),
+                                            _tableCell(product.group),
+                                            _tableCell(product.product),
+                                            _tableCell(product.code),
+                                            _tableCell(product.sg),
+                                            _tableCell(product.formattedUnit),
+                                            _tableCell(product.initial),
+                                          ],
+                                        );
+                                      }),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
                           ),
                         ),
                       ),
@@ -495,6 +539,11 @@ Future<List<ProductModel>?> showSelectProductsDialog({
       );
     },
   );
+  dialogFuture.whenComplete(() {
+    horizontalController.dispose();
+    verticalController.dispose();
+  });
+  return dialogFuture;
 }
 
 Widget _tableHeader(String label) {
@@ -505,8 +554,8 @@ Widget _tableHeader(String label) {
         label,
         style: const TextStyle(
           fontSize: 12,
-          fontWeight: FontWeight.w500,
-          color: Colors.black87,
+          fontWeight: FontWeight.w700,
+          color: Colors.black,
         ),
       ),
     ),
@@ -521,7 +570,11 @@ Widget _tableCell(String value, {bool highlight = false}) {
     color: highlight ? const Color(0xFFFFF9CC) : Colors.white,
     child: Text(
       value,
-      style: const TextStyle(fontSize: 12, color: Colors.black87),
+      style: const TextStyle(
+        fontSize: 12,
+        color: Colors.black,
+        fontWeight: FontWeight.w700,
+      ),
       overflow: TextOverflow.ellipsis,
     ),
   );

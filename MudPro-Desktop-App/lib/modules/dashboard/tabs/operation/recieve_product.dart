@@ -739,7 +739,7 @@ class _ReceiveProductViewState extends State<ReceiveProductView> {
                   vertical: 10,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: AppTheme.primaryColor,
                   border: Border(
                     bottom: BorderSide(color: Colors.grey.shade300),
                   ),
@@ -749,8 +749,9 @@ class _ReceiveProductViewState extends State<ReceiveProductView> {
                     Text(
                       "BOL No.",
                       style: AppTheme.bodySmall.copyWith(
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w700,
                         fontSize: 11,
+                        color: Colors.black,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -764,7 +765,11 @@ class _ReceiveProductViewState extends State<ReceiveProductView> {
                         child: TextField(
                           controller: bolController,
                           enabled: !dashboardController.isLocked.value,
-                          style: AppTheme.bodySmall.copyWith(fontSize: 11),
+                          style: AppTheme.bodySmall.copyWith(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.black,
+                          ),
                           decoration: InputDecoration(
                             isDense: true,
                             contentPadding: const EdgeInsets.symmetric(
@@ -896,7 +901,7 @@ class _ReceiveProductViewState extends State<ReceiveProductView> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: AppTheme.primaryColor,
               border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
             ),
             child: Row(
@@ -904,9 +909,9 @@ class _ReceiveProductViewState extends State<ReceiveProductView> {
                 Text(
                   title,
                   style: AppTheme.bodySmall.copyWith(
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w700,
                     fontSize: 12,
-                    color: AppTheme.textPrimary,
+                    color: Colors.black,
                   ),
                 ),
                 const Spacer(),
@@ -987,6 +992,8 @@ class _ReceiveProductViewState extends State<ReceiveProductView> {
                                           '${index + 1}',
                                           style: AppTheme.bodySmall.copyWith(
                                             fontSize: 10,
+                                            fontWeight: FontWeight.w700,
+                                            color: Colors.black,
                                           ),
                                         ),
                                         center: true,
@@ -1043,7 +1050,10 @@ class _ReceiveProductViewState extends State<ReceiveProductView> {
                                                                 .copyWith(
                                                                   fontSize: 10,
                                                                   color: Colors
-                                                                      .black87,
+                                                                      .black,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .w700,
                                                                 ),
                                                             overflow:
                                                                 TextOverflow
@@ -1066,8 +1076,9 @@ class _ReceiveProductViewState extends State<ReceiveProductView> {
                                                     style: AppTheme.bodySmall
                                                         .copyWith(
                                                           fontSize: 10,
-                                                          color: AppTheme
-                                                              .textPrimary,
+                                                          color: Colors.black,
+                                                          fontWeight:
+                                                              FontWeight.w700,
                                                         ),
                                                     menuMaxHeight: 250,
                                                     items: dropdownItems
@@ -1085,6 +1096,11 @@ class _ReceiveProductViewState extends State<ReceiveProductView> {
                                                                   .copyWith(
                                                                     fontSize:
                                                                         10,
+                                                                    color: Colors
+                                                                        .black,
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .w700,
                                                                   ),
                                                               overflow:
                                                                   TextOverflow
@@ -1124,6 +1140,8 @@ class _ReceiveProductViewState extends State<ReceiveProductView> {
                                           code,
                                           style: AppTheme.bodySmall.copyWith(
                                             fontSize: 10,
+                                            fontWeight: FontWeight.w700,
+                                            color: Colors.black,
                                           ),
                                           overflow: TextOverflow.ellipsis,
                                         ),
@@ -1136,6 +1154,8 @@ class _ReceiveProductViewState extends State<ReceiveProductView> {
                                           unit,
                                           style: AppTheme.bodySmall.copyWith(
                                             fontSize: 10,
+                                            fontWeight: FontWeight.w700,
+                                            color: Colors.black,
                                           ),
                                           overflow: TextOverflow.ellipsis,
                                         ),
@@ -1151,6 +1171,8 @@ class _ReceiveProductViewState extends State<ReceiveProductView> {
                                               .value,
                                           style: AppTheme.bodySmall.copyWith(
                                             fontSize: 10,
+                                            fontWeight: FontWeight.w700,
+                                            color: Colors.black,
                                           ),
                                           textAlign: TextAlign.right,
                                           decoration: const InputDecoration(
@@ -1212,7 +1234,7 @@ class _ReceiveProductViewState extends State<ReceiveProductView> {
   Widget _buildColumnHeaders(List<String> headers, Color color) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
+        color: AppTheme.primaryColor,
         border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
       ),
       child: Row(
@@ -1233,8 +1255,8 @@ class _ReceiveProductViewState extends State<ReceiveProductView> {
                   h,
                   style: AppTheme.bodySmall.copyWith(
                     fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.textPrimary,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black,
                   ),
                 ),
               ),

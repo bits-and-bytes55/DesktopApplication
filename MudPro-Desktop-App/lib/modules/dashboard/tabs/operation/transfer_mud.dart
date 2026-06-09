@@ -19,6 +19,8 @@ class _TransferMudViewState extends State<TransferMudView> {
   final PitController pitController = Get.put(PitController());
 
   final RxInt selectedRow = 0.obs;
+  final ScrollController _horizontalScrollController = ScrollController();
+  final ScrollController _verticalScrollController = ScrollController();
 
   static const String kActiveSystem = 'Active System';
   static const String kEmpty = '';
@@ -90,8 +92,9 @@ class _TransferMudViewState extends State<TransferMudView> {
         Text(
           "From",
           style: AppTheme.bodySmall.copyWith(
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w700,
             fontSize: 11,
+            color: Colors.black,
           ),
         ),
         const SizedBox(width: 12),
@@ -134,7 +137,8 @@ class _TransferMudViewState extends State<TransferMudView> {
                   ),
                   style: AppTheme.bodySmall.copyWith(
                     fontSize: 10,
-                    color: AppTheme.textPrimary,
+                    color: Colors.black,
+                    fontWeight: FontWeight.w700,
                   ),
                   menuMaxHeight: 200,
                   items: [
@@ -152,8 +156,8 @@ class _TransferMudViewState extends State<TransferMudView> {
                         child: Text(
                           kActiveSystem,
                           style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.primaryColor,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.black,
                           ),
                         ),
                       ),
@@ -171,6 +175,8 @@ class _TransferMudViewState extends State<TransferMudView> {
                                 pitName,
                                 style: AppTheme.bodySmall.copyWith(
                                   fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.black,
                                 ),
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -242,7 +248,8 @@ class _TransferMudViewState extends State<TransferMudView> {
             "Not Treated Mud",
             style: AppTheme.bodySmall.copyWith(
               fontSize: 11,
-              fontWeight: FontWeight.w500,
+              fontWeight: FontWeight.w700,
+              color: Colors.black,
             ),
           ),
         ],
@@ -254,7 +261,7 @@ class _TransferMudViewState extends State<TransferMudView> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final tableWidth = constraints.maxWidth.isFinite
-            ? constraints.maxWidth
+            ? (constraints.maxWidth > 720 ? constraints.maxWidth : 720.0)
             : 640.0;
         final pitWidth = tableWidth * 0.65;
         final volumeWidth = tableWidth - pitWidth;
@@ -267,72 +274,98 @@ class _TransferMudViewState extends State<TransferMudView> {
           ),
           child: SizedBox(
             height: 330,
-            child: Column(
-              children: [
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade50,
-                    border: Border(
-                      bottom: BorderSide(color: Colors.grey.shade300),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      _buildHeaderCell("Pit", pitWidth),
-                      _buildHeaderCell("Vol. (bbl)", volumeWidth),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: Obx(
-                    () => SingleChildScrollView(
-                      child: Column(
-                        children: List.generate(
-                          pitController.transferRows.length,
-                          (index) {
-                            final row = pitController.transferRows[index];
-                            final isSelected = selectedRow.value == index;
+            child: Scrollbar(
+              controller: _verticalScrollController,
+              thumbVisibility: true,
+              trackVisibility: true,
+              notificationPredicate: (notification) =>
+                  notification.metrics.axis == Axis.vertical,
+              child: Scrollbar(
+                controller: _horizontalScrollController,
+                thumbVisibility: true,
+                trackVisibility: true,
+                notificationPredicate: (notification) =>
+                    notification.metrics.axis == Axis.horizontal,
+                child: SingleChildScrollView(
+                  controller: _horizontalScrollController,
+                  scrollDirection: Axis.horizontal,
+                  child: SizedBox(
+                    width: tableWidth,
+                    child: Column(
+                      children: [
+                        Container(
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryColor,
+                            border: Border(
+                              bottom: BorderSide(color: Colors.grey.shade300),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              _buildHeaderCell("Pit", pitWidth),
+                              _buildHeaderCell("Vol. (bbl)", volumeWidth),
+                            ],
+                          ),
+                        ),
+                        Expanded(
+                          child: Obx(
+                            () => SingleChildScrollView(
+                              controller: _verticalScrollController,
+                              child: Column(
+                                children: List.generate(
+                                  pitController.transferRows.length,
+                                  (index) {
+                                    final row =
+                                        pitController.transferRows[index];
+                                    final isSelected =
+                                        selectedRow.value == index;
 
-                            return GestureDetector(
-                              behavior: HitTestBehavior.opaque,
-                              onTap: () => selectedRow.value = index,
-                              onSecondaryTapDown:
-                                  dashboardController.isLocked.value
-                                  ? null
-                                  : (details) =>
-                                        _showTransferRowMenu(details, index),
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: index % 2 == 0
-                                      ? Colors.white
-                                      : Colors.grey.shade50,
-                                  border: Border(
-                                    bottom: BorderSide(
-                                      color: Colors.grey.shade200,
-                                      width: 0.5,
-                                    ),
-                                  ),
-                                ),
-                                child: Row(
-                                  children: [
-                                    _buildPitDropdownCell(
-                                      row,
-                                      index,
-                                      isSelected,
-                                      pitWidth,
-                                    ),
-                                    _buildVolumeCell(row, volumeWidth),
-                                  ],
+                                    return GestureDetector(
+                                      behavior: HitTestBehavior.opaque,
+                                      onTap: () => selectedRow.value = index,
+                                      onSecondaryTapDown:
+                                          dashboardController.isLocked.value
+                                          ? null
+                                          : (details) => _showTransferRowMenu(
+                                              details,
+                                              index,
+                                            ),
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          color: index % 2 == 0
+                                              ? Colors.white
+                                              : Colors.grey.shade50,
+                                          border: Border(
+                                            bottom: BorderSide(
+                                              color: Colors.grey.shade200,
+                                              width: 0.5,
+                                            ),
+                                          ),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            _buildPitDropdownCell(
+                                              row,
+                                              index,
+                                              isSelected,
+                                              pitWidth,
+                                            ),
+                                            _buildVolumeCell(row, volumeWidth),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  },
                                 ),
                               ),
-                            );
-                          },
+                            ),
+                          ),
                         ),
-                      ),
+                      ],
                     ),
                   ),
                 ),
-              ],
+              ),
             ),
           ),
         );
@@ -354,8 +387,8 @@ class _TransferMudViewState extends State<TransferMudView> {
         text,
         style: AppTheme.bodySmall.copyWith(
           fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: Colors.white,
+          fontWeight: FontWeight.w700,
+          color: Colors.black,
         ),
       ),
     );
@@ -404,7 +437,8 @@ class _TransferMudViewState extends State<TransferMudView> {
                 icon: const SizedBox.shrink(),
                 style: AppTheme.bodySmall.copyWith(
                   fontSize: 10,
-                  color: AppTheme.textPrimary,
+                  color: Colors.black,
+                  fontWeight: FontWeight.w700,
                 ),
                 menuMaxHeight: 250,
                 // Build the items list: empty + Active System + storage pits
@@ -420,12 +454,8 @@ class _TransferMudViewState extends State<TransferMudView> {
                         pitName,
                         style: AppTheme.bodySmall.copyWith(
                           fontSize: 10,
-                          fontWeight: pitName == kActiveSystem
-                              ? FontWeight.w600
-                              : FontWeight.w400,
-                          color: pitName == kActiveSystem
-                              ? AppTheme.primaryColor
-                              : AppTheme.textPrimary,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.black,
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -464,7 +494,11 @@ class _TransferMudViewState extends State<TransferMudView> {
       child: TextField(
         controller: row.volumeController,
         enabled: !dashboardController.isLocked.value,
-        style: AppTheme.bodySmall.copyWith(fontSize: 10),
+        style: AppTheme.bodySmall.copyWith(
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          color: Colors.black,
+        ),
         decoration: const InputDecoration(
           isDense: true,
           contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 6),
@@ -531,6 +565,8 @@ class _TransferMudViewState extends State<TransferMudView> {
 
   @override
   void dispose() {
+    _horizontalScrollController.dispose();
+    _verticalScrollController.dispose();
     super.dispose();
   }
 }

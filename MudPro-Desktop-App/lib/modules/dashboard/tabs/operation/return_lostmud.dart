@@ -36,7 +36,8 @@ class ReturnLostMudView extends StatelessWidget {
               behavior: HitTestBehavior.translucent,
               onSecondaryTapDown: (details) =>
                   _showReturnLostMudMenu(context, details),
-              child: SingleChildScrollView(
+              child: _ReturnLostMudScrollArea(
+                minWidth: 1000,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -134,8 +135,8 @@ class ReturnLostMudView extends StatelessWidget {
             'Return / Lost Mud',
             style: TextStyle(
               fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
+              fontWeight: FontWeight.w700,
+              color: Colors.black,
             ),
           ),
         ],
@@ -199,7 +200,7 @@ class ReturnLostMudView extends StatelessWidget {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
-                color: Colors.black87,
+                color: Colors.black,
               ),
             ),
           ),
@@ -240,6 +241,7 @@ class ReturnLostMudView extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 11,
                               color: Colors.grey.shade500,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
                           isExpanded: true,
@@ -252,7 +254,7 @@ class ReturnLostMudView extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
-                            color: Colors.black87,
+                            color: Colors.black,
                           ),
                           dropdownColor: Colors.white,
                           items: controller.premixedList.map((premixed) {
@@ -263,7 +265,7 @@ class ReturnLostMudView extends StatelessWidget {
                                 style: TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w700,
-                                  color: Colors.black87,
+                                  color: Colors.black,
                                 ),
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -390,7 +392,11 @@ class ReturnLostMudView extends StatelessWidget {
                       : controller.selectedPitId.value,
                   hint: Text(
                     'Select Pit',
-                    style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey.shade500,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   isExpanded: true,
                   isDense: true,
@@ -399,7 +405,11 @@ class ReturnLostMudView extends StatelessWidget {
                     size: 18,
                     color: Colors.grey.shade700,
                   ),
-                  style: TextStyle(fontSize: 11, color: AppTheme.textPrimary),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.black,
+                    fontWeight: FontWeight.w700,
+                  ),
                   dropdownColor: Colors.white,
                   items: controller.fromOptions.map((option) {
                     return DropdownMenuItem<String>(
@@ -409,7 +419,7 @@ class ReturnLostMudView extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
-                          color: Colors.black87,
+                          color: Colors.black,
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -453,7 +463,7 @@ class ReturnLostMudView extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
-                  color: Colors.black87,
+                  color: Colors.black,
                 ),
                 decoration: InputDecoration(
                   isDense: true,
@@ -541,13 +551,13 @@ class ReturnLostMudView extends StatelessWidget {
   Widget _buildLabelCell(String text) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-      color: Colors.grey.shade50,
+      color: AppTheme.primaryColor,
       child: Text(
         text,
         style: TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w700,
-          color: Colors.black87,
+          color: Colors.black,
         ),
       ),
     );
@@ -562,7 +572,7 @@ class ReturnLostMudView extends StatelessWidget {
         style: TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w700,
-          color: Colors.black87,
+          color: Colors.black,
         ),
       ),
     );
@@ -577,9 +587,58 @@ class ReturnLostMudView extends StatelessWidget {
         style: TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w700,
-          color: Colors.black87,
+          color: Colors.black,
         ),
       ),
     );
+  }
+}
+
+class _ReturnLostMudScrollArea extends StatefulWidget {
+  const _ReturnLostMudScrollArea({required this.child, required this.minWidth});
+
+  final Widget child;
+  final double minWidth;
+
+  @override
+  State<_ReturnLostMudScrollArea> createState() =>
+      _ReturnLostMudScrollAreaState();
+}
+
+class _ReturnLostMudScrollAreaState extends State<_ReturnLostMudScrollArea> {
+  final ScrollController _horizontalController = ScrollController();
+  final ScrollController _verticalController = ScrollController();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scrollbar(
+      controller: _verticalController,
+      thumbVisibility: true,
+      trackVisibility: true,
+      notificationPredicate: (notification) =>
+          notification.metrics.axis == Axis.vertical,
+      child: Scrollbar(
+        controller: _horizontalController,
+        thumbVisibility: true,
+        trackVisibility: true,
+        notificationPredicate: (notification) =>
+            notification.metrics.axis == Axis.horizontal,
+        child: SingleChildScrollView(
+          controller: _verticalController,
+          child: SingleChildScrollView(
+            controller: _horizontalController,
+            scrollDirection: Axis.horizontal,
+            child: SizedBox(width: widget.minWidth, child: widget.child),
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _horizontalController.dispose();
+    _verticalController.dispose();
+    super.dispose();
   }
 }

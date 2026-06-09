@@ -69,6 +69,9 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
   final RxString selectedPreviousReportId = ''.obs;
   final RxBool isLoadingPreviousProducts = false.obs;
   final RxBool isSavingAll = false.obs;
+  final ScrollController _productHorizontalScrollController =
+      ScrollController();
+  final ScrollController _productVerticalScrollController = ScrollController();
   final Map<String, double> _receiveProductTotals = {};
   final Map<String, double> _returnProductTotals = {};
   final Map<String, double> _previousFinalByProductKey = {};
@@ -279,6 +282,8 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     _totalVolumeWorker?.dispose();
     waterVolumeController.removeListener(_recalculateTotalVolume);
     waterVolumeController.dispose();
+    _productHorizontalScrollController.dispose();
+    _productVerticalScrollController.dispose();
     _saveBridge.unregister();
 
     // Dispose all distribution row controllers
@@ -1750,59 +1755,79 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
           ),
           SizedBox(
             height: 232,
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: SingleChildScrollView(
-                scrollDirection: Axis.vertical,
-                child: Obx(
-                  () => DataTable(
-                    headingRowHeight: 34,
-                    dataRowHeight: 34,
-                    columnSpacing: 0,
-                    horizontalMargin: 0,
-                    dividerThickness: 0,
-                    headingRowColor: MaterialStateProperty.all(
-                      AppTheme.primaryColor,
-                    ),
-                    border: TableBorder(
-                      verticalInside: BorderSide(color: Colors.grey.shade300),
-                      horizontalInside: BorderSide(color: Colors.grey.shade200),
-                    ),
-                    headingTextStyle: AppTheme.bodySmall.copyWith(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
-                    dataTextStyle: AppTheme.bodySmall.copyWith(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.black,
-                    ),
-                    columns: headers
-                        .map(
-                          (h) => DataColumn(
-                            label: Container(
-                              width: _colWidth(h),
-                              alignment: _isRightCol(h)
-                                  ? Alignment.centerRight
-                                  : Alignment.centerLeft,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
+            child: Scrollbar(
+              controller: _productVerticalScrollController,
+              thumbVisibility: true,
+              trackVisibility: true,
+              notificationPredicate: (notification) =>
+                  notification.metrics.axis == Axis.vertical,
+              child: Scrollbar(
+                controller: _productHorizontalScrollController,
+                thumbVisibility: true,
+                trackVisibility: true,
+                notificationPredicate: (notification) =>
+                    notification.metrics.axis == Axis.horizontal,
+                child: SingleChildScrollView(
+                  controller: _productHorizontalScrollController,
+                  scrollDirection: Axis.horizontal,
+                  child: SingleChildScrollView(
+                    controller: _productVerticalScrollController,
+                    scrollDirection: Axis.vertical,
+                    child: Obx(
+                      () => DataTable(
+                        headingRowHeight: 34,
+                        dataRowHeight: 34,
+                        columnSpacing: 0,
+                        horizontalMargin: 0,
+                        dividerThickness: 0,
+                        headingRowColor: MaterialStateProperty.all(
+                          AppTheme.primaryColor,
+                        ),
+                        border: TableBorder(
+                          verticalInside: BorderSide(
+                            color: Colors.grey.shade300,
+                          ),
+                          horizontalInside: BorderSide(
+                            color: Colors.grey.shade200,
+                          ),
+                        ),
+                        headingTextStyle: AppTheme.bodySmall.copyWith(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                        dataTextStyle: AppTheme.bodySmall.copyWith(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.black,
+                        ),
+                        columns: headers
+                            .map(
+                              (h) => DataColumn(
+                                label: Container(
+                                  width: _colWidth(h),
+                                  alignment: _isRightCol(h)
+                                      ? Alignment.centerRight
+                                      : Alignment.centerLeft,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                  ),
+                                  child: Text(AppUnits.label(h)),
+                                ),
                               ),
-                              child: Text(AppUnits.label(h)),
+                            )
+                            .toList(),
+                        rows: List.generate(
+                          productRows.length,
+                          (i) => DataRow(
+                            color: MaterialStateProperty.all(
+                              i % 2 == 0 ? Colors.white : Colors.grey.shade50,
+                            ),
+                            cells: _withProductRowMenu(
+                              _buildRowCells(productRows[i], i),
+                              i,
                             ),
                           ),
-                        )
-                        .toList(),
-                    rows: List.generate(
-                      productRows.length,
-                      (i) => DataRow(
-                        color: MaterialStateProperty.all(
-                          i % 2 == 0 ? Colors.white : Colors.grey.shade50,
-                        ),
-                        cells: _withProductRowMenu(
-                          _buildRowCells(productRows[i], i),
-                          i,
                         ),
                       ),
                     ),
@@ -2394,37 +2419,44 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       // Active System fixed option
       DropdownMenuItem<String>(
         value: kActiveSystem,
-        child: Row(
-          children: [
-            Icon(
-              Icons.layers_outlined,
-              size: 12,
-              color: AppTheme.primaryColor.withOpacity(0.7),
-            ),
-            const SizedBox(width: 4),
-            Text(
-              kActiveSystem,
-              style: AppTheme.bodySmall.copyWith(
-                fontSize: 11,
-                color: Colors.black,
-                fontWeight: FontWeight.w700,
+        child: Center(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.layers_outlined,
+                size: 12,
+                color: AppTheme.primaryColor.withOpacity(0.7),
               ),
-            ),
-          ],
+              const SizedBox(width: 4),
+              Text(
+                kActiveSystem,
+                textAlign: TextAlign.center,
+                style: AppTheme.bodySmall.copyWith(
+                  fontSize: 11,
+                  color: Colors.black,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
       // Unselected pits from API
       ...dropdownPitNames.map(
         (pitName) => DropdownMenuItem<String>(
           value: pitName,
-          child: Text(
-            pitName,
-            style: AppTheme.bodySmall.copyWith(
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-              color: Colors.black,
+          child: Center(
+            child: Text(
+              pitName,
+              textAlign: TextAlign.center,
+              style: AppTheme.bodySmall.copyWith(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: Colors.black,
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
-            overflow: TextOverflow.ellipsis,
           ),
         ),
       ),
@@ -2518,7 +2550,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
   Widget _buildRightControls() {
     return Container(
       height: 240,
-      padding: const EdgeInsets.all(12),
+      padding: EdgeInsets.zero,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(4),
@@ -2527,183 +2559,214 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Obx(
-            () => Row(
-              children: [
-                InkWell(
-                  onTap: dashboardController.isLocked.value
-                      ? null
-                      : () {
-                          addWater.value = !addWater.value;
-                          _recalculateTotalVolume();
-                          _scheduleDistributionAutoSave();
-                        },
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: addWater.value
-                          ? AppTheme.primaryColor.withOpacity(0.1)
-                          : Colors.grey.shade50,
-                      borderRadius: BorderRadius.circular(3),
-                      border: Border.all(
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryColor,
+              border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
+            ),
+            child: Text(
+              'Add Water',
+              style: AppTheme.bodySmall.copyWith(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: Colors.black,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Obx(
+              () => Row(
+                children: [
+                  InkWell(
+                    onTap: dashboardController.isLocked.value
+                        ? null
+                        : () {
+                            addWater.value = !addWater.value;
+                            _recalculateTotalVolume();
+                            _scheduleDistributionAutoSave();
+                          },
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
                         color: addWater.value
-                            ? AppTheme.primaryColor
-                            : Colors.grey.shade300,
+                            ? AppTheme.primaryColor.withOpacity(0.1)
+                            : Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(3),
+                        border: Border.all(
+                          color: addWater.value
+                              ? AppTheme.primaryColor
+                              : Colors.grey.shade300,
+                        ),
                       ),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 16,
-                          height: 16,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(2),
-                            border: Border.all(
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 16,
+                            height: 16,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(2),
+                              border: Border.all(
+                                color: addWater.value
+                                    ? AppTheme.primaryColor
+                                    : Colors.grey.shade400,
+                              ),
                               color: addWater.value
                                   ? AppTheme.primaryColor
-                                  : Colors.grey.shade400,
+                                  : Colors.transparent,
                             ),
-                            color: addWater.value
-                                ? AppTheme.primaryColor
-                                : Colors.transparent,
+                            child: addWater.value
+                                ? const Icon(
+                                    Icons.check,
+                                    size: 11,
+                                    color: Colors.white,
+                                  )
+                                : null,
                           ),
-                          child: addWater.value
-                              ? const Icon(
-                                  Icons.check,
-                                  size: 11,
-                                  color: Colors.white,
-                                )
-                              : null,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          "Add Water",
-                          style: AppTheme.bodySmall.copyWith(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.black,
+                          const SizedBox(width: 8),
+                          Text(
+                            "Add Water",
+                            style: AppTheme.bodySmall.copyWith(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.black,
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                if (addWater.value) ...[
-                  const SizedBox(width: 10),
-                  Expanded(child: _waterField()),
-                ],
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 10),
-
-          Row(
-            children: [
-              Text(
-                "Total Vol.",
-                style: AppTheme.bodySmall.copyWith(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.black,
-                ),
-              ),
-              const SizedBox(width: 6),
-              IconButton(
-                onPressed: _openVolumeByGroupDialog,
-                icon: Icon(
-                  Icons.help_outline,
-                  size: 16,
-                  color: AppTheme.primaryColor,
-                ),
-                tooltip: 'Volume By Group',
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Obx(
-                  () => Container(
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: AppTheme.primaryColor.withOpacity(0.04),
-                      borderRadius: BorderRadius.circular(3),
-                      border: Border.all(
-                        color: AppTheme.primaryColor.withOpacity(0.3),
+                        ],
                       ),
                     ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
-                            child: Text(
-                              totalVolumeDisplay.value,
-                              textAlign: TextAlign.right,
-                              style: AppTheme.bodySmall.copyWith(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.black,
-                              ),
-                            ),
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                          decoration: BoxDecoration(
-                            color: AppTheme.primaryColor.withOpacity(0.1),
-                            borderRadius: const BorderRadius.only(
-                              topRight: Radius.circular(3),
-                              bottomRight: Radius.circular(3),
-                            ),
-                          ),
-                          child: Center(
-                            child: Text(
-                              "bbl",
-                              style: AppTheme.bodySmall.copyWith(
-                                fontSize: 10,
-                                color: Colors.black,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
                   ),
-                ),
+                  if (addWater.value) ...[
+                    const SizedBox(width: 10),
+                    Expanded(child: _waterField()),
+                  ],
+                ],
               ),
-            ],
+            ),
           ),
 
           const SizedBox(height: 10),
 
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.amber.shade50,
-              borderRadius: BorderRadius.circular(3),
-              border: Border.all(color: Colors.amber.shade200),
-            ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
             child: Row(
               children: [
-                Icon(
-                  Icons.info_outline,
-                  size: 13,
-                  color: Colors.amber.shade700,
+                Text(
+                  "Total Vol.",
+                  style: AppTheme.bodySmall.copyWith(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black,
+                  ),
                 ),
                 const SizedBox(width: 6),
+                IconButton(
+                  onPressed: _openVolumeByGroupDialog,
+                  icon: Icon(
+                    Icons.help_outline,
+                    size: 16,
+                    color: AppTheme.primaryColor,
+                  ),
+                  tooltip: 'Volume By Group',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(
+                    minWidth: 18,
+                    minHeight: 18,
+                  ),
+                ),
+                const SizedBox(width: 8),
                 Expanded(
-                  child: Text(
-                    "Active System follows Total Vol. Storage pit rows are saved separately for Volume Name End Vol. calculations.",
-                    style: AppTheme.bodySmall.copyWith(
-                      fontSize: 9,
-                      color: Colors.black,
-                      fontWeight: FontWeight.w700,
+                  child: Obx(
+                    () => Container(
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryColor.withOpacity(0.04),
+                        borderRadius: BorderRadius.circular(3),
+                        border: Border.all(
+                          color: AppTheme.primaryColor.withOpacity(0.3),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                              ),
+                              child: Text(
+                                totalVolumeDisplay.value,
+                                textAlign: TextAlign.right,
+                                style: AppTheme.bodySmall.copyWith(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.black,
+                                ),
+                              ),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            decoration: BoxDecoration(
+                              color: AppTheme.primaryColor.withOpacity(0.1),
+                              borderRadius: const BorderRadius.only(
+                                topRight: Radius.circular(3),
+                                bottomRight: Radius.circular(3),
+                              ),
+                            ),
+                            child: Center(
+                              child: Text(
+                                "bbl",
+                                style: AppTheme.bodySmall.copyWith(
+                                  fontSize: 10,
+                                  color: Colors.black,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ],
+            ),
+          ),
+
+          const SizedBox(height: 10),
+
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.amber.shade50,
+                borderRadius: BorderRadius.circular(3),
+                border: Border.all(color: Colors.amber.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    size: 13,
+                    color: Colors.amber.shade700,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      "Active System follows Total Vol. Storage pit rows are saved separately for Volume Name End Vol. calculations.",
+                      style: AppTheme.bodySmall.copyWith(
+                        fontSize: 9,
+                        color: Colors.black,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],

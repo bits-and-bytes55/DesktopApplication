@@ -143,6 +143,12 @@ class OtherVolAdditionController extends GetxController {
   }
 
   Map<String, dynamic>? _extractEntity(dynamic value) {
+    if (value is List && value.isNotEmpty) {
+      final first = value.first;
+      if (first is Map) {
+        return Map<String, dynamic>.from(first);
+      }
+    }
     if (value is Map && value['data'] is Map) {
       return Map<String, dynamic>.from(value['data'] as Map);
     }
@@ -173,7 +179,9 @@ class OtherVolAdditionController extends GetxController {
     try {
       final result = await _repository.getOtherVolAdditionList(wellId);
       if (result['success'] != true) {
-        throw Exception(result['message'] ?? 'Failed to load Other Vol Addition');
+        throw Exception(
+          result['message'] ?? 'Failed to load Other Vol Addition',
+        );
       }
       final items = _extractList(result['data']);
       if (items.isEmpty) {
@@ -217,13 +225,17 @@ class OtherVolAdditionController extends GetxController {
       'operationInstanceKey': instanceKey,
     };
 
-    final total = (body['formation'] as double) +
+    final total =
+        (body['formation'] as double) +
         (body['cuttings'] as double) +
         (body['volumeNotFluid'] as double);
 
     if (total <= 0) {
       if (recordId.value == null || recordId.value!.isEmpty) {
-        return {'success': true, 'message': 'No Other Vol Addition data to save'};
+        return {
+          'success': true,
+          'message': 'No Other Vol Addition data to save',
+        };
       }
       final deleteRes = await _repository.deleteOtherVolAddition(
         wellId,
@@ -237,7 +249,11 @@ class OtherVolAdditionController extends GetxController {
     }
 
     final result = recordId.value != null && recordId.value!.isNotEmpty
-        ? await _repository.updateOtherVolAddition(wellId, recordId.value!, body)
+        ? await _repository.updateOtherVolAddition(
+            wellId,
+            recordId.value!,
+            body,
+          )
         : await _repository.createOtherVolAddition(wellId, body);
 
     if (result['success'] == true) {
