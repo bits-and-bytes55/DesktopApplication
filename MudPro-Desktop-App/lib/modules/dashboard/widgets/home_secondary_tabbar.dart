@@ -1558,6 +1558,9 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
     final reportDate = DateFormat('MM/dd/yyyy').format(DateTime.now());
 
     try {
+      if (Get.isRegistered<MudController>()) {
+        Get.find<MudController>().markNextReportMudStateClean();
+      }
       final result = await reportC.createReport({
         'reportNo': nextReportNo,
         'userReportNo': nextReportNo,
@@ -1567,9 +1570,6 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
 
       final createdReportId = _dialogEntityId(result['data']);
       if (createdReportId.isNotEmpty) {
-        if (Get.isRegistered<MudController>()) {
-          Get.find<MudController>().markNewReportMudStateClean(createdReportId);
-        }
         reportC.selectReport(createdReportId);
         controller.navigate('report:$createdReportId');
       }
@@ -1581,6 +1581,9 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
         result['message']?.toString() ?? "Report created successfully",
       );
     } catch (e) {
+      if (Get.isRegistered<MudController>()) {
+        Get.find<MudController>().cancelNextReportMudStateClean();
+      }
       _showDesktopAlert(
         context,
         e.toString().replaceFirst(RegExp(r'^Exception:\s*'), ''),
@@ -1992,9 +1995,18 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
   }
 
   Future<void> _carryOver(BuildContext context) async {
-    final sourceReport = reportC.selectedReport;
-    if (sourceReport == null) {
+    final targetReport = reportC.selectedReport;
+    if (targetReport == null) {
       _showDesktopAlert(context, 'Select a report first.', isSuccess: false);
+      return;
+    }
+    final sourceReport = _previousReportForSelected();
+    if (sourceReport == null) {
+      _showDesktopAlert(
+        context,
+        'No previous report available to carry forward.',
+        isSuccess: false,
+      );
       return;
     }
     if (!padWellC.isSelectedWellReadyForReportCreation) {
@@ -2007,19 +2019,13 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
     }
     if (_isCreatingReport) return;
 
-    final nextReportNo = _nextCarryOverReportNo(sourceReport.reportNo);
-    final existingNextReport = _reportByReportNo(nextReportNo);
-    final targetLabel = 'Report $nextReportNo';
-
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         title: const Text("Carry-over Report"),
         content: Text(
-          existingNextReport == null
-              ? "This will create $targetLabel and copy Report ${sourceReport.reportNo} data into it."
-              : "This will replace $targetLabel data with Report ${sourceReport.reportNo} data.",
+          "This will replace Report ${targetReport.reportNo} data with Report ${sourceReport.reportNo} data.",
         ),
         actions: [
           TextButton(
@@ -2043,22 +2049,12 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
 
     setState(() => _isCreatingReport = true);
     try {
-      final result = existingNextReport == null
-          ? await reportC.createReport({
-              'reportNo': nextReportNo,
-              'userReportNo': nextReportNo,
-              'reportDate': _nextCarryOverDate(sourceReport.reportDate),
-              'title': targetLabel,
-              'carryOverFromReportId': sourceReport.id,
-            })
-          : await reportC.carryOverIntoReport(
-              targetReportId: existingNextReport.id,
-              sourceReportId: sourceReport.id,
-            );
+      final result = await reportC.carryOverIntoReport(
+        targetReportId: targetReport.id,
+        sourceReportId: sourceReport.id,
+      );
 
-      final targetReportId = existingNextReport?.id.isNotEmpty == true
-          ? existingNextReport!.id
-          : _dialogEntityId(result['data']);
+      final targetReportId = targetReport.id;
       if (targetReportId.isNotEmpty) {
         reportC.selectReport(targetReportId);
         controller.navigate('report:$targetReportId');
@@ -2088,26 +2084,19 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
     }
   }
 
-  String _nextCarryOverReportNo(String sourceReportNo) {
-    final parsed = int.tryParse(sourceReportNo.trim());
-    if (parsed != null) return (parsed + 1).toString();
-    return reportC.nextSuggestedReportNo.trim();
-  }
-
-  String _nextCarryOverDate(String sourceReportDate) {
-    final parsed = _parseReportDate(sourceReportDate);
-    final nextDate = (parsed ?? DateTime.now()).add(const Duration(days: 1));
-    return DateFormat('MM/dd/yyyy').format(nextDate);
-  }
-
-  dynamic _reportByReportNo(String reportNo) {
-    final targetNo = reportNo.trim();
-    for (final report in reportC.reports) {
-      if (report.reportNo.trim() == targetNo) {
-        return report;
-      }
-    }
-    return null;
+  dynamic _previousReportForSelected() {
+    final selected = reportC.selectedReport;
+    if (selected == null) return null;
+    final reports = reportC.reports.toList()
+      ..sort((a, b) {
+        final aNo = int.tryParse(a.reportNo.trim());
+        final bNo = int.tryParse(b.reportNo.trim());
+        if (aNo != null && bNo != null) return aNo.compareTo(bNo);
+        return a.reportNo.compareTo(b.reportNo);
+      });
+    final index = reports.indexWhere((item) => item.id == selected.id);
+    if (index <= 0) return null;
+    return reports[index - 1];
   }
 
   void _toggleLock(BuildContext context) {
