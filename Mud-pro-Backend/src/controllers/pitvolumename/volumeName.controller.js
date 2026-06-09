@@ -578,40 +578,42 @@ const buildCalculatedVolumeMap = (distributionRows = [], activePitNames = new Se
 const isActiveSystemName = (value) =>
   toText(value).toLowerCase() === "active system";
 
-const calculateAdjustedActiveSystemWater = ({
+const calculateAdjustedActiveSystemPendingInput = ({
   addWaterEntries = [],
   activeSystemDistributionRows = [],
+  otherVolAdditions = [],
   activePitsList = [],
 }) => {
-  const activeSystemWaterEntries = [
+  const activeSystemPendingEntries = [
     ...addWaterEntries.filter(
       (item) => isActiveSystemName(item?.to) && toNumber(item?.volume) > 0
     ),
     ...activeSystemDistributionRows.filter(
       (item) => toNumber(item?.volume) > 0
     ),
+    ...otherVolAdditions.filter((item) => toNumber(item?.totalVolume) > 0),
   ];
-  if (!activeSystemWaterEntries.length) return 0;
+  if (!activeSystemPendingEntries.length) return 0;
 
-  const totalWater = round2(
-    activeSystemWaterEntries.reduce(
-      (sum, item) => sum + toNumber(item?.volume),
+  const totalPending = round2(
+    activeSystemPendingEntries.reduce(
+      (sum, item) => sum + toNumber(item?.volume ?? item?.totalVolume),
       0
     )
   );
-  const waterTimes = activeSystemWaterEntries
+  const pendingTimes = activeSystemPendingEntries
     .map((item) => itemTime(item))
     .filter((time) => Number.isFinite(time) && time > 0);
-  if (!waterTimes.length) return 0;
+  if (!pendingTimes.length) return 0;
 
-  const firstWaterTime = Math.min(...waterTimes);
+  const firstPendingTime = Math.min(...pendingTimes);
   const adjustedActivePitVolume = activePitsList.reduce((sum, pit) => {
     const pitTime = itemTime(pit);
-    if (!Number.isFinite(pitTime) || pitTime < firstWaterTime) return sum;
+    if (!Number.isFinite(pitTime) || pitTime < firstPendingTime) return sum;
     return sum + toNumber(pit?.volume);
   }, 0);
 
-  return round2(Math.min(totalWater, Math.max(0, adjustedActivePitVolume)));
+  return round2(Math.min(totalPending, Math.max(0, adjustedActivePitVolume)));
 };
 
 const isIgnoredDestination = (value) => {
@@ -657,6 +659,7 @@ const buildOperationVolumeEffects = ({
 }) => {
   let activeSystemDelta = 0;
   let addWaterActiveSystemDelta = 0;
+  let otherVolActiveSystemDelta = 0;
   let endVolDelta = 0;
   let forceEndVolZero = false;
   const activeDeltaByPit = new Map();
@@ -696,6 +699,7 @@ const buildOperationVolumeEffects = ({
   for (const item of otherVolAdditions) {
     const volume = toNumber(item.totalVolume);
     activeSystemDelta += volume;
+    otherVolActiveSystemDelta += volume;
     endVolDelta += volume;
   }
 
@@ -769,6 +773,7 @@ const buildOperationVolumeEffects = ({
   return {
     activeSystemDelta: round2(activeSystemDelta),
     addWaterActiveSystemDelta: round2(addWaterActiveSystemDelta),
+    otherVolActiveSystemDelta: round2(otherVolActiveSystemDelta),
     endVolDelta: round2(endVolDelta),
     forceEndVolZero,
     activeDeltaByPit,
@@ -1273,21 +1278,29 @@ export const getVolumeNameCalculation = async (req, res) => {
     }
     const derivedActiveSystem = round2(activePitsWithTransfer + heldVolDifference);
     const activeSystem = derivedActiveSystem;
-    const adjustedActiveSystemWater = calculateAdjustedActiveSystemWater({
-      addWaterEntries: normalizedAddWaterEntries,
-      activeSystemDistributionRows: distributionActiveSystemRows,
-      activePitsList,
-    });
     const activeSystemPendingInput = round2(
-      operationVolumeEffects.addWaterActiveSystemDelta + activeSystemVolume
+      operationVolumeEffects.addWaterActiveSystemDelta +
+        activeSystemVolume +
+        operationVolumeEffects.otherVolActiveSystemDelta
     );
-    const pendingActiveSystemWater = round2(
-      Math.max(0, activeSystemPendingInput - adjustedActiveSystemWater)
+    const adjustedActiveSystemPendingInput =
+      calculateAdjustedActiveSystemPendingInput({
+        addWaterEntries: normalizedAddWaterEntries,
+        activeSystemDistributionRows: distributionActiveSystemRows,
+        otherVolAdditions: normalizedOtherVolAdditions,
+        activePitsList,
+      });
+    const pendingActiveSystemInput = round2(
+      Math.max(
+        0,
+        activeSystemPendingInput - adjustedActiveSystemPendingInput
+      )
     );
     const effectiveEndVolDelta = round2(
       operationVolumeEffects.endVolDelta -
-        operationVolumeEffects.addWaterActiveSystemDelta +
-        pendingActiveSystemWater
+        operationVolumeEffects.addWaterActiveSystemDelta -
+        operationVolumeEffects.otherVolActiveSystemDelta +
+        pendingActiveSystemInput
     );
     const operationEndVol = operationVolumeEffects.forceEndVolZero
       ? 0
