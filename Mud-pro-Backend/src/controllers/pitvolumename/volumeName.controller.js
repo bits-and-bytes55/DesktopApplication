@@ -1298,8 +1298,8 @@ export const getVolumeNameCalculation = async (req, res) => {
     );
     const effectiveEndVolDelta = round2(
       operationVolumeEffects.endVolDelta -
-        operationVolumeEffects.addWaterActiveSystemDelta -
-        operationVolumeEffects.otherVolActiveSystemDelta +
+        operationVolumeEffects.addWaterActiveSystemDelta +
+        -operationVolumeEffects.otherVolActiveSystemDelta +
         pendingActiveSystemInput
     );
     const operationEndVol = operationVolumeEffects.forceEndVolZero
