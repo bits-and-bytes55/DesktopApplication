@@ -96,6 +96,7 @@ static const String deleteOperator = 'operators'; // DELETE /:id
   static const String updateAddition = "addition"; // /:id
   static const String deleteAddition = "addition"; // /:id
   
+  
   // ============ LOSS ENDPOINTS ============
   static const String addLoss = "loss/add-loss"; // Single
   static const String addBulkLosses = "loss/add-bulk-losses"; // Bulk
