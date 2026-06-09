@@ -211,10 +211,7 @@ const casedHoleLength = (casing, mdInFeet) => {
 };
 
 const casedHoleRowsForCalculation = (casings = [], mdInFeet) => {
-  const reportCasedHoleRows = casings.filter(
-    (row) => toText(row?.toc) === "__cased_hole__"
-  );
-  const rows = reportCasedHoleRows.length > 0 ? reportCasedHoleRows : casings;
+  const rows = casings.filter((row) => toText(row?.toc) === "__cased_hole__");
 
   return latestRowsBySortOrder(rows).filter((row) => {
     return (
