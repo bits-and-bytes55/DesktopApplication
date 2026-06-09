@@ -120,11 +120,15 @@ const normalizeAddWaterItems = (items = []) => {
   });
 };
 
-const calculatePipeVolume = ({ id, length }) => {
+const rawCylinderVolume = ({ id, length }) => {
   const idIn = toNumber(id);
   const lengthFt = toNumber(length);
   if (idIn <= 0 || lengthFt <= 0) return 0;
-  return round2((idIn * idIn * lengthFt) / 1029.4);
+  return (idIn * idIn * lengthFt) / 1029.4;
+};
+
+const calculatePipeVolume = ({ id, length }) => {
+  return round2(rawCylinderVolume({ id, length }));
 };
 
 const normalizeHoleDiameterIn = (casing) => {
@@ -143,31 +147,65 @@ const normalizeHoleDiameterIn = (casing) => {
   return rawId;
 };
 
-const calculateHoleVolume = (casing, mdInFeet) => {
-  const id = normalizeHoleDiameterIn(casing);
+const casedHoleLength = (casing, mdInFeet) => {
   const md = toNumber(mdInFeet);
   const top = toNumber(casing?.top);
   const shoe = toNumber(casing?.shoe);
 
-  if (id <= 0) return 0;
+  if (top > 0 && shoe > 0 && top !== shoe) {
+    return Math.abs(shoe - top);
+  }
 
-  let length = 0;
+  if (shoe > 0 && top >= 0 && shoe !== top) {
+    return Math.abs(shoe - top);
+  }
 
   if (md > 0 && shoe > 0) {
-    length = Math.max(0, Math.min(md, shoe) - top);
-  } else if (md > 0) {
-    length = Math.max(0, md - top);
-  } else if (shoe > 0) {
-    length = Math.max(0, shoe - top);
+    return Math.max(0, Math.min(md, shoe) - top);
   }
 
-  if (length <= 0) {
-    length = md > 0 ? md : shoe;
+  if (md > 0) {
+    return Math.max(0, md - top);
   }
 
-  if (length <= 0) return 0;
+  if (shoe > 0) {
+    return Math.max(0, shoe - top);
+  }
 
-  return round2((id * id * length) / 1029.4);
+  return 0;
+};
+
+const calculateCasedHoleRawVolume = (casings = [], mdInFeet) => {
+  return casings.reduce((sum, casing) => {
+    const id = normalizeHoleDiameterIn(casing);
+    const length = casedHoleLength(casing, mdInFeet);
+    return sum + rawCylinderVolume({ id, length });
+  }, 0);
+};
+
+const calculateOpenHoleRawVolume = (openHoleRows = []) => {
+  return openHoleRows.reduce((sum, row) => {
+    return sum + rawCylinderVolume({ id: row?.id, length: row?.md });
+  }, 0);
+};
+
+const calculateDrillStringHoleRawVolume = (drillStrings = []) => {
+  return drillStrings.reduce((sum, item) => {
+    return sum + rawCylinderVolume({ id: item?.id, length: item?.length });
+  }, 0);
+};
+
+const calculateCombinedHoleVolume = ({ casings = [], wellGeneral, drillStrings = [] }) => {
+  const md = toNumber(wellGeneral?.md);
+  const openHoleRows = Array.isArray(wellGeneral?.openHoleRows)
+    ? wellGeneral.openHoleRows
+    : [];
+
+  return round2(
+    calculateCasedHoleRawVolume(casings, md) +
+      calculateOpenHoleRawVolume(openHoleRows) +
+      calculateDrillStringHoleRawVolume(drillStrings)
+  );
 };
 
 const legacyScopeFilter = (wellId) => ({
@@ -337,36 +375,26 @@ const findPreviousReportMeta = async ({ wellId, reportMeta }) => {
 const calculateHoleVolumeForReport = async ({ wellId, reportId, reportNo }) => {
   if (!reportId && !reportNo) return 0;
 
-  const [wellGeneral, casings] = await Promise.all([
+  const [wellGeneral, casings, drillStrings] = await Promise.all([
     findScopedWellGeneral({ wellId, reportId, reportNo }),
     findScopedCasings({ wellId, reportId }),
+    findScopedDrillStrings({ wellId, reportId }),
   ]);
 
-  const md = toNumber(wellGeneral?.md);
-  const validCasings = casings.filter((row) => toNumber(row.id) > 0);
-  const latestCasing = validCasings.length
-    ? validCasings[validCasings.length - 1]
-    : null;
-
-  return calculateHoleVolume(latestCasing, md);
+  return calculateCombinedHoleVolume({ casings, wellGeneral, drillStrings });
 };
 
 const calculateTotalOnLocationForReport = async ({ wellId, reportId, reportNo }) => {
   if (!reportId && !reportNo) return 0;
 
-  const [wellGeneral, casings, pits] = await Promise.all([
+  const [wellGeneral, casings, drillStrings, pits] = await Promise.all([
     findScopedWellGeneral({ wellId, reportId, reportNo }),
     findScopedCasings({ wellId, reportId }),
+    findScopedDrillStrings({ wellId, reportId }),
     findScopedPits({ wellId, reportId }),
   ]);
 
-  const md = toNumber(wellGeneral?.md);
-  const validCasings = casings.filter((row) => toNumber(row.id) > 0);
-  const latestCasing = validCasings.length
-    ? validCasings[validCasings.length - 1]
-    : null;
-
-  const hole = calculateHoleVolume(latestCasing, md);
+  const hole = calculateCombinedHoleVolume({ casings, wellGeneral, drillStrings });
   const previousReportMeta = await findPreviousReportMeta({
     wellId,
     reportMeta: { reportNo },
@@ -1070,7 +1098,11 @@ export const getVolumeNameCalculation = async (req, res) => {
       : null;
 
     const casingId = toNumber(latestCasing?.id);
-    const hole = calculateHoleVolume(latestCasing, md);
+    const hole = calculateCombinedHoleVolume({
+      casings,
+      wellGeneral,
+      drillStrings,
+    });
     const previousReportMeta = await findPreviousReportMeta({
       wellId,
       reportMeta,
