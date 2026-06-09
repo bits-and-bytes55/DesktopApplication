@@ -427,12 +427,19 @@ class DrillStringController extends GetxController {
     final entry = entries[rowIndex];
     if (entry.id != null) {
       try {
-        await http.delete(
+        final response = await http.delete(
           _buildScopedUri('drill-string/${entry.id}'),
           headers: _headers,
         );
+        if (response.statusCode < 200 || response.statusCode >= 300) {
+          print(
+            'DrillString delete failed: ${response.statusCode} ${response.body}',
+          );
+          return;
+        }
       } catch (e) {
         print('DrillString delete error: $e');
+        return;
       }
     }
     entry.dispose();

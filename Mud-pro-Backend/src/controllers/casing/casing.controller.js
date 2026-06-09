@@ -124,7 +124,13 @@ export const deleteCasing = async (req, res) => {
       ...(reportId ? { reportId } : {}),
     };
 
-    const deletedCasing = await Casing.findOneAndDelete(filter);
+    let deletedCasing = await Casing.findOneAndDelete(filter);
+    if (!deletedCasing && reportId) {
+      deletedCasing = await Casing.findOneAndDelete({
+        _id: req.params.id,
+        wellId,
+      });
+    }
     if (!deletedCasing) {
       return res
         .status(404)

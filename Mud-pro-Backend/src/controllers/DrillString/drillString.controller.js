@@ -166,11 +166,11 @@ export const deleteDrillString = async (req, res) => {
       });
     }
 
-    const { reportId } = resolveScope(req, existing);
-    if (reportId && toText(existing.reportId) !== reportId) {
+    const { wellId } = resolveScope(req, existing);
+    if (wellId && toText(existing.wellId) !== wellId) {
       return res.status(404).json({
         success: false,
-        message: "Drill String not found for this report"
+        message: "Drill String not found for this well"
       });
     }
 

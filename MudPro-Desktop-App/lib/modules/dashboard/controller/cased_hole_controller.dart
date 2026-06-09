@@ -534,7 +534,7 @@ class CasedHoleUIController extends GetxController {
     final rowId = entry.id;
     if (rowId != null && rowId.isNotEmpty && kControllerWellId.isNotEmpty) {
       try {
-        await http.delete(
+        final response = await http.delete(
           Uri.parse('${baseUrl}casing/$kControllerWellId/$rowId').replace(
             queryParameters: {
               if (reportContext.selectedReportId.value.isNotEmpty)
@@ -543,8 +543,15 @@ class CasedHoleUIController extends GetxController {
           ),
           headers: _headers,
         );
+        if (response.statusCode < 200 || response.statusCode >= 300) {
+          print(
+            'CasedHole delete failed: ${response.statusCode} ${response.body}',
+          );
+          return;
+        }
       } catch (e) {
         print('CasedHole delete error: $e');
+        return;
       }
     }
 

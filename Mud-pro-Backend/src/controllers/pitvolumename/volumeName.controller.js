@@ -347,7 +347,7 @@ const findScopedWellGeneral = async ({ wellId, reportId, reportNo }) => {
   return null;
 };
 
-const findScopedCasings = async ({ wellId, reportId }) => {
+const findScopedCasings = async ({ wellId, reportId, strictScope = false }) => {
   if (reportId) {
     const scopedCasings = await Casing.find({ wellId, reportId }).sort({
       createdAt: 1,
@@ -356,6 +356,10 @@ const findScopedCasings = async ({ wellId, reportId }) => {
 
     if (scopedCasings.length > 0) {
       return scopedCasings;
+    }
+
+    if (strictScope) {
+      return [];
     }
 
     return Casing.find(legacyScopeFilter(wellId)).sort({
@@ -367,7 +371,7 @@ const findScopedCasings = async ({ wellId, reportId }) => {
   return Casing.find({ wellId }).sort({ createdAt: 1, _id: 1 });
 };
 
-const findScopedDrillStrings = async ({ wellId, reportId }) => {
+const findScopedDrillStrings = async ({ wellId, reportId, strictScope = false }) => {
   if (reportId) {
     const scopedDrillStrings = await DrillString.find({ wellId, reportId })
       .sort({ createdAt: 1, _id: 1 })
@@ -376,6 +380,10 @@ const findScopedDrillStrings = async ({ wellId, reportId }) => {
 
     if (scopedDrillStrings.length > 0) {
       return scopedDrillStrings;
+    }
+
+    if (strictScope) {
+      return [];
     }
 
     return DrillString.find(legacyObjectIdScopeFilter(wellId))
@@ -1098,8 +1106,16 @@ export const getVolumeNameCalculation = async (req, res) => {
           reportId: reportMeta.reportId,
           reportNo: reportMeta.reportNo,
         }),
-        findScopedCasings({ wellId, reportId: reportMeta.reportId }),
-        findScopedDrillStrings({ wellId, reportId: reportMeta.reportId }),
+        findScopedCasings({
+          wellId,
+          reportId: reportMeta.reportId,
+          strictScope,
+        }),
+        findScopedDrillStrings({
+          wellId,
+          reportId: reportMeta.reportId,
+          strictScope,
+        }),
         findScopedPits({ wellId, reportId: reportMeta.reportId }),
         findScopedConsumeProductDistributionStates({
           wellId,
