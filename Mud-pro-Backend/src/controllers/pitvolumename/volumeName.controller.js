@@ -1427,7 +1427,7 @@ export const getVolumeNameCalculation = async (req, res) => {
           operationActiveSystemDelta: operationVolumeEffects.activeSystemDelta,
           operationEndVolDelta: effectiveEndVolDelta,
           operationEndVol,
-          pendingActiveSystemWater,
+          pendingActiveSystemWater: pendingActiveSystemInput,
         },
         consumeProductDistribution: {
           inputMethod: toText(primaryDistributionState?.inputMethod) || "Used",
