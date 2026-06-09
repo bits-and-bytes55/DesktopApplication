@@ -47,6 +47,41 @@ const round2 = (value) => {
 const itemTime = (item = {}) =>
   new Date(item.updatedAt || item.createdAt || 0).getTime();
 
+const rowSortOrder = (item = {}) => {
+  const order = Number(item?.sortOrder);
+  return Number.isFinite(order) ? order : null;
+};
+
+const latestRowsBySortOrder = (items = []) => {
+  const latestByKey = new Map();
+  const looseRows = [];
+
+  for (const item of items) {
+    const order = rowSortOrder(item);
+    if (order === null) {
+      looseRows.push(item);
+      continue;
+    }
+
+    const key = String(order);
+    const existing = latestByKey.get(key);
+    if (!existing || itemTime(item) >= itemTime(existing)) {
+      latestByKey.set(key, item);
+    }
+  }
+
+  return [...latestByKey.values(), ...looseRows].sort((left, right) => {
+    const leftOrder = rowSortOrder(left);
+    const rightOrder = rowSortOrder(right);
+    if (leftOrder !== null && rightOrder !== null && leftOrder !== rightOrder) {
+      return leftOrder - rightOrder;
+    }
+    if (leftOrder !== null && rightOrder === null) return -1;
+    if (leftOrder === null && rightOrder !== null) return 1;
+    return itemTime(left) - itemTime(right);
+  });
+};
+
 const mudLossStorageLogicalKey = (item = {}) => {
   const operationInstanceKey = toText(item.operationInstanceKey);
   const rowNumber = Number(item.rowNumber) || 0;
@@ -175,8 +210,22 @@ const casedHoleLength = (casing, mdInFeet) => {
   return 0;
 };
 
+const casedHoleRowsForCalculation = (casings = [], mdInFeet) => {
+  const reportCasedHoleRows = casings.filter(
+    (row) => toText(row?.toc) === "__cased_hole__"
+  );
+  const rows = reportCasedHoleRows.length > 0 ? reportCasedHoleRows : casings;
+
+  return latestRowsBySortOrder(rows).filter((row) => {
+    return (
+      normalizeHoleDiameterIn(row) > 0 &&
+      casedHoleLength(row, mdInFeet) > 0
+    );
+  });
+};
+
 const calculateCasedHoleRawVolume = (casings = [], mdInFeet) => {
-  return casings.reduce((sum, casing) => {
+  return casedHoleRowsForCalculation(casings, mdInFeet).reduce((sum, casing) => {
     const id = normalizeHoleDiameterIn(casing);
     const length = casedHoleLength(casing, mdInFeet);
     return sum + rawCylinderVolume({ id, length });
@@ -184,13 +233,13 @@ const calculateCasedHoleRawVolume = (casings = [], mdInFeet) => {
 };
 
 const calculateOpenHoleRawVolume = (openHoleRows = []) => {
-  return openHoleRows.reduce((sum, row) => {
+  return latestRowsBySortOrder(openHoleRows).reduce((sum, row) => {
     return sum + rawCylinderVolume({ id: row?.id, length: row?.md });
   }, 0);
 };
 
 const calculateDrillStringHoleRawVolume = (drillStrings = []) => {
-  return drillStrings.reduce((sum, item) => {
+  return latestRowsBySortOrder(drillStrings).reduce((sum, item) => {
     return sum + rawCylinderVolume({ id: item?.id, length: item?.length });
   }, 0);
 };
