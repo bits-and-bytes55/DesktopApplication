@@ -231,9 +231,7 @@ const casedHoleLength = (casing, mdInFeet) => {
 };
 
 const casedHoleRowsForCalculation = (casings = [], mdInFeet) => {
-  const rows = casings.filter((row) => toText(row?.toc) === "__cased_hole__");
-
-  return latestRowsBySortOrder(rows).filter((row) => {
+  return latestRowsBySortOrder(casings).filter((row) => {
     return (
       normalizeHoleDiameterIn(row) > 0 &&
       casedHoleLength(row, mdInFeet) > 0
@@ -249,12 +247,26 @@ const calculateCasedHoleRawVolume = (casings = [], mdInFeet) => {
   }, 0);
 };
 
-const calculateOpenHoleRawVolume = (openHoleRows = []) => {
+const deepestCasedHoleShoe = (casings = [], mdInFeet) => {
+  return casedHoleRowsForCalculation(casings, mdInFeet).reduce((max, row) => {
+    const shoe = toNumber(row?.shoe);
+    return shoe > max ? shoe : max;
+  }, 0);
+};
+
+const calculateOpenHoleRawVolume = (openHoleRows = [], startDepth = 0) => {
+  let previousDepth = Math.max(0, toNumber(startDepth));
+
   return latestRowsBySortOrder(openHoleRows).reduce((sum, row) => {
     const id = toNumber(row?.id);
     const washout = toNumber(row?.washout);
+    const md = toNumber(row?.md);
+    const length = md > previousDepth ? md - previousDepth : 0;
     const effectiveId = id > 0 ? id * (1 + washout / 100) : 0;
-    return sum + rawCylinderVolume({ id: effectiveId, length: row?.md });
+    if (md > previousDepth) {
+      previousDepth = md;
+    }
+    return sum + rawCylinderVolume({ id: effectiveId, length });
   }, 0);
 };
 
@@ -312,7 +324,8 @@ const calculateCombinedHoleVolumeResult = ({
     ? wellGeneral.openHoleRows
     : [];
   const casedHole = calculateCasedHoleRawVolume(casings, md);
-  const openHole = calculateOpenHoleRawVolume(openHoleRows);
+  const openHoleStartDepth = deepestCasedHoleShoe(casings, md);
+  const openHole = calculateOpenHoleRawVolume(openHoleRows, openHoleStartDepth);
   const drillString = calculateDrillStringGuideVolumes(
     drillStrings,
     getDrillStringDepthLimit(wellGeneral)
