@@ -251,28 +251,95 @@ const calculateCasedHoleRawVolume = (casings = [], mdInFeet) => {
 
 const calculateOpenHoleRawVolume = (openHoleRows = []) => {
   return latestRowsBySortOrder(openHoleRows).reduce((sum, row) => {
-    return sum + rawCylinderVolume({ id: row?.id, length: row?.md });
+    const id = toNumber(row?.id);
+    const washout = toNumber(row?.washout);
+    const effectiveId = id > 0 ? id * (1 + washout / 100) : 0;
+    return sum + rawCylinderVolume({ id: effectiveId, length: row?.md });
   }, 0);
 };
 
-const calculateDrillStringHoleRawVolume = (drillStrings = []) => {
-  return latestRowsBySortOrder(drillStrings).reduce((sum, item) => {
-    return sum + rawCylinderVolume({ id: item?.id, length: item?.length });
-  }, 0);
+const getDrillStringDepthLimit = (wellGeneral) => {
+  const bitDepth = toNumber(wellGeneral?.bitDepth);
+  if (bitDepth > 0) return bitDepth;
+
+  const bitDepthIn = toNumber(wellGeneral?.bitDepthIn);
+  if (bitDepthIn > 0) return bitDepthIn;
+
+  const md = toNumber(wellGeneral?.md);
+  if (md > 0) return md;
+
+  return Infinity;
 };
 
-const calculateCombinedHoleVolume = ({ casings = [], wellGeneral, drillStrings = [] }) => {
+const calculateDrillStringGuideVolumes = (drillStrings = [], depthLimit) => {
+  const rows = latestRowsBySortOrder(drillStrings);
+  let remaining = depthLimit > 0 ? depthLimit : Infinity;
+  let countedLength = 0;
+  let pipeSteel = 0;
+  let pipeInside = 0;
+
+  for (const item of rows) {
+    const length = toNumber(item?.length);
+    if (length <= 0) continue;
+    if (remaining <= 0) break;
+
+    const piece = Number.isFinite(remaining) ? Math.min(length, remaining) : length;
+    if (piece <= 0) continue;
+
+    pipeSteel += rawCylinderVolume({ id: item?.od, length: piece });
+    pipeInside += rawCylinderVolume({ id: item?.id, length: piece });
+    countedLength += piece;
+
+    if (Number.isFinite(remaining)) {
+      remaining -= piece;
+    }
+  }
+
+  return {
+    pipeSteel,
+    pipeInside,
+    countedLength,
+  };
+};
+
+const calculateCombinedHoleVolumeResult = ({
+  casings = [],
+  wellGeneral,
+  drillStrings = [],
+}) => {
   const md = toNumber(wellGeneral?.md);
   const openHoleRows = Array.isArray(wellGeneral?.openHoleRows)
     ? wellGeneral.openHoleRows
     : [];
-
-  return round2(
-    calculateCasedHoleRawVolume(casings, md) +
-      calculateOpenHoleRawVolume(openHoleRows) +
-      calculateDrillStringHoleRawVolume(drillStrings)
+  const casedHole = calculateCasedHoleRawVolume(casings, md);
+  const openHole = calculateOpenHoleRawVolume(openHoleRows);
+  const drillString = calculateDrillStringGuideVolumes(
+    drillStrings,
+    getDrillStringDepthLimit(wellGeneral)
   );
+  const holeSpace = casedHole + openHole;
+  const pipeSteel = drillString.pipeSteel;
+  const pipeInside = drillString.pipeInside;
+  const hole = round2(holeSpace - pipeSteel + pipeInside);
+
+  return {
+    hole,
+    casedHole: round2(casedHole),
+    openHole: round2(openHole),
+    holeSpace: round2(holeSpace),
+    pipeSteel: round2(pipeSteel),
+    pipeInside: round2(pipeInside),
+    drillString: round2(pipeInside),
+    drillStringCountedLength: round2(drillString.countedLength),
+    hasData:
+      Math.abs(holeSpace) >= 0.005 ||
+      Math.abs(pipeSteel) >= 0.005 ||
+      Math.abs(pipeInside) >= 0.005,
+  };
 };
+
+const calculateCombinedHoleVolume = (args) =>
+  calculateCombinedHoleVolumeResult(args).hole;
 
 const legacyScopeFilter = (wellId) => ({
   wellId,
@@ -1187,11 +1254,12 @@ export const getVolumeNameCalculation = async (req, res) => {
       : null;
 
     const casingId = toNumber(latestCasing?.id);
-    const hole = calculateCombinedHoleVolume({
+    const holeVolumeResult = calculateCombinedHoleVolumeResult({
       casings,
       wellGeneral,
       drillStrings,
     });
+    const hole = holeVolumeResult.hole;
     const previousReportMeta = await findPreviousReportMeta({
       wellId,
       reportMeta,
@@ -1203,20 +1271,10 @@ export const getVolumeNameCalculation = async (req, res) => {
           reportNo: previousReportMeta.reportNo,
         })
       : 0;
-    const heldVolDifference = round2(hole - previousHole);
-    const drillstringVolume = Number(
-      drillStrings
-        .reduce(
-          (sum, item) =>
-            sum +
-            calculatePipeVolume({
-              id: item?.id,
-              length: item?.length,
-            }),
-          0
-        )
-        .toFixed(2)
-    );
+    const heldVolDifference = holeVolumeResult.hasData
+      ? round2(hole - previousHole)
+      : 0;
+    const drillstringVolume = holeVolumeResult.pipeInside;
     const annulus = Number(Math.max(0, hole - drillstringVolume).toFixed(2));
     const belowBit = 0;
     const displacement = 0;
@@ -1388,6 +1446,13 @@ export const getVolumeNameCalculation = async (req, res) => {
           description: latestCasing?.description || "",
         },
         holeVolumeBreakdown: {
+          casedHole: holeVolumeResult.casedHole,
+          openHole: holeVolumeResult.openHole,
+          drillStringHole: holeVolumeResult.drillString,
+          holeSpace: holeVolumeResult.holeSpace,
+          pipeSteel: holeVolumeResult.pipeSteel,
+          pipeInside: holeVolumeResult.pipeInside,
+          drillStringCountedLength: holeVolumeResult.drillStringCountedLength,
           string: drillstringVolume,
           annulus,
           belowBit,

@@ -43,8 +43,8 @@ class MudLossActiveSystemView extends StatelessWidget {
             'Mud Loss - Active System',
             style: AppTheme.bodySmall.copyWith(
               fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: AppTheme.textPrimary,
+              fontWeight: FontWeight.w700,
+              color: Colors.black,
             ),
           ),
           const SizedBox(height: 10),
@@ -69,7 +69,7 @@ class MudLossActiveSystemView extends StatelessWidget {
                 );
               }
 
-              return SingleChildScrollView(
+              return _MudLossActiveSystemScrollArea(
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -117,7 +117,7 @@ class MudLossActiveSystemView extends StatelessWidget {
 
   TableRow _headerRow() {
     return TableRow(
-      decoration: BoxDecoration(color: Colors.grey.shade100),
+      decoration: BoxDecoration(color: AppTheme.primaryColor),
       children: [_headerCell(''), _headerCell('Loss'), _volumeHeaderCell()],
     );
   }
@@ -159,9 +159,9 @@ class MudLossActiveSystemView extends StatelessWidget {
         text,
         textAlign: TextAlign.center,
         style: AppTheme.bodySmall.copyWith(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: AppTheme.textPrimary,
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: Colors.black,
         ),
       ),
     );
@@ -175,9 +175,9 @@ class MudLossActiveSystemView extends StatelessWidget {
         'Vol.\n(bbl)',
         textAlign: TextAlign.center,
         style: AppTheme.bodySmall.copyWith(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: AppTheme.textPrimary,
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: Colors.black,
         ),
       ),
     );
@@ -198,9 +198,9 @@ class MudLossActiveSystemView extends StatelessWidget {
           Text(
             '$number',
             style: AppTheme.bodySmall.copyWith(
-              fontSize: 11,
-              color: Colors.grey.shade700,
-              fontWeight: FontWeight.w500,
+              fontSize: 12,
+              color: Colors.black,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ],
@@ -216,9 +216,9 @@ class MudLossActiveSystemView extends StatelessWidget {
       child: Text(
         label,
         style: AppTheme.bodySmall.copyWith(
-          fontSize: 11,
-          color: AppTheme.textPrimary,
-          fontWeight: FontWeight.w500,
+          fontSize: 12,
+          color: Colors.black,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );
@@ -233,9 +233,9 @@ class MudLossActiveSystemView extends StatelessWidget {
         textAlign: TextAlign.right,
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
         style: AppTheme.bodySmall.copyWith(
-          fontSize: 11,
-          color: AppTheme.textPrimary,
-          fontWeight: FontWeight.w500,
+          fontSize: 12,
+          color: Colors.black,
+          fontWeight: FontWeight.w700,
         ),
         decoration: InputDecoration(
           border: InputBorder.none,
@@ -279,9 +279,9 @@ class MudLossActiveSystemView extends StatelessWidget {
               ),
             ),
             style: AppTheme.bodySmall.copyWith(
-              fontSize: 11,
-              color: AppTheme.textPrimary,
-              fontWeight: FontWeight.w500,
+              fontSize: 12,
+              color: Colors.black,
+              fontWeight: FontWeight.w700,
             ),
             dropdownColor: Colors.white,
             menuMaxHeight: 190,
@@ -293,7 +293,11 @@ class MudLossActiveSystemView extends StatelessWidget {
                   child: Text(
                     label,
                     overflow: TextOverflow.ellipsis,
-                    style: AppTheme.bodySmall.copyWith(fontSize: 11),
+                    style: AppTheme.bodySmall.copyWith(
+                      fontSize: 12,
+                      color: Colors.black,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               );
@@ -326,9 +330,9 @@ class MudLossActiveSystemView extends StatelessWidget {
           textAlign: TextAlign.right,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           style: AppTheme.bodySmall.copyWith(
-            fontSize: 11,
-            color: AppTheme.textPrimary,
-            fontWeight: FontWeight.w500,
+            fontSize: 12,
+            color: Colors.black,
+            fontWeight: FontWeight.w700,
           ),
           decoration: InputDecoration(
             border: InputBorder.none,
@@ -412,6 +416,55 @@ class MudLossActiveSystemView extends StatelessWidget {
           backgroundColor: Colors.grey.shade100,
         ),
         child: Icon(icon, size: 16, color: color),
+      ),
+    );
+  }
+}
+
+class _MudLossActiveSystemScrollArea extends StatefulWidget {
+  const _MudLossActiveSystemScrollArea({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_MudLossActiveSystemScrollArea> createState() =>
+      _MudLossActiveSystemScrollAreaState();
+}
+
+class _MudLossActiveSystemScrollAreaState
+    extends State<_MudLossActiveSystemScrollArea> {
+  final ScrollController _verticalController = ScrollController();
+  final ScrollController _horizontalController = ScrollController();
+
+  @override
+  void dispose() {
+    _verticalController.dispose();
+    _horizontalController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scrollbar(
+      controller: _verticalController,
+      thumbVisibility: true,
+      trackVisibility: true,
+      notificationPredicate: (notification) =>
+          notification.metrics.axis == Axis.vertical,
+      child: SingleChildScrollView(
+        controller: _verticalController,
+        child: Scrollbar(
+          controller: _horizontalController,
+          thumbVisibility: true,
+          trackVisibility: true,
+          notificationPredicate: (notification) =>
+              notification.metrics.axis == Axis.horizontal,
+          child: SingleChildScrollView(
+            controller: _horizontalController,
+            scrollDirection: Axis.horizontal,
+            child: widget.child,
+          ),
+        ),
       ),
     );
   }
