@@ -230,13 +230,17 @@ const casedHoleLength = (casing, mdInFeet) => {
   return 0;
 };
 
-const casedHoleRowsForCalculation = (casings = [], mdInFeet) => {
-  const validRows = latestRowsBySortOrder(casings).filter((row) => {
+const validCasedHoleRows = (casings = [], mdInFeet) => {
+  return latestRowsBySortOrder(casings).filter((row) => {
     return (
       normalizeHoleDiameterIn(row) > 0 &&
       casedHoleLength(row, mdInFeet) > 0
     );
   });
+};
+
+const casedHoleRowsForCalculation = (casings = [], mdInFeet) => {
+  const validRows = validCasedHoleRows(casings, mdInFeet);
 
   if (validRows.length <= 1) {
     return validRows;
@@ -257,6 +261,32 @@ const casedHoleRowsForCalculation = (casings = [], mdInFeet) => {
 };
 
 const calculateCasedHoleRawVolume = (casings = [], mdInFeet) => {
+  const validRows = validCasedHoleRows(casings, mdInFeet);
+  const linerRows = validRows
+    .map((row, index) => ({ row, index }))
+    .filter(({ row }) => toNumber(row?.top) > 0);
+
+  if (linerRows.length > 0) {
+    const firstLiner = linerRows[0];
+    const previousRow = validRows
+      .slice(0, firstLiner.index)
+      .reverse()
+      .find((row) => normalizeHoleDiameterIn(row) > 0);
+
+    const previousId = normalizeHoleDiameterIn(previousRow);
+    const firstLinerTop = toNumber(firstLiner.row?.top);
+    const previousVolume =
+      previousId > 0 && firstLinerTop > 0
+        ? rawCylinderVolume({ id: previousId, length: firstLinerTop })
+        : 0;
+
+    return linerRows.reduce((sum, { row }) => {
+      const id = normalizeHoleDiameterIn(row);
+      const length = casedHoleLength(row, mdInFeet);
+      return sum + rawCylinderVolume({ id, length });
+    }, previousVolume);
+  }
+
   return casedHoleRowsForCalculation(casings, mdInFeet).reduce((sum, casing) => {
     const id = normalizeHoleDiameterIn(casing);
     const length = casedHoleLength(casing, mdInFeet);
@@ -265,6 +295,16 @@ const calculateCasedHoleRawVolume = (casings = [], mdInFeet) => {
 };
 
 const deepestCasedHoleShoe = (casings = [], mdInFeet) => {
+  const validRows = validCasedHoleRows(casings, mdInFeet);
+  const linerRows = validRows.filter((row) => toNumber(row?.top) > 0);
+
+  if (linerRows.length > 0) {
+    return linerRows.reduce((max, row) => {
+      const shoe = toNumber(row?.shoe);
+      return shoe > max ? shoe : max;
+    }, 0);
+  }
+
   return casedHoleRowsForCalculation(casings, mdInFeet).reduce((max, row) => {
     const shoe = toNumber(row?.shoe);
     return shoe > max ? shoe : max;
