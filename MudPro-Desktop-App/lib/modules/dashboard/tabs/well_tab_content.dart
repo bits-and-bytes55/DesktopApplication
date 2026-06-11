@@ -52,6 +52,25 @@ Color _cellFillColor({
   required bool editableWhenUnlocked,
 }) => isLocked || !editableWhenUnlocked ? _kEditableCellColor : Colors.white;
 
+int? _wellDecimalPlacesFromText(String value) {
+  final text = value.trim().replaceAll(',', '');
+  final decimalIndex = text.indexOf('.');
+  if (decimalIndex < 0) return null;
+  return (text.length - decimalIndex - 1).clamp(0, 12).toInt();
+}
+
+String _formatWellConvertedNumber(double value, {String? sourceText}) {
+  final sourceDecimals =
+      sourceText == null ? null : _wellDecimalPlacesFromText(sourceText);
+  if (sourceDecimals != null) {
+    return value.toStringAsFixed(sourceDecimals);
+  }
+  return value
+      .toStringAsFixed(4)
+      .replaceAll(RegExp(r'0+$'), '')
+      .replaceAll(RegExp(r'\.$'), '');
+}
+
 String _displayCurrencyLabel(String rawCurrency) {
   final trimmed = rawCurrency.trim();
   return trimmed.isEmpty ? '\$' : trimmed;
@@ -664,7 +683,7 @@ class _GeneralSectionState extends State<GeneralSection> {
     if (parsed == null) return;
     final converted = AppUnits.convertValue(parsed, fromUnit, toUnit);
     if (converted == null) return;
-    controller.text = _formatNumber(converted);
+    controller.text = _formatWellConvertedNumber(converted, sourceText: raw);
   }
 
   String _formatNumber(double value) {
@@ -1499,10 +1518,7 @@ class _MiddlePortionState extends State<MiddlePortion> {
     if (result == null) {
       return rawValue;
     }
-    return result
-        .toStringAsFixed(4)
-        .replaceAll(RegExp(r'0+$'), '')
-        .replaceAll(RegExp(r'\.$'), '');
+    return _formatWellConvertedNumber(result, sourceText: rawValue);
   }
 
   double? _parseNumber(String rawValue) {
@@ -2185,10 +2201,7 @@ class _OpenHoleSectionState extends State<OpenHoleSection> {
     if (result == null) {
       return rawValue;
     }
-    return result
-        .toStringAsFixed(4)
-        .replaceAll(RegExp(r'0+$'), '')
-        .replaceAll(RegExp(r'\.$'), '');
+    return _formatWellConvertedNumber(result, sourceText: rawValue);
   }
 
   List<String> _autoFirstRow() {

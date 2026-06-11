@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/switch_mudtype_controller.dart';
@@ -18,702 +20,396 @@ class _SwitchMudTypeViewState extends State<SwitchMudTypeView> {
   final ScrollController _verticalScrollController = ScrollController();
   final ScrollController _horizontalScrollController = ScrollController();
 
+  static const Color _gridColor = Color(0xFFE2E2E2);
+  static const double _sectionWidth = 960;
+  static const double _tableWidth = 440;
+  static const double _singleTableWidth = 920;
+
   @override
   void initState() {
     super.initState();
-    controller = Get.put(SwitchMudTypeController(), tag: widget.instanceKey);
+    controller = Get.isRegistered<SwitchMudTypeController>(
+      tag: widget.instanceKey,
+    )
+        ? Get.find<SwitchMudTypeController>(tag: widget.instanceKey)
+        : Get.put(SwitchMudTypeController(), tag: widget.instanceKey);
   }
 
   @override
   void dispose() {
     _verticalScrollController.dispose();
     _horizontalScrollController.dispose();
-    if (Get.isRegistered<SwitchMudTypeController>(tag: widget.instanceKey)) {
-      Get.delete<SwitchMudTypeController>(tag: widget.instanceKey);
-    }
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
-      body: Scrollbar(
-        controller: _verticalScrollController,
-        thumbVisibility: true,
-        trackVisibility: true,
-        notificationPredicate: (notification) =>
-            notification.metrics.axis == Axis.vertical,
-        child: SingleChildScrollView(
-          controller: _verticalScrollController,
-          child: Scrollbar(
-            controller: _horizontalScrollController,
-            thumbVisibility: true,
-            trackVisibility: true,
-            notificationPredicate: (notification) =>
-                notification.metrics.axis == Axis.horizontal,
-            child: SingleChildScrollView(
-              controller: _horizontalScrollController,
-              scrollDirection: Axis.horizontal,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(minWidth: 1000),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // ================= ENHANCED HEADER =================
-                      // _buildHeader(),
-
-                      // const SizedBox(height: 20),
-
-                      /// SECTION 1
-                      _enhancedTwoTableSection(
-                        title: "1. Remove Mud from Active Pits",
-                        selected: controller.section1Selected,
-                        leftList: controller.section1Left,
-                        rightList: controller.section1Right,
-                        sectionIndex: 1,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final contentWidth = math.max(_sectionWidth, constraints.maxWidth - 32);
+        return Material(
+          type: MaterialType.transparency,
+          child: Container(
+            color: AppTheme.backgroundColor,
+            padding: const EdgeInsets.all(12),
+            child: Scrollbar(
+              controller: _verticalScrollController,
+              thumbVisibility: true,
+              trackVisibility: true,
+              notificationPredicate: (notification) =>
+                  notification.metrics.axis == Axis.vertical,
+              child: SingleChildScrollView(
+                controller: _verticalScrollController,
+                child: Scrollbar(
+                  controller: _horizontalScrollController,
+                  thumbVisibility: true,
+                  trackVisibility: true,
+                  notificationPredicate: (notification) =>
+                      notification.metrics.axis == Axis.horizontal,
+                  child: SingleChildScrollView(
+                    controller: _horizontalScrollController,
+                    scrollDirection: Axis.horizontal,
+                    child: SizedBox(
+                      width: contentWidth,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _twoTableSection(
+                            title: '1. Remove Mud from Active Pits',
+                            selected: controller.section1Selected,
+                            leftLabel: 'Transfer',
+                            rightLabel: 'Make Storage',
+                            leftList: controller.section1Left,
+                            rightList: controller.section1Right,
+                          ),
+                          const SizedBox(height: 18),
+                          _twoTableSection(
+                            title: '2. Fill Active Pits',
+                            selected: controller.section2Selected,
+                            leftLabel: 'Transfer',
+                            rightLabel: 'Make Storage',
+                            leftList: controller.section2Left,
+                            rightList: controller.section2Right,
+                          ),
+                          const SizedBox(height: 18),
+                          _singleTableSection(
+                            title: '3. Displace Fluid in Hole to Storage',
+                            list: controller.section3,
+                          ),
+                        ],
                       ),
-
-                      const SizedBox(height: 20),
-
-                      /// SECTION 2
-                      _enhancedTwoTableSection(
-                        title: "2. Fill Active Pits",
-                        selected: controller.section2Selected,
-                        leftList: controller.section2Left,
-                        rightList: controller.section2Right,
-                        sectionIndex: 2,
-                      ),
-
-                      const SizedBox(height: 20),
-
-                      /// SECTION 3
-                      _enhancedSingleTableSection(
-                        title: "3. Displace Fluid in Hole to Storage",
-                        list: controller.section3,
-                      ),
-
-                      const SizedBox(height: 24),
-
-                      // ================= ACTION BUTTONS =================
-                      _buildActionButtons(),
-                    ],
+                    ),
                   ),
                 ),
               ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
-  // ================= ENHANCED HEADER =================
-  Widget _buildHeader() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppTheme.primaryColor.withOpacity(0.9),
-            AppTheme.primaryColor,
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.primaryColor.withOpacity(0.2),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(
-              Icons.swap_vert_rounded,
-              color: Colors.white,
-              size: 28,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "Switch Mud Type",
-                  style: AppTheme.titleMedium.copyWith(
-                    fontSize: 22,
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  "Manage mud type switching between active pits and storage",
-                  style: AppTheme.bodySmall.copyWith(
-                    color: Colors.white.withOpacity(0.9),
-                    fontSize: 13,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: Colors.white.withOpacity(0.3),
-                width: 1,
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  "Total Operations",
-                  style: AppTheme.caption.copyWith(
-                    color: Colors.white.withOpacity(0.9),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  "3 Sections",
-                  style: AppTheme.titleMedium.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 18,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // =====================================================
-  // ENHANCED TWO TABLE SECTION WITH RADIO
-  // =====================================================
-  Widget _enhancedTwoTableSection({
+  Widget _twoTableSection({
     required String title,
     required RxInt selected,
+    required String leftLabel,
+    required String rightLabel,
     required RxList<String?> leftList,
     required RxList<String?> rightList,
-    required int sectionIndex,
   }) {
+    return _sectionShell(
+      child: Obx(
+        () => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _sectionTitle(title),
+            const SizedBox(height: 14),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _radioTable(
+                  label: leftLabel,
+                  active: selected.value == 0,
+                  onTap: () => selected.value = 0,
+                  list: leftList,
+                  enabled: selected.value == 0,
+                ),
+                const SizedBox(width: 28),
+                _radioTable(
+                  label: rightLabel,
+                  active: selected.value == 1,
+                  onTap: () => selected.value = 1,
+                  list: rightList,
+                  enabled: selected.value == 1,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _singleTableSection({
+    required String title,
+    required RxList<String?> list,
+  }) {
+    return _sectionShell(
+      child: Obx(
+        () => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _sectionTitle(title),
+            const SizedBox(height: 14),
+            _dataTable(list: list, enabled: true, width: _singleTableWidth),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _sectionShell({required Widget child}) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      width: _sectionWidth,
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: _gridColor),
       ),
+      child: child,
+    );
+  }
+
+  Widget _sectionTitle(String title) {
+    return Text(
+      title,
+      style: const TextStyle(
+        color: Colors.black,
+        fontSize: 16,
+        fontWeight: FontWeight.w700,
+      ),
+    );
+  }
+
+  Widget _radioTable({
+    required String label,
+    required bool active,
+    required VoidCallback onTap,
+    required RxList<String?> list,
+    required bool enabled,
+  }) {
+    return SizedBox(
+      width: _tableWidth,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Section Title
-          Container(
-            padding: const EdgeInsets.only(bottom: 16),
-            decoration: BoxDecoration(
-              border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: sectionIndex == 1
-                        ? AppTheme.primaryColor.withOpacity(0.1)
-                        : AppTheme.successColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    sectionIndex == 1
-                        ? Icons.remove_circle_outline_rounded
-                        : Icons.add_circle_outline_rounded,
-                    size: 20,
-                    color: sectionIndex == 1
-                        ? AppTheme.primaryColor
-                        : AppTheme.successColor,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  title,
-                  style: AppTheme.bodyLarge.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: Colors.black,
-                    fontSize: 16,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 16),
-
-          Row(
-            children: [
-              Expanded(
-                child: Obx(
-                  () => _enhancedTableWithRadio(
-                    label: "Transfer",
-                    isActive: selected.value == 0,
-                    onSelect: () => selected.value = 0,
-                    list: leftList,
-                    sectionEnabled: selected.value == 0,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 20),
-              Expanded(
-                child: Obx(
-                  () => _enhancedTableWithRadio(
-                    label: "Make Storage",
-                    isActive: selected.value == 1,
-                    onSelect: () => selected.value = 1,
-                    list: rightList,
-                    sectionEnabled: selected.value == 1,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  // =====================================================
-  // ENHANCED TABLE + RADIO
-  // =====================================================
-  Widget _enhancedTableWithRadio({
-    required String label,
-    required bool isActive,
-    required VoidCallback onSelect,
-    required RxList<String?> list,
-    required bool sectionEnabled,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Radio Button Header
-        InkWell(
-          onTap: onSelect,
-          borderRadius: BorderRadius.circular(6),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              color: isActive
-                  ? AppTheme.primaryColor.withOpacity(0.08)
-                  : Colors.grey.shade50,
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(
-                color: isActive
-                    ? AppTheme.primaryColor.withOpacity(0.3)
-                    : Colors.grey.shade200,
-                width: 1,
-              ),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 20,
-                  height: 20,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: isActive
-                          ? AppTheme.primaryColor
-                          : Colors.grey.shade400,
-                      width: isActive ? 1.5 : 1,
-                    ),
-                  ),
-                  child: isActive
-                      ? Center(
-                          child: Container(
-                            width: 10,
-                            height: 10,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: AppTheme.primaryColor,
-                            ),
-                          ),
-                        )
-                      : null,
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  label,
-                  style: AppTheme.bodySmall.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: Colors.black,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-
-        const SizedBox(height: 12),
-
-        // Enhanced Data Table
-        _enhancedDataTable(list, sectionEnabled),
-      ],
-    );
-  }
-
-  // =====================================================
-  // ENHANCED DATA TABLE WITH WORKING DROPDOWN
-  // =====================================================
-  Widget _enhancedDataTable(RxList<String?> list, bool enabled) {
-    return Obx(
-      () => Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.grey.shade200),
-        ),
-        child: Column(
-          children: [
-            // Table Header
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+          InkWell(
+            onTap: onTap,
+            child: Container(
+              height: 38,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
-                color: AppTheme.primaryColor,
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(8),
-                  topRight: Radius.circular(8),
+                color: active
+                    ? AppTheme.primaryColor.withOpacity(0.12)
+                    : Colors.white,
+                border: Border.all(
+                  color: active ? AppTheme.primaryColor : _gridColor,
                 ),
-                border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
               ),
               child: Row(
                 children: [
-                  Expanded(
-                    child: Text(
-                      "Pit",
-                      style: AppTheme.bodySmall.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: Colors.black,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-                  SizedBox(
-                    width: 120,
-                    child: Text(
-                      AppUnits.label("Volume (bbl)"),
-                      style: AppTheme.bodySmall.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: Colors.black,
-                        fontSize: 12,
-                      ),
-                      textAlign: TextAlign.right,
+                  _selectionDot(active),
+                  const SizedBox(width: 10),
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      color: Colors.black,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ],
               ),
             ),
+          ),
+          _dataTable(list: list, enabled: enabled, width: _tableWidth),
+        ],
+      ),
+    );
+  }
 
-            // Table Rows
-            ...List.generate(
-              list.length,
-              (index) => Container(
-                decoration: BoxDecoration(
-                  color: index % 2 == 0 ? Colors.white : Colors.grey.shade50,
-                  border: Border(
-                    bottom: BorderSide(
-                      color: index == list.length - 1
-                          ? Colors.transparent
-                          : Colors.grey.shade200,
-                    ),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    // Pit Column with Dropdown
-                    Expanded(
-                      child: Container(
-                        height: 48,
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: enabled
-                            ? DropdownButton<String>(
-                                value: list[index],
-                                isExpanded: true,
-                                underline: const SizedBox(),
-                                icon: Icon(
-                                  Icons.arrow_drop_down_rounded,
-                                  size: 20,
-                                  color: Colors.grey.shade400,
-                                ),
-                                hint: Text(
-                                  "Select pit",
-                                  style: AppTheme.bodySmall.copyWith(
-                                    fontSize: 12,
-                                    color: Colors.black,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                                onChanged: (String? newValue) {
-                                  if (newValue != null) {
-                                    list[index] = newValue;
-                                  }
-                                },
-                                items: controller.pitList.map((String value) {
-                                  return DropdownMenuItem<String>(
-                                    value: value,
-                                    child: Text(
-                                      value,
-                                      style: AppTheme.bodySmall.copyWith(
-                                        fontSize: 12,
-                                        color: Colors.black,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  );
-                                }).toList(),
-                              )
-                            : Container(
-                                alignment: Alignment.centerLeft,
-                                child: Text(
-                                  list[index] ?? "Select pit",
-                                  style: AppTheme.bodySmall.copyWith(
-                                    fontSize: 12,
-                                    color: Colors.black,
-                                    fontWeight: FontWeight.w700,
-                                    fontStyle: list[index] == null
-                                        ? FontStyle.italic
-                                        : null,
-                                  ),
-                                ),
-                              ),
-                      ),
-                    ),
-
-                    // Volume Column
-                    SizedBox(
-                      width: 120,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: enabled
-                            ? TextField(
-                                decoration: InputDecoration(
-                                  border: InputBorder.none,
-                                  isDense: true,
-                                  hintText: "0.00",
-                                  hintStyle: AppTheme.caption.copyWith(
-                                    color: Colors.black,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    vertical: 12,
-                                  ),
-                                ),
-                                style: AppTheme.bodySmall.copyWith(
-                                  fontSize: 12,
-                                  color: Colors.black,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                                textAlign: TextAlign.right,
-                                keyboardType: TextInputType.number,
-                              )
-                            : Container(
-                                height: 48,
-                                alignment: Alignment.centerRight,
-                                child: Text(
-                                  "0.00",
-                                  style: AppTheme.bodySmall.copyWith(
-                                    fontSize: 12,
-                                    color: Colors.black,
-                                    fontWeight: FontWeight.w700,
-                                    fontStyle: FontStyle.italic,
-                                  ),
-                                ),
-                              ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
+  Widget _selectionDot(bool active) {
+    return Container(
+      width: 18,
+      height: 18,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: active ? AppTheme.primaryColor : const Color(0xFFB8B8B8),
+          width: 2,
         ),
       ),
+      alignment: Alignment.center,
+      child: active
+          ? Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppTheme.primaryColor,
+              ),
+            )
+          : null,
     );
   }
 
-  // =====================================================
-  // ENHANCED SINGLE TABLE SECTION
-  // =====================================================
-  Widget _enhancedSingleTableSection({
-    required String title,
+  Widget _dataTable({
     required RxList<String?> list,
+    required bool enabled,
+    required double width,
   }) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      width: width,
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        border: Border.all(color: _gridColor),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Section Title
-          Container(
-            padding: const EdgeInsets.only(bottom: 16),
-            decoration: BoxDecoration(
-              border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppTheme.infoColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    Icons.water_drop_rounded,
-                    size: 20,
-                    color: AppTheme.infoColor,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    title,
-                    style: AppTheme.bodyLarge.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: Colors.black,
-                      fontSize: 16,
-                    ),
-                  ),
-                ),
-              ],
+          _tableHeader(width),
+          ...List.generate(
+            list.length,
+            (index) => _tableRow(
+              list: list,
+              index: index,
+              enabled: enabled,
+              width: width,
             ),
           ),
-
-          const SizedBox(height: 16),
-
-          // Enhanced Data Table (enabled by default)
-          _enhancedDataTable(list, true),
         ],
       ),
     );
   }
 
-  // ================= ACTION BUTTONS =================
-  Widget _buildActionButtons() {
+  Widget _tableHeader(double width) {
     return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
+      height: 42,
+      color: AppTheme.primaryColor,
+      child: Row(
+        children: [
+          _cell(
+            width: width - 120,
+            child: const Text(
+              'Pit',
+              style: _headerTextStyle,
+            ),
+          ),
+          _cell(
+            width: 120,
+            child: Text(
+              AppUnits.label('Volume (bbl)'),
+              textAlign: TextAlign.right,
+              style: _headerTextStyle,
+            ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _tableRow({
+    required RxList<String?> list,
+    required int index,
+    required bool enabled,
+    required double width,
+  }) {
+    final selectedValue =
+        controller.pitList.contains(list[index]) ? list[index] : null;
+    return Container(
+      height: 48,
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: _gridColor)),
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          ElevatedButton(
-            onPressed: () {
-              // Cancel action
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: AppTheme.textPrimary,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-                side: BorderSide(color: Colors.grey.shade300),
-              ),
-              elevation: 0,
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.cancel_rounded,
-                  size: 18,
-                  color: AppTheme.textPrimary,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  "Cancel",
-                  style: AppTheme.bodySmall.copyWith(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
+          _cell(
+            width: width - 120,
+            child: enabled
+                ? DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: selectedValue,
+                      isExpanded: true,
+                      hint: const Text('Select pit', style: _inputTextStyle),
+                      icon: const Icon(Icons.arrow_drop_down, size: 18),
+                      items: controller.pitList
+                          .map(
+                            (value) => DropdownMenuItem<String>(
+                              value: value,
+                              child: Text(value, style: _inputTextStyle),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (value) {
+                        list[index] = value;
+                      },
+                    ),
+                  )
+                : Text(
+                    selectedValue ?? 'Select pit',
+                    style: _inputTextStyle,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-              ],
-            ),
           ),
-          const SizedBox(width: 12),
-          ElevatedButton(
-            onPressed: () {
-              // Execute action
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-              elevation: 0,
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.check_circle_rounded, size: 18),
-                const SizedBox(width: 8),
-                Text(
-                  "Execute Switch",
-                  style: AppTheme.bodySmall.copyWith(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
+          _cell(
+            width: 120,
+            child: enabled
+                ? TextFormField(
+                    key: ValueKey(
+                      'switch-mud-volume-${widget.instanceKey}-$index',
+                    ),
+                    initialValue: '',
+                    decoration: const InputDecoration(
+                      border: InputBorder.none,
+                      isDense: true,
+                      hintText: '0.00',
+                    ),
+                    textAlign: TextAlign.right,
+                    keyboardType: TextInputType.number,
+                    style: _inputTextStyle,
+                  )
+                : const Text(
+                    '0.00',
+                    textAlign: TextAlign.right,
+                    style: _inputTextStyle,
                   ),
-                ),
-              ],
-            ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _cell({required double width, required Widget child}) {
+    return Container(
+      width: width,
+      height: double.infinity,
+      alignment: Alignment.centerLeft,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: const BoxDecoration(
+        border: Border(right: BorderSide(color: _gridColor)),
+      ),
+      child: child,
     );
   }
 }
+
+const TextStyle _headerTextStyle = TextStyle(
+  color: Colors.black,
+  fontSize: 13,
+  fontWeight: FontWeight.w700,
+);
+
+const TextStyle _inputTextStyle = TextStyle(
+  color: Colors.black,
+  fontSize: 13,
+  fontWeight: FontWeight.w700,
+);

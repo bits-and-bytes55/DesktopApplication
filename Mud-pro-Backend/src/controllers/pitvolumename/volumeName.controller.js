@@ -507,7 +507,22 @@ const findScopedPits = async ({ wellId, reportId }) => {
 };
 
 const findPreviousReportMeta = async ({ wellId, reportMeta }) => {
+  const currentReportId = toText(reportMeta?.reportId);
   const currentReportNo = Number.parseInt(toText(reportMeta?.reportNo), 10);
+  let currentReport = null;
+
+  if (currentReportId) {
+    currentReport = await Report.findOne({ _id: currentReportId, wellId })
+      .lean()
+      .catch(() => null);
+  }
+
+  if (!currentReport && toText(reportMeta?.reportNo)) {
+    currentReport = await Report.findOne({
+      wellId,
+      reportNo: toText(reportMeta.reportNo),
+    }).lean();
+  }
 
   if (Number.isFinite(currentReportNo) && currentReportNo > 1) {
     const previousReport = await Report.findOne({
@@ -519,6 +534,63 @@ const findPreviousReportMeta = async ({ wellId, reportMeta }) => {
       return {
         reportId: toText(previousReport._id),
         reportNo: toText(previousReport.reportNo),
+      };
+    }
+  }
+
+  const reports = await Report.find({ wellId }).lean();
+  const currentId = toText(currentReport?._id || currentReportId);
+
+  const numericPrevious = reports
+    .filter((report) => {
+      if (toText(report._id) === currentId) return false;
+      const parsed = Number.parseInt(toText(report.reportNo), 10);
+      return (
+        Number.isFinite(currentReportNo) &&
+        Number.isFinite(parsed) &&
+        parsed < currentReportNo
+      );
+    })
+    .sort((left, right) => {
+      const leftNo = Number.parseInt(toText(left.reportNo), 10);
+      const rightNo = Number.parseInt(toText(right.reportNo), 10);
+      return rightNo - leftNo;
+    })[0];
+
+  if (numericPrevious) {
+    return {
+      reportId: toText(numericPrevious._id),
+      reportNo: toText(numericPrevious.reportNo),
+    };
+  }
+
+  const currentTime = new Date(
+    currentReport?.reportDate || currentReport?.createdAt || currentReport?.updatedAt || 0
+  ).getTime();
+
+  if (Number.isFinite(currentTime) && currentTime > 0) {
+    const chronologicalPrevious = reports
+      .filter((report) => {
+        if (toText(report._id) === currentId) return false;
+        const reportTime = new Date(
+          report.reportDate || report.createdAt || report.updatedAt || 0
+        ).getTime();
+        return Number.isFinite(reportTime) && reportTime < currentTime;
+      })
+      .sort((left, right) => {
+        const leftTime = new Date(
+          left.reportDate || left.createdAt || left.updatedAt || 0
+        ).getTime();
+        const rightTime = new Date(
+          right.reportDate || right.createdAt || right.updatedAt || 0
+        ).getTime();
+        return rightTime - leftTime;
+      })[0];
+
+    if (chronologicalPrevious) {
+      return {
+        reportId: toText(chronologicalPrevious._id),
+        reportNo: toText(chronologicalPrevious.reportNo),
       };
     }
   }

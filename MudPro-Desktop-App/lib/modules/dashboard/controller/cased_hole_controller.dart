@@ -224,7 +224,22 @@ class CasedHoleUIController extends GetxController {
     if (result == null) {
       return rawValue;
     }
-    return result
+    return _formatConvertedNumber(result, rawValue);
+  }
+
+  int? _decimalPlacesFromText(String value) {
+    final text = value.trim().replaceAll(',', '');
+    final decimalIndex = text.indexOf('.');
+    if (decimalIndex < 0) return null;
+    return (text.length - decimalIndex - 1).clamp(0, 12).toInt();
+  }
+
+  String _formatConvertedNumber(double value, String sourceText) {
+    final sourceDecimals = _decimalPlacesFromText(sourceText);
+    if (sourceDecimals != null) {
+      return value.toStringAsFixed(sourceDecimals);
+    }
+    return value
         .toStringAsFixed(4)
         .replaceAll(RegExp(r'0+$'), '')
         .replaceAll(RegExp(r'\.$'), '');
