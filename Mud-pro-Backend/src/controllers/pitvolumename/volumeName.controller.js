@@ -231,12 +231,29 @@ const casedHoleLength = (casing, mdInFeet) => {
 };
 
 const casedHoleRowsForCalculation = (casings = [], mdInFeet) => {
-  return latestRowsBySortOrder(casings).filter((row) => {
+  const validRows = latestRowsBySortOrder(casings).filter((row) => {
     return (
       normalizeHoleDiameterIn(row) > 0 &&
       casedHoleLength(row, mdInFeet) > 0
     );
   });
+
+  if (validRows.length <= 1) {
+    return validRows;
+  }
+
+  let selected = validRows[0];
+  let selectedLength = casedHoleLength(selected, mdInFeet);
+
+  for (const row of validRows.slice(1)) {
+    const rowLength = casedHoleLength(row, mdInFeet);
+    if (rowLength > selectedLength) {
+      selected = row;
+      selectedLength = rowLength;
+    }
+  }
+
+  return selected ? [selected] : [];
 };
 
 const calculateCasedHoleRawVolume = (casings = [], mdInFeet) => {

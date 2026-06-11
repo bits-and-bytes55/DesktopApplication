@@ -1372,10 +1372,13 @@ Widget _eCell(
             child: SizedBox(
               height: _kRowH,
               child: Center(
-                child: Text(
-                  ctrl.text,
-                  style: _kWellSmallInputTextStyle,
-                  textAlign: TextAlign.center,
+                child: ValueListenableBuilder<TextEditingValue>(
+                  valueListenable: ctrl,
+                  builder: (context, value, _) => Text(
+                    value.text,
+                    style: _kWellSmallInputTextStyle,
+                    textAlign: TextAlign.center,
+                  ),
                 ),
               ),
             ),

@@ -279,6 +279,62 @@ class CasedHoleUIController extends GetxController {
     }
   }
 
+  double? _canonicalNumber(
+    String value,
+    String displayUnit,
+    String targetUnit,
+  ) {
+    final parsed = double.tryParse(value.trim().replaceAll(',', ''));
+    if (parsed == null) return null;
+    return AppUnits.convertValue(parsed, displayUnit, targetUnit) ?? parsed;
+  }
+
+  List<CasedHoleEntry> _savableRowsForValidation({
+    CasedHoleEntry? candidate,
+    int? replaceIndex,
+  }) {
+    final rows = <CasedHoleEntry>[];
+    for (var i = 0; i < entries.length; i++) {
+      if (replaceIndex != null && i == replaceIndex) continue;
+      final entry = entries[i];
+      if (entry.hasContent && entry.idCtrl.text.trim().isNotEmpty) {
+        rows.add(entry);
+      }
+    }
+    if (candidate != null &&
+        candidate.hasContent &&
+        candidate.idCtrl.text.trim().isNotEmpty) {
+      rows.add(candidate);
+    }
+    rows.sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+    return rows;
+  }
+
+  String? _validateDecreasingIds(List<CasedHoleEntry> rows) {
+    double? previousId;
+    for (final entry in rows) {
+      final id = _canonicalNumber(entry.idCtrl.text, _diameterUnit, '(in)');
+      if (id == null || id <= 0) continue;
+      if (previousId != null && id >= previousId) {
+        final rowLabel = entry.description.text.trim().isNotEmpty
+            ? entry.description.text.trim()
+            : 'ID ${entry.idCtrl.text.trim()}';
+        return 'Cased Hole ID must decrease row by row. Check $rowLabel.';
+      }
+      previousId = id;
+    }
+    return null;
+  }
+
+  void _showCasedHoleError(String message) {
+    Get.snackbar(
+      'Cased Hole',
+      message,
+      snackPosition: SnackPosition.TOP,
+      duration: const Duration(seconds: 3),
+    );
+  }
+
   void checkAndAddRow(int rowIndex) {
     if (rowIndex == entries.length - 1) {
       final last = entries[rowIndex];
@@ -317,6 +373,16 @@ class CasedHoleUIController extends GetxController {
           e.top.text.isEmpty &&
           e.shoe.text.isEmpty,
     );
+
+    entry.sortOrder = emptyIndex != -1 ? emptyIndex : entries.length;
+    final validationError = _validateDecreasingIds(
+      _savableRowsForValidation(candidate: entry, replaceIndex: emptyIndex),
+    );
+    if (validationError != null) {
+      entry.dispose();
+      _showCasedHoleError(validationError);
+      return;
+    }
 
     _attachListeners(entry);
     recalcLength(entry);
@@ -435,9 +501,12 @@ class CasedHoleUIController extends GetxController {
     int successCount = 0;
     try {
       final authRepo = AuthRepository();
-      final List<CasedHoleEntry> allRows = entries
-          .where((e) => e.hasContent && e.idCtrl.text.trim().isNotEmpty)
-          .toList();
+      final List<CasedHoleEntry> allRows = _savableRowsForValidation();
+      final validationError = _validateDecreasingIds(allRows);
+      if (validationError != null) {
+        _showCasedHoleError(validationError);
+        return {'success': false, 'message': validationError};
+      }
       _reindexRows();
 
       for (final entry in allRows) {
