@@ -1547,8 +1547,7 @@ export const getVolumeNameCalculation = async (req, res) => {
       operationVolumeEffects.endVolDelta -
         operationVolumeEffects.addWaterActiveSystemDelta +
         -operationVolumeEffects.otherVolActiveSystemDelta +
-        pendingActiveSystemInput +
-        sameReportHoleDelta
+        pendingActiveSystemInput
     );
     const operationEndVol = operationVolumeEffects.forceEndVolZero
       ? 0
@@ -1562,7 +1561,7 @@ export const getVolumeNameCalculation = async (req, res) => {
           ? operationEndVol
           : 0;
     const endVolMinusActiveSystem = Number(
-      (endVol - activeSystem).toFixed(2)
+      (endVol - activeSystem + sameReportHoleDelta).toFixed(2)
     );
 
     const consumeProductTotal = Number(
