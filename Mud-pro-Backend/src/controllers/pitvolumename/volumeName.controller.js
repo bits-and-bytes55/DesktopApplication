@@ -480,14 +480,20 @@ const resolveReportMeta = async ({ wellId, reportId, reportNo }) => {
         ? null
         : toNumber(report.volumeNameHoleSnapshot),
     volumeNameHoleDelta: report ? toNumber(report.volumeNameHoleDelta) : 0,
+    volumeNameHoleActivePitsSnapshot:
+      report?.volumeNameHoleActivePitsSnapshot === null ||
+      report?.volumeNameHoleActivePitsSnapshot === undefined
+        ? null
+        : toNumber(report.volumeNameHoleActivePitsSnapshot),
   };
 };
 
-const resolveSameReportHoleDelta = async ({ reportMeta, hole }) => {
+const resolveSameReportHoleDelta = async ({ reportMeta, hole, activePits }) => {
   const reportId = toText(reportMeta?.reportId);
   if (!reportId) return 0;
 
   const currentHole = round2(hole);
+  const currentActivePits = round2(activePits);
   const previousHole = reportMeta?.volumeNameHoleSnapshot;
 
   if (previousHole === null || previousHole === undefined) {
@@ -497,6 +503,7 @@ const resolveSameReportHoleDelta = async ({ reportMeta, hole }) => {
         $set: {
           volumeNameHoleSnapshot: currentHole,
           volumeNameHoleDelta: 0,
+          volumeNameHoleActivePitsSnapshot: currentActivePits,
         },
       }
     );
@@ -504,7 +511,19 @@ const resolveSameReportHoleDelta = async ({ reportMeta, hole }) => {
   }
 
   if (Math.abs(currentHole - toNumber(previousHole)) < 0.005) {
-    return round2(reportMeta?.volumeNameHoleDelta);
+    const activePitsSnapshot = reportMeta?.volumeNameHoleActivePitsSnapshot;
+    if (activePitsSnapshot === null || activePitsSnapshot === undefined) {
+      await Report.updateOne(
+        { _id: reportId },
+        { $set: { volumeNameHoleActivePitsSnapshot: currentActivePits } }
+      );
+      return round2(reportMeta?.volumeNameHoleDelta);
+    }
+
+    return round2(
+      toNumber(reportMeta?.volumeNameHoleDelta) -
+        (currentActivePits - toNumber(activePitsSnapshot))
+    );
   }
 
   const holeDelta = round2(toNumber(previousHole) - currentHole);
@@ -514,6 +533,7 @@ const resolveSameReportHoleDelta = async ({ reportMeta, hole }) => {
       $set: {
         volumeNameHoleSnapshot: currentHole,
         volumeNameHoleDelta: holeDelta,
+        volumeNameHoleActivePitsSnapshot: currentActivePits,
       },
     }
   );
@@ -1445,10 +1465,6 @@ export const getVolumeNameCalculation = async (req, res) => {
       drillStrings,
     });
     const hole = holeVolumeResult.hole;
-    const sameReportHoleDelta = await resolveSameReportHoleDelta({
-      reportMeta,
-      hole,
-    });
     const previousReportMeta = await findPreviousReportMeta({
       wellId,
       reportMeta,
@@ -1477,6 +1493,11 @@ export const getVolumeNameCalculation = async (req, res) => {
     const activePits = Number(
       activePitsList.reduce((sum, pit) => sum + toNumber(pit.volume), 0).toFixed(2)
     );
+    const sameReportHoleDelta = await resolveSameReportHoleDelta({
+      reportMeta,
+      hole,
+      activePits,
+    });
 
     const totalStorage = Number(
       storagePitsList.reduce((sum, pit) => sum + toNumber(pit.volume), 0).toFixed(2)
