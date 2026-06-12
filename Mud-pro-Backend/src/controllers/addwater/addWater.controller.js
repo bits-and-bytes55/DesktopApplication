@@ -10,6 +10,7 @@ const toNumber = (value) => {
   return Number.isFinite(n) ? n : 0;
 };
 
+
 const round2 = (num) => Number(num.toFixed(2));
 const getWellId = (req) => String(req.params.wellId || "").trim();
 
