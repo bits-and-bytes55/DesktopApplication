@@ -520,10 +520,18 @@ const resolveSameReportHoleDelta = async ({ reportMeta, hole, activePits }) => {
       return round2(reportMeta?.volumeNameHoleDelta);
     }
 
-    return round2(
-      toNumber(reportMeta?.volumeNameHoleDelta) -
-        (currentActivePits - toNumber(activePitsSnapshot))
+    const storedHoleDelta = round2(reportMeta?.volumeNameHoleDelta);
+    const activePitsAdjustment = round2(
+      currentActivePits - toNumber(activePitsSnapshot)
     );
+    const remainingMagnitude = Math.max(
+      0,
+      Math.abs(storedHoleDelta) - Math.abs(activePitsAdjustment)
+    );
+
+    if (remainingMagnitude < 0.005) return 0;
+
+    return round2(Math.sign(storedHoleDelta) * remainingMagnitude);
   }
 
   const holeDelta = round2(toNumber(previousHole) - currentHole);
