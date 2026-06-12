@@ -524,12 +524,17 @@ const resolveSameReportHoleDelta = async ({ reportMeta, hole, activePits }) => {
     const activePitsAdjustment = round2(
       currentActivePits - toNumber(activePitsSnapshot)
     );
-    const remainingMagnitude = Math.max(
-      0,
-      Math.abs(storedHoleDelta) - Math.abs(activePitsAdjustment)
-    );
+    const storedMagnitude = Math.abs(storedHoleDelta);
+    const adjustmentMagnitude = Math.abs(activePitsAdjustment);
+    const remainingMagnitude = storedMagnitude - adjustmentMagnitude;
 
-    if (remainingMagnitude < 0.005) return 0;
+    if (Math.abs(remainingMagnitude) < 0.005) return 0;
+
+    if (remainingMagnitude < 0) {
+      return round2(
+        -Math.sign(activePitsAdjustment) * Math.abs(remainingMagnitude)
+      );
+    }
 
     return round2(Math.sign(storedHoleDelta) * remainingMagnitude);
   }
