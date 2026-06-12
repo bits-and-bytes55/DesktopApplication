@@ -488,7 +488,12 @@ const resolveReportMeta = async ({ wellId, reportId, reportNo }) => {
   };
 };
 
-const resolveSameReportHoleDelta = async ({ reportMeta, hole, activePits }) => {
+const resolveSameReportHoleDelta = async ({
+  reportMeta,
+  hole,
+  activePits,
+  activePitsList = [],
+}) => {
   const reportId = toText(reportMeta?.reportId);
   if (!reportId) return 0;
 
@@ -524,6 +529,16 @@ const resolveSameReportHoleDelta = async ({ reportMeta, hole, activePits }) => {
     const activePitsAdjustment = round2(
       currentActivePits - toNumber(activePitsSnapshot)
     );
+    const negativeActivePitVolume = round2(
+      activePitsList.reduce((sum, pit) => {
+        const volume = toNumber(pit?.volume);
+        return volume < 0 ? sum + Math.abs(volume) : sum;
+      }, 0)
+    );
+    if (activePitsAdjustment < -0.005 && negativeActivePitVolume > 0) {
+      return negativeActivePitVolume;
+    }
+
     const storedMagnitude = Math.abs(storedHoleDelta);
     const adjustmentMagnitude = Math.abs(activePitsAdjustment);
     const remainingMagnitude = storedMagnitude - adjustmentMagnitude;
@@ -1510,6 +1525,7 @@ export const getVolumeNameCalculation = async (req, res) => {
       reportMeta,
       hole,
       activePits,
+      activePitsList,
     });
 
     const totalStorage = Number(
