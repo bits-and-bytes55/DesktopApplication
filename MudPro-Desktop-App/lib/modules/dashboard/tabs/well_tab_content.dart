@@ -4213,65 +4213,97 @@ class _TimeDistributionSectionState extends State<TimeDistributionSection> {
                                                       ),
                                                 ),
                                               )
-                                            : DropdownButtonHideUnderline(
-                                                child: DropdownButton<String>(
-                                                  value:
-                                                      activityItems.contains(
-                                                        selectedActivity,
-                                                      )
-                                                      ? selectedActivity
-                                                      : null,
-                                                  hint: Text(
-                                                    "Select",
-                                                    style: TextStyle(
-                                                      fontSize: 9,
-                                                      color:
-                                                          Colors.grey.shade400,
+                                            : PopupMenuButton<String>(
+                                                tooltip: '',
+                                                padding: EdgeInsets.zero,
+                                                offset: const Offset(0, _kRowH),
+                                                initialValue:
+                                                    activityItems.contains(
+                                                      selectedActivity,
+                                                    )
+                                                    ? selectedActivity
+                                                    : null,
+                                                constraints:
+                                                    const BoxConstraints(
+                                                      minWidth: 190,
+                                                      maxWidth: 260,
+                                                      maxHeight: 210,
                                                     ),
-                                                  ),
-                                                  isExpanded: true,
-                                                  icon: const Icon(
-                                                    Icons.arrow_drop_down,
-                                                    size: 12,
-                                                  ),
-                                                  style: const TextStyle(
-                                                    fontSize: 9,
-                                                    fontWeight: FontWeight.w700,
-                                                    color: Colors.black,
-                                                  ),
-                                                  menuMaxHeight: 200,
-                                                  onChanged: (v) {
-                                                    if (v != null) {
-                                                      setState(
-                                                        () =>
-                                                            tableData[idx]['activity'] =
-                                                                v,
-                                                      );
-                                                      _checkAndAddRow(idx);
-                                                      _syncRowToController(idx);
-                                                    }
-                                                  },
-                                                  items: activityItems
-                                                      .map(
-                                                        (o) => DropdownMenuItem(
-                                                          value: o,
-                                                          child: Padding(
-                                                            padding:
-                                                                const EdgeInsets.symmetric(
-                                                                  horizontal: 4,
+                                                onOpened: () => setState(
+                                                  () => selectedRowIndex = idx,
+                                                ),
+                                                onSelected: (v) {
+                                                  setState(
+                                                    () =>
+                                                        tableData[idx]['activity'] =
+                                                            v,
+                                                  );
+                                                  _checkAndAddRow(idx);
+                                                  _syncRowToController(idx);
+                                                },
+                                                itemBuilder: (context) =>
+                                                    activityItems
+                                                        .map(
+                                                          (o) =>
+                                                              PopupMenuItem<
+                                                                String
+                                                              >(
+                                                                value: o,
+                                                                height: 22,
+                                                                padding:
+                                                                    const EdgeInsets.symmetric(
+                                                                      horizontal:
+                                                                          8,
+                                                                    ),
+                                                                child: Text(
+                                                                  o,
+                                                                  style:
+                                                                      _kWellSmallInputTextStyle,
+                                                                  overflow:
+                                                                      TextOverflow
+                                                                          .ellipsis,
                                                                 ),
-                                                            child: Text(
-                                                              o,
-                                                              style:
-                                                                  _kWellSmallInputTextStyle,
-                                                              overflow:
-                                                                  TextOverflow
-                                                                      .ellipsis,
-                                                            ),
-                                                          ),
+                                                              ),
+                                                        )
+                                                        .toList(),
+                                                child: Container(
+                                                  height: _kRowH,
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 4,
+                                                      ),
+                                                  color: Colors.white,
+                                                  child: Row(
+                                                    children: [
+                                                      Expanded(
+                                                        child: Text(
+                                                          selectedActivity
+                                                                  .isEmpty
+                                                              ? 'Select'
+                                                              : selectedActivity,
+                                                          style: selectedActivity
+                                                                  .isEmpty
+                                                              ? TextStyle(
+                                                                  fontSize: 9,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .w700,
+                                                                  color: Colors
+                                                                      .grey
+                                                                      .shade400,
+                                                                )
+                                                              : _kWellSmallInputTextStyle,
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
                                                         ),
-                                                      )
-                                                      .toList(),
+                                                      ),
+                                                      const Icon(
+                                                        Icons.arrow_drop_down,
+                                                        size: 12,
+                                                        color: Colors.black54,
+                                                      ),
+                                                    ],
+                                                  ),
                                                 ),
                                               ),
                                       ),
