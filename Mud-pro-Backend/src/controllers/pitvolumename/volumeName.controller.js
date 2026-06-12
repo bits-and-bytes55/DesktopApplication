@@ -474,7 +474,50 @@ const resolveReportMeta = async ({ wellId, reportId, reportNo }) => {
     reportNo: report ? toText(report.reportNo) : reportNo,
     userReportNo: report ? toText(report.userReportNo) : "",
     reportDate: report ? toText(report.reportDate) : "",
+    volumeNameHoleSnapshot:
+      report?.volumeNameHoleSnapshot === null ||
+      report?.volumeNameHoleSnapshot === undefined
+        ? null
+        : toNumber(report.volumeNameHoleSnapshot),
+    volumeNameHoleDelta: report ? toNumber(report.volumeNameHoleDelta) : 0,
   };
+};
+
+const resolveSameReportHoleDelta = async ({ reportMeta, hole }) => {
+  const reportId = toText(reportMeta?.reportId);
+  if (!reportId) return 0;
+
+  const currentHole = round2(hole);
+  const previousHole = reportMeta?.volumeNameHoleSnapshot;
+
+  if (previousHole === null || previousHole === undefined) {
+    await Report.updateOne(
+      { _id: reportId },
+      {
+        $set: {
+          volumeNameHoleSnapshot: currentHole,
+          volumeNameHoleDelta: 0,
+        },
+      }
+    );
+    return 0;
+  }
+
+  if (Math.abs(currentHole - toNumber(previousHole)) < 0.005) {
+    return round2(reportMeta?.volumeNameHoleDelta);
+  }
+
+  const holeDelta = round2(toNumber(previousHole) - currentHole);
+  await Report.updateOne(
+    { _id: reportId },
+    {
+      $set: {
+        volumeNameHoleSnapshot: currentHole,
+        volumeNameHoleDelta: holeDelta,
+      },
+    }
+  );
+  return holeDelta;
 };
 
 const findScopedWellGeneral = async ({ wellId, reportId, reportNo }) => {
@@ -1402,6 +1445,10 @@ export const getVolumeNameCalculation = async (req, res) => {
       drillStrings,
     });
     const hole = holeVolumeResult.hole;
+    const sameReportHoleDelta = await resolveSameReportHoleDelta({
+      reportMeta,
+      hole,
+    });
     const previousReportMeta = await findPreviousReportMeta({
       wellId,
       reportMeta,
@@ -1500,7 +1547,8 @@ export const getVolumeNameCalculation = async (req, res) => {
       operationVolumeEffects.endVolDelta -
         operationVolumeEffects.addWaterActiveSystemDelta +
         -operationVolumeEffects.otherVolActiveSystemDelta +
-        pendingActiveSystemInput
+        pendingActiveSystemInput +
+        sameReportHoleDelta
     );
     const operationEndVol = operationVolumeEffects.forceEndVolZero
       ? 0
