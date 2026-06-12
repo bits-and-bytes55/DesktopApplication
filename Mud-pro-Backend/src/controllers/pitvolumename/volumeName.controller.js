@@ -1476,7 +1476,7 @@ export const getVolumeNameCalculation = async (req, res) => {
     for (const [pitName, volume] of operationVolumeEffects.storageDeltaByPit) {
       addPitDelta(calculatedVolumeByPit, pitName, volume);
     }
-    const derivedActiveSystem = round2(activePitsWithTransfer + heldVolDifference);
+    const derivedActiveSystem = round2(hole + activePitsWithTransfer);
     const activeSystem = derivedActiveSystem;
     const activeSystemPendingInput = round2(
       operationVolumeEffects.addWaterActiveSystemDelta +
