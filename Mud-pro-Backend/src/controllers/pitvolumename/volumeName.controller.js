@@ -1663,9 +1663,19 @@ export const getVolumeNameCalculation = async (req, res) => {
         -operationVolumeEffects.otherVolActiveSystemDelta +
         pendingActiveSystemInput
     );
+    const hasOperationVolumeRows =
+      distributionRows.length > 0 ||
+      receivedMud.length > 0 ||
+      returnLostMud.length > 0 ||
+      normalizedAddWaterEntries.length > 0 ||
+      normalizedOtherVolAdditions.length > 0 ||
+      mudLossEntries.length > 0 ||
+      normalizedMudLossStorageEntries.length > 0 ||
+      transferMudEntries.length > 0 ||
+      emptyFluidEntries.length > 0;
     const firstReportStartsEmpty =
       !previousReportMeta &&
-      Math.abs(activePitsWithTransfer) < 0.005 &&
+      !hasOperationVolumeRows &&
       Math.abs(effectiveEndVolDelta) < 0.005 &&
       !operationVolumeEffects.forceEndVolZero;
     const reportIdForSnapshot = toText(reportMeta?.reportId);
