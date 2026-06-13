@@ -529,6 +529,29 @@ const resolveSameReportHoleDelta = async ({
     const activePitsAdjustment = round2(
       currentActivePits - toNumber(activePitsSnapshot)
     );
+    const signedActivePitVolume = activePitsList
+      .map((pit) => ({
+        volume: toNumber(pit?.volume),
+        time: itemTime(pit),
+      }))
+      .filter(
+        (pit) =>
+          Math.abs(pit.volume) > 0.005 &&
+          Math.sign(pit.volume) === Math.sign(activePitsAdjustment)
+      )
+      .sort(
+        (left, right) =>
+          right.time - left.time || Math.abs(left.volume) - Math.abs(right.volume)
+      )[0]?.volume;
+
+    if (
+      Math.abs(storedHoleDelta) < 0.005 &&
+      Math.abs(activePitsAdjustment) > 0.005 &&
+      Math.abs(signedActivePitVolume ?? 0) > 0.005
+    ) {
+      return round2(-signedActivePitVolume);
+    }
+
     const negativeActivePitVolume = round2(
       activePitsList.reduce((sum, pit) => {
         const volume = toNumber(pit?.volume);
