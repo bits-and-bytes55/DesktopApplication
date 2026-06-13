@@ -1663,12 +1663,43 @@ export const getVolumeNameCalculation = async (req, res) => {
         -operationVolumeEffects.otherVolActiveSystemDelta +
         pendingActiveSystemInput
     );
+    const firstReportStartsEmpty =
+      !previousReportMeta &&
+      Math.abs(activePitsWithTransfer) < 0.005 &&
+      Math.abs(effectiveEndVolDelta) < 0.005 &&
+      !operationVolumeEffects.forceEndVolZero;
+    const reportIdForSnapshot = toText(reportMeta?.reportId);
+    if (
+      firstReportStartsEmpty &&
+      reportIdForSnapshot &&
+      (Math.abs(sameReportHoleDelta) > 0.005 ||
+        Math.abs(toNumber(reportMeta?.volumeNameHoleSnapshot) - hole) > 0.005 ||
+        Math.abs(toNumber(reportMeta?.volumeNameHoleDelta)) > 0.005 ||
+        Math.abs(toNumber(reportMeta?.volumeNameHoleActivePitsSnapshot) - activePits) >
+          0.005)
+    ) {
+      await Report.updateOne(
+        { _id: reportIdForSnapshot },
+        {
+          $set: {
+            volumeNameHoleSnapshot: round2(hole),
+            volumeNameHoleDelta: 0,
+            volumeNameHoleActivePitsSnapshot: activePits,
+            volumeNameLastActivePitName: "",
+            volumeNameLastActivePitVolume: 0,
+            volumeNameLastActivePitUpdatedAt: null,
+          },
+        }
+      );
+    }
     const operationEndVol = operationVolumeEffects.forceEndVolZero
       ? 0
       : round2(derivedActiveSystem + effectiveEndVolDelta);
     const endVolBase = derivedActiveSystem;
     const endVol = operationVolumeEffects.forceEndVolZero
       ? 0
+      : firstReportStartsEmpty
+        ? 0
       : endVolBase > 0
         ? round2(endVolBase + effectiveEndVolDelta)
         : Math.abs(effectiveEndVolDelta) >= 0.005
@@ -1676,7 +1707,9 @@ export const getVolumeNameCalculation = async (req, res) => {
           : 0;
     const baseEndVolMinusActiveSystem = round2(endVol - activeSystem);
     let endVolMinusActiveSystem = 0;
-    if (Math.abs(baseEndVolMinusActiveSystem) < 0.005) {
+    if (firstReportStartsEmpty) {
+      endVolMinusActiveSystem = baseEndVolMinusActiveSystem;
+    } else if (Math.abs(baseEndVolMinusActiveSystem) < 0.005) {
       endVolMinusActiveSystem = sameReportHoleDelta;
     } else if (Math.abs(sameReportHoleDelta) < 0.005) {
       endVolMinusActiveSystem = baseEndVolMinusActiveSystem;
