@@ -520,6 +520,26 @@ const resolveSameReportHoleDelta = async ({
   const currentActivePits = round2(activePits);
   const previousHole = reportMeta?.volumeNameHoleSnapshot;
 
+  if (
+    Math.abs(currentHole) < 0.005 &&
+    Math.abs(currentActivePits) < 0.005
+  ) {
+    await Report.updateOne(
+      { _id: reportId },
+      {
+        $set: {
+          volumeNameHoleSnapshot: 0,
+          volumeNameHoleDelta: 0,
+          volumeNameHoleActivePitsSnapshot: 0,
+          volumeNameLastActivePitName: "",
+          volumeNameLastActivePitVolume: 0,
+          volumeNameLastActivePitUpdatedAt: null,
+        },
+      }
+    );
+    return 0;
+  }
+
   if (previousHole === null || previousHole === undefined) {
     await Report.updateOne(
       { _id: reportId },
@@ -1655,10 +1675,20 @@ export const getVolumeNameCalculation = async (req, res) => {
           ? operationEndVol
           : 0;
     const baseEndVolMinusActiveSystem = round2(endVol - activeSystem);
-    const endVolMinusActiveSystem =
-      Math.abs(baseEndVolMinusActiveSystem) >= 0.005
-        ? baseEndVolMinusActiveSystem
-        : sameReportHoleDelta;
+    let endVolMinusActiveSystem = 0;
+    if (Math.abs(baseEndVolMinusActiveSystem) < 0.005) {
+      endVolMinusActiveSystem = sameReportHoleDelta;
+    } else if (Math.abs(sameReportHoleDelta) < 0.005) {
+      endVolMinusActiveSystem = baseEndVolMinusActiveSystem;
+    } else if (
+      Math.sign(baseEndVolMinusActiveSystem) === Math.sign(sameReportHoleDelta)
+    ) {
+      endVolMinusActiveSystem = baseEndVolMinusActiveSystem;
+    } else {
+      endVolMinusActiveSystem = round2(
+        baseEndVolMinusActiveSystem + sameReportHoleDelta
+      );
+    }
 
     const consumeProductTotal = Number(
       consumeProducts.reduce((sum, item) => sum + toNumber(item.volumeBbl), 0).toFixed(2)
