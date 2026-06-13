@@ -1705,11 +1705,17 @@ export const getVolumeNameCalculation = async (req, res) => {
     const operationEndVol = operationVolumeEffects.forceEndVolZero
       ? 0
       : round2(derivedActiveSystem + effectiveEndVolDelta);
+    const firstReportOperationEndVol =
+      !previousReportMeta && hasOperationVolumeRows
+        ? round2(effectiveEndVolDelta)
+        : null;
     const endVolBase = derivedActiveSystem;
     const endVol = operationVolumeEffects.forceEndVolZero
       ? 0
       : firstReportStartsEmpty
         ? 0
+      : firstReportOperationEndVol !== null
+        ? firstReportOperationEndVol
       : endVolBase > 0
         ? round2(endVolBase + effectiveEndVolDelta)
         : Math.abs(effectiveEndVolDelta) >= 0.005
