@@ -485,7 +485,26 @@ const resolveReportMeta = async ({ wellId, reportId, reportNo }) => {
       report?.volumeNameHoleActivePitsSnapshot === undefined
         ? null
         : toNumber(report.volumeNameHoleActivePitsSnapshot),
+    volumeNameLastActivePitVolume: report
+      ? toNumber(report.volumeNameLastActivePitVolume)
+      : 0,
   };
+};
+
+const rememberLastActivePitVolume = async ({ reportId, pitName, volume }) => {
+  const cleanReportId = toText(reportId);
+  if (!cleanReportId) return;
+
+  await Report.updateOne(
+    { _id: cleanReportId },
+    {
+      $set: {
+        volumeNameLastActivePitName: toText(pitName),
+        volumeNameLastActivePitVolume: round2(volume),
+        volumeNameLastActivePitUpdatedAt: new Date(),
+      },
+    }
+  );
 };
 
 const resolveSameReportHoleDelta = async ({
@@ -529,27 +548,15 @@ const resolveSameReportHoleDelta = async ({
     const activePitsAdjustment = round2(
       currentActivePits - toNumber(activePitsSnapshot)
     );
-    const signedActivePitVolume = activePitsList
-      .map((pit) => ({
-        volume: toNumber(pit?.volume),
-        time: itemTime(pit),
-      }))
-      .filter(
-        (pit) =>
-          Math.abs(pit.volume) > 0.005 &&
-          Math.sign(pit.volume) === Math.sign(activePitsAdjustment)
-      )
-      .sort(
-        (left, right) =>
-          right.time - left.time || Math.abs(left.volume) - Math.abs(right.volume)
-      )[0]?.volume;
+    const lastActivePitVolume = round2(reportMeta?.volumeNameLastActivePitVolume);
 
     if (
       Math.abs(storedHoleDelta) < 0.005 &&
       Math.abs(activePitsAdjustment) > 0.005 &&
-      Math.abs(signedActivePitVolume ?? 0) > 0.005
+      Math.abs(lastActivePitVolume) > 0.005 &&
+      Math.sign(lastActivePitVolume) === Math.sign(activePitsAdjustment)
     ) {
-      return round2(-signedActivePitVolume);
+      return round2(-lastActivePitVolume);
     }
 
     const negativeActivePitVolume = round2(
@@ -1403,6 +1410,13 @@ export const createPit = async (req, res) => {
       item.initialActive = pitPayload.initialActive;
       item.reportId = pitPayload.reportId;
       await item.save();
+      if (reportId && pitPayload.initialActive) {
+        await rememberLastActivePitVolume({
+          reportId,
+          pitName,
+          volume: pitPayload.volume,
+        });
+      }
 
       return res.status(200).json({
         success: true,
@@ -1412,6 +1426,13 @@ export const createPit = async (req, res) => {
     }
 
     item = await Pit.create(pitPayload);
+    if (reportId && pitPayload.initialActive) {
+      await rememberLastActivePitVolume({
+        reportId,
+        pitName,
+        volume: pitPayload.volume,
+      });
+    }
 
     return res.status(201).json({
       success: true,

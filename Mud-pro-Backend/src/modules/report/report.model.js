@@ -113,6 +113,19 @@ const reportSchema = new mongoose.Schema(
       type: Number,
       default: null,
     },
+    volumeNameLastActivePitName: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    volumeNameLastActivePitVolume: {
+      type: Number,
+      default: 0,
+    },
+    volumeNameLastActivePitUpdatedAt: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true }
 );
