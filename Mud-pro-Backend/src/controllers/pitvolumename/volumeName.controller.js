@@ -1654,9 +1654,11 @@ export const getVolumeNameCalculation = async (req, res) => {
         : Math.abs(effectiveEndVolDelta) >= 0.005
           ? operationEndVol
           : 0;
-    const endVolMinusActiveSystem = Number(
-      (endVol - activeSystem + sameReportHoleDelta).toFixed(2)
-    );
+    const baseEndVolMinusActiveSystem = round2(endVol - activeSystem);
+    const endVolMinusActiveSystem =
+      Math.abs(baseEndVolMinusActiveSystem) >= 0.005
+        ? baseEndVolMinusActiveSystem
+        : sameReportHoleDelta;
 
     const consumeProductTotal = Number(
       consumeProducts.reduce((sum, item) => sum + toNumber(item.volumeBbl), 0).toFixed(2)
