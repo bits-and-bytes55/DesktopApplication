@@ -1729,7 +1729,7 @@ export const getVolumeNameCalculation = async (req, res) => {
           : 0;
     const baseEndVolMinusActiveSystem = round2(endVol - activeSystem);
     let endVolMinusActiveSystem = 0;
-    if (firstReportStartsEmpty) {
+    if (firstReportStartsEmpty || hasOperationVolumeRows) {
       endVolMinusActiveSystem = baseEndVolMinusActiveSystem;
     } else if (Math.abs(baseEndVolMinusActiveSystem) < 0.005) {
       endVolMinusActiveSystem = sameReportHoleDelta;
