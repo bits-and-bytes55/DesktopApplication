@@ -1663,6 +1663,12 @@ export const getVolumeNameCalculation = async (req, res) => {
         -operationVolumeEffects.otherVolActiveSystemDelta +
         pendingActiveSystemInput
     );
+    const operationOnlyEndVolDelta = round2(
+      operationVolumeEffects.endVolDelta -
+        operationVolumeEffects.addWaterActiveSystemDelta +
+        -operationVolumeEffects.otherVolActiveSystemDelta +
+        activeSystemPendingInput
+    );
     const hasOperationVolumeRows =
       distributionRows.length > 0 ||
       receivedMud.length > 0 ||
@@ -1707,7 +1713,7 @@ export const getVolumeNameCalculation = async (req, res) => {
       : round2(derivedActiveSystem + effectiveEndVolDelta);
     const firstReportOperationEndVol =
       !previousReportMeta && hasOperationVolumeRows
-        ? round2(effectiveEndVolDelta)
+        ? operationOnlyEndVolDelta
         : null;
     const endVolBase = derivedActiveSystem;
     const endVol = operationVolumeEffects.forceEndVolZero
