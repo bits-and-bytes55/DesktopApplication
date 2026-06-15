@@ -2023,7 +2023,13 @@ class _PumpPageState extends State<PumpPage> {
       decoration: _boxStyle(),
       child: Column(
         children: [
-          _tableHeader("Summary", Icons.summarize),
+          _tableHeader(
+            "Summary",
+            Icons.summarize,
+            actionIcon: Icons.calculate_outlined,
+            actionTooltip: 'Calculate total pump rate',
+            onAction: _applyTotalPumpRate,
+          ),
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(10),
@@ -2043,6 +2049,15 @@ class _PumpPageState extends State<PumpPage> {
         ],
       ),
     );
+  }
+
+  void _applyTotalPumpRate() {
+    final total = _pumpRows.fold<double>(
+      0,
+      (sum, row) => sum + (double.tryParse(row.rate.value.trim()) ?? 0),
+    );
+    _summaryPumpRate.value = total.toStringAsFixed(1);
+    _scheduleSavePumpSummary();
   }
 
   Widget _summaryItem(String label, String unit, RxString value) {
@@ -2125,7 +2140,13 @@ class _PumpPageState extends State<PumpPage> {
   //  SHARED HELPERS
   // ═══════════════════════════════════════════════════════════
 
-  Widget _tableHeader(String title, IconData icon) {
+  Widget _tableHeader(
+    String title,
+    IconData icon, {
+    IconData? actionIcon,
+    String? actionTooltip,
+    VoidCallback? onAction,
+  }) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -2148,6 +2169,26 @@ class _PumpPageState extends State<PumpPage> {
               color: Colors.white,
             ),
           ),
+          if (actionIcon != null && onAction != null) ...[
+            const SizedBox(width: 6),
+            Tooltip(
+              message: actionTooltip ?? '',
+              child: InkWell(
+                onTap: dashboard.isLocked.value ? null : onAction,
+                borderRadius: BorderRadius.circular(3),
+                child: Padding(
+                  padding: const EdgeInsets.all(2),
+                  child: Icon(
+                    actionIcon,
+                    color: dashboard.isLocked.value
+                        ? Colors.white54
+                        : Colors.white,
+                    size: 15,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

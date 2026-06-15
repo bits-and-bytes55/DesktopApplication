@@ -50,7 +50,7 @@ class OperatorController extends GetxController {
   }
 
   void clearLogo(int rowIndex) {
-    selectedLogos.remove(rowIndex);
+    selectedLogos[rowIndex] = '';
     selectedLogos.refresh();
   }
 

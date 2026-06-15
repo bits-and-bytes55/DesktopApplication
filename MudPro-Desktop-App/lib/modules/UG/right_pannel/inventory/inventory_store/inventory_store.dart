@@ -82,9 +82,9 @@ class InventoryServicesStore extends GetxController {
   final RxList<ServiceItem> selectedServices = <ServiceItem>[].obs;
   final RxList<EngineeringItem> selectedEngineering = <EngineeringItem>[].obs;
 
-  void setSelectedServices({
-    List<PackageItem>? packages,
-    List<ServiceItem>? services,
+	  void setSelectedServices({
+	    List<PackageItem>? packages,
+	    List<ServiceItem>? services,
     List<EngineeringItem>? engineering,
   }) {
     if (packages != null) {
@@ -98,16 +98,151 @@ class InventoryServicesStore extends GetxController {
     }
     print(
       'Services stored: pkgs=${selectedPackages.length}, srvs=${selectedServices.length}, eng=${selectedEngineering.length}',
-    );
-  }
+	    );
+	  }
 
-  void clearAll() {
-    selectedPackages.clear();
-    selectedServices.clear();
-    selectedEngineering.clear();
-  }
+	  void mergeSelectedServices({
+	    List<PackageItem>? packages,
+	    List<ServiceItem>? services,
+	    List<EngineeringItem>? engineering,
+	    bool overwrite = true,
+	  }) {
+	    if (packages != null) {
+	      selectedPackages.assignAll(
+	        _mergePackages(selectedPackages, packages, overwrite),
+	      );
+	    }
+	    if (services != null) {
+	      selectedServices.assignAll(
+	        _mergeServices(selectedServices, services, overwrite),
+	      );
+	    }
+	    if (engineering != null) {
+	      selectedEngineering.assignAll(
+	        _mergeEngineering(selectedEngineering, engineering, overwrite),
+	      );
+	    }
+	    print(
+	      'Services merged: pkgs=${selectedPackages.length}, srvs=${selectedServices.length}, eng=${selectedEngineering.length}',
+	    );
+	  }
 
-  PackageItem _clonePackage(PackageItem item) {
+	  bool hasPackageConflict(List<PackageItem> packages) {
+	    final existingKeys = selectedPackages
+	        .map(_packageKey)
+	        .where((key) => key.isNotEmpty)
+	        .toSet();
+	    return packages.any((item) {
+	      final key = _packageKey(item);
+	      return key.isNotEmpty && existingKeys.contains(key);
+	    });
+	  }
+
+	  bool hasServiceConflict(List<ServiceItem> services) {
+	    final existingKeys = selectedServices
+	        .map(_serviceKey)
+	        .where((key) => key.isNotEmpty)
+	        .toSet();
+	    return services.any((item) {
+	      final key = _serviceKey(item);
+	      return key.isNotEmpty && existingKeys.contains(key);
+	    });
+	  }
+
+	  bool hasEngineeringConflict(List<EngineeringItem> engineering) {
+	    final existingKeys = selectedEngineering
+	        .map(_engineeringKey)
+	        .where((key) => key.isNotEmpty)
+	        .toSet();
+	    return engineering.any((item) {
+	      final key = _engineeringKey(item);
+	      return key.isNotEmpty && existingKeys.contains(key);
+	    });
+	  }
+
+	  void clearAll() {
+	    selectedPackages.clear();
+	    selectedServices.clear();
+	    selectedEngineering.clear();
+	  }
+
+	  List<PackageItem> _mergePackages(
+	    Iterable<PackageItem> current,
+	    Iterable<PackageItem> incoming,
+	    bool overwrite,
+	  ) {
+	    final merged = <String, PackageItem>{};
+	    for (final item in current) {
+	      final key = _packageKey(item);
+	      if (key.isNotEmpty) merged[key] = _clonePackage(item);
+	    }
+	    for (final item in incoming) {
+	      final key = _packageKey(item);
+	      if (key.isEmpty || (!overwrite && merged.containsKey(key))) continue;
+	      merged[key] = _clonePackage(item);
+	    }
+	    return merged.values.toList();
+	  }
+
+	  List<ServiceItem> _mergeServices(
+	    Iterable<ServiceItem> current,
+	    Iterable<ServiceItem> incoming,
+	    bool overwrite,
+	  ) {
+	    final merged = <String, ServiceItem>{};
+	    for (final item in current) {
+	      final key = _serviceKey(item);
+	      if (key.isNotEmpty) merged[key] = _cloneService(item);
+	    }
+	    for (final item in incoming) {
+	      final key = _serviceKey(item);
+	      if (key.isEmpty || (!overwrite && merged.containsKey(key))) continue;
+	      merged[key] = _cloneService(item);
+	    }
+	    return merged.values.toList();
+	  }
+
+	  List<EngineeringItem> _mergeEngineering(
+	    Iterable<EngineeringItem> current,
+	    Iterable<EngineeringItem> incoming,
+	    bool overwrite,
+	  ) {
+	    final merged = <String, EngineeringItem>{};
+	    for (final item in current) {
+	      final key = _engineeringKey(item);
+	      if (key.isNotEmpty) merged[key] = _cloneEngineering(item);
+	    }
+	    for (final item in incoming) {
+	      final key = _engineeringKey(item);
+	      if (key.isEmpty || (!overwrite && merged.containsKey(key))) continue;
+	      merged[key] = _cloneEngineering(item);
+	    }
+	    return merged.values.toList();
+	  }
+
+	  String _packageKey(PackageItem item) {
+	    return _serviceInventoryKey(item.id, item.code, item.name);
+	  }
+
+	  String _serviceKey(ServiceItem item) {
+	    return _serviceInventoryKey(item.id, item.code, item.name);
+	  }
+
+	  String _engineeringKey(EngineeringItem item) {
+	    return _serviceInventoryKey(item.id, item.code, item.name);
+	  }
+
+	  String _serviceInventoryKey(String? id, String code, String name) {
+	    final cleanId = id?.trim() ?? '';
+	    if (cleanId.isNotEmpty) return 'id:$cleanId';
+	    final cleanCode = code.trim().toLowerCase();
+	    if (cleanCode.isNotEmpty) return 'code:$cleanCode';
+	    final cleanName = name.trim().toLowerCase();
+	    if (cleanName.isNotEmpty) return 'name:$cleanName';
+	    return '';
+	  }
+
+	  PackageItem _clonePackage(PackageItem item) {
     return PackageItem(
       id: item.id,
       name: item.name,
