@@ -253,6 +253,85 @@ const cleanClone = (doc = {}) => {
   return clone;
 };
 
+const itemTime = (item = {}) =>
+  new Date(item.updatedAt || item.createdAt || 0).getTime();
+
+const rowSortOrder = (item = {}) => {
+  const order = Number(item?.sortOrder);
+  return Number.isFinite(order) ? order : null;
+};
+
+const latestRowsBySortOrder = (items = []) => {
+  const latestByKey = new Map();
+  const looseRows = [];
+
+  for (const item of items) {
+    const order = rowSortOrder(item);
+    if (order === null) {
+      looseRows.push(item);
+      continue;
+    }
+
+    const key = String(order);
+    const existing = latestByKey.get(key);
+    if (!existing || itemTime(item) >= itemTime(existing)) {
+      latestByKey.set(key, item);
+    }
+  }
+
+  return [...latestByKey.values(), ...looseRows].sort((left, right) => {
+    const leftOrder = rowSortOrder(left);
+    const rightOrder = rowSortOrder(right);
+    if (leftOrder !== null && rightOrder !== null && leftOrder !== rightOrder) {
+      return leftOrder - rightOrder;
+    }
+    if (leftOrder !== null && rightOrder === null) return -1;
+    if (leftOrder === null && rightOrder !== null) return 1;
+    return itemTime(left) - itemTime(right);
+  });
+};
+
+const carryOverRowsForModel = (model, sourceDocs = []) => {
+  if (model !== Casing && model !== DrillString) {
+    return sourceDocs;
+  }
+
+  const orderedRows = sourceDocs.filter((doc) => rowSortOrder(doc) !== null);
+  const uniqueSortOrders = new Set(orderedRows.map((doc) => rowSortOrder(doc)));
+
+  if (orderedRows.length > 0 && uniqueSortOrders.size < orderedRows.length) {
+    return latestRowsBySortOrder(sourceDocs);
+  }
+
+  return sourceDocs;
+};
+
+const volumeNameCarryOverBaselineReset = (carryOverCompletedAt) => ({
+  carryOverCompletedAt,
+  volumeNameHoleSnapshot: null,
+  volumeNameHoleDelta: 0,
+  volumeNameHoleActivePitsSnapshot: null,
+  volumeNameLastActivePitName: "",
+  volumeNameLastActivePitVolume: 0,
+  volumeNameLastActivePitUpdatedAt: null,
+});
+
+const finalizeCarryOverTargetReport = async (targetReport) => {
+  const targetReportId = toText(targetReport?._id ?? targetReport?.id);
+  if (!targetReportId) return targetReport;
+
+  const carryOverCompletedAt = new Date();
+  const updates = volumeNameCarryOverBaselineReset(carryOverCompletedAt);
+
+  const updatedReport = await Report.findByIdAndUpdate(
+    targetReportId,
+    { $set: updates },
+    { new: true }
+  );
+
+  return updatedReport ?? targetReport;
+};
+
 const reportIdentity = (report = {}) => ({
   reportId: toText(report?._id ?? report?.id),
   reportNo: toText(report?.reportNo),
@@ -376,8 +455,10 @@ const cloneExtraReportScopedDocuments = async ({
 
     if (sourceDocs.length === 0) continue;
 
+    const docsToClone = carryOverRowsForModel(model, sourceDocs);
+
     await model.insertMany(
-      sourceDocs.map((doc) => ({
+      docsToClone.map((doc) => ({
         ...cleanClone(doc),
         wellId,
         reportId: targetReportId,
@@ -710,7 +791,7 @@ export const createReport = async (req, res) => {
         ? sanitizeOperationSelections(req.body.operationSelections)
         : sanitizeOperationSelections(sourceReport?.operationSelections);
 
-    const report = await Report.create({
+    let report = await Report.create({
       wellId,
       reportNo,
       userReportNo,
@@ -732,6 +813,7 @@ export const createReport = async (req, res) => {
           sourceReport,
           targetReport: report.toObject(),
         });
+        report = await finalizeCarryOverTargetReport(report);
       }
     } catch (cloneError) {
       await rollbackReportArtifacts(report);
@@ -819,11 +901,12 @@ export const carryOverReportData = async (req, res) => {
       sourceReport,
       targetReport: targetReport.toObject(),
     });
+    const finalizedTargetReport = await finalizeCarryOverTargetReport(targetReport);
 
     return res.status(200).json({
       success: true,
       message: "Report carried over successfully",
-      data: targetReport,
+      data: finalizedTargetReport,
     });
   } catch (error) {
     return res.status(500).json({

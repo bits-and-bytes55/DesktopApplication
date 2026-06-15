@@ -474,6 +474,7 @@ const resolveReportMeta = async ({ wellId, reportId, reportNo }) => {
     reportNo: report ? toText(report.reportNo) : reportNo,
     userReportNo: report ? toText(report.userReportNo) : "",
     reportDate: report ? toText(report.reportDate) : "",
+    carryOverCompletedAt: report?.carryOverCompletedAt ?? null,
     volumeNameHoleSnapshot:
       report?.volumeNameHoleSnapshot === null ||
       report?.volumeNameHoleSnapshot === undefined
@@ -489,6 +490,16 @@ const resolveReportMeta = async ({ wellId, reportId, reportNo }) => {
       ? toNumber(report.volumeNameLastActivePitVolume)
       : 0,
   };
+};
+
+const filterRowsAfterCarryOverCutoff = (items = [], cutoff) => {
+  const cutoffTime = new Date(cutoff || 0).getTime();
+  if (!Number.isFinite(cutoffTime) || cutoffTime <= 0) return items;
+
+  return items.filter((item) => {
+    const createdTime = new Date(item?.createdAt || 0).getTime();
+    return Number.isFinite(createdTime) && createdTime > cutoffTime;
+  });
 };
 
 const rememberLastActivePitVolume = async ({ reportId, pitName, volume }) => {
@@ -1485,7 +1496,7 @@ export const getVolumeNameCalculation = async (req, res) => {
 
     const reportMeta = await resolveReportMeta({ wellId, reportId, reportNo });
 
-    const [wellGeneral, casings, drillStrings, pits, distributionStates, consumeProducts, receivedMud, returnLostMud, addWaterEntries, otherVolAdditions, mudLossEntries, mudLossStorageEntries, transferMudEntries, emptyFluidEntries] =
+    let [wellGeneral, casings, drillStrings, pits, distributionStates, consumeProducts, receivedMud, returnLostMud, addWaterEntries, otherVolAdditions, mudLossEntries, mudLossStorageEntries, transferMudEntries, emptyFluidEntries] =
       await Promise.all([
         findScopedWellGeneral({
           wellId,
@@ -1537,6 +1548,46 @@ export const getVolumeNameCalculation = async (req, res) => {
           scopedOperationFilter({ wellId, reportId: reportMeta.reportId })
         ).sort({ createdAt: 1, _id: 1 }),
       ]);
+
+    const carryOverCutoff = reportMeta.carryOverCompletedAt;
+    distributionStates = filterRowsAfterCarryOverCutoff(
+      distributionStates,
+      carryOverCutoff
+    );
+    consumeProducts = filterRowsAfterCarryOverCutoff(
+      consumeProducts,
+      carryOverCutoff
+    );
+    receivedMud = filterRowsAfterCarryOverCutoff(receivedMud, carryOverCutoff);
+    returnLostMud = filterRowsAfterCarryOverCutoff(
+      returnLostMud,
+      carryOverCutoff
+    );
+    addWaterEntries = filterRowsAfterCarryOverCutoff(
+      addWaterEntries,
+      carryOverCutoff
+    );
+    otherVolAdditions = filterRowsAfterCarryOverCutoff(
+      otherVolAdditions,
+      carryOverCutoff
+    );
+    mudLossEntries = filterRowsAfterCarryOverCutoff(
+      mudLossEntries,
+      carryOverCutoff
+    );
+    mudLossStorageEntries = filterRowsAfterCarryOverCutoff(
+      mudLossStorageEntries,
+      carryOverCutoff
+    );
+    transferMudEntries = filterRowsAfterCarryOverCutoff(
+      transferMudEntries,
+      carryOverCutoff
+    );
+    emptyFluidEntries = filterRowsAfterCarryOverCutoff(
+      emptyFluidEntries,
+      carryOverCutoff
+    );
+
     const normalizedMudLossStorageEntries =
       normalizeMudLossStorageItems(mudLossStorageEntries);
     const normalizedAddWaterEntries = normalizeAddWaterItems(addWaterEntries);

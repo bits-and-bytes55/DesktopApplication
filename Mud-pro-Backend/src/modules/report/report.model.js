@@ -101,6 +101,10 @@ const reportSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
+    carryOverCompletedAt: {
+      type: Date,
+      default: null,
+    },
     volumeNameHoleSnapshot: {
       type: Number,
       default: null,
