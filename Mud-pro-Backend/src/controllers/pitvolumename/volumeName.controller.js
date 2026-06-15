@@ -474,6 +474,7 @@ const resolveReportMeta = async ({ wellId, reportId, reportNo }) => {
     reportNo: report ? toText(report.reportNo) : reportNo,
     userReportNo: report ? toText(report.userReportNo) : "",
     reportDate: report ? toText(report.reportDate) : "",
+    carryOverFromReportId: report ? toText(report.carryOverFromReportId) : "",
     carryOverCompletedAt: report?.carryOverCompletedAt ?? null,
     volumeNameHoleSnapshot:
       report?.volumeNameHoleSnapshot === null ||
@@ -498,7 +499,12 @@ const filterRowsAfterCarryOverCutoff = (items = [], cutoff) => {
 
   return items.filter((item) => {
     const createdTime = new Date(item?.createdAt || 0).getTime();
-    return Number.isFinite(createdTime) && createdTime > cutoffTime;
+    const updatedTime = new Date(item?.updatedAt || 0).getTime();
+    const rowTime = Math.max(
+      Number.isFinite(createdTime) ? createdTime : 0,
+      Number.isFinite(updatedTime) ? updatedTime : 0
+    );
+    return rowTime > cutoffTime;
   });
 };
 
@@ -758,7 +764,7 @@ const findScopedPits = async ({ wellId, reportId }) => {
 
 const findPreviousReportMeta = async ({ wellId, reportMeta }) => {
   const currentReportId = toText(reportMeta?.reportId);
-  const currentReportNo = Number.parseInt(toText(reportMeta?.reportNo), 10);
+  let currentReportNo = Number.parseInt(toText(reportMeta?.reportNo), 10);
   let currentReport = null;
 
   if (currentReportId) {
@@ -773,6 +779,30 @@ const findPreviousReportMeta = async ({ wellId, reportMeta }) => {
       reportNo: toText(reportMeta.reportNo),
     }).lean();
   }
+
+  const carryOverFromReportId = toText(
+    reportMeta?.carryOverFromReportId || currentReport?.carryOverFromReportId
+  );
+  if (carryOverFromReportId && carryOverFromReportId !== currentReportId) {
+    const carryOverSource = await Report.findOne({
+      _id: carryOverFromReportId,
+      wellId,
+    })
+      .lean()
+      .catch(() => null);
+
+    if (carryOverSource) {
+      return {
+        reportId: toText(carryOverSource._id),
+        reportNo: toText(carryOverSource.reportNo),
+      };
+    }
+  }
+
+  currentReportNo = Number.parseInt(
+    toText(currentReport?.reportNo || reportMeta?.reportNo),
+    10
+  );
 
   if (Number.isFinite(currentReportNo) && currentReportNo > 1) {
     const previousReport = await Report.findOne({
@@ -870,10 +900,11 @@ const calculateTotalOnLocationForReport = async ({ wellId, reportId, reportNo })
     findScopedPits({ wellId, reportId }),
   ]);
 
-  const hole = calculateCombinedHoleVolume({ casings, wellGeneral, drillStrings });
+  const reportMeta = await resolveReportMeta({ wellId, reportId, reportNo });
+  const currentHole = calculateCombinedHoleVolume({ casings, wellGeneral, drillStrings });
   const previousReportMeta = await findPreviousReportMeta({
     wellId,
-    reportMeta: { reportNo },
+    reportMeta,
   });
   const previousHole = previousReportMeta
     ? await calculateHoleVolumeForReport({
@@ -882,7 +913,14 @@ const calculateTotalOnLocationForReport = async ({ wellId, reportId, reportNo })
         reportNo: previousReportMeta.reportNo,
       })
     : 0;
-  const holeVolDifference = round2(hole - previousHole);
+  const hole = resolveCarryOverVisibleHole({
+    reportMeta,
+    currentHole,
+    previousHole,
+    wellGeneral,
+    casings,
+    drillStrings,
+  });
   const activePits = pits
     .filter((pit) => pit.initialActive === true)
     .reduce((sum, pit) => sum + toNumber(pit.volume), 0);
@@ -890,7 +928,7 @@ const calculateTotalOnLocationForReport = async ({ wellId, reportId, reportNo })
     .filter((pit) => pit.initialActive === false)
     .reduce((sum, pit) => sum + toNumber(pit.volume), 0);
 
-  return round2(activePits + holeVolDifference + totalStorage);
+  return round2(hole + activePits + totalStorage);
 };
 
 const findScopedConsumeProductDistributionStates = async ({
@@ -1299,6 +1337,22 @@ const calculateEndVolForReport = async ({
   );
 
   const rawHole = calculateCombinedHoleVolume({ casings, wellGeneral, drillStrings });
+  const previousReportMeta = await findPreviousReportMeta({ wellId, reportMeta });
+  const previousHole = previousReportMeta
+    ? await calculateHoleVolumeForReport({
+        wellId,
+        reportId: previousReportMeta.reportId,
+        reportNo: previousReportMeta.reportNo,
+      })
+    : 0;
+  const hole = resolveCarryOverVisibleHole({
+    reportMeta,
+    currentHole: rawHole,
+    previousHole,
+    wellGeneral,
+    casings,
+    drillStrings,
+  });
   const activePitsList = pits.filter((pit) => pit.initialActive === true);
   const activePitNames = new Set(
     activePitsList.map((pit) => toText(pit.pitName).toLowerCase()).filter(Boolean)
@@ -1383,22 +1437,6 @@ const calculateEndVolForReport = async ({
     transferMudEntries.length > 0 ||
     emptyFluidEntries.length > 0;
 
-  const previousReportMeta = await findPreviousReportMeta({ wellId, reportMeta });
-  const previousHole = previousReportMeta
-    ? await calculateHoleVolumeForReport({
-        wellId,
-        reportId: previousReportMeta.reportId,
-        reportNo: previousReportMeta.reportNo,
-      })
-    : 0;
-  const hole = resolveCarryOverVisibleHole({
-    reportMeta,
-    currentHole: rawHole,
-    previousHole,
-    wellGeneral,
-    casings,
-    drillStrings,
-  });
   const previousEndVol = previousReportMeta
     ? await calculateEndVolForReport({
         wellId,

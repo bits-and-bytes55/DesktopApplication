@@ -245,8 +245,11 @@ const nextReportNoForWell = async (wellId) => {
 
 const cleanClone = (doc = {}, { preserveTimestamps = false } = {}) => {
   const clone = { ...doc };
+  const mongoId = toText(clone._id);
   delete clone._id;
-  delete clone.id;
+  if (toText(clone.id) === mongoId) {
+    delete clone.id;
+  }
   delete clone.__v;
   if (!preserveTimestamps) {
     delete clone.createdAt;
@@ -807,6 +810,7 @@ export const createReport = async (req, res) => {
       remarksAttachment,
       pumpRateAndPressure,
       operationSelections,
+      carryOverFromReportId: sourceReport ? sourceReport._id : null,
     });
 
     try {
@@ -892,6 +896,7 @@ export const carryOverReportData = async (req, res) => {
     targetReport.operationSelections = sanitizeOperationSelections(
       sourceReport.operationSelections
     );
+    targetReport.carryOverFromReportId = sourceReport._id;
     await targetReport.save();
 
     await deleteReportScopedArtifacts({

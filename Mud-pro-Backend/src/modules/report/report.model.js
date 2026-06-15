@@ -101,6 +101,11 @@ const reportSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
+    carryOverFromReportId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Report",
+      default: null,
+    },
     carryOverCompletedAt: {
       type: Date,
       default: null,
