@@ -6,8 +6,26 @@ import 'package:mudpro_desktop_app/modules/company_setup/model/others_model.dart
 import 'package:mudpro_desktop_app/modules/company_setup/default_mud_properties_page.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
-class OthersPage extends StatelessWidget {
+class OthersPage extends StatefulWidget {
   const OthersPage({super.key});
+
+  @override
+  State<OthersPage> createState() => _OthersPageState();
+}
+
+class _OthersPageState extends State<OthersPage> {
+  final ScrollController _horizontalScrollController = ScrollController();
+  final Map<String, TextEditingController> _editControllers = {};
+  final Set<String> _editingIds = {};
+
+  @override
+  void dispose() {
+    _horizontalScrollController.dispose();
+    for (final controller in _editControllers.values) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -39,81 +57,86 @@ class OthersPage extends StatelessWidget {
                             width: 350,
                             onSave: () => controller.saveActivities(),
                             onDelete: (id) => controller.deleteActivity(id),
-                            onEdit: (item) => controller.showEditDialog(item, 'Activity'),
                             setupController: setupController,
                             isSaving: controller.isActivitiesSaving.value,
                           ),
                           const SizedBox(width: 12),
                           Expanded(
-                            child: SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              child: Row(
-                                children: [
-                                  _singleColTable(
-                                    title: 'Addition',
-                                    items: controller.additions,
-                                    newRows: controller.newAdditionRows,
-                                    icon: Icons.add_circle,
-                                    gradient: AppTheme.secondaryGradient,
-                                    onSave: () => controller.saveAdditions(),
-                                    onDelete: (id) => controller.deleteAddition(id),
-                                    onEdit: (item) => controller.showEditDialog(item, 'Addition'),
-                                    setupController: setupController,
-                                    isSaving: controller.isAdditionsSaving.value,
+                            child: Scrollbar(
+                              controller: _horizontalScrollController,
+                              thumbVisibility: true,
+                              trackVisibility: true,
+                              notificationPredicate: (notification) =>
+                                  notification.metrics.axis == Axis.horizontal,
+                              child: SingleChildScrollView(
+                                controller: _horizontalScrollController,
+                                scrollDirection: Axis.horizontal,
+                                child: Padding(
+                                  padding: const EdgeInsets.only(bottom: 12),
+                                  child: Row(
+                                    children: [
+                                      _singleColTable(
+                                        title: 'Addition',
+                                        items: controller.additions,
+                                        newRows: controller.newAdditionRows,
+                                        icon: Icons.add_circle,
+                                        gradient: AppTheme.secondaryGradient,
+                                        onSave: () => controller.saveAdditions(),
+                                        onDelete: (id) => controller.deleteAddition(id),
+                                        setupController: setupController,
+                                        isSaving: controller.isAdditionsSaving.value,
+                                      ),
+                                      const SizedBox(width: 12),
+                                      _singleColTable(
+                                        title: 'Loss',
+                                        items: controller.losses,
+                                        newRows: controller.newLossRows,
+                                        icon: Icons.remove_circle,
+                                        gradient: AppTheme.accentGradient,
+                                        onSave: () => controller.saveLosses(),
+                                        onDelete: (id) => controller.deleteLoss(id),
+                                        setupController: setupController,
+                                        isSaving: controller.isLossesSaving.value,
+                                      ),
+                                      const SizedBox(width: 12),
+                                      _singleColTable(
+                                        title: 'Water-based',
+                                        items: controller.waterBased,
+                                        newRows: controller.newWaterRows,
+                                        icon: Icons.water_drop,
+                                        gradient: AppTheme.headerGradient,
+                                        onSave: () => controller.saveWaterBased(),
+                                        onDelete: (id) => controller.deleteWaterBased(id),
+                                        setupController: setupController,
+                                        isSaving: controller.isWaterSaving.value,
+                                      ),
+                                      const SizedBox(width: 12),
+                                      _singleColTable(
+                                        title: 'Oil-based',
+                                        items: controller.oilBased,
+                                        newRows: controller.newOilRows,
+                                        icon: Icons.local_gas_station,
+                                        gradient: const LinearGradient(colors: [Color(0xffFFB347), Color(0xffFFCC33)]),
+                                        onSave: () => controller.saveOilBased(),
+                                        onDelete: (id) => controller.deleteOilBased(id),
+                                        setupController: setupController,
+                                        isSaving: controller.isOilSaving.value,
+                                      ),
+                                      const SizedBox(width: 12),
+                                      _singleColTable(
+                                        title: 'Synthetic',
+                                        items: controller.synthetic,
+                                        newRows: controller.newSyntheticRows,
+                                        icon: Icons.science,
+                                        gradient: const LinearGradient(colors: [Color(0xffDA70D6), Color(0xff9370DB)]),
+                                        onSave: () => controller.saveSynthetic(),
+                                        onDelete: (id) => controller.deleteSynthetic(id),
+                                        setupController: setupController,
+                                        isSaving: controller.isSyntheticSaving.value,
+                                      ),
+                                    ],
                                   ),
-                                  const SizedBox(width: 12),
-                                  _singleColTable(
-                                    title: 'Loss',
-                                    items: controller.losses,
-                                    newRows: controller.newLossRows,
-                                    icon: Icons.remove_circle,
-                                    gradient: AppTheme.accentGradient,
-                                    onSave: () => controller.saveLosses(),
-                                    onDelete: (id) => controller.deleteLoss(id),
-                                    onEdit: (item) => controller.showEditDialog(item, 'Loss'),
-                                    setupController: setupController,
-                                    isSaving: controller.isLossesSaving.value,
-                                  ),
-                                  const SizedBox(width: 12),
-                                  _singleColTable(
-                                    title: 'Water-based',
-                                    items: controller.waterBased,
-                                    newRows: controller.newWaterRows,
-                                    icon: Icons.water_drop,
-                                    gradient: AppTheme.headerGradient,
-                                    onSave: () => controller.saveWaterBased(),
-                                    onDelete: (id) => controller.deleteWaterBased(id),
-                                    onEdit: (item) => controller.showEditDialog(item, 'Water-based'),
-                                    setupController: setupController,
-                                    isSaving: controller.isWaterSaving.value,
-                                  ),
-                                  const SizedBox(width: 12),
-                                  _singleColTable(
-                                    title: 'Oil-based',
-                                    items: controller.oilBased,
-                                    newRows: controller.newOilRows,
-                                    icon: Icons.local_gas_station,
-                                    gradient: const LinearGradient(colors: [Color(0xffFFB347), Color(0xffFFCC33)]),
-                                    onSave: () => controller.saveOilBased(),
-                                    onDelete: (id) => controller.deleteOilBased(id),
-                                    onEdit: (item) => controller.showEditDialog(item, 'Oil-based'),
-                                    setupController: setupController,
-                                    isSaving: controller.isOilSaving.value,
-                                  ),
-                                  const SizedBox(width: 12),
-                                  _singleColTable(
-                                    title: 'Synthetic',
-                                    items: controller.synthetic,
-                                    newRows: controller.newSyntheticRows,
-                                    icon: Icons.science,
-                                    gradient: const LinearGradient(colors: [Color(0xffDA70D6), Color(0xff9370DB)]),
-                                    onSave: () => controller.saveSynthetic(),
-                                    onDelete: (id) => controller.deleteSynthetic(id),
-                                    onEdit: (item) => controller.showEditDialog(item, 'Synthetic'),
-                                    setupController: setupController,
-                                    isSaving: controller.isSyntheticSaving.value,
-                                  ),
-                                ],
+                                ),
                               ),
                             ),
                           ),
@@ -136,13 +159,12 @@ class OthersPage extends StatelessWidget {
   Widget _tableSection({
     required String title,
     required List<dynamic> items,
-    required List<TextEditingController> newRows,
+    required RxList<TextEditingController> newRows,
     required IconData icon,
     required Gradient gradient,
     double? width,
     required VoidCallback onSave,
     required Function(String) onDelete,
-    required Function(dynamic) onEdit,
     required CompanySetupController setupController,
     required bool isSaving,
   }) {
@@ -163,9 +185,20 @@ class OthersPage extends StatelessWidget {
               itemBuilder: (context, index) {
                 final isExisting = index < items.length;
                 if (isExisting) {
-                  return _buildExistingRow(items[index], index, onEdit, onDelete, setupController);
+                  return _buildExistingRow(
+                    title,
+                    items[index],
+                    index,
+                    onDelete,
+                    setupController,
+                  );
                 } else {
-                  return _buildNewRow(newRows[index - items.length], index, setupController);
+                  return _buildNewRow(
+                    newRows[index - items.length],
+                    index,
+                    newRows,
+                    setupController,
+                  );
                 }
               },
             ),
@@ -179,12 +212,11 @@ class OthersPage extends StatelessWidget {
   Widget _singleColTable({
     required String title,
     required List<dynamic> items,
-    required List<TextEditingController> newRows,
+    required RxList<TextEditingController> newRows,
     required IconData icon,
     required Gradient gradient,
     required VoidCallback onSave,
     required Function(String) onDelete,
-    required Function(dynamic) onEdit,
     required CompanySetupController setupController,
     required bool isSaving,
   }) {
@@ -196,7 +228,6 @@ class OthersPage extends StatelessWidget {
       gradient: gradient,
       onSave: onSave,
       onDelete: onDelete,
-      onEdit: onEdit,
       setupController: setupController,
       isSaving: isSaving,
     );
@@ -236,15 +267,18 @@ class OthersPage extends StatelessWidget {
     return flex != null ? Expanded(flex: flex, child: cell) : cell;
   }
 
-  Widget _buildExistingRow(dynamic item, int index, Function(dynamic) onEdit, Function(String) onDelete, CompanySetupController setupController) {
+  Widget _buildExistingRow(
+    String type,
+    dynamic item,
+    int index,
+    Function(String) onDelete,
+    CompanySetupController setupController,
+  ) {
     bool globallyLocked = setupController.isLocked.value;
-    String description = '';
-    if (item is ActivityItem) description = item.description;
-    else if (item is AdditionItem) description = item.name;
-    else if (item is LossItem) description = item.name;
-    else if (item is WaterBasedItem) description = item.name;
-    else if (item is OilBasedItem) description = item.name;
-    else if (item is SyntheticItem) description = item.name;
+    final description = _itemDescription(item);
+    final id = item.id?.toString() ?? '$type-$index';
+    final isEditing = _editingIds.contains(id);
+    final editController = _editControllers[id];
 
     return Container(
       height: 32,
@@ -252,12 +286,62 @@ class OthersPage extends StatelessWidget {
       child: Row(
         children: [
           _cell(width: 40, child: Text('${index + 1}', style: const TextStyle(fontSize: 11))),
-          _cell(flex: 1, child: Text(description, style: const TextStyle(fontSize: 11), overflow: TextOverflow.ellipsis)),
+          _cell(
+            flex: 1,
+            child: isEditing && editController != null
+                ? TextField(
+                    controller: editController,
+                    autofocus: true,
+                    enabled: !globallyLocked,
+                    style: const TextStyle(fontSize: 11),
+                    decoration: const InputDecoration(
+                      border: InputBorder.none,
+                      isDense: true,
+                      contentPadding: EdgeInsets.symmetric(vertical: 8),
+                    ),
+                    textAlign: TextAlign.center,
+                    onSubmitted: (_) => _saveInlineEdit(id, item, type),
+                  )
+                : Text(
+                    description,
+                    style: const TextStyle(fontSize: 11),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+          ),
           _cell(width: 80, child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              IconButton(onPressed: () => onEdit(item), icon: const Icon(Icons.edit, size: 14, color: Colors.orange), padding: EdgeInsets.zero, constraints: const BoxConstraints()),
-              IconButton(onPressed: () => onDelete(item.id!), icon: const Icon(Icons.delete, size: 14, color: Colors.red), padding: EdgeInsets.zero, constraints: const BoxConstraints()),
+              if (isEditing) ...[
+                IconButton(
+                  onPressed: globallyLocked
+                      ? null
+                      : () => _saveInlineEdit(id, item, type),
+                  icon: const Icon(Icons.check, size: 14, color: Colors.green),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+                IconButton(
+                  onPressed: () => _cancelInlineEdit(id),
+                  icon: const Icon(Icons.close, size: 14, color: Colors.grey),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ] else ...[
+                IconButton(
+                  onPressed: globallyLocked
+                      ? null
+                      : () => _startInlineEdit(id, description),
+                  icon: const Icon(Icons.edit, size: 14, color: Colors.orange),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+                IconButton(
+                  onPressed: globallyLocked ? null : () => onDelete(item.id!),
+                  icon: const Icon(Icons.delete, size: 14, color: Colors.red),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ],
             ],
           )),
         ],
@@ -265,7 +349,12 @@ class OthersPage extends StatelessWidget {
     );
   }
 
-  Widget _buildNewRow(TextEditingController ctrl, int index, CompanySetupController setupController) {
+  Widget _buildNewRow(
+    TextEditingController ctrl,
+    int index,
+    RxList<TextEditingController> rows,
+    CompanySetupController setupController,
+  ) {
     bool globallyLocked = setupController.isLocked.value;
     return Container(
       height: 32,
@@ -279,11 +368,48 @@ class OthersPage extends StatelessWidget {
             style: const TextStyle(fontSize: 11),
             decoration: const InputDecoration(border: InputBorder.none, isDense: true, contentPadding: EdgeInsets.symmetric(vertical: 8)),
             textAlign: TextAlign.center,
+            onChanged: (_) => Get.find<OthersGetxController>().updateNewRows(rows),
           )),
           _cell(width: 80, child: const Text('-', style: TextStyle(fontSize: 11))),
         ],
       ),
     );
+  }
+
+  String _itemDescription(dynamic item) {
+    if (item is ActivityItem) return item.description;
+    if (item is AdditionItem) return item.name;
+    if (item is LossItem) return item.name;
+    if (item is WaterBasedItem) return item.name;
+    if (item is OilBasedItem) return item.name;
+    if (item is SyntheticItem) return item.name;
+    return '';
+  }
+
+  void _startInlineEdit(String id, String value) {
+    final controller = _editControllers.putIfAbsent(
+      id,
+      () => TextEditingController(),
+    );
+    controller.text = value;
+    controller.selection = TextSelection.collapsed(offset: value.length);
+    setState(() => _editingIds.add(id));
+  }
+
+  void _cancelInlineEdit(String id) {
+    setState(() => _editingIds.remove(id));
+  }
+
+  Future<void> _saveInlineEdit(String id, dynamic item, String type) async {
+    final controller = _editControllers[id];
+    if (controller == null || controller.text.trim().isEmpty) return;
+    final saved = await Get.find<OthersGetxController>().updateItem(
+      item,
+      controller.text,
+      type,
+    );
+    if (!mounted || !saved) return;
+    setState(() => _editingIds.remove(id));
   }
 
   Widget _cell({double? width, int? flex, required Widget child}) {

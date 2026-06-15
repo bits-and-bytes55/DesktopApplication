@@ -1,4 +1,6 @@
 import ExcelJS from "exceljs";
+import fs from "fs";
+import path from "path";
 import { fileURLToPath } from "url";
 import InventorySnapshot from "../../modules/FullInventory/InventorySnapshot.js";
 import Pit from "../../modules/pit/pit.model.js";
@@ -32,6 +34,9 @@ import UgInventorySnapshot from "../../modules/ugInventory/ugInventoryProductMod
 const TEMPLATE_PATH = fileURLToPath(
   new URL("../../../assets/template.xlsx", import.meta.url)
 );
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const PAD_LOGO_UPLOADS_ROOT = path.resolve(__dirname, "../../uploads/pad-logos");
 const DMR_SHEET_NAME = "DMR";
 const INVENTORY_SHEET_NAME = "Inventory";
 
@@ -108,6 +113,51 @@ const firstText = (...values) => {
     if (parsed) return parsed;
   }
   return "";
+};
+const normalizeImageExtension = (extension = "") => {
+  const cleaned = extension.replace(".", "").toLowerCase();
+  if (cleaned === "jpg") return "jpeg";
+  if (cleaned === "jpeg" || cleaned === "png") return cleaned;
+  return "";
+};
+const resolvePadLogoImage = (pad = {}) => {
+  const logoUrl = text(pad?.clientLogoUrl);
+  if (!logoUrl) return null;
+
+  const dataMatch = logoUrl.match(/^data:image\/(png|jpe?g);base64,(.+)$/i);
+  if (dataMatch) {
+    const extension = normalizeImageExtension(dataMatch[1]);
+    const buffer = Buffer.from(dataMatch[2], "base64");
+    return extension && buffer.length ? { buffer, extension } : null;
+  }
+
+  let filename = "";
+  try {
+    filename = path.basename(new URL(logoUrl).pathname);
+  } catch {
+    filename = path.basename(logoUrl);
+  }
+  filename = decodeURIComponent(filename || "");
+  if (!filename) return null;
+
+  const logoPath = path.resolve(PAD_LOGO_UPLOADS_ROOT, filename);
+  if (!logoPath.startsWith(PAD_LOGO_UPLOADS_ROOT) || !fs.existsSync(logoPath)) {
+    return null;
+  }
+
+  const extension = normalizeImageExtension(path.extname(logoPath));
+  if (!extension) return null;
+  const buffer = fs.readFileSync(logoPath);
+  return buffer.length ? { buffer, extension } : null;
+};
+const addPadLogoToSheet = (workbook, ws, logoImage) => {
+  if (!logoImage) return;
+  const imageId = workbook.addImage(logoImage);
+  ws.addImage(imageId, {
+    tl: { col: 0.25, row: 0.25 },
+    ext: { width: 145, height: 52 },
+    editAs: "oneCell",
+  });
 };
 const meaningfulText = (value) => {
   const raw = text(value);
@@ -2622,6 +2672,10 @@ export const exportInventoryReport = async (req, res) => {
     workbook.views = [{ ...(workbook.views?.[0] ?? { visibility: "visible" }), firstSheet: 0, activeTab: 0 }];
     clearDmrDynamicAreas(dmrSheet);
     clearInventoryDynamicAreas(inventorySheet);
+
+    const padLogoImage = resolvePadLogoImage(pad);
+    addPadLogoToSheet(workbook, dmrSheet, padLogoImage);
+    addPadLogoToSheet(workbook, inventorySheet, padLogoImage);
 
     fillDmrHeader(dmrSheet, { well, pad, report, wellGeneral, fluidName, intervals });
     fillDmrTopSections(dmrSheet, {

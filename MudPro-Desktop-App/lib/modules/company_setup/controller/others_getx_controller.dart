@@ -57,14 +57,12 @@ class OthersGetxController extends GetxController {
     _clearList(newOilRows);
     _clearList(newSyntheticRows);
 
-    for (int i = 0; i < 5; i++) {
-      newActivityRows.add(TextEditingController());
-      newAdditionRows.add(TextEditingController());
-      newLossRows.add(TextEditingController());
-      newWaterRows.add(TextEditingController());
-      newOilRows.add(TextEditingController());
-      newSyntheticRows.add(TextEditingController());
-    }
+    newActivityRows.add(TextEditingController());
+    newAdditionRows.add(TextEditingController());
+    newLossRows.add(TextEditingController());
+    newWaterRows.add(TextEditingController());
+    newOilRows.add(TextEditingController());
+    newSyntheticRows.add(TextEditingController());
   }
 
   void _clearList(RxList<TextEditingController> list) {
@@ -80,20 +78,44 @@ class OthersGetxController extends GetxController {
     _emptyText(newOilRows);
     _emptyText(newSyntheticRows);
 
-    // Ensure minimum rows
-    while (newActivityRows.length < 5)
-      newActivityRows.add(TextEditingController());
-    while (newAdditionRows.length < 5)
-      newAdditionRows.add(TextEditingController());
-    while (newLossRows.length < 5) newLossRows.add(TextEditingController());
-    while (newWaterRows.length < 5) newWaterRows.add(TextEditingController());
-    while (newOilRows.length < 5) newOilRows.add(TextEditingController());
-    while (newSyntheticRows.length < 5)
-      newSyntheticRows.add(TextEditingController());
+    _ensureSingleBlankRow(newActivityRows);
+    _ensureSingleBlankRow(newAdditionRows);
+    _ensureSingleBlankRow(newLossRows);
+    _ensureSingleBlankRow(newWaterRows);
+    _ensureSingleBlankRow(newOilRows);
+    _ensureSingleBlankRow(newSyntheticRows);
   }
 
   void _emptyText(RxList<TextEditingController> list) {
     for (var c in list) c.text = '';
+  }
+
+  void _ensureSingleBlankRow(RxList<TextEditingController> list) {
+    while (list.length > 1) {
+      list.removeLast().dispose();
+    }
+    if (list.isEmpty) list.add(TextEditingController());
+    list.first.clear();
+  }
+
+  void updateNewRows(RxList<TextEditingController> list) {
+    var lastFilledIndex = -1;
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].text.trim().isNotEmpty) lastFilledIndex = i;
+    }
+
+    final requiredLength = lastFilledIndex + 2;
+    while (list.length < requiredLength) {
+      list.add(TextEditingController());
+    }
+    while (list.length > requiredLength && list.length > 1) {
+      list.removeLast().dispose();
+    }
+  }
+
+  void _resetRows(RxList<TextEditingController> list) {
+    _clearList(list);
+    list.add(TextEditingController());
   }
 
   Future<void> fetchAllData() async {
@@ -114,6 +136,16 @@ class OthersGetxController extends GetxController {
       waterBased.assignAll(results[3] as List<WaterBasedItem>);
       oilBased.assignAll(results[4] as List<OilBasedItem>);
       synthetic.assignAll(results[5] as List<SyntheticItem>);
+      activities.sort(
+        (a, b) => a.description.toLowerCase().compareTo(
+          b.description.toLowerCase(),
+        ),
+      );
+      additions.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+      losses.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+      waterBased.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+      oilBased.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+      synthetic.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
     } finally {
       isLoading.value = false;
     }
@@ -131,7 +163,7 @@ class OthersGetxController extends GetxController {
       }
       if (items.isEmpty) return;
       await _apiController.addActivities(items);
-      _resetNewRows();
+      _resetRows(newActivityRows);
       await fetchAllData();
       Get.snackbar('Success', 'Activities saved');
     } finally {
@@ -148,7 +180,7 @@ class OthersGetxController extends GetxController {
       }
       if (items.isEmpty) return;
       await _apiController.addAdditions(items);
-      _resetNewRows();
+      _resetRows(newAdditionRows);
       await fetchAllData();
       Get.snackbar('Success', 'Additions saved');
     } finally {
@@ -165,7 +197,7 @@ class OthersGetxController extends GetxController {
       }
       if (items.isEmpty) return;
       await _apiController.addLosses(items);
-      _resetNewRows();
+      _resetRows(newLossRows);
       await fetchAllData();
       Get.snackbar('Success', 'Losses saved');
     } finally {
@@ -182,7 +214,7 @@ class OthersGetxController extends GetxController {
       }
       if (items.isEmpty) return;
       await _apiController.addWaterBased(items);
-      _resetNewRows();
+      _resetRows(newWaterRows);
       await fetchAllData();
       await _refreshMudAddRows();
       Get.snackbar('Success', 'Water-based saved');
@@ -200,7 +232,7 @@ class OthersGetxController extends GetxController {
       }
       if (items.isEmpty) return;
       await _apiController.addOilBased(items);
-      _resetNewRows();
+      _resetRows(newOilRows);
       await fetchAllData();
       await _refreshMudAddRows();
       Get.snackbar('Success', 'Oil-based saved');
@@ -218,7 +250,7 @@ class OthersGetxController extends GetxController {
       }
       if (items.isEmpty) return;
       await _apiController.addSynthetic(items);
-      _resetNewRows();
+      _resetRows(newSyntheticRows);
       await fetchAllData();
       await _refreshMudAddRows();
       Get.snackbar('Success', 'Synthetic saved');
@@ -297,76 +329,40 @@ class OthersGetxController extends GetxController {
 
   // ─── Edit Logic ───────────────────────────────────────────────────────────
 
-  void showEditDialog(dynamic item, String type) {
-    final ctrl = TextEditingController();
-    String currentText = '';
-    if (item is ActivityItem)
-      currentText = item.description;
-    else if (item is AdditionItem)
-      currentText = item.name;
-    else if (item is LossItem)
-      currentText = item.name;
-    else if (item is WaterBasedItem)
-      currentText = item.name;
-    else if (item is OilBasedItem)
-      currentText = item.name;
-    else if (item is SyntheticItem)
-      currentText = item.name;
-    ctrl.text = currentText;
-
-    Get.dialog(
-      AlertDialog(
-        title: Text('Edit $type'),
-        content: TextField(
-          controller: ctrl,
-          decoration: const InputDecoration(labelText: 'Description'),
-        ),
-        actions: [
-          TextButton(onPressed: () => Get.back(), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () async {
-              Get.back();
-              await _updateItem(item, ctrl.text, type);
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _updateItem(dynamic item, String newText, String type) async {
+  Future<bool> updateItem(dynamic item, String newText, String type) async {
+    final cleanText = newText.trim();
+    if (cleanText.isEmpty) return false;
     final id = item.id!;
     dynamic result;
     if (item is ActivityItem)
       result = await _apiController.updateActivity(
         id,
-        ActivityItem(id: id, description: newText),
+        ActivityItem(id: id, description: cleanText),
       );
     else if (item is AdditionItem)
       result = await _apiController.updateAddition(
         id,
-        AdditionItem(id: id, name: newText),
+        AdditionItem(id: id, name: cleanText),
       );
     else if (item is LossItem)
       result = await _apiController.updateLoss(
         id,
-        LossItem(id: id, name: newText),
+        LossItem(id: id, name: cleanText),
       );
     else if (item is WaterBasedItem)
       result = await _apiController.updateWaterBased(
         id,
-        WaterBasedItem(id: id, name: newText),
+        WaterBasedItem(id: id, name: cleanText),
       );
     else if (item is OilBasedItem)
       result = await _apiController.updateOilBased(
         id,
-        OilBasedItem(id: id, name: newText),
+        OilBasedItem(id: id, name: cleanText),
       );
     else if (item is SyntheticItem)
       result = await _apiController.updateSynthetic(
         id,
-        SyntheticItem(id: id, name: newText),
+        SyntheticItem(id: id, name: cleanText),
       );
 
     if (result['success'] == true) {
@@ -377,8 +373,10 @@ class OthersGetxController extends GetxController {
         await _refreshMudAddRows();
       }
       Get.snackbar('Success', 'Item updated');
+      return true;
     } else {
       Get.snackbar('Error', result['message'] ?? 'Update failed');
+      return false;
     }
   }
 

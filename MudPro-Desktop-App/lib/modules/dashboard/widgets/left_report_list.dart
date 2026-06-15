@@ -115,9 +115,7 @@ class _LeftReportTreeState extends State<LeftReportTree> {
         'No backend pads',
         'Create a new pad to start this installation.',
         action: ElevatedButton.icon(
-          onPressed: () {
-            c.navigate('pads');
-          },
+          onPressed: c.requestNewPad,
           icon: const Icon(Icons.add, size: 14),
           label: const Text('New Pad'),
           style: ElevatedButton.styleFrom(
@@ -175,7 +173,11 @@ class _LeftReportTreeState extends State<LeftReportTree> {
               setState(() {
                 _rootExpanded = true;
               });
-              c.navigate('pads');
+              if (pad == null) {
+                c.requestNewPad();
+              } else {
+                c.navigate('pads');
+              }
             },
           ),
           if (_rootExpanded)

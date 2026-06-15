@@ -94,6 +94,7 @@ class DashboardController extends GetxController {
   }
 
   var selectedNodeId = ''.obs;
+  var newPadRequestToken = 0.obs;
 
   /// Tree data (date → reports)
   final reportsTree = <ReportDate>[].obs;
@@ -101,6 +102,15 @@ class DashboardController extends GetxController {
   void navigate(String id) {
     selectedNodeId.value = id;
     // 👉 yahin se API / report load karna
+  }
+
+  void requestNewPad() {
+    newPadRequestToken.value++;
+    navigate('pads');
+  }
+
+  void consumeNewPadRequest() {
+    newPadRequestToken.value = 0;
   }
 }
 

@@ -1,8 +1,11 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:http/http.dart' as http;
+import 'package:mudpro_desktop_app/api_endpoint/api_endpoint.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/UG_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/inventory_model.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/controller/product_controller.dart';
@@ -1156,12 +1159,20 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
     groupController.dispose();
   }
 
-  Future<void> _removeProductFromInventory(
-    ProductModel product,
-    InventoryProductsStore store,
-  ) async {
-    final confirmed = await _showDeleteConfirmation('Product');
-    if (!confirmed) return;
+	  Future<void> _removeProductFromInventory(
+	    ProductModel product,
+	    InventoryProductsStore store,
+	  ) async {
+	    if (await _isProductUsedInAnyReport(product)) {
+	      _showToast(
+	        'This product has already been used in a report and cannot be deleted.',
+	        isError: true,
+	      );
+	      return;
+	    }
+
+	    final confirmed = await _showDeleteConfirmation('Product');
+	    if (!confirmed) return;
 
     final index = _findProductIndex(store, product);
     if (index == -1) {
@@ -1172,10 +1183,54 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
     store.selectedProducts.removeAt(index);
     store.selectedProducts.refresh();
     _scheduleProductsInventorySave();
-    _showToast('Product removed from inventory');
-  }
+	    _showToast('Product removed from inventory');
+	  }
 
-  int _findProductIndex(InventoryProductsStore store, ProductModel product) {
+	  Future<bool> _isProductUsedInAnyReport(ProductModel product) async {
+	    final currentWellId = wellId.trim();
+	    if (currentWellId.isEmpty) return false;
+
+	    try {
+	      final uri = Uri.parse('${ApiEndpoint.baseUrl}consume-product').replace(
+	        queryParameters: {'wellId': currentWellId},
+	      );
+	      final response = await http.get(uri, headers: ApiEndpoint.jsonHeaders);
+	      if (response.statusCode != 200 && response.statusCode != 201) {
+	        return false;
+	      }
+
+	      final decoded = jsonDecode(response.body);
+	      final List items = decoded is Map ? decoded['data'] ?? const [] : const [];
+	      final productId = product.id?.trim() ?? '';
+	      final productName = product.product.trim().toLowerCase();
+	      final productCode = product.code.trim().toLowerCase();
+
+	      for (final raw in items) {
+	        if (raw is! Map) continue;
+	        final item = Map<String, dynamic>.from(raw);
+	        final itemWellId = item['wellId']?.toString().trim() ?? '';
+	        if (itemWellId.isNotEmpty && itemWellId != currentWellId) continue;
+
+	        final used = double.tryParse(item['used']?.toString() ?? '') ?? 0;
+	        if (used <= 0) continue;
+
+	        final itemName = item['product']?.toString().trim().toLowerCase() ?? '';
+	        final itemCode = item['code']?.toString().trim().toLowerCase() ?? '';
+	        final itemProductId =
+	            item['productId']?.toString().trim() ?? item['_id']?.toString().trim();
+	        final sameId = productId.isNotEmpty && itemProductId == productId;
+	        final sameName = productName.isNotEmpty && itemName == productName;
+	        final sameCode = productCode.isNotEmpty && itemCode == productCode;
+	        if (sameId || sameName || sameCode) return true;
+	      }
+	    } catch (e) {
+	      debugPrint('Product usage check failed: $e');
+	    }
+
+	    return false;
+	  }
+
+	  int _findProductIndex(InventoryProductsStore store, ProductModel product) {
     return store.selectedProducts.indexWhere((item) {
       if (identical(item, product)) return true;
 
@@ -1347,15 +1402,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                                       onChanged: (_) =>
                                           _schedulePremixedDraftSave(),
                                     ),
-                                    _premixedMudTypeDropdown(
-                                      value: c.premixedMudTypeController.text,
-                                      allowBlank: true,
-                                      onChanged: (v) {
-                                        c.premixedMudTypeController.text = v;
-                                        setState(() {});
-                                        _schedulePremixedDraftSave();
-                                      },
-                                    ),
+                                    _premixedDraftMudTypeCell(),
                                     Obx(
                                       () => _checkboxCell(
                                         () => c.premixedTaxNew.value,
@@ -1877,7 +1924,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
     ),
   );
 
-  Widget _premixedMudTypeDropdown({
+	  Widget _premixedMudTypeDropdown({
     required String value,
     required ValueChanged<String> onChanged,
     bool allowBlank = false,
@@ -1924,10 +1971,45 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                 },
         ),
       ),
-    );
-  }
+	    );
+	  }
 
-  Widget _editableTableCell(
+	  Widget _premixedDraftMudTypeCell() {
+	    return AnimatedBuilder(
+	      animation: Listenable.merge([
+	        c.premixedDescController,
+	        c.premixedMwController,
+	        c.premixedLeasingFeeController,
+	        c.premixedMudTypeController,
+	      ]),
+	      builder: (context, _) {
+	        return Obx(() {
+	          final hasDraftData =
+	              c.premixedDescController.text.trim().isNotEmpty ||
+	              c.premixedMwController.text.trim().isNotEmpty ||
+	              c.premixedLeasingFeeController.text.trim().isNotEmpty ||
+	              c.premixedMudTypeController.text.trim().isNotEmpty ||
+	              c.premixedTaxNew.value;
+
+	          if (!hasDraftData) {
+	            return const SizedBox(height: 28);
+	          }
+
+	          return _premixedMudTypeDropdown(
+	            value: c.premixedMudTypeController.text,
+	            allowBlank: true,
+	            onChanged: (v) {
+	              c.premixedMudTypeController.text = v;
+	              setState(() {});
+	              _schedulePremixedDraftSave();
+	            },
+	          );
+	        });
+	      },
+	    );
+	  }
+
+	  Widget _editableTableCell(
     String value, {
     Function(String)? onChanged,
     VoidCallback? onTap,
