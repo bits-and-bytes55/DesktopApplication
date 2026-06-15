@@ -1142,6 +1142,229 @@ const buildOperationVolumeEffects = ({
   };
 };
 
+const calculateEndVolForReport = async ({
+  wellId,
+  reportId,
+  reportNo,
+  visited = new Set(),
+}) => {
+  if (!reportId && !reportNo) return 0;
+
+  const reportMeta = await resolveReportMeta({ wellId, reportId, reportNo });
+  const reportKey = reportMeta.reportId || `reportNo:${reportMeta.reportNo}`;
+  if (!reportKey || visited.has(reportKey)) return 0;
+
+  const nextVisited = new Set(visited);
+  nextVisited.add(reportKey);
+
+  let [
+    wellGeneral,
+    casings,
+    drillStrings,
+    pits,
+    distributionStates,
+    receivedMud,
+    returnLostMud,
+    addWaterEntries,
+    otherVolAdditions,
+    mudLossEntries,
+    mudLossStorageEntries,
+    transferMudEntries,
+    emptyFluidEntries,
+  ] = await Promise.all([
+    findScopedWellGeneral({
+      wellId,
+      reportId: reportMeta.reportId,
+      reportNo: reportMeta.reportNo,
+    }),
+    findScopedCasings({ wellId, reportId: reportMeta.reportId, strictScope: true }),
+    findScopedDrillStrings({
+      wellId,
+      reportId: reportMeta.reportId,
+      strictScope: true,
+    }),
+    findScopedPits({ wellId, reportId: reportMeta.reportId }),
+    findScopedConsumeProductDistributionStates({
+      wellId,
+      reportId: reportMeta.reportId,
+      strictScope: true,
+    }),
+    ReceiveMud.find(scopedOperationFilter({ wellId, reportId: reportMeta.reportId }))
+      .sort({ createdAt: 1, _id: 1 })
+      .lean(),
+    ReturnLostMud.find(
+      scopedOperationFilter({ wellId, reportId: reportMeta.reportId })
+    )
+      .sort({ createdAt: 1, _id: 1 })
+      .lean(),
+    AddWater.find(scopedOperationFilter({ wellId, reportId: reportMeta.reportId }))
+      .sort({ createdAt: 1, _id: 1 })
+      .lean(),
+    OtherVolAddition.find(
+      scopedOperationFilter({ wellId, reportId: reportMeta.reportId })
+    )
+      .sort({ createdAt: 1, _id: 1 })
+      .lean(),
+    MudLoss.find(scopedOperationFilter({ wellId, reportId: reportMeta.reportId }))
+      .sort({ createdAt: 1, _id: 1 })
+      .lean(),
+    MudLossStorage.find(
+      scopedOperationFilter({ wellId, reportId: reportMeta.reportId })
+    )
+      .sort({ createdAt: 1, _id: 1 })
+      .lean(),
+    TransferMud.find(
+      scopedOperationFilter({ wellId, reportId: reportMeta.reportId })
+    )
+      .sort({ createdAt: 1, _id: 1 })
+      .lean(),
+    EmptyFluidActiveSystem.find(
+      scopedOperationFilter({ wellId, reportId: reportMeta.reportId })
+    )
+      .sort({ createdAt: 1, _id: 1 })
+      .lean(),
+  ]);
+
+  const carryOverCutoff = reportMeta.carryOverCompletedAt;
+  distributionStates = filterRowsAfterCarryOverCutoff(
+    distributionStates,
+    carryOverCutoff
+  );
+  receivedMud = filterRowsAfterCarryOverCutoff(receivedMud, carryOverCutoff);
+  returnLostMud = filterRowsAfterCarryOverCutoff(returnLostMud, carryOverCutoff);
+  addWaterEntries = filterRowsAfterCarryOverCutoff(
+    addWaterEntries,
+    carryOverCutoff
+  );
+  otherVolAdditions = filterRowsAfterCarryOverCutoff(
+    otherVolAdditions,
+    carryOverCutoff
+  );
+  mudLossEntries = filterRowsAfterCarryOverCutoff(
+    mudLossEntries,
+    carryOverCutoff
+  );
+  mudLossStorageEntries = filterRowsAfterCarryOverCutoff(
+    mudLossStorageEntries,
+    carryOverCutoff
+  );
+  transferMudEntries = filterRowsAfterCarryOverCutoff(
+    transferMudEntries,
+    carryOverCutoff
+  );
+  emptyFluidEntries = filterRowsAfterCarryOverCutoff(
+    emptyFluidEntries,
+    carryOverCutoff
+  );
+
+  const hole = calculateCombinedHoleVolume({ casings, wellGeneral, drillStrings });
+  const activePitsList = pits.filter((pit) => pit.initialActive === true);
+  const activePitNames = new Set(
+    activePitsList.map((pit) => toText(pit.pitName).toLowerCase()).filter(Boolean)
+  );
+
+  const distributionRows = (distributionStates ?? []).flatMap((state) =>
+    cleanDistributionRows(state?.distributions ?? []).map((row) => ({
+      ...row,
+      updatedAt: state?.updatedAt,
+      createdAt: state?.createdAt,
+      operationInstanceKey: state?.operationInstanceKey,
+    }))
+  );
+  const {
+    activeSystemVolume,
+    activeDeltaByPit: distributionActiveDeltaByPit,
+    activeSystemRows: distributionActiveSystemRows,
+  } = buildCalculatedVolumeMap(distributionRows, activePitNames);
+
+  const normalizedMudLossStorageEntries =
+    normalizeMudLossStorageItems(mudLossStorageEntries);
+  const normalizedAddWaterEntries = normalizeAddWaterItems(addWaterEntries);
+  const normalizedOtherVolAdditions =
+    normalizeOtherVolAdditionItems(otherVolAdditions);
+
+  const operationVolumeEffects = buildOperationVolumeEffects({
+    receivedMud,
+    returnLostMud,
+    addWaterEntries: normalizedAddWaterEntries,
+    otherVolAdditions: normalizedOtherVolAdditions,
+    mudLossEntries,
+    mudLossStorageEntries: normalizedMudLossStorageEntries,
+    transferMudEntries,
+    emptyFluidEntries,
+    activePitNames,
+  });
+
+  const activePitsWithTransfer = activePitsList.reduce((sum, pit) => {
+    const key = toText(pit.pitName).toLowerCase();
+    const delta =
+      (operationVolumeEffects.activeDeltaByPit.get(key) ?? 0) +
+      (distributionActiveDeltaByPit.get(key) ?? 0);
+    return sum + toNumber(pit.volume) + delta;
+  }, 0);
+
+  const derivedActiveSystem = round2(hole + activePitsWithTransfer);
+  const activeSystemPendingInput = round2(
+    operationVolumeEffects.addWaterActiveSystemDelta +
+      activeSystemVolume +
+      operationVolumeEffects.otherVolActiveSystemDelta
+  );
+  const adjustedActiveSystemPendingInput =
+    calculateAdjustedActiveSystemPendingInput({
+      addWaterEntries: normalizedAddWaterEntries,
+      activeSystemDistributionRows: distributionActiveSystemRows,
+      otherVolAdditions: normalizedOtherVolAdditions,
+      activePitsList,
+    });
+  const pendingActiveSystemInput = round2(
+    Math.max(0, activeSystemPendingInput - adjustedActiveSystemPendingInput)
+  );
+  const effectiveEndVolDelta = round2(
+    operationVolumeEffects.endVolDelta -
+      operationVolumeEffects.addWaterActiveSystemDelta +
+      -operationVolumeEffects.otherVolActiveSystemDelta +
+      pendingActiveSystemInput
+  );
+  const operationOnlyEndVolDelta = round2(
+    operationVolumeEffects.endVolDelta -
+      operationVolumeEffects.addWaterActiveSystemDelta +
+      -operationVolumeEffects.otherVolActiveSystemDelta +
+      activeSystemPendingInput
+  );
+  const hasOperationVolumeRows =
+    distributionRows.length > 0 ||
+    receivedMud.length > 0 ||
+    returnLostMud.length > 0 ||
+    normalizedAddWaterEntries.length > 0 ||
+    normalizedOtherVolAdditions.length > 0 ||
+    mudLossEntries.length > 0 ||
+    normalizedMudLossStorageEntries.length > 0 ||
+    transferMudEntries.length > 0 ||
+    emptyFluidEntries.length > 0;
+
+  const previousReportMeta = await findPreviousReportMeta({ wellId, reportMeta });
+  const previousEndVol = previousReportMeta
+    ? await calculateEndVolForReport({
+        wellId,
+        reportId: previousReportMeta.reportId,
+        reportNo: previousReportMeta.reportNo,
+        visited: nextVisited,
+      })
+    : 0;
+
+  if (operationVolumeEffects.forceEndVolZero) return 0;
+
+  if (!previousReportMeta && hasOperationVolumeRows) {
+    return operationOnlyEndVolDelta;
+  }
+
+  if (derivedActiveSystem > 0 || Math.abs(effectiveEndVolDelta) >= 0.005) {
+    return round2(previousEndVol + effectiveEndVolDelta);
+  }
+
+  return round2(previousEndVol);
+};
+
 const scopedOperationFilter = ({ wellId, reportId }) =>
   reportId ? { wellId, reportId } : legacyScopeFilter(wellId);
 
@@ -1619,6 +1842,13 @@ export const getVolumeNameCalculation = async (req, res) => {
           reportNo: previousReportMeta.reportNo,
         })
       : 0;
+    const previousEndVol = previousReportMeta
+      ? await calculateEndVolForReport({
+          wellId,
+          reportId: previousReportMeta.reportId,
+          reportNo: previousReportMeta.reportNo,
+        })
+      : 0;
     const heldVolDifference = holeVolumeResult.hasData
       ? round2(hole - previousHole)
       : 0;
@@ -1766,7 +1996,7 @@ export const getVolumeNameCalculation = async (req, res) => {
       !previousReportMeta && hasOperationVolumeRows
         ? operationOnlyEndVolDelta
         : null;
-    const endVolBase = derivedActiveSystem;
+    const endVolBase = round2(previousEndVol);
     const endVol = operationVolumeEffects.forceEndVolZero
       ? 0
       : firstReportStartsEmpty
