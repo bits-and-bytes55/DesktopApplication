@@ -122,6 +122,46 @@ class _ProductsPickupPageState extends State<ProductsPickupPage> {
               color: AppTheme.textPrimary,
             ),
           ),
+          const SizedBox(width: 10),
+          TextButton(
+	            onPressed: () {
+	              final existingEntries = controller.products
+	                  .asMap()
+	                  .entries
+	                  .where((entry) => controller.isExistingProduct(entry.key));
+	              final allExistingSelected = existingEntries.isNotEmpty &&
+	                  existingEntries.every(
+	                    (entry) =>
+	                        controller.selectedProductIndices.contains(entry.key),
+	                  );
+              if (allExistingSelected) {
+                controller.clearProductSelection();
+              } else {
+                controller.selectAllExistingProducts();
+              }
+            },
+            style: TextButton.styleFrom(
+              foregroundColor: AppTheme.primaryColor,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              minimumSize: const Size(0, 26),
+            ),
+	            child: Text(
+	              (() {
+	                final existingEntries = controller.products
+	                      .asMap()
+	                      .entries
+	                      .where((entry) => controller.isExistingProduct(entry.key));
+	                final allExistingSelected = existingEntries.isNotEmpty &&
+	                    existingEntries.every(
+	                      (entry) => controller.selectedProductIndices.contains(
+	                        entry.key,
+	                      ),
+	                    );
+	                return allExistingSelected ? 'Clear All' : 'Select All';
+	              })(),
+              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+            ),
+          ),
           const Spacer(),
           const Text(
             'Price Schedule',
@@ -454,25 +494,37 @@ class _ProductsPickupPageState extends State<ProductsPickupPage> {
           ),
           const SizedBox(width: 10),
           ElevatedButton(
-            onPressed: controller.selectedProducts.isEmpty
-                ? null
-                : () {
-                    if (widget.applyToMainInventory &&
-                        !controller.applySelectedProducts()) {
-                      return;
-                    }
-                    Get.back();
-                    Get.snackbar(
-                      'Success',
-                      widget.applyToMainInventory
-                          ? '${controller.selectedProducts.length} products applied to inventory'
-                          : '${controller.selectedProducts.length} products selected',
-                      snackPosition: SnackPosition.TOP,
-                      backgroundColor: const Color(0xff10B981),
-                      colorText: Colors.white,
-                      duration: const Duration(seconds: 2),
-                    );
-                  },
+	            onPressed: controller.selectedProducts.isEmpty
+	                ? null
+	                : () async {
+	                    bool overwrite = false;
+	                    bool skipExisting = false;
+	                    if (widget.applyToMainInventory &&
+	                        controller.selectedProductsConflictWithInventory()) {
+	                      final choice = await _confirmProductOverwrite();
+	                      if (choice == null) return;
+	                      overwrite = choice;
+	                      skipExisting = !choice;
+	                    }
+	                    if (widget.applyToMainInventory &&
+	                        !controller.applySelectedProducts(
+	                          allowOverwrite: overwrite,
+	                          skipExisting: skipExisting,
+	                        )) {
+	                      return;
+	                    }
+	                    Get.back();
+	                    Get.snackbar(
+	                      'Success',
+	                      widget.applyToMainInventory
+	                          ? '${controller.selectedProducts.length} products applied to inventory'
+	                          : '${controller.selectedProducts.length} products selected',
+	                      snackPosition: SnackPosition.TOP,
+	                      backgroundColor: const Color(0xff10B981),
+	                      colorText: Colors.white,
+	                      duration: const Duration(seconds: 2),
+	                    );
+	                  },
             style: ElevatedButton.styleFrom(
               minimumSize: const Size(92, 34),
               backgroundColor: AppTheme.primaryColor,
@@ -489,8 +541,8 @@ class _ProductsPickupPageState extends State<ProductsPickupPage> {
     );
   }
 
-  Widget _headerCell(String title, double width) {
-    return Container(
+	  Widget _headerCell(String title, double width) {
+	    return Container(
       height: 34,
       width: width,
       alignment: Alignment.center,
@@ -507,10 +559,30 @@ class _ProductsPickupPageState extends State<ProductsPickupPage> {
           color: Color(0xFF323232),
         ),
       ),
-    );
-  }
+	    );
+	  }
 
-  void _updateField(int index, String field, String value) {
+	  Future<bool?> _confirmProductOverwrite() {
+	    return showDialog<bool>(
+	      context: context,
+	      builder: (context) => AlertDialog(
+	        title: const Text('Product already selected'),
+	        content: const Text('Do you want to overwrite or not?'),
+	        actions: [
+	          TextButton(
+	            onPressed: () => Navigator.of(context).pop(false),
+	            child: const Text('No'),
+	          ),
+	          ElevatedButton(
+	            onPressed: () => Navigator.of(context).pop(true),
+	            child: const Text('Yes'),
+	          ),
+	        ],
+	      ),
+	    );
+	  }
+
+	  void _updateField(int index, String field, String value) {
     if (controller.isExistingProduct(index) ||
         index < 0 ||
         index >= controller.products.length) {

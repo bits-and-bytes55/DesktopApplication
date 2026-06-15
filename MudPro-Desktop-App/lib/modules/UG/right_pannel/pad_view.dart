@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/UG_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_models.dart';
@@ -22,6 +23,8 @@ class PadView extends StatefulWidget {
 
 class _PadViewState extends State<PadView> {
   final UgController ugController = Get.find<UgController>();
+  final DashboardController dashboardController =
+      Get.find<DashboardController>();
   final PadWellController padWellC = padWellContext;
 
   final ScrollController _leftScrollController = ScrollController();
@@ -29,6 +32,7 @@ class _PadViewState extends State<PadView> {
   final FocusNode _logoFocusNode = FocusNode(debugLabel: 'pad-client-logo');
 
   Worker? _padWorker;
+  Worker? _newPadRequestWorker;
   final List<Worker> _unitWorkers = <Worker>[];
   bool _isCreatingNewPad = false;
   bool _isLogoDragging = false;
@@ -55,6 +59,22 @@ class _PadViewState extends State<PadView> {
         _loadSelectedPad();
       }
     });
+    _newPadRequestWorker = ever<int>(dashboardController.newPadRequestToken, (
+      token,
+    ) {
+      if (token <= 0 || !mounted) return;
+      _startNewPad();
+      dashboardController.consumeNewPadRequest();
+    });
+    if (dashboardController.newPadRequestToken.value > 0) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || dashboardController.newPadRequestToken.value <= 0) {
+          return;
+        }
+        _startNewPad();
+        dashboardController.consumeNewPadRequest();
+      });
+    }
     _unitWorkers.addAll([
       ever(AppUnits.controller.unitSystem, (_) => _handleUnitChange()),
       ever(
@@ -68,6 +88,7 @@ class _PadViewState extends State<PadView> {
   @override
   void dispose() {
     _padWorker?.dispose();
+    _newPadRequestWorker?.dispose();
     for (final worker in _unitWorkers) {
       worker.dispose();
     }
@@ -516,10 +537,10 @@ class _PadViewState extends State<PadView> {
           const SizedBox(width: 4),
           _stripButton(
             icon: _isCreatingNewPad ? Icons.close : Icons.add,
-            tooltip: _isCreatingNewPad ? 'Cancel new pad' : 'Create pad',
-            onTap: canEdit
-                ? (_isCreatingNewPad ? _cancelNewPad : _startNewPad)
-                : null,
+            tooltip: _isCreatingNewPad
+                ? 'Cancel new pad'
+                : 'Use New Pad from the left panel',
+            onTap: canEdit && _isCreatingNewPad ? _cancelNewPad : null,
           ),
           const SizedBox(width: 4),
           _stripButton(

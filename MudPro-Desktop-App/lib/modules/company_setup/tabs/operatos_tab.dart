@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/controller/operators_controller.dart';
@@ -17,6 +19,8 @@ class _OperatorTabState extends State<OperatorTab> {
   final ScrollController _scrollController = ScrollController();
   final controller = Get.put(OperatorController());
   final setupController = Get.find<CompanySetupController>();
+  final Map<int, List<TextEditingController>> _editControllers = {};
+  final Set<int> _editingRows = {};
 
   @override
   void initState() {
@@ -60,54 +64,6 @@ class _OperatorTabState extends State<OperatorTab> {
     Future.delayed(const Duration(seconds: 3), () => entry.remove());
   }
 
-  Future<void> _showUpdateOperatorDialog(OperatorModel operator, int index) async {
-    final companyController = TextEditingController(text: operator.company);
-    final contactController = TextEditingController(text: operator.contact);
-    final addressController = TextEditingController(text: operator.address);
-    final phoneController = TextEditingController(text: operator.phone);
-    final emailController = TextEditingController(text: operator.email);
-    final logoController = TextEditingController(text: operator.logoUrl);
-
-    await showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Update Operator'),
-        content: SizedBox(
-          width: 400,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(controller: companyController, decoration: const InputDecoration(labelText: 'Company')),
-                const SizedBox(height: 12),
-                TextField(controller: contactController, decoration: const InputDecoration(labelText: 'Contact')),
-                const SizedBox(height: 12),
-                TextField(controller: addressController, decoration: const InputDecoration(labelText: 'Address')),
-                const SizedBox(height: 12),
-                TextField(controller: phoneController, decoration: const InputDecoration(labelText: 'Phone')),
-                const SizedBox(height: 12),
-                TextField(controller: emailController, decoration: const InputDecoration(labelText: 'E-mail')),
-                const SizedBox(height: 12),
-                TextField(controller: logoController, decoration: const InputDecoration(labelText: 'Logo URL')),
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              final result = await controller.updateOperator(operator.id!, OperatorModel(id: operator.id, company: companyController.text.trim(), contact: contactController.text.trim(), address: addressController.text.trim(), phone: phoneController.text.trim(), email: emailController.text.trim(), logoUrl: logoController.text.trim()));
-              if (result['success'] == true) _showSuccess(result['message']); else _showError(result['message']);
-            },
-            child: const Text('Update'),
-          ),
-        ],
-      ),
-    );
-  }
-
   Future<void> _deleteOperator(String id) async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -126,6 +82,11 @@ class _OperatorTabState extends State<OperatorTab> {
   @override
   void dispose() {
     _scrollController.dispose();
+    for (final row in _editControllers.values) {
+      for (final textController in row) {
+        textController.dispose();
+      }
+    }
     super.dispose();
   }
 
@@ -186,6 +147,7 @@ class _OperatorTabState extends State<OperatorTab> {
                                 itemBuilder: (context, row) {
                                   final bool isSelected = row == selectedRow;
                                   final bool isLockedRow = row < controller.operators.length;
+                                  final bool isEditing = _editingRows.contains(row);
 
                                   return Container(
                                     height: 32,
@@ -211,13 +173,21 @@ class _OperatorTabState extends State<OperatorTab> {
                                               ),
                                             ),
                                             if (isLockedRow) ...[
-                                              _lockedCell(180, controller.operators[row].company),
-                                              _lockedCell(180, controller.operators[row].contact),
-                                              _lockedCell(200, controller.operators[row].address),
-                                              _lockedCell(160, controller.operators[row].phone),
-                                              _lockedCell(200, controller.operators[row].email),
-                                              _lockedLogoCell(120, controller.operators[row].logoUrl),
-                                              _actionButtons(controller.operators[row], row),
+                                              if (isEditing) ...[
+                                                ..._buildExistingEditableCells(row),
+                                                _editingActionButtons(
+                                                  controller.operators[row],
+                                                  row,
+                                                ),
+                                              ] else ...[
+                                                _lockedCell(180, controller.operators[row].company),
+                                                _lockedCell(180, controller.operators[row].contact),
+                                                _lockedCell(200, controller.operators[row].address),
+                                                _lockedCell(160, controller.operators[row].phone),
+                                                _lockedCell(200, controller.operators[row].email),
+                                                _lockedLogoCell(120, controller.operators[row].logoUrl),
+                                                _actionButtons(controller.operators[row], row),
+                                              ],
                                             ] else ...[
                                               ..._buildEditableCells(row),
                                               _emptyActionsCell(),
@@ -350,7 +320,7 @@ class _OperatorTabState extends State<OperatorTab> {
   Widget _lockedLogoCell(double width, String logoUrl) {
     return Container(
       width: width, padding: const EdgeInsets.symmetric(horizontal: 4), decoration: BoxDecoration(border: Border(right: BorderSide(color: Colors.grey.shade400, width: 1))),
-      child: Row(children: [if (logoUrl.isNotEmpty) ClipRRect(borderRadius: BorderRadius.circular(4), child: Image.network(logoUrl, width: 40, height: 24, fit: BoxFit.cover, errorBuilder: (c, e, s) => Icon(Icons.image, size: 16, color: Colors.grey.shade400))) else Icon(Icons.image, size: 16, color: Colors.grey.shade400), const Spacer()]),
+      child: Row(children: [_buildLogoImage(logoUrl), const Spacer()]),
     );
   }
 
@@ -358,10 +328,45 @@ class _OperatorTabState extends State<OperatorTab> {
     return Container(
       width: 100, padding: const EdgeInsets.symmetric(horizontal: 6),
       child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-        InkWell(onTap: () => _showUpdateOperatorDialog(operator, index), child: Container(padding: const EdgeInsets.all(6), decoration: BoxDecoration(color: AppTheme.primaryColor.withOpacity(0.1), borderRadius: BorderRadius.circular(4)), child: Icon(Icons.edit, size: 14, color: AppTheme.primaryColor))),
+        InkWell(onTap: () => _startInlineEdit(operator, index), child: Container(padding: const EdgeInsets.all(6), decoration: BoxDecoration(color: AppTheme.primaryColor.withOpacity(0.1), borderRadius: BorderRadius.circular(4)), child: Icon(Icons.edit, size: 14, color: AppTheme.primaryColor))),
         const SizedBox(width: 8),
         InkWell(onTap: () => _deleteOperator(operator.id!), child: Container(padding: const EdgeInsets.all(6), decoration: BoxDecoration(color: AppTheme.errorColor.withOpacity(0.1), borderRadius: BorderRadius.circular(4)), child: Icon(Icons.delete, size: 14, color: AppTheme.errorColor))),
       ]),
+    );
+  }
+
+  Widget _editingActionButtons(OperatorModel operator, int index) {
+    return Container(
+      width: 100,
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          InkWell(
+            onTap: () => _saveInlineEdit(operator, index),
+            child: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: Colors.green.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: const Icon(Icons.check, size: 14, color: Colors.green),
+            ),
+          ),
+          const SizedBox(width: 8),
+          InkWell(
+            onTap: () => _cancelInlineEdit(index),
+            child: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: Colors.grey.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: const Icon(Icons.close, size: 14, color: Colors.grey),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -379,6 +384,18 @@ class _OperatorTabState extends State<OperatorTab> {
     ];
   }
 
+  List<Widget> _buildExistingEditableCells(int row) {
+    final rowControllers = _editControllers[row]!;
+    return [
+      _cell(180, rowControllers[0], '', enabled: true),
+      _cell(180, rowControllers[1], '', enabled: true),
+      _cell(200, rowControllers[2], '', enabled: true),
+      _cell(160, rowControllers[3], '', enabled: true),
+      _cell(200, rowControllers[4], '', enabled: true),
+      _logoCell(120, _editLogoKey(row)),
+    ];
+  }
+
   Widget _logoCell(double width, int rowIndex) {
     return Container(
       width: width, padding: const EdgeInsets.symmetric(horizontal: 4), decoration: BoxDecoration(border: Border(right: BorderSide(color: Colors.grey.shade400, width: 1))),
@@ -386,7 +403,7 @@ class _OperatorTabState extends State<OperatorTab> {
         final logoBase64 = controller.selectedLogos[rowIndex];
         if (logoBase64 != null && logoBase64.isNotEmpty) {
           return Stack(children: [
-            ClipRRect(borderRadius: BorderRadius.circular(4), child: Image.memory(Uri.parse(logoBase64).data!.contentAsBytes(), width: 40, height: 24, fit: BoxFit.cover, errorBuilder: (c, e, s) => _buildLogoButton(rowIndex))),
+            _buildLogoImage(logoBase64, fallback: _buildLogoButton(rowIndex)),
             Positioned(right: 0, top: 0, child: InkWell(onTap: () => controller.clearLogo(rowIndex), child: Container(padding: const EdgeInsets.all(2), decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle), child: const Icon(Icons.close, size: 10, color: Colors.white)))),
           ]);
         }
@@ -397,6 +414,98 @@ class _OperatorTabState extends State<OperatorTab> {
 
   Widget _buildLogoButton(int rowIndex) {
     return InkWell(onTap: () => controller.pickLogoImage(rowIndex), child: Container(padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4), decoration: BoxDecoration(color: AppTheme.primaryColor.withOpacity(0.1), borderRadius: BorderRadius.circular(4)), child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.add_photo_alternate, size: 14, color: AppTheme.primaryColor), const SizedBox(width: 2), Text('Logo', style: TextStyle(fontSize: 10, color: AppTheme.primaryColor))])));
+  }
+
+  Widget _buildLogoImage(String logoUrl, {Widget? fallback}) {
+    final emptyFallback = fallback ?? Icon(Icons.image, size: 16, color: Colors.grey.shade400);
+    if (logoUrl.trim().isEmpty) return emptyFallback;
+
+    if (logoUrl.startsWith('data:image')) {
+      try {
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: Image.memory(
+            base64Decode(logoUrl.split(',').last),
+            width: 40,
+            height: 24,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) => emptyFallback,
+          ),
+        );
+      } catch (_) {
+        return emptyFallback;
+      }
+    }
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(4),
+      child: Image.network(
+        logoUrl,
+        width: 40,
+        height: 24,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => emptyFallback,
+      ),
+    );
+  }
+
+  int _editLogoKey(int row) => -(row + 1);
+
+  void _startInlineEdit(OperatorModel operator, int row) {
+    final existingControllers = _editControllers.remove(row);
+    if (existingControllers != null) {
+      for (final textController in existingControllers) {
+        textController.dispose();
+      }
+    }
+    _editControllers[row] = [
+      TextEditingController(text: operator.company),
+      TextEditingController(text: operator.contact),
+      TextEditingController(text: operator.address),
+      TextEditingController(text: operator.phone),
+      TextEditingController(text: operator.email),
+    ];
+    final logoKey = _editLogoKey(row);
+    if (operator.logoUrl.isEmpty) {
+      controller.selectedLogos.remove(logoKey);
+    } else {
+      controller.selectedLogos[logoKey] = operator.logoUrl;
+    }
+    controller.selectedLogos.refresh();
+    setState(() => _editingRows.add(row));
+  }
+
+  void _cancelInlineEdit(int row) {
+    controller.selectedLogos.remove(_editLogoKey(row));
+    controller.selectedLogos.refresh();
+    setState(() => _editingRows.remove(row));
+  }
+
+  Future<void> _saveInlineEdit(OperatorModel operator, int row) async {
+    final rowControllers = _editControllers[row];
+    if (rowControllers == null || operator.id == null) return;
+    final result = await controller.updateOperator(
+      operator.id!,
+      OperatorModel(
+        id: operator.id,
+        company: rowControllers[0].text.trim(),
+        contact: rowControllers[1].text.trim(),
+        address: rowControllers[2].text.trim(),
+        phone: rowControllers[3].text.trim(),
+        email: rowControllers[4].text.trim(),
+        logoUrl:
+            controller.selectedLogos[_editLogoKey(row)] ?? operator.logoUrl,
+      ),
+    );
+    if (!mounted) return;
+    if (result['success'] == true) {
+      controller.selectedLogos.remove(_editLogoKey(row));
+      controller.selectedLogos.refresh();
+      setState(() => _editingRows.remove(row));
+      _showSuccess(result['message']);
+    } else {
+      _showError(result['message']);
+    }
   }
 }
 

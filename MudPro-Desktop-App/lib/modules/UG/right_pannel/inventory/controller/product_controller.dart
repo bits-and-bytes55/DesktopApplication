@@ -97,33 +97,98 @@ class ProductsPickupController extends GetxController {
     selectedProducts.refresh();
   }
 
-  bool applySelectedProducts() {
+  void selectAllExistingProducts() {
+    selectedProductIndices.clear();
+    selectedProducts.clear();
+
+    for (var i = 0; i < products.length; i++) {
+      if (!isExistingProduct(i)) continue;
+      selectedProductIndices.add(i);
+      selectedProducts.add(products[i]);
+    }
+
+    selectedProductIndices.refresh();
+    selectedProducts.refresh();
+  }
+
+  void clearProductSelection() {
+    selectedProductIndices.clear();
+    selectedProducts.clear();
+    selectedProductIndices.refresh();
+    selectedProducts.refresh();
+  }
+
+  bool selectedProductsConflictWithInventory() {
+    final store = Get.find<InventoryProductsStore>();
+    final existingKeys = store.selectedProducts
+        .map(_pickupProductKey)
+        .where((key) => key.isNotEmpty)
+        .toSet();
+
+    for (final product in selectedProducts) {
+      final key = _pickupProductKey(product);
+      if (key.isNotEmpty && existingKeys.contains(key)) return true;
+    }
+    return false;
+  }
+
+  bool applySelectedProducts({
+    bool allowOverwrite = false,
+    bool skipExisting = false,
+  }) {
     try {
       // Find the store (don't create new one)
       final store = Get.find<InventoryProductsStore>();
-      final existingNames = store.selectedProducts
-          .map((product) => product.product.trim().toLowerCase())
-          .where((name) => name.isNotEmpty)
+      final existingKeys = store.selectedProducts
+          .map(_pickupProductKey)
+          .where((key) => key.isNotEmpty)
           .toSet();
       final selectedNames = <String>{};
 
       for (final product in selectedProducts) {
         final name = product.product.trim().toLowerCase();
+        final key = _pickupProductKey(product);
         if (name.isEmpty) continue;
-        if (existingNames.contains(name) || !selectedNames.add(name)) {
+        if (!selectedNames.add(name)) {
+          showErrorAlert('Product already exists in inventory');
+          return false;
+        }
+        if (!allowOverwrite && !skipExisting && existingKeys.contains(key)) {
           showErrorAlert('Product already exists in inventory');
           return false;
         }
       }
 
-      store.mergeSelectedProducts(selectedProducts);
-      print('✅ Applied ${selectedProducts.length} products to inventory');
+      final productsToApply = skipExisting
+          ? selectedProducts.where((product) {
+              final key = _pickupProductKey(product);
+              return key.isNotEmpty && !existingKeys.contains(key);
+            }).toList()
+          : selectedProducts.toList();
+
+      if (productsToApply.isEmpty) {
+        showErrorAlert('No new products to add');
+        return false;
+      }
+
+      store.mergeSelectedProducts(productsToApply);
+      print('Applied ${productsToApply.length} products to inventory');
       return true;
     } catch (e) {
       print('❌ Error applying products: $e');
       showErrorAlert('Failed to apply products. Please restart the app.');
       return false;
     }
+  }
+
+  String _pickupProductKey(ProductModel product) {
+    final id = product.id?.trim() ?? '';
+    if (id.isNotEmpty) return 'id:$id';
+    final code = product.code.trim().toLowerCase();
+    if (code.isNotEmpty) return 'code:$code';
+    final name = product.product.trim().toLowerCase();
+    if (name.isNotEmpty) return 'name:$name';
+    return '';
   }
 
   Future<void> saveProducts() async {

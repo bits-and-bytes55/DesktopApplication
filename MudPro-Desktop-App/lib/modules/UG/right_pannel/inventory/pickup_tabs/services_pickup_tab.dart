@@ -98,7 +98,7 @@ class _ServicesPageState extends State<ServicesPickupPage> {
     }
   }
 
-  void _applySelectedServices() {
+	  Future<void> _applySelectedServices() async {
     final selectedPkgs = selectedPackageIndices
         .map((i) => existingPackages[i])
         .toList();
@@ -109,10 +109,23 @@ class _ServicesPageState extends State<ServicesPickupPage> {
         .map((i) => existingEngineering[i])
         .toList();
 
-    Get.find<InventoryServicesStore>().setSelectedServices(
+    final store = Get.find<InventoryServicesStore>();
+    final hasConflict =
+        store.hasPackageConflict(selectedPkgs) ||
+        store.hasServiceConflict(selectedSrvs) ||
+        store.hasEngineeringConflict(selectedEngs);
+    var overwrite = true;
+    if (hasConflict) {
+      final choice = await _confirmServiceOverwrite();
+      if (choice == null) return;
+      overwrite = choice;
+    }
+
+    store.mergeSelectedServices(
       packages: selectedPkgs,
       services: selectedSrvs,
       engineering: selectedEngs,
+      overwrite: overwrite,
     );
 
     Navigator.pop(context);
@@ -123,10 +136,113 @@ class _ServicesPageState extends State<ServicesPickupPage> {
       backgroundColor: Color(0xff10B981),
       colorText: Colors.white,
       duration: Duration(seconds: 2),
-    );
-  }
+	    );
+	  }
 
-  Future<void> _savePackages() async {
+	  Future<bool?> _confirmServiceOverwrite() {
+	    return showDialog<bool>(
+	      context: context,
+	      builder: (context) => AlertDialog(
+	        title: const Text('Item already selected'),
+	        content: const Text('Do you want to overwrite or not?'),
+	        actions: [
+	          TextButton(
+	            onPressed: () => Navigator.of(context).pop(false),
+	            child: const Text('No'),
+	          ),
+	          ElevatedButton(
+	            onPressed: () => Navigator.of(context).pop(true),
+	            child: const Text('Yes'),
+	          ),
+	        ],
+	      ),
+	    );
+	  }
+
+	  Future<bool> _confirmDelete(String label) async {
+	    final result = await showDialog<bool>(
+	      context: context,
+	      builder: (context) => AlertDialog(
+	        title: const Text('Delete item'),
+	        content: Text('Delete this $label?'),
+	        actions: [
+	          TextButton(
+	            onPressed: () => Navigator.of(context).pop(false),
+	            child: const Text('No'),
+	          ),
+	          ElevatedButton(
+	            onPressed: () => Navigator.of(context).pop(true),
+	            child: const Text('Yes'),
+	          ),
+	        ],
+	      ),
+	    );
+	    return result == true;
+	  }
+
+	  Future<void> _deletePackage(PackageItem item) async {
+	    final id = item.id?.trim() ?? '';
+	    if (id.isEmpty || !(await _confirmDelete('package'))) return;
+	    setState(() => _isLoading = true);
+	    try {
+	      final result = await controller.deletePackage(id);
+	      if (result['success'] == true) {
+	        selectedPackageIndices.clear();
+	        await _loadPackages();
+	        _showSuccess(result['message'] ?? 'Package deleted successfully');
+	      } else {
+	        _showError(result['message'] ?? 'Failed to delete package');
+	      }
+	    } catch (e) {
+	      _showError('Failed to delete package: $e');
+	    } finally {
+	      if (mounted) setState(() => _isLoading = false);
+	    }
+	  }
+
+	  Future<void> _deleteService(ServiceItem item) async {
+	    final id = item.id?.trim() ?? '';
+	    if (id.isEmpty || !(await _confirmDelete('service'))) return;
+	    setState(() => _isLoading = true);
+	    try {
+	      final result = await controller.deleteService(id);
+	      if (result['success'] == true) {
+	        selectedServiceIndices.clear();
+	        await _loadServices();
+	        _showSuccess(result['message'] ?? 'Service deleted successfully');
+	      } else {
+	        _showError(result['message'] ?? 'Failed to delete service');
+	      }
+	    } catch (e) {
+	      _showError('Failed to delete service: $e');
+	    } finally {
+	      if (mounted) setState(() => _isLoading = false);
+	    }
+	  }
+
+	  Future<void> _deleteEngineering(EngineeringItem item) async {
+	    final id = item.id?.trim() ?? '';
+	    if (id.isEmpty || !(await _confirmDelete('engineering item'))) return;
+	    setState(() => _isLoading = true);
+	    try {
+	      final result = await controller.deleteEngineering(id);
+	      if (result['success'] == true) {
+	        selectedEngineeringIndices.clear();
+	        await _loadEngineering();
+	        _showSuccess(
+	          result['message'] ?? 'Engineering item deleted successfully',
+	        );
+	      } else {
+	        _showError(result['message'] ?? 'Failed to delete engineering item');
+	      }
+	    } catch (e) {
+	      _showError('Failed to delete engineering item: $e');
+	    } finally {
+	      if (mounted) setState(() => _isLoading = false);
+	    }
+	  }
+
+	  Future<void> _savePackages() async {
     setState(() => _isLoading = true);
     try {
       List<PackageItem> newPackages = [];
@@ -355,9 +471,9 @@ class _ServicesPageState extends State<ServicesPickupPage> {
                 Expanded(
                   child: LayoutBuilder(
                     builder: (context, constraints) {
-                      final sectionWidth = constraints.maxWidth < 1180
-                          ? 360.0
-                          : (constraints.maxWidth - 16) / 3;
+	                      final sectionWidth = constraints.maxWidth < 1180
+	                          ? 390.0
+	                          : (constraints.maxWidth - 16) / 3;
                       return Scrollbar(
                         thumbVisibility: true,
                         child: SingleChildScrollView(
@@ -397,9 +513,10 @@ class _ServicesPageState extends State<ServicesPickupPage> {
           title: 'Package',
           existingData: existingPackages,
           controllers: packageControllers,
-          onSave: _savePackages,
-          selectedIndices: selectedPackageIndices,
-        ),
+	          onSave: _savePackages,
+	          selectedIndices: selectedPackageIndices,
+	          onDelete: (item) => _deletePackage(item as PackageItem),
+	        ),
       ),
       const SizedBox(width: 8),
       SizedBox(
@@ -408,9 +525,10 @@ class _ServicesPageState extends State<ServicesPickupPage> {
           title: 'Services',
           existingData: existingServices,
           controllers: servicesControllers,
-          onSave: _saveServices,
-          selectedIndices: selectedServiceIndices,
-        ),
+	          onSave: _saveServices,
+	          selectedIndices: selectedServiceIndices,
+	          onDelete: (item) => _deleteService(item as ServiceItem),
+	        ),
       ),
       const SizedBox(width: 8),
       SizedBox(
@@ -419,9 +537,10 @@ class _ServicesPageState extends State<ServicesPickupPage> {
           title: 'Engineering',
           existingData: existingEngineering,
           controllers: engineeringControllers,
-          onSave: _saveEngineering,
-          selectedIndices: selectedEngineeringIndices,
-        ),
+	          onSave: _saveEngineering,
+	          selectedIndices: selectedEngineeringIndices,
+	          onDelete: (item) => _deleteEngineering(item as EngineeringItem),
+	        ),
       ),
     ];
   }
@@ -429,11 +548,14 @@ class _ServicesPageState extends State<ServicesPickupPage> {
   Widget _tableSection({
     required String title,
     required List<dynamic> existingData,
-    required List<List<TextEditingController>> controllers,
-    required VoidCallback onSave,
-    required Set<int> selectedIndices,
-  }) {
-    const widths = [30.0, 138.0, 72.0, 64.0, 78.0];
+	    required List<List<TextEditingController>> controllers,
+	    required VoidCallback onSave,
+	    required Set<int> selectedIndices,
+	    required Future<void> Function(dynamic item) onDelete,
+	  }) {
+	    const widths = [30.0, 120.0, 64.0, 58.0, 70.0, 34.0];
+	    final allSelected =
+	        existingData.isNotEmpty && selectedIndices.length == existingData.length;
 
     return Container(
       decoration: BoxDecoration(
@@ -442,16 +564,32 @@ class _ServicesPageState extends State<ServicesPickupPage> {
       ),
       child: Column(
         children: [
-          _sectionHeader(title, selectedIndices.length),
+	          _sectionHeader(
+	            title,
+	            selectedIndices.length,
+	            allSelected: allSelected,
+	            onSelectAll: () {
+	              setState(() {
+	                if (allSelected) {
+	                  selectedIndices.clear();
+	                } else {
+	                  selectedIndices
+	                    ..clear()
+	                    ..addAll(List.generate(existingData.length, (index) => index));
+	                }
+	              });
+	            },
+	          ),
           _tableHeader(widths),
           Container(height: 1, color: const Color(0xFFC7CBD2)),
           Expanded(
             child: _tableRows(
               existingData,
               controllers,
-              widths,
-              selectedIndices,
-            ),
+	              widths,
+	              selectedIndices,
+	              onDelete,
+	            ),
           ),
           _tableSaveButton(onSave, title),
         ],
@@ -459,7 +597,12 @@ class _ServicesPageState extends State<ServicesPickupPage> {
     );
   }
 
-  Widget _sectionHeader(String title, int selectedCount) {
+	  Widget _sectionHeader(
+	    String title,
+	    int selectedCount, {
+	    required bool allSelected,
+	    required VoidCallback onSelectAll,
+	  }) {
     return Container(
       height: 28,
       width: double.infinity,
@@ -477,8 +620,23 @@ class _ServicesPageState extends State<ServicesPickupPage> {
               ),
             ),
           ),
-          if (selectedCount > 0)
-            Text(
+	          TextButton(
+	            onPressed: onSelectAll,
+	            style: TextButton.styleFrom(
+	              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+	              minimumSize: const Size(0, 22),
+	              foregroundColor: const Color(0xFF2E74C9),
+	            ),
+	            child: Text(
+	              allSelected ? 'Clear All' : 'Select All',
+	              style: const TextStyle(
+	                fontSize: 10,
+	                fontWeight: FontWeight.w600,
+	              ),
+	            ),
+	          ),
+	          if (selectedCount > 0)
+	            Text(
               '$selectedCount selected',
               style: const TextStyle(fontSize: 10, color: Color(0xFF5F6B7A)),
             ),
@@ -495,20 +653,22 @@ class _ServicesPageState extends State<ServicesPickupPage> {
         children: [
           _HeaderCell(width: widths[0], text: ''),
           _HeaderCell(width: widths[1], text: 'Name'),
-          _HeaderCell(width: widths[2], text: 'Code'),
-          _HeaderCell(width: widths[3], text: 'Unit'),
-          Expanded(child: _HeaderCell(text: 'Price (\$)')),
-        ],
-      ),
-    );
+	          _HeaderCell(width: widths[2], text: 'Code'),
+	          _HeaderCell(width: widths[3], text: 'Unit'),
+	          _HeaderCell(width: widths[4], text: 'Price (\$)'),
+	          _HeaderCell(width: widths[5], text: ''),
+	        ],
+	      ),
+	    );
   }
 
   Widget _tableRows(
     List<dynamic> existingData,
-    List<List<TextEditingController>> controllers,
-    List<double> widths,
-    Set<int> selectedIndices,
-  ) {
+	    List<List<TextEditingController>> controllers,
+	    List<double> widths,
+	    Set<int> selectedIndices,
+	    Future<void> Function(dynamic item) onDelete,
+	  ) {
     return Scrollbar(
       thumbVisibility: true,
       child: ListView.builder(
@@ -568,11 +728,15 @@ class _ServicesPageState extends State<ServicesPickupPage> {
                         height: double.infinity,
                         color: Colors.grey.shade300,
                       ),
-                      _lockedCell(
-                        widths[4],
-                        existingData[index].price.toString(),
-                      ),
-                    ] else ...[
+	                      _lockedCell(
+	                        widths[4],
+	                        existingData[index].price.toString(),
+	                      ),
+	                      _deleteCell(
+	                        widths[5],
+	                        () => onDelete(existingData[index]),
+	                      ),
+	                    ] else ...[
                       _editCell(
                         widths[1],
                         controllers[index - existingData.length][0],
@@ -600,11 +764,12 @@ class _ServicesPageState extends State<ServicesPickupPage> {
                         height: double.infinity,
                         color: Colors.grey.shade300,
                       ),
-                      _editCell(
-                        widths[4],
-                        controllers[index - existingData.length][3],
-                      ),
-                    ],
+	                      _editCell(
+	                        widths[4],
+	                        controllers[index - existingData.length][3],
+	                      ),
+	                      SizedBox(width: widths[5]),
+	                    ],
                   ],
                 ),
               ),
@@ -658,9 +823,9 @@ class _ServicesPageState extends State<ServicesPickupPage> {
     );
   }
 
-  Widget _editCell(double width, TextEditingController controller) {
-    return Container(
-      width: width,
+	  Widget _editCell(double width, TextEditingController controller) {
+	    return Container(
+	      width: width,
       padding: const EdgeInsets.symmetric(horizontal: 6),
       child: TextField(
         controller: controller,
@@ -670,11 +835,31 @@ class _ServicesPageState extends State<ServicesPickupPage> {
           isDense: true,
           contentPadding: EdgeInsets.symmetric(vertical: 7),
         ),
-      ),
-    );
-  }
+	      ),
+	    );
+	  }
 
-  Widget _tableSaveButton(VoidCallback onSave, String title) {
+	  Widget _deleteCell(double width, VoidCallback onDelete) {
+	    return Container(
+	      width: width,
+	      decoration: BoxDecoration(
+	        border: Border(
+	          left: BorderSide(color: Colors.grey.shade300, width: 1),
+	        ),
+	      ),
+	      alignment: Alignment.center,
+	      child: IconButton(
+	        onPressed: _isLoading ? null : onDelete,
+	        icon: const Icon(Icons.delete_outline, size: 15),
+	        color: const Color(0xFFB42318),
+	        padding: EdgeInsets.zero,
+	        constraints: const BoxConstraints.tightFor(width: 28, height: 24),
+	        tooltip: 'Delete',
+	      ),
+	    );
+	  }
+
+	  Widget _tableSaveButton(VoidCallback onSave, String title) {
     return Container(
       height: 42,
       width: double.infinity,
