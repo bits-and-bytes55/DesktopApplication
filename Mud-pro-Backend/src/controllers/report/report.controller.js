@@ -243,13 +243,15 @@ const nextReportNoForWell = async (wellId) => {
   return String(maxNumber + 1);
 };
 
-const cleanClone = (doc = {}) => {
+const cleanClone = (doc = {}, { preserveTimestamps = false } = {}) => {
   const clone = { ...doc };
   delete clone._id;
   delete clone.id;
   delete clone.__v;
-  delete clone.createdAt;
-  delete clone.updatedAt;
+  if (!preserveTimestamps) {
+    delete clone.createdAt;
+    delete clone.updatedAt;
+  }
   return clone;
 };
 
@@ -459,7 +461,7 @@ const cloneExtraReportScopedDocuments = async ({
 
     await model.insertMany(
       docsToClone.map((doc) => ({
-        ...cleanClone(doc),
+        ...cleanClone(doc, { preserveTimestamps: true }),
         wellId,
         reportId: targetReportId,
         reportNo: toText(targetReport.reportNo),

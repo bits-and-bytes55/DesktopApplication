@@ -502,6 +502,47 @@ const filterRowsAfterCarryOverCutoff = (items = [], cutoff) => {
   });
 };
 
+const hasCarryOverHoleChanges = ({
+  reportMeta,
+  wellGeneral,
+  casings = [],
+  drillStrings = [],
+}) => {
+  const cutoffTime = new Date(reportMeta?.carryOverCompletedAt || 0).getTime();
+  if (!Number.isFinite(cutoffTime) || cutoffTime <= 0) return false;
+
+  return [wellGeneral, ...casings, ...drillStrings].some((item) => {
+    const itemTime = new Date(item?.updatedAt || item?.createdAt || 0).getTime();
+    return Number.isFinite(itemTime) && itemTime > cutoffTime;
+  });
+};
+
+const resolveCarryOverVisibleHole = ({
+  reportMeta,
+  currentHole,
+  previousHole,
+  wellGeneral,
+  casings = [],
+  drillStrings = [],
+}) => {
+  if (!reportMeta?.carryOverCompletedAt) {
+    return round2(currentHole);
+  }
+
+  if (
+    hasCarryOverHoleChanges({
+      reportMeta,
+      wellGeneral,
+      casings,
+      drillStrings,
+    })
+  ) {
+    return round2(currentHole);
+  }
+
+  return round2(previousHole);
+};
+
 const rememberLastActivePitVolume = async ({ reportId, pitName, volume }) => {
   const cleanReportId = toText(reportId);
   if (!cleanReportId) return;
@@ -1257,7 +1298,7 @@ const calculateEndVolForReport = async ({
     carryOverCutoff
   );
 
-  const hole = calculateCombinedHoleVolume({ casings, wellGeneral, drillStrings });
+  const rawHole = calculateCombinedHoleVolume({ casings, wellGeneral, drillStrings });
   const activePitsList = pits.filter((pit) => pit.initialActive === true);
   const activePitNames = new Set(
     activePitsList.map((pit) => toText(pit.pitName).toLowerCase()).filter(Boolean)
@@ -1343,6 +1384,21 @@ const calculateEndVolForReport = async ({
     emptyFluidEntries.length > 0;
 
   const previousReportMeta = await findPreviousReportMeta({ wellId, reportMeta });
+  const previousHole = previousReportMeta
+    ? await calculateHoleVolumeForReport({
+        wellId,
+        reportId: previousReportMeta.reportId,
+        reportNo: previousReportMeta.reportNo,
+      })
+    : 0;
+  const hole = resolveCarryOverVisibleHole({
+    reportMeta,
+    currentHole: rawHole,
+    previousHole,
+    wellGeneral,
+    casings,
+    drillStrings,
+  });
   const previousEndVol = previousReportMeta
     ? await calculateEndVolForReport({
         wellId,
@@ -1830,7 +1886,6 @@ export const getVolumeNameCalculation = async (req, res) => {
       wellGeneral,
       drillStrings,
     });
-    const hole = holeVolumeResult.hole;
     const previousReportMeta = await findPreviousReportMeta({
       wellId,
       reportMeta,
@@ -1842,6 +1897,14 @@ export const getVolumeNameCalculation = async (req, res) => {
           reportNo: previousReportMeta.reportNo,
         })
       : 0;
+    const hole = resolveCarryOverVisibleHole({
+      reportMeta,
+      currentHole: holeVolumeResult.hole,
+      previousHole,
+      wellGeneral,
+      casings,
+      drillStrings,
+    });
     const previousEndVol = previousReportMeta
       ? await calculateEndVolForReport({
           wellId,
