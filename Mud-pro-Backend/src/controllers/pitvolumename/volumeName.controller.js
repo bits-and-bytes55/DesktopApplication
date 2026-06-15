@@ -476,6 +476,21 @@ const resolveReportMeta = async ({ wellId, reportId, reportNo }) => {
     reportDate: report ? toText(report.reportDate) : "",
     carryOverFromReportId: report ? toText(report.carryOverFromReportId) : "",
     carryOverCompletedAt: report?.carryOverCompletedAt ?? null,
+    carryOverSourceHoleSnapshot:
+      report?.carryOverSourceHoleSnapshot === null ||
+      report?.carryOverSourceHoleSnapshot === undefined
+        ? null
+        : toNumber(report.carryOverSourceHoleSnapshot),
+    carryOverSourceEndVolSnapshot:
+      report?.carryOverSourceEndVolSnapshot === null ||
+      report?.carryOverSourceEndVolSnapshot === undefined
+        ? null
+        : toNumber(report.carryOverSourceEndVolSnapshot),
+    carryOverSourceTotalOnLocationSnapshot:
+      report?.carryOverSourceTotalOnLocationSnapshot === null ||
+      report?.carryOverSourceTotalOnLocationSnapshot === undefined
+        ? null
+        : toNumber(report.carryOverSourceTotalOnLocationSnapshot),
     volumeNameHoleSnapshot:
       report?.volumeNameHoleSnapshot === null ||
       report?.volumeNameHoleSnapshot === undefined
@@ -890,30 +905,41 @@ const calculateHoleVolumeForReport = async ({ wellId, reportId, reportNo }) => {
   return calculateCombinedHoleVolume({ casings, wellGeneral, drillStrings });
 };
 
-const calculateTotalOnLocationForReport = async ({ wellId, reportId, reportNo }) => {
+export const calculateVisibleHoleForReport = async ({
+  wellId,
+  reportId,
+  reportNo,
+}) => {
   if (!reportId && !reportNo) return 0;
 
-  const [wellGeneral, casings, drillStrings, pits] = await Promise.all([
+  const [wellGeneral, casings, drillStrings] = await Promise.all([
     findScopedWellGeneral({ wellId, reportId, reportNo }),
     findScopedCasings({ wellId, reportId }),
     findScopedDrillStrings({ wellId, reportId }),
-    findScopedPits({ wellId, reportId }),
   ]);
 
   const reportMeta = await resolveReportMeta({ wellId, reportId, reportNo });
-  const currentHole = calculateCombinedHoleVolume({ casings, wellGeneral, drillStrings });
+  const currentHole = calculateCombinedHoleVolume({
+    casings,
+    wellGeneral,
+    drillStrings,
+  });
   const previousReportMeta = await findPreviousReportMeta({
     wellId,
     reportMeta,
   });
-  const previousHole = previousReportMeta
-    ? await calculateHoleVolumeForReport({
-        wellId,
-        reportId: previousReportMeta.reportId,
-        reportNo: previousReportMeta.reportNo,
-      })
-    : 0;
-  const hole = resolveCarryOverVisibleHole({
+  const previousHole =
+    reportMeta.carryOverSourceHoleSnapshot !== null
+      ? reportMeta.carryOverSourceHoleSnapshot
+      : previousReportMeta
+        ? await calculateHoleVolumeForReport({
+            wellId,
+            reportId: previousReportMeta.reportId,
+            reportNo: previousReportMeta.reportNo,
+          })
+        : 0;
+
+  return resolveCarryOverVisibleHole({
     reportMeta,
     currentHole,
     previousHole,
@@ -921,6 +947,20 @@ const calculateTotalOnLocationForReport = async ({ wellId, reportId, reportNo })
     casings,
     drillStrings,
   });
+};
+
+export const calculateTotalOnLocationForReport = async ({
+  wellId,
+  reportId,
+  reportNo,
+}) => {
+  if (!reportId && !reportNo) return 0;
+
+  const [hole, pits] = await Promise.all([
+    calculateVisibleHoleForReport({ wellId, reportId, reportNo }),
+    findScopedPits({ wellId, reportId }),
+  ]);
+
   const activePits = pits
     .filter((pit) => pit.initialActive === true)
     .reduce((sum, pit) => sum + toNumber(pit.volume), 0);
@@ -1221,7 +1261,7 @@ const buildOperationVolumeEffects = ({
   };
 };
 
-const calculateEndVolForReport = async ({
+export const calculateEndVolForReport = async ({
   wellId,
   reportId,
   reportNo,
@@ -1338,13 +1378,16 @@ const calculateEndVolForReport = async ({
 
   const rawHole = calculateCombinedHoleVolume({ casings, wellGeneral, drillStrings });
   const previousReportMeta = await findPreviousReportMeta({ wellId, reportMeta });
-  const previousHole = previousReportMeta
-    ? await calculateHoleVolumeForReport({
-        wellId,
-        reportId: previousReportMeta.reportId,
-        reportNo: previousReportMeta.reportNo,
-      })
-    : 0;
+  const previousHole =
+    reportMeta.carryOverSourceHoleSnapshot !== null
+      ? reportMeta.carryOverSourceHoleSnapshot
+      : previousReportMeta
+        ? await calculateHoleVolumeForReport({
+            wellId,
+            reportId: previousReportMeta.reportId,
+            reportNo: previousReportMeta.reportNo,
+          })
+        : 0;
   const hole = resolveCarryOverVisibleHole({
     reportMeta,
     currentHole: rawHole,
@@ -1437,14 +1480,17 @@ const calculateEndVolForReport = async ({
     transferMudEntries.length > 0 ||
     emptyFluidEntries.length > 0;
 
-  const previousEndVol = previousReportMeta
-    ? await calculateEndVolForReport({
-        wellId,
-        reportId: previousReportMeta.reportId,
-        reportNo: previousReportMeta.reportNo,
-        visited: nextVisited,
-      })
-    : 0;
+  const previousEndVol =
+    reportMeta.carryOverSourceEndVolSnapshot !== null
+      ? reportMeta.carryOverSourceEndVolSnapshot
+      : previousReportMeta
+        ? await calculateEndVolForReport({
+            wellId,
+            reportId: previousReportMeta.reportId,
+            reportNo: previousReportMeta.reportNo,
+            visited: nextVisited,
+          })
+        : 0;
 
   if (operationVolumeEffects.forceEndVolZero) return 0;
 
@@ -1457,6 +1503,51 @@ const calculateEndVolForReport = async ({
   }
 
   return round2(previousEndVol);
+};
+
+const ensureCarryOverSourceSnapshots = async ({
+  wellId,
+  reportMeta,
+  previousReportMeta,
+}) => {
+  const reportId = toText(reportMeta?.reportId);
+  const carryOverFromReportId = toText(reportMeta?.carryOverFromReportId);
+  if (!reportId || !carryOverFromReportId || !previousReportMeta) {
+    return;
+  }
+
+  const hasHoleSnapshot = reportMeta.carryOverSourceHoleSnapshot !== null;
+  const hasEndVolSnapshot = reportMeta.carryOverSourceEndVolSnapshot !== null;
+  const hasTotalSnapshot =
+    reportMeta.carryOverSourceTotalOnLocationSnapshot !== null;
+  if (hasHoleSnapshot && hasEndVolSnapshot && hasTotalSnapshot) {
+    return;
+  }
+
+  const sourceScope = {
+    wellId,
+    reportId: previousReportMeta.reportId,
+    reportNo: previousReportMeta.reportNo,
+  };
+  const [hole, endVol, totalOnLocation] = await Promise.all([
+    hasHoleSnapshot
+      ? reportMeta.carryOverSourceHoleSnapshot
+      : calculateVisibleHoleForReport(sourceScope),
+    hasEndVolSnapshot
+      ? reportMeta.carryOverSourceEndVolSnapshot
+      : calculateEndVolForReport(sourceScope),
+    hasTotalSnapshot
+      ? reportMeta.carryOverSourceTotalOnLocationSnapshot
+      : calculateTotalOnLocationForReport(sourceScope),
+  ]);
+
+  const snapshots = {
+    carryOverSourceHoleSnapshot: round2(hole),
+    carryOverSourceEndVolSnapshot: round2(endVol),
+    carryOverSourceTotalOnLocationSnapshot: round2(totalOnLocation),
+  };
+  await Report.updateOne({ _id: reportId }, { $set: snapshots });
+  Object.assign(reportMeta, snapshots);
 };
 
 const scopedOperationFilter = ({ wellId, reportId }) =>
@@ -1867,6 +1958,7 @@ export const getVolumeNameCalculation = async (req, res) => {
       ]);
 
     const carryOverCutoff = reportMeta.carryOverCompletedAt;
+    const uiDistributionStates = [...(distributionStates ?? [])];
     distributionStates = filterRowsAfterCarryOverCutoff(
       distributionStates,
       carryOverCutoff
@@ -1928,13 +2020,21 @@ export const getVolumeNameCalculation = async (req, res) => {
       wellId,
       reportMeta,
     });
-    const previousHole = previousReportMeta
-      ? await calculateHoleVolumeForReport({
-          wellId,
-          reportId: previousReportMeta.reportId,
-          reportNo: previousReportMeta.reportNo,
-        })
-      : 0;
+    await ensureCarryOverSourceSnapshots({
+      wellId,
+      reportMeta,
+      previousReportMeta,
+    });
+    const previousHole =
+      reportMeta.carryOverSourceHoleSnapshot !== null
+        ? reportMeta.carryOverSourceHoleSnapshot
+        : previousReportMeta
+          ? await calculateHoleVolumeForReport({
+              wellId,
+              reportId: previousReportMeta.reportId,
+              reportNo: previousReportMeta.reportNo,
+            })
+          : 0;
     const hole = resolveCarryOverVisibleHole({
       reportMeta,
       currentHole: holeVolumeResult.hole,
@@ -1943,13 +2043,16 @@ export const getVolumeNameCalculation = async (req, res) => {
       casings,
       drillStrings,
     });
-    const previousEndVol = previousReportMeta
-      ? await calculateEndVolForReport({
-          wellId,
-          reportId: previousReportMeta.reportId,
-          reportNo: previousReportMeta.reportNo,
-        })
-      : 0;
+    const previousEndVol =
+      reportMeta.carryOverSourceEndVolSnapshot !== null
+        ? reportMeta.carryOverSourceEndVolSnapshot
+        : previousReportMeta
+          ? await calculateEndVolForReport({
+              wellId,
+              reportId: previousReportMeta.reportId,
+              reportNo: previousReportMeta.reportNo,
+            })
+          : 0;
     const heldVolDifference = holeVolumeResult.hasData
       ? round2(hole - previousHole)
       : 0;
@@ -1987,6 +2090,10 @@ export const getVolumeNameCalculation = async (req, res) => {
       }))
     );
     const primaryDistributionState = (distributionStates ?? [])[0];
+    const uiPrimaryDistributionState = uiDistributionStates[0];
+    const uiDistributionRows = cleanDistributionRows(
+      uiPrimaryDistributionState?.distributions ?? []
+    );
     const {
       activeSystemVolume,
       calculatedVolumeByPit,
@@ -2173,13 +2280,16 @@ export const getVolumeNameCalculation = async (req, res) => {
       ).toFixed(2)
     );
     const totalOnLocation = Number((activeSystem + totalStorage).toFixed(2));
-    const previousTotalOnLocation = previousReportMeta
-      ? await calculateTotalOnLocationForReport({
-          wellId,
-          reportId: previousReportMeta.reportId,
-          reportNo: previousReportMeta.reportNo,
-        })
-      : 0;
+    const previousTotalOnLocation =
+      reportMeta.carryOverSourceTotalOnLocationSnapshot !== null
+        ? reportMeta.carryOverSourceTotalOnLocationSnapshot
+        : previousReportMeta
+          ? await calculateTotalOnLocationForReport({
+              wellId,
+              reportId: previousReportMeta.reportId,
+              reportNo: previousReportMeta.reportNo,
+            })
+          : 0;
 
     return res.status(200).json({
       success: true,
@@ -2247,16 +2357,27 @@ export const getVolumeNameCalculation = async (req, res) => {
           pendingActiveSystemWater: pendingActiveSystemInput,
         },
         consumeProductDistribution: {
-          inputMethod: toText(primaryDistributionState?.inputMethod) || "Used",
-          addWaterEnabled: Boolean(primaryDistributionState?.addWaterEnabled),
+          inputMethod:
+            toText(uiPrimaryDistributionState?.inputMethod) || "Used",
+          addWaterEnabled: Boolean(
+            uiPrimaryDistributionState?.addWaterEnabled
+          ),
           addWaterVolume: Number(
-            toNumber(primaryDistributionState?.addWaterVolume).toFixed(2)
+            toNumber(uiPrimaryDistributionState?.addWaterVolume).toFixed(2)
           ),
           totalVolume: Number(
-            toNumber(primaryDistributionState?.totalVolume).toFixed(2)
+            toNumber(uiPrimaryDistributionState?.totalVolume).toFixed(2)
           ),
-          activeSystemVolume,
-          distributions: distributionRows,
+          activeSystemVolume: Number(
+            uiDistributionRows
+              .filter(
+                (row) =>
+                  toText(row.pitName).toLowerCase() === "active system"
+              )
+              .reduce((sum, row) => sum + toNumber(row.volume), 0)
+              .toFixed(2)
+          ),
+          distributions: uiDistributionRows,
         },
         activePitsTable: activePitsList.map((pit) => {
           const key = toText(pit.pitName).toLowerCase();

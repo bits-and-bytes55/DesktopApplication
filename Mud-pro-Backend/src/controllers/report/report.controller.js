@@ -31,6 +31,11 @@ import WellPlan from "../../modules/wellPlan/wellPlan.model.js";
 import FormationConfig from "../../modules/formation/formation.model.js";
 import SurveyConfig from "../../modules/survey/survey.model.js";
 import SolidsAnalysis from "../../modules/SolidAnalysis/solidanalysismodel.js";
+import {
+  calculateEndVolForReport,
+  calculateTotalOnLocationForReport,
+  calculateVisibleHoleForReport,
+} from "../pitvolumename/volumeName.controller.js";
 
 const toText = (value) => String(value ?? "").trim();
 
@@ -320,6 +325,30 @@ const volumeNameCarryOverBaselineReset = (carryOverCompletedAt) => ({
   volumeNameLastActivePitVolume: 0,
   volumeNameLastActivePitUpdatedAt: null,
 });
+
+const buildCarryOverSourceSnapshots = async ({ wellId, sourceReport }) => {
+  const reportId = toText(sourceReport?._id ?? sourceReport?.id);
+  const reportNo = toText(sourceReport?.reportNo);
+  if (!wellId || (!reportId && !reportNo)) {
+    return {
+      carryOverSourceHoleSnapshot: null,
+      carryOverSourceEndVolSnapshot: null,
+      carryOverSourceTotalOnLocationSnapshot: null,
+    };
+  }
+
+  const [hole, endVol, totalOnLocation] = await Promise.all([
+    calculateVisibleHoleForReport({ wellId, reportId, reportNo }),
+    calculateEndVolForReport({ wellId, reportId, reportNo }),
+    calculateTotalOnLocationForReport({ wellId, reportId, reportNo }),
+  ]);
+
+  return {
+    carryOverSourceHoleSnapshot: round2(hole),
+    carryOverSourceEndVolSnapshot: round2(endVol),
+    carryOverSourceTotalOnLocationSnapshot: round2(totalOnLocation),
+  };
+};
 
 const finalizeCarryOverTargetReport = async (targetReport) => {
   const targetReportId = toText(targetReport?._id ?? targetReport?.id);
@@ -795,6 +824,9 @@ export const createReport = async (req, res) => {
       req.body.operationSelections !== undefined
         ? sanitizeOperationSelections(req.body.operationSelections)
         : sanitizeOperationSelections(sourceReport?.operationSelections);
+    const carryOverSourceSnapshots = sourceReport
+      ? await buildCarryOverSourceSnapshots({ wellId, sourceReport })
+      : {};
 
     let report = await Report.create({
       wellId,
@@ -811,6 +843,7 @@ export const createReport = async (req, res) => {
       pumpRateAndPressure,
       operationSelections,
       carryOverFromReportId: sourceReport ? sourceReport._id : null,
+      ...carryOverSourceSnapshots,
     });
 
     try {
@@ -897,6 +930,16 @@ export const carryOverReportData = async (req, res) => {
       sourceReport.operationSelections
     );
     targetReport.carryOverFromReportId = sourceReport._id;
+    const carryOverSourceSnapshots = await buildCarryOverSourceSnapshots({
+      wellId,
+      sourceReport,
+    });
+    targetReport.carryOverSourceHoleSnapshot =
+      carryOverSourceSnapshots.carryOverSourceHoleSnapshot;
+    targetReport.carryOverSourceEndVolSnapshot =
+      carryOverSourceSnapshots.carryOverSourceEndVolSnapshot;
+    targetReport.carryOverSourceTotalOnLocationSnapshot =
+      carryOverSourceSnapshots.carryOverSourceTotalOnLocationSnapshot;
     await targetReport.save();
 
     await deleteReportScopedArtifacts({
