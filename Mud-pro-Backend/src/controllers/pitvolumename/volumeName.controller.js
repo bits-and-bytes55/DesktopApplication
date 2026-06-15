@@ -491,6 +491,26 @@ const resolveReportMeta = async ({ wellId, reportId, reportNo }) => {
       report?.carryOverSourceTotalOnLocationSnapshot === undefined
         ? null
         : toNumber(report.carryOverSourceTotalOnLocationSnapshot),
+    carryOverSourceActivePitsSnapshot:
+      report?.carryOverSourceActivePitsSnapshot === null ||
+      report?.carryOverSourceActivePitsSnapshot === undefined
+        ? null
+        : toNumber(report.carryOverSourceActivePitsSnapshot),
+    carryOverSourceActiveSystemSnapshot:
+      report?.carryOverSourceActiveSystemSnapshot === null ||
+      report?.carryOverSourceActiveSystemSnapshot === undefined
+        ? null
+        : toNumber(report.carryOverSourceActiveSystemSnapshot),
+    carryOverSourceTotalStorageSnapshot:
+      report?.carryOverSourceTotalStorageSnapshot === null ||
+      report?.carryOverSourceTotalStorageSnapshot === undefined
+        ? null
+        : toNumber(report.carryOverSourceTotalStorageSnapshot),
+    carryOverSourceEndVolMinusActiveSystemSnapshot:
+      report?.carryOverSourceEndVolMinusActiveSystemSnapshot === null ||
+      report?.carryOverSourceEndVolMinusActiveSystemSnapshot === undefined
+        ? null
+        : toNumber(report.carryOverSourceEndVolMinusActiveSystemSnapshot),
     volumeNameHoleSnapshot:
       report?.volumeNameHoleSnapshot === null ||
       report?.volumeNameHoleSnapshot === undefined
@@ -523,6 +543,27 @@ const filterRowsAfterCarryOverCutoff = (items = [], cutoff) => {
   });
 };
 
+const hasRowsChangedAfterCarryOver = (items = [], cutoff) => {
+  if (!cutoff) return false;
+  return filterRowsAfterCarryOverCutoff(items, cutoff).length > 0;
+};
+
+const hasCarryOverVolumeBaseline = (reportMeta) =>
+  Boolean(
+    reportMeta?.carryOverCompletedAt &&
+      reportMeta?.carryOverFromReportId &&
+      reportMeta?.carryOverSourceHoleSnapshot !== null &&
+      reportMeta?.carryOverSourceEndVolSnapshot !== null &&
+      reportMeta?.carryOverSourceTotalOnLocationSnapshot !== null
+  );
+
+const hasCompleteCarryOverVolumeBaseline = (reportMeta) =>
+  hasCarryOverVolumeBaseline(reportMeta) &&
+  reportMeta?.carryOverSourceActivePitsSnapshot !== null &&
+  reportMeta?.carryOverSourceActiveSystemSnapshot !== null &&
+  reportMeta?.carryOverSourceTotalStorageSnapshot !== null &&
+  reportMeta?.carryOverSourceEndVolMinusActiveSystemSnapshot !== null;
+
 const hasCarryOverHoleChanges = ({
   reportMeta,
   wellGeneral,
@@ -535,6 +576,24 @@ const hasCarryOverHoleChanges = ({
   return [wellGeneral, ...casings, ...drillStrings].some((item) => {
     const itemTime = new Date(item?.updatedAt || item?.createdAt || 0).getTime();
     return Number.isFinite(itemTime) && itemTime > cutoffTime;
+  });
+};
+
+const hasCurrentHoleVolumeData = ({
+  holeVolumeResult,
+  reportMeta,
+  wellGeneral,
+  casings = [],
+  drillStrings = [],
+}) => {
+  if (!holeVolumeResult?.hasData) return false;
+  if (!reportMeta?.carryOverCompletedAt) return true;
+
+  return hasCarryOverHoleChanges({
+    reportMeta,
+    wellGeneral,
+    casings,
+    drillStrings,
   });
 };
 
@@ -1384,6 +1443,13 @@ export const calculateEndVolForReport = async ({
     wellGeneral,
     drillStrings,
   });
+  const hasCurrentHoleData = hasCurrentHoleVolumeData({
+    holeVolumeResult,
+    reportMeta,
+    wellGeneral,
+    casings,
+    drillStrings,
+  });
   const rawHole = holeVolumeResult.hole;
   const previousReportMeta = await findPreviousReportMeta({ wellId, reportMeta });
   const previousHole =
@@ -1491,10 +1557,27 @@ export const calculateEndVolForReport = async ({
   const hasPitVolume = pits.some(
     (pit) => Math.abs(toNumber(pit?.volume)) >= 0.005
   );
+  const hasPitChanges = hasRowsChangedAfterCarryOver(
+    pits,
+    reportMeta.carryOverCompletedAt
+  );
+  const hasCarryOverBaseline = hasCarryOverVolumeBaseline(reportMeta);
   const hasCurrentReportVolumeData =
-    holeVolumeResult.hasData || hasPitVolume || hasOperationVolumeRows;
+    hasCarryOverBaseline ||
+    hasCurrentHoleData ||
+    hasPitVolume ||
+    hasOperationVolumeRows;
 
   if (!hasCurrentReportVolumeData) return 0;
+
+  if (
+    hasCarryOverBaseline &&
+    !hasCurrentHoleData &&
+    !hasPitChanges &&
+    !hasOperationVolumeRows
+  ) {
+    return round2(reportMeta.carryOverSourceEndVolSnapshot);
+  }
 
   const previousEndVol =
     reportMeta.carryOverSourceEndVolSnapshot !== null
@@ -2032,6 +2115,13 @@ export const getVolumeNameCalculation = async (req, res) => {
       wellGeneral,
       drillStrings,
     });
+    const hasCurrentHoleData = hasCurrentHoleVolumeData({
+      holeVolumeResult,
+      reportMeta,
+      wellGeneral,
+      casings,
+      drillStrings,
+    });
     const previousReportMeta = await findPreviousReportMeta({
       wellId,
       reportMeta,
@@ -2071,7 +2161,7 @@ export const getVolumeNameCalculation = async (req, res) => {
               reportNo: previousReportMeta.reportNo,
             })
           : 0;
-    const heldVolDifference = holeVolumeResult.hasData
+    const heldVolDifference = hasCurrentHoleData
       ? round2(hole - previousHole)
       : 0;
     const drillstringVolume = holeVolumeResult.pipeInside;
@@ -2088,12 +2178,21 @@ export const getVolumeNameCalculation = async (req, res) => {
     const activePits = Number(
       activePitsList.reduce((sum, pit) => sum + toNumber(pit.volume), 0).toFixed(2)
     );
-    const sameReportHoleDelta = await resolveSameReportHoleDelta({
-      reportMeta,
-      hole,
-      activePits,
-      activePitsList,
-    });
+    const hasPitVolume = pits.some(
+      (pit) => Math.abs(toNumber(pit?.volume)) >= 0.005
+    );
+    const hasPitChanges = hasRowsChangedAfterCarryOver(
+      pits,
+      reportMeta.carryOverCompletedAt
+    );
+    const sameReportHoleDelta = hasCurrentHoleData || hasPitVolume
+      ? await resolveSameReportHoleDelta({
+          reportMeta,
+          hole,
+          activePits,
+          activePitsList,
+        })
+      : 0;
 
     const totalStorage = Number(
       storagePitsList.reduce((sum, pit) => sum + toNumber(pit.volume), 0).toFixed(2)
@@ -2186,11 +2285,11 @@ export const getVolumeNameCalculation = async (req, res) => {
       normalizedMudLossStorageEntries.length > 0 ||
       transferMudEntries.length > 0 ||
       emptyFluidEntries.length > 0;
-    const hasPitVolume = pits.some(
-      (pit) => Math.abs(toNumber(pit?.volume)) >= 0.005
-    );
     const hasCurrentReportVolumeData =
-      holeVolumeResult.hasData || hasPitVolume || hasOperationVolumeRows;
+      hasCarryOverVolumeBaseline(reportMeta) ||
+      hasCurrentHoleData ||
+      hasPitVolume ||
+      hasOperationVolumeRows;
     const firstReportStartsEmpty =
       !previousReportMeta &&
       !hasOperationVolumeRows &&
@@ -2306,7 +2405,9 @@ export const getVolumeNameCalculation = async (req, res) => {
         mudLossStorageTotal
       ).toFixed(2)
     );
-    const totalOnLocation = Number((activeSystem + totalStorage).toFixed(2));
+    const totalOnLocation = hasCurrentReportVolumeData
+      ? Number((activeSystem + totalStorage).toFixed(2))
+      : 0;
     const previousTotalOnLocation = !hasCurrentReportVolumeData
       ? 0
       : reportMeta.carryOverSourceTotalOnLocationSnapshot !== null
@@ -2318,6 +2419,35 @@ export const getVolumeNameCalculation = async (req, res) => {
               reportNo: previousReportMeta.reportNo,
             })
           : 0;
+    const useCarryOverBaseline =
+      hasCompleteCarryOverVolumeBaseline(reportMeta) &&
+      !hasCurrentHoleData &&
+      !hasPitChanges &&
+      !hasOperationVolumeRows;
+    const displayedHeldVolDifference = useCarryOverBaseline
+      ? round2(hole - previousHole)
+      : heldVolDifference;
+    const displayedHole = useCarryOverBaseline
+      ? round2(reportMeta.carryOverSourceHoleSnapshot)
+      : hole;
+    const displayedActivePits = useCarryOverBaseline
+      ? round2(reportMeta.carryOverSourceActivePitsSnapshot)
+      : round2(activePitsWithTransfer);
+    const displayedActiveSystem = useCarryOverBaseline
+      ? round2(reportMeta.carryOverSourceActiveSystemSnapshot)
+      : activeSystem;
+    const displayedEndVol = useCarryOverBaseline
+      ? round2(reportMeta.carryOverSourceEndVolSnapshot)
+      : endVol;
+    const displayedEndVolMinusActiveSystem = useCarryOverBaseline
+      ? round2(reportMeta.carryOverSourceEndVolMinusActiveSystemSnapshot)
+      : endVolMinusActiveSystem;
+    const displayedTotalStorage = useCarryOverBaseline
+      ? round2(reportMeta.carryOverSourceTotalStorageSnapshot)
+      : totalStorage;
+    const displayedTotalOnLocation = useCarryOverBaseline
+      ? round2(reportMeta.carryOverSourceTotalOnLocationSnapshot)
+      : totalOnLocation;
 
     return res.status(200).json({
       success: true,
@@ -2350,14 +2480,22 @@ export const getVolumeNameCalculation = async (req, res) => {
           displacement,
         },
         volumeName: {
-          heldVolDifference,
-          hole,
-          activePits: round2(activePitsWithTransfer),
-          activeSystem,
-          endVol,
-          endVolMinusActiveSystem,
-          totalStorage,
-          totalOnLocation,
+          heldVolDifference: hasCurrentReportVolumeData
+            ? displayedHeldVolDifference
+            : 0,
+          hole: hasCurrentReportVolumeData ? displayedHole : 0,
+          activePits: hasCurrentReportVolumeData
+            ? displayedActivePits
+            : 0,
+          activeSystem: hasCurrentReportVolumeData
+            ? displayedActiveSystem
+            : 0,
+          endVol: displayedEndVol,
+          endVolMinusActiveSystem: displayedEndVolMinusActiveSystem,
+          totalStorage: hasCurrentReportVolumeData
+            ? displayedTotalStorage
+            : 0,
+          totalOnLocation: displayedTotalOnLocation,
           ledgerTotalOnLocation,
           previousTotalOnLocation,
         },
@@ -2441,4 +2579,45 @@ export const getVolumeNameCalculation = async (req, res) => {
       error: error.message,
     });
   }
+};
+
+export const calculateVolumeNameSnapshotForReport = async ({
+  wellId,
+  reportId,
+  reportNo,
+}) => {
+  let statusCode = 200;
+  let responseBody = null;
+  const response = {
+    status(code) {
+      statusCode = code;
+      return this;
+    },
+    json(body) {
+      responseBody = body;
+      return body;
+    },
+  };
+
+  await getVolumeNameCalculation(
+    {
+      params: { wellId },
+      query: {
+        strictScope: "true",
+        ...(reportId ? { reportId } : {}),
+        ...(reportNo ? { reportNo } : {}),
+      },
+      body: {},
+    },
+    response
+  );
+
+  const volumeName = responseBody?.data?.volumeName;
+  if (statusCode !== 200 || !volumeName) {
+    throw new Error(
+      responseBody?.message || "Failed to calculate Volume Name snapshot"
+    );
+  }
+
+  return volumeName;
 };

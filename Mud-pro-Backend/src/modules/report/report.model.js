@@ -122,6 +122,22 @@ const reportSchema = new mongoose.Schema(
       type: Number,
       default: null,
     },
+    carryOverSourceActivePitsSnapshot: {
+      type: Number,
+      default: null,
+    },
+    carryOverSourceActiveSystemSnapshot: {
+      type: Number,
+      default: null,
+    },
+    carryOverSourceTotalStorageSnapshot: {
+      type: Number,
+      default: null,
+    },
+    carryOverSourceEndVolMinusActiveSystemSnapshot: {
+      type: Number,
+      default: null,
+    },
     volumeNameHoleSnapshot: {
       type: Number,
       default: null,

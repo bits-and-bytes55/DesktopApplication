@@ -32,9 +32,7 @@ import FormationConfig from "../../modules/formation/formation.model.js";
 import SurveyConfig from "../../modules/survey/survey.model.js";
 import SolidsAnalysis from "../../modules/SolidAnalysis/solidanalysismodel.js";
 import {
-  calculateEndVolForReport,
-  calculateTotalOnLocationForReport,
-  calculateVisibleHoleForReport,
+  calculateVolumeNameSnapshotForReport,
 } from "../pitvolumename/volumeName.controller.js";
 
 const toText = (value) => String(value ?? "").trim();
@@ -316,11 +314,16 @@ const carryOverRowsForModel = (model, sourceDocs = []) => {
   return sourceDocs;
 };
 
-const volumeNameCarryOverBaselineReset = (carryOverCompletedAt) => ({
+const volumeNameCarryOverBaselineReset = (
   carryOverCompletedAt,
-  volumeNameHoleSnapshot: null,
+  sourceSnapshots = {}
+) => ({
+  carryOverCompletedAt,
+  volumeNameHoleSnapshot:
+    sourceSnapshots.carryOverSourceHoleSnapshot ?? null,
   volumeNameHoleDelta: 0,
-  volumeNameHoleActivePitsSnapshot: null,
+  volumeNameHoleActivePitsSnapshot:
+    sourceSnapshots.carryOverSourceActivePitsSnapshot ?? null,
   volumeNameLastActivePitName: "",
   volumeNameLastActivePitVolume: 0,
   volumeNameLastActivePitUpdatedAt: null,
@@ -334,19 +337,31 @@ const buildCarryOverSourceSnapshots = async ({ wellId, sourceReport }) => {
       carryOverSourceHoleSnapshot: null,
       carryOverSourceEndVolSnapshot: null,
       carryOverSourceTotalOnLocationSnapshot: null,
+      carryOverSourceActivePitsSnapshot: null,
+      carryOverSourceActiveSystemSnapshot: null,
+      carryOverSourceTotalStorageSnapshot: null,
+      carryOverSourceEndVolMinusActiveSystemSnapshot: null,
     };
   }
 
-  const [hole, endVol, totalOnLocation] = await Promise.all([
-    calculateVisibleHoleForReport({ wellId, reportId, reportNo }),
-    calculateEndVolForReport({ wellId, reportId, reportNo }),
-    calculateTotalOnLocationForReport({ wellId, reportId, reportNo }),
-  ]);
+  const volumeName = await calculateVolumeNameSnapshotForReport({
+    wellId,
+    reportId,
+    reportNo,
+  });
 
   return {
-    carryOverSourceHoleSnapshot: round2(hole),
-    carryOverSourceEndVolSnapshot: round2(endVol),
-    carryOverSourceTotalOnLocationSnapshot: round2(totalOnLocation),
+    carryOverSourceHoleSnapshot: round2(volumeName.hole),
+    carryOverSourceEndVolSnapshot: round2(volumeName.endVol),
+    carryOverSourceTotalOnLocationSnapshot: round2(
+      volumeName.totalOnLocation
+    ),
+    carryOverSourceActivePitsSnapshot: round2(volumeName.activePits),
+    carryOverSourceActiveSystemSnapshot: round2(volumeName.activeSystem),
+    carryOverSourceTotalStorageSnapshot: round2(volumeName.totalStorage),
+    carryOverSourceEndVolMinusActiveSystemSnapshot: round2(
+      volumeName.endVolMinusActiveSystem
+    ),
   };
 };
 
@@ -355,7 +370,10 @@ const finalizeCarryOverTargetReport = async (targetReport) => {
   if (!targetReportId) return targetReport;
 
   const carryOverCompletedAt = new Date();
-  const updates = volumeNameCarryOverBaselineReset(carryOverCompletedAt);
+  const updates = volumeNameCarryOverBaselineReset(
+    carryOverCompletedAt,
+    targetReport
+  );
 
   const updatedReport = await Report.findByIdAndUpdate(
     targetReportId,
@@ -940,6 +958,14 @@ export const carryOverReportData = async (req, res) => {
       carryOverSourceSnapshots.carryOverSourceEndVolSnapshot;
     targetReport.carryOverSourceTotalOnLocationSnapshot =
       carryOverSourceSnapshots.carryOverSourceTotalOnLocationSnapshot;
+    targetReport.carryOverSourceActivePitsSnapshot =
+      carryOverSourceSnapshots.carryOverSourceActivePitsSnapshot;
+    targetReport.carryOverSourceActiveSystemSnapshot =
+      carryOverSourceSnapshots.carryOverSourceActiveSystemSnapshot;
+    targetReport.carryOverSourceTotalStorageSnapshot =
+      carryOverSourceSnapshots.carryOverSourceTotalStorageSnapshot;
+    targetReport.carryOverSourceEndVolMinusActiveSystemSnapshot =
+      carryOverSourceSnapshots.carryOverSourceEndVolMinusActiveSystemSnapshot;
     await targetReport.save();
 
     await deleteReportScopedArtifacts({
