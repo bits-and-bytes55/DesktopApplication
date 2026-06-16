@@ -1010,12 +1010,6 @@ const calculateAdjustedActiveSystemPendingInput = ({
   ];
   if (!activeSystemPendingEntries.length) return 0;
 
-  const totalPending = round2(
-    activeSystemPendingEntries.reduce(
-      (sum, item) => sum + toNumber(item?.volume ?? item?.totalVolume),
-      0
-    )
-  );
   const pendingTimes = activeSystemPendingEntries
     .map((item) => itemTime(item))
     .filter((time) => Number.isFinite(time) && time > 0);
@@ -1028,7 +1022,7 @@ const calculateAdjustedActiveSystemPendingInput = ({
     return sum + toNumber(pit?.volume);
   }, 0);
 
-  return round2(Math.min(totalPending, Math.max(0, adjustedActivePitVolume)));
+  return round2(Math.max(0, adjustedActivePitVolume));
 };
 
 const isIgnoredDestination = (value) => {
@@ -1987,6 +1981,9 @@ export const getVolumeNameCalculation = async (req, res) => {
         activeSystemPendingInput - adjustedActiveSystemPendingInput
       )
     );
+    const overAdjustedActiveSystemInput = round2(
+      Math.max(0, adjustedActiveSystemPendingInput - activeSystemPendingInput)
+    );
     const hasPendingActiveSystemInput = pendingActiveSystemInput > 0.005;
     const hasFullyAdjustedActiveSystemInput =
       activeSystemPendingInput > 0.005 &&
@@ -2078,7 +2075,7 @@ export const getVolumeNameCalculation = async (req, res) => {
     } else if (hasPendingActiveSystemInput && endVolBase > 0) {
       endVolMinusActiveSystem = pendingActiveSystemInput;
     } else if (hasFullyAdjustedActiveSystemInput && hasOperationVolumeRows) {
-      endVolMinusActiveSystem = 0;
+      endVolMinusActiveSystem = overAdjustedActiveSystemInput;
     } else if (firstReportStartsEmpty || hasOperationVolumeRows) {
       endVolMinusActiveSystem = baseEndVolMinusActiveSystem;
     } else if (Math.abs(baseEndVolMinusActiveSystem) < 0.005) {
