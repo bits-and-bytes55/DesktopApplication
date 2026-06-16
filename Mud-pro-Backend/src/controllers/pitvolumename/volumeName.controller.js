@@ -1416,7 +1416,9 @@ export const calculateEndVolForReport = async ({
   }
 
   if (hasOperationVolumeRows && hasFullyAdjustedActiveSystemInput) {
-    return operationOnlyEndVolDelta;
+    return previousEndVol > 0
+      ? round2(previousEndVol + operationOnlyEndVolDelta)
+      : operationOnlyEndVolDelta;
   }
 
   if (hasOperationVolumeRows) {
@@ -2052,6 +2054,8 @@ export const getVolumeNameCalculation = async (req, res) => {
       hasOperationVolumeRows
         ? hasPendingActiveSystemInput && endVolBase > 0
           ? round2(endVolBase + effectiveEndVolDelta - pendingActiveSystemInput)
+          : hasFullyAdjustedActiveSystemInput && endVolBase > 0
+            ? round2(endVolBase + operationOnlyEndVolDelta)
           : operationOnlyEndVolDelta
         : null;
     const endVol = !hasCurrentReportVolumeData
