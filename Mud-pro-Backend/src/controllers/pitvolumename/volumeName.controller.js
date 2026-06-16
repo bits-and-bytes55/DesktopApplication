@@ -712,6 +712,17 @@ const findScopedPits = async ({ wellId, reportId }) => {
   return Pit.find({ wellId }).sort({ createdAt: 1, _id: 1 });
 };
 
+const buildActivePitVolumeByName = (pits = []) => {
+  const volumes = new Map();
+  for (const pit of pits) {
+    if (pit?.initialActive !== true) continue;
+    const key = toText(pit.pitName).toLowerCase();
+    if (!key) continue;
+    volumes.set(key, round2((volumes.get(key) ?? 0) + toNumber(pit.volume)));
+  }
+  return volumes;
+};
+
 const findPreviousReportMeta = async ({ wellId, reportMeta }) => {
   const currentReportId = toText(reportMeta?.reportId);
   let currentReportNo = Number.parseInt(toText(reportMeta?.reportNo), 10);
@@ -998,6 +1009,7 @@ const calculateAdjustedActiveSystemPendingInput = ({
   activeSystemDistributionRows = [],
   otherVolAdditions = [],
   activePitsList = [],
+  activePitBaselineByName = new Map(),
 }) => {
   const activeSystemPendingEntries = [
     ...addWaterEntries.filter(
@@ -1019,7 +1031,12 @@ const calculateAdjustedActiveSystemPendingInput = ({
   const adjustedActivePitVolume = activePitsList.reduce((sum, pit) => {
     const pitTime = itemTime(pit);
     if (!Number.isFinite(pitTime) || pitTime < firstPendingTime) return sum;
-    return sum + toNumber(pit?.volume);
+    const key = toText(pit?.pitName).toLowerCase();
+    const currentVolume = toNumber(pit?.volume);
+    const baselineVolume = activePitBaselineByName.has(key)
+      ? activePitBaselineByName.get(key)
+      : 0;
+    return sum + round2(currentVolume - baselineVolume);
   }, 0);
 
   return round2(Math.max(0, adjustedActivePitVolume));
@@ -1300,6 +1317,11 @@ export const calculateEndVolForReport = async ({
   const activePitNames = new Set(
     activePitsList.map((pit) => toText(pit.pitName).toLowerCase()).filter(Boolean)
   );
+  const previousActivePitBaselineByName = previousReportMeta
+    ? buildActivePitVolumeByName(
+        await findScopedPits({ wellId, reportId: previousReportMeta.reportId })
+      )
+    : new Map();
 
   const distributionRows = (distributionStates ?? []).flatMap((state) =>
     cleanDistributionRows(state?.distributions ?? []).map((row) => ({
@@ -1353,6 +1375,7 @@ export const calculateEndVolForReport = async ({
       activeSystemDistributionRows: distributionActiveSystemRows,
       otherVolAdditions: normalizedOtherVolAdditions,
       activePitsList,
+      activePitBaselineByName: previousActivePitBaselineByName,
     });
   const pendingActiveSystemInput = round2(
     Math.max(0, activeSystemPendingInput - adjustedActiveSystemPendingInput)
@@ -1896,6 +1919,11 @@ export const getVolumeNameCalculation = async (req, res) => {
     const activePitNames = new Set(
       activePitsList.map((pit) => toText(pit.pitName).toLowerCase()).filter(Boolean)
     );
+    const previousActivePitBaselineByName = previousReportMeta
+      ? buildActivePitVolumeByName(
+          await findScopedPits({ wellId, reportId: previousReportMeta.reportId })
+        )
+      : new Map();
 
     const activePits = Number(
       activePitsList.reduce((sum, pit) => sum + toNumber(pit.volume), 0).toFixed(2)
@@ -1974,6 +2002,7 @@ export const getVolumeNameCalculation = async (req, res) => {
         activeSystemDistributionRows: distributionActiveSystemRows,
         otherVolAdditions: normalizedOtherVolAdditions,
         activePitsList,
+        activePitBaselineByName: previousActivePitBaselineByName,
       });
     const pendingActiveSystemInput = round2(
       Math.max(
@@ -1981,8 +2010,8 @@ export const getVolumeNameCalculation = async (req, res) => {
         activeSystemPendingInput - adjustedActiveSystemPendingInput
       )
     );
-    const overAdjustedActiveSystemInput = round2(
-      Math.max(0, adjustedActiveSystemPendingInput - activeSystemPendingInput)
+    const activeSystemAdjustmentBalance = round2(
+      activeSystemPendingInput - adjustedActiveSystemPendingInput
     );
     const hasPendingActiveSystemInput = pendingActiveSystemInput > 0.005;
     const hasFullyAdjustedActiveSystemInput =
@@ -2075,7 +2104,7 @@ export const getVolumeNameCalculation = async (req, res) => {
     } else if (hasPendingActiveSystemInput && endVolBase > 0) {
       endVolMinusActiveSystem = pendingActiveSystemInput;
     } else if (hasFullyAdjustedActiveSystemInput && hasOperationVolumeRows) {
-      endVolMinusActiveSystem = overAdjustedActiveSystemInput;
+      endVolMinusActiveSystem = activeSystemAdjustmentBalance;
     } else if (firstReportStartsEmpty || hasOperationVolumeRows) {
       endVolMinusActiveSystem = baseEndVolMinusActiveSystem;
     } else if (Math.abs(baseEndVolMinusActiveSystem) < 0.005) {
