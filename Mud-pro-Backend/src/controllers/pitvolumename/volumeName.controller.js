@@ -2117,15 +2117,13 @@ export const getVolumeNameCalculation = async (req, res) => {
     const totalOnLocation = hasCurrentReportVolumeData
       ? Number((activeSystem + totalStorage).toFixed(2))
       : 0;
-    const previousTotalOnLocation = !hasCurrentReportVolumeData
-      ? 0
-      : previousReportMeta
-        ? await calculateTotalOnLocationForReport({
-            wellId,
-            reportId: previousReportMeta.reportId,
-            reportNo: previousReportMeta.reportNo,
-          })
-        : 0;
+    const previousTotalOnLocation = previousReportMeta
+      ? await calculateTotalOnLocationForReport({
+          wellId,
+          reportId: previousReportMeta.reportId,
+          reportNo: previousReportMeta.reportNo,
+        })
+      : 0;
 
     return res.status(200).json({
       success: true,
