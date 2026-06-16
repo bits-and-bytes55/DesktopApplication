@@ -20,6 +20,7 @@ import {
 } from "../../utils/operationInstanceScope.js";
 
 const CONSUME_PRODUCT_LEGACY_OPERATION_INSTANCE_KEY = "consumeProduct::legacy0";
+const CASED_HOLE_TOC_MARKER = "__cased_hole__";
 
 const getWellId = (req) => String(req.params.wellId || "").trim();
 const getReportId = (req) =>
@@ -652,7 +653,11 @@ const findScopedWellGeneral = async ({ wellId, reportId, reportNo }) => {
 
 const findScopedCasings = async ({ wellId, reportId, strictScope = false }) => {
   if (reportId) {
-    const scopedCasings = await Casing.find({ wellId, reportId }).sort({
+    const scopedCasings = await Casing.find({
+      wellId,
+      reportId,
+      toc: CASED_HOLE_TOC_MARKER,
+    }).sort({
       createdAt: 1,
       _id: 1,
     });
@@ -664,14 +669,9 @@ const findScopedCasings = async ({ wellId, reportId, strictScope = false }) => {
     if (strictScope) {
       return [];
     }
-
-    return Casing.find(legacyScopeFilter(wellId)).sort({
-      createdAt: 1,
-      _id: 1,
-    });
   }
 
-  return Casing.find({ wellId }).sort({ createdAt: 1, _id: 1 });
+  return [];
 };
 
 const findScopedDrillStrings = async ({ wellId, reportId, strictScope = false }) => {
