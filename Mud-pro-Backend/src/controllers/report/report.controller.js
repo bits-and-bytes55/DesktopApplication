@@ -405,6 +405,15 @@ const findOneForReport = async ({
 const carryOverExtraModels = [
   Casing,
   DrillString,
+  InventorySnapshot,
+  MudReportState,
+  WellPlan,
+  FormationConfig,
+  SurveyConfig,
+  SolidsAnalysis,
+];
+
+const operationReportModels = [
   AddWater,
   EmptyFluidActiveSystem,
   OtherVolAddition,
@@ -422,12 +431,6 @@ const carryOverExtraModels = [
   ReceivePackage,
   ReturnProduct,
   ReturnPackage,
-  InventorySnapshot,
-  MudReportState,
-  WellPlan,
-  FormationConfig,
-  SurveyConfig,
-  SolidsAnalysis,
 ];
 
 const reportArtifactModels = [
@@ -438,6 +441,7 @@ const reportArtifactModels = [
   Shaker,
   OtherSce,
   ...carryOverExtraModels,
+  ...operationReportModels,
 ];
 
 const deleteReportScopedArtifacts = async ({ wellId, reportId, reportNo }) => {
@@ -801,7 +805,9 @@ export const createReport = async (req, res) => {
     const operationSelections =
       req.body.operationSelections !== undefined
         ? sanitizeOperationSelections(req.body.operationSelections)
-        : sanitizeOperationSelections(sourceReport?.operationSelections);
+        : sourceReport
+          ? []
+          : sanitizeOperationSelections(sourceReport?.operationSelections);
     let report = await Report.create({
       wellId,
       reportNo,
@@ -899,9 +905,7 @@ export const carryOverReportData = async (req, res) => {
     targetReport.pumpRateAndPressure = sanitizePumpRateAndPressure(
       sourceReport.pumpRateAndPressure
     );
-    targetReport.operationSelections = sanitizeOperationSelections(
-      sourceReport.operationSelections
-    );
+    targetReport.operationSelections = [];
     targetReport.carryOverFromReportId = sourceReport._id;
     await targetReport.save();
 
