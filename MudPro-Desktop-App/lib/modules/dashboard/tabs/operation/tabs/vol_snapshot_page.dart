@@ -407,6 +407,7 @@ class VolumeSnapshotController extends GetxController {
 
   String _format(double value) {
     final normalized = value.abs() < 0.000001 ? 0 : value;
+    if (normalized == 0) return '';
     final absValue = normalized.abs();
     final fixed = absValue.toStringAsFixed(2);
     final parts = fixed.split('.');

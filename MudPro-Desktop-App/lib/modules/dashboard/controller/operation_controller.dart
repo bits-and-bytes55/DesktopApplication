@@ -65,6 +65,7 @@ class OperationController extends GetxController {
   final List<Worker> _addWaterAutoSaveWorkers = <Worker>[];
 
   String _formatVolume(double value) {
+    if (value <= 0 || value.isNaN) return '';
     return value
         .toStringAsFixed(4)
         .replaceAll(RegExp(r'0+$'), '')

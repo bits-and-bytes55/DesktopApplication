@@ -323,13 +323,13 @@ class PitReviewPage extends StatelessWidget {
                                   Expanded(
                                     flex: 10,
                                     child: _PitReviewValueCell(
-                                      row.capacity.toStringAsFixed(2),
+                                      _formatPitReviewValue(row.capacity),
                                     ),
                                   ),
                                   Expanded(
                                     flex: 11,
                                     child: _PitReviewValueCell(
-                                      row.calculatedVol.toStringAsFixed(2),
+                                      _formatPitReviewValue(row.calculatedVol),
                                     ),
                                   ),
                                 ],
@@ -384,7 +384,7 @@ class PitReviewPage extends StatelessWidget {
                       alignRight: false,
                     ),
                     _PitReviewValueCell(
-                      row.value.toStringAsFixed(2),
+                      _formatPitReviewValue(row.value),
                       textColor: row.highlightRed ? Colors.red : Colors.black87,
                     ),
                   ],
@@ -455,6 +455,11 @@ class PitReviewSummaryRow {
   final String name;
   final double value;
   final bool highlightRed;
+}
+
+String _formatPitReviewValue(double value) {
+  if (value.abs() <= 0.005) return '';
+  return value.toStringAsFixed(2);
 }
 
 class _PitReviewHeaderCell extends StatelessWidget {

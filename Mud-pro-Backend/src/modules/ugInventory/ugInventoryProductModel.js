@@ -26,6 +26,7 @@ const premixedItemSchema = new mongoose.Schema({
 
 // ── OBM ─────────────────────────────────────────────────────────
 const obmItemSchema = new mongoose.Schema({
+  premixDescription: { type: String, default: "" },
   product: { type: String, default: "" },
   code:    { type: String, default: "" },
   sg:      { type: String, default: "" },

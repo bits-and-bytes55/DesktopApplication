@@ -11,17 +11,17 @@ class MudTreatedController extends GetxController {
 
   final AuthRepository _repository;
 
-  final receiveMud = '0.00'.obs;
-  final baseFluid = '0.00'.obs;
-  final weightMaterial = '0.00'.obs;
-  final products = '0.00'.obs;
-  final water = '0.00'.obs;
-  final formation = '0.00'.obs;
-  final cuttings = '0.00'.obs;
-  final subTotal = '0.00'.obs;
-  final total = '0.00'.obs;
-  final fromStorage = '0.00'.obs;
-  final mudTreated = '0.00'.obs;
+  final receiveMud = ''.obs;
+  final baseFluid = ''.obs;
+  final weightMaterial = ''.obs;
+  final products = ''.obs;
+  final water = ''.obs;
+  final formation = ''.obs;
+  final cuttings = ''.obs;
+  final subTotal = ''.obs;
+  final total = ''.obs;
+  final fromStorage = ''.obs;
+  final mudTreated = ''.obs;
 
   final isLoading = false.obs;
   final errorMessage = ''.obs;
@@ -179,17 +179,17 @@ class MudTreatedController extends GetxController {
   String _format(double value) => _round2(value).toStringAsFixed(2);
 
   void _reset() {
-    receiveMud.value = '0.00';
-    baseFluid.value = '0.00';
-    weightMaterial.value = '0.00';
-    products.value = '0.00';
-    water.value = '0.00';
-    formation.value = '0.00';
-    cuttings.value = '0.00';
-    subTotal.value = '0.00';
-    total.value = '0.00';
-    fromStorage.value = '0.00';
-    mudTreated.value = '0.00';
+    receiveMud.value = '';
+    baseFluid.value = '';
+    weightMaterial.value = '';
+    products.value = '';
+    water.value = '';
+    formation.value = '';
+    cuttings.value = '';
+    subTotal.value = '';
+    total.value = '';
+    fromStorage.value = '';
+    mudTreated.value = '';
   }
 }
 

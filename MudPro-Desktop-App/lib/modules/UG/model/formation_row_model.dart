@@ -1,5 +1,13 @@
 import 'package:get/get.dart';
 
+String _blankZero(dynamic value) {
+  final text = value?.toString().trim() ?? '';
+  if (text.isEmpty) return '';
+  final number = double.tryParse(text.replaceAll(',', ''));
+  if (number != null && number == 0) return '';
+  return text;
+}
+
 class FormationRow {
   RxString description;
   RxString tvd;
@@ -38,13 +46,13 @@ class FormationRow {
   factory FormationRow.fromJson(Map<String, dynamic> json) {
     return FormationRow(
       description: (json['description'] ?? '').toString(),
-      tvd: (json['tvd'] ?? '').toString(),
-      porePpg: (json['porePpg'] ?? '').toString(),
-      poreGrad: (json['poreGrad'] ?? '').toString(),
-      porePsi: (json['porePsi'] ?? '').toString(),
-      fracPpg: (json['fracPpg'] ?? '').toString(),
-      fracGrad: (json['fracGrad'] ?? '').toString(),
-      fracPsi: (json['fracPsi'] ?? '').toString(),
+      tvd: _blankZero(json['tvd']),
+      porePpg: _blankZero(json['porePpg']),
+      poreGrad: _blankZero(json['poreGrad']),
+      porePsi: _blankZero(json['porePsi']),
+      fracPpg: _blankZero(json['fracPpg']),
+      fracGrad: _blankZero(json['fracGrad']),
+      fracPsi: _blankZero(json['fracPsi']),
       lithology: (json['lithology'] ?? '').toString(),
     );
   }

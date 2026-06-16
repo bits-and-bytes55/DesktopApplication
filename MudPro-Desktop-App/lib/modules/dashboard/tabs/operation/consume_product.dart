@@ -52,7 +52,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
   final RxString selectedMethod = "Used".obs;
   final RxBool addWater = false.obs;
   final TextEditingController waterVolumeController = TextEditingController();
-  final RxString totalVolumeDisplay = '0.000'.obs;
+  final RxString totalVolumeDisplay = ''.obs;
 
   final RxList<ProductRowData> productRows = <ProductRowData>[].obs;
   final RxList<DistributeRowData> distributeRows = <DistributeRowData>[].obs;
@@ -189,7 +189,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
   void _resetDistributionStateUi() {
     selectedMethod.value = 'Used';
     _applyAddWaterState(enabled: false);
-    totalVolumeDisplay.value = '0.000';
+    totalVolumeDisplay.value = '';
     operationController.totalVolume.value = 0.0;
     _replaceDistributeRows([DistributeRowData(pit: kActiveSystem)]);
     selectedDistributeRow.value = 0;
@@ -1120,7 +1120,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     if (distributeRows[0].pit.isNotEmpty) {
       final formattedVol = totalVolumeDisplay.value.trim().isNotEmpty
           ? totalVolumeDisplay.value.trim()
-          : '0.000';
+          : '';
       distributeRows[0].volume = formattedVol;
       if (distributeRows[0].volumeController.text != formattedVol) {
         _setDistributeVolumeText(distributeRows[0], formattedVol);

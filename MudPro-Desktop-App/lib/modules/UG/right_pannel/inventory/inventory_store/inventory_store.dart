@@ -9,7 +9,9 @@ class InventoryProductsStore extends GetxController {
   final RxList<ProductModel> selectedProducts = <ProductModel>[].obs;
 
   void setSelectedProducts(List<ProductModel> products) {
-    selectedProducts.assignAll(products.map(_cloneProduct));
+    final sortedProducts = products.map(_cloneProduct).toList()
+      ..sort((a, b) => _productSortLabel(a).compareTo(_productSortLabel(b)));
+    selectedProducts.assignAll(sortedProducts);
     print('Products stored: ${selectedProducts.length}');
   }
 
@@ -30,7 +32,9 @@ class InventoryProductsStore extends GetxController {
       }
     }
 
-    selectedProducts.assignAll(merged.values);
+    final sortedProducts = merged.values.toList()
+      ..sort((a, b) => _productSortLabel(a).compareTo(_productSortLabel(b)));
+    selectedProducts.assignAll(sortedProducts);
     print('Products merged: ${selectedProducts.length}');
   }
 
@@ -75,6 +79,14 @@ class InventoryProductsStore extends GetxController {
       updatedAt: product.updatedAt,
     );
   }
+
+  String _productSortLabel(ProductModel product) {
+    final name = product.product.trim().toLowerCase();
+    if (name.isNotEmpty) return _naturalSortKey(name);
+    final code = product.code.trim().toLowerCase();
+    if (code.isNotEmpty) return _naturalSortKey(code);
+    return _naturalSortKey(product.id?.trim().toLowerCase() ?? '');
+  }
 }
 
 class InventoryServicesStore extends GetxController {
@@ -88,13 +100,15 @@ class InventoryServicesStore extends GetxController {
     List<EngineeringItem>? engineering,
   }) {
     if (packages != null) {
-      selectedPackages.assignAll(packages.map(_clonePackage));
+      selectedPackages.assignAll(_sortPackages(packages.map(_clonePackage)));
     }
     if (services != null) {
-      selectedServices.assignAll(services.map(_cloneService));
+      selectedServices.assignAll(_sortServices(services.map(_cloneService)));
     }
     if (engineering != null) {
-      selectedEngineering.assignAll(engineering.map(_cloneEngineering));
+      selectedEngineering.assignAll(
+        _sortEngineering(engineering.map(_cloneEngineering)),
+      );
     }
     print(
       'Services stored: pkgs=${selectedPackages.length}, srvs=${selectedServices.length}, eng=${selectedEngineering.length}',
@@ -106,20 +120,32 @@ class InventoryServicesStore extends GetxController {
 	    List<ServiceItem>? services,
 	    List<EngineeringItem>? engineering,
 	    bool overwrite = true,
+      Set<String>? overwriteKeys,
 	  }) {
 	    if (packages != null) {
 	      selectedPackages.assignAll(
-	        _mergePackages(selectedPackages, packages, overwrite),
+	        _sortPackages(
+            _mergePackages(selectedPackages, packages, overwrite, overwriteKeys),
+          ),
 	      );
 	    }
 	    if (services != null) {
 	      selectedServices.assignAll(
-	        _mergeServices(selectedServices, services, overwrite),
+	        _sortServices(
+            _mergeServices(selectedServices, services, overwrite, overwriteKeys),
+          ),
 	      );
 	    }
 	    if (engineering != null) {
 	      selectedEngineering.assignAll(
-	        _mergeEngineering(selectedEngineering, engineering, overwrite),
+	        _sortEngineering(
+	          _mergeEngineering(
+              selectedEngineering,
+              engineering,
+              overwrite,
+              overwriteKeys,
+            ),
+	        ),
 	      );
 	    }
 	    print(
@@ -170,6 +196,7 @@ class InventoryServicesStore extends GetxController {
 	    Iterable<PackageItem> current,
 	    Iterable<PackageItem> incoming,
 	    bool overwrite,
+      Set<String>? overwriteKeys,
 	  ) {
 	    final merged = <String, PackageItem>{};
 	    for (final item in current) {
@@ -178,7 +205,11 @@ class InventoryServicesStore extends GetxController {
 	    }
 	    for (final item in incoming) {
 	      final key = _packageKey(item);
-	      if (key.isEmpty || (!overwrite && merged.containsKey(key))) continue;
+	      if (key.isEmpty) continue;
+        if (merged.containsKey(key) &&
+            (!overwrite || !(overwriteKeys?.contains(key) ?? false))) {
+          continue;
+        }
 	      merged[key] = _clonePackage(item);
 	    }
 	    return merged.values.toList();
@@ -188,6 +219,7 @@ class InventoryServicesStore extends GetxController {
 	    Iterable<ServiceItem> current,
 	    Iterable<ServiceItem> incoming,
 	    bool overwrite,
+      Set<String>? overwriteKeys,
 	  ) {
 	    final merged = <String, ServiceItem>{};
 	    for (final item in current) {
@@ -196,7 +228,11 @@ class InventoryServicesStore extends GetxController {
 	    }
 	    for (final item in incoming) {
 	      final key = _serviceKey(item);
-	      if (key.isEmpty || (!overwrite && merged.containsKey(key))) continue;
+	      if (key.isEmpty) continue;
+        if (merged.containsKey(key) &&
+            (!overwrite || !(overwriteKeys?.contains(key) ?? false))) {
+          continue;
+        }
 	      merged[key] = _cloneService(item);
 	    }
 	    return merged.values.toList();
@@ -206,6 +242,7 @@ class InventoryServicesStore extends GetxController {
 	    Iterable<EngineeringItem> current,
 	    Iterable<EngineeringItem> incoming,
 	    bool overwrite,
+      Set<String>? overwriteKeys,
 	  ) {
 	    final merged = <String, EngineeringItem>{};
 	    for (final item in current) {
@@ -214,7 +251,11 @@ class InventoryServicesStore extends GetxController {
 	    }
 	    for (final item in incoming) {
 	      final key = _engineeringKey(item);
-	      if (key.isEmpty || (!overwrite && merged.containsKey(key))) continue;
+	      if (key.isEmpty) continue;
+        if (merged.containsKey(key) &&
+            (!overwrite || !(overwriteKeys?.contains(key) ?? false))) {
+          continue;
+        }
 	      merged[key] = _cloneEngineering(item);
 	    }
 	    return merged.values.toList();
@@ -277,4 +318,38 @@ class InventoryServicesStore extends GetxController {
       tax: item.tax,
     );
   }
+
+  List<PackageItem> _sortPackages(Iterable<PackageItem> items) {
+    return items.toList()
+      ..sort((a, b) => _serviceSortLabel(a.name, a.code, a.id)
+          .compareTo(_serviceSortLabel(b.name, b.code, b.id)));
+  }
+
+  List<ServiceItem> _sortServices(Iterable<ServiceItem> items) {
+    return items.toList()
+      ..sort((a, b) => _serviceSortLabel(a.name, a.code, a.id)
+          .compareTo(_serviceSortLabel(b.name, b.code, b.id)));
+  }
+
+  List<EngineeringItem> _sortEngineering(Iterable<EngineeringItem> items) {
+    return items.toList()
+      ..sort((a, b) => _serviceSortLabel(a.name, a.code, a.id)
+          .compareTo(_serviceSortLabel(b.name, b.code, b.id)));
+  }
+
+  String _serviceSortLabel(String name, String code, String? id) {
+    final cleanName = name.trim().toLowerCase();
+    if (cleanName.isNotEmpty) return _naturalSortKey(cleanName);
+    final cleanCode = code.trim().toLowerCase();
+    if (cleanCode.isNotEmpty) return _naturalSortKey(cleanCode);
+    return _naturalSortKey(id?.trim().toLowerCase() ?? '');
+  }
+}
+
+String _naturalSortKey(String value) {
+  if (value.isEmpty) return value;
+  return value.replaceAllMapped(RegExp(r'\d+'), (match) {
+    final digits = match.group(0) ?? '';
+    return digits.padLeft(12, '0');
+  });
 }

@@ -1,5 +1,13 @@
 import 'package:get/get.dart';
 
+String _blankZero(dynamic value) {
+  final text = value?.toString().trim() ?? '';
+  if (text.isEmpty) return '';
+  final number = double.tryParse(text.replaceAll(',', ''));
+  if (number != null && number == 0) return '';
+  return text;
+}
+
 // ================= SHAKER MODEL =================
 class ShakerModel {
   String? id;
@@ -56,20 +64,20 @@ class ShakerModel {
   factory ShakerModel.fromJson(Map<String, dynamic> json) {
     return ShakerModel(
       id: json['_id'] ?? json['id'],
-      shaker: json['shaker']?.toString() ?? '',
-      model: json['model'] ?? '',
-      screens: json['screens']?.toString() ?? '',
+      shaker: _blankZero(json['shaker']),
+      model: _blankZero(json['model']),
+      screens: _blankZero(json['screens']),
       plot: json['plot'] ?? false,
-      screen1: json['screen1']?.toString() ?? '',
-      screen2: json['screen2']?.toString() ?? '',
-      screen3: json['screen3']?.toString() ?? '',
-      screen4: json['screen4']?.toString() ?? '',
-      screen5: json['screen5']?.toString() ?? '',
-      screen6: json['screen6']?.toString() ?? '',
-      screen7: json['screen7']?.toString() ?? '',
-      screen8: json['screen8']?.toString() ?? '',
-      time: json['time']?.toString() ?? '',
-      oocWt: json['oocWt']?.toString() ?? '',
+      screen1: _blankZero(json['screen1']),
+      screen2: _blankZero(json['screen2']),
+      screen3: _blankZero(json['screen3']),
+      screen4: _blankZero(json['screen4']),
+      screen5: _blankZero(json['screen5']),
+      screen6: _blankZero(json['screen6']),
+      screen7: _blankZero(json['screen7']),
+      screen8: _blankZero(json['screen8']),
+      time: _blankZero(json['time']),
+      oocWt: _blankZero(json['oocWt']),
     );
   }
 
@@ -179,15 +187,15 @@ class OtherSceModel {
   factory OtherSceModel.fromJson(Map<String, dynamic> json) {
     return OtherSceModel(
       id: json['_id'] ?? json['id'],
-      type: json['type']?.toString() ?? '',
-      model1: json['model1']?.toString() ?? '',
-      model2: json['model2']?.toString() ?? '',
-      model3: json['model3']?.toString() ?? '',
+      type: _blankZero(json['type']),
+      model1: _blankZero(json['model1']),
+      model2: _blankZero(json['model2']),
+      model3: _blankZero(json['model3']),
       plot: json['plot'] ?? false,
-      uf: json['uf']?.toString() ?? '',
-      of: json['of']?.toString() ?? '',
-      time: json['time']?.toString() ?? '',
-      oocWt: json['oocWt']?.toString() ?? '',
+      uf: _blankZero(json['uf']),
+      of: _blankZero(json['of']),
+      time: _blankZero(json['time']),
+      oocWt: _blankZero(json['oocWt']),
     );
   }
 

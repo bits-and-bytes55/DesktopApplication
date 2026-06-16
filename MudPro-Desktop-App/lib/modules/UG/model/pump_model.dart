@@ -1,6 +1,14 @@
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 
+String _blankZero(dynamic value) {
+  final text = value?.toString().trim() ?? '';
+  if (text.isEmpty) return '';
+  final number = double.tryParse(text.replaceAll(',', ''));
+  if (number != null && number == 0) return '';
+  return text;
+}
+
 class PumpModel {
   String? id;
   RxInt rowNumber;
@@ -141,19 +149,19 @@ class PumpModel {
     return PumpModel(
       id: json['_id'] ?? json['id'],
       rowNumber: json['rowNumber'] ?? 0,
-      type: json['type']?.toString() ?? '',
-      model: json['model']?.toString() ?? '',
-      linerId: json['linerId']?.toString() ?? '',
-      rodOd: json['rodOd']?.toString() ?? '',
-      strokeLength: json['strokeLength']?.toString() ?? '',
-      efficiency: json['efficiency']?.toString() ?? '',
-      spm: json['spm']?.toString() ?? '',
-      displacement: json['displacement']?.toString() ?? '',
-      rate: json['rate']?.toString() ?? '',
-      maxPumpP: json['maxPumpP']?.toString() ?? '',
-      maxHp: json['maxHp']?.toString() ?? '',
-      surfaceLen: json['surfaceLen']?.toString() ?? '',
-      surfaceId: json['surfaceId']?.toString() ?? '',
+      type: _blankZero(json['type']),
+      model: _blankZero(json['model']),
+      linerId: _blankZero(json['linerId']),
+      rodOd: _blankZero(json['rodOd']),
+      strokeLength: _blankZero(json['strokeLength']),
+      efficiency: _blankZero(json['efficiency']),
+      spm: _blankZero(json['spm']),
+      displacement: _blankZero(json['displacement']),
+      rate: _blankZero(json['rate']),
+      maxPumpP: _blankZero(json['maxPumpP']),
+      maxHp: _blankZero(json['maxHp']),
+      surfaceLen: _blankZero(json['surfaceLen']),
+      surfaceId: _blankZero(json['surfaceId']),
     );
   }
 
