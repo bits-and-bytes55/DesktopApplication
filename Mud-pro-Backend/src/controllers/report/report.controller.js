@@ -31,10 +31,6 @@ import WellPlan from "../../modules/wellPlan/wellPlan.model.js";
 import FormationConfig from "../../modules/formation/formation.model.js";
 import SurveyConfig from "../../modules/survey/survey.model.js";
 import SolidsAnalysis from "../../modules/SolidAnalysis/solidanalysismodel.js";
-import {
-  calculateVolumeNameSnapshotForReport,
-} from "../pitvolumename/volumeName.controller.js";
-
 const toText = (value) => String(value ?? "").trim();
 
 const toNumber = (value, fallback = 0) => {
@@ -314,70 +310,34 @@ const carryOverRowsForModel = (model, sourceDocs = []) => {
   return sourceDocs;
 };
 
-const volumeNameCarryOverBaselineReset = (
-  carryOverCompletedAt,
-  sourceSnapshots = {}
-) => ({
-  carryOverCompletedAt,
-  volumeNameHoleSnapshot:
-    sourceSnapshots.carryOverSourceHoleSnapshot ?? null,
+const volumeNameCarryOverReset = {
+  carryOverCompletedAt: null,
+  volumeNameHoleSnapshot: null,
   volumeNameHoleDelta: 0,
-  volumeNameHoleActivePitsSnapshot:
-    sourceSnapshots.carryOverSourceActivePitsSnapshot ?? null,
+  volumeNameHoleActivePitsSnapshot: null,
   volumeNameLastActivePitName: "",
   volumeNameLastActivePitVolume: 0,
   volumeNameLastActivePitUpdatedAt: null,
-});
-
-const buildCarryOverSourceSnapshots = async ({ wellId, sourceReport }) => {
-  const reportId = toText(sourceReport?._id ?? sourceReport?.id);
-  const reportNo = toText(sourceReport?.reportNo);
-  if (!wellId || (!reportId && !reportNo)) {
-    return {
-      carryOverSourceHoleSnapshot: null,
-      carryOverSourceEndVolSnapshot: null,
-      carryOverSourceTotalOnLocationSnapshot: null,
-      carryOverSourceActivePitsSnapshot: null,
-      carryOverSourceActiveSystemSnapshot: null,
-      carryOverSourceTotalStorageSnapshot: null,
-      carryOverSourceEndVolMinusActiveSystemSnapshot: null,
-    };
-  }
-
-  const volumeName = await calculateVolumeNameSnapshotForReport({
-    wellId,
-    reportId,
-    reportNo,
-  });
-
-  return {
-    carryOverSourceHoleSnapshot: round2(volumeName.hole),
-    carryOverSourceEndVolSnapshot: round2(volumeName.endVol),
-    carryOverSourceTotalOnLocationSnapshot: round2(
-      volumeName.totalOnLocation
-    ),
-    carryOverSourceActivePitsSnapshot: round2(volumeName.activePits),
-    carryOverSourceActiveSystemSnapshot: round2(volumeName.activeSystem),
-    carryOverSourceTotalStorageSnapshot: round2(volumeName.totalStorage),
-    carryOverSourceEndVolMinusActiveSystemSnapshot: round2(
-      volumeName.endVolMinusActiveSystem
-    ),
-  };
 };
 
 const finalizeCarryOverTargetReport = async (targetReport) => {
   const targetReportId = toText(targetReport?._id ?? targetReport?.id);
   if (!targetReportId) return targetReport;
 
-  const carryOverCompletedAt = new Date();
-  const updates = volumeNameCarryOverBaselineReset(
-    carryOverCompletedAt,
-    targetReport
-  );
-
   const updatedReport = await Report.findByIdAndUpdate(
     targetReportId,
-    { $set: updates },
+    {
+      $set: volumeNameCarryOverReset,
+      $unset: {
+        carryOverSourceHoleSnapshot: "",
+        carryOverSourceEndVolSnapshot: "",
+        carryOverSourceTotalOnLocationSnapshot: "",
+        carryOverSourceActivePitsSnapshot: "",
+        carryOverSourceActiveSystemSnapshot: "",
+        carryOverSourceTotalStorageSnapshot: "",
+        carryOverSourceEndVolMinusActiveSystemSnapshot: "",
+      },
+    },
     { new: true }
   );
 
@@ -842,10 +802,6 @@ export const createReport = async (req, res) => {
       req.body.operationSelections !== undefined
         ? sanitizeOperationSelections(req.body.operationSelections)
         : sanitizeOperationSelections(sourceReport?.operationSelections);
-    const carryOverSourceSnapshots = sourceReport
-      ? await buildCarryOverSourceSnapshots({ wellId, sourceReport })
-      : {};
-
     let report = await Report.create({
       wellId,
       reportNo,
@@ -861,7 +817,6 @@ export const createReport = async (req, res) => {
       pumpRateAndPressure,
       operationSelections,
       carryOverFromReportId: sourceReport ? sourceReport._id : null,
-      ...carryOverSourceSnapshots,
     });
 
     try {
@@ -948,24 +903,6 @@ export const carryOverReportData = async (req, res) => {
       sourceReport.operationSelections
     );
     targetReport.carryOverFromReportId = sourceReport._id;
-    const carryOverSourceSnapshots = await buildCarryOverSourceSnapshots({
-      wellId,
-      sourceReport,
-    });
-    targetReport.carryOverSourceHoleSnapshot =
-      carryOverSourceSnapshots.carryOverSourceHoleSnapshot;
-    targetReport.carryOverSourceEndVolSnapshot =
-      carryOverSourceSnapshots.carryOverSourceEndVolSnapshot;
-    targetReport.carryOverSourceTotalOnLocationSnapshot =
-      carryOverSourceSnapshots.carryOverSourceTotalOnLocationSnapshot;
-    targetReport.carryOverSourceActivePitsSnapshot =
-      carryOverSourceSnapshots.carryOverSourceActivePitsSnapshot;
-    targetReport.carryOverSourceActiveSystemSnapshot =
-      carryOverSourceSnapshots.carryOverSourceActiveSystemSnapshot;
-    targetReport.carryOverSourceTotalStorageSnapshot =
-      carryOverSourceSnapshots.carryOverSourceTotalStorageSnapshot;
-    targetReport.carryOverSourceEndVolMinusActiveSystemSnapshot =
-      carryOverSourceSnapshots.carryOverSourceEndVolMinusActiveSystemSnapshot;
     await targetReport.save();
 
     await deleteReportScopedArtifacts({
