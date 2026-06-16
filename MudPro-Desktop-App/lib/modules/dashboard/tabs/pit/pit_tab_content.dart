@@ -606,9 +606,9 @@ class _PitPageState extends State<PitPage> {
       return double.tryParse(v?.toString() ?? '') ?? 0.0;
     }
 
-    String formatValue(double v) => v.toStringAsFixed(2);
+    String formatValue(double v) => v.abs() <= 0.005 ? '' : v.toStringAsFixed(2);
     String formatSignedValue(double v) {
-      if (v.abs() <= 0.005) return '0.00';
+      if (v.abs() <= 0.005) return '';
       return v > 0 ? '+${v.toStringAsFixed(2)}' : v.toStringAsFixed(2);
     }
 

@@ -78,6 +78,7 @@ class _AddWaterViewState extends State<AddWaterView> {
       double.tryParse(value.trim().replaceAll(',', '')) ?? 0.0;
 
   String _formatVolume(double value) {
+    if (value <= 0 || value.isNaN) return '';
     return value
         .toStringAsFixed(4)
         .replaceAll(RegExp(r'0+$'), '')

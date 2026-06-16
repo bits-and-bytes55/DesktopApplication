@@ -62,6 +62,9 @@ class _ServicesPageState extends State<ServicesPickupPage> {
   Future<void> _loadPackages() async {
     try {
       existingPackages = await controller.getPackages();
+      existingPackages.sort(
+        (a, b) => _sortText(a.name, a.code).compareTo(_sortText(b.name, b.code)),
+      );
       existingPackageIds.clear();
       for (var pkg in existingPackages) {
         if (pkg.id != null) existingPackageIds.add(pkg.id!);
@@ -75,6 +78,9 @@ class _ServicesPageState extends State<ServicesPickupPage> {
   Future<void> _loadServices() async {
     try {
       existingServices = await controller.getServices();
+      existingServices.sort(
+        (a, b) => _sortText(a.name, a.code).compareTo(_sortText(b.name, b.code)),
+      );
       existingServiceIds.clear();
       for (var srv in existingServices) {
         if (srv.id != null) existingServiceIds.add(srv.id!);
@@ -88,6 +94,9 @@ class _ServicesPageState extends State<ServicesPickupPage> {
   Future<void> _loadEngineering() async {
     try {
       existingEngineering = await controller.getEngineering();
+      existingEngineering.sort(
+        (a, b) => _sortText(a.name, a.code).compareTo(_sortText(b.name, b.code)),
+      );
       existingEngineeringIds.clear();
       for (var eng in existingEngineering) {
         if (eng.id != null) existingEngineeringIds.add(eng.id!);
@@ -98,10 +107,35 @@ class _ServicesPageState extends State<ServicesPickupPage> {
     }
   }
 
+  String _sortText(String name, String code) {
+    final cleanName = name.trim().toLowerCase();
+    if (cleanName.isNotEmpty) return cleanName;
+    return code.trim().toLowerCase();
+  }
+
+  String _itemKey(String? id, String code, String name) {
+    final cleanId = id?.trim() ?? '';
+    if (cleanId.isNotEmpty) return 'id:$cleanId';
+    final cleanCode = code.trim().toLowerCase();
+    if (cleanCode.isNotEmpty) return 'code:$cleanCode';
+    final cleanName = name.trim().toLowerCase();
+    if (cleanName.isNotEmpty) return 'name:$cleanName';
+    return '';
+  }
+
+  String _itemDisplayName(String name, String code, String? id) {
+    final cleanName = name.trim();
+    if (cleanName.isNotEmpty) return cleanName;
+    final cleanCode = code.trim();
+    if (cleanCode.isNotEmpty) return cleanCode;
+    final cleanId = id?.trim() ?? '';
+    return cleanId.isNotEmpty ? cleanId : 'Item';
+  }
+
 	  Future<void> _applySelectedServices() async {
-    final selectedPkgs = selectedPackageIndices
-        .map((i) => existingPackages[i])
-        .toList();
+	    final selectedPkgs = selectedPackageIndices
+	        .map((i) => existingPackages[i])
+	        .toList();
     final selectedSrvs = selectedServiceIndices
         .map((i) => existingServices[i])
         .toList();
@@ -109,24 +143,23 @@ class _ServicesPageState extends State<ServicesPickupPage> {
         .map((i) => existingEngineering[i])
         .toList();
 
-    final store = Get.find<InventoryServicesStore>();
-    final hasConflict =
-        store.hasPackageConflict(selectedPkgs) ||
-        store.hasServiceConflict(selectedSrvs) ||
-        store.hasEngineeringConflict(selectedEngs);
-    var overwrite = true;
-    if (hasConflict) {
-      final choice = await _confirmServiceOverwrite();
-      if (choice == null) return;
-      overwrite = choice;
-    }
+	    final store = Get.find<InventoryServicesStore>();
+	    final conflictRows = _conflictingServiceSelectionRows(
+	      store,
+	      selectedPkgs,
+	      selectedSrvs,
+	      selectedEngs,
+	    );
+	    final overwriteKeys = await _confirmServiceOverwrite(conflictRows);
+	    if (overwriteKeys == null) return;
 
-    store.mergeSelectedServices(
-      packages: selectedPkgs,
-      services: selectedSrvs,
-      engineering: selectedEngs,
-      overwrite: overwrite,
-    );
+	    store.mergeSelectedServices(
+	      packages: selectedPkgs,
+	      services: selectedSrvs,
+	      engineering: selectedEngs,
+	      overwrite: true,
+	      overwriteKeys: overwriteKeys,
+	    );
 
     Navigator.pop(context);
     Get.snackbar(
@@ -139,23 +172,83 @@ class _ServicesPageState extends State<ServicesPickupPage> {
 	    );
 	  }
 
-	  Future<bool?> _confirmServiceOverwrite() {
-	    return showDialog<bool>(
+	  List<Map<String, dynamic>> _conflictingServiceSelectionRows(
+	    InventoryServicesStore store,
+	    List<PackageItem> packages,
+	    List<ServiceItem> services,
+	    List<EngineeringItem> engineering,
+	  ) {
+	    final rows = <Map<String, dynamic>>[];
+	    final existingPackageMap = {
+	      for (final item in store.selectedPackages)
+	        _itemKey(item.id, item.code, item.name): item,
+	    };
+	    final existingServiceMap = {
+	      for (final item in store.selectedServices)
+	        _itemKey(item.id, item.code, item.name): item,
+	    };
+	    final existingEngineeringMap = {
+	      for (final item in store.selectedEngineering)
+	        _itemKey(item.id, item.code, item.name): item,
+	    };
+
+	    for (final item in packages) {
+	      final key = _itemKey(item.id, item.code, item.name);
+	      final existingItem = existingPackageMap[key];
+	      if (key.isNotEmpty && existingItem != null) {
+	        rows.add({
+	          'key': key,
+	          'category': 'Package',
+	          'item': _itemDisplayName(item.name, item.code, item.id),
+	          'oldPrice': existingItem.price,
+	          'newPrice': item.price,
+	        });
+	      }
+	    }
+	    for (final item in services) {
+	      final key = _itemKey(item.id, item.code, item.name);
+	      final existingItem = existingServiceMap[key];
+	      if (key.isNotEmpty && existingItem != null) {
+	        rows.add({
+	          'key': key,
+	          'category': 'Service',
+	          'item': _itemDisplayName(item.name, item.code, item.id),
+	          'oldPrice': existingItem.price,
+	          'newPrice': item.price,
+	        });
+	      }
+	    }
+	    for (final item in engineering) {
+	      final key = _itemKey(item.id, item.code, item.name);
+	      final existingItem = existingEngineeringMap[key];
+	      if (key.isNotEmpty && existingItem != null) {
+	        rows.add({
+	          'key': key,
+	          'category': 'Engineering',
+	          'item': _itemDisplayName(item.name, item.code, item.id),
+	          'oldPrice': existingItem.price,
+	          'newPrice': item.price,
+	        });
+	      }
+	    }
+
+	    rows.sort((a, b) {
+	      final left =
+	          '${(a['category'] ?? '').toString().toLowerCase()}|${(a['item'] ?? '').toString().toLowerCase()}';
+	      final right =
+	          '${(b['category'] ?? '').toString().toLowerCase()}|${(b['item'] ?? '').toString().toLowerCase()}';
+	      return left.compareTo(right);
+	    });
+	    return rows;
+	  }
+
+	  Future<Set<String>?> _confirmServiceOverwrite(
+	    List<Map<String, dynamic>> rows,
+	  ) {
+	    if (rows.isEmpty) return Future.value(<String>{});
+	    return showDialog<Set<String>>(
 	      context: context,
-	      builder: (context) => AlertDialog(
-	        title: const Text('Item already selected'),
-	        content: const Text('Do you want to overwrite or not?'),
-	        actions: [
-	          TextButton(
-	            onPressed: () => Navigator.of(context).pop(false),
-	            child: const Text('No'),
-	          ),
-	          ElevatedButton(
-	            onPressed: () => Navigator.of(context).pop(true),
-	            child: const Text('Yes'),
-	          ),
-	        ],
-	      ),
+	      builder: (context) => _InventoryOverwriteDialog(rows: rows),
 	    );
 	  }
 
@@ -620,26 +713,17 @@ class _ServicesPageState extends State<ServicesPickupPage> {
               ),
             ),
           ),
-	          TextButton(
-	            onPressed: onSelectAll,
-	            style: TextButton.styleFrom(
-	              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-	              minimumSize: const Size(0, 22),
-	              foregroundColor: const Color(0xFF2E74C9),
+          _selectAllBox(
+            checked: allSelected,
+            tooltip: allSelected ? 'Clear all $title' : 'Select all $title',
+            onTap: onSelectAll,
+          ),
+          const SizedBox(width: 8),
+		          if (selectedCount > 0)
+		            Text(
+	              '$selectedCount selected',
+	              style: const TextStyle(fontSize: 10, color: Color(0xFF5F6B7A)),
 	            ),
-	            child: Text(
-	              allSelected ? 'Clear All' : 'Select All',
-	              style: const TextStyle(
-	                fontSize: 10,
-	                fontWeight: FontWeight.w600,
-	              ),
-	            ),
-	          ),
-	          if (selectedCount > 0)
-	            Text(
-              '$selectedCount selected',
-              style: const TextStyle(fontSize: 10, color: Color(0xFF5F6B7A)),
-            ),
         ],
       ),
     );
@@ -839,6 +923,33 @@ class _ServicesPageState extends State<ServicesPickupPage> {
 	    );
 	  }
 
+  Widget _selectAllBox({
+    required bool checked,
+    required String tooltip,
+    required VoidCallback onTap,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(2),
+        child: Container(
+          width: 18,
+          height: 18,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: checked ? const Color(0xFF2E74C9) : Colors.white,
+            border: Border.all(color: const Color(0xFFB8B8B8), width: 1),
+            borderRadius: BorderRadius.circular(2),
+          ),
+          child: checked
+              ? const Icon(Icons.check, size: 14, color: Colors.white)
+              : null,
+        ),
+      ),
+    );
+  }
+
 	  Widget _deleteCell(double width, VoidCallback onDelete) {
 	    return Container(
 	      width: width,
@@ -980,5 +1091,208 @@ class _HeaderCell extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _InventoryOverwriteDialog extends StatefulWidget {
+  const _InventoryOverwriteDialog({required this.rows});
+
+  final List<Map<String, dynamic>> rows;
+
+  @override
+  State<_InventoryOverwriteDialog> createState() =>
+      _InventoryOverwriteDialogState();
+}
+
+class _InventoryOverwriteDialogState extends State<_InventoryOverwriteDialog> {
+  late final Set<String> _selectedKeys;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedKeys = widget.rows
+        .map((row) => (row['key'] ?? '').toString())
+        .where((key) => key.isNotEmpty)
+        .toSet();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final allChecked =
+        widget.rows.isNotEmpty && _selectedKeys.length == widget.rows.length;
+    return AlertDialog(
+      titlePadding: const EdgeInsets.fromLTRB(16, 14, 8, 8),
+      contentPadding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+      title: Row(
+        children: [
+          const Expanded(
+            child: Text(
+              'Warning',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            ),
+          ),
+          IconButton(
+            onPressed: () => Navigator.of(context).pop(),
+            icon: const Icon(Icons.close),
+          ),
+        ],
+      ),
+      content: SizedBox(
+        width: 620,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'The following item(s) already exist in inventory. Please select the ones you would like to overwrite.',
+              style: TextStyle(fontSize: 12),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              decoration: BoxDecoration(
+                border: Border.all(color: const Color(0xFFC8C8C8)),
+              ),
+              child: Column(
+                children: [
+                  Container(
+                    color: const Color(0xFFF3F3F3),
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: Row(
+                      children: [
+                        SizedBox(
+                          width: 38,
+                          child: Checkbox(
+                            value: allChecked,
+                            onChanged: (value) {
+                              setState(() {
+                                if (value ?? false) {
+                                  _selectedKeys
+                                    ..clear()
+                                    ..addAll(
+                                      widget.rows.map(
+                                        (row) => (row['key'] ?? '').toString(),
+                                      ),
+                                    );
+                                } else {
+                                  _selectedKeys.clear();
+                                }
+                              });
+                            },
+                          ),
+                        ),
+                        _dialogHeaderCell('Category', 140),
+                        _dialogHeaderCell('Item', 190),
+                        _dialogHeaderCell('PriceOld\n(Kwd)', 110),
+                        _dialogHeaderCell('PriceNew\n(Kwd)', 110),
+                      ],
+                    ),
+                  ),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 320),
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: widget.rows.length,
+                      itemBuilder: (context, index) {
+                        final row = widget.rows[index];
+                        final key = (row['key'] ?? '').toString();
+                        final checked = _selectedKeys.contains(key);
+                        return Container(
+                          color: index.isEven
+                              ? const Color(0xFFFFF9CC)
+                              : Colors.white,
+                          child: Row(
+                            children: [
+                              SizedBox(
+                                width: 38,
+                                child: Checkbox(
+                                  value: checked,
+                                  onChanged: (_) {
+                                    setState(() {
+                                      if (checked) {
+                                        _selectedKeys.remove(key);
+                                      } else {
+                                        _selectedKeys.add(key);
+                                      }
+                                    });
+                                  },
+                                ),
+                              ),
+                              _dialogBodyCell(
+                                (row['category'] ?? '').toString(),
+                                140,
+                              ),
+                              _dialogBodyCell((row['item'] ?? '').toString(), 190),
+                              _dialogBodyCell(
+                                _formatPrice(row['oldPrice']),
+                                110,
+                                alignRight: true,
+                              ),
+                              _dialogBodyCell(
+                                _formatPrice(row['newPrice']),
+                                110,
+                                alignRight: true,
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Close'),
+        ),
+        ElevatedButton(
+          onPressed: () => Navigator.of(context).pop(_selectedKeys),
+          child: const Text('Accept'),
+        ),
+      ],
+    );
+  }
+
+  Widget _dialogHeaderCell(String text, double width) {
+    return Container(
+      width: width,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Text(
+        text,
+        textAlign: TextAlign.center,
+        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+
+  Widget _dialogBodyCell(String text, double width, {bool alignRight = false}) {
+    return Container(
+      width: width,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      decoration: const BoxDecoration(
+        border: Border(
+          left: BorderSide(color: Color(0xFFD8D8D8)),
+          top: BorderSide(color: Color(0xFFD8D8D8)),
+        ),
+      ),
+      alignment: alignRight ? Alignment.centerRight : Alignment.centerLeft,
+      child: Text(
+        text,
+        style: const TextStyle(fontSize: 11),
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+  }
+
+  String _formatPrice(dynamic value) {
+    final number = value is num
+        ? value.toDouble()
+        : double.tryParse(value?.toString() ?? '');
+    if (number == null) return '0.000';
+    return number.toStringAsFixed(3);
   }
 }

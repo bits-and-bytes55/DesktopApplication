@@ -69,6 +69,7 @@ class PremixModel {
 
 class ObmModel {
   String? id; // MongoDB ID
+  String premixDescription;
   String product;
   String code;
   String sg;
@@ -77,6 +78,7 @@ class ObmModel {
 
   ObmModel({
     this.id,
+    this.premixDescription = '',
     required this.product,
     required this.code,
     required this.sg,
@@ -88,6 +90,8 @@ class ObmModel {
   factory ObmModel.fromJson(Map<String, dynamic> json) {
     return ObmModel(
       id: json['_id'] ?? json['id'],
+      premixDescription:
+          json['premixDescription'] ?? json['premixedMud'] ?? json['description'] ?? '',
       product: json['product'] ?? '',
       code: json['code'] ?? '',
       sg: json['sg'] ?? '',
@@ -97,9 +101,10 @@ class ObmModel {
   }
 
   // Convert to JSON
-  Map<String, dynamic> toJson() {
+  Map<String, dynamic> toJson({bool includePremixDescription = true}) {
     return {
       if (id != null) '_id': id,
+      if (includePremixDescription) 'premixDescription': premixDescription,
       'product': product,
       'code': code,
       'sg': sg,
@@ -119,6 +124,7 @@ class ObmModel {
   // Copy with method for updates
   ObmModel copyWith({
     String? id,
+    String? premixDescription,
     String? product,
     String? code,
     String? sg,
@@ -127,6 +133,7 @@ class ObmModel {
   }) {
     return ObmModel(
       id: id ?? this.id,
+      premixDescription: premixDescription ?? this.premixDescription,
       product: product ?? this.product,
       code: code ?? this.code,
       sg: sg ?? this.sg,

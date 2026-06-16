@@ -499,11 +499,13 @@ class PitController extends GetxController {
     String fluid = '',
     bool syncExisting = false,
   }) {
+    final volumeText = _displayNumber(vol);
+    final densityText = _displayNumber(density);
     if (!activePitControllers.containsKey(pitId)) {
       activePitControllers[pitId] = {
         'pitName': TextEditingController(text: pitName),
-        'volume': TextEditingController(text: vol.toStringAsFixed(2)),
-        'density': TextEditingController(text: density.toStringAsFixed(2)),
+        'volume': TextEditingController(text: volumeText),
+        'density': TextEditingController(text: densityText),
         'fluidType': TextEditingController(text: fluid),
       };
     } else if (syncExisting &&
@@ -511,11 +513,16 @@ class PitController extends GetxController {
         !modifiedPitIds.contains(pitId)) {
       final ctrls = activePitControllers[pitId]!;
       _syncControllerText(ctrls['pitName'], pitName);
-      _syncControllerText(ctrls['volume'], vol.toStringAsFixed(2));
-      _syncControllerText(ctrls['density'], density.toStringAsFixed(2));
+      _syncControllerText(ctrls['volume'], volumeText);
+      _syncControllerText(ctrls['density'], densityText);
       _syncControllerText(ctrls['fluidType'], fluid);
     }
     return activePitControllers[pitId]!;
+  }
+
+  String _displayNumber(double value) {
+    if (value <= 0 || value.isNaN) return '';
+    return value.toStringAsFixed(2);
   }
 
   void _syncControllerText(TextEditingController? ctrl, String value) {

@@ -63,7 +63,7 @@ class MudLossStorageEntry {
 
   static String formatVolume(dynamic value) {
     final parsed = _parseNumber(value?.toString() ?? '');
-    if (parsed == 0 && (value == null || value.toString().trim().isEmpty)) {
+    if (parsed == 0) {
       return '';
     }
     return parsed

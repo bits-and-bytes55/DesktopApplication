@@ -532,6 +532,7 @@ class _SwitchPitViewState extends State<SwitchPitView> {
   }
 
   String _formatVolume(double value) {
+    if (value <= 0 || value.isNaN) return '';
     return value.toStringAsFixed(2);
   }
 
