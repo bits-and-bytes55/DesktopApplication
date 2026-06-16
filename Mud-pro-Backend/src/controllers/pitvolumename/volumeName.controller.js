@@ -1363,6 +1363,10 @@ export const calculateEndVolForReport = async ({
   const pendingActiveSystemInput = round2(
     Math.max(0, activeSystemPendingInput - adjustedActiveSystemPendingInput)
   );
+  const hasPendingActiveSystemInput = pendingActiveSystemInput > 0.005;
+  const hasFullyAdjustedActiveSystemInput =
+    activeSystemPendingInput > 0.005 &&
+    adjustedActiveSystemPendingInput + 0.005 >= activeSystemPendingInput;
   const effectiveEndVolDelta = round2(
     operationVolumeEffects.endVolDelta -
       operationVolumeEffects.addWaterActiveSystemDelta +
@@ -1406,6 +1410,14 @@ export const calculateEndVolForReport = async ({
     : 0;
 
   if (operationVolumeEffects.forceEndVolZero) return 0;
+
+  if (hasOperationVolumeRows && hasPendingActiveSystemInput && previousEndVol > 0) {
+    return round2(previousEndVol + effectiveEndVolDelta - pendingActiveSystemInput);
+  }
+
+  if (hasOperationVolumeRows && hasFullyAdjustedActiveSystemInput) {
+    return operationOnlyEndVolDelta;
+  }
 
   if (hasOperationVolumeRows) {
     return operationOnlyEndVolDelta;
@@ -1973,6 +1985,10 @@ export const getVolumeNameCalculation = async (req, res) => {
         activeSystemPendingInput - adjustedActiveSystemPendingInput
       )
     );
+    const hasPendingActiveSystemInput = pendingActiveSystemInput > 0.005;
+    const hasFullyAdjustedActiveSystemInput =
+      activeSystemPendingInput > 0.005 &&
+      adjustedActiveSystemPendingInput + 0.005 >= activeSystemPendingInput;
     const effectiveEndVolDelta = round2(
       operationVolumeEffects.endVolDelta -
         operationVolumeEffects.addWaterActiveSystemDelta +
@@ -2031,11 +2047,13 @@ export const getVolumeNameCalculation = async (req, res) => {
     const operationEndVol = operationVolumeEffects.forceEndVolZero
       ? 0
       : round2(derivedActiveSystem + effectiveEndVolDelta);
+    const endVolBase = round2(previousEndVol);
     const operationRowsEndVol =
       hasOperationVolumeRows
-        ? operationOnlyEndVolDelta
+        ? hasPendingActiveSystemInput && endVolBase > 0
+          ? round2(endVolBase + effectiveEndVolDelta - pendingActiveSystemInput)
+          : operationOnlyEndVolDelta
         : null;
-    const endVolBase = round2(previousEndVol);
     const endVol = !hasCurrentReportVolumeData
       ? 0
       : operationVolumeEffects.forceEndVolZero
@@ -2052,6 +2070,10 @@ export const getVolumeNameCalculation = async (req, res) => {
     const baseEndVolMinusActiveSystem = round2(endVol - activeSystem);
     let endVolMinusActiveSystem = 0;
     if (!hasCurrentReportVolumeData) {
+      endVolMinusActiveSystem = 0;
+    } else if (hasPendingActiveSystemInput && endVolBase > 0) {
+      endVolMinusActiveSystem = pendingActiveSystemInput;
+    } else if (hasFullyAdjustedActiveSystemInput && hasOperationVolumeRows) {
       endVolMinusActiveSystem = 0;
     } else if (firstReportStartsEmpty || hasOperationVolumeRows) {
       endVolMinusActiveSystem = baseEndVolMinusActiveSystem;
