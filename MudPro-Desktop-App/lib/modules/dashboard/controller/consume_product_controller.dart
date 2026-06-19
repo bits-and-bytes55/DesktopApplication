@@ -45,6 +45,7 @@ class ConsumeProductController {
     required double used,
     required double numberOfBags,
     required double weightPerBag,
+    int sortOrder = 0,
   }) async {
     try {
       final wellId = currentBackendWellId.trim();
@@ -65,6 +66,7 @@ class ConsumeProductController {
           'used': used,
           'numberOfBags': numberOfBags,
           'weightPerBag': weightPerBag,
+          'sortOrder': sortOrder,
         }),
       );
 
@@ -116,6 +118,7 @@ class ConsumeProductController {
     required double used,
     required double numberOfBags,
     required double weightPerBag,
+    int sortOrder = 0,
   }) async {
     try {
       final wellId = currentBackendWellId.trim();
@@ -136,6 +139,7 @@ class ConsumeProductController {
           'used': used,
           'numberOfBags': numberOfBags,
           'weightPerBag': weightPerBag,
+          'sortOrder': sortOrder,
         }),
       );
 

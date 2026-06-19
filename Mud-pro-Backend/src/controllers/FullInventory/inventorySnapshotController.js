@@ -298,7 +298,9 @@ export const generateInventorySnapshot = async (req, res) => {
       : reportId
         ? { reportId }
         : {};
-    const rawConsumes = await ConsumeProduct.find(consumeFilter).lean();
+    const rawConsumes = await ConsumeProduct.find(consumeFilter)
+      .sort({ sortOrder: 1, createdAt: 1, _id: 1 })
+      .lean();
     const consumes = rawConsumes.filter((item) => !isVolumeNameWaterHelper(item));
     const sourceFilter = consumeFilter;
 
@@ -416,6 +418,7 @@ export const generateInventorySnapshot = async (req, res) => {
         final: finalVal,
         subtotal,
         costDollar: subtotal,
+        sortOrder: toNumber(productConsumes[0]?.sortOrder),
       });
     }
 

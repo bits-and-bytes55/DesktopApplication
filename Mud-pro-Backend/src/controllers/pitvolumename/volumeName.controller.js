@@ -1829,7 +1829,7 @@ export const getVolumeNameCalculation = async (req, res) => {
         }),
         ConsumeProduct.find(
           scopedOperationFilter({ wellId, reportId: reportMeta.reportId })
-        ).sort({ createdAt: 1, _id: 1 }),
+        ).sort({ sortOrder: 1, createdAt: 1, _id: 1 }),
         ReceiveMud.find(
           scopedOperationFilter({ wellId, reportId: reportMeta.reportId })
         ).sort({ createdAt: 1, _id: 1 }),
@@ -2279,6 +2279,7 @@ export const getVolumeNameCalculation = async (req, res) => {
           unit: item.unit || "",
           used: toNumber(item.used),
           volumeBbl: toNumber(item.volumeBbl),
+          sortOrder: toNumber(item.sortOrder),
           operationInstanceKey: toText(item.operationInstanceKey),
           createdAt: item.createdAt,
           updatedAt: item.updatedAt,

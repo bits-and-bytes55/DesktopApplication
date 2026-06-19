@@ -329,6 +329,14 @@ class PitSnapshotController extends GetxController {
       ..sort((left, right) {
         final leftMeta = productMetaByKey[left];
         final rightMeta = productMetaByKey[right];
+        final leftOrder = leftMeta?.sortOrder ?? 0;
+        final rightOrder = rightMeta?.sortOrder ?? 0;
+        if (leftOrder > 0 || rightOrder > 0) {
+          if (leftOrder <= 0) return 1;
+          if (rightOrder <= 0) return -1;
+          final byOrder = leftOrder.compareTo(rightOrder);
+          if (byOrder != 0) return byOrder;
+        }
         final leftName = leftMeta?.itemName.toLowerCase() ?? left;
         final rightName = rightMeta?.itemName.toLowerCase() ?? right;
         return leftName.compareTo(rightName);
@@ -532,10 +540,18 @@ class PitSnapshotController extends GetxController {
 
   Map<String, double> _systemVolumesFromPayload(Map<String, dynamic> payload) {
     final volumeName = _map(payload['volumeName']);
+    final distribution = _map(payload['consumeProductDistribution']);
     final volumes = <String, double>{};
+    final distributionTotal = _number(distribution['totalVolume']);
+    final standaloneActiveSystemWater = _standaloneAddWaterVolumeForSystem(
+      payload,
+      'Active System',
+    );
     final activeSystem = _number(volumeName['activeSystem']);
     final endVol = _number(volumeName['endVol']);
-    volumes['Active System'] = activeSystem > 0 ? activeSystem : endVol;
+    volumes['Active System'] = distributionTotal > 0
+        ? distributionTotal + standaloneActiveSystemWater
+        : (activeSystem > 0 ? activeSystem : endVol);
 
     for (final row in _extractList(payload['storageTable'])) {
       final pitName = _text(row['pitName']);
@@ -549,6 +565,19 @@ class PitSnapshotController extends GetxController {
     return volumes;
   }
 
+  double _standaloneAddWaterVolumeForSystem(
+    Map<String, dynamic> payload,
+    String system,
+  ) {
+    final operations = _map(payload['concentrationOperations']);
+    final target = _normalizeSystemName(system);
+    return _extractList(operations['addWater']).fold<double>(0.0, (sum, row) {
+      final to = _normalizeSystemName(_text(row['to']));
+      if (to != target) return sum;
+      return sum + _number(row['volume']);
+    });
+  }
+
   Map<String, double> _initialVolumesForReplay(Map<String, dynamic> payload) {
     final volumes = Map<String, double>.from(_systemVolumesFromPayload(payload));
     final operations = _map(payload['concentrationOperations']);
@@ -556,9 +585,6 @@ class PitSnapshotController extends GetxController {
     final events = <Map<String, dynamic>>[
       ..._extractList(payload['consumeProductMassSources']).map(
         (row) => {'type': 'chemical', 'time': _eventTime(row), 'row': row},
-      ),
-      ..._extractList(operations['addWater']).map(
-        (row) => {'type': 'addWater', 'time': _eventTime(row), 'row': row},
       ),
       ..._extractList(operations['transfers']).map(
         (row) => {'type': 'transfer', 'time': _eventTime(row), 'row': row},
@@ -572,7 +598,7 @@ class PitSnapshotController extends GetxController {
       ..._extractList(operations['emptyFluid']).map(
         (row) => {'type': 'emptyFluid', 'time': _eventTime(row), 'row': row},
       ),
-    ]..sort((left, right) => _number(right['time']).compareTo(_number(left['time'])));
+    ]..sort((left, right) => _compareConcentrationEvents(right, left));
 
     for (final event in events) {
       final row = _map(event['row']);
@@ -587,9 +613,6 @@ class PitSnapshotController extends GetxController {
             if (fraction <= 0) return;
             _addVolume(volumes, system, -volumeBbl * fraction);
           });
-          break;
-        case 'addWater':
-          _addVolume(volumes, _normalizeSystemName(_text(row['to'])), -_number(row['volume']));
           break;
         case 'transfer':
           final from = _normalizeSystemName(_text(row['from']));
@@ -650,9 +673,6 @@ class PitSnapshotController extends GetxController {
       ...productRows.map(
         (row) => {'type': 'chemical', 'time': _eventTime(row), 'row': row},
       ),
-      ..._extractList(operations['addWater']).map(
-        (row) => {'type': 'addWater', 'time': _eventTime(row), 'row': row},
-      ),
       ..._extractList(operations['transfers']).map(
         (row) => {'type': 'transfer', 'time': _eventTime(row), 'row': row},
       ),
@@ -665,7 +685,7 @@ class PitSnapshotController extends GetxController {
       ..._extractList(operations['emptyFluid']).map(
         (row) => {'type': 'emptyFluid', 'time': _eventTime(row), 'row': row},
       ),
-    ]..sort((left, right) => _number(left['time']).compareTo(_number(right['time'])));
+    ]..sort(_compareConcentrationEvents);
 
     for (final event in events) {
       final row = _map(event['row']);
@@ -679,9 +699,6 @@ class PitSnapshotController extends GetxController {
             productMetaByKey: productMetaByKey,
             productEndVolumesBySystem: productEndVolumesBySystem,
           );
-          break;
-        case 'addWater':
-          _addVolume(volumes, _normalizeSystemName(_text(row['to'])), _number(row['volume']));
           break;
         case 'transfer':
           _applyTransferToLedger(ledger: ledger, volumes: volumes, row: row);
@@ -862,6 +879,25 @@ class PitSnapshotController extends GetxController {
         .toDouble();
   }
 
+  int _compareConcentrationEvents(
+    Map<String, dynamic> left,
+    Map<String, dynamic> right,
+  ) {
+    final leftType = _text(left['type']);
+    final rightType = _text(right['type']);
+    if (leftType == 'chemical' && rightType == 'chemical') {
+      final leftOrder = _number(_map(left['row'])['sortOrder']).toInt();
+      final rightOrder = _number(_map(right['row'])['sortOrder']).toInt();
+      if (leftOrder > 0 || rightOrder > 0) {
+        if (leftOrder <= 0) return 1;
+        if (rightOrder <= 0) return -1;
+        final byOrder = leftOrder.compareTo(rightOrder);
+        if (byOrder != 0) return byOrder;
+      }
+    }
+    return _number(left['time']).compareTo(_number(right['time']));
+  }
+
   Map<String, Map<String, dynamic>> _distributionStatesByOperation(
     Map<String, dynamic> volumePayload,
   ) {
@@ -937,6 +973,7 @@ class PitSnapshotController extends GetxController {
       itemName: _text(item['itemName']),
       code: _text(item['code']),
       unit: _text(item['unit']),
+      sortOrder: _number(item['sortOrder']).toInt(),
     );
   }
 
@@ -947,6 +984,7 @@ class PitSnapshotController extends GetxController {
       itemName: _text(item['product'] ?? item['itemName']),
       code: _text(item['code']),
       unit: _text(item['unit']),
+      sortOrder: _number(item['sortOrder']).toInt(),
     );
   }
 
@@ -954,6 +992,7 @@ class PitSnapshotController extends GetxController {
     required String itemName,
     required String code,
     required String unit,
+    int sortOrder = 0,
   }) {
     if (itemName.isEmpty || unit.isEmpty) return null;
 
@@ -966,6 +1005,7 @@ class PitSnapshotController extends GetxController {
       unitDisplay: unit,
       concentrationUnit: basis?.concentrationUnit ?? '',
       factorPerPack: basis?.factorPerPack ?? 0,
+      sortOrder: sortOrder,
     );
   }
 
@@ -1173,6 +1213,7 @@ class _SnapshotProduct {
     required this.unitDisplay,
     required this.concentrationUnit,
     required this.factorPerPack,
+    required this.sortOrder,
   });
 
   final String key;
@@ -1181,6 +1222,7 @@ class _SnapshotProduct {
   final String unitDisplay;
   final String concentrationUnit;
   final double factorPerPack;
+  final int sortOrder;
 }
 
 class _ComputedConcentrationRow {

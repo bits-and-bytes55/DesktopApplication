@@ -106,6 +106,7 @@ const buildConsumeProductPayload = (payload = {}, existing = {}) => {
   const used = toNumber(payload.used ?? existing.used);
   const price = toNumber(payload.price ?? existing.price);
   const sg = toNumber(payload.sg ?? existing.sg, 1);
+  const sortOrder = toNumber(payload.sortOrder ?? existing.sortOrder);
 
   return {
     wellId: String(payload.wellId ?? existing.wellId ?? "").trim(),
@@ -124,6 +125,7 @@ const buildConsumeProductPayload = (payload = {}, existing = {}) => {
     final: round(initial - (adjust + used)),
     cost: round(used * price),
     volumeBbl: round(calculateVolumeBbl({ used, unit, sg })),
+    sortOrder,
   };
 };
 
@@ -271,6 +273,7 @@ export const getAllConsumeProducts = async (req, res) => {
           LEGACY_OPERATION_INSTANCE_KEY
         )
       ).sort({
+        sortOrder: 1,
         createdAt: 1,
         _id: 1,
       });
@@ -282,6 +285,7 @@ export const getAllConsumeProducts = async (req, res) => {
           LEGACY_OPERATION_INSTANCE_KEY
         )
       ).sort({
+        sortOrder: 1,
         createdAt: 1,
         _id: 1,
       });
