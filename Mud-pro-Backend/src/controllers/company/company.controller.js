@@ -4,6 +4,8 @@ import cloudinary from "../../config/cloudinary.js";
 
 
 
+
+
 // 🔹 GET Company
 export async function getCompany(req, res) {
   try {
