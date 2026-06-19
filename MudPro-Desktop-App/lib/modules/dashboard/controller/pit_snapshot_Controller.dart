@@ -267,12 +267,14 @@ class PitSnapshotController extends GetxController {
       final startLedger = _cloneMassLedger(massLedger);
       final endVolumes = _systemVolumesFromPayload(source.volumePayload);
       final startVolumes = _initialVolumesForReplay(source.volumePayload);
+      final reportProductEndVolumesBySystem = <String, Map<String, double>>{};
       _applyReportOperationsToLedger(
         ledger: massLedger,
         startVolumes: startVolumes,
         volumePayload: source.volumePayload,
         inventoryItems: source.inventoryItems,
         productMetaByKey: productMetaByKey,
+        productEndVolumesBySystem: reportProductEndVolumesBySystem,
       );
 
       final reportProductKeys = <String>{};
@@ -291,6 +293,7 @@ class PitSnapshotController extends GetxController {
         endLedger: massLedger,
         startVolumes: startVolumes,
         endVolumes: endVolumes,
+        productEndVolumesBySystem: reportProductEndVolumesBySystem,
         productMetaByKey: productMetaByKey,
         currentReportProductKeys: report.id == currentReportId
             ? reportProductKeys
@@ -337,6 +340,7 @@ class PitSnapshotController extends GetxController {
     required Map<String, Map<String, double>> endLedger,
     required Map<String, double> startVolumes,
     required Map<String, double> endVolumes,
+    required Map<String, Map<String, double>> productEndVolumesBySystem,
     required Map<String, _SnapshotProduct> productMetaByKey,
     Set<String> currentReportProductKeys = const <String>{},
   }) {
@@ -387,7 +391,10 @@ class PitSnapshotController extends GetxController {
             ),
             endConcentration: _concentrationForAmount(
               amount: endAmount,
-              systemVolume: endVolumes[system] ?? 0.0,
+              systemVolume:
+                  productEndVolumesBySystem[system]?[key] ??
+                  endVolumes[system] ??
+                  0.0,
             ),
           ),
         );
@@ -434,6 +441,7 @@ class PitSnapshotController extends GetxController {
     final productMetaByKey = <String, _SnapshotProduct>{};
     final startLedger = <String, Map<String, double>>{};
     final endLedger = <String, Map<String, double>>{};
+    final productEndVolumesBySystem = <String, Map<String, double>>{};
     final startVolumes = _initialVolumesForReplay(volumePayload);
     final endVolumes = _systemVolumesFromPayload(volumePayload);
     _applyReportOperationsToLedger(
@@ -442,6 +450,7 @@ class PitSnapshotController extends GetxController {
       volumePayload: volumePayload,
       inventoryItems: inventoryItems,
       productMetaByKey: productMetaByKey,
+      productEndVolumesBySystem: productEndVolumesBySystem,
     );
     final reportProductKeys = <String>{};
 
@@ -459,6 +468,7 @@ class PitSnapshotController extends GetxController {
       endLedger: endLedger,
       startVolumes: startVolumes,
       endVolumes: endVolumes,
+      productEndVolumesBySystem: productEndVolumesBySystem,
       productMetaByKey: productMetaByKey,
       currentReportProductKeys: reportProductKeys,
     );
@@ -542,7 +552,11 @@ class PitSnapshotController extends GetxController {
   Map<String, double> _initialVolumesForReplay(Map<String, dynamic> payload) {
     final volumes = Map<String, double>.from(_systemVolumesFromPayload(payload));
     final operations = _map(payload['concentrationOperations']);
+    final distributionStates = _distributionStatesByOperation(payload);
     final events = <Map<String, dynamic>>[
+      ..._extractList(payload['consumeProductMassSources']).map(
+        (row) => {'type': 'chemical', 'time': _eventTime(row), 'row': row},
+      ),
       ..._extractList(operations['addWater']).map(
         (row) => {'type': 'addWater', 'time': _eventTime(row), 'row': row},
       ),
@@ -563,6 +577,17 @@ class PitSnapshotController extends GetxController {
     for (final event in events) {
       final row = _map(event['row']);
       switch (_text(event['type'])) {
+        case 'chemical':
+          final allocations = _distributionAllocationsForOperation(
+            operationKey: _text(row['operationInstanceKey']),
+            distributionStates: distributionStates,
+          );
+          final volumeBbl = _number(row['volumeBbl']);
+          allocations.forEach((system, fraction) {
+            if (fraction <= 0) return;
+            _addVolume(volumes, system, -volumeBbl * fraction);
+          });
+          break;
         case 'addWater':
           _addVolume(volumes, _normalizeSystemName(_text(row['to'])), -_number(row['volume']));
           break;
@@ -610,6 +635,7 @@ class PitSnapshotController extends GetxController {
     required Map<String, dynamic> volumePayload,
     required List<Map<String, dynamic>> inventoryItems,
     required Map<String, _SnapshotProduct> productMetaByKey,
+    required Map<String, Map<String, double>> productEndVolumesBySystem,
   }) {
     final volumes = Map<String, double>.from(startVolumes);
     final operations = _map(volumePayload['concentrationOperations']);
@@ -648,8 +674,10 @@ class PitSnapshotController extends GetxController {
           _applyChemicalToLedger(
             ledger: ledger,
             row: row,
+            volumes: volumes,
             distributionStates: distributionStates,
             productMetaByKey: productMetaByKey,
+            productEndVolumesBySystem: productEndVolumesBySystem,
           );
           break;
         case 'addWater':
@@ -699,8 +727,10 @@ class PitSnapshotController extends GetxController {
   void _applyChemicalToLedger({
     required Map<String, Map<String, double>> ledger,
     required Map<String, dynamic> row,
+    required Map<String, double> volumes,
     required Map<String, Map<String, dynamic>> distributionStates,
     required Map<String, _SnapshotProduct> productMetaByKey,
+    required Map<String, Map<String, double>> productEndVolumesBySystem,
   }) {
     final product = _snapshotProductFromProductSource(row);
     if (product == null) return;
@@ -708,6 +738,7 @@ class PitSnapshotController extends GetxController {
 
     final amount = _number(row['used']) * product.factorPerPack;
     if (amount <= 0) return;
+    final volumeBbl = _number(row['volumeBbl']);
 
     final allocations = _distributionAllocationsForOperation(
       operationKey: _text(row['operationInstanceKey']),
@@ -715,7 +746,11 @@ class PitSnapshotController extends GetxController {
     );
     allocations.forEach((system, fraction) {
       if (fraction <= 0) return;
+      productEndVolumesBySystem
+          .putIfAbsent(system, () => <String, double>{})[product.key] =
+          volumes[system] ?? 0.0;
       _addProductMass(ledger, system, product.key, amount * fraction);
+      _addVolume(volumes, system, volumeBbl * fraction);
     });
   }
 

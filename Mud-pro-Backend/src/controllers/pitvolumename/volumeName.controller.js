@@ -2278,6 +2278,7 @@ export const getVolumeNameCalculation = async (req, res) => {
           code: item.code || "",
           unit: item.unit || "",
           used: toNumber(item.used),
+          volumeBbl: toNumber(item.volumeBbl),
           operationInstanceKey: toText(item.operationInstanceKey),
           createdAt: item.createdAt,
           updatedAt: item.updatedAt,
