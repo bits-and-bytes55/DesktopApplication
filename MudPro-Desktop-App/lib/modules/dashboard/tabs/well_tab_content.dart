@@ -52,6 +52,25 @@ Color _cellFillColor({
   required bool editableWhenUnlocked,
 }) => isLocked || !editableWhenUnlocked ? _kEditableCellColor : Colors.white;
 
+int? _wellDecimalPlacesFromText(String value) {
+  final text = value.trim().replaceAll(',', '');
+  final decimalIndex = text.indexOf('.');
+  if (decimalIndex < 0) return null;
+  return (text.length - decimalIndex - 1).clamp(0, 12).toInt();
+}
+
+String _formatWellConvertedNumber(double value, {String? sourceText}) {
+  final sourceDecimals =
+      sourceText == null ? null : _wellDecimalPlacesFromText(sourceText);
+  if (sourceDecimals != null) {
+    return value.toStringAsFixed(sourceDecimals);
+  }
+  return value
+      .toStringAsFixed(4)
+      .replaceAll(RegExp(r'0+$'), '')
+      .replaceAll(RegExp(r'\.$'), '');
+}
+
 String _displayCurrencyLabel(String rawCurrency) {
   final trimmed = rawCurrency.trim();
   return trimmed.isEmpty ? '\$' : trimmed;
@@ -664,7 +683,7 @@ class _GeneralSectionState extends State<GeneralSection> {
     if (parsed == null) return;
     final converted = AppUnits.convertValue(parsed, fromUnit, toUnit);
     if (converted == null) return;
-    controller.text = _formatNumber(converted);
+    controller.text = _formatWellConvertedNumber(converted, sourceText: raw);
   }
 
   String _formatNumber(double value) {
@@ -1345,10 +1364,13 @@ Widget _eCell(
             child: SizedBox(
               height: _kRowH,
               child: Center(
-                child: Text(
-                  ctrl.text,
-                  style: _kWellSmallInputTextStyle,
-                  textAlign: TextAlign.center,
+                child: ValueListenableBuilder<TextEditingValue>(
+                  valueListenable: ctrl,
+                  builder: (context, value, _) => Text(
+                    value.text,
+                    style: _kWellSmallInputTextStyle,
+                    textAlign: TextAlign.center,
+                  ),
                 ),
               ),
             ),
@@ -1491,10 +1513,7 @@ class _MiddlePortionState extends State<MiddlePortion> {
     if (result == null) {
       return rawValue;
     }
-    return result
-        .toStringAsFixed(4)
-        .replaceAll(RegExp(r'0+$'), '')
-        .replaceAll(RegExp(r'\.$'), '');
+    return _formatWellConvertedNumber(result, sourceText: rawValue);
   }
 
   double? _parseNumber(String rawValue) {
@@ -2171,10 +2190,7 @@ class _OpenHoleSectionState extends State<OpenHoleSection> {
     if (result == null) {
       return rawValue;
     }
-    return result
-        .toStringAsFixed(4)
-        .replaceAll(RegExp(r'0+$'), '')
-        .replaceAll(RegExp(r'\.$'), '');
+    return _formatWellConvertedNumber(result, sourceText: rawValue);
   }
 
   List<String> _autoFirstRow() {
@@ -4226,18 +4242,47 @@ class _TimeDistributionSectionState extends State<TimeDistributionSection> {
                                                                 const EdgeInsets.symmetric(
                                                                   horizontal: 4,
                                                                 ),
-                                                            child: Text(
-                                                              o,
-                                                              style:
-                                                                  _kWellSmallInputTextStyle,
-                                                              overflow:
-                                                                  TextOverflow
-                                                                      .ellipsis,
-                                                            ),
-                                                          ),
+                                                              ),
+                                                        )
+                                                        .toList(),
+                                                child: Container(
+                                                  height: _kRowH,
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 4,
+                                                      ),
+                                                  color: Colors.white,
+                                                  child: Row(
+                                                    children: [
+                                                      Expanded(
+                                                        child: Text(
+                                                          selectedActivity
+                                                                  .isEmpty
+                                                              ? 'Select'
+                                                              : selectedActivity,
+                                                          style: selectedActivity
+                                                                  .isEmpty
+                                                              ? TextStyle(
+                                                                  fontSize: 9,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .w700,
+                                                                  color: Colors
+                                                                      .grey
+                                                                      .shade400,
+                                                                )
+                                                              : _kWellSmallInputTextStyle,
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
                                                         ),
-                                                      )
-                                                      .toList(),
+                                                      ),
+                                                      const Icon(
+                                                        Icons.arrow_drop_down,
+                                                        size: 12,
+                                                        color: Colors.black54,
+                                                      ),
+                                                    ],
+                                                  ),
                                                 ),
                                               ),
                                       ),

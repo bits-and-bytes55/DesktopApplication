@@ -20,6 +20,7 @@ import {
 } from "../../utils/operationInstanceScope.js";
 
 const CONSUME_PRODUCT_LEGACY_OPERATION_INSTANCE_KEY = "consumeProduct::legacy0";
+const CASED_HOLE_TOC_MARKER = "__cased_hole__";
 
 const getWellId = (req) => String(req.params.wellId || "").trim();
 const getReportId = (req) =>
@@ -230,10 +231,8 @@ const casedHoleLength = (casing, mdInFeet) => {
   return 0;
 };
 
-const casedHoleRowsForCalculation = (casings = [], mdInFeet) => {
-  const rows = casings.filter((row) => toText(row?.toc) === "__cased_hole__");
-
-  return latestRowsBySortOrder(rows).filter((row) => {
+const validCasedHoleRows = (casings = [], mdInFeet) => {
+  return latestRowsBySortOrder(casings).filter((row) => {
     return (
       normalizeHoleDiameterIn(row) > 0 &&
       casedHoleLength(row, mdInFeet) > 0
@@ -241,7 +240,54 @@ const casedHoleRowsForCalculation = (casings = [], mdInFeet) => {
   });
 };
 
+const casedHoleRowsForCalculation = (casings = [], mdInFeet) => {
+  const validRows = validCasedHoleRows(casings, mdInFeet);
+
+  if (validRows.length <= 1) {
+    return validRows;
+  }
+
+  let selected = validRows[0];
+  let selectedLength = casedHoleLength(selected, mdInFeet);
+
+  for (const row of validRows.slice(1)) {
+    const rowLength = casedHoleLength(row, mdInFeet);
+    if (rowLength > selectedLength) {
+      selected = row;
+      selectedLength = rowLength;
+    }
+  }
+
+  return selected ? [selected] : [];
+};
+
 const calculateCasedHoleRawVolume = (casings = [], mdInFeet) => {
+  const validRows = validCasedHoleRows(casings, mdInFeet);
+  const linerRows = validRows
+    .map((row, index) => ({ row, index }))
+    .filter(({ row }) => toNumber(row?.top) > 0);
+
+  if (linerRows.length > 0) {
+    const firstLiner = linerRows[0];
+    const previousRow = validRows
+      .slice(0, firstLiner.index)
+      .reverse()
+      .find((row) => normalizeHoleDiameterIn(row) > 0);
+
+    const previousId = normalizeHoleDiameterIn(previousRow);
+    const firstLinerTop = toNumber(firstLiner.row?.top);
+    const previousVolume =
+      previousId > 0 && firstLinerTop > 0
+        ? rawCylinderVolume({ id: previousId, length: firstLinerTop })
+        : 0;
+
+    return linerRows.reduce((sum, { row }) => {
+      const id = normalizeHoleDiameterIn(row);
+      const length = casedHoleLength(row, mdInFeet);
+      return sum + rawCylinderVolume({ id, length });
+    }, previousVolume);
+  }
+
   return casedHoleRowsForCalculation(casings, mdInFeet).reduce((sum, casing) => {
     const id = normalizeHoleDiameterIn(casing);
     const length = casedHoleLength(casing, mdInFeet);
@@ -249,30 +295,122 @@ const calculateCasedHoleRawVolume = (casings = [], mdInFeet) => {
   }, 0);
 };
 
-const calculateOpenHoleRawVolume = (openHoleRows = []) => {
+const deepestCasedHoleShoe = (casings = [], mdInFeet) => {
+  const validRows = validCasedHoleRows(casings, mdInFeet);
+  const linerRows = validRows.filter((row) => toNumber(row?.top) > 0);
+
+  if (linerRows.length > 0) {
+    return linerRows.reduce((max, row) => {
+      const shoe = toNumber(row?.shoe);
+      return shoe > max ? shoe : max;
+    }, 0);
+  }
+
+  return casedHoleRowsForCalculation(casings, mdInFeet).reduce((max, row) => {
+    const shoe = toNumber(row?.shoe);
+    return shoe > max ? shoe : max;
+  }, 0);
+};
+
+const calculateOpenHoleRawVolume = (openHoleRows = [], startDepth = 0) => {
+  let previousDepth = Math.max(0, toNumber(startDepth));
+
   return latestRowsBySortOrder(openHoleRows).reduce((sum, row) => {
-    return sum + rawCylinderVolume({ id: row?.id, length: row?.md });
+    const id = toNumber(row?.id);
+    const washout = toNumber(row?.washout);
+    const md = toNumber(row?.md);
+    const length = md > previousDepth ? md - previousDepth : 0;
+    const effectiveId = id > 0 ? id * (1 + washout / 100) : 0;
+    if (md > previousDepth) {
+      previousDepth = md;
+    }
+    return sum + rawCylinderVolume({ id: effectiveId, length });
   }, 0);
 };
 
-const calculateDrillStringHoleRawVolume = (drillStrings = []) => {
-  return latestRowsBySortOrder(drillStrings).reduce((sum, item) => {
-    return sum + rawCylinderVolume({ id: item?.id, length: item?.length });
-  }, 0);
+const getDrillStringDepthLimit = (wellGeneral) => {
+  const bitDepth = toNumber(wellGeneral?.bitDepth);
+  if (bitDepth > 0) return bitDepth;
+
+  const bitDepthIn = toNumber(wellGeneral?.bitDepthIn);
+  if (bitDepthIn > 0) return bitDepthIn;
+
+  const md = toNumber(wellGeneral?.md);
+  if (md > 0) return md;
+
+  return Infinity;
 };
 
-const calculateCombinedHoleVolume = ({ casings = [], wellGeneral, drillStrings = [] }) => {
+const calculateDrillStringGuideVolumes = (drillStrings = [], depthLimit) => {
+  const rows = latestRowsBySortOrder(drillStrings);
+  let remaining = depthLimit > 0 ? depthLimit : Infinity;
+  let countedLength = 0;
+  let pipeSteel = 0;
+  let pipeInside = 0;
+
+  for (const item of rows) {
+    const length = toNumber(item?.length);
+    if (length <= 0) continue;
+    if (remaining <= 0) break;
+
+    const piece = Number.isFinite(remaining) ? Math.min(length, remaining) : length;
+    if (piece <= 0) continue;
+
+    pipeSteel += rawCylinderVolume({ id: item?.od, length: piece });
+    pipeInside += rawCylinderVolume({ id: item?.id, length: piece });
+    countedLength += piece;
+
+    if (Number.isFinite(remaining)) {
+      remaining -= piece;
+    }
+  }
+
+  return {
+    pipeSteel,
+    pipeInside,
+    countedLength,
+  };
+};
+
+const calculateCombinedHoleVolumeResult = ({
+  casings = [],
+  wellGeneral,
+  drillStrings = [],
+}) => {
   const md = toNumber(wellGeneral?.md);
   const openHoleRows = Array.isArray(wellGeneral?.openHoleRows)
     ? wellGeneral.openHoleRows
     : [];
-
-  return round2(
-    calculateCasedHoleRawVolume(casings, md) +
-      calculateOpenHoleRawVolume(openHoleRows) +
-      calculateDrillStringHoleRawVolume(drillStrings)
+  const casedHole = calculateCasedHoleRawVolume(casings, md);
+  const openHoleStartDepth = deepestCasedHoleShoe(casings, md);
+  const openHole = calculateOpenHoleRawVolume(openHoleRows, openHoleStartDepth);
+  const drillString = calculateDrillStringGuideVolumes(
+    drillStrings,
+    getDrillStringDepthLimit(wellGeneral)
   );
+  const holeSpace = casedHole + openHole;
+  const pipeSteel = drillString.pipeSteel;
+  const pipeInside = drillString.pipeInside;
+  const hole = round2(holeSpace - pipeSteel + pipeInside);
+
+  return {
+    hole,
+    casedHole: round2(casedHole),
+    openHole: round2(openHole),
+    holeSpace: round2(holeSpace),
+    pipeSteel: round2(pipeSteel),
+    pipeInside: round2(pipeInside),
+    drillString: round2(pipeInside),
+    drillStringCountedLength: round2(drillString.countedLength),
+    hasData:
+      Math.abs(holeSpace) >= 0.005 ||
+      Math.abs(pipeSteel) >= 0.005 ||
+      Math.abs(pipeInside) >= 0.005,
+  };
 };
+
+const calculateCombinedHoleVolume = (args) =>
+  calculateCombinedHoleVolumeResult(args).hole;
 
 const legacyScopeFilter = (wellId) => ({
   wellId,
@@ -337,7 +475,156 @@ const resolveReportMeta = async ({ wellId, reportId, reportNo }) => {
     reportNo: report ? toText(report.reportNo) : reportNo,
     userReportNo: report ? toText(report.userReportNo) : "",
     reportDate: report ? toText(report.reportDate) : "",
+    carryOverFromReportId: report ? toText(report.carryOverFromReportId) : "",
+    carryOverCompletedAt: report?.carryOverCompletedAt ?? null,
+    volumeNameHoleSnapshot:
+      report?.volumeNameHoleSnapshot === null ||
+      report?.volumeNameHoleSnapshot === undefined
+        ? null
+        : toNumber(report.volumeNameHoleSnapshot),
+    volumeNameHoleDelta: report ? toNumber(report.volumeNameHoleDelta) : 0,
+    volumeNameHoleActivePitsSnapshot:
+      report?.volumeNameHoleActivePitsSnapshot === null ||
+      report?.volumeNameHoleActivePitsSnapshot === undefined
+        ? null
+        : toNumber(report.volumeNameHoleActivePitsSnapshot),
+    volumeNameLastActivePitVolume: report
+      ? toNumber(report.volumeNameLastActivePitVolume)
+      : 0,
   };
+};
+
+const resolveCarryOverVisibleHole = ({
+  currentHole,
+}) => {
+  return round2(currentHole);
+};
+
+const rememberLastActivePitVolume = async ({ reportId, pitName, volume }) => {
+  const cleanReportId = toText(reportId);
+  if (!cleanReportId) return;
+
+  await Report.updateOne(
+    { _id: cleanReportId },
+    {
+      $set: {
+        volumeNameLastActivePitName: toText(pitName),
+        volumeNameLastActivePitVolume: round2(volume),
+        volumeNameLastActivePitUpdatedAt: new Date(),
+      },
+    }
+  );
+};
+
+const resolveSameReportHoleDelta = async ({
+  reportMeta,
+  hole,
+  activePits,
+  activePitsList = [],
+}) => {
+  const reportId = toText(reportMeta?.reportId);
+  if (!reportId) return 0;
+
+  const currentHole = round2(hole);
+  const currentActivePits = round2(activePits);
+  const previousHole = reportMeta?.volumeNameHoleSnapshot;
+
+  if (
+    Math.abs(currentHole) < 0.005 &&
+    Math.abs(currentActivePits) < 0.005
+  ) {
+    await Report.updateOne(
+      { _id: reportId },
+      {
+        $set: {
+          volumeNameHoleSnapshot: 0,
+          volumeNameHoleDelta: 0,
+          volumeNameHoleActivePitsSnapshot: 0,
+          volumeNameLastActivePitName: "",
+          volumeNameLastActivePitVolume: 0,
+          volumeNameLastActivePitUpdatedAt: null,
+        },
+      }
+    );
+    return 0;
+  }
+
+  if (previousHole === null || previousHole === undefined) {
+    await Report.updateOne(
+      { _id: reportId },
+      {
+        $set: {
+          volumeNameHoleSnapshot: currentHole,
+          volumeNameHoleDelta: 0,
+          volumeNameHoleActivePitsSnapshot: currentActivePits,
+        },
+      }
+    );
+    return 0;
+  }
+
+  if (Math.abs(currentHole - toNumber(previousHole)) < 0.005) {
+    const activePitsSnapshot = reportMeta?.volumeNameHoleActivePitsSnapshot;
+    if (activePitsSnapshot === null || activePitsSnapshot === undefined) {
+      await Report.updateOne(
+        { _id: reportId },
+        { $set: { volumeNameHoleActivePitsSnapshot: currentActivePits } }
+      );
+      return round2(reportMeta?.volumeNameHoleDelta);
+    }
+
+    const storedHoleDelta = round2(reportMeta?.volumeNameHoleDelta);
+    const activePitsAdjustment = round2(
+      currentActivePits - toNumber(activePitsSnapshot)
+    );
+    const lastActivePitVolume = round2(reportMeta?.volumeNameLastActivePitVolume);
+
+    if (
+      Math.abs(storedHoleDelta) < 0.005 &&
+      Math.abs(activePitsAdjustment) > 0.005 &&
+      Math.abs(lastActivePitVolume) > 0.005 &&
+      Math.sign(lastActivePitVolume) === Math.sign(activePitsAdjustment)
+    ) {
+      return round2(-lastActivePitVolume);
+    }
+
+    const negativeActivePitVolume = round2(
+      activePitsList.reduce((sum, pit) => {
+        const volume = toNumber(pit?.volume);
+        return volume < 0 ? sum + Math.abs(volume) : sum;
+      }, 0)
+    );
+    if (activePitsAdjustment < -0.005 && negativeActivePitVolume > 0) {
+      return negativeActivePitVolume;
+    }
+
+    const storedMagnitude = Math.abs(storedHoleDelta);
+    const adjustmentMagnitude = Math.abs(activePitsAdjustment);
+    const remainingMagnitude = storedMagnitude - adjustmentMagnitude;
+
+    if (Math.abs(remainingMagnitude) < 0.005) return 0;
+
+    if (remainingMagnitude < 0) {
+      return round2(
+        -Math.sign(activePitsAdjustment) * Math.abs(remainingMagnitude)
+      );
+    }
+
+    return round2(Math.sign(storedHoleDelta) * remainingMagnitude);
+  }
+
+  const holeDelta = round2(toNumber(previousHole) - currentHole);
+  await Report.updateOne(
+    { _id: reportId },
+    {
+      $set: {
+        volumeNameHoleSnapshot: currentHole,
+        volumeNameHoleDelta: holeDelta,
+        volumeNameHoleActivePitsSnapshot: currentActivePits,
+      },
+    }
+  );
+  return holeDelta;
 };
 
 const findScopedWellGeneral = async ({ wellId, reportId, reportNo }) => {
@@ -366,7 +653,11 @@ const findScopedWellGeneral = async ({ wellId, reportId, reportNo }) => {
 
 const findScopedCasings = async ({ wellId, reportId, strictScope = false }) => {
   if (reportId) {
-    const scopedCasings = await Casing.find({ wellId, reportId }).sort({
+    const scopedCasings = await Casing.find({
+      wellId,
+      reportId,
+      toc: CASED_HOLE_TOC_MARKER,
+    }).sort({
       createdAt: 1,
       _id: 1,
     });
@@ -378,14 +669,9 @@ const findScopedCasings = async ({ wellId, reportId, strictScope = false }) => {
     if (strictScope) {
       return [];
     }
-
-    return Casing.find(legacyScopeFilter(wellId)).sort({
-      createdAt: 1,
-      _id: 1,
-    });
   }
 
-  return Casing.find({ wellId }).sort({ createdAt: 1, _id: 1 });
+  return [];
 };
 
 const findScopedDrillStrings = async ({ wellId, reportId, strictScope = false }) => {
@@ -426,8 +712,58 @@ const findScopedPits = async ({ wellId, reportId }) => {
   return Pit.find({ wellId }).sort({ createdAt: 1, _id: 1 });
 };
 
+const buildActivePitVolumeByName = (pits = []) => {
+  const volumes = new Map();
+  for (const pit of pits) {
+    if (pit?.initialActive !== true) continue;
+    const key = toText(pit.pitName).toLowerCase();
+    if (!key) continue;
+    volumes.set(key, round2((volumes.get(key) ?? 0) + toNumber(pit.volume)));
+  }
+  return volumes;
+};
+
 const findPreviousReportMeta = async ({ wellId, reportMeta }) => {
-  const currentReportNo = Number.parseInt(toText(reportMeta?.reportNo), 10);
+  const currentReportId = toText(reportMeta?.reportId);
+  let currentReportNo = Number.parseInt(toText(reportMeta?.reportNo), 10);
+  let currentReport = null;
+
+  if (currentReportId) {
+    currentReport = await Report.findOne({ _id: currentReportId, wellId })
+      .lean()
+      .catch(() => null);
+  }
+
+  if (!currentReport && toText(reportMeta?.reportNo)) {
+    currentReport = await Report.findOne({
+      wellId,
+      reportNo: toText(reportMeta.reportNo),
+    }).lean();
+  }
+
+  const carryOverFromReportId = toText(
+    reportMeta?.carryOverFromReportId || currentReport?.carryOverFromReportId
+  );
+  if (carryOverFromReportId && carryOverFromReportId !== currentReportId) {
+    const carryOverSource = await Report.findOne({
+      _id: carryOverFromReportId,
+      wellId,
+    })
+      .lean()
+      .catch(() => null);
+
+    if (carryOverSource) {
+      return {
+        reportId: toText(carryOverSource._id),
+        reportNo: toText(carryOverSource.reportNo),
+      };
+    }
+  }
+
+  currentReportNo = Number.parseInt(
+    toText(currentReport?.reportNo || reportMeta?.reportNo),
+    10
+  );
 
   if (Number.isFinite(currentReportNo) && currentReportNo > 1) {
     const previousReport = await Report.findOne({
@@ -443,6 +779,63 @@ const findPreviousReportMeta = async ({ wellId, reportMeta }) => {
     }
   }
 
+  const reports = await Report.find({ wellId }).lean();
+  const currentId = toText(currentReport?._id || currentReportId);
+
+  const numericPrevious = reports
+    .filter((report) => {
+      if (toText(report._id) === currentId) return false;
+      const parsed = Number.parseInt(toText(report.reportNo), 10);
+      return (
+        Number.isFinite(currentReportNo) &&
+        Number.isFinite(parsed) &&
+        parsed < currentReportNo
+      );
+    })
+    .sort((left, right) => {
+      const leftNo = Number.parseInt(toText(left.reportNo), 10);
+      const rightNo = Number.parseInt(toText(right.reportNo), 10);
+      return rightNo - leftNo;
+    })[0];
+
+  if (numericPrevious) {
+    return {
+      reportId: toText(numericPrevious._id),
+      reportNo: toText(numericPrevious.reportNo),
+    };
+  }
+
+  const currentTime = new Date(
+    currentReport?.reportDate || currentReport?.createdAt || currentReport?.updatedAt || 0
+  ).getTime();
+
+  if (Number.isFinite(currentTime) && currentTime > 0) {
+    const chronologicalPrevious = reports
+      .filter((report) => {
+        if (toText(report._id) === currentId) return false;
+        const reportTime = new Date(
+          report.reportDate || report.createdAt || report.updatedAt || 0
+        ).getTime();
+        return Number.isFinite(reportTime) && reportTime < currentTime;
+      })
+      .sort((left, right) => {
+        const leftTime = new Date(
+          left.reportDate || left.createdAt || left.updatedAt || 0
+        ).getTime();
+        const rightTime = new Date(
+          right.reportDate || right.createdAt || right.updatedAt || 0
+        ).getTime();
+        return rightTime - leftTime;
+      })[0];
+
+    if (chronologicalPrevious) {
+      return {
+        reportId: toText(chronologicalPrevious._id),
+        reportNo: toText(chronologicalPrevious.reportNo),
+      };
+    }
+  }
+
   return null;
 };
 
@@ -451,27 +844,38 @@ const calculateHoleVolumeForReport = async ({ wellId, reportId, reportNo }) => {
 
   const [wellGeneral, casings, drillStrings] = await Promise.all([
     findScopedWellGeneral({ wellId, reportId, reportNo }),
-    findScopedCasings({ wellId, reportId }),
-    findScopedDrillStrings({ wellId, reportId }),
+    findScopedCasings({ wellId, reportId, strictScope: Boolean(reportId) }),
+    findScopedDrillStrings({ wellId, reportId, strictScope: Boolean(reportId) }),
   ]);
 
   return calculateCombinedHoleVolume({ casings, wellGeneral, drillStrings });
 };
 
-const calculateTotalOnLocationForReport = async ({ wellId, reportId, reportNo }) => {
+export const calculateVisibleHoleForReport = async ({
+  wellId,
+  reportId,
+  reportNo,
+}) => {
   if (!reportId && !reportNo) return 0;
 
-  const [wellGeneral, casings, drillStrings, pits] = await Promise.all([
+  const [wellGeneral, casings, drillStrings] = await Promise.all([
     findScopedWellGeneral({ wellId, reportId, reportNo }),
-    findScopedCasings({ wellId, reportId }),
-    findScopedDrillStrings({ wellId, reportId }),
-    findScopedPits({ wellId, reportId }),
+    findScopedCasings({ wellId, reportId, strictScope: Boolean(reportId) }),
+    findScopedDrillStrings({ wellId, reportId, strictScope: Boolean(reportId) }),
   ]);
 
-  const hole = calculateCombinedHoleVolume({ casings, wellGeneral, drillStrings });
+  const reportMeta = await resolveReportMeta({ wellId, reportId, reportNo });
+  const currentHoleResult = calculateCombinedHoleVolumeResult({
+    casings,
+    wellGeneral,
+    drillStrings,
+  });
+  if (!currentHoleResult.hasData) return 0;
+
+  const currentHole = currentHoleResult.hole;
   const previousReportMeta = await findPreviousReportMeta({
     wellId,
-    reportMeta: { reportNo },
+    reportMeta,
   });
   const previousHole = previousReportMeta
     ? await calculateHoleVolumeForReport({
@@ -480,7 +884,29 @@ const calculateTotalOnLocationForReport = async ({ wellId, reportId, reportNo })
         reportNo: previousReportMeta.reportNo,
       })
     : 0;
-  const holeVolDifference = round2(hole - previousHole);
+
+  return resolveCarryOverVisibleHole({
+    reportMeta,
+    currentHole,
+    previousHole,
+    wellGeneral,
+    casings,
+    drillStrings,
+  });
+};
+
+export const calculateTotalOnLocationForReport = async ({
+  wellId,
+  reportId,
+  reportNo,
+}) => {
+  if (!reportId && !reportNo) return 0;
+
+  const [hole, pits] = await Promise.all([
+    calculateVisibleHoleForReport({ wellId, reportId, reportNo }),
+    findScopedPits({ wellId, reportId }),
+  ]);
+
   const activePits = pits
     .filter((pit) => pit.initialActive === true)
     .reduce((sum, pit) => sum + toNumber(pit.volume), 0);
@@ -488,7 +914,7 @@ const calculateTotalOnLocationForReport = async ({ wellId, reportId, reportNo })
     .filter((pit) => pit.initialActive === false)
     .reduce((sum, pit) => sum + toNumber(pit.volume), 0);
 
-  return round2(activePits + holeVolDifference + totalStorage);
+  return round2(hole + activePits + totalStorage);
 };
 
 const findScopedConsumeProductDistributionStates = async ({
@@ -583,6 +1009,7 @@ const calculateAdjustedActiveSystemPendingInput = ({
   activeSystemDistributionRows = [],
   otherVolAdditions = [],
   activePitsList = [],
+  activePitBaselineByName = new Map(),
 }) => {
   const activeSystemPendingEntries = [
     ...addWaterEntries.filter(
@@ -595,12 +1022,6 @@ const calculateAdjustedActiveSystemPendingInput = ({
   ];
   if (!activeSystemPendingEntries.length) return 0;
 
-  const totalPending = round2(
-    activeSystemPendingEntries.reduce(
-      (sum, item) => sum + toNumber(item?.volume ?? item?.totalVolume),
-      0
-    )
-  );
   const pendingTimes = activeSystemPendingEntries
     .map((item) => itemTime(item))
     .filter((time) => Number.isFinite(time) && time > 0);
@@ -610,10 +1031,15 @@ const calculateAdjustedActiveSystemPendingInput = ({
   const adjustedActivePitVolume = activePitsList.reduce((sum, pit) => {
     const pitTime = itemTime(pit);
     if (!Number.isFinite(pitTime) || pitTime < firstPendingTime) return sum;
-    return sum + toNumber(pit?.volume);
+    const key = toText(pit?.pitName).toLowerCase();
+    const currentVolume = toNumber(pit?.volume);
+    const baselineVolume = activePitBaselineByName.has(key)
+      ? activePitBaselineByName.get(key)
+      : 0;
+    return sum + round2(currentVolume - baselineVolume);
   }, 0);
 
-  return round2(Math.min(totalPending, Math.max(0, adjustedActivePitVolume)));
+  return round2(Math.max(0, adjustedActivePitVolume));
 };
 
 const isIgnoredDestination = (value) => {
@@ -779,6 +1205,248 @@ const buildOperationVolumeEffects = ({
     activeDeltaByPit,
     storageDeltaByPit,
   };
+};
+
+export const calculateEndVolForReport = async ({
+  wellId,
+  reportId,
+  reportNo,
+  visited = new Set(),
+}) => {
+  if (!reportId && !reportNo) return 0;
+
+  const reportMeta = await resolveReportMeta({ wellId, reportId, reportNo });
+  const reportKey = reportMeta.reportId || `reportNo:${reportMeta.reportNo}`;
+  if (!reportKey || visited.has(reportKey)) return 0;
+
+  const nextVisited = new Set(visited);
+  nextVisited.add(reportKey);
+
+  let [
+    wellGeneral,
+    casings,
+    drillStrings,
+    pits,
+    distributionStates,
+    receivedMud,
+    returnLostMud,
+    addWaterEntries,
+    otherVolAdditions,
+    mudLossEntries,
+    mudLossStorageEntries,
+    transferMudEntries,
+    emptyFluidEntries,
+  ] = await Promise.all([
+    findScopedWellGeneral({
+      wellId,
+      reportId: reportMeta.reportId,
+      reportNo: reportMeta.reportNo,
+    }),
+    findScopedCasings({ wellId, reportId: reportMeta.reportId, strictScope: true }),
+    findScopedDrillStrings({
+      wellId,
+      reportId: reportMeta.reportId,
+      strictScope: true,
+    }),
+    findScopedPits({ wellId, reportId: reportMeta.reportId }),
+    findScopedConsumeProductDistributionStates({
+      wellId,
+      reportId: reportMeta.reportId,
+      strictScope: true,
+    }),
+    ReceiveMud.find(scopedOperationFilter({ wellId, reportId: reportMeta.reportId }))
+      .sort({ createdAt: 1, _id: 1 })
+      .lean(),
+    ReturnLostMud.find(
+      scopedOperationFilter({ wellId, reportId: reportMeta.reportId })
+    )
+      .sort({ createdAt: 1, _id: 1 })
+      .lean(),
+    AddWater.find(scopedOperationFilter({ wellId, reportId: reportMeta.reportId }))
+      .sort({ createdAt: 1, _id: 1 })
+      .lean(),
+    OtherVolAddition.find(
+      scopedOperationFilter({ wellId, reportId: reportMeta.reportId })
+    )
+      .sort({ createdAt: 1, _id: 1 })
+      .lean(),
+    MudLoss.find(scopedOperationFilter({ wellId, reportId: reportMeta.reportId }))
+      .sort({ createdAt: 1, _id: 1 })
+      .lean(),
+    MudLossStorage.find(
+      scopedOperationFilter({ wellId, reportId: reportMeta.reportId })
+    )
+      .sort({ createdAt: 1, _id: 1 })
+      .lean(),
+    TransferMud.find(
+      scopedOperationFilter({ wellId, reportId: reportMeta.reportId })
+    )
+      .sort({ createdAt: 1, _id: 1 })
+      .lean(),
+    EmptyFluidActiveSystem.find(
+      scopedOperationFilter({ wellId, reportId: reportMeta.reportId })
+    )
+      .sort({ createdAt: 1, _id: 1 })
+      .lean(),
+  ]);
+
+  const holeVolumeResult = calculateCombinedHoleVolumeResult({
+    casings,
+    wellGeneral,
+    drillStrings,
+  });
+  const hasCurrentHoleData = holeVolumeResult.hasData;
+  const rawHole = holeVolumeResult.hole;
+  const previousReportMeta = await findPreviousReportMeta({ wellId, reportMeta });
+  const previousHole = previousReportMeta
+    ? await calculateHoleVolumeForReport({
+        wellId,
+        reportId: previousReportMeta.reportId,
+        reportNo: previousReportMeta.reportNo,
+      })
+    : 0;
+  const hole = resolveCarryOverVisibleHole({
+    reportMeta,
+    currentHole: rawHole,
+    previousHole,
+    wellGeneral,
+    casings,
+    drillStrings,
+  });
+  const activePitsList = pits.filter((pit) => pit.initialActive === true);
+  const activePitNames = new Set(
+    activePitsList.map((pit) => toText(pit.pitName).toLowerCase()).filter(Boolean)
+  );
+  const previousActivePitBaselineByName = previousReportMeta
+    ? buildActivePitVolumeByName(
+        await findScopedPits({ wellId, reportId: previousReportMeta.reportId })
+      )
+    : new Map();
+
+  const distributionRows = (distributionStates ?? []).flatMap((state) =>
+    cleanDistributionRows(state?.distributions ?? []).map((row) => ({
+      ...row,
+      updatedAt: state?.updatedAt,
+      createdAt: state?.createdAt,
+      operationInstanceKey: state?.operationInstanceKey,
+    }))
+  );
+  const {
+    activeSystemVolume,
+    activeDeltaByPit: distributionActiveDeltaByPit,
+    activeSystemRows: distributionActiveSystemRows,
+  } = buildCalculatedVolumeMap(distributionRows, activePitNames);
+
+  const normalizedMudLossStorageEntries =
+    normalizeMudLossStorageItems(mudLossStorageEntries);
+  const normalizedAddWaterEntries = normalizeAddWaterItems(addWaterEntries);
+  const normalizedOtherVolAdditions =
+    normalizeOtherVolAdditionItems(otherVolAdditions);
+
+  const operationVolumeEffects = buildOperationVolumeEffects({
+    receivedMud,
+    returnLostMud,
+    addWaterEntries: normalizedAddWaterEntries,
+    otherVolAdditions: normalizedOtherVolAdditions,
+    mudLossEntries,
+    mudLossStorageEntries: normalizedMudLossStorageEntries,
+    transferMudEntries,
+    emptyFluidEntries,
+    activePitNames,
+  });
+
+  const activePitsWithTransfer = activePitsList.reduce((sum, pit) => {
+    const key = toText(pit.pitName).toLowerCase();
+    const delta =
+      (operationVolumeEffects.activeDeltaByPit.get(key) ?? 0) +
+      (distributionActiveDeltaByPit.get(key) ?? 0);
+    return sum + toNumber(pit.volume) + delta;
+  }, 0);
+
+  const derivedActiveSystem = round2(hole + activePitsWithTransfer);
+  const activeSystemPendingInput = round2(
+    operationVolumeEffects.addWaterActiveSystemDelta +
+      activeSystemVolume +
+      operationVolumeEffects.otherVolActiveSystemDelta
+  );
+  const adjustedActiveSystemPendingInput =
+    calculateAdjustedActiveSystemPendingInput({
+      addWaterEntries: normalizedAddWaterEntries,
+      activeSystemDistributionRows: distributionActiveSystemRows,
+      otherVolAdditions: normalizedOtherVolAdditions,
+      activePitsList,
+      activePitBaselineByName: previousActivePitBaselineByName,
+    });
+  const pendingActiveSystemInput = round2(
+    Math.max(0, activeSystemPendingInput - adjustedActiveSystemPendingInput)
+  );
+  const hasPendingActiveSystemInput = pendingActiveSystemInput > 0.005;
+  const hasFullyAdjustedActiveSystemInput =
+    activeSystemPendingInput > 0.005 &&
+    adjustedActiveSystemPendingInput + 0.005 >= activeSystemPendingInput;
+  const effectiveEndVolDelta = round2(
+    operationVolumeEffects.endVolDelta -
+      operationVolumeEffects.addWaterActiveSystemDelta +
+      -operationVolumeEffects.otherVolActiveSystemDelta +
+      pendingActiveSystemInput
+  );
+  const operationOnlyEndVolDelta = round2(
+    operationVolumeEffects.endVolDelta -
+      operationVolumeEffects.addWaterActiveSystemDelta +
+      -operationVolumeEffects.otherVolActiveSystemDelta +
+      activeSystemPendingInput
+  );
+  const hasOperationVolumeRows =
+    distributionRows.length > 0 ||
+    receivedMud.length > 0 ||
+    returnLostMud.length > 0 ||
+    normalizedAddWaterEntries.length > 0 ||
+    normalizedOtherVolAdditions.length > 0 ||
+    mudLossEntries.length > 0 ||
+    normalizedMudLossStorageEntries.length > 0 ||
+    transferMudEntries.length > 0 ||
+    emptyFluidEntries.length > 0;
+
+  const hasPitVolume = pits.some(
+    (pit) => Math.abs(toNumber(pit?.volume)) >= 0.005
+  );
+  const hasCurrentReportVolumeData =
+    hasCurrentHoleData ||
+    hasPitVolume ||
+    hasOperationVolumeRows;
+
+  if (!hasCurrentReportVolumeData) return 0;
+
+  const previousEndVol = previousReportMeta
+    ? await calculateEndVolForReport({
+        wellId,
+        reportId: previousReportMeta.reportId,
+        reportNo: previousReportMeta.reportNo,
+        visited: nextVisited,
+      })
+    : 0;
+
+  if (operationVolumeEffects.forceEndVolZero) return 0;
+
+  if (hasOperationVolumeRows && hasPendingActiveSystemInput && previousEndVol > 0) {
+    return round2(previousEndVol + effectiveEndVolDelta - pendingActiveSystemInput);
+  }
+
+  if (hasOperationVolumeRows && hasFullyAdjustedActiveSystemInput) {
+    return previousEndVol > 0
+      ? round2(previousEndVol + operationOnlyEndVolDelta)
+      : operationOnlyEndVolDelta;
+  }
+
+  if (hasOperationVolumeRows) {
+    return operationOnlyEndVolDelta;
+  }
+
+  if (derivedActiveSystem > 0 || Math.abs(effectiveEndVolDelta) >= 0.005) {
+    return round2(previousEndVol + effectiveEndVolDelta);
+  }
+
+  return round2(previousEndVol);
 };
 
 const scopedOperationFilter = ({ wellId, reportId }) =>
@@ -1080,6 +1748,13 @@ export const createPit = async (req, res) => {
       item.initialActive = pitPayload.initialActive;
       item.reportId = pitPayload.reportId;
       await item.save();
+      if (reportId && pitPayload.initialActive) {
+        await rememberLastActivePitVolume({
+          reportId,
+          pitName,
+          volume: pitPayload.volume,
+        });
+      }
 
       return res.status(200).json({
         success: true,
@@ -1089,6 +1764,13 @@ export const createPit = async (req, res) => {
     }
 
     item = await Pit.create(pitPayload);
+    if (reportId && pitPayload.initialActive) {
+      await rememberLastActivePitVolume({
+        reportId,
+        pitName,
+        volume: pitPayload.volume,
+      });
+    }
 
     return res.status(201).json({
       success: true,
@@ -1121,7 +1803,7 @@ export const getVolumeNameCalculation = async (req, res) => {
 
     const reportMeta = await resolveReportMeta({ wellId, reportId, reportNo });
 
-    const [wellGeneral, casings, drillStrings, pits, distributionStates, consumeProducts, receivedMud, returnLostMud, addWaterEntries, otherVolAdditions, mudLossEntries, mudLossStorageEntries, transferMudEntries, emptyFluidEntries] =
+    let [wellGeneral, casings, drillStrings, pits, distributionStates, consumeProducts, receivedMud, returnLostMud, addWaterEntries, otherVolAdditions, mudLossEntries, mudLossStorageEntries, transferMudEntries, emptyFluidEntries] =
       await Promise.all([
         findScopedWellGeneral({
           wellId,
@@ -1131,23 +1813,23 @@ export const getVolumeNameCalculation = async (req, res) => {
         findScopedCasings({
           wellId,
           reportId: reportMeta.reportId,
-          strictScope,
+          strictScope: strictScope || Boolean(reportMeta.reportId),
         }),
         findScopedDrillStrings({
           wellId,
           reportId: reportMeta.reportId,
-          strictScope,
+          strictScope: strictScope || Boolean(reportMeta.reportId),
         }),
         findScopedPits({ wellId, reportId: reportMeta.reportId }),
         findScopedConsumeProductDistributionStates({
           wellId,
           reportId: reportMeta.reportId,
-          strictScope,
+          strictScope: strictScope || Boolean(reportMeta.reportId),
           operationInstanceKey,
         }),
         ConsumeProduct.find(
           scopedOperationFilter({ wellId, reportId: reportMeta.reportId })
-        ).sort({ createdAt: 1, _id: 1 }),
+        ).sort({ sortOrder: 1, createdAt: 1, _id: 1 }),
         ReceiveMud.find(
           scopedOperationFilter({ wellId, reportId: reportMeta.reportId })
         ).sort({ createdAt: 1, _id: 1 }),
@@ -1173,6 +1855,9 @@ export const getVolumeNameCalculation = async (req, res) => {
           scopedOperationFilter({ wellId, reportId: reportMeta.reportId })
         ).sort({ createdAt: 1, _id: 1 }),
       ]);
+
+    const uiDistributionStates = [...(distributionStates ?? [])];
+
     const normalizedMudLossStorageEntries =
       normalizeMudLossStorageItems(mudLossStorageEntries);
     const normalizedAddWaterEntries = normalizeAddWaterItems(addWaterEntries);
@@ -1187,11 +1872,12 @@ export const getVolumeNameCalculation = async (req, res) => {
       : null;
 
     const casingId = toNumber(latestCasing?.id);
-    const hole = calculateCombinedHoleVolume({
+    const holeVolumeResult = calculateCombinedHoleVolumeResult({
       casings,
       wellGeneral,
       drillStrings,
     });
+    const hasCurrentHoleData = holeVolumeResult.hasData;
     const previousReportMeta = await findPreviousReportMeta({
       wellId,
       reportMeta,
@@ -1203,20 +1889,27 @@ export const getVolumeNameCalculation = async (req, res) => {
           reportNo: previousReportMeta.reportNo,
         })
       : 0;
-    const heldVolDifference = round2(hole - previousHole);
-    const drillstringVolume = Number(
-      drillStrings
-        .reduce(
-          (sum, item) =>
-            sum +
-            calculatePipeVolume({
-              id: item?.id,
-              length: item?.length,
-            }),
-          0
-        )
-        .toFixed(2)
-    );
+    const hole = holeVolumeResult.hasData
+      ? resolveCarryOverVisibleHole({
+          reportMeta,
+          currentHole: holeVolumeResult.hole,
+          previousHole,
+          wellGeneral,
+          casings,
+          drillStrings,
+        })
+      : 0;
+    const previousEndVol = previousReportMeta
+      ? await calculateEndVolForReport({
+          wellId,
+          reportId: previousReportMeta.reportId,
+          reportNo: previousReportMeta.reportNo,
+        })
+      : 0;
+    const heldVolDifference = hasCurrentHoleData
+      ? round2(hole - previousHole)
+      : 0;
+    const drillstringVolume = holeVolumeResult.pipeInside;
     const annulus = Number(Math.max(0, hole - drillstringVolume).toFixed(2));
     const belowBit = 0;
     const displacement = 0;
@@ -1226,10 +1919,26 @@ export const getVolumeNameCalculation = async (req, res) => {
     const activePitNames = new Set(
       activePitsList.map((pit) => toText(pit.pitName).toLowerCase()).filter(Boolean)
     );
+    const previousActivePitBaselineByName = previousReportMeta
+      ? buildActivePitVolumeByName(
+          await findScopedPits({ wellId, reportId: previousReportMeta.reportId })
+        )
+      : new Map();
 
     const activePits = Number(
       activePitsList.reduce((sum, pit) => sum + toNumber(pit.volume), 0).toFixed(2)
     );
+    const hasPitVolume = pits.some(
+      (pit) => Math.abs(toNumber(pit?.volume)) >= 0.005
+    );
+    const sameReportHoleDelta = hasCurrentHoleData || hasPitVolume
+      ? await resolveSameReportHoleDelta({
+          reportMeta,
+          hole,
+          activePits,
+          activePitsList,
+        })
+      : 0;
 
     const totalStorage = Number(
       storagePitsList.reduce((sum, pit) => sum + toNumber(pit.volume), 0).toFixed(2)
@@ -1244,6 +1953,10 @@ export const getVolumeNameCalculation = async (req, res) => {
       }))
     );
     const primaryDistributionState = (distributionStates ?? [])[0];
+    const uiPrimaryDistributionState = uiDistributionStates[0];
+    const uiDistributionRows = cleanDistributionRows(
+      uiPrimaryDistributionState?.distributions ?? []
+    );
     const {
       activeSystemVolume,
       calculatedVolumeByPit,
@@ -1276,7 +1989,7 @@ export const getVolumeNameCalculation = async (req, res) => {
     for (const [pitName, volume] of operationVolumeEffects.storageDeltaByPit) {
       addPitDelta(calculatedVolumeByPit, pitName, volume);
     }
-    const derivedActiveSystem = round2(activePitsWithTransfer + heldVolDifference);
+    const derivedActiveSystem = round2(hole + activePitsWithTransfer);
     const activeSystem = derivedActiveSystem;
     const activeSystemPendingInput = round2(
       operationVolumeEffects.addWaterActiveSystemDelta +
@@ -1289,6 +2002,7 @@ export const getVolumeNameCalculation = async (req, res) => {
         activeSystemDistributionRows: distributionActiveSystemRows,
         otherVolAdditions: normalizedOtherVolAdditions,
         activePitsList,
+        activePitBaselineByName: previousActivePitBaselineByName,
       });
     const pendingActiveSystemInput = round2(
       Math.max(
@@ -1296,26 +2010,116 @@ export const getVolumeNameCalculation = async (req, res) => {
         activeSystemPendingInput - adjustedActiveSystemPendingInput
       )
     );
+    const activeSystemAdjustmentBalance = round2(
+      activeSystemPendingInput - adjustedActiveSystemPendingInput
+    );
+    const hasPendingActiveSystemInput = pendingActiveSystemInput > 0.005;
+    const hasFullyAdjustedActiveSystemInput =
+      activeSystemPendingInput > 0.005 &&
+      adjustedActiveSystemPendingInput + 0.005 >= activeSystemPendingInput;
     const effectiveEndVolDelta = round2(
       operationVolumeEffects.endVolDelta -
         operationVolumeEffects.addWaterActiveSystemDelta +
         -operationVolumeEffects.otherVolActiveSystemDelta +
         pendingActiveSystemInput
     );
+    const operationOnlyEndVolDelta = round2(
+      operationVolumeEffects.endVolDelta -
+        operationVolumeEffects.addWaterActiveSystemDelta +
+        -operationVolumeEffects.otherVolActiveSystemDelta +
+        activeSystemPendingInput
+    );
+    const hasOperationVolumeRows =
+      distributionRows.length > 0 ||
+      receivedMud.length > 0 ||
+      returnLostMud.length > 0 ||
+      normalizedAddWaterEntries.length > 0 ||
+      normalizedOtherVolAdditions.length > 0 ||
+      mudLossEntries.length > 0 ||
+      normalizedMudLossStorageEntries.length > 0 ||
+      transferMudEntries.length > 0 ||
+      emptyFluidEntries.length > 0;
+    const hasCurrentReportVolumeData =
+      hasCurrentHoleData ||
+      hasPitVolume ||
+      hasOperationVolumeRows;
+    const firstReportStartsEmpty =
+      !previousReportMeta &&
+      !hasOperationVolumeRows &&
+      Math.abs(effectiveEndVolDelta) < 0.005 &&
+      !operationVolumeEffects.forceEndVolZero;
+    const reportIdForSnapshot = toText(reportMeta?.reportId);
+    if (
+      firstReportStartsEmpty &&
+      reportIdForSnapshot &&
+      (Math.abs(sameReportHoleDelta) > 0.005 ||
+        Math.abs(toNumber(reportMeta?.volumeNameHoleSnapshot) - hole) > 0.005 ||
+        Math.abs(toNumber(reportMeta?.volumeNameHoleDelta)) > 0.005 ||
+        Math.abs(toNumber(reportMeta?.volumeNameHoleActivePitsSnapshot) - activePits) >
+          0.005)
+    ) {
+      await Report.updateOne(
+        { _id: reportIdForSnapshot },
+        {
+          $set: {
+            volumeNameHoleSnapshot: round2(hole),
+            volumeNameHoleDelta: 0,
+            volumeNameHoleActivePitsSnapshot: activePits,
+            volumeNameLastActivePitName: "",
+            volumeNameLastActivePitVolume: 0,
+            volumeNameLastActivePitUpdatedAt: null,
+          },
+        }
+      );
+    }
     const operationEndVol = operationVolumeEffects.forceEndVolZero
       ? 0
       : round2(derivedActiveSystem + effectiveEndVolDelta);
-    const endVolBase = derivedActiveSystem;
-    const endVol = operationVolumeEffects.forceEndVolZero
+    const endVolBase = round2(previousEndVol);
+    const operationRowsEndVol =
+      hasOperationVolumeRows
+        ? hasPendingActiveSystemInput && endVolBase > 0
+          ? round2(endVolBase + effectiveEndVolDelta - pendingActiveSystemInput)
+          : hasFullyAdjustedActiveSystemInput && endVolBase > 0
+            ? round2(endVolBase + operationOnlyEndVolDelta)
+          : operationOnlyEndVolDelta
+        : null;
+    const endVol = !hasCurrentReportVolumeData
       ? 0
+      : operationVolumeEffects.forceEndVolZero
+      ? 0
+      : firstReportStartsEmpty
+        ? 0
+      : operationRowsEndVol !== null
+        ? operationRowsEndVol
       : endVolBase > 0
         ? round2(endVolBase + effectiveEndVolDelta)
         : Math.abs(effectiveEndVolDelta) >= 0.005
           ? operationEndVol
           : 0;
-    const endVolMinusActiveSystem = Number(
-      (endVol - activeSystem).toFixed(2)
-    );
+    const baseEndVolMinusActiveSystem = round2(endVol - activeSystem);
+    let endVolMinusActiveSystem = 0;
+    if (!hasCurrentReportVolumeData) {
+      endVolMinusActiveSystem = 0;
+    } else if (hasPendingActiveSystemInput && endVolBase > 0) {
+      endVolMinusActiveSystem = pendingActiveSystemInput;
+    } else if (hasFullyAdjustedActiveSystemInput && hasOperationVolumeRows) {
+      endVolMinusActiveSystem = activeSystemAdjustmentBalance;
+    } else if (firstReportStartsEmpty || hasOperationVolumeRows) {
+      endVolMinusActiveSystem = baseEndVolMinusActiveSystem;
+    } else if (Math.abs(baseEndVolMinusActiveSystem) < 0.005) {
+      endVolMinusActiveSystem = sameReportHoleDelta;
+    } else if (Math.abs(sameReportHoleDelta) < 0.005) {
+      endVolMinusActiveSystem = baseEndVolMinusActiveSystem;
+    } else if (
+      Math.sign(baseEndVolMinusActiveSystem) === Math.sign(sameReportHoleDelta)
+    ) {
+      endVolMinusActiveSystem = baseEndVolMinusActiveSystem;
+    } else {
+      endVolMinusActiveSystem = round2(
+        baseEndVolMinusActiveSystem + sameReportHoleDelta
+      );
+    }
 
     const consumeProductTotal = Number(
       consumeProducts.reduce((sum, item) => sum + toNumber(item.volumeBbl), 0).toFixed(2)
@@ -1362,7 +2166,9 @@ export const getVolumeNameCalculation = async (req, res) => {
         mudLossStorageTotal
       ).toFixed(2)
     );
-    const totalOnLocation = Number((activeSystem + totalStorage).toFixed(2));
+    const totalOnLocation = hasCurrentReportVolumeData
+      ? Number((activeSystem + totalStorage).toFixed(2))
+      : 0;
     const previousTotalOnLocation = previousReportMeta
       ? await calculateTotalOnLocationForReport({
           wellId,
@@ -1388,6 +2194,13 @@ export const getVolumeNameCalculation = async (req, res) => {
           description: latestCasing?.description || "",
         },
         holeVolumeBreakdown: {
+          casedHole: holeVolumeResult.casedHole,
+          openHole: holeVolumeResult.openHole,
+          drillStringHole: holeVolumeResult.drillString,
+          holeSpace: holeVolumeResult.holeSpace,
+          pipeSteel: holeVolumeResult.pipeSteel,
+          pipeInside: holeVolumeResult.pipeInside,
+          drillStringCountedLength: holeVolumeResult.drillStringCountedLength,
           string: drillstringVolume,
           annulus,
           belowBit,
@@ -1395,13 +2208,21 @@ export const getVolumeNameCalculation = async (req, res) => {
           displacement,
         },
         volumeName: {
-          heldVolDifference,
-          hole,
-          activePits: round2(activePitsWithTransfer),
-          activeSystem,
+          heldVolDifference: hasCurrentReportVolumeData
+            ? heldVolDifference
+            : 0,
+          hole: hasCurrentReportVolumeData ? hole : 0,
+          activePits: hasCurrentReportVolumeData
+            ? round2(activePitsWithTransfer)
+            : 0,
+          activeSystem: hasCurrentReportVolumeData
+            ? activeSystem
+            : 0,
           endVol,
           endVolMinusActiveSystem,
-          totalStorage,
+          totalStorage: hasCurrentReportVolumeData
+            ? totalStorage
+            : 0,
           totalOnLocation,
           ledgerTotalOnLocation,
           previousTotalOnLocation,
@@ -1430,16 +2251,88 @@ export const getVolumeNameCalculation = async (req, res) => {
           pendingActiveSystemWater: pendingActiveSystemInput,
         },
         consumeProductDistribution: {
-          inputMethod: toText(primaryDistributionState?.inputMethod) || "Used",
-          addWaterEnabled: Boolean(primaryDistributionState?.addWaterEnabled),
+          inputMethod:
+            toText(uiPrimaryDistributionState?.inputMethod) || "Used",
+          addWaterEnabled: Boolean(
+            uiPrimaryDistributionState?.addWaterEnabled
+          ),
           addWaterVolume: Number(
-            toNumber(primaryDistributionState?.addWaterVolume).toFixed(2)
+            toNumber(uiPrimaryDistributionState?.addWaterVolume).toFixed(2)
           ),
           totalVolume: Number(
-            toNumber(primaryDistributionState?.totalVolume).toFixed(2)
+            toNumber(uiPrimaryDistributionState?.totalVolume).toFixed(2)
           ),
-          activeSystemVolume,
-          distributions: distributionRows,
+          activeSystemVolume: Number(
+            uiDistributionRows
+              .filter(
+                (row) =>
+                  toText(row.pitName).toLowerCase() === "active system"
+              )
+              .reduce((sum, row) => sum + toNumber(row.volume), 0)
+              .toFixed(2)
+          ),
+          distributions: uiDistributionRows,
+        },
+        consumeProductMassSources: consumeProducts.map((item) => ({
+          product: item.product || "",
+          code: item.code || "",
+          unit: item.unit || "",
+          used: toNumber(item.used),
+          volumeBbl: toNumber(item.volumeBbl),
+          sortOrder: toNumber(item.sortOrder),
+          operationInstanceKey: toText(item.operationInstanceKey),
+          createdAt: item.createdAt,
+          updatedAt: item.updatedAt,
+        })),
+        consumeProductDistributionStates: distributionStates.map((state) => ({
+          operationInstanceKey: toText(state.operationInstanceKey),
+          totalVolume: toNumber(state.totalVolume),
+          distributions: cleanDistributionRows(state.distributions ?? []),
+          createdAt: state.createdAt,
+          updatedAt: state.updatedAt,
+        })),
+        concentrationOperations: {
+          addWater: normalizedAddWaterEntries.map((item) => ({
+            to: item.to || "",
+            volume: toNumber(item.volume),
+            operationInstanceKey: toText(item.operationInstanceKey),
+            createdAt: item.createdAt,
+            updatedAt: item.updatedAt,
+          })),
+          transfers: transferMudEntries.map((item) => ({
+            from: item.from || "",
+            totalTransferVol: toNumber(item.totalTransferVol),
+            transfers: Array.isArray(item.transfers)
+              ? item.transfers.map((row) => ({
+                  pitName: row?.pitName || "",
+                  volume: toNumber(row?.volume),
+                }))
+              : [],
+            operationInstanceKey: toText(item.operationInstanceKey),
+            createdAt: item.createdAt,
+            updatedAt: item.updatedAt,
+          })),
+          mudLoss: mudLossEntries.map((item) => ({
+            totalLoss: toNumber(item.totalLoss),
+            operationInstanceKey: toText(item.operationInstanceKey),
+            createdAt: item.createdAt,
+            updatedAt: item.updatedAt,
+          })),
+          mudLossStorage: normalizedMudLossStorageEntries.map((item) => ({
+            storage: item.storage || "",
+            totalLoss: toNumber(item.totalLoss),
+            operationInstanceKey: toText(item.operationInstanceKey),
+            createdAt: item.createdAt,
+            updatedAt: item.updatedAt,
+          })),
+          emptyFluid: emptyFluidEntries.map((item) => ({
+            actionType: item.actionType || "",
+            pitName: item.pitName || "",
+            volume: toNumber(item.volume || item.totalVolume),
+            operationInstanceKey: toText(item.operationInstanceKey),
+            createdAt: item.createdAt,
+            updatedAt: item.updatedAt,
+          })),
         },
         activePitsTable: activePitsList.map((pit) => {
           const key = toText(pit.pitName).toLowerCase();

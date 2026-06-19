@@ -32,6 +32,12 @@ const round2 = (value) => Number(toNumber(value).toFixed(2));
 
 const normalizeText = (value) => String(value || "").trim().toLowerCase();
 
+const SOLID_BAG_KG = 25;
+const LIQUID_DRUM_GAL = 55;
+const LIQUID_SG = 1;
+const GAL_TO_LITER = 3.78541;
+const KG_TO_LB = 2.20462;
+
 const keyFromCodeOrName = (code, name, fallback) => {
   const cleanCode = normalizeText(code);
   if (cleanCode) return `code:${cleanCode}`;
@@ -124,17 +130,32 @@ const concentrationBasisForUnit = (unit = "") => {
   const amount = packSize(unit);
   if (amount <= 0) return null;
 
-  if (normalized.includes("ton")) {
-    return { factorPerPack: amount * 2000, concentrationUnit: "lb/bbl" };
+  if (normalized.includes("bag")) {
+    return {
+      factorPerPack: SOLID_BAG_KG * KG_TO_LB,
+      concentrationUnit: "lb/bbl",
+    };
+  }
+  if (normalized.includes("drum")) {
+    return {
+      factorPerPack: LIQUID_DRUM_GAL * GAL_TO_LITER * LIQUID_SG * KG_TO_LB,
+      concentrationUnit: "lb/bbl",
+    };
+  }
+  if (normalized.includes("gal")) {
+    return {
+      factorPerPack: amount * GAL_TO_LITER * LIQUID_SG * KG_TO_LB,
+      concentrationUnit: "lb/bbl",
+    };
+  }
+  if (normalized.includes("ton") || normalized === "mt" || normalized.endsWith(" mt")) {
+    return { factorPerPack: amount * 1000 * KG_TO_LB, concentrationUnit: "lb/bbl" };
   }
   if (normalized.includes("kg")) {
-    return { factorPerPack: amount * 2.20462, concentrationUnit: "lb/bbl" };
+    return { factorPerPack: amount * KG_TO_LB, concentrationUnit: "lb/bbl" };
   }
   if (normalized.includes("lb")) {
     return { factorPerPack: amount, concentrationUnit: "lb/bbl" };
-  }
-  if (normalized.includes("gal")) {
-    return { factorPerPack: amount, concentrationUnit: "gal/bbl" };
   }
   if (normalized.includes(" bbl") || normalized.startsWith("bbl")) {
     return { factorPerPack: amount * 42, concentrationUnit: "gal/bbl" };
@@ -277,7 +298,9 @@ export const generateInventorySnapshot = async (req, res) => {
       : reportId
         ? { reportId }
         : {};
-    const rawConsumes = await ConsumeProduct.find(consumeFilter).lean();
+    const rawConsumes = await ConsumeProduct.find(consumeFilter)
+      .sort({ sortOrder: 1, createdAt: 1, _id: 1 })
+      .lean();
     const consumes = rawConsumes.filter((item) => !isVolumeNameWaterHelper(item));
     const sourceFilter = consumeFilter;
 
@@ -395,6 +418,7 @@ export const generateInventorySnapshot = async (req, res) => {
         final: finalVal,
         subtotal,
         costDollar: subtotal,
+        sortOrder: toNumber(productConsumes[0]?.sortOrder),
       });
     }
 

@@ -141,6 +141,7 @@ class ReportContextController extends GetxController {
     final result = await _api.carryOverReport(targetReportId, sourceReportId);
     await loadForSelectedWell(preferredReportId: targetReportId);
     selectReport(targetReportId);
+    selectedReportId.refresh();
     return result;
   }
 

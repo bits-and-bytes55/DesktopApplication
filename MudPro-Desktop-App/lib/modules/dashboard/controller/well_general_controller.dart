@@ -11,7 +11,7 @@ import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart
 
 class WellGeneralController extends GetxController {
   final String baseUrl = ApiEndpoint.baseUrl;
-  static const int _minTimeDistributionRows = 8;
+  static const int _minTimeDistributionRows = 7;
   static const int _minOpenHoleRows = 3;
 
   var isLoading = false.obs;
@@ -251,6 +251,12 @@ class WellGeneralController extends GetxController {
 
     while (normalized.length < _minTimeDistributionRows) {
       normalized.add(_blankTimeDistributionRow());
+    }
+
+    while (normalized.length > _minTimeDistributionRows &&
+        (normalized.last['activity'] ?? '').trim().isEmpty &&
+        (normalized.last['time'] ?? '').trim().isEmpty) {
+      normalized.removeLast();
     }
 
     if (normalized.isNotEmpty &&

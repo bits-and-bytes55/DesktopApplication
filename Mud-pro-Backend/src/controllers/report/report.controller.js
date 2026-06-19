@@ -31,7 +31,6 @@ import WellPlan from "../../modules/wellPlan/wellPlan.model.js";
 import FormationConfig from "../../modules/formation/formation.model.js";
 import SurveyConfig from "../../modules/survey/survey.model.js";
 import SolidsAnalysis from "../../modules/SolidAnalysis/solidanalysismodel.js";
-
 const toText = (value) => String(value ?? "").trim();
 
 const toNumber = (value, fallback = 0) => {
@@ -243,19 +242,178 @@ const nextReportNoForWell = async (wellId) => {
   return String(maxNumber + 1);
 };
 
-const cleanClone = (doc = {}) => {
+const cleanClone = (doc = {}, { preserveTimestamps = false } = {}) => {
   const clone = { ...doc };
+  const mongoId = toText(clone._id);
   delete clone._id;
-  delete clone.id;
+  if (toText(clone.id) === mongoId) {
+    delete clone.id;
+  }
   delete clone.__v;
-  delete clone.createdAt;
-  delete clone.updatedAt;
+  if (!preserveTimestamps) {
+    delete clone.createdAt;
+    delete clone.updatedAt;
+  }
   return clone;
+};
+
+const itemTime = (item = {}) =>
+  new Date(item.updatedAt || item.createdAt || 0).getTime();
+
+const rowSortOrder = (item = {}) => {
+  const order = Number(item?.sortOrder);
+  return Number.isFinite(order) ? order : null;
+};
+
+const latestRowsBySortOrder = (items = []) => {
+  const latestByKey = new Map();
+  const looseRows = [];
+
+  for (const item of items) {
+    const order = rowSortOrder(item);
+    if (order === null) {
+      looseRows.push(item);
+      continue;
+    }
+
+    const key = String(order);
+    const existing = latestByKey.get(key);
+    if (!existing || itemTime(item) >= itemTime(existing)) {
+      latestByKey.set(key, item);
+    }
+  }
+
+  return [...latestByKey.values(), ...looseRows].sort((left, right) => {
+    const leftOrder = rowSortOrder(left);
+    const rightOrder = rowSortOrder(right);
+    if (leftOrder !== null && rightOrder !== null && leftOrder !== rightOrder) {
+      return leftOrder - rightOrder;
+    }
+    if (leftOrder !== null && rightOrder === null) return -1;
+    if (leftOrder === null && rightOrder !== null) return 1;
+    return itemTime(left) - itemTime(right);
+  });
+};
+
+const carryOverRowsForModel = (model, sourceDocs = []) => {
+  if (model !== Casing && model !== DrillString) {
+    return sourceDocs;
+  }
+
+  const orderedRows = sourceDocs.filter((doc) => rowSortOrder(doc) !== null);
+  const uniqueSortOrders = new Set(orderedRows.map((doc) => rowSortOrder(doc)));
+
+  if (orderedRows.length > 0 && uniqueSortOrders.size < orderedRows.length) {
+    return latestRowsBySortOrder(sourceDocs);
+  }
+
+  return sourceDocs;
+};
+
+const volumeNameCarryOverReset = {
+  carryOverCompletedAt: null,
+  volumeNameHoleSnapshot: null,
+  volumeNameHoleDelta: 0,
+  volumeNameHoleActivePitsSnapshot: null,
+  volumeNameLastActivePitName: "",
+  volumeNameLastActivePitVolume: 0,
+  volumeNameLastActivePitUpdatedAt: null,
+};
+
+const finalizeCarryOverTargetReport = async (targetReport) => {
+  const targetReportId = toText(targetReport?._id ?? targetReport?.id);
+  if (!targetReportId) return targetReport;
+
+  const updatedReport = await Report.findByIdAndUpdate(
+    targetReportId,
+    {
+      $set: volumeNameCarryOverReset,
+      $unset: {
+        carryOverSourceHoleSnapshot: "",
+        carryOverSourceEndVolSnapshot: "",
+        carryOverSourceTotalOnLocationSnapshot: "",
+        carryOverSourceActivePitsSnapshot: "",
+        carryOverSourceActiveSystemSnapshot: "",
+        carryOverSourceTotalStorageSnapshot: "",
+        carryOverSourceEndVolMinusActiveSystemSnapshot: "",
+      },
+    },
+    { new: true }
+  );
+
+  return updatedReport ?? targetReport;
+};
+
+const reportIdentity = (report = {}) => ({
+  reportId: toText(report?._id ?? report?.id),
+  reportNo: toText(report?.reportNo),
+});
+
+const reportScopedDeleteFilter = ({ wellId, reportId, reportNo }) => {
+  if (!wellId) return null;
+
+  const filters = [];
+  if (reportId) filters.push({ reportId });
+  if (reportNo) filters.push({ reportNo });
+
+  if (filters.length === 0) return null;
+  return { wellId, $or: filters };
+};
+
+const findManyForReport = async ({
+  model,
+  wellId,
+  report,
+  sort = { createdAt: 1, _id: 1 },
+}) => {
+  if (!wellId) return [];
+
+  const { reportId, reportNo } = reportIdentity(report);
+  if (reportId) {
+    const byReportId = await model.find({ wellId, reportId }).sort(sort).lean();
+    if (byReportId.length > 0) return byReportId;
+  }
+
+  if (reportNo) {
+    return model.find({ wellId, reportNo }).sort(sort).lean();
+  }
+
+  return [];
+};
+
+const findOneForReport = async ({
+  model,
+  wellId,
+  report,
+  sort = { updatedAt: -1, createdAt: -1 },
+}) => {
+  if (!wellId) return null;
+
+  const { reportId, reportNo } = reportIdentity(report);
+  if (reportId) {
+    const byReportId = await model.findOne({ wellId, reportId }).sort(sort).lean();
+    if (byReportId) return byReportId;
+  }
+
+  if (reportNo) {
+    return model.findOne({ wellId, reportNo }).sort(sort).lean();
+  }
+
+  return null;
 };
 
 const carryOverExtraModels = [
   Casing,
   DrillString,
+  InventorySnapshot,
+  MudReportState,
+  WellPlan,
+  FormationConfig,
+  SurveyConfig,
+  SolidsAnalysis,
+];
+
+const operationReportModels = [
   AddWater,
   EmptyFluidActiveSystem,
   OtherVolAddition,
@@ -273,12 +431,6 @@ const carryOverExtraModels = [
   ReceivePackage,
   ReturnProduct,
   ReturnPackage,
-  InventorySnapshot,
-  MudReportState,
-  WellPlan,
-  FormationConfig,
-  SurveyConfig,
-  SolidsAnalysis,
 ];
 
 const reportArtifactModels = [
@@ -289,12 +441,15 @@ const reportArtifactModels = [
   Shaker,
   OtherSce,
   ...carryOverExtraModels,
+  ...operationReportModels,
 ];
 
-const deleteReportScopedArtifacts = async ({ wellId, reportId }) => {
-  if (!wellId || !reportId) return;
+const deleteReportScopedArtifacts = async ({ wellId, reportId, reportNo }) => {
+  const filter = reportScopedDeleteFilter({ wellId, reportId, reportNo });
+  if (!filter) return;
+
   await Promise.allSettled(
-    reportArtifactModels.map((model) => model.deleteMany({ wellId, reportId }))
+    reportArtifactModels.map((model) => model.deleteMany(filter))
   );
 };
 
@@ -303,21 +458,24 @@ const cloneExtraReportScopedDocuments = async ({
   sourceReport,
   targetReport,
 }) => {
-  const sourceReportId = toText(sourceReport?._id);
   const targetReportId = toText(targetReport?._id);
-  if (!wellId || !sourceReportId || !targetReportId) return;
+  if (!wellId || !targetReportId) return;
 
   for (const model of carryOverExtraModels) {
-    const sourceDocs = await model
-      .find({ wellId, reportId: sourceReportId })
-      .sort({ createdAt: 1, _id: 1 })
-      .lean();
+    const sourceDocs = await findManyForReport({
+      model,
+      wellId,
+      report: sourceReport,
+      sort: { createdAt: 1, _id: 1 },
+    });
 
     if (sourceDocs.length === 0) continue;
 
+    const docsToClone = carryOverRowsForModel(model, sourceDocs);
+
     await model.insertMany(
-      sourceDocs.map((doc) => ({
-        ...cleanClone(doc),
+      docsToClone.map((doc) => ({
+        ...cleanClone(doc, { preserveTimestamps: true }),
         wellId,
         reportId: targetReportId,
         reportNo: toText(targetReport.reportNo),
@@ -364,51 +522,24 @@ const findSourceReport = async (wellId, reportId) => {
 };
 
 const loadSourceWellGeneral = async ({ wellId, sourceReport }) => {
-  const sourceReportId = toText(sourceReport?._id);
-  if (sourceReportId) {
-    const byReportId = await WellGeneral.findOne({
-      wellId,
-      reportId: sourceReportId,
-    })
-      .sort({ updatedAt: -1, createdAt: -1 })
-      .lean();
-
-    if (byReportId) {
-      return byReportId;
-    }
-  }
-
-  const sourceReportNo = toText(sourceReport?.reportNo);
-  if (sourceReportNo) {
-    const byReportNo = await WellGeneral.findOne({
-      wellId,
-      reportNo: sourceReportNo,
-    })
-      .sort({ updatedAt: -1, createdAt: -1 })
-      .lean();
-
-    if (byReportNo) {
-      return byReportNo;
-    }
-  }
-
-  return null;
+  return findOneForReport({
+    model: WellGeneral,
+    wellId,
+    report: sourceReport,
+    sort: { updatedAt: -1, createdAt: -1 },
+  });
 };
 
 const loadSourcePits = async ({ wellId, sourceReport }) => {
-  const sourceReportId = toText(sourceReport?._id);
+  const scopedPits = await findManyForReport({
+    model: Pit,
+    wellId,
+    report: sourceReport,
+    sort: { createdAt: 1, _id: 1 },
+  });
 
-  if (sourceReportId) {
-    const scopedPits = await Pit.find({
-      wellId,
-      reportId: sourceReportId,
-    })
-      .sort({ createdAt: 1, _id: 1 })
-      .lean();
-
-    if (scopedPits.length > 0) {
-      return scopedPits;
-    }
+  if (scopedPits.length > 0) {
+    return scopedPits;
   }
 
   const legacyPits = await Pit.find(legacyPitScopeFilter(wellId))
@@ -419,19 +550,15 @@ const loadSourcePits = async ({ wellId, sourceReport }) => {
 };
 
 const loadSourcePumps = async ({ wellId, sourceReport }) => {
-  const sourceReportId = toText(sourceReport?._id);
+  const scopedPumps = await findManyForReport({
+    model: Pump,
+    wellId,
+    report: sourceReport,
+    sort: { rowNumber: 1, createdAt: 1, _id: 1 },
+  });
 
-  if (sourceReportId) {
-    const scopedPumps = await Pump.find({
-      wellId,
-      reportId: sourceReportId,
-    })
-      .sort({ rowNumber: 1, createdAt: 1, _id: 1 })
-      .lean();
-
-    if (scopedPumps.length > 0) {
-      return scopedPumps;
-    }
+  if (scopedPumps.length > 0) {
+    return scopedPumps;
   }
 
   return Pump.find(legacyScopedFilter(wellId))
@@ -440,20 +567,14 @@ const loadSourcePumps = async ({ wellId, sourceReport }) => {
 };
 
 const loadSourceNozzle = async ({ wellId, sourceReport }) => {
-  const sourceReportId = toText(sourceReport?._id);
+  const scopedNozzle = await findOneForReport({
+    model: Nozzle,
+    wellId,
+    report: sourceReport,
+    sort: { createdAt: -1, _id: -1 },
+  });
 
-  if (sourceReportId) {
-    const scopedNozzle = await Nozzle.findOne({
-      wellId,
-      reportId: sourceReportId,
-    })
-      .sort({ createdAt: -1, _id: -1 })
-      .lean();
-
-    if (scopedNozzle) {
-      return scopedNozzle;
-    }
-  }
+  if (scopedNozzle) return scopedNozzle;
 
   return Nozzle.findOne(legacyScopedFilter(wellId))
     .sort({ createdAt: -1, _id: -1 })
@@ -461,19 +582,15 @@ const loadSourceNozzle = async ({ wellId, sourceReport }) => {
 };
 
 const loadSourceShakers = async ({ wellId, sourceReport }) => {
-  const sourceReportId = toText(sourceReport?._id);
+  const scopedShakers = await findManyForReport({
+    model: Shaker,
+    wellId,
+    report: sourceReport,
+    sort: { createdAt: 1, _id: 1 },
+  });
 
-  if (sourceReportId) {
-    const scopedShakers = await Shaker.find({
-      wellId,
-      reportId: sourceReportId,
-    })
-      .sort({ createdAt: 1, _id: 1 })
-      .lean();
-
-    if (scopedShakers.length > 0) {
-      return scopedShakers;
-    }
+  if (scopedShakers.length > 0) {
+    return scopedShakers;
   }
 
   return Shaker.find(legacyScopedFilter(wellId))
@@ -482,19 +599,15 @@ const loadSourceShakers = async ({ wellId, sourceReport }) => {
 };
 
 const loadSourceOtherSce = async ({ wellId, sourceReport }) => {
-  const sourceReportId = toText(sourceReport?._id);
+  const scopedOtherSce = await findManyForReport({
+    model: OtherSce,
+    wellId,
+    report: sourceReport,
+    sort: { createdAt: 1, _id: 1 },
+  });
 
-  if (sourceReportId) {
-    const scopedOtherSce = await OtherSce.find({
-      wellId,
-      reportId: sourceReportId,
-    })
-      .sort({ createdAt: 1, _id: 1 })
-      .lean();
-
-    if (scopedOtherSce.length > 0) {
-      return scopedOtherSce;
-    }
+  if (scopedOtherSce.length > 0) {
+    return scopedOtherSce;
   }
 
   return OtherSce.find(legacyScopedFilter(wellId))
@@ -611,7 +724,11 @@ const rollbackReportArtifacts = async (report) => {
 
   await Promise.allSettled([
     Report.findByIdAndDelete(reportId),
-    deleteReportScopedArtifacts({ wellId, reportId }),
+    deleteReportScopedArtifacts({
+      wellId,
+      reportId,
+      reportNo: toText(report.reportNo),
+    }),
   ]);
 };
 
@@ -688,9 +805,10 @@ export const createReport = async (req, res) => {
     const operationSelections =
       req.body.operationSelections !== undefined
         ? sanitizeOperationSelections(req.body.operationSelections)
-        : sanitizeOperationSelections(sourceReport?.operationSelections);
-
-    const report = await Report.create({
+        : sourceReport
+          ? []
+          : sanitizeOperationSelections(sourceReport?.operationSelections);
+    let report = await Report.create({
       wellId,
       reportNo,
       userReportNo,
@@ -704,6 +822,7 @@ export const createReport = async (req, res) => {
       remarksAttachment,
       pumpRateAndPressure,
       operationSelections,
+      carryOverFromReportId: sourceReport ? sourceReport._id : null,
     });
 
     try {
@@ -712,6 +831,7 @@ export const createReport = async (req, res) => {
           sourceReport,
           targetReport: report.toObject(),
         });
+        report = await finalizeCarryOverTargetReport(report);
       }
     } catch (cloneError) {
       await rollbackReportArtifacts(report);
@@ -785,21 +905,25 @@ export const carryOverReportData = async (req, res) => {
     targetReport.pumpRateAndPressure = sanitizePumpRateAndPressure(
       sourceReport.pumpRateAndPressure
     );
-    targetReport.operationSelections = sanitizeOperationSelections(
-      sourceReport.operationSelections
-    );
+    targetReport.operationSelections = [];
+    targetReport.carryOverFromReportId = sourceReport._id;
     await targetReport.save();
 
-    await deleteReportScopedArtifacts({ wellId, reportId: targetReportId });
+    await deleteReportScopedArtifacts({
+      wellId,
+      reportId: targetReportId,
+      reportNo: toText(targetReport.reportNo),
+    });
     await cloneReportSnapshots({
       sourceReport,
       targetReport: targetReport.toObject(),
     });
+    const finalizedTargetReport = await finalizeCarryOverTargetReport(targetReport);
 
     return res.status(200).json({
       success: true,
       message: "Report carried over successfully",
-      data: targetReport,
+      data: finalizedTargetReport,
     });
   } catch (error) {
     return res.status(500).json({
@@ -1158,7 +1282,11 @@ export const deleteReport = async (req, res) => {
     const reportId = toText(deleted._id);
     const wellId = toText(deleted.wellId);
 
-    await deleteReportScopedArtifacts({ wellId, reportId });
+    await deleteReportScopedArtifacts({
+      wellId,
+      reportId,
+      reportNo: toText(deleted.reportNo),
+    });
 
     return res.status(200).json({
       success: true,

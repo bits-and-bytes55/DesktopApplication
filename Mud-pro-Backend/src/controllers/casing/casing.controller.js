@@ -6,6 +6,8 @@ const getReportId = (req) =>
   String(req.query.reportId ?? req.body.reportId ?? "").trim();
 const toText = (value) => String(value ?? "").trim();
 
+
+
 const buildFilter = ({ wellId, reportId }) => {
   if (!wellId) return null;
   if (reportId) return { wellId, reportId };

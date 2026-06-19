@@ -1220,6 +1220,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
           used: double.tryParse(row.used) ?? 0.0,
           numberOfBags: 1.0,
           weightPerBag: 1.0,
+          sortOrder: index + 1,
         );
 
         if (result['success'] == true) {
@@ -1248,6 +1249,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
           used: double.tryParse(row.used) ?? 0.0,
           numberOfBags: 1.0,
           weightPerBag: 1.0,
+          sortOrder: index + 1,
         );
 
         if (result['success'] == true) {

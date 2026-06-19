@@ -17,7 +17,7 @@ const double _cHeadTopH = 25.0;
 const int _minVisibleRows = 20;
 
 const Color _cBorder = Color(0xFFC9CED6);
-const Color _cHeader = Color(0xFFF3F3F3);
+const Color _cHeader = Color(0xFF6C9BCF);
 const Color _cLocked = Color(0xFFFFF6C7);
 const String _casingDiameterBaseUnit = '(mm)';
 const String _casingLineDensityBaseUnit = '(lb/ft)';
@@ -25,7 +25,19 @@ const String _casingLengthBaseUnit = '(ft)';
 
 double get _casingTableWidth => _cIdx + _cDesc + _cType + (_cStd * 7) + 4;
 
-String _formatCasingNumber(double value) {
+int? _decimalPlacesFromText(String value) {
+  final text = value.trim().replaceAll(',', '');
+  final decimalIndex = text.indexOf('.');
+  if (decimalIndex < 0) return null;
+  return (text.length - decimalIndex - 1).clamp(0, 12).toInt();
+}
+
+String _formatCasingNumber(double value, {String? sourceText}) {
+  final sourceDecimals =
+      sourceText == null ? null : _decimalPlacesFromText(sourceText);
+  if (sourceDecimals != null) {
+    return value.toStringAsFixed(sourceDecimals);
+  }
   return value
       .toStringAsFixed(4)
       .replaceAll(RegExp(r'0+$'), '')
@@ -39,7 +51,7 @@ String _convertCasingText(String rawValue, String fromUnit, String toUnit) {
   if (parsed == null) return rawValue;
   final converted = AppUnits.convertValue(parsed, fromUnit, toUnit);
   if (converted == null) return rawValue;
-  return _formatCasingNumber(converted);
+  return _formatCasingNumber(converted, sourceText: rawValue);
 }
 
 String _displayDiameter(String value) =>
@@ -152,15 +164,20 @@ class _CasingViewState extends State<CasingView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SizedBox(
-              height: 24,
+            Container(
+              height: 28,
+              color: _cHeader,
               child: Row(
                 children: [
                   const Padding(
-                    padding: EdgeInsets.only(left: 4),
+                    padding: EdgeInsets.only(left: 8),
                     child: Text(
                       'Casing',
-                      style: TextStyle(fontSize: 10, color: Color(0xFF2F2F2F)),
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.black,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                   const Spacer(),
@@ -296,8 +313,8 @@ class _CasingViewState extends State<CasingView> {
         textAlign: TextAlign.center,
         style: const TextStyle(
           fontSize: 10,
-          color: Color(0xFF2F2F2F),
-          fontWeight: FontWeight.w500,
+          color: Colors.black,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );
@@ -695,6 +712,14 @@ class _DraftCasingRowState extends State<_DraftCasingRow> {
   late final TextEditingController _shoe;
   late final TextEditingController _bit;
   late final TextEditingController _toc;
+  late final FocusNode _descFocus;
+  late final FocusNode _odFocus;
+  late final FocusNode _wtFocus;
+  late final FocusNode _idFocus;
+  late final FocusNode _topFocus;
+  late final FocusNode _shoeFocus;
+  late final FocusNode _bitFocus;
+  late final FocusNode _tocFocus;
   String _type = '';
   Timer? _timer;
   bool _isSaving = false;
@@ -710,11 +735,27 @@ class _DraftCasingRowState extends State<_DraftCasingRow> {
     _shoe = TextEditingController();
     _bit = TextEditingController();
     _toc = TextEditingController();
+    _descFocus = FocusNode();
+    _odFocus = FocusNode();
+    _wtFocus = FocusNode();
+    _idFocus = FocusNode();
+    _topFocus = FocusNode();
+    _shoeFocus = FocusNode();
+    _bitFocus = FocusNode();
+    _tocFocus = FocusNode();
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    _descFocus.dispose();
+    _odFocus.dispose();
+    _wtFocus.dispose();
+    _idFocus.dispose();
+    _topFocus.dispose();
+    _shoeFocus.dispose();
+    _bitFocus.dispose();
+    _tocFocus.dispose();
     _desc.dispose();
     _od.dispose();
     _wt.dispose();
@@ -736,6 +777,16 @@ class _DraftCasingRowState extends State<_DraftCasingRow> {
       _shoe.text.trim().isNotEmpty ||
       _bit.text.trim().isNotEmpty ||
       _toc.text.trim().isNotEmpty;
+
+  bool get _hasInputFocus =>
+      _descFocus.hasFocus ||
+      _odFocus.hasFocus ||
+      _wtFocus.hasFocus ||
+      _idFocus.hasFocus ||
+      _topFocus.hasFocus ||
+      _shoeFocus.hasFocus ||
+      _bitFocus.hasFocus ||
+      _tocFocus.hasFocus;
 
   Map<String, String> _draftMap() => {
     'description': _desc.text.trim(),
@@ -771,6 +822,10 @@ class _DraftCasingRowState extends State<_DraftCasingRow> {
 
   Future<void> _save() async {
     if (widget.locked || !_hasData || _isSaving) return;
+    if (_hasInputFocus) {
+      _scheduleSave();
+      return;
+    }
     _isSaving = true;
     final row = CasingRow(
       description: _desc.text.trim(),
@@ -879,6 +934,7 @@ class _DraftCasingRowState extends State<_DraftCasingRow> {
             _editCell(
               controller: _desc,
               width: _cDesc,
+              focusNode: _descFocus,
               readOnly: widget.locked,
               bg: bg,
               onTap: widget.onSelected,
@@ -899,6 +955,7 @@ class _DraftCasingRowState extends State<_DraftCasingRow> {
             _editCell(
               controller: _od,
               width: _cStd,
+              focusNode: _odFocus,
               readOnly: widget.locked,
               bg: bg,
               align: TextAlign.right,
@@ -908,6 +965,7 @@ class _DraftCasingRowState extends State<_DraftCasingRow> {
             _editCell(
               controller: _wt,
               width: _cStd,
+              focusNode: _wtFocus,
               readOnly: widget.locked,
               bg: bg,
               align: TextAlign.right,
@@ -917,6 +975,7 @@ class _DraftCasingRowState extends State<_DraftCasingRow> {
             _editCell(
               controller: _id,
               width: _cStd,
+              focusNode: _idFocus,
               readOnly: widget.locked,
               bg: bg,
               align: TextAlign.right,
@@ -926,6 +985,7 @@ class _DraftCasingRowState extends State<_DraftCasingRow> {
             _editCell(
               controller: _top,
               width: _cStd,
+              focusNode: _topFocus,
               readOnly: topReadOnly,
               bg: topBg,
               align: TextAlign.right,
@@ -935,6 +995,7 @@ class _DraftCasingRowState extends State<_DraftCasingRow> {
             _editCell(
               controller: _shoe,
               width: _cStd,
+              focusNode: _shoeFocus,
               readOnly: widget.locked,
               bg: bg,
               align: TextAlign.right,
@@ -944,6 +1005,7 @@ class _DraftCasingRowState extends State<_DraftCasingRow> {
             _editCell(
               controller: _bit,
               width: _cStd,
+              focusNode: _bitFocus,
               readOnly: widget.locked,
               bg: bg,
               align: TextAlign.right,
@@ -953,6 +1015,7 @@ class _DraftCasingRowState extends State<_DraftCasingRow> {
             _editCell(
               controller: _toc,
               width: _cStd,
+              focusNode: _tocFocus,
               readOnly: widget.locked,
               bg: bg,
               align: TextAlign.right,
@@ -1033,6 +1096,7 @@ Widget _editCell({
   required Color bg,
   required VoidCallback onTap,
   required ValueChanged<String> onChanged,
+  FocusNode? focusNode,
   TextAlign align = TextAlign.left,
 }) {
   return Container(
@@ -1049,11 +1113,16 @@ Widget _editCell({
     ),
     child: TextField(
       controller: controller,
+      focusNode: focusNode,
       readOnly: readOnly,
       onTap: onTap,
       onChanged: onChanged,
       textAlign: align,
-      style: const TextStyle(fontSize: 10, color: Color(0xFF2F2F2F)),
+      style: const TextStyle(
+        fontSize: 10,
+        color: Colors.black,
+        fontWeight: FontWeight.w700,
+      ),
       decoration: const InputDecoration(
         isDense: true,
         border: InputBorder.none,
@@ -1090,7 +1159,11 @@ Widget _typeCell({
             alignment: Alignment.centerLeft,
             child: Text(
               selectedValue,
-              style: const TextStyle(fontSize: 10, color: Color(0xFF2F2F2F)),
+              style: const TextStyle(
+                fontSize: 10,
+                color: Colors.black,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           )
         : DropdownButtonHideUnderline(
@@ -1100,12 +1173,23 @@ Widget _typeCell({
               isExpanded: true,
               onTap: onTap,
               icon: const Icon(Icons.arrow_drop_down, size: 16),
-              style: const TextStyle(fontSize: 10, color: Color(0xFF2F2F2F)),
+              style: const TextStyle(
+                fontSize: 10,
+                color: Colors.black,
+                fontWeight: FontWeight.w700,
+              ),
               items: options
                   .map(
                     (item) => DropdownMenuItem<String>(
                       value: item,
-                      child: Text(item, style: const TextStyle(fontSize: 10)),
+                      child: Text(
+                        item,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: Colors.black,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ),
                   )
                   .toList(),
