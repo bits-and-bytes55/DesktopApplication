@@ -776,7 +776,7 @@ class _SurveyDataTabState extends State<SurveyDataTab> {
   }
 
   Future<void> _showAdjustAziDialog(BuildContext context) async {
-    final field = TextEditingController(text: '0');
+    final field = TextEditingController();
     await showDialog<void>(
       context: context,
       builder: (context) {

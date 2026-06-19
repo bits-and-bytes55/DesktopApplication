@@ -1944,14 +1944,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
             return DropdownButtonHideUnderline(
               child: DropdownButton<ProductModel>(
                 value: validVal,
-                hint: Text(
-                  "Select",
-                  style: AppTheme.bodySmall.copyWith(
-                    fontSize: 10,
-                    color: Colors.black,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+                hint: const SizedBox.shrink(),
                 isExpanded: true,
                 isDense: true,
                 icon: const Icon(Icons.arrow_drop_down, size: 14),
@@ -2921,9 +2914,10 @@ class ProductRowData {
 
     calculatedFinal.value = iVal + received - returned - aVal - uVal;
     calculatedCost.value = uVal * price;
-    calculatedVolume.value = double.parse(
-      _calculateVolumeBbl(uVal, sVal).toStringAsFixed(3),
-    );
+    final shouldCalculateVolume = selectedProduct.value?.volAdd ?? false;
+    calculatedVolume.value = shouldCalculateVolume
+        ? double.parse(_calculateVolumeBbl(uVal, sVal).toStringAsFixed(3))
+        : 0.0;
   }
 }
 

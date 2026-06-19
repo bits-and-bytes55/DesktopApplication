@@ -7,6 +7,11 @@ import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 const Color _igBorder = Color(0xFFC9CED6);
 const Color _igHeader = Color(0xFFF3F3F3);
 const Color _igCell = Color(0xFFFFF6C7);
+const List<String> _mudTypeOptions = <String>[
+  'Water-based',
+  'Oil-based',
+  'Synthetic',
+];
 
 class IntervalGeneralTab extends StatelessWidget {
   const IntervalGeneralTab({super.key});
@@ -130,7 +135,12 @@ class IntervalGeneralTab extends StatelessWidget {
                 '',
                 ugSt.isLocked.value,
               ),
-              _tableRow('Mud Type', c.mudTypeCtrl, '', ugSt.isLocked.value),
+              _tableDropdownRow(
+                'Mud Type',
+                c.mudTypeCtrl,
+                '',
+                ugSt.isLocked.value,
+              ),
             ],
           ),
         ),
@@ -148,6 +158,21 @@ class IntervalGeneralTab extends StatelessWidget {
       children: [
         _labelCell(label),
         _valueCell(controller, locked),
+        _unitCell(unit),
+      ],
+    );
+  }
+
+  TableRow _tableDropdownRow(
+    String label,
+    TextEditingController controller,
+    String unit,
+    bool locked,
+  ) {
+    return TableRow(
+      children: [
+        _labelCell(label),
+        _dropdownCell(controller, locked),
         _unitCell(unit),
       ],
     );
@@ -179,6 +204,53 @@ class IntervalGeneralTab extends StatelessWidget {
           isDense: true,
           border: InputBorder.none,
           contentPadding: EdgeInsets.symmetric(vertical: 8),
+        ),
+      ),
+    );
+  }
+
+  Widget _dropdownCell(TextEditingController controller, bool locked) {
+    final currentValue = _mudTypeOptions.contains(controller.text.trim())
+        ? controller.text.trim()
+        : null;
+    return Container(
+      height: 28,
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      color: _igCell,
+      alignment: Alignment.centerLeft,
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: currentValue,
+          isExpanded: true,
+          iconSize: 18,
+          style: const TextStyle(fontSize: 10, color: Color(0xFF2F2F2F)),
+          dropdownColor: Colors.white,
+          hint: const Text(
+            '',
+            style: TextStyle(fontSize: 10, color: Color(0xFF2F2F2F)),
+          ),
+          items: _mudTypeOptions
+              .map(
+                (item) => DropdownMenuItem<String>(
+                  value: item,
+                  child: Text(
+                    item,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: Color(0xFF2F2F2F),
+                    ),
+                  ),
+                ),
+              )
+              .toList(),
+          onChanged: locked
+              ? null
+              : (value) {
+                  controller.text = value ?? '';
+                  controller.selection = TextSelection.collapsed(
+                    offset: controller.text.length,
+                  );
+                },
         ),
       ),
     );

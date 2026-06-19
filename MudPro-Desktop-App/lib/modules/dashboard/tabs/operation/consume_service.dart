@@ -1793,13 +1793,7 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
                             (item) => getName(item) == row.selectedItem,
                           )
                         : null,
-                    hint: Text(
-                      "Select",
-                      style: AppTheme.bodySmall.copyWith(
-                        fontSize: 9,
-                        color: Colors.grey,
-                      ),
-                    ),
+                    hint: const SizedBox.shrink(),
                     isExpanded: true,
                     isDense: true,
                     icon: const SizedBox.shrink(),

@@ -117,16 +117,7 @@ class _TransferMudViewState extends State<TransferMudView> {
                       : pitController.selectedFromPit.value,
                   isExpanded: true,
                   isDense: true,
-                  hint: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: Text(
-                      "Select pit",
-                      style: AppTheme.bodySmall.copyWith(
-                        fontSize: 10,
-                        color: Colors.grey.shade400,
-                      ),
-                    ),
-                  ),
+                  hint: const SizedBox.shrink(),
                   icon: Padding(
                     padding: const EdgeInsets.only(right: 8),
                     child: Icon(

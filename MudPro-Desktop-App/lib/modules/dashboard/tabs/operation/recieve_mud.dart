@@ -288,14 +288,7 @@ class ReceiveMudView extends StatelessWidget {
                   value: controller.selectedPremixedId.value.isEmpty
                       ? null
                       : controller.selectedPremixedId.value,
-                  hint: Text(
-                    'Select',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Colors.grey.shade500,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
+                  hint: const SizedBox.shrink(),
                   isExpanded: true,
                   isDense: true,
                   icon: Icon(

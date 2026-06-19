@@ -622,7 +622,7 @@ class MudController extends GetxController {
       final selectedProps = switch (selectedFluidType.value) {
         'Water-based' => selected.waterBased,
         'Oil-based' => selected.oilBased,
-        'Synthetic' => selected.synthetic,
+        'Synthetic' => selected.oilBased,
         _ => <MudPropertyItem>[],
       };
       final props = _normalizeMudProperties(selectedProps);
@@ -648,7 +648,7 @@ class MudController extends GetxController {
       final selectedProps = switch (selectedFluidType.value) {
         'Water-based' => selected.waterBased,
         'Oil-based' => selected.oilBased,
-        'Synthetic' => selected.synthetic,
+        'Synthetic' => selected.oilBased,
         _ => <MudPropertyItem>[],
       };
       final props = _normalizeMudProperties(selectedProps);
@@ -675,7 +675,7 @@ class MudController extends GetxController {
       final data = switch (selectedFluidType.value) {
         'Water-based' => await othersController.getWaterBased(),
         'Oil-based' => await othersController.getOilBased(),
-        'Synthetic' => await othersController.getSynthetic(),
+        'Synthetic' => await othersController.getOilBased(),
         _ => <dynamic>[],
       };
       availableProperties.value = data
@@ -706,7 +706,8 @@ class MudController extends GetxController {
   }
 
   List<MudPropertyItem> _normalizeMudProperties(List<MudPropertyItem> props) {
-    if (selectedFluidType.value == 'Oil-based') {
+    if (selectedFluidType.value == 'Oil-based' ||
+        selectedFluidType.value == 'Synthetic') {
       return _normalizeOilBasedProperties(props);
     }
     if (selectedFluidType.value != 'Water-based') return props;
@@ -1052,7 +1053,8 @@ class MudController extends GetxController {
       final targetKey = selectedFluidType.value == 'Water-based'
           ? _canonicalWaterBasedProperty(key, unit: value.toString()).name
           : key;
-      if (selectedFluidType.value == 'Oil-based' &&
+      if ((selectedFluidType.value == 'Oil-based' ||
+              selectedFluidType.value == 'Synthetic') &&
           _isOilSaltManagedRow(targetKey) &&
           !propertyTable.containsKey(targetKey)) {
         return;
@@ -1073,7 +1075,8 @@ class MudController extends GetxController {
           !_shouldKeepExtraWaterBasedRow(key)) {
         return;
       }
-      if (selectedFluidType.value == 'Oil-based' &&
+      if ((selectedFluidType.value == 'Oil-based' ||
+              selectedFluidType.value == 'Synthetic') &&
           _isOilSaltManagedRow(targetKey) &&
           !propertyTable.containsKey(targetKey)) {
         return;
@@ -1148,6 +1151,40 @@ class MudController extends GetxController {
       return value.map((item) => item?.toString() ?? '').toList();
     }
     return <String>[];
+  }
+
+  Map<String, Map<int, String>> _captureSampleValues(
+    Map<String, List<RxString>> table,
+    List<int> indices,
+  ) {
+    final snapshot = <String, Map<int, String>>{};
+    for (final entry in table.entries) {
+      final rowSnapshot = <int, String>{};
+      for (final index in indices) {
+        if (index >= 0 && index < entry.value.length) {
+          rowSnapshot[index] = entry.value[index].value;
+        }
+      }
+      if (rowSnapshot.isNotEmpty) {
+        snapshot[entry.key] = rowSnapshot;
+      }
+    }
+    return snapshot;
+  }
+
+  void _restoreSampleValues(
+    Map<String, List<RxString>> table,
+    Map<String, Map<int, String>> snapshot,
+  ) {
+    snapshot.forEach((rowKey, valuesByIndex) {
+      final row = table[rowKey];
+      if (row == null) return;
+      valuesByIndex.forEach((index, value) {
+        if (index >= 0 && index < row.length) {
+          row[index].value = value;
+        }
+      });
+    });
   }
 
   Map<String, List<String>> _stringTable(Map<String, List<RxString>> table) {
@@ -2941,10 +2978,16 @@ class MudController extends GetxController {
   Future<void> changeFluidType(String type) async {
     final normalized = type.trim();
     if (normalized.isEmpty || normalized == selectedFluidType.value) return;
+    final previousTable = _stringTable(propertyTable);
+    final previousUnits = Map<String, String>.from(propertyUnits);
     _mudStateSaveTimer?.cancel();
     _isApplyingSavedState = true;
     selectedFluidType.value = normalized;
     await loadFluidTypeData(applySavedState: false);
+    _restorePropertyValues(previousTable, previousUnits);
+    _setupAutoCalculations();
+    _setupSolidAnalysisWatchers();
+    _setupMudStateWatchers();
     _scheduleMudReportSave();
   }
 
@@ -2952,7 +2995,8 @@ class MudController extends GetxController {
     final normalized = type.trim();
     if (normalized.isEmpty || normalized == selectedSaltType.value) return;
     selectedSaltType.value = normalized;
-    if (selectedFluidType.value != 'Oil-based') {
+    if (selectedFluidType.value != 'Oil-based' &&
+        selectedFluidType.value != 'Synthetic') {
       _scheduleMudReportSave();
       return;
     }
@@ -3009,6 +3053,15 @@ class MudController extends GetxController {
     final cleanIntervalId = intervalId.trim();
     if (_wellId.isEmpty || cleanIntervalId.isEmpty) return false;
 
+    final preservedPropertySamples = _captureSampleValues(
+      propertyTable,
+      const [0, 1, 2],
+    );
+    final preservedRheologySamples = _captureSampleValues(
+      rheologyTable,
+      const [0, 1, 2],
+    );
+
     final sourceReportId = _effectiveReportIdForScope(
       'interval:$cleanIntervalId',
     );
@@ -3053,6 +3106,8 @@ class MudController extends GetxController {
         ..addAll(propertyTable.keys);
 
       _applyMudPropertyState(sourceState);
+      _restoreSampleValues(propertyTable, preservedPropertySamples);
+      _restoreSampleValues(rheologyTable, preservedRheologySamples);
       _setupAutoCalculations();
       _setupSolidAnalysisWatchers();
       _setupMudStateWatchers();
@@ -3069,6 +3124,72 @@ class MudController extends GetxController {
   // ═══════════════════════════════════════════════════════════════════════════
   // RHEOLOGY
   // ═══════════════════════════════════════════════════════════════════════════
+
+  Future<bool> importMudPlanRheologyFromInterval(String intervalId) async {
+    final cleanIntervalId = intervalId.trim();
+    if (_wellId.isEmpty || cleanIntervalId.isEmpty) return false;
+
+    final preservedRheologySamples = _captureSampleValues(
+      rheologyTable,
+      const [0, 1, 2],
+    );
+
+    final sourceReportId = _effectiveReportIdForScope(
+      'interval:$cleanIntervalId',
+    );
+    final sourceCacheKey = _mudStateCacheKeyForReportId(sourceReportId);
+    final sourceState =
+        _stateCache[sourceCacheKey] ??
+        await _fetchMudReportState(reportIdOverride: sourceReportId);
+    if (sourceState == null) return false;
+
+    final sourceRheology = _mapFromDynamic(sourceState['rheologyTable']);
+    if (sourceRheology.isEmpty) return false;
+
+    final sourceModel = (sourceState['rheologyModel'] ?? '').toString().trim();
+    final sourceCalculation = (sourceState['rheologyCalculation'] ?? '')
+        .toString()
+        .trim();
+
+    isLoading.value = true;
+    _mudStateSaveTimer?.cancel();
+    _isApplyingSavedState = true;
+    try {
+      if (sourceModel.isNotEmpty) {
+        rheologyModel.value = sourceModel;
+      }
+      if (sourceCalculation.isNotEmpty) {
+        rheologyCalculation.value = sourceCalculation;
+      }
+
+      rheologyTable.clear();
+      final canonicalRows = _rheologyRowsForModel(rheologyModel.value);
+      final orderedKeys = <String>[
+        ...canonicalRows,
+        ...sourceRheology.keys
+            .map((key) => key.toString())
+            .where((key) => !canonicalRows.contains(key)),
+      ];
+      for (final key in orderedKeys) {
+        final value = sourceRheology[key];
+        final values = _listFromDynamic(value);
+        rheologyTable[key] = List.generate(
+          samples.length,
+          (index) => (index < values.length ? values[index] : '').obs,
+        );
+      }
+      _restoreSampleValues(rheologyTable, preservedRheologySamples);
+      calculateRheology();
+      rheologyTable.refresh();
+    } finally {
+      _isApplyingSavedState = false;
+      isLoading.value = false;
+    }
+
+    _cacheCurrentMudState();
+    await saveMudReportState(force: true);
+    return true;
+  }
 
   void _initRheologyTable() => _updateRheologyRows(preserveValues: false);
 

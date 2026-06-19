@@ -1246,15 +1246,7 @@ class _GeneralSectionState extends State<GeneralSection> {
                   : DropdownButtonHideUnderline(
                       child: DropdownButton<String>(
                         value: safeEngId,
-                        hint: Center(
-                          child: Text(
-                            "Select Engineer",
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: Colors.grey.shade500,
-                            ),
-                          ),
-                        ),
+                        hint: const SizedBox.shrink(),
                         isExpanded: true,
                         icon: const Icon(Icons.arrow_drop_down, size: 13),
                         style: const TextStyle(
@@ -1868,13 +1860,7 @@ class _CasedHoleSectionState extends State<CasedHoleSection> {
                         : DropdownButtonHideUnderline(
                             child: DropdownButton<CasingRow>(
                               value: _selectedCasing,
-                              hint: Text(
-                                "Select",
-                                style: TextStyle(
-                                  fontSize: 9,
-                                  color: Colors.grey.shade500,
-                                ),
-                              ),
+                              hint: const SizedBox.shrink(),
                               icon: const Icon(Icons.arrow_drop_down, size: 13),
                               style: const TextStyle(
                                 fontSize: 9,
@@ -3782,7 +3768,9 @@ class _NozzleSectionState extends State<NozzleSection> {
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 6),
                         child: Text(
-                          nc.tfa.value.toStringAsFixed(3),
+                          nc.tfa.value == 0
+                              ? ''
+                              : nc.tfa.value.toStringAsFixed(3),
                           textAlign: TextAlign.right,
                           style: const TextStyle(
                             fontSize: 10,
@@ -4213,55 +4201,46 @@ class _TimeDistributionSectionState extends State<TimeDistributionSection> {
                                                       ),
                                                 ),
                                               )
-                                            : PopupMenuButton<String>(
-                                                tooltip: '',
-                                                padding: EdgeInsets.zero,
-                                                offset: const Offset(0, _kRowH),
-                                                initialValue:
-                                                    activityItems.contains(
-                                                      selectedActivity,
-                                                    )
-                                                    ? selectedActivity
-                                                    : null,
-                                                constraints:
-                                                    const BoxConstraints(
-                                                      minWidth: 190,
-                                                      maxWidth: 260,
-                                                      maxHeight: 210,
-                                                    ),
-                                                onOpened: () => setState(
-                                                  () => selectedRowIndex = idx,
-                                                ),
-                                                onSelected: (v) {
-                                                  setState(
-                                                    () =>
-                                                        tableData[idx]['activity'] =
-                                                            v,
-                                                  );
-                                                  _checkAndAddRow(idx);
-                                                  _syncRowToController(idx);
-                                                },
-                                                itemBuilder: (context) =>
-                                                    activityItems
-                                                        .map(
-                                                          (o) =>
-                                                              PopupMenuItem<
-                                                                String
-                                                              >(
-                                                                value: o,
-                                                                height: 22,
-                                                                padding:
-                                                                    const EdgeInsets.symmetric(
-                                                                      horizontal:
-                                                                          8,
-                                                                    ),
-                                                                child: Text(
-                                                                  o,
-                                                                  style:
-                                                                      _kWellSmallInputTextStyle,
-                                                                  overflow:
-                                                                      TextOverflow
-                                                                          .ellipsis,
+                                            : DropdownButtonHideUnderline(
+                                                child: DropdownButton<String>(
+                                                  value:
+                                                      activityItems.contains(
+                                                        selectedActivity,
+                                                      )
+                                                      ? selectedActivity
+                                                      : null,
+                                                  hint:
+                                                      const SizedBox.shrink(),
+                                                  isExpanded: true,
+                                                  icon: const Icon(
+                                                    Icons.arrow_drop_down,
+                                                    size: 12,
+                                                  ),
+                                                  style: const TextStyle(
+                                                    fontSize: 9,
+                                                    fontWeight: FontWeight.w700,
+                                                    color: Colors.black,
+                                                  ),
+                                                  menuMaxHeight: 200,
+                                                  onChanged: (v) {
+                                                    if (v != null) {
+                                                      setState(
+                                                        () =>
+                                                            tableData[idx]['activity'] =
+                                                                v,
+                                                      );
+                                                      _checkAndAddRow(idx);
+                                                      _syncRowToController(idx);
+                                                    }
+                                                  },
+                                                  items: activityItems
+                                                      .map(
+                                                        (o) => DropdownMenuItem(
+                                                          value: o,
+                                                          child: Padding(
+                                                            padding:
+                                                                const EdgeInsets.symmetric(
+                                                                  horizontal: 4,
                                                                 ),
                                                               ),
                                                         )

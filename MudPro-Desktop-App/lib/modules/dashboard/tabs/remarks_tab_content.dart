@@ -242,12 +242,28 @@ class _RemarksViewState extends State<RemarksView> {
       children: [
         Expanded(
           flex: 5,
-          child: _buildMemoPanel(
-            title: 'Recommended Tour Treatments',
-            controller: recommendedCtrl,
-            icon: Icons.assignment_turned_in_outlined,
-            isLocked: isLocked,
-            hintText: 'Recommended tour treatments',
+          child: Column(
+            children: [
+              Expanded(
+                child: _buildMemoPanel(
+                  title: 'Recommended Tour Treatments',
+                  controller: recommendedCtrl,
+                  icon: Icons.assignment_turned_in_outlined,
+                  isLocked: isLocked,
+                  hintText: 'Recommended tour treatments',
+                ),
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: _buildMemoPanel(
+                  title: 'Remarks',
+                  controller: remarksCtrl,
+                  icon: Icons.forum_outlined,
+                  isLocked: isLocked,
+                  hintText: 'Operational comments',
+                ),
+              ),
+            ],
           ),
         ),
         const SizedBox(width: 12),
@@ -256,30 +272,7 @@ class _RemarksViewState extends State<RemarksView> {
           child: Column(
             children: [
               Expanded(
-                flex: 11,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(
-                      child: _buildMemoPanel(
-                        title: 'Remarks',
-                        controller: remarksCtrl,
-                        icon: Icons.forum_outlined,
-                        isLocked: isLocked,
-                        hintText: 'Operational comments',
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    SizedBox(
-                      width: 250,
-                      child: _buildAttachmentPanel(isLocked),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-              Expanded(
-                flex: 11,
+                flex: 16,
                 child: _buildMemoPanel(
                   title: 'Recap Remarks',
                   controller: recapCtrl,
@@ -291,12 +284,24 @@ class _RemarksViewState extends State<RemarksView> {
               const SizedBox(height: 12),
               Expanded(
                 flex: 12,
-                child: _buildMemoPanel(
-                  title: 'Internal Notes',
-                  controller: internalCtrl,
-                  icon: Icons.lock_outline,
-                  isLocked: isLocked,
-                  hintText: 'Internal notes',
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      child: _buildMemoPanel(
+                        title: 'Internal Notes',
+                        controller: internalCtrl,
+                        icon: Icons.lock_outline,
+                        isLocked: isLocked,
+                        hintText: 'Internal notes',
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    SizedBox(
+                      width: 250,
+                      child: _buildAttachmentPanel(isLocked),
+                    ),
+                  ],
                 ),
               ),
             ],

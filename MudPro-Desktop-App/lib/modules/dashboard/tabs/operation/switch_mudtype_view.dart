@@ -44,59 +44,63 @@ class _SwitchMudTypeViewState extends State<SwitchMudTypeView> {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final contentWidth = math.max(_sectionWidth, constraints.maxWidth - 32);
-        return Material(
-          type: MaterialType.transparency,
-          child: Container(
-            color: AppTheme.backgroundColor,
-            padding: const EdgeInsets.all(12),
-            child: Scrollbar(
-              controller: _verticalScrollController,
-              thumbVisibility: true,
-              trackVisibility: true,
-              notificationPredicate: (notification) =>
-                  notification.metrics.axis == Axis.vertical,
-              child: SingleChildScrollView(
-                controller: _verticalScrollController,
-                child: Scrollbar(
-                  controller: _horizontalScrollController,
-                  thumbVisibility: true,
-                  trackVisibility: true,
-                  notificationPredicate: (notification) =>
-                      notification.metrics.axis == Axis.horizontal,
-                  child: SingleChildScrollView(
-                    controller: _horizontalScrollController,
-                    scrollDirection: Axis.horizontal,
-                    child: SizedBox(
-                      width: contentWidth,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _twoTableSection(
-                            title: '1. Remove Mud from Active Pits',
-                            selected: controller.section1Selected,
-                            leftLabel: 'Transfer',
-                            rightLabel: 'Make Storage',
-                            leftList: controller.section1Left,
-                            rightList: controller.section1Right,
-                          ),
-                          const SizedBox(height: 18),
-                          _twoTableSection(
-                            title: '2. Fill Active Pits',
-                            selected: controller.section2Selected,
-                            leftLabel: 'Transfer',
-                            rightLabel: 'Make Storage',
-                            leftList: controller.section2Left,
-                            rightList: controller.section2Right,
-                          ),
-                          const SizedBox(height: 18),
-                          _singleTableSection(
-                            title: '3. Displace Fluid in Hole to Storage',
-                            list: controller.section3,
-                          ),
-                        ],
+    return Scaffold(
+      backgroundColor: AppTheme.backgroundColor,
+      body: Scrollbar(
+        controller: _verticalScrollController,
+        thumbVisibility: true,
+        trackVisibility: true,
+        notificationPredicate: (notification) =>
+            notification.metrics.axis == Axis.vertical,
+        child: SingleChildScrollView(
+          controller: _verticalScrollController,
+          child: Scrollbar(
+            controller: _horizontalScrollController,
+            thumbVisibility: true,
+            trackVisibility: true,
+            notificationPredicate: (notification) =>
+                notification.metrics.axis == Axis.horizontal,
+            child: SingleChildScrollView(
+              controller: _horizontalScrollController,
+              scrollDirection: Axis.horizontal,
+              child: SizedBox(
+                width: 1000,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // ================= ENHANCED HEADER =================
+                      // _buildHeader(),
+
+                      // const SizedBox(height: 20),
+
+                      /// SECTION 1
+                      _enhancedTwoTableSection(
+                        title: "1. Remove Mud from Active Pits",
+                        selected: controller.section1Selected,
+                        leftList: controller.section1Left,
+                        rightList: controller.section1Right,
+                        sectionIndex: 1,
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      /// SECTION 2
+                      _enhancedTwoTableSection(
+                        title: "2. Fill Active Pits",
+                        selected: controller.section2Selected,
+                        leftList: controller.section2Left,
+                        rightList: controller.section2Right,
+                        sectionIndex: 2,
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      /// SECTION 3
+                      _enhancedSingleTableSection(
+                        title: "3. Displace Fluid in Hole to Storage",
+                        list: controller.section3,
                       ),
                     ),
                   ),
@@ -181,13 +185,37 @@ class _SwitchMudTypeViewState extends State<SwitchMudTypeView> {
     );
   }
 
-  Widget _sectionTitle(String title) {
-    return Text(
-      title,
-      style: const TextStyle(
-        color: Colors.black,
-        fontSize: 16,
-        fontWeight: FontWeight.w700,
+          SizedBox(
+            width: 960,
+            child: Row(
+              children: [
+                Expanded(
+                  child: Obx(
+                    () => _enhancedTableWithRadio(
+                      label: "Transfer",
+                      isActive: selected.value == 0,
+                      onSelect: () => selected.value = 0,
+                      list: leftList,
+                      sectionEnabled: selected.value == 0,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 20),
+                Expanded(
+                  child: Obx(
+                    () => _enhancedTableWithRadio(
+                      label: "Make Storage",
+                      isActive: selected.value == 1,
+                      onSelect: () => selected.value = 1,
+                      list: rightList,
+                      sectionEnabled: selected.value == 1,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -239,15 +267,131 @@ class _SwitchMudTypeViewState extends State<SwitchMudTypeView> {
     );
   }
 
-  Widget _selectionDot(bool active) {
-    return Container(
-      width: 18,
-      height: 18,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(
-          color: active ? AppTheme.primaryColor : const Color(0xFFB8B8B8),
-          width: 2,
+            // Table Rows
+            ...List.generate(
+              list.length,
+              (index) {
+                final selectedPit = list[index];
+                final validPit =
+                    selectedPit != null &&
+                        controller.pitList.contains(selectedPit)
+                    ? selectedPit
+                    : null;
+
+                return Container(
+                  decoration: BoxDecoration(
+                    color: index % 2 == 0 ? Colors.white : Colors.grey.shade50,
+                    border: Border(
+                      bottom: BorderSide(
+                        color: index == list.length - 1
+                            ? Colors.transparent
+                            : Colors.grey.shade200,
+                      ),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      // Pit Column with Dropdown
+                      Expanded(
+                        child: Container(
+                          height: 48,
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: enabled
+                              ? DropdownButton<String>(
+                                  value: validPit,
+                                  isExpanded: true,
+                                  underline: const SizedBox(),
+                                  icon: Icon(
+                                    Icons.arrow_drop_down_rounded,
+                                    size: 20,
+                                    color: Colors.grey.shade400,
+                                  ),
+                                  hint: const SizedBox.shrink(),
+                                  onChanged: (String? newValue) {
+                                    if (newValue != null) {
+                                      list[index] = newValue;
+                                    }
+                                  },
+                                  items: controller.pitList.map((String value) {
+                                    return DropdownMenuItem<String>(
+                                      value: value,
+                                      child: Text(
+                                        value,
+                                        style: AppTheme.bodySmall.copyWith(
+                                          fontSize: 12,
+                                          color: Colors.black,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    );
+                                  }).toList(),
+                                )
+                              : Container(
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    validPit ?? "",
+                                    style: AppTheme.bodySmall.copyWith(
+                                      fontSize: 12,
+                                      color: Colors.black,
+                                      fontWeight: FontWeight.w700,
+                                      fontStyle: validPit == null
+                                          ? FontStyle.italic
+                                          : null,
+                                    ),
+                                  ),
+                                ),
+                        ),
+                      ),
+
+                      // Volume Column
+                      SizedBox(
+                        width: 120,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: enabled
+                              ? TextField(
+                                  decoration: InputDecoration(
+                                    border: InputBorder.none,
+                                    isDense: true,
+                                    hintText: "",
+                                    hintStyle: AppTheme.caption.copyWith(
+                                      color: Colors.black,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      vertical: 12,
+                                    ),
+                                  ),
+                                  style: AppTheme.bodySmall.copyWith(
+                                    fontSize: 12,
+                                    color: Colors.black,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                  textAlign: TextAlign.right,
+                                  keyboardType: TextInputType.number,
+                                )
+                              : Container(
+                                  height: 48,
+                                  alignment: Alignment.centerRight,
+                                  child: Text(
+                                    "",
+                                    style: AppTheme.bodySmall.copyWith(
+                                      fontSize: 12,
+                                      color: Colors.black,
+                                      fontWeight: FontWeight.w700,
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                                  ),
+                                ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ],
         ),
       ),
       alignment: Alignment.center,
