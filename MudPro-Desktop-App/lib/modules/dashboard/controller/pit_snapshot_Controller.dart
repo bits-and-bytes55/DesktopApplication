@@ -248,9 +248,8 @@ class PitSnapshotController extends GetxController {
       return;
     }
 
-    final cumulativeAmountsBySystem = <String, Map<String, double>>{};
+    final massLedger = <String, Map<String, double>>{};
     final productMetaByKey = <String, _SnapshotProduct>{};
-    var previousEndVolume = 0.0;
     var selectedRows = const <_ComputedConcentrationRow>[];
     var selectedRowsBySystem = const <String, List<_ComputedConcentrationRow>>{};
 
@@ -265,12 +264,17 @@ class PitSnapshotController extends GetxController {
               reportId: report.id,
             );
 
-      final systemVolumes = _systemVolumesFromPayload(source.volumePayload);
-      final usedAmountsBySystem = _allocatedProductAmountsBySystem(
+      final startLedger = _cloneMassLedger(massLedger);
+      final endVolumes = _systemVolumesFromPayload(source.volumePayload);
+      final startVolumes = _initialVolumesForReplay(source.volumePayload);
+      _applyReportOperationsToLedger(
+        ledger: massLedger,
+        startVolumes: startVolumes,
         volumePayload: source.volumePayload,
         inventoryItems: source.inventoryItems,
         productMetaByKey: productMetaByKey,
       );
+
       final reportProductKeys = <String>{};
       for (final item in source.inventoryItems) {
         if (_normalizeText(item['category']) != 'product') continue;
@@ -282,92 +286,117 @@ class PitSnapshotController extends GetxController {
         productMetaByKey[product.key] = product;
       }
 
-      final startVolume = previousEndVolume > 0 ? previousEndVolume : 0.0;
-      final endVolume = _resolveConcentrationEndVolume(source.volumePayload);
-      final reportSystems = <String>{
-        'Active System',
-        ...systemVolumes.keys,
-        ...cumulativeAmountsBySystem.keys,
-        ...usedAmountsBySystem.keys,
-      };
-      final rowsBySystem = <String, List<_ComputedConcentrationRow>>{};
-
-      for (final system in reportSystems) {
-        final cumulativeAmounts =
-            cumulativeAmountsBySystem.putIfAbsent(system, () => <String, double>{});
-        final usedAmounts = usedAmountsBySystem[system] ?? const <String, double>{};
-        final keys = {
-          ...cumulativeAmounts.keys,
-          ...usedAmounts.keys,
-          if (report.id == currentReportId) ...reportProductKeys,
-        }.toList()
-          ..sort((left, right) {
-            final leftMeta = productMetaByKey[left];
-            final rightMeta = productMetaByKey[right];
-            final leftName = leftMeta?.itemName.toLowerCase() ?? left;
-            final rightName = rightMeta?.itemName.toLowerCase() ?? right;
-            return leftName.compareTo(rightName);
-          });
-
-        final systemStartVolume =
-            system == 'Active System' ? startVolume : 0.0;
-        final systemEndVolume = systemVolumes[system] ??
-            (system == 'Active System' ? endVolume : 0.0);
-        final rows = <_ComputedConcentrationRow>[];
-
-        for (final key in keys) {
-          final product = productMetaByKey[key];
-          if (product == null) continue;
-
-          final startAmount = cumulativeAmounts[key] ?? 0.0;
-          final endAmount = startAmount + (usedAmounts[key] ?? 0.0);
-          final isCurrentReportProduct =
-              report.id == currentReportId && reportProductKeys.contains(key);
-          if (startAmount <= 0 && endAmount <= 0 && !isCurrentReportProduct) {
-            continue;
-          }
-
-          rows.add(
-            _ComputedConcentrationRow(
-              key: key,
-              itemName: product.itemName,
-              unitDisplay: product.unitDisplay,
-              concentrationUnit: product.concentrationUnit,
-              startConcentration: _concentrationForAmount(
-                amount: startAmount,
-                systemVolume: systemStartVolume,
-              ),
-              endConcentration: _concentrationForAmount(
-                amount: endAmount,
-                systemVolume: systemEndVolume,
-              ),
-            ),
-          );
-
-          if (endAmount > 0) {
-            cumulativeAmounts[key] = endAmount;
-          } else {
-            cumulativeAmounts.remove(key);
-          }
-        }
-
-        rowsBySystem[system] = rows;
-      }
+      final rowsBySystem = _rowsFromLedgers(
+        startLedger: startLedger,
+        endLedger: massLedger,
+        startVolumes: startVolumes,
+        endVolumes: endVolumes,
+        productMetaByKey: productMetaByKey,
+        currentReportProductKeys: report.id == currentReportId
+            ? reportProductKeys
+            : const <String>{},
+      );
 
       if (report.id == currentReportId) {
         selectedRowsBySystem = rowsBySystem;
         selectedRows =
             rowsBySystem['Active System'] ?? const <_ComputedConcentrationRow>[];
       }
-
-      if (endVolume > 0) {
-        previousEndVolume = endVolume;
-      }
     }
 
     _computedConcentrationRowsBySystem = selectedRowsBySystem;
     _computedConcentrationRows = selectedRows;
     _rebuildConcentrationRows();
+  }
+
+  Map<String, Map<String, double>> _cloneMassLedger(
+    Map<String, Map<String, double>> source,
+  ) {
+    return {
+      for (final entry in source.entries)
+        entry.key: Map<String, double>.from(entry.value),
+    };
+  }
+
+  List<String> _sortedProductKeys({
+    required Iterable<String> keys,
+    required Map<String, _SnapshotProduct> productMetaByKey,
+  }) {
+    return keys.toSet().toList()
+      ..sort((left, right) {
+        final leftMeta = productMetaByKey[left];
+        final rightMeta = productMetaByKey[right];
+        final leftName = leftMeta?.itemName.toLowerCase() ?? left;
+        final rightName = rightMeta?.itemName.toLowerCase() ?? right;
+        return leftName.compareTo(rightName);
+      });
+  }
+
+  Map<String, List<_ComputedConcentrationRow>> _rowsFromLedgers({
+    required Map<String, Map<String, double>> startLedger,
+    required Map<String, Map<String, double>> endLedger,
+    required Map<String, double> startVolumes,
+    required Map<String, double> endVolumes,
+    required Map<String, _SnapshotProduct> productMetaByKey,
+    Set<String> currentReportProductKeys = const <String>{},
+  }) {
+    final systems = <String>{
+      'Active System',
+      ...startVolumes.keys,
+      ...endVolumes.keys,
+      ...startLedger.keys,
+      ...endLedger.keys,
+    };
+    final rowsBySystem = <String, List<_ComputedConcentrationRow>>{};
+
+    for (final system in systems) {
+      final startAmounts = startLedger[system] ?? const <String, double>{};
+      final endAmounts = endLedger[system] ?? const <String, double>{};
+      final keys = _sortedProductKeys(
+        keys: {
+          ...startAmounts.keys,
+          ...endAmounts.keys,
+          ...currentReportProductKeys,
+        },
+        productMetaByKey: productMetaByKey,
+      );
+
+      final rows = <_ComputedConcentrationRow>[];
+
+      for (final key in keys) {
+        final product = productMetaByKey[key];
+        if (product == null) continue;
+
+        final startAmount = startAmounts[key] ?? 0.0;
+        final endAmount = endAmounts[key] ?? 0.0;
+        if (startAmount <= 0 &&
+            endAmount <= 0 &&
+            !currentReportProductKeys.contains(key)) {
+          continue;
+        }
+
+        rows.add(
+          _ComputedConcentrationRow(
+            key: key,
+            itemName: product.itemName,
+            unitDisplay: product.unitDisplay,
+            concentrationUnit: product.concentrationUnit,
+            startConcentration: _concentrationForAmount(
+              amount: startAmount,
+              systemVolume: startVolumes[system] ?? 0.0,
+            ),
+            endConcentration: _concentrationForAmount(
+              amount: endAmount,
+              systemVolume: endVolumes[system] ?? 0.0,
+            ),
+          ),
+        );
+      }
+
+      rowsBySystem[system] = rows;
+    }
+
+    return rowsBySystem;
   }
 
   Future<_HistoricalConcentrationSource> _loadHistoricalConcentrationSource({
@@ -402,9 +431,14 @@ class PitSnapshotController extends GetxController {
     required Map<String, dynamic> volumePayload,
     required List<Map<String, dynamic>> inventoryItems,
   }) {
-    final systemVolumes = _systemVolumesFromPayload(volumePayload);
     final productMetaByKey = <String, _SnapshotProduct>{};
-    final usedAmountsBySystem = _allocatedProductAmountsBySystem(
+    final startLedger = <String, Map<String, double>>{};
+    final endLedger = <String, Map<String, double>>{};
+    final startVolumes = _initialVolumesForReplay(volumePayload);
+    final endVolumes = _systemVolumesFromPayload(volumePayload);
+    _applyReportOperationsToLedger(
+      ledger: endLedger,
+      startVolumes: startVolumes,
       volumePayload: volumePayload,
       inventoryItems: inventoryItems,
       productMetaByKey: productMetaByKey,
@@ -420,52 +454,14 @@ class PitSnapshotController extends GetxController {
       reportProductKeys.add(product.key);
     }
 
-    final rowsBySystem = <String, List<_ComputedConcentrationRow>>{};
-    final systems = <String>{
-      'Active System',
-      ...systemVolumes.keys,
-      ...usedAmountsBySystem.keys,
-    };
-
-    for (final system in systems) {
-      final usedAmounts = usedAmountsBySystem[system] ?? const <String, double>{};
-      final systemVolume = systemVolumes[system] ??
-          (system == 'Active System'
-              ? _resolveConcentrationEndVolume(volumePayload)
-              : 0.0);
-      final keys = {...reportProductKeys, ...usedAmounts.keys}.toList()
-        ..sort((left, right) {
-          final leftMeta = productMetaByKey[left];
-          final rightMeta = productMetaByKey[right];
-          final leftName = leftMeta?.itemName.toLowerCase() ?? left;
-          final rightName = rightMeta?.itemName.toLowerCase() ?? right;
-          return leftName.compareTo(rightName);
-        });
-      final rows = <_ComputedConcentrationRow>[];
-
-      for (final key in keys) {
-        final product = productMetaByKey[key];
-        if (product == null) continue;
-        final endAmount = usedAmounts[key] ?? 0.0;
-
-        rows.add(
-          _ComputedConcentrationRow(
-            key: product.key,
-            itemName: product.itemName,
-            unitDisplay: product.unitDisplay,
-            concentrationUnit: product.concentrationUnit,
-            startConcentration: 0.0,
-            endConcentration: _concentrationForAmount(
-              amount: endAmount,
-              systemVolume: systemVolume,
-            ),
-          ),
-        );
-      }
-
-      rowsBySystem[system] = rows;
-    }
-
+    final rowsBySystem = _rowsFromLedgers(
+      startLedger: startLedger,
+      endLedger: endLedger,
+      startVolumes: startVolumes,
+      endVolumes: endVolumes,
+      productMetaByKey: productMetaByKey,
+      currentReportProductKeys: reportProductKeys,
+    );
     _computedConcentrationRowsBySystem = rowsBySystem;
     return rowsBySystem['Active System'] ?? const <_ComputedConcentrationRow>[];
   }
@@ -543,47 +539,292 @@ class PitSnapshotController extends GetxController {
     return volumes;
   }
 
-  Map<String, Map<String, double>> _allocatedProductAmountsBySystem({
+  Map<String, double> _initialVolumesForReplay(Map<String, dynamic> payload) {
+    final volumes = Map<String, double>.from(_systemVolumesFromPayload(payload));
+    final operations = _map(payload['concentrationOperations']);
+    final events = <Map<String, dynamic>>[
+      ..._extractList(operations['addWater']).map(
+        (row) => {'type': 'addWater', 'time': _eventTime(row), 'row': row},
+      ),
+      ..._extractList(operations['transfers']).map(
+        (row) => {'type': 'transfer', 'time': _eventTime(row), 'row': row},
+      ),
+      ..._extractList(operations['mudLoss']).map(
+        (row) => {'type': 'mudLoss', 'time': _eventTime(row), 'row': row},
+      ),
+      ..._extractList(operations['mudLossStorage']).map(
+        (row) => {'type': 'mudLossStorage', 'time': _eventTime(row), 'row': row},
+      ),
+      ..._extractList(operations['emptyFluid']).map(
+        (row) => {'type': 'emptyFluid', 'time': _eventTime(row), 'row': row},
+      ),
+    ]..sort((left, right) => _number(right['time']).compareTo(_number(left['time'])));
+
+    for (final event in events) {
+      final row = _map(event['row']);
+      switch (_text(event['type'])) {
+        case 'addWater':
+          _addVolume(volumes, _normalizeSystemName(_text(row['to'])), -_number(row['volume']));
+          break;
+        case 'transfer':
+          final from = _normalizeSystemName(_text(row['from']));
+          final transfers = _extractList(row['transfers']);
+          final total = _transferTotal(row, transfers);
+          _addVolume(volumes, from, total);
+          for (final transfer in transfers) {
+            _addVolume(
+              volumes,
+              _normalizeSystemName(_text(transfer['pitName'])),
+              -_number(transfer['volume']),
+            );
+          }
+          break;
+        case 'mudLoss':
+          _addVolume(volumes, 'Active System', _number(row['totalLoss']));
+          break;
+        case 'mudLossStorage':
+          _addVolume(
+            volumes,
+            _normalizeSystemName(_text(row['storage'])),
+            _number(row['totalLoss']),
+          );
+          break;
+        case 'emptyFluid':
+          final volume = _number(row['volume']);
+          if (_text(row['actionType']).toLowerCase() == 'transfer to storage') {
+            _addVolume(volumes, 'Active System', volume);
+            _addVolume(volumes, _normalizeSystemName(_text(row['pitName'])), -volume);
+          } else {
+            _addVolume(volumes, 'Active System', volume);
+          }
+          break;
+      }
+    }
+
+    return volumes;
+  }
+
+  void _applyReportOperationsToLedger({
+    required Map<String, Map<String, double>> ledger,
+    required Map<String, double> startVolumes,
     required Map<String, dynamic> volumePayload,
     required List<Map<String, dynamic>> inventoryItems,
     required Map<String, _SnapshotProduct> productMetaByKey,
   }) {
-    final result = <String, Map<String, double>>{};
-    final distributionStates = _distributionStatesByOperation(volumePayload);
+    final volumes = Map<String, double>.from(startVolumes);
+    final operations = _map(volumePayload['concentrationOperations']);
     final massSources = _extractList(volumePayload['consumeProductMassSources']);
-    final sourceRows = massSources.isNotEmpty
+    final productRows = massSources.isNotEmpty
         ? massSources
         : inventoryItems
               .where((item) => _normalizeText(item['category']) == 'product')
               .toList(growable: false);
+    final distributionStates = _distributionStatesByOperation(volumePayload);
+    final events = <Map<String, dynamic>>[
+      ...productRows.map(
+        (row) => {'type': 'chemical', 'time': _eventTime(row), 'row': row},
+      ),
+      ..._extractList(operations['addWater']).map(
+        (row) => {'type': 'addWater', 'time': _eventTime(row), 'row': row},
+      ),
+      ..._extractList(operations['transfers']).map(
+        (row) => {'type': 'transfer', 'time': _eventTime(row), 'row': row},
+      ),
+      ..._extractList(operations['mudLoss']).map(
+        (row) => {'type': 'mudLoss', 'time': _eventTime(row), 'row': row},
+      ),
+      ..._extractList(operations['mudLossStorage']).map(
+        (row) => {'type': 'mudLossStorage', 'time': _eventTime(row), 'row': row},
+      ),
+      ..._extractList(operations['emptyFluid']).map(
+        (row) => {'type': 'emptyFluid', 'time': _eventTime(row), 'row': row},
+      ),
+    ]..sort((left, right) => _number(left['time']).compareTo(_number(right['time'])));
 
-    for (final row in sourceRows) {
-      final product = _snapshotProductFromProductSource(row);
-      if (product == null) continue;
+    for (final event in events) {
+      final row = _map(event['row']);
+      switch (_text(event['type'])) {
+        case 'chemical':
+          _applyChemicalToLedger(
+            ledger: ledger,
+            row: row,
+            distributionStates: distributionStates,
+            productMetaByKey: productMetaByKey,
+          );
+          break;
+        case 'addWater':
+          _addVolume(volumes, _normalizeSystemName(_text(row['to'])), _number(row['volume']));
+          break;
+        case 'transfer':
+          _applyTransferToLedger(ledger: ledger, volumes: volumes, row: row);
+          break;
+        case 'mudLoss':
+          _loseVolumeFromLedger(
+            ledger: ledger,
+            volumes: volumes,
+            system: 'Active System',
+            lossVolume: _number(row['totalLoss']),
+          );
+          break;
+        case 'mudLossStorage':
+          _loseVolumeFromLedger(
+            ledger: ledger,
+            volumes: volumes,
+            system: _normalizeSystemName(_text(row['storage'])),
+            lossVolume: _number(row['totalLoss']),
+          );
+          break;
+        case 'emptyFluid':
+          final volume = _number(row['volume']);
+          if (_text(row['actionType']).toLowerCase() == 'transfer to storage') {
+            _transferMassBetweenSystems(
+              ledger: ledger,
+              volumes: volumes,
+              from: 'Active System',
+              destinations: {_normalizeSystemName(_text(row['pitName'])): volume},
+            );
+          } else {
+            _loseVolumeFromLedger(
+              ledger: ledger,
+              volumes: volumes,
+              system: 'Active System',
+              lossVolume: volume,
+            );
+          }
+          break;
+      }
+    }
+  }
 
-      productMetaByKey[product.key] = product;
-      final used = _number(row['used']);
-      final amount = used > 0 ? used * product.factorPerPack : 0.0;
-      if (amount <= 0) continue;
+  void _applyChemicalToLedger({
+    required Map<String, Map<String, double>> ledger,
+    required Map<String, dynamic> row,
+    required Map<String, Map<String, dynamic>> distributionStates,
+    required Map<String, _SnapshotProduct> productMetaByKey,
+  }) {
+    final product = _snapshotProductFromProductSource(row);
+    if (product == null) return;
+    productMetaByKey[product.key] = product;
 
-      final operationKey = _text(row['operationInstanceKey']);
-      final allocations = _distributionAllocationsForOperation(
-        operationKey: operationKey,
-        distributionStates: distributionStates,
-      );
+    final amount = _number(row['used']) * product.factorPerPack;
+    if (amount <= 0) return;
 
-      allocations.forEach((system, fraction) {
-        if (fraction <= 0) return;
-        final systemAmounts = result.putIfAbsent(
-          system,
-          () => <String, double>{},
-        );
-        systemAmounts[product.key] =
-            (systemAmounts[product.key] ?? 0.0) + (amount * fraction);
-      });
+    final allocations = _distributionAllocationsForOperation(
+      operationKey: _text(row['operationInstanceKey']),
+      distributionStates: distributionStates,
+    );
+    allocations.forEach((system, fraction) {
+      if (fraction <= 0) return;
+      _addProductMass(ledger, system, product.key, amount * fraction);
+    });
+  }
+
+  void _applyTransferToLedger({
+    required Map<String, Map<String, double>> ledger,
+    required Map<String, double> volumes,
+    required Map<String, dynamic> row,
+  }) {
+    final transfers = _extractList(row['transfers']);
+    final destinations = <String, double>{};
+    for (final transfer in transfers) {
+      final pitName = _normalizeSystemName(_text(transfer['pitName']));
+      final volume = _number(transfer['volume']);
+      if (pitName.isEmpty || volume <= 0) continue;
+      destinations[pitName] = (destinations[pitName] ?? 0.0) + volume;
+    }
+    if (destinations.isEmpty) return;
+
+    _transferMassBetweenSystems(
+      ledger: ledger,
+      volumes: volumes,
+      from: _normalizeSystemName(_text(row['from'])),
+      destinations: destinations,
+    );
+  }
+
+  void _transferMassBetweenSystems({
+    required Map<String, Map<String, double>> ledger,
+    required Map<String, double> volumes,
+    required String from,
+    required Map<String, double> destinations,
+  }) {
+    final sourceVolume = volumes[from] ?? 0.0;
+    if (from.isEmpty || sourceVolume <= 0) return;
+
+    final requestedTotal = destinations.values.fold<double>(0.0, (sum, v) => sum + v);
+    if (requestedTotal <= 0) return;
+
+    final scale = requestedTotal > sourceVolume ? sourceVolume / requestedTotal : 1.0;
+    final sourceMasses = Map<String, double>.from(ledger[from] ?? const <String, double>{});
+    final actualTotal = requestedTotal * scale;
+
+    for (final destEntry in destinations.entries) {
+      final movedVolume = destEntry.value * scale;
+      if (movedVolume <= 0) continue;
+      final fraction = movedVolume / sourceVolume;
+      for (final massEntry in sourceMasses.entries) {
+        final movedMass = massEntry.value * fraction;
+        _addProductMass(ledger, from, massEntry.key, -movedMass);
+        _addProductMass(ledger, destEntry.key, massEntry.key, movedMass);
+      }
+      _addVolume(volumes, destEntry.key, movedVolume);
     }
 
-    return result;
+    _addVolume(volumes, from, -actualTotal);
+  }
+
+  void _loseVolumeFromLedger({
+    required Map<String, Map<String, double>> ledger,
+    required Map<String, double> volumes,
+    required String system,
+    required double lossVolume,
+  }) {
+    final currentVolume = volumes[system] ?? 0.0;
+    if (system.isEmpty || currentVolume <= 0 || lossVolume <= 0) return;
+
+    final actualLoss = lossVolume > currentVolume ? currentVolume : lossVolume;
+    final fraction = actualLoss / currentVolume;
+    final masses = Map<String, double>.from(ledger[system] ?? const <String, double>{});
+    for (final massEntry in masses.entries) {
+      _addProductMass(ledger, system, massEntry.key, -massEntry.value * fraction);
+    }
+    _addVolume(volumes, system, -actualLoss);
+  }
+
+  void _addProductMass(
+    Map<String, Map<String, double>> ledger,
+    String system,
+    String productKey,
+    double amount,
+  ) {
+    if (system.isEmpty || productKey.isEmpty || amount.abs() <= 0.000001) return;
+    final masses = ledger.putIfAbsent(system, () => <String, double>{});
+    final next = (masses[productKey] ?? 0.0) + amount;
+    if (next.abs() <= 0.000001) {
+      masses.remove(productKey);
+    } else {
+      masses[productKey] = next;
+    }
+  }
+
+  void _addVolume(Map<String, double> volumes, String system, double volume) {
+    if (system.isEmpty || volume.abs() <= 0.000001) return;
+    final next = (volumes[system] ?? 0.0) + volume;
+    volumes[system] = next <= 0.000001 ? 0.0 : next;
+  }
+
+  double _transferTotal(Map<String, dynamic> row, List<Map<String, dynamic>> transfers) {
+    final rowTotal = _number(row['totalTransferVol']);
+    if (rowTotal > 0) return rowTotal;
+    return transfers.fold<double>(0.0, (sum, item) => sum + _number(item['volume']));
+  }
+
+  double _eventTime(Map<String, dynamic> item) {
+    final updated = DateTime.tryParse(_text(item['updatedAt']));
+    final created = DateTime.tryParse(_text(item['createdAt']));
+    return (updated ?? created ?? DateTime.fromMillisecondsSinceEpoch(0))
+        .millisecondsSinceEpoch
+        .toDouble();
   }
 
   Map<String, Map<String, dynamic>> _distributionStatesByOperation(
@@ -703,22 +944,6 @@ class PitSnapshotController extends GetxController {
     );
     if (selectedIndex < 0) return const <AppReport>[];
     return reports.sublist(0, selectedIndex + 1);
-  }
-
-  double _resolveConcentrationEndVolume(Map<String, dynamic> volumePayload) {
-    final volumeName = _map(volumePayload['volumeName']);
-    final distribution = _map(volumePayload['consumeProductDistribution']);
-
-    final endVol = _number(volumeName['endVol']);
-    if (endVol > 0) return endVol;
-
-    final activeSystem = _number(volumeName['activeSystem']);
-    if (activeSystem > 0) return activeSystem;
-
-    final distributedTotal = _number(distribution['totalVolume']);
-    if (distributedTotal > 0) return distributedTotal;
-
-    return 0.0;
   }
 
   double _concentrationForAmount({

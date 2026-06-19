@@ -2289,6 +2289,49 @@ export const getVolumeNameCalculation = async (req, res) => {
           createdAt: state.createdAt,
           updatedAt: state.updatedAt,
         })),
+        concentrationOperations: {
+          addWater: normalizedAddWaterEntries.map((item) => ({
+            to: item.to || "",
+            volume: toNumber(item.volume),
+            operationInstanceKey: toText(item.operationInstanceKey),
+            createdAt: item.createdAt,
+            updatedAt: item.updatedAt,
+          })),
+          transfers: transferMudEntries.map((item) => ({
+            from: item.from || "",
+            totalTransferVol: toNumber(item.totalTransferVol),
+            transfers: Array.isArray(item.transfers)
+              ? item.transfers.map((row) => ({
+                  pitName: row?.pitName || "",
+                  volume: toNumber(row?.volume),
+                }))
+              : [],
+            operationInstanceKey: toText(item.operationInstanceKey),
+            createdAt: item.createdAt,
+            updatedAt: item.updatedAt,
+          })),
+          mudLoss: mudLossEntries.map((item) => ({
+            totalLoss: toNumber(item.totalLoss),
+            operationInstanceKey: toText(item.operationInstanceKey),
+            createdAt: item.createdAt,
+            updatedAt: item.updatedAt,
+          })),
+          mudLossStorage: normalizedMudLossStorageEntries.map((item) => ({
+            storage: item.storage || "",
+            totalLoss: toNumber(item.totalLoss),
+            operationInstanceKey: toText(item.operationInstanceKey),
+            createdAt: item.createdAt,
+            updatedAt: item.updatedAt,
+          })),
+          emptyFluid: emptyFluidEntries.map((item) => ({
+            actionType: item.actionType || "",
+            pitName: item.pitName || "",
+            volume: toNumber(item.volume || item.totalVolume),
+            operationInstanceKey: toText(item.operationInstanceKey),
+            createdAt: item.createdAt,
+            updatedAt: item.updatedAt,
+          })),
+        },
         activePitsTable: activePitsList.map((pit) => {
           const key = toText(pit.pitName).toLowerCase();
           const delta =
