@@ -761,7 +761,7 @@ class PitSnapshotController extends GetxController {
     }
     if (normalized.contains('ton') || normalized == 'mt' || normalized.endsWith(' mt')) {
       return _ConcentrationBasis(
-        factorPerPack: amount * 2000,
+        factorPerPack: amount * 1000 * _kgToLb,
         concentrationUnit: 'lb/bbl',
       );
     }
