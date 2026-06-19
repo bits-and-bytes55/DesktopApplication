@@ -135,26 +135,25 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
 
       // Load OBM
       final res = await _repository.getObm(wellId);
-      if (res['success'] == true && res['data'] is List) {
-        c.obm.value = res['data'] as List<ObmModel>;
-      } else {
-        c.obm.value = [];
-      }
-      if (c.obm.isEmpty) {
-        try {
-          final inventorySnapshot =
-              await InventoryProductsService.getInventoryData(wellId);
-          final snapshotObm = inventorySnapshot['obm'];
-          if (snapshotObm is List) {
-            c.obm.value = snapshotObm
-                .map(
-                  (item) => ObmModel.fromJson(Map<String, dynamic>.from(item)),
-                )
-                .toList();
-          }
-        } catch (_) {}
-      }
-      _syncObmHeaderWithPremix();
+	      if (res['success'] == true && res['data'] is List) {
+	        c.obm.value = res['data'] as List<ObmModel>;
+	      } else {
+	        c.obm.value = [];
+	      }
+	      try {
+	        final inventorySnapshot =
+	            await InventoryProductsService.getInventoryData(wellId);
+	        final snapshotObm = inventorySnapshot['obm'];
+	        if (snapshotObm is List && snapshotObm.isNotEmpty) {
+	          c.obm.value = snapshotObm
+	              .map(
+	                (item) => ObmModel.fromJson(Map<String, dynamic>.from(item)),
+	              )
+	              .toList();
+	        }
+	      } catch (_) {}
+	      _syncObmHeaderWithPremix();
+        _normalizeObmPremixLinks();
 
       print('✅ Data loaded successfully');
       print('Premixed count: ${premixedList.length}');
@@ -276,6 +275,14 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
             c.obmUnitController.text.trim().isNotEmpty);
   }
 
+  List<ObmModel> _selectedPremixObmItems(List<ObmModel> obmItems) {
+    final selected = _selectedPremixDescription.trim().toLowerCase();
+    if (selected.isEmpty) return const <ObmModel>[];
+    return obmItems.where((item) {
+      return item.premixDescription.trim().toLowerCase() == selected;
+    }).toList();
+  }
+
   void _schedulePremixedDraftSave() {
     if (c.isLocked.value) return;
     _premixedCreateTimer?.cancel();
@@ -328,8 +335,12 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
         final updated = await _repository.updateObm(id, obm);
         final index = c.obm.indexWhere((item) => item.id == id);
         if (index != -1) {
-          c.obm[index] = updated;
+          c.obm[index] = updated.copyWith(
+            premixDescription: obm.premixDescription,
+            unit: obm.unit,
+          );
           c.obm.refresh();
+          await _saveProductsInventorySnapshot();
         }
       } catch (e) {
         if (mounted) {
@@ -433,9 +444,10 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
   Widget _withRowMenu({
     required Widget child,
     Future<void> Function()? onDelete,
+    Future<void> Function()? onEdit,
     Future<void> Function()? onAdd,
   }) {
-    if (onDelete == null && onAdd == null) {
+    if (onDelete == null && onEdit == null && onAdd == null) {
       return child;
     }
 
@@ -456,6 +468,11 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                 value: 'add',
                 child: Text('Add', style: TextStyle(fontSize: 11)),
               ),
+            if (onEdit != null)
+              const PopupMenuItem<String>(
+                value: 'edit',
+                child: Text('Edit', style: TextStyle(fontSize: 11)),
+              ),
             if (onDelete != null)
               const PopupMenuItem<String>(
                 value: 'delete',
@@ -467,6 +484,9 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
         if (!mounted || action == null) return;
         if (action == 'add' && onAdd != null) {
           await onAdd();
+        }
+        if (action == 'edit' && onEdit != null) {
+          await onEdit();
         }
         if (action == 'delete' && onDelete != null) {
           await onDelete();
@@ -493,11 +513,17 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
   List<Widget> _wrapMenuCells(
     List<Widget> cells, {
     Future<void> Function()? onDelete,
+    Future<void> Function()? onEdit,
     Future<void> Function()? onAdd,
   }) {
     return cells
         .map(
-          (cell) => _withRowMenu(child: cell, onDelete: onDelete, onAdd: onAdd),
+          (cell) => _withRowMenu(
+            child: cell,
+            onDelete: onDelete,
+            onEdit: onEdit,
+            onAdd: onAdd,
+          ),
         )
         .toList();
   }
@@ -1318,23 +1344,32 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                               ...c.premixed.asMap().entries.map((entry) {
                                 final index = entry.key;
                                 final e = entry.value;
+                                final currentDescription = e.description;
                                 final rowCells = [
                                   _tableCell((index + 1).toString()),
                                   _editableTableCell(
                                     e.description,
                                     key: ValueKey('${e.id}-description'),
                                     onTap: () =>
-                                        _selectPremixForObm(e.description),
+                                        _selectPremixForObm(currentDescription),
                                     onChanged: (v) {
+                                      final previousDescription = e.description;
                                       e.description = v;
                                       _selectPremixForObm(v);
+                                      _relinkObmToPremix(
+                                        previousDescription,
+                                        v,
+                                      );
                                       _schedulePremixedUpdate(e);
                                     },
                                   ),
                                   _editableTableCell(
                                     e.mw,
                                     key: ValueKey('${e.id}-mw'),
+                                    onTap: () =>
+                                        _selectPremixForObm(e.description),
                                     onChanged: (v) {
+                                      _selectPremixForObm(e.description);
                                       e.mw = v;
                                       _schedulePremixedUpdate(e);
                                     },
@@ -1342,20 +1377,27 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                                   _editableTableCell(
                                     e.leasingFee,
                                     key: ValueKey('${e.id}-leasingFee'),
+                                    onTap: () =>
+                                        _selectPremixForObm(e.description),
                                     onChanged: (v) {
+                                      _selectPremixForObm(e.description);
                                       e.leasingFee = v;
                                       _schedulePremixedUpdate(e);
                                     },
                                   ),
                                   _premixedMudTypeDropdown(
                                     value: e.mudType,
+                                    onTap: () =>
+                                        _selectPremixForObm(e.description),
                                     onChanged: (v) {
+                                      _selectPremixForObm(e.description);
                                       e.mudType = v;
                                       c.premixed.refresh();
                                       _schedulePremixedUpdate(e);
                                     },
                                   ),
                                   _checkboxCell(() => e.tax, (v) {
+                                    _selectPremixForObm(e.description);
                                     e.tax = v;
                                     c.premixed.refresh();
                                     _schedulePremixedUpdate(e);
@@ -1445,10 +1487,6 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
 
   // ================= OBM TABLE =================
   Widget _obmTable() {
-    final fillerRows = _minDisplayRows > c.obm.length
-        ? _minDisplayRows - c.obm.length
-        : 0;
-
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -1491,84 +1529,96 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                   child: SingleChildScrollView(
                     controller: _obmHorizontalScroll,
                     scrollDirection: Axis.horizontal,
-                    child: SizedBox(
-                      width: tableWidth,
-                      child: SingleChildScrollView(
-                        controller: _obmVerticalScroll,
-                        child: Obx(
-                          () => Table(
-                            border: TableBorder.all(
-                              color: Colors.grey.shade300,
-                              width: 1,
-                            ),
-                            defaultVerticalAlignment:
-                                TableCellVerticalAlignment.middle,
-                            columnWidths: const {
-                              0: FixedColumnWidth(34),
-                              1: FlexColumnWidth(2.2),
-                              2: FlexColumnWidth(1),
-                              3: FlexColumnWidth(0.8),
-                              4: FlexColumnWidth(0.8),
-                              5: FlexColumnWidth(0.9),
-                            },
-                            children: [
-                              TableRow(
-                                decoration: const BoxDecoration(
-                                  color: Color(0xFFF3F3F3),
-                                ),
-                                children: [
-                                  _tableHeaderCell('#'),
-                                  _tableHeaderCell('Product'),
-                                  _tableHeaderCell('Code'),
-                                  _tableHeaderCell('SG'),
-                                  _tableHeaderCell('Conc'),
-                                  _tableHeaderCell('Unit'),
-                                ],
-                              ),
-                              ...c.obm.asMap().entries.map((entry) {
-                                final index = entry.key;
-                                final e = entry.value;
-                                final rowCells = [
-                                  _tableCell((index + 1).toString()),
-                                  _readOnlyInventoryCell(e.product),
-                                  _readOnlyInventoryCell(e.code),
-                                  _readOnlyInventoryCell(e.sg),
-                                  _editableTableCell(
-                                    e.conc,
-                                    key: ValueKey('${e.id}-conc'),
-                                    onChanged: (v) {
-                                      e.conc = v;
-                                      _scheduleObmUpdate(e);
-                                    },
-                                  ),
-                                  _readOnlyInventoryCell(e.unit),
-                                ];
+	                    child: SizedBox(
+	                      width: tableWidth,
+	                      child: SingleChildScrollView(
+	                        controller: _obmVerticalScroll,
+	                        child: Obx(
+	                          () {
+                              final obmItems = c.obm.toList(growable: false);
+                              final selectedObmItems = _selectedPremixObmItems(
+                                obmItems,
+                              );
+                              final fillerRows =
+                                  _minDisplayRows > selectedObmItems.length
+                                  ? _minDisplayRows - selectedObmItems.length
+                                  : 0;
+                              return Table(
+	                            border: TableBorder.all(
+	                              color: Colors.grey.shade300,
+	                              width: 1,
+	                            ),
+	                            defaultVerticalAlignment:
+	                                TableCellVerticalAlignment.middle,
+	                            columnWidths: const {
+	                              0: FixedColumnWidth(34),
+	                              1: FlexColumnWidth(2.2),
+	                              2: FlexColumnWidth(1),
+	                              3: FlexColumnWidth(0.8),
+	                              4: FlexColumnWidth(0.8),
+	                              5: FlexColumnWidth(0.9),
+	                            },
+	                            children: [
+	                              TableRow(
+	                                decoration: const BoxDecoration(
+	                                  color: Color(0xFFF3F3F3),
+	                                ),
+	                                children: [
+	                                  _tableHeaderCell('#'),
+	                                  _tableHeaderCell('Product'),
+	                                  _tableHeaderCell('Code'),
+	                                  _tableHeaderCell('SG'),
+	                                  _tableHeaderCell('Conc'),
+	                                  _tableHeaderCell('Unit'),
+	                                ],
+	                              ),
+	                              ...selectedObmItems.asMap().entries.map((entry) {
+	                                final index = entry.key;
+	                                final e = entry.value;
+	                                final rowCells = [
+	                                  _tableCell((index + 1).toString()),
+	                                  _readOnlyInventoryCell(e.product),
+	                                  _readOnlyInventoryCell(e.code),
+	                                  _readOnlyInventoryCell(e.sg),
+	                                  _editableTableCell(
+	                                    e.conc,
+	                                    key: ValueKey('${e.id}-conc'),
+	                                    onChanged: (v) {
+	                                      e.conc = v;
+	                                      _scheduleObmUpdate(e);
+	                                    },
+	                                  ),
+	                                  _readOnlyInventoryCell(e.unit),
+	                                ];
 
-                                return TableRow(
-                                  decoration: BoxDecoration(
-                                    color: index.isEven
-                                        ? Colors.white
-                                        : const Color(0xFFFBFBFB),
-                                  ),
-                                  children: _wrapMenuCells(
-                                    rowCells,
-                                    onDelete:
-                                        c.isLocked.value ||
-                                            (e.id?.isEmpty ?? true)
-                                        ? null
-                                        : () => _deleteObm(e.id!),
-                                  ),
-                                );
-                              }),
-                              ...List.generate(
-                                fillerRows,
-                                (_) => _emptyInventoryRow(columnCount: 6),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
+	                                return TableRow(
+	                                  decoration: BoxDecoration(
+	                                    color: index.isEven
+	                                        ? Colors.white
+	                                        : const Color(0xFFFBFBFB),
+	                                  ),
+	                                  children: _wrapMenuCells(
+	                                    rowCells,
+	                                    onEdit: c.isLocked.value
+	                                        ? null
+	                                        : () => _showObmEditDialog(e),
+	                                    onDelete:
+	                                        c.isLocked.value
+	                                        ? null
+	                                        : () => _deleteObmItem(e),
+	                                  ),
+	                                );
+	                              }),
+	                              ...List.generate(
+	                                fillerRows,
+	                                (_) => _emptyInventoryRow(columnCount: 6),
+	                              ),
+	                            ],
+                              );
+                            },
+	                        ),
+	                      ),
+	                    ),
                   ),
                 );
               },
@@ -1675,9 +1725,10 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
 
     _obmCreateTimer?.cancel();
 
-    final draft = ObmModel(
-      product: c.obmProductController.text.trim(),
-      code: c.obmCodeController.text.trim(),
+	    final draft = ObmModel(
+	      premixDescription: _selectedPremixDescription.trim(),
+	      product: c.obmProductController.text.trim(),
+	      code: c.obmCodeController.text.trim(),
       sg: c.obmSgController.text.trim(),
       conc: c.obmConcController.text.trim(),
       unit: c.obmUnitController.text.trim(),
@@ -1685,8 +1736,14 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
 
     try {
       final created = await _repository.createObm(wellId, draft);
-      c.obm.add(created);
+      c.obm.add(
+        created.copyWith(
+          premixDescription: draft.premixDescription,
+          unit: draft.unit,
+        ),
+      );
       c.obm.refresh();
+      await _saveProductsInventorySnapshot();
       c.obmProductController.clear();
       c.obmCodeController.clear();
       c.obmSgController.clear();
@@ -1702,9 +1759,9 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
     }
   }
 
-  Future<void> _deleteObm(String id) async {
-    final confirm = await _showDeleteConfirmation('OBM');
-    if (!confirm) return;
+	  Future<void> _deleteObm(String id) async {
+	    final confirm = await _showDeleteConfirmation('OBM');
+	    if (!confirm) return;
 
     try {
       _obmUpdateTimers[id]?.cancel();
@@ -1714,7 +1771,83 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
       _showToast('OBM deleted successfully');
     } catch (e) {
       _showToast('Failed to delete OBM', isError: true);
+	    }
+	  }
+
+  Future<void> _deleteObmItem(ObmModel item) async {
+    final id = item.id?.trim() ?? '';
+    if (id.isEmpty) {
+      final confirm = await _showDeleteConfirmation('OBM');
+      if (!confirm) return;
+      c.obm.remove(item);
+      c.obm.refresh();
+      await _saveProductsInventorySnapshot();
+      _showToast('OBM removed');
+      return;
     }
+    await _deleteObm(id);
+    await _saveProductsInventorySnapshot();
+  }
+
+  Future<void> _showObmEditDialog(ObmModel item) async {
+    final productController = TextEditingController(text: item.product);
+    final codeController = TextEditingController(text: item.code);
+    final sgController = TextEditingController(text: item.sg);
+    final concController = TextEditingController(text: item.conc);
+    final unitController = TextEditingController(text: item.unit);
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Edit Product'),
+        content: SizedBox(
+          width: 420,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _dialogField('Product', productController),
+                const SizedBox(height: 10),
+                _dialogField('Code', codeController),
+                const SizedBox(height: 10),
+                _dialogField('SG', sgController),
+                const SizedBox(height: 10),
+                _dialogField('Conc', concController),
+                const SizedBox(height: 10),
+                _dialogField('Unit', unitController),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              item.product = productController.text.trim();
+              item.code = codeController.text.trim();
+              item.sg = sgController.text.trim();
+              item.conc = concController.text.trim();
+              item.unit = unitController.text.trim();
+              c.obm.refresh();
+              Navigator.of(dialogContext).pop();
+              _scheduleObmUpdate(item);
+              await _saveProductsInventorySnapshot();
+              _showToast('OBM updated');
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+
+    productController.dispose();
+    codeController.dispose();
+    sgController.dispose();
+    concController.dispose();
+    unitController.dispose();
   }
 
   Future<void> _openObmInventoryPickup() async {
@@ -1769,16 +1902,19 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
       final code = product.code.trim();
       if (name.isEmpty && code.isEmpty) continue;
 
-      final exists = c.obm.any((item) {
-        return item.product.trim().toLowerCase() == name.toLowerCase() &&
-            item.code.trim().toLowerCase() == code.toLowerCase();
-      });
+	      final exists = c.obm.any((item) {
+	        return item.premixDescription.trim().toLowerCase() ==
+	                _selectedPremixDescription.trim().toLowerCase() &&
+	            item.product.trim().toLowerCase() == name.toLowerCase() &&
+	            item.code.trim().toLowerCase() == code.toLowerCase();
+	      });
       if (exists) continue;
 
-      final obm = ObmModel(
-        product: name,
-        code: code,
-        sg: product.sg.trim(),
+	      final obm = ObmModel(
+	        premixDescription: _selectedPremixDescription.trim(),
+	        product: name,
+	        code: code,
+	        sg: product.sg.trim(),
         conc: '',
         unit: product.formattedUnit,
       );
@@ -1790,14 +1926,18 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
     await _saveProductsInventorySnapshot();
   }
 
-  void _selectPremixForObm(String description) {
-    final title = description.trim();
-    if (title.isEmpty) return;
-    if (_selectedPremixDescription == title) return;
-    setState(() => _selectedPremixDescription = title);
-  }
+	  void _selectPremixForObm(String description) {
+	    final title = description.trim();
+	    if (title.isEmpty) {
+	      if (_selectedPremixDescription.isEmpty) return;
+	      setState(() => _selectedPremixDescription = '');
+	      return;
+	    }
+	    if (_selectedPremixDescription == title) return;
+	    setState(() => _selectedPremixDescription = title);
+	  }
 
-  void _syncObmHeaderWithPremix() {
+	  void _syncObmHeaderWithPremix() {
     final currentExists = c.premixed.any(
       (item) =>
           item.description.trim().isNotEmpty &&
@@ -1808,8 +1948,50 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
     final firstDescription = c.premixed
         .map((item) => item.description.trim())
         .firstWhere((description) => description.isNotEmpty, orElse: () => '');
-    if (firstDescription.isEmpty) return;
-    _selectedPremixDescription = firstDescription;
+	    _selectedPremixDescription = firstDescription;
+	  }
+
+  void _normalizeObmPremixLinks() {
+    final premixDescriptions = c.premixed
+        .map((item) => item.description.trim())
+        .where((item) => item.isNotEmpty)
+        .toList(growable: false);
+    if (premixDescriptions.length != 1) return;
+    final defaultDescription = premixDescriptions.first;
+    if (defaultDescription.isEmpty) return;
+
+    var changed = false;
+    for (final item in c.obm) {
+      if (item.premixDescription.trim().isEmpty) {
+        item.premixDescription = defaultDescription;
+        changed = true;
+      }
+    }
+    if (changed) {
+      c.obm.refresh();
+      _scheduleProductsInventorySave();
+    }
+  }
+
+  void _relinkObmToPremix(String oldDescription, String newDescription) {
+    final oldKey = oldDescription.trim().toLowerCase();
+    final newKey = newDescription.trim();
+    if (oldKey.isEmpty || newKey.isEmpty || oldDescription.trim() == newKey) {
+      return;
+    }
+
+    var changed = false;
+    for (final item in c.obm) {
+      if (item.premixDescription.trim().toLowerCase() == oldKey) {
+        item.premixDescription = newKey;
+        _scheduleObmUpdate(item);
+        changed = true;
+      }
+    }
+    if (changed) {
+      c.obm.refresh();
+      _scheduleProductsInventorySave();
+    }
   }
 
   // ================= HELPERS =================
@@ -1924,11 +2106,12 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
     ),
   );
 
-	  Widget _premixedMudTypeDropdown({
-    required String value,
-    required ValueChanged<String> onChanged,
-    bool allowBlank = false,
-  }) {
+		  Widget _premixedMudTypeDropdown({
+	    required String value,
+	    required ValueChanged<String> onChanged,
+	    VoidCallback? onTap,
+	    bool allowBlank = false,
+	  }) {
     const options = ['Water-based', 'Oil-based', 'Synthetic'];
     final cleanValue = value.trim();
     final currentValue = allowBlank && cleanValue.isEmpty
@@ -1944,11 +2127,12 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
       padding: const EdgeInsets.symmetric(horizontal: 4),
       color: const Color(0xFFFFF9CC),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: options.contains(currentValue)
-              ? currentValue
-              : (allowBlank ? null : options.first),
-          isExpanded: true,
+	        child: DropdownButton<String>(
+	          value: options.contains(currentValue)
+	              ? currentValue
+	              : (allowBlank ? null : options.first),
+            onTap: onTap,
+	          isExpanded: true,
           hint: const SizedBox.shrink(),
           iconSize: 16,
           style: TextStyle(

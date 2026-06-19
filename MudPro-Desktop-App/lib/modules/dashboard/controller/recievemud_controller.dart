@@ -105,7 +105,7 @@ class ReceiveMudController extends GetxController {
 
   String _formatNumber(dynamic value, {int decimals = 2}) {
     final n = _parseNumber(value?.toString() ?? '');
-    if (n == 0 && (value == null || value.toString().trim().isEmpty)) {
+    if (n == 0) {
       return '';
     }
     return n.toStringAsFixed(decimals);

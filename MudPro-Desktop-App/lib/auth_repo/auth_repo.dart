@@ -1646,7 +1646,7 @@ class AuthRepository {
       final response = await http.post(
         Uri.parse('$baseUrl${ApiEndpoint.addObm}/$wellId'),
         headers: _headers,
-        body: jsonEncode(obm.toJson()),
+        body: jsonEncode(obm.toJson(includePremixDescription: false)),
       );
       final data = jsonDecode(response.body);
       if (response.statusCode == 201 || response.statusCode == 200) {
@@ -1663,7 +1663,7 @@ class AuthRepository {
       final response = await http.put(
         Uri.parse('$baseUrl${ApiEndpoint.updateObm}/$id'),
         headers: _headers,
-        body: jsonEncode(obm.toJson()),
+        body: jsonEncode(obm.toJson(includePremixDescription: false)),
       );
       final data = jsonDecode(response.body);
       if (response.statusCode == 200) {

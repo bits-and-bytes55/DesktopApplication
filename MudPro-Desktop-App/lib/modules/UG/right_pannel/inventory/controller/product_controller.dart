@@ -32,7 +32,9 @@ class ProductsPickupController extends GetxController {
       final result = await repository.getProducts(page: 1, limit: 10000);
       
       if (result['success'] == true) {
-        final List<ProductModel> fetchedProducts = result['products'] ?? [];
+        final List<ProductModel> fetchedProducts = List<ProductModel>.from(
+          result['products'] ?? const <ProductModel>[],
+        );
         
         existingProductIds.clear();
         for (var product in fetchedProducts) {
@@ -41,6 +43,12 @@ class ProductsPickupController extends GetxController {
           }
         }
         
+        fetchedProducts.sort((a, b) {
+          final left = _productSortLabel(a);
+          final right = _productSortLabel(b);
+          return left.compareTo(right);
+        });
+
         products.clear();
         products.addAll(fetchedProducts);
         
@@ -132,9 +140,59 @@ class ProductsPickupController extends GetxController {
     return false;
   }
 
+  List<String> selectedProductConflictNames() {
+    final store = Get.find<InventoryProductsStore>();
+    final existingKeys = store.selectedProducts
+        .map(_pickupProductKey)
+        .where((key) => key.isNotEmpty)
+        .toSet();
+    final names = <String>{};
+
+    for (final product in selectedProducts) {
+      final key = _pickupProductKey(product);
+      if (key.isEmpty || !existingKeys.contains(key)) continue;
+      names.add(_productDisplayName(product));
+    }
+
+    final sortedNames = names.toList();
+    sortedNames.sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    return sortedNames;
+  }
+
+  List<Map<String, dynamic>> selectedProductConflicts() {
+    final store = Get.find<InventoryProductsStore>();
+    final existingByKey = <String, ProductModel>{};
+    for (final product in store.selectedProducts) {
+      final key = _pickupProductKey(product);
+      if (key.isNotEmpty) {
+        existingByKey[key] = product;
+      }
+    }
+
+    final conflicts = <Map<String, dynamic>>[];
+    for (final product in selectedProducts) {
+      final key = _pickupProductKey(product);
+      final existing = existingByKey[key];
+      if (key.isEmpty || existing == null) continue;
+      conflicts.add({
+        'key': key,
+        'category': 'Product',
+        'item': _productDisplayName(product),
+        'oldPrice': _productConflictPrice(existing),
+        'newPrice': _productConflictPrice(product),
+      });
+    }
+
+    conflicts.sort((a, b) {
+      final left = (a['item'] ?? '').toString().toLowerCase();
+      final right = (b['item'] ?? '').toString().toLowerCase();
+      return left.compareTo(right);
+    });
+    return conflicts;
+  }
+
   bool applySelectedProducts({
-    bool allowOverwrite = false,
-    bool skipExisting = false,
+    Set<String>? overwriteKeys,
   }) {
     try {
       // Find the store (don't create new one)
@@ -153,18 +211,18 @@ class ProductsPickupController extends GetxController {
           showErrorAlert('Product already exists in inventory');
           return false;
         }
-        if (!allowOverwrite && !skipExisting && existingKeys.contains(key)) {
+        if (existingKeys.contains(key) &&
+            !(overwriteKeys?.contains(key) ?? false)) {
           showErrorAlert('Product already exists in inventory');
           return false;
         }
       }
 
-      final productsToApply = skipExisting
-          ? selectedProducts.where((product) {
-              final key = _pickupProductKey(product);
-              return key.isNotEmpty && !existingKeys.contains(key);
-            }).toList()
-          : selectedProducts.toList();
+      final productsToApply = selectedProducts.where((product) {
+        final key = _pickupProductKey(product);
+        if (!existingKeys.contains(key)) return true;
+        return overwriteKeys?.contains(key) ?? false;
+      }).toList();
 
       if (productsToApply.isEmpty) {
         showErrorAlert('No new products to add');
@@ -189,6 +247,36 @@ class ProductsPickupController extends GetxController {
     final name = product.product.trim().toLowerCase();
     if (name.isNotEmpty) return 'name:$name';
     return '';
+  }
+
+  String _productDisplayName(ProductModel product) {
+    final name = product.product.trim();
+    if (name.isNotEmpty) return name;
+    final code = product.code.trim();
+    if (code.isNotEmpty) return code;
+    final id = product.id?.trim() ?? '';
+    return id.isNotEmpty ? id : 'Product';
+  }
+
+  double _productConflictPrice(ProductModel product) {
+    final candidates = [
+      product.price,
+      product.a,
+      product.retail,
+    ];
+    for (final value in candidates) {
+      final parsed = double.tryParse(value.toString().trim());
+      if (parsed != null) return parsed;
+    }
+    return 0.0;
+  }
+
+  String _productSortLabel(ProductModel product) {
+    final name = product.product.trim().toLowerCase();
+    if (name.isNotEmpty) return name;
+    final code = product.code.trim().toLowerCase();
+    if (code.isNotEmpty) return code;
+    return product.id?.trim().toLowerCase() ?? '';
   }
 
   Future<void> saveProducts() async {
