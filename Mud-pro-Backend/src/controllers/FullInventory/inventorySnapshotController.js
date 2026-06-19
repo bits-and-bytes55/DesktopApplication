@@ -142,7 +142,7 @@ const concentrationBasisForUnit = (unit = "") => {
       concentrationUnit: "lb/bbl",
     };
   }
-  if (normalized.includes("ton")) {
+  if (normalized.includes("ton") || normalized === "mt" || normalized.endsWith(" mt")) {
     return { factorPerPack: amount * 2000, concentrationUnit: "lb/bbl" };
   }
   if (normalized.includes("kg")) {
