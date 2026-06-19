@@ -43,6 +43,8 @@ class PitSnapshotController extends GetxController {
 
   List<_ComputedConcentrationRow> _computedConcentrationRows =
       const <_ComputedConcentrationRow>[];
+  Map<String, List<_ComputedConcentrationRow>> _computedConcentrationRowsBySystem =
+      const <String, List<_ComputedConcentrationRow>>{};
   double _activeSystemVolume = 0.0;
   double _endVolume = 0.0;
 
@@ -246,10 +248,11 @@ class PitSnapshotController extends GetxController {
       return;
     }
 
-    final cumulativeAmounts = <String, double>{};
+    final cumulativeAmountsBySystem = <String, Map<String, double>>{};
     final productMetaByKey = <String, _SnapshotProduct>{};
     var previousEndVolume = 0.0;
     var selectedRows = const <_ComputedConcentrationRow>[];
+    var selectedRowsBySystem = const <String, List<_ComputedConcentrationRow>>{};
 
     for (final report in reports) {
       final source = report.id == currentReportId
@@ -262,68 +265,99 @@ class PitSnapshotController extends GetxController {
               reportId: report.id,
             );
 
-      final usedAmounts = <String, double>{};
+      final systemVolumes = _systemVolumesFromPayload(source.volumePayload);
+      final usedAmountsBySystem = _allocatedProductAmountsBySystem(
+        volumePayload: source.volumePayload,
+        inventoryItems: source.inventoryItems,
+        productMetaByKey: productMetaByKey,
+      );
+      final reportProductKeys = <String>{};
       for (final item in source.inventoryItems) {
         if (_normalizeText(item['category']) != 'product') continue;
 
         final product = _snapshotProductFromInventoryItem(item);
         if (product == null) continue;
 
-        final used = _number(item['used']);
+        reportProductKeys.add(product.key);
         productMetaByKey[product.key] = product;
-        if (used <= 0) continue;
-
-        usedAmounts[product.key] =
-            (usedAmounts[product.key] ?? 0.0) + (used * product.factorPerPack);
       }
-
-      final keys = {...cumulativeAmounts.keys, ...usedAmounts.keys}.toList()
-        ..sort((left, right) {
-          final leftMeta = productMetaByKey[left];
-          final rightMeta = productMetaByKey[right];
-          final leftName = leftMeta?.itemName.toLowerCase() ?? left;
-          final rightName = rightMeta?.itemName.toLowerCase() ?? right;
-          return leftName.compareTo(rightName);
-        });
 
       final startVolume = previousEndVolume > 0 ? previousEndVolume : 0.0;
       final endVolume = _resolveConcentrationEndVolume(source.volumePayload);
-      final rows = <_ComputedConcentrationRow>[];
+      final reportSystems = <String>{
+        'Active System',
+        ...systemVolumes.keys,
+        ...cumulativeAmountsBySystem.keys,
+        ...usedAmountsBySystem.keys,
+      };
+      final rowsBySystem = <String, List<_ComputedConcentrationRow>>{};
 
-      for (final key in keys) {
-        final product = productMetaByKey[key];
-        if (product == null) continue;
+      for (final system in reportSystems) {
+        final cumulativeAmounts =
+            cumulativeAmountsBySystem.putIfAbsent(system, () => <String, double>{});
+        final usedAmounts = usedAmountsBySystem[system] ?? const <String, double>{};
+        final keys = {
+          ...cumulativeAmounts.keys,
+          ...usedAmounts.keys,
+          if (report.id == currentReportId) ...reportProductKeys,
+        }.toList()
+          ..sort((left, right) {
+            final leftMeta = productMetaByKey[left];
+            final rightMeta = productMetaByKey[right];
+            final leftName = leftMeta?.itemName.toLowerCase() ?? left;
+            final rightName = rightMeta?.itemName.toLowerCase() ?? right;
+            return leftName.compareTo(rightName);
+          });
 
-        final startAmount = cumulativeAmounts[key] ?? 0.0;
-        final endAmount = startAmount + (usedAmounts[key] ?? 0.0);
-        if (startAmount <= 0 && endAmount <= 0) continue;
+        final systemStartVolume =
+            system == 'Active System' ? startVolume : 0.0;
+        final systemEndVolume = systemVolumes[system] ??
+            (system == 'Active System' ? endVolume : 0.0);
+        final rows = <_ComputedConcentrationRow>[];
 
-        rows.add(
-          _ComputedConcentrationRow(
-            key: key,
-            itemName: product.itemName,
-            unitDisplay: product.unitDisplay,
-            concentrationUnit: product.concentrationUnit,
-            startConcentration: _concentrationForAmount(
-              amount: startAmount,
-              systemVolume: startVolume,
+        for (final key in keys) {
+          final product = productMetaByKey[key];
+          if (product == null) continue;
+
+          final startAmount = cumulativeAmounts[key] ?? 0.0;
+          final endAmount = startAmount + (usedAmounts[key] ?? 0.0);
+          final isCurrentReportProduct =
+              report.id == currentReportId && reportProductKeys.contains(key);
+          if (startAmount <= 0 && endAmount <= 0 && !isCurrentReportProduct) {
+            continue;
+          }
+
+          rows.add(
+            _ComputedConcentrationRow(
+              key: key,
+              itemName: product.itemName,
+              unitDisplay: product.unitDisplay,
+              concentrationUnit: product.concentrationUnit,
+              startConcentration: _concentrationForAmount(
+                amount: startAmount,
+                systemVolume: systemStartVolume,
+              ),
+              endConcentration: _concentrationForAmount(
+                amount: endAmount,
+                systemVolume: systemEndVolume,
+              ),
             ),
-            endConcentration: _concentrationForAmount(
-              amount: endAmount,
-              systemVolume: endVolume,
-            ),
-          ),
-        );
+          );
 
-        if (endAmount > 0) {
-          cumulativeAmounts[key] = endAmount;
-        } else {
-          cumulativeAmounts.remove(key);
+          if (endAmount > 0) {
+            cumulativeAmounts[key] = endAmount;
+          } else {
+            cumulativeAmounts.remove(key);
+          }
         }
+
+        rowsBySystem[system] = rows;
       }
 
       if (report.id == currentReportId) {
-        selectedRows = rows;
+        selectedRowsBySystem = rowsBySystem;
+        selectedRows =
+            rowsBySystem['Active System'] ?? const <_ComputedConcentrationRow>[];
       }
 
       if (endVolume > 0) {
@@ -331,6 +365,7 @@ class PitSnapshotController extends GetxController {
       }
     }
 
+    _computedConcentrationRowsBySystem = selectedRowsBySystem;
     _computedConcentrationRows = selectedRows;
     _rebuildConcentrationRows();
   }
@@ -367,44 +402,87 @@ class PitSnapshotController extends GetxController {
     required Map<String, dynamic> volumePayload,
     required List<Map<String, dynamic>> inventoryItems,
   }) {
-    final endVolume = _resolveConcentrationEndVolume(volumePayload);
-    final rows = <_ComputedConcentrationRow>[];
+    final systemVolumes = _systemVolumesFromPayload(volumePayload);
+    final productMetaByKey = <String, _SnapshotProduct>{};
+    final usedAmountsBySystem = _allocatedProductAmountsBySystem(
+      volumePayload: volumePayload,
+      inventoryItems: inventoryItems,
+      productMetaByKey: productMetaByKey,
+    );
+    final reportProductKeys = <String>{};
 
     for (final item in inventoryItems) {
       if (_normalizeText(item['category']) != 'product') continue;
 
       final product = _snapshotProductFromInventoryItem(item);
       if (product == null) continue;
-
-      final used = _number(item['used']);
-      final endAmount = used > 0 ? used * product.factorPerPack : 0.0;
-      if (endAmount <= 0) continue;
-
-      rows.add(
-        _ComputedConcentrationRow(
-          key: product.key,
-          itemName: product.itemName,
-          unitDisplay: product.unitDisplay,
-          concentrationUnit: product.concentrationUnit,
-          startConcentration: 0.0,
-          endConcentration: _concentrationForAmount(
-            amount: endAmount,
-            systemVolume: endVolume,
-          ),
-        ),
-      );
+      productMetaByKey[product.key] = product;
+      reportProductKeys.add(product.key);
     }
 
-    return rows;
+    final rowsBySystem = <String, List<_ComputedConcentrationRow>>{};
+    final systems = <String>{
+      'Active System',
+      ...systemVolumes.keys,
+      ...usedAmountsBySystem.keys,
+    };
+
+    for (final system in systems) {
+      final usedAmounts = usedAmountsBySystem[system] ?? const <String, double>{};
+      final systemVolume = systemVolumes[system] ??
+          (system == 'Active System'
+              ? _resolveConcentrationEndVolume(volumePayload)
+              : 0.0);
+      final keys = {...reportProductKeys, ...usedAmounts.keys}.toList()
+        ..sort((left, right) {
+          final leftMeta = productMetaByKey[left];
+          final rightMeta = productMetaByKey[right];
+          final leftName = leftMeta?.itemName.toLowerCase() ?? left;
+          final rightName = rightMeta?.itemName.toLowerCase() ?? right;
+          return leftName.compareTo(rightName);
+        });
+      final rows = <_ComputedConcentrationRow>[];
+
+      for (final key in keys) {
+        final product = productMetaByKey[key];
+        if (product == null) continue;
+        final endAmount = usedAmounts[key] ?? 0.0;
+
+        rows.add(
+          _ComputedConcentrationRow(
+            key: product.key,
+            itemName: product.itemName,
+            unitDisplay: product.unitDisplay,
+            concentrationUnit: product.concentrationUnit,
+            startConcentration: 0.0,
+            endConcentration: _concentrationForAmount(
+              amount: endAmount,
+              systemVolume: systemVolume,
+            ),
+          ),
+        );
+      }
+
+      rowsBySystem[system] = rows;
+    }
+
+    _computedConcentrationRowsBySystem = rowsBySystem;
+    return rowsBySystem['Active System'] ?? const <_ComputedConcentrationRow>[];
   }
 
   void _rebuildConcentrationRows() {
+    final selectedRows =
+        _computedConcentrationRowsBySystem[selectedSystem.value] ??
+        _computedConcentrationRows;
     concentrationRows.assignAll(
-      List.generate(_computedConcentrationRows.length, (index) {
-        final row = _computedConcentrationRows[index];
+      List.generate(selectedRows.length, (index) {
+        final row = selectedRows[index];
+        final concentrationUnit = row.concentrationUnit.trim();
         return PitConcentrationRow(
           rowNumber: index + 1,
-          product: '${row.itemName} (${row.concentrationUnit})',
+          product: concentrationUnit.isEmpty
+              ? row.itemName
+              : '${row.itemName} ($concentrationUnit)',
           unit: row.unitDisplay,
           startConc: _formatConcentration(row.startConcentration),
           endConc: _formatConcentration(row.endConcentration),
@@ -446,6 +524,123 @@ class PitSnapshotController extends GetxController {
     return cleaned;
   }
 
+  Map<String, double> _systemVolumesFromPayload(Map<String, dynamic> payload) {
+    final volumeName = _map(payload['volumeName']);
+    final volumes = <String, double>{};
+    final activeSystem = _number(volumeName['activeSystem']);
+    final endVol = _number(volumeName['endVol']);
+    volumes['Active System'] = activeSystem > 0 ? activeSystem : endVol;
+
+    for (final row in _extractList(payload['storageTable'])) {
+      final pitName = _text(row['pitName']);
+      if (pitName.isEmpty) continue;
+      final measuredVol = _number(row['measuredVol']);
+      final calculatedVol = _number(row['calculatedVol']);
+      final volume = measuredVol > 0 ? measuredVol : calculatedVol;
+      volumes[pitName] = volume;
+    }
+
+    return volumes;
+  }
+
+  Map<String, Map<String, double>> _allocatedProductAmountsBySystem({
+    required Map<String, dynamic> volumePayload,
+    required List<Map<String, dynamic>> inventoryItems,
+    required Map<String, _SnapshotProduct> productMetaByKey,
+  }) {
+    final result = <String, Map<String, double>>{};
+    final distributionStates = _distributionStatesByOperation(volumePayload);
+    final massSources = _extractList(volumePayload['consumeProductMassSources']);
+    final sourceRows = massSources.isNotEmpty
+        ? massSources
+        : inventoryItems
+              .where((item) => _normalizeText(item['category']) == 'product')
+              .toList(growable: false);
+
+    for (final row in sourceRows) {
+      final product = _snapshotProductFromProductSource(row);
+      if (product == null) continue;
+
+      productMetaByKey[product.key] = product;
+      final used = _number(row['used']);
+      final amount = used > 0 ? used * product.factorPerPack : 0.0;
+      if (amount <= 0) continue;
+
+      final operationKey = _text(row['operationInstanceKey']);
+      final allocations = _distributionAllocationsForOperation(
+        operationKey: operationKey,
+        distributionStates: distributionStates,
+      );
+
+      allocations.forEach((system, fraction) {
+        if (fraction <= 0) return;
+        final systemAmounts = result.putIfAbsent(
+          system,
+          () => <String, double>{},
+        );
+        systemAmounts[product.key] =
+            (systemAmounts[product.key] ?? 0.0) + (amount * fraction);
+      });
+    }
+
+    return result;
+  }
+
+  Map<String, Map<String, dynamic>> _distributionStatesByOperation(
+    Map<String, dynamic> volumePayload,
+  ) {
+    final states = <String, Map<String, dynamic>>{};
+    for (final state in _extractList(volumePayload['consumeProductDistributionStates'])) {
+      final key = _text(state['operationInstanceKey']);
+      states[key] = state;
+    }
+
+    if (states.isEmpty) {
+      final primary = _map(volumePayload['consumeProductDistribution']);
+      if (primary.isNotEmpty) {
+        states[''] = primary;
+      }
+    }
+
+    return states;
+  }
+
+  Map<String, double> _distributionAllocationsForOperation({
+    required String operationKey,
+    required Map<String, Map<String, dynamic>> distributionStates,
+  }) {
+    final state = distributionStates[operationKey] ??
+        distributionStates[''] ??
+        (distributionStates.isNotEmpty
+            ? distributionStates.values.first
+            : const <String, dynamic>{});
+    final rows = _extractList(state['distributions']);
+    final positiveRows = rows
+        .where((row) => _text(row['pitName']).isNotEmpty && _number(row['volume']) > 0)
+        .toList(growable: false);
+    final total = positiveRows.fold<double>(
+      0.0,
+      (sum, row) => sum + _number(row['volume']),
+    );
+
+    if (total <= 0) {
+      return const {'Active System': 1.0};
+    }
+
+    final allocations = <String, double>{};
+    for (final row in positiveRows) {
+      final system = _normalizeSystemName(_text(row['pitName']));
+      allocations[system] =
+          (allocations[system] ?? 0.0) + (_number(row['volume']) / total);
+    }
+
+    return allocations;
+  }
+
+  String _normalizeSystemName(String value) {
+    return _normalizeText(value) == 'active system' ? 'Active System' : value;
+  }
+
   List<PitHoleVolumeRow> _buildHoleVolumeRows(Map<String, dynamic> values) {
     return [
       PitHoleVolumeRow(label: 'String', value: _number(values['string'])),
@@ -462,21 +657,39 @@ class PitSnapshotController extends GetxController {
   _SnapshotProduct? _snapshotProductFromInventoryItem(
     Map<String, dynamic> item,
   ) {
-    final itemName = _text(item['itemName']);
-    final code = _text(item['code']);
-    final unit = _text(item['unit']);
+    return _snapshotProductFromFields(
+      itemName: _text(item['itemName']),
+      code: _text(item['code']),
+      unit: _text(item['unit']),
+    );
+  }
+
+  _SnapshotProduct? _snapshotProductFromProductSource(
+    Map<String, dynamic> item,
+  ) {
+    return _snapshotProductFromFields(
+      itemName: _text(item['product'] ?? item['itemName']),
+      code: _text(item['code']),
+      unit: _text(item['unit']),
+    );
+  }
+
+  _SnapshotProduct? _snapshotProductFromFields({
+    required String itemName,
+    required String code,
+    required String unit,
+  }) {
     if (itemName.isEmpty || unit.isEmpty) return null;
 
     final basis = _basisFromPackUnit(unit);
-    if (basis == null) return null;
 
     return _SnapshotProduct(
       key: _keyFromCodeOrName(code, itemName),
       itemName: itemName,
       code: code,
       unitDisplay: unit,
-      concentrationUnit: basis.concentrationUnit,
-      factorPerPack: basis.factorPerPack,
+      concentrationUnit: basis?.concentrationUnit ?? '',
+      factorPerPack: basis?.factorPerPack ?? 0,
     );
   }
 
@@ -603,6 +816,8 @@ class PitSnapshotController extends GetxController {
     _activeSystemVolume = 0;
     _endVolume = 0;
     _computedConcentrationRows = const <_ComputedConcentrationRow>[];
+    _computedConcentrationRowsBySystem =
+        const <String, List<_ComputedConcentrationRow>>{};
     activePits.clear();
     storagePits.clear();
     volumeSummaryRows.clear();

@@ -2273,6 +2273,22 @@ export const getVolumeNameCalculation = async (req, res) => {
           ),
           distributions: uiDistributionRows,
         },
+        consumeProductMassSources: consumeProducts.map((item) => ({
+          product: item.product || "",
+          code: item.code || "",
+          unit: item.unit || "",
+          used: toNumber(item.used),
+          operationInstanceKey: toText(item.operationInstanceKey),
+          createdAt: item.createdAt,
+          updatedAt: item.updatedAt,
+        })),
+        consumeProductDistributionStates: distributionStates.map((state) => ({
+          operationInstanceKey: toText(state.operationInstanceKey),
+          totalVolume: toNumber(state.totalVolume),
+          distributions: cleanDistributionRows(state.distributions ?? []),
+          createdAt: state.createdAt,
+          updatedAt: state.updatedAt,
+        })),
         activePitsTable: activePitsList.map((pit) => {
           const key = toText(pit.pitName).toLowerCase();
           const delta =
