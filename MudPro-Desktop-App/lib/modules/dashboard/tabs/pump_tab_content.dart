@@ -1544,38 +1544,38 @@ class _PumpPageState extends State<PumpPage> {
       final idx = i;
       cols.add(
         Obx(() {
-            final isEnabled = !isLocked && idx < row.enabledScreens.value;
-            return _dataCell(
-              width: w(48),
-              backgroundColor: isEnabled ? null : Colors.grey.shade300,
-              child: TextField(
-                enabled: isEnabled,
-                onTap: () {
-                  _activeScreenRowIndex = _shakerRows.indexOf(row);
-                },
-                controller: TextEditingController(text: fields[idx].value)
-                  ..selection = TextSelection.collapsed(
-                    offset: fields[idx].value.length,
-                  ),
-                onChanged: (v) {
-                  _activeScreenRowIndex = _shakerRows.indexOf(row);
-                  fields[idx].value = v;
-                  _scheduleSaveShakerRow(row);
-                },
-                textAlign: TextAlign.center,
+          final isEnabled = !isLocked && idx < row.enabledScreens.value;
+          return _screenDataCell(
+            width: w(48),
+            disabled: !isEnabled,
+            child: TextField(
+              enabled: isEnabled,
+              onTap: () {
+                _activeScreenRowIndex = _shakerRows.indexOf(row);
+              },
+              controller: TextEditingController(text: fields[idx].value)
+                ..selection = TextSelection.collapsed(
+                  offset: fields[idx].value.length,
+                ),
+              onChanged: (v) {
+                _activeScreenRowIndex = _shakerRows.indexOf(row);
+                fields[idx].value = v;
+                _scheduleSaveShakerRow(row);
+              },
+              textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 11,
                 color: isEnabled ? Colors.black : Colors.grey.shade700,
               ),
-                decoration: const InputDecoration(
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.zero,
-                  isDense: true,
-                  filled: false,
-                ),
+              decoration: const InputDecoration(
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.zero,
+                isDense: true,
+                filled: false,
               ),
-            );
-          }),
+            ),
+          );
+        }),
       );
       if (i < _totalScreenCols - 1) cols.add(_verticalDivider());
     }
@@ -2251,10 +2251,38 @@ class _PumpPageState extends State<PumpPage> {
   }) {
     return Container(
       width: width,
-      color: backgroundColor,
+      decoration: backgroundColor == null
+          ? null
+          : BoxDecoration(
+              color: backgroundColor,
+              border: Border.all(color: Colors.grey.shade500, width: 0.6),
+            ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 2),
         child: child,
+      ),
+    );
+  }
+
+  Widget _screenDataCell({
+    required Widget child,
+    required double width,
+    required bool disabled,
+  }) {
+    return Container(
+      width: width,
+      height: double.infinity,
+      color: disabled ? const Color(0xFFD9D9D9) : Colors.transparent,
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border(
+            right: BorderSide(color: Colors.grey.shade500, width: 0.6),
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 2),
+          child: child,
+        ),
       ),
     );
   }

@@ -204,15 +204,32 @@ class WellGeneralController extends GetxController {
         .replaceAll(RegExp(r'\.$'), '');
   }
 
+  String _displayNumber(dynamic value) {
+    if (value == null) return '';
+    if (value is num) {
+      return value == 0 ? '' : _formatNumericText(value.toDouble());
+    }
+
+    final text = value.toString().trim();
+    if (text.isEmpty) return '';
+    final parsed = double.tryParse(text.replaceAll(',', ''));
+    if (parsed != null && parsed == 0) return '';
+    return text;
+  }
+
   String _formatTimeDistributionValue(dynamic value) {
     if (value == null) return '';
     if (value is num) {
+      if (value == 0) return '';
       if (value == value.roundToDouble()) {
         return value.toInt().toString();
       }
       return value.toString();
     }
-    return value.toString().trim();
+    final text = value.toString().trim();
+    final parsed = double.tryParse(text.replaceAll(',', ''));
+    if (parsed != null && parsed == 0) return '';
+    return text;
   }
 
   List<Map<String, String>> _normalizeTimeDistributionRows(dynamic rawRows) {
@@ -252,9 +269,9 @@ class WellGeneralController extends GetxController {
         if (item is Map) {
           normalized.add({
             'description': (item['description'] ?? '').toString().trim(),
-            'id': (item['id'] ?? '').toString().trim(),
-            'md': (item['md'] ?? '').toString().trim(),
-            'washout': (item['washout'] ?? '').toString().trim(),
+            'id': _displayNumber(item['id']),
+            'md': _displayNumber(item['md']),
+            'washout': _displayNumber(item['washout']),
           });
         }
       }
@@ -495,20 +512,20 @@ class WellGeneralController extends GetxController {
     operatorRep.value = d['operatorRep']?.toString() ?? '';
     contractorRep.value = d['contractorRep']?.toString() ?? '';
     activity.value = d['activity']?.toString() ?? '';
-    md.value = (d['md'] ?? '').toString();
-    tvd.value = (d['tvd'] ?? '').toString();
-    inc.value = (d['inc'] ?? '').toString();
-    azi.value = (d['azi'] ?? '').toString();
-    wob.value = (d['wob'] ?? '').toString();
-    rotWt.value = (d['rotWt'] ?? '').toString();
-    soWt.value = (d['soWt'] ?? '').toString();
-    puWt.value = (d['puWt'] ?? '').toString();
-    rpm.value = (d['rpm'] ?? '').toString();
-    rop.value = (d['rop'] ?? '').toString();
-    offBottomTq.value = (d['offBottomTq'] ?? '').toString();
-    onBottomTq.value = (d['onBottomTq'] ?? '').toString();
-    suctionT.value = (d['suctionT'] ?? '').toString();
-    bottomT.value = (d['bottomT'] ?? '').toString();
+    md.value = _displayNumber(d['md']);
+    tvd.value = _displayNumber(d['tvd']);
+    inc.value = _displayNumber(d['inc']);
+    azi.value = _displayNumber(d['azi']);
+    wob.value = _displayNumber(d['wob']);
+    rotWt.value = _displayNumber(d['rotWt']);
+    soWt.value = _displayNumber(d['soWt']);
+    puWt.value = _displayNumber(d['puWt']);
+    rpm.value = _displayNumber(d['rpm']);
+    rop.value = _displayNumber(d['rop']);
+    offBottomTq.value = _displayNumber(d['offBottomTq']);
+    onBottomTq.value = _displayNumber(d['onBottomTq']);
+    suctionT.value = _displayNumber(d['suctionT']);
+    bottomT.value = _displayNumber(d['bottomT']);
     interval.value = d['interval']?.toString() ?? '';
     fit.value = d['fit']?.toString() ?? '';
     formation.value = d['formation']?.toString() ?? '';
@@ -518,10 +535,10 @@ class WellGeneralController extends GetxController {
     bitCount.value = d['bitCount']?.toString() ?? '';
     bitDepthIn.value = d['bitDepthIn']?.toString() ?? '';
     bitDepth.value = d['bitDepth']?.toString() ?? '';
-    additionalFootage.value = (d['additionalFootage'] ?? '').toString();
-    nptTime.value = (d['nptTime'] ?? '').toString();
-    nptCost.value = (d['nptCost'] ?? '').toString();
-    depthDrilled.value = (d['depthDrilled'] ?? '').toString();
+    additionalFootage.value = _displayNumber(d['additionalFootage']);
+    nptTime.value = _displayNumber(d['nptTime']);
+    nptCost.value = _displayNumber(d['nptCost']);
+    depthDrilled.value = _displayNumber(d['depthDrilled']);
     cementPlugEnabled.value = d['cementPlugEnabled'] == true;
     cementPlugVolume.value = d['cementPlugVolume']?.toString() ?? '';
     cementPlugTop.value = d['cementPlugTop']?.toString() ?? '';

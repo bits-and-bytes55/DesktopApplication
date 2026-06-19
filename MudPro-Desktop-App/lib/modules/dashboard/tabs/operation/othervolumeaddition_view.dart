@@ -175,17 +175,7 @@ class OtherVolAdditionActiveSystemView extends StatelessWidget {
                     : controller.selectedDropdownAddition.value,
                 isExpanded: true,
                 isDense: true,
-                hint: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 6),
-                  child: Text(
-                    'Select',
-                    style: AppTheme.bodySmall.copyWith(
-                      fontSize: 12,
-                      color: Colors.black,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
+                hint: const SizedBox.shrink(),
                 icon: Container(
                   width: 24,
                   height: 30,
@@ -330,16 +320,21 @@ class OtherVolAdditionActiveSystemView extends StatelessWidget {
 
   void _openCuttingsGainDialog(BuildContext context) {
     final initialCuttings = controller.cuttingsController.text.trim();
-    final volDrilledController = TextEditingController(
-      text: initialCuttings.isEmpty ? '0.00' : initialCuttings,
-    );
+    final volDrilledController = TextEditingController(text: initialCuttings);
     final efficiencyController = TextEditingController();
     final cuttingsGainController = TextEditingController(
-      text: _formatNumber(_parseNumber(volDrilledController.text)),
+      text: initialCuttings.isEmpty
+          ? ''
+          : _formatNumber(_parseNumber(volDrilledController.text)),
     );
     var shakerBypass = 'No';
 
     void recalculate() {
+      if (volDrilledController.text.trim().isEmpty &&
+          efficiencyController.text.trim().isEmpty) {
+        cuttingsGainController.text = '';
+        return;
+      }
       final volDrilled = _parseNumber(volDrilledController.text);
       final efficiency = _parseNumber(efficiencyController.text);
       final gain = shakerBypass == 'No' && efficiency > 0

@@ -1227,15 +1227,7 @@ class _GeneralSectionState extends State<GeneralSection> {
                   : DropdownButtonHideUnderline(
                       child: DropdownButton<String>(
                         value: safeEngId,
-                        hint: Center(
-                          child: Text(
-                            "Select Engineer",
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: Colors.grey.shade500,
-                            ),
-                          ),
-                        ),
+                        hint: const SizedBox.shrink(),
                         isExpanded: true,
                         icon: const Icon(Icons.arrow_drop_down, size: 13),
                         style: const TextStyle(
@@ -1849,13 +1841,7 @@ class _CasedHoleSectionState extends State<CasedHoleSection> {
                         : DropdownButtonHideUnderline(
                             child: DropdownButton<CasingRow>(
                               value: _selectedCasing,
-                              hint: Text(
-                                "Select",
-                                style: TextStyle(
-                                  fontSize: 9,
-                                  color: Colors.grey.shade500,
-                                ),
-                              ),
+                              hint: const SizedBox.shrink(),
                               icon: const Icon(Icons.arrow_drop_down, size: 13),
                               style: const TextStyle(
                                 fontSize: 9,
@@ -3766,7 +3752,9 @@ class _NozzleSectionState extends State<NozzleSection> {
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 6),
                         child: Text(
-                          nc.tfa.value.toStringAsFixed(3),
+                          nc.tfa.value == 0
+                              ? ''
+                              : nc.tfa.value.toStringAsFixed(3),
                           textAlign: TextAlign.right,
                           style: const TextStyle(
                             fontSize: 10,
@@ -4205,14 +4193,8 @@ class _TimeDistributionSectionState extends State<TimeDistributionSection> {
                                                       )
                                                       ? selectedActivity
                                                       : null,
-                                                  hint: Text(
-                                                    "Select",
-                                                    style: TextStyle(
-                                                      fontSize: 9,
-                                                      color:
-                                                          Colors.grey.shade400,
-                                                    ),
-                                                  ),
+                                                  hint:
+                                                      const SizedBox.shrink(),
                                                   isExpanded: true,
                                                   icon: const Icon(
                                                     Icons.arrow_drop_down,

@@ -22,7 +22,7 @@ class MudView extends StatefulWidget {
 }
 
 class _MudViewState extends State<MudView> {
-  static const double _kMudPropertyWidth = 138;
+  static const double _kMudPropertyWidth = 190;
   static const double _kMudHeaderHeight = 28;
   static const double _kMudRowHeight = 28;
 
@@ -120,6 +120,31 @@ class _MudViewState extends State<MudView> {
     }
   }
 
+  Future<void> _importSelectedIntervalMudPlanRheology() async {
+    if (dashboard.isLocked.value) return;
+    final intervalId = await _selectedReportIntervalId();
+    if (intervalId == null || intervalId.trim().isEmpty) {
+      Get.snackbar(
+        'Rheology',
+        'Select an interval in Well > General first.',
+        snackPosition: SnackPosition.BOTTOM,
+        duration: const Duration(seconds: 2),
+      );
+      return;
+    }
+
+    await c.useMudStateScope('');
+    final imported = await c.importMudPlanRheologyFromInterval(intervalId);
+    if (!imported) {
+      Get.snackbar(
+        'Rheology',
+        'No Mud Plan rheology data found for the selected interval.',
+        snackPosition: SnackPosition.BOTTOM,
+        duration: const Duration(seconds: 2),
+      );
+    }
+  }
+
   @override
   void dispose() {
     _propertyScrollCtrl.dispose();
@@ -198,7 +223,7 @@ class _MudViewState extends State<MudView> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(width: 515, child: _leftPanel()),
+        SizedBox(width: 570, child: _leftPanel()),
         VerticalDivider(width: 1, color: Colors.grey.shade300),
         Expanded(child: _rightPanel()),
       ],
@@ -347,7 +372,9 @@ class _MudViewState extends State<MudView> {
             ),
           ),
           Obx(
-            () => c.selectedFluidType.value == 'Oil-based'
+            () =>
+                c.selectedFluidType.value == 'Oil-based' ||
+                    c.selectedFluidType.value == 'Synthetic'
                 ? Row(
                     children: [
                       const SizedBox(width: 12),
@@ -421,7 +448,9 @@ class _MudViewState extends State<MudView> {
                 : const SizedBox.shrink(),
           ),
           Obx(
-            () => c.selectedFluidType.value == 'Oil-based'
+            () =>
+                c.selectedFluidType.value == 'Oil-based' ||
+                    c.selectedFluidType.value == 'Synthetic'
                 ? const SizedBox.shrink()
                 : Row(
                     children: [
@@ -1254,6 +1283,27 @@ class _MudViewState extends State<MudView> {
                           fontSize: 13,
                         ),
                         isDense: true,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Tooltip(
+                  message: 'Load selected interval Mud Plan rheology',
+                  child: InkWell(
+                    onTap: _importSelectedIntervalMudPlanRheology,
+                    child: Container(
+                      width: 26,
+                      height: 26,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(2),
+                        border: Border.all(color: const Color(0xFFB8D0EA)),
+                      ),
+                      child: const Icon(
+                        Icons.file_download_outlined,
+                        size: 15,
+                        color: AppTheme.primaryColor,
                       ),
                     ),
                   ),

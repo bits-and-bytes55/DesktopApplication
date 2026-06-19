@@ -127,21 +127,81 @@ class _IntervalMudPlanTabState extends State<IntervalMudPlanTab> {
                   ),
                 ),
                 const SizedBox(width: 10),
-                Row(
-                  children: [
-                    Checkbox(
-                      value: c.isWeightedMud.value,
-                      onChanged: locked
-                          ? null
-                          : (v) => c.isWeightedMud.value = v ?? false,
-                      visualDensity: VisualDensity.compact,
+                if (c.selectedFluidType.value == 'Oil-based' ||
+                    c.selectedFluidType.value == 'Synthetic') ...[
+                  const Text(
+                    'Salt Type',
+                    style: TextStyle(fontSize: 10, color: Color(0xFF2F2F2F)),
+                  ),
+                  const SizedBox(width: 8),
+                  _dropdownShell(
+                    width: 148,
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: c.selectedSaltType.value,
+                        isDense: true,
+                        items: const [
+                          DropdownMenuItem(
+                            value: 'CaCl2',
+                            child: Text(
+                              'CaCl2',
+                              style: TextStyle(fontSize: 10),
+                            ),
+                          ),
+                          DropdownMenuItem(
+                            value: 'NaCl',
+                            child: Text(
+                              'NaCl',
+                              style: TextStyle(fontSize: 10),
+                            ),
+                          ),
+                          DropdownMenuItem(
+                            value: 'NaCl + CaCl2',
+                            child: Text(
+                              'NaCl + CaCl2',
+                              style: TextStyle(fontSize: 10),
+                            ),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Sodium Formate',
+                            child: Text(
+                              'Sodium Formate',
+                              style: TextStyle(fontSize: 10),
+                            ),
+                          ),
+                        ],
+                        onChanged: locked
+                            ? null
+                            : (v) {
+                                if (v != null) {
+                                  c.changeSaltType(v);
+                                }
+                              },
+                      ),
                     ),
-                    const Text(
-                      'Weighted Mud',
-                      style: TextStyle(fontSize: 10, color: Color(0xFF2F2F2F)),
-                    ),
-                  ],
-                ),
+                  ),
+                ] else
+                  Row(
+                    children: [
+                      Checkbox(
+                        value: c.isWeightedMud.value,
+                        onChanged: locked
+                            ? null
+                            : (v) {
+                                c.isWeightedMud.value = v ?? false;
+                                c.fetchSolidAnalysis();
+                              },
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      const Text(
+                        'Weighted Mud',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Color(0xFF2F2F2F),
+                        ),
+                      ),
+                    ],
+                  ),
                 const Spacer(),
                 const Text(
                   'Model',

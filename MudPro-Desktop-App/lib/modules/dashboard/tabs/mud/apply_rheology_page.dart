@@ -47,13 +47,6 @@ class _ApplyRheologyPageState extends State<ApplyRheologyPage> {
 
   void _ensureVisibleSample(MudController c) {
     if (_sampleIndex >= c.samples.length) _sampleIndex = 0;
-    if (_sampleHasReadings(c, _sampleIndex)) return;
-    for (var i = 0; i < c.samples.length; i++) {
-      if (_sampleHasReadings(c, i)) {
-        _sampleIndex = i;
-        return;
-      }
-    }
   }
 
   bool _sampleHasReadings(MudController c, int sampleIndex) {

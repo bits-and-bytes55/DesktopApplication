@@ -113,7 +113,7 @@ class InventoryView extends StatelessWidget {
                 children: [
                   _feesBox(),
                   const SizedBox(height: 12),
-                  _applyPricesBox(),
+                  _applyPricesBox(context),
                   const SizedBox(height: 12),
                   _inventoryPickupBox(context),
                 ],
@@ -125,7 +125,7 @@ class InventoryView extends StatelessWidget {
               children: [
                 SizedBox(width: 330, child: _feesBox()),
                 const SizedBox(width: 16),
-                SizedBox(width: 370, child: _applyPricesBox()),
+                SizedBox(width: 370, child: _applyPricesBox(context)),
                 const SizedBox(width: 8),
                 SizedBox(width: 230, child: _inventoryPickupBox(context)),
               ],
@@ -152,7 +152,7 @@ class InventoryView extends StatelessWidget {
   }
 
   // ── Apply Changed Prices box — UNCHANGED ──────────────────
-  Widget _applyPricesBox() {
+  Widget _applyPricesBox(BuildContext context) {
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
       decoration: BoxDecoration(
@@ -181,22 +181,41 @@ class InventoryView extends StatelessWidget {
                 child: SizedBox(
                   height: 24,
                   child: Obx(
-                    () => TextField(
-                      controller: TextEditingController(text: c.fromDate.value),
-                      enabled: !c.isLocked.value,
-                      onChanged: (value) => c.fromDate.value = value,
-                      decoration: InputDecoration(
-                        isDense: true,
-                        border: OutlineInputBorder(
-                          borderSide: BorderSide(color: Colors.grey.shade400),
-                          borderRadius: BorderRadius.circular(0),
+                    () => InkWell(
+                      onTap: c.isLocked.value
+                          ? null
+                          : () => _pickFromDate(context),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        decoration: BoxDecoration(
+                          color: c.isLocked.value
+                              ? Colors.grey.shade100
+                              : Colors.white,
+                          border: Border.all(color: Colors.grey.shade400),
                         ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                c.fromDate.value,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: c.fromDate.value.trim().isEmpty
+                                      ? Colors.grey.shade500
+                                      : AppTheme.textPrimary,
+                                ),
+                              ),
+                            ),
+                            Icon(
+                              Icons.calendar_month_outlined,
+                              size: 14,
+                              color: c.isLocked.value
+                                  ? Colors.grey.shade400
+                                  : AppTheme.primaryColor,
+                            ),
+                          ],
                         ),
                       ),
-                      style: const TextStyle(fontSize: 10),
                     ),
                   ),
                 ),
@@ -270,6 +289,11 @@ class InventoryView extends StatelessWidget {
   // ── Apply logic — sends all three tables to backend ───────
   Future<void> _applyAll(BuildContext context) async {
     final store = Get.find<InventoryProductsStore>();
+    if (c.applyChangedPricesOption.value == 'From' &&
+        c.fromDate.value.trim().isEmpty) {
+      _showToast(context, 'Please select a date for changed prices', isError: true);
+      return;
+    }
 
     // Show loading dialog
     showDialog(
@@ -518,5 +542,39 @@ class InventoryView extends StatelessWidget {
         Text(text, style: const TextStyle(fontSize: 13)),
       ],
     );
+  }
+
+  Future<void> _pickFromDate(BuildContext context) async {
+    final initialDate = _parseInventoryDate(c.fromDate.value) ?? DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    if (picked == null) return;
+    c.applyChangedPricesOption.value = 'From';
+    c.fromDate.value = _formatInventoryDate(picked);
+  }
+
+  DateTime? _parseInventoryDate(String value) {
+    final text = value.trim();
+    if (text.isEmpty) return null;
+    final iso = DateTime.tryParse(text);
+    if (iso != null) return iso;
+    final parts = text.split(RegExp(r'[/-]'));
+    if (parts.length != 3) return null;
+    final first = int.tryParse(parts[0]);
+    final second = int.tryParse(parts[1]);
+    final year = int.tryParse(parts[2]);
+    if (first == null || second == null || year == null) return null;
+    final month = first > 12 ? second : first;
+    final day = first > 12 ? first : second;
+    if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+    return DateTime(year, month, day);
+  }
+
+  String _formatInventoryDate(DateTime date) {
+    return '${date.month}/${date.day}/${date.year}';
   }
 }

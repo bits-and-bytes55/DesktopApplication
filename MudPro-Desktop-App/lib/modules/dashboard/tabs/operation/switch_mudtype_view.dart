@@ -55,8 +55,8 @@ class _SwitchMudTypeViewState extends State<SwitchMudTypeView> {
             child: SingleChildScrollView(
               controller: _horizontalScrollController,
               scrollDirection: Axis.horizontal,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(minWidth: 1000),
+              child: SizedBox(
+                width: 1000,
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
@@ -275,32 +275,35 @@ class _SwitchMudTypeViewState extends State<SwitchMudTypeView> {
 
           const SizedBox(height: 16),
 
-          Row(
-            children: [
-              Expanded(
-                child: Obx(
-                  () => _enhancedTableWithRadio(
-                    label: "Transfer",
-                    isActive: selected.value == 0,
-                    onSelect: () => selected.value = 0,
-                    list: leftList,
-                    sectionEnabled: selected.value == 0,
+          SizedBox(
+            width: 960,
+            child: Row(
+              children: [
+                Expanded(
+                  child: Obx(
+                    () => _enhancedTableWithRadio(
+                      label: "Transfer",
+                      isActive: selected.value == 0,
+                      onSelect: () => selected.value = 0,
+                      list: leftList,
+                      sectionEnabled: selected.value == 0,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 20),
-              Expanded(
-                child: Obx(
-                  () => _enhancedTableWithRadio(
-                    label: "Make Storage",
-                    isActive: selected.value == 1,
-                    onSelect: () => selected.value = 1,
-                    list: rightList,
-                    sectionEnabled: selected.value == 1,
+                const SizedBox(width: 20),
+                Expanded(
+                  child: Obx(
+                    () => _enhancedTableWithRadio(
+                      label: "Make Storage",
+                      isActive: selected.value == 1,
+                      onSelect: () => selected.value = 1,
+                      list: rightList,
+                      sectionEnabled: selected.value == 1,
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
@@ -440,124 +443,126 @@ class _SwitchMudTypeViewState extends State<SwitchMudTypeView> {
             // Table Rows
             ...List.generate(
               list.length,
-              (index) => Container(
-                decoration: BoxDecoration(
-                  color: index % 2 == 0 ? Colors.white : Colors.grey.shade50,
-                  border: Border(
-                    bottom: BorderSide(
-                      color: index == list.length - 1
-                          ? Colors.transparent
-                          : Colors.grey.shade200,
+              (index) {
+                final selectedPit = list[index];
+                final validPit =
+                    selectedPit != null &&
+                        controller.pitList.contains(selectedPit)
+                    ? selectedPit
+                    : null;
+
+                return Container(
+                  decoration: BoxDecoration(
+                    color: index % 2 == 0 ? Colors.white : Colors.grey.shade50,
+                    border: Border(
+                      bottom: BorderSide(
+                        color: index == list.length - 1
+                            ? Colors.transparent
+                            : Colors.grey.shade200,
+                      ),
                     ),
                   ),
-                ),
-                child: Row(
-                  children: [
-                    // Pit Column with Dropdown
-                    Expanded(
-                      child: Container(
-                        height: 48,
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: enabled
-                            ? DropdownButton<String>(
-                                value: list[index],
-                                isExpanded: true,
-                                underline: const SizedBox(),
-                                icon: Icon(
-                                  Icons.arrow_drop_down_rounded,
-                                  size: 20,
-                                  color: Colors.grey.shade400,
-                                ),
-                                hint: Text(
-                                  "Select pit",
-                                  style: AppTheme.bodySmall.copyWith(
-                                    fontSize: 12,
-                                    color: Colors.black,
-                                    fontWeight: FontWeight.w700,
+                  child: Row(
+                    children: [
+                      // Pit Column with Dropdown
+                      Expanded(
+                        child: Container(
+                          height: 48,
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: enabled
+                              ? DropdownButton<String>(
+                                  value: validPit,
+                                  isExpanded: true,
+                                  underline: const SizedBox(),
+                                  icon: Icon(
+                                    Icons.arrow_drop_down_rounded,
+                                    size: 20,
+                                    color: Colors.grey.shade400,
                                   ),
-                                ),
-                                onChanged: (String? newValue) {
-                                  if (newValue != null) {
-                                    list[index] = newValue;
-                                  }
-                                },
-                                items: controller.pitList.map((String value) {
-                                  return DropdownMenuItem<String>(
-                                    value: value,
-                                    child: Text(
-                                      value,
-                                      style: AppTheme.bodySmall.copyWith(
-                                        fontSize: 12,
-                                        color: Colors.black,
-                                        fontWeight: FontWeight.w700,
+                                  hint: const SizedBox.shrink(),
+                                  onChanged: (String? newValue) {
+                                    if (newValue != null) {
+                                      list[index] = newValue;
+                                    }
+                                  },
+                                  items: controller.pitList.map((String value) {
+                                    return DropdownMenuItem<String>(
+                                      value: value,
+                                      child: Text(
+                                        value,
+                                        style: AppTheme.bodySmall.copyWith(
+                                          fontSize: 12,
+                                          color: Colors.black,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
                                       ),
-                                      overflow: TextOverflow.ellipsis,
+                                    );
+                                  }).toList(),
+                                )
+                              : Container(
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    validPit ?? "",
+                                    style: AppTheme.bodySmall.copyWith(
+                                      fontSize: 12,
+                                      color: Colors.black,
+                                      fontWeight: FontWeight.w700,
+                                      fontStyle: validPit == null
+                                          ? FontStyle.italic
+                                          : null,
                                     ),
-                                  );
-                                }).toList(),
-                              )
-                            : Container(
-                                alignment: Alignment.centerLeft,
-                                child: Text(
-                                  list[index] ?? "Select pit",
-                                  style: AppTheme.bodySmall.copyWith(
-                                    fontSize: 12,
-                                    color: Colors.black,
-                                    fontWeight: FontWeight.w700,
-                                    fontStyle: list[index] == null
-                                        ? FontStyle.italic
-                                        : null,
                                   ),
                                 ),
-                              ),
+                        ),
                       ),
-                    ),
 
-                    // Volume Column
-                    SizedBox(
-                      width: 120,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: enabled
-                            ? TextField(
-                                decoration: InputDecoration(
-                                  border: InputBorder.none,
-                                  isDense: true,
-                                  hintText: "0.00",
-                                  hintStyle: AppTheme.caption.copyWith(
-                                    color: Colors.black,
-                                    fontWeight: FontWeight.w700,
+                      // Volume Column
+                      SizedBox(
+                        width: 120,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: enabled
+                              ? TextField(
+                                  decoration: InputDecoration(
+                                    border: InputBorder.none,
+                                    isDense: true,
+                                    hintText: "",
+                                    hintStyle: AppTheme.caption.copyWith(
+                                      color: Colors.black,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      vertical: 12,
+                                    ),
                                   ),
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    vertical: 12,
-                                  ),
-                                ),
-                                style: AppTheme.bodySmall.copyWith(
-                                  fontSize: 12,
-                                  color: Colors.black,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                                textAlign: TextAlign.right,
-                                keyboardType: TextInputType.number,
-                              )
-                            : Container(
-                                height: 48,
-                                alignment: Alignment.centerRight,
-                                child: Text(
-                                  "0.00",
                                   style: AppTheme.bodySmall.copyWith(
                                     fontSize: 12,
                                     color: Colors.black,
                                     fontWeight: FontWeight.w700,
-                                    fontStyle: FontStyle.italic,
+                                  ),
+                                  textAlign: TextAlign.right,
+                                  keyboardType: TextInputType.number,
+                                )
+                              : Container(
+                                  height: 48,
+                                  alignment: Alignment.centerRight,
+                                  child: Text(
+                                    "",
+                                    style: AppTheme.bodySmall.copyWith(
+                                      fontSize: 12,
+                                      color: Colors.black,
+                                      fontWeight: FontWeight.w700,
+                                      fontStyle: FontStyle.italic,
+                                    ),
                                   ),
                                 ),
-                              ),
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
+                    ],
+                  ),
+                );
+              },
             ),
           ],
         ),

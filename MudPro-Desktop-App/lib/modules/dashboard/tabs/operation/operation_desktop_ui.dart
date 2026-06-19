@@ -172,13 +172,18 @@ Future<void> showCuttingsRetentionDialog({
   required String initialValue,
   required ValueChanged<String> onAccepted,
 }) async {
-  final volDrilledController = TextEditingController(text: '0.00');
+  final volDrilledController = TextEditingController();
   final mudLossRatioController = TextEditingController();
   final resultController = TextEditingController(
-    text: initialValue.trim().isEmpty ? '0.00' : initialValue.trim(),
+    text: initialValue.trim().isEmpty ? '' : initialValue.trim(),
   );
 
   void recalculate() {
+    if (volDrilledController.text.trim().isEmpty &&
+        mudLossRatioController.text.trim().isEmpty) {
+      resultController.text = '';
+      return;
+    }
     final drilled = double.tryParse(volDrilledController.text.trim()) ?? 0.0;
     final ratio = double.tryParse(mudLossRatioController.text.trim()) ?? 0.0;
     final result = drilled * ratio / 100;
@@ -229,10 +234,16 @@ Future<void> showEvaporationDialog({
   final drillingController = TextEditingController();
   final circulatingController = TextEditingController();
   final resultController = TextEditingController(
-    text: initialValue.trim().isEmpty ? '0.00' : initialValue.trim(),
+    text: initialValue.trim().isEmpty ? '' : initialValue.trim(),
   );
 
   void recalculate() {
+    if (flowlineController.text.trim().isEmpty &&
+        drillingController.text.trim().isEmpty &&
+        circulatingController.text.trim().isEmpty) {
+      resultController.text = '';
+      return;
+    }
     final flowlineT = double.tryParse(flowlineController.text.trim()) ?? 0.0;
     final drilling = double.tryParse(drillingController.text.trim()) ?? 0.0;
     final circulating =
