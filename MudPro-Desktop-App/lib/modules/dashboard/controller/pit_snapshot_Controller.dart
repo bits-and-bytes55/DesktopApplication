@@ -753,6 +753,12 @@ class PitSnapshotController extends GetxController {
         concentrationUnit: 'lb/bbl',
       );
     }
+    if (normalized.contains('gal')) {
+      return _ConcentrationBasis(
+        factorPerPack: amount * _galToLiter * _liquidSg * _kgToLb,
+        concentrationUnit: 'lb/bbl',
+      );
+    }
     if (normalized.contains('ton') || normalized == 'mt' || normalized.endsWith(' mt')) {
       return _ConcentrationBasis(
         factorPerPack: amount * 2000,
@@ -769,12 +775,6 @@ class PitSnapshotController extends GetxController {
       return _ConcentrationBasis(
         factorPerPack: amount,
         concentrationUnit: 'lb/bbl',
-      );
-    }
-    if (normalized.contains('gal')) {
-      return _ConcentrationBasis(
-        factorPerPack: amount,
-        concentrationUnit: 'gal/bbl',
       );
     }
     if (normalized.contains(' bbl') || normalized.startsWith('bbl')) {

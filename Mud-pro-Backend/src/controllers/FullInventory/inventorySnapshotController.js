@@ -142,6 +142,12 @@ const concentrationBasisForUnit = (unit = "") => {
       concentrationUnit: "lb/bbl",
     };
   }
+  if (normalized.includes("gal")) {
+    return {
+      factorPerPack: amount * GAL_TO_LITER * LIQUID_SG * KG_TO_LB,
+      concentrationUnit: "lb/bbl",
+    };
+  }
   if (normalized.includes("ton") || normalized === "mt" || normalized.endsWith(" mt")) {
     return { factorPerPack: amount * 2000, concentrationUnit: "lb/bbl" };
   }
@@ -150,9 +156,6 @@ const concentrationBasisForUnit = (unit = "") => {
   }
   if (normalized.includes("lb")) {
     return { factorPerPack: amount, concentrationUnit: "lb/bbl" };
-  }
-  if (normalized.includes("gal")) {
-    return { factorPerPack: amount, concentrationUnit: "gal/bbl" };
   }
   if (normalized.includes(" bbl") || normalized.startsWith("bbl")) {
     return { factorPerPack: amount * 42, concentrationUnit: "gal/bbl" };
