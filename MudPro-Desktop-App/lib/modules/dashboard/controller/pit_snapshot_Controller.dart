@@ -528,6 +528,18 @@ class PitSnapshotController extends GetxController {
     final amount = _packSize(unit);
     if (amount <= 0) return null;
 
+    if (normalized.contains('bag')) {
+      return const _ConcentrationBasis(
+        factorPerPack: _solidBagKg * _kgToLb,
+        concentrationUnit: 'lb/bbl',
+      );
+    }
+    if (normalized.contains('drum')) {
+      return const _ConcentrationBasis(
+        factorPerPack: _liquidDrumGal * _galToLiter * _liquidSg * _kgToLb,
+        concentrationUnit: 'lb/bbl',
+      );
+    }
     if (normalized.contains('ton')) {
       return _ConcentrationBasis(
         factorPerPack: amount * 2000,
@@ -536,7 +548,7 @@ class PitSnapshotController extends GetxController {
     }
     if (normalized.contains('kg')) {
       return _ConcentrationBasis(
-        factorPerPack: amount * 2.20462,
+        factorPerPack: amount * _kgToLb,
         concentrationUnit: 'lb/bbl',
       );
     }
@@ -616,6 +628,12 @@ class PitSnapshotController extends GetxController {
     return const <Map<String, dynamic>>[];
   }
 }
+
+const double _solidBagKg = 25.0;
+const double _liquidDrumGal = 55.0;
+const double _liquidSg = 1.0;
+const double _galToLiter = 3.78541;
+const double _kgToLb = 2.20462;
 
 class PitSnapshotPitRow {
   const PitSnapshotPitRow({
