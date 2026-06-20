@@ -329,17 +329,10 @@ class PitSnapshotController extends GetxController {
       ..sort((left, right) {
         final leftMeta = productMetaByKey[left];
         final rightMeta = productMetaByKey[right];
-        final leftOrder = leftMeta?.sortOrder ?? 0;
-        final rightOrder = rightMeta?.sortOrder ?? 0;
-        if (leftOrder > 0 || rightOrder > 0) {
-          if (leftOrder <= 0) return 1;
-          if (rightOrder <= 0) return -1;
-          final byOrder = leftOrder.compareTo(rightOrder);
-          if (byOrder != 0) return byOrder;
-        }
         final leftName = leftMeta?.itemName.toLowerCase() ?? left;
         final rightName = rightMeta?.itemName.toLowerCase() ?? right;
-        return leftName.compareTo(rightName);
+        final byName = leftName.compareTo(rightName);
+        return byName != 0 ? byName : left.compareTo(right);
       });
   }
 
@@ -701,7 +694,12 @@ class PitSnapshotController extends GetxController {
           );
           break;
         case 'transfer':
-          _applyTransferToLedger(ledger: ledger, volumes: volumes, row: row);
+          _applyTransferToLedger(
+            ledger: ledger,
+            volumes: volumes,
+            row: row,
+            productEndVolumesBySystem: productEndVolumesBySystem,
+          );
           break;
         case 'mudLoss':
           _loseVolumeFromLedger(
@@ -725,6 +723,7 @@ class PitSnapshotController extends GetxController {
             _transferMassBetweenSystems(
               ledger: ledger,
               volumes: volumes,
+              productEndVolumesBySystem: productEndVolumesBySystem,
               from: 'Active System',
               destinations: {_normalizeSystemName(_text(row['pitName'])): volume},
             );
@@ -775,6 +774,7 @@ class PitSnapshotController extends GetxController {
     required Map<String, Map<String, double>> ledger,
     required Map<String, double> volumes,
     required Map<String, dynamic> row,
+    required Map<String, Map<String, double>> productEndVolumesBySystem,
   }) {
     final transfers = _extractList(row['transfers']);
     final destinations = <String, double>{};
@@ -789,6 +789,7 @@ class PitSnapshotController extends GetxController {
     _transferMassBetweenSystems(
       ledger: ledger,
       volumes: volumes,
+      productEndVolumesBySystem: productEndVolumesBySystem,
       from: _normalizeSystemName(_text(row['from'])),
       destinations: destinations,
     );
@@ -797,18 +798,31 @@ class PitSnapshotController extends GetxController {
   void _transferMassBetweenSystems({
     required Map<String, Map<String, double>> ledger,
     required Map<String, double> volumes,
+    required Map<String, Map<String, double>> productEndVolumesBySystem,
     required String from,
     required Map<String, double> destinations,
   }) {
     final sourceVolume = volumes[from] ?? 0.0;
     if (from.isEmpty || sourceVolume <= 0) return;
 
-    final requestedTotal = destinations.values.fold<double>(0.0, (sum, v) => sum + v);
+    final requestedTotal = destinations.values.fold<double>(
+      0.0,
+      (sum, v) => sum + v,
+    );
     if (requestedTotal <= 0) return;
 
-    final scale = requestedTotal > sourceVolume ? sourceVolume / requestedTotal : 1.0;
-    final sourceMasses = Map<String, double>.from(ledger[from] ?? const <String, double>{});
+    final scale = requestedTotal > sourceVolume
+        ? sourceVolume / requestedTotal
+        : 1.0;
+    final sourceMasses = Map<String, double>.from(
+      ledger[from] ?? const <String, double>{},
+    );
+    final sourceProductVolumes = Map<String, double>.from(
+      productEndVolumesBySystem[from] ?? const <String, double>{},
+    );
     final actualTotal = requestedTotal * scale;
+    final remainingFraction = 1 - (actualTotal / sourceVolume);
+    final initializedSourceDenominators = <String>{};
 
     for (final destEntry in destinations.entries) {
       final movedVolume = destEntry.value * scale;
@@ -818,6 +832,26 @@ class PitSnapshotController extends GetxController {
         final movedMass = massEntry.value * fraction;
         _addProductMass(ledger, from, massEntry.key, -movedMass);
         _addProductMass(ledger, destEntry.key, massEntry.key, movedMass);
+
+        final sourceProductVolume =
+            sourceProductVolumes[massEntry.key] ?? sourceVolume;
+        if (sourceProductVolume > 0) {
+          final movedProductVolume = sourceProductVolume * fraction;
+          if (initializedSourceDenominators.add(massEntry.key)) {
+            _setProductEndVolume(
+              productEndVolumesBySystem,
+              from,
+              massEntry.key,
+              sourceProductVolume * remainingFraction,
+            );
+          }
+          _addProductEndVolume(
+            productEndVolumesBySystem,
+            destEntry.key,
+            massEntry.key,
+            movedProductVolume,
+          );
+        }
       }
       _addVolume(volumes, destEntry.key, movedVolume);
     }
@@ -856,6 +890,45 @@ class PitSnapshotController extends GetxController {
       masses.remove(productKey);
     } else {
       masses[productKey] = next;
+    }
+  }
+
+  void _addProductEndVolume(
+    Map<String, Map<String, double>> productEndVolumesBySystem,
+    String system,
+    String productKey,
+    double volume,
+  ) {
+    if (system.isEmpty || productKey.isEmpty || volume.abs() <= 0.000001) {
+      return;
+    }
+    final volumes = productEndVolumesBySystem.putIfAbsent(
+      system,
+      () => <String, double>{},
+    );
+    final next = (volumes[productKey] ?? 0.0) + volume;
+    if (next <= 0.000001) {
+      volumes.remove(productKey);
+    } else {
+      volumes[productKey] = next;
+    }
+  }
+
+  void _setProductEndVolume(
+    Map<String, Map<String, double>> productEndVolumesBySystem,
+    String system,
+    String productKey,
+    double volume,
+  ) {
+    if (system.isEmpty || productKey.isEmpty) return;
+    final volumes = productEndVolumesBySystem.putIfAbsent(
+      system,
+      () => <String, double>{},
+    );
+    if (volume <= 0.000001) {
+      volumes.remove(productKey);
+    } else {
+      volumes[productKey] = volume;
     }
   }
 

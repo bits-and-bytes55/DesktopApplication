@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/switch_mudtype_controller.dart';
@@ -70,46 +68,36 @@ class _SwitchMudTypeViewState extends State<SwitchMudTypeView> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // ================= ENHANCED HEADER =================
-                      // _buildHeader(),
-
-                      // const SizedBox(height: 20),
-
-                      /// SECTION 1
-                      _enhancedTwoTableSection(
-                        title: "1. Remove Mud from Active Pits",
+                      _twoTableSection(
+                        title: '1. Remove Mud from Active Pits',
                         selected: controller.section1Selected,
+                        leftLabel: 'Transfer',
+                        rightLabel: 'Make Storage',
                         leftList: controller.section1Left,
                         rightList: controller.section1Right,
-                        sectionIndex: 1,
                       ),
-
                       const SizedBox(height: 20),
-
-                      /// SECTION 2
-                      _enhancedTwoTableSection(
-                        title: "2. Fill Active Pits",
+                      _twoTableSection(
+                        title: '2. Fill Active Pits',
                         selected: controller.section2Selected,
+                        leftLabel: 'Transfer',
+                        rightLabel: 'Make Active',
                         leftList: controller.section2Left,
                         rightList: controller.section2Right,
-                        sectionIndex: 2,
                       ),
-
                       const SizedBox(height: 20),
-
-                      /// SECTION 3
-                      _enhancedSingleTableSection(
-                        title: "3. Displace Fluid in Hole to Storage",
+                      _singleTableSection(
+                        title: '3. Displace Fluid in Hole to Storage',
                         list: controller.section3,
                       ),
-                    ),
+                    ],
                   ),
                 ),
               ),
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 
@@ -185,37 +173,12 @@ class _SwitchMudTypeViewState extends State<SwitchMudTypeView> {
     );
   }
 
-          SizedBox(
-            width: 960,
-            child: Row(
-              children: [
-                Expanded(
-                  child: Obx(
-                    () => _enhancedTableWithRadio(
-                      label: "Transfer",
-                      isActive: selected.value == 0,
-                      onSelect: () => selected.value = 0,
-                      list: leftList,
-                      sectionEnabled: selected.value == 0,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 20),
-                Expanded(
-                  child: Obx(
-                    () => _enhancedTableWithRadio(
-                      label: "Make Storage",
-                      isActive: selected.value == 1,
-                      onSelect: () => selected.value = 1,
-                      list: rightList,
-                      sectionEnabled: selected.value == 1,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+  Widget _sectionTitle(String title) {
+    return Text(
+      title,
+      style: AppTheme.titleMedium.copyWith(
+        color: Colors.black,
+        fontWeight: FontWeight.w700,
       ),
     );
   }
@@ -249,14 +212,7 @@ class _SwitchMudTypeViewState extends State<SwitchMudTypeView> {
                 children: [
                   _selectionDot(active),
                   const SizedBox(width: 10),
-                  Text(
-                    label,
-                    style: const TextStyle(
-                      color: Colors.black,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
+                  Text(label, style: _inputTextStyle),
                 ],
               ),
             ),
@@ -267,139 +223,22 @@ class _SwitchMudTypeViewState extends State<SwitchMudTypeView> {
     );
   }
 
-            // Table Rows
-            ...List.generate(
-              list.length,
-              (index) {
-                final selectedPit = list[index];
-                final validPit =
-                    selectedPit != null &&
-                        controller.pitList.contains(selectedPit)
-                    ? selectedPit
-                    : null;
-
-                return Container(
-                  decoration: BoxDecoration(
-                    color: index % 2 == 0 ? Colors.white : Colors.grey.shade50,
-                    border: Border(
-                      bottom: BorderSide(
-                        color: index == list.length - 1
-                            ? Colors.transparent
-                            : Colors.grey.shade200,
-                      ),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      // Pit Column with Dropdown
-                      Expanded(
-                        child: Container(
-                          height: 48,
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: enabled
-                              ? DropdownButton<String>(
-                                  value: validPit,
-                                  isExpanded: true,
-                                  underline: const SizedBox(),
-                                  icon: Icon(
-                                    Icons.arrow_drop_down_rounded,
-                                    size: 20,
-                                    color: Colors.grey.shade400,
-                                  ),
-                                  hint: const SizedBox.shrink(),
-                                  onChanged: (String? newValue) {
-                                    if (newValue != null) {
-                                      list[index] = newValue;
-                                    }
-                                  },
-                                  items: controller.pitList.map((String value) {
-                                    return DropdownMenuItem<String>(
-                                      value: value,
-                                      child: Text(
-                                        value,
-                                        style: AppTheme.bodySmall.copyWith(
-                                          fontSize: 12,
-                                          color: Colors.black,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    );
-                                  }).toList(),
-                                )
-                              : Container(
-                                  alignment: Alignment.centerLeft,
-                                  child: Text(
-                                    validPit ?? "",
-                                    style: AppTheme.bodySmall.copyWith(
-                                      fontSize: 12,
-                                      color: Colors.black,
-                                      fontWeight: FontWeight.w700,
-                                      fontStyle: validPit == null
-                                          ? FontStyle.italic
-                                          : null,
-                                    ),
-                                  ),
-                                ),
-                        ),
-                      ),
-
-                      // Volume Column
-                      SizedBox(
-                        width: 120,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: enabled
-                              ? TextField(
-                                  decoration: InputDecoration(
-                                    border: InputBorder.none,
-                                    isDense: true,
-                                    hintText: "",
-                                    hintStyle: AppTheme.caption.copyWith(
-                                      color: Colors.black,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                    contentPadding: const EdgeInsets.symmetric(
-                                      vertical: 12,
-                                    ),
-                                  ),
-                                  style: AppTheme.bodySmall.copyWith(
-                                    fontSize: 12,
-                                    color: Colors.black,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                  textAlign: TextAlign.right,
-                                  keyboardType: TextInputType.number,
-                                )
-                              : Container(
-                                  height: 48,
-                                  alignment: Alignment.centerRight,
-                                  child: Text(
-                                    "",
-                                    style: AppTheme.bodySmall.copyWith(
-                                      fontSize: 12,
-                                      color: Colors.black,
-                                      fontWeight: FontWeight.w700,
-                                      fontStyle: FontStyle.italic,
-                                    ),
-                                  ),
-                                ),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-          ],
+  Widget _selectionDot(bool active) {
+    return Container(
+      width: 14,
+      height: 14,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: active ? AppTheme.primaryColor : Colors.grey.shade500,
         ),
       ),
-      alignment: Alignment.center,
       child: active
           ? Container(
               width: 8,
               height: 8,
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 shape: BoxShape.circle,
                 color: AppTheme.primaryColor,
               ),
@@ -443,10 +282,7 @@ class _SwitchMudTypeViewState extends State<SwitchMudTypeView> {
         children: [
           _cell(
             width: width - 120,
-            child: const Text(
-              'Pit',
-              style: _headerTextStyle,
-            ),
+            child: const Text('Pit', style: _headerTextStyle),
           ),
           _cell(
             width: 120,
