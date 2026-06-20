@@ -924,8 +924,11 @@ const fillDmrHeader = (ws, { well, pad, report, wellGeneral, fluidName, interval
   setCellValue(ws, "BB2", reportNumber);
   setCellValue(ws, "BL7", reportNumber);
   setCellValue(ws, "H8", displayText(well?.wellNameNo));
-  setCellValue(ws, "T8", displayText(pad?.rig));
-  setCellValue(ws, "AB8", displayText(pad?.fieldBlock));
+  setCellValue(ws, "S8", "Rig Name");
+  setCellValue(ws, "AB8", displayText(pad?.rig));
+  setCellValue(ws, "AM8", "Field/Block");
+  setCellValue(ws, "AT8", displayText(pad?.fieldBlock));
+  setCellValue(ws, "BE8", "Location/State");
   setCellValue(ws, "BL8", displayText(pad?.country || pad?.stateProvince));
   setCellValue(ws, "H9", displayText(pad?.operator));
   setCellValue(ws, "AB9", displayText(pad?.contractor));
@@ -1737,6 +1740,13 @@ const fillDmrTopSections = (ws, { drillStrings, casings, summary, activePits, fl
 
   fillMudPropertyRows(ws, { mudReportState, activePits, fluidName, wellGeneral });
   fillDmrSolidsAnalysisRows(ws, solidsAnalysisRows);
+
+  setCellValue(ws, "AJ36", "Product Name");
+  setCellValue(ws, "AT36", "Size");
+  setCellValue(ws, "AY36", "Used");
+  setCellValue(ws, "BC36", "Cum. Used");
+  setCellValue(ws, "BH36", "Unit Cost (Kwd)");
+  setCellValue(ws, "BN36", "Daily Cost (Kwd)");
 
   for (let index = 0; index < 16; index += 1) {
     const row = 37 + index;
