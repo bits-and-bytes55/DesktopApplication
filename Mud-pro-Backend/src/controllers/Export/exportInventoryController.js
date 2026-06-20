@@ -1457,9 +1457,9 @@ const fillDmrHydraulicsRows = (ws, {
     [87, "DS Vel (ft/min)"],
     [88, "DS P. Loss (psi)"],
     [89, "Ann. P. Loss (psi)"],
-  ].forEach(([row, label]) => fillRowRange(ws, row, "A", "K", label));
+  ].forEach(([row, label]) => fillRowRange(ws, row, "A", "H", label));
 
-  const columns = [["L", "O"], ["P", "T"], ["U", "Y"], ["Z", "AD"], ["AE", "AI"]];
+  const columns = [["I", "K"], ["L", "O"], ["P", "T"], ["U", "Y"], ["Z", "AD"], ["AE", "AI"]];
   columns.forEach(([start, end], index) => {
     const item = segments[index];
     const annArea = item ? Math.max(item.holeSize * item.holeSize - item.pipeOd * item.pipeOd, 0) : 0;
