@@ -554,6 +554,29 @@ const prepareCasingOpenHoleRows = ({ casings, wellGeneral, intervals }) => {
 
   return rows.slice(0, 8);
 };
+const openHoleRowHasData = (row = {}) =>
+  [row.description, row.id, row.md, row.washout].some((value) => text(value));
+const normalizeSavedOpenHoleRows = (wellGeneral = {}) => {
+  const rows = Array.isArray(wellGeneral?.openHoleRows)
+    ? wellGeneral.openHoleRows
+    : [];
+
+  return rows
+    .filter(openHoleRowHasData)
+    .map((row) => ({
+      type: firstText(row.description, "Open Hole"),
+      description: firstText(row.description, "Open Hole"),
+      od: row.id,
+      id: row.id,
+      shoe: row.md,
+      md: row.md,
+      washout: row.washout,
+    }));
+};
+const prepareSavedCasingOpenHoleRows = ({ casings, wellGeneral }) => [
+  ...casings.filter(hasCasingData),
+  ...normalizeSavedOpenHoleRows(wellGeneral),
+].slice(0, 8);
 const calculatePumpDisplacement = (pump = {}) => {
   const linerId = toNumber(pump.linerId);
   const strokeLength = toNumber(pump.strokeLength);
@@ -1013,15 +1036,15 @@ const fillDmrHeader = (ws, { well, pad, report, wellGeneral, fluidName, interval
   setCellValue(ws, "H9", displayText(pad?.operator));
   setCellValue(ws, "AB9", displayText(pad?.contractor));
   setCellValue(ws, "AT9", displayText(formationText));
-  setCellValue(ws, "BL9", displayText(wellGeneral?.md, "0"));
+  setCellValue(ws, "BL9", displayText(wellGeneral?.md, ""));
   setCellValue(ws, "H10", displayText(wellGeneral?.operatorRep || pad?.operatorRep));
   setCellValue(ws, "AB10", displayText(wellGeneral?.contractorRep || pad?.contractorRep));
   setCellValue(ws, "AT10", formatInclinationAzimuth(wellGeneral).replace(" / ", "/"));
-  setCellValue(ws, "BL10", displayText(wellGeneral?.tvd, "0"));
+  setCellValue(ws, "BL10", displayText(wellGeneral?.tvd, ""));
   setCellValue(ws, "H11", displayText(formatDate(well?.spudDate)));
   setCellValue(ws, "AB11", displayText(fluidName));
   setCellValue(ws, "AT11", displayText(activityText));
-  setCellValue(ws, "BL11", displayText(wellGeneral?.depthDrilled, "0"));
+  setCellValue(ws, "BL11", displayText(wellGeneral?.depthDrilled, ""));
 };
 
 const normalizeMudKey = (value) =>
@@ -1673,13 +1696,13 @@ const fillDmrBitInformation = (ws, { casings = [], intervals = [], wellGeneral, 
   const rawBitSize = parseFraction(wellGeneral?.bitSize);
   const bitSize = rawBitSize
     ? round(convertLength(rawBitSize, "in", reportFormat.diameterUnit), reportFormat.digits)
-    : 0;
+    : "";
   const nozzles = Array.isArray(nozzleData?.nozzles) ? nozzleData.nozzles : [];
 
   fillRowRange(ws, 13, "BE", "BK", "Bit Type");
-  fillRowRange(ws, 13, "BL", "BS", text(wellGeneral?.bitType, "0"));
+  fillRowRange(ws, 13, "BL", "BS", text(wellGeneral?.bitType));
   fillRowRange(ws, 14, "BE", "BK", "Bit Model");
-  fillRowRange(ws, 14, "BL", "BS", text(wellGeneral?.bitMft, "0"));
+  fillRowRange(ws, 14, "BL", "BS", text(wellGeneral?.bitMft));
   fillRowRange(
     ws,
     15,
@@ -2009,15 +2032,15 @@ const fillInventoryHeader = (ws, { well, pad, report, wellGeneral, fluidName, in
   setCellValue(ws, "D9", displayText(pad?.operator));
   setCellValue(ws, "L9", displayText(pad?.contractor));
   setCellValue(ws, "U9", displayText(formationText));
-  setCellValue(ws, "AC9", displayText(wellGeneral?.md, "0"));
+  setCellValue(ws, "AC9", displayText(wellGeneral?.md, ""));
   setCellValue(ws, "D10", displayText(wellGeneral?.operatorRep || pad?.operatorRep));
   setCellValue(ws, "L10", displayText(wellGeneral?.contractorRep || pad?.contractorRep));
   setCellValue(ws, "U10", formatInclinationAzimuth(wellGeneral));
-  setCellValue(ws, "AC10", displayText(wellGeneral?.tvd, "0"));
+  setCellValue(ws, "AC10", displayText(wellGeneral?.tvd, ""));
   setCellValue(ws, "D11", displayText(formatDate(well?.spudDate)));
   setCellValue(ws, "L11", displayText(fluidName));
   setCellValue(ws, "U11", displayText(activityText));
-  setCellValue(ws, "AC11", displayText(wellGeneral?.depthDrilled, "0"));
+  setCellValue(ws, "AC11", displayText(wellGeneral?.depthDrilled, ""));
 };
 
 const hasServiceCostData = (item = {}, nameField) =>
@@ -2223,7 +2246,7 @@ const loadReportScopedList = async (
       .sort(sort)
       .limit(limit || 0)
       .lean();
-    if (scoped.length > 0) return scoped;
+    return scoped;
   }
 
   return Model.find({ wellId, ...legacyReportScopeForModel(Model) })
@@ -2240,7 +2263,7 @@ const loadExportDrillStrings = async ({ wellId, reportId }) => {
       .sort({ createdAt: 1, _id: 1 })
       .limit(8)
       .lean();
-    if (scoped.length > 0) return scoped;
+    return scoped;
   }
 
   const wellScopedLegacy = await DrillString.find({
@@ -2257,19 +2280,9 @@ const loadExportDrillStrings = async ({ wellId, reportId }) => {
 const loadExportCasings = async ({ wellId, reportId }) => {
   if (!wellId) return [];
 
-  const filter = reportId
-    ? {
-        wellId,
-        $or: [
-          { reportId },
-          { reportId: { $exists: false } },
-          { reportId: null },
-          { reportId: "" },
-        ],
-      }
-    : { wellId };
+  const filter = reportId ? { wellId, reportId } : { wellId };
 
-  return Casing.find(filter).sort({ createdAt: 1, _id: 1 }).lean();
+  return Casing.find(filter).sort({ sortOrder: 1, createdAt: 1, _id: 1 }).lean();
 };
 
 const loadInventorySnapshot = async ({ wellId, reportId }) => {
@@ -2279,7 +2292,7 @@ const loadInventorySnapshot = async ({ wellId, reportId }) => {
     const scoped = await InventorySnapshot.find({ wellId, reportId })
       .sort({ category: 1, itemName: 1 })
       .lean();
-    if (scoped.length > 0) return scoped;
+    return scoped;
   }
 
   const legacy = await InventorySnapshot.find({
@@ -2449,10 +2462,7 @@ const loadExportPumps = async ({ wellId, reportId }) => {
       .sort({ rowNumber: 1, updatedAt: -1, createdAt: -1, _id: -1 })
       .lean();
 
-    const normalizedScoped = normalizePumpRows(scoped);
-    if (normalizedScoped.length > 0) {
-      return normalizedScoped;
-    }
+    return normalizePumpRows(scoped);
   }
 
   const legacy = await Pump.find({ wellId, ...legacyReportScopeForModel(Pump) })
@@ -2494,6 +2504,8 @@ const loadExportWellGeneral = async ({ wellId, reportId, report }) => {
     if (byReportNumber) return byReportNumber;
   }
 
+  if (reportId) return null;
+
   const legacy = await WellGeneral.findOne({
     wellId,
     ...legacyReportScopeWithEmpty(),
@@ -2501,11 +2513,9 @@ const loadExportWellGeneral = async ({ wellId, reportId, report }) => {
     .sort({ createdAt: -1, _id: -1 })
     .lean();
   if (legacy) return legacy;
-  return reportId
-    ? null
-    : WellGeneral.findOne({ wellId })
-        .sort({ createdAt: -1, _id: -1 })
-        .lean();
+  return WellGeneral.findOne({ wellId })
+    .sort({ createdAt: -1, _id: -1 })
+    .lean();
 };
 
 const loadExportMudReportState = async ({ wellId, reportId }) => {
@@ -2515,7 +2525,7 @@ const loadExportMudReportState = async ({ wellId, reportId }) => {
     const scoped = await MudReportState.findOne({ wellId, reportId })
       .sort({ updatedAt: -1, _id: -1 })
       .lean();
-    if (scoped) return scoped;
+    return scoped;
   }
 
   const legacy = await MudReportState.findOne({
@@ -2543,7 +2553,6 @@ const loadExportSolidsAnalysis = async ({ wellId, reportId }) => {
   if (wellId && reportId) {
     queries.push({ wellId, reportId });
     queries.push({ reportId, ...emptyWellScope() });
-    queries.push({ wellId, ...legacyReportScopeWithEmpty() });
   }
   if (wellId && !reportId) {
     queries.push({ wellId, ...legacyReportScopeWithEmpty() });
@@ -2582,8 +2591,8 @@ const loadExportSceRows = async (
     }
   }
   if (wellId) {
-    queries.push({ wellId, ...legacyReportScopeForModel(Model) });
     if (!reportId) {
+      queries.push({ wellId, ...legacyReportScopeForModel(Model) });
       queries.push({ wellId });
     }
   }
@@ -2607,8 +2616,8 @@ const loadExportNozzle = async ({ wellId, reportId }) => {
     queries.push({ wellId, reportId });
   }
   if (wellId) {
-    queries.push({ wellId, ...legacyReportScopeForModel(Nozzle) });
     if (!reportId) {
+      queries.push({ wellId, ...legacyReportScopeForModel(Nozzle) });
       queries.push({ wellId });
     }
   }
@@ -2741,10 +2750,9 @@ export const exportInventoryReport = async (req, res) => {
       fallbackEngineeringCost: engineeringDailyCost,
     });
     const intervalBitSize = resolveIntervalBitSize(intervals, wellGeneral?.interval);
-    const casingOpenHoleRows = prepareCasingOpenHoleRows({
+    const casingOpenHoleRows = prepareSavedCasingOpenHoleRows({
       casings,
       wellGeneral,
-      intervals,
     });
     const cuttingsAnalysis = {
       depthDrilled: toNumber(wellGeneral?.depthDrilled),
