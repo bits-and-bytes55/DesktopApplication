@@ -13,6 +13,7 @@ import MudLossStorage from "../../modules/mudlossstorage/MudLossStorage.js";
 import TransferMud from "../../modules/transfermud/TransferMud.js";
 import EmptyFluidActiveSystem from "../../modules/emptyfluidactivesystem/EmptyFluidActiveSystem.js";
 import Report from "../../modules/report/report.model.js";
+import UgInventorySnapshot from "../../modules/ugInventory/ugInventoryProductModel.js";
 import {
   operationInstancePayload,
   readOperationInstanceKey,
@@ -39,6 +40,13 @@ const toNumber = (value) => {
 };
 
 const toText = (value) => String(value ?? "").trim();
+
+const keyFromCodeOrName = (code = "", name = "", fallback = "") => {
+  const codeText = toText(code);
+  if (codeText) return codeText.toLowerCase();
+  const nameText = toText(name);
+  return nameText ? nameText.toLowerCase() : fallback;
+};
 
 const round2 = (value) => {
   const n = Number(value);
@@ -439,6 +447,47 @@ const dedupeLatestPits = (items = []) => {
   }
 
   return sortByCreatedAtAsc(Array.from(latestByName.values()));
+};
+
+const buildUgInventoryLookups = async (wellId) => {
+  const snapshot = wellId
+    ? await UgInventorySnapshot.findOne({ wellId }).sort({ updatedAt: -1 }).lean()
+    : null;
+  const productMetaByKey = new Map();
+  const obmByPremix = new Map();
+
+  for (const product of snapshot?.products ?? []) {
+    const key = keyFromCodeOrName(product.code, product.product || product.itemName);
+    if (!key) continue;
+    productMetaByKey.set(key, {
+      product: toText(product.product || product.itemName),
+      code: toText(product.code),
+      unit: toText(product.unit),
+    });
+  }
+
+  for (const row of snapshot?.obm ?? []) {
+    const premixKey = toText(row.premixDescription).toLowerCase();
+    if (!premixKey) continue;
+    const productKey = keyFromCodeOrName(row.code, row.product);
+    const meta = productMetaByKey.get(productKey) || {};
+    const enriched = {
+      product: toText(row.product || meta.product),
+      code: toText(row.code || meta.code),
+      unit: toText(meta.unit),
+      concentration: toNumber(row.conc),
+    };
+    if (!enriched.product && !enriched.code) continue;
+    if (!obmByPremix.has(premixKey)) obmByPremix.set(premixKey, []);
+    obmByPremix.get(premixKey).push(enriched);
+  }
+
+  return { obmByPremix };
+};
+
+const concentrationProductsForPremix = (obmByPremix, premixedMud) => {
+  const key = toText(premixedMud).toLowerCase();
+  return key ? obmByPremix.get(key) || [] : [];
 };
 
 const mergeScopedWithLegacy = (scopedItems = [], legacyItems = []) => {
@@ -1803,7 +1852,7 @@ export const getVolumeNameCalculation = async (req, res) => {
 
     const reportMeta = await resolveReportMeta({ wellId, reportId, reportNo });
 
-    let [wellGeneral, casings, drillStrings, pits, distributionStates, consumeProducts, receivedMud, returnLostMud, addWaterEntries, otherVolAdditions, mudLossEntries, mudLossStorageEntries, transferMudEntries, emptyFluidEntries] =
+    let [wellGeneral, casings, drillStrings, pits, distributionStates, consumeProducts, receivedMud, returnLostMud, addWaterEntries, otherVolAdditions, mudLossEntries, mudLossStorageEntries, transferMudEntries, emptyFluidEntries, ugLookups] =
       await Promise.all([
         findScopedWellGeneral({
           wellId,
@@ -1854,6 +1903,7 @@ export const getVolumeNameCalculation = async (req, res) => {
         EmptyFluidActiveSystem.find(
           scopedOperationFilter({ wellId, reportId: reportMeta.reportId })
         ).sort({ createdAt: 1, _id: 1 }),
+        buildUgInventoryLookups(wellId),
       ]);
 
     const uiDistributionStates = [...(distributionStates ?? [])];
@@ -2295,6 +2345,29 @@ export const getVolumeNameCalculation = async (req, res) => {
           addWater: normalizedAddWaterEntries.map((item) => ({
             to: item.to || "",
             volume: toNumber(item.volume),
+            operationInstanceKey: toText(item.operationInstanceKey),
+            createdAt: item.createdAt,
+            updatedAt: item.updatedAt,
+          })),
+          receiveMud: receivedMud.map((item) => ({
+            to: item.to || "",
+            volume: toNumber(item.netVolume || item.volume),
+            grossVolume: toNumber(item.volume),
+            lossVolume: toNumber(item.lossVolume),
+            premixedMud: item.premixedMud || "",
+            concentrationProducts: concentrationProductsForPremix(
+              ugLookups?.obmByPremix,
+              item.premixedMud
+            ),
+            operationInstanceKey: toText(item.operationInstanceKey),
+            createdAt: item.createdAt,
+            updatedAt: item.updatedAt,
+          })),
+          returnLostMud: returnLostMud.map((item) => ({
+            from: item.from || "",
+            to: item.to || "",
+            volume: toNumber(item.volReturned),
+            premixedMud: item.premixedMud || "",
             operationInstanceKey: toText(item.operationInstanceKey),
             createdAt: item.createdAt,
             updatedAt: item.updatedAt,
