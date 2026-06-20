@@ -4242,47 +4242,18 @@ class _TimeDistributionSectionState extends State<TimeDistributionSection> {
                                                                 const EdgeInsets.symmetric(
                                                                   horizontal: 4,
                                                                 ),
-                                                              ),
-                                                        )
-                                                        .toList(),
-                                                child: Container(
-                                                  height: _kRowH,
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                        horizontal: 4,
-                                                      ),
-                                                  color: Colors.white,
-                                                  child: Row(
-                                                    children: [
-                                                      Expanded(
-                                                        child: Text(
-                                                          selectedActivity
-                                                                  .isEmpty
-                                                              ? 'Select'
-                                                              : selectedActivity,
-                                                          style: selectedActivity
-                                                                  .isEmpty
-                                                              ? TextStyle(
-                                                                  fontSize: 9,
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .w700,
-                                                                  color: Colors
-                                                                      .grey
-                                                                      .shade400,
-                                                                )
-                                                              : _kWellSmallInputTextStyle,
-                                                          overflow: TextOverflow
-                                                              .ellipsis,
+                                                            child: Text(
+                                                              o,
+                                                              style:
+                                                                  _kWellSmallInputTextStyle,
+                                                              overflow:
+                                                                  TextOverflow
+                                                                      .ellipsis,
+                                                            ),
+                                                          ),
                                                         ),
-                                                      ),
-                                                      const Icon(
-                                                        Icons.arrow_drop_down,
-                                                        size: 12,
-                                                        color: Colors.black54,
-                                                      ),
-                                                    ],
-                                                  ),
+                                                      )
+                                                      .toList(),
                                                 ),
                                               ),
                                       ),
