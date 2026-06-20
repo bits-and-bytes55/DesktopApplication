@@ -68,26 +68,57 @@ class _SwitchMudTypeViewState extends State<SwitchMudTypeView> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+<<<<<<< HEAD
                       _twoTableSection(
                         title: '1. Remove Mud from Active Pits',
                         selected: controller.section1Selected,
                         leftLabel: 'Transfer',
                         rightLabel: 'Make Storage',
+=======
+                      // ================= ENHANCED HEADER =================
+                      // _buildHeader(),
+
+                      // const SizedBox(height: 20),
+
+                      /// SECTION 1
+                      _twoTableSection(
+                        title: "1. Remove Mud from Active Pits",
+                        selected: controller.section1Selected,
+                        leftLabel: "Transfer",
+                        rightLabel: "Make Storage",
+>>>>>>> ddcc9b7243442dd64aa23a8693ffb5a9e5743b95
                         leftList: controller.section1Left,
                         rightList: controller.section1Right,
                       ),
                       const SizedBox(height: 20),
+<<<<<<< HEAD
                       _twoTableSection(
                         title: '2. Fill Active Pits',
                         selected: controller.section2Selected,
                         leftLabel: 'Transfer',
                         rightLabel: 'Make Active',
+=======
+
+                      /// SECTION 2
+                      _twoTableSection(
+                        title: "2. Fill Active Pits",
+                        selected: controller.section2Selected,
+                        leftLabel: "Transfer",
+                        rightLabel: "Make Storage",
+>>>>>>> ddcc9b7243442dd64aa23a8693ffb5a9e5743b95
                         leftList: controller.section2Left,
                         rightList: controller.section2Right,
                       ),
                       const SizedBox(height: 20),
+<<<<<<< HEAD
                       _singleTableSection(
                         title: '3. Displace Fluid in Hole to Storage',
+=======
+
+                      /// SECTION 3
+                      _singleTableSection(
+                        title: "3. Displace Fluid in Hole to Storage",
+>>>>>>> ddcc9b7243442dd64aa23a8693ffb5a9e5743b95
                         list: controller.section3,
                       ),
                     ],
@@ -176,10 +207,40 @@ class _SwitchMudTypeViewState extends State<SwitchMudTypeView> {
   Widget _sectionTitle(String title) {
     return Text(
       title,
+<<<<<<< HEAD
       style: AppTheme.titleMedium.copyWith(
         color: Colors.black,
+=======
+      style: const TextStyle(
+        color: Colors.black,
+        fontSize: 15,
+>>>>>>> ddcc9b7243442dd64aa23a8693ffb5a9e5743b95
         fontWeight: FontWeight.w700,
       ),
+    );
+  }
+
+  Widget _selectionDot(bool active) {
+    return Container(
+      width: 16,
+      height: 16,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: active ? AppTheme.primaryColor : Colors.grey.shade500,
+        ),
+      ),
+      child: active
+          ? Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppTheme.primaryColor,
+              ),
+            )
+          : null,
     );
   }
 
@@ -223,6 +284,7 @@ class _SwitchMudTypeViewState extends State<SwitchMudTypeView> {
     );
   }
 
+<<<<<<< HEAD
   Widget _selectionDot(bool active) {
     return Container(
       width: 14,
@@ -247,6 +309,8 @@ class _SwitchMudTypeViewState extends State<SwitchMudTypeView> {
     );
   }
 
+=======
+>>>>>>> ddcc9b7243442dd64aa23a8693ffb5a9e5743b95
   Widget _dataTable({
     required RxList<String?> list,
     required bool enabled,

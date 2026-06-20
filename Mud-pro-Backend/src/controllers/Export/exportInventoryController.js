@@ -40,6 +40,58 @@ const PAD_LOGO_UPLOADS_ROOT = path.resolve(__dirname, "../../uploads/pad-logos")
 const DMR_SHEET_NAME = "DMR";
 const INVENTORY_SHEET_NAME = "Inventory";
 
+const DMR_COLUMN_WIDTHS = [
+  [1, 3, 2.26953125],
+  [4, 4, 2.26953125],
+  [5, 10, 2.26953125],
+  [11, 11, 7.54296875],
+  [12, 12, 2.26953125],
+  [13, 13, 1.1796875],
+  [14, 14, 5.453125],
+  [15, 17, 2.26953125],
+  [18, 18, 4.54296875],
+  [19, 21, 2.26953125],
+  [22, 22, 3],
+  [23, 35, 2.26953125],
+  [36, 42, 2.7265625],
+  [43, 43, 3.453125],
+  [44, 44, 5.7265625],
+  [45, 45, 5.453125],
+  [46, 52, 2.26953125],
+  [53, 53, 3.7265625],
+  [54, 54, 3],
+  [55, 63, 2.26953125],
+  [64, 64, 1.7265625],
+  [65, 71, 2.26953125],
+];
+const INVENTORY_COLUMN_WIDTHS = [
+  [1, 32, 5.7265625],
+  [33, 80, 9.1796875],
+];
+const DMR_ROW_HEIGHTS = [
+  [1, 1, 21],
+  [2, 6, 12.75],
+  [7, 82, 17.15],
+  [83, 83, 22.5],
+  [84, 97, 17.15],
+  [98, 98, 15.65],
+  [99, 101, 15.5],
+  [102, 102, 16],
+  [103, 104, 15.5],
+  [105, 115, 15.65],
+  [116, 116, 15.5],
+  [117, 117, 12.75],
+  [119, 124, 15.5],
+];
+const INVENTORY_ROW_HEIGHTS = [
+  [1, 1, 26.25],
+  [2, 4, 13],
+  [5, 5, 26.25],
+  [6, 6, 36.75],
+  [7, 101, 17.15],
+  [103, 103, 14.25],
+];
+
 const PRODUCT_ROWS = { start: 14, end: 63 };
 const SERVICE_ROWS = { start: 76, end: 84 };
 const ACTIVE_PIT_ROWS = { start: 77, end: 84 };
@@ -683,6 +735,34 @@ const fillRowRange = (ws, row, startColumn, endColumn, value = "") => {
   const end = columnToNumber(endColumn);
   for (let col = start; col <= end; col += 1) ws.getRow(row).getCell(col).value = value ?? "";
 };
+const applySheetLayout = (ws, columnWidths, rowHeights) => {
+  columnWidths.forEach(([start, end, width]) => {
+    for (let column = start; column <= end; column += 1) {
+      ws.getColumn(column).width = width;
+    }
+  });
+
+  rowHeights.forEach(([start, end, height]) => {
+    for (let row = start; row <= end; row += 1) {
+      ws.getRow(row).height = height;
+    }
+  });
+};
+const applyReportLayout = (dmrSheet, inventorySheet) => {
+  applySheetLayout(dmrSheet, DMR_COLUMN_WIDTHS, DMR_ROW_HEIGHTS);
+  applySheetLayout(inventorySheet, INVENTORY_COLUMN_WIDTHS, INVENTORY_ROW_HEIGHTS);
+};
+const applyRangeAlignment = (ws, startCell, endCell, alignment) => {
+  const [, sc, sr] = startCell.match(/^([A-Z]+)(\d+)$/i) || [];
+  const [, ec, er] = endCell.match(/^([A-Z]+)(\d+)$/i) || [];
+  if (!sc || !sr || !ec || !er) return;
+  for (let row = Number(sr); row <= Number(er); row += 1) {
+    for (let col = columnToNumber(sc); col <= columnToNumber(ec); col += 1) {
+      const cell = ws.getRow(row).getCell(col);
+      cell.alignment = { ...(cell.alignment ?? {}), ...alignment };
+    }
+  }
+};
 const clearRange = (ws, startCell, endCell) => {
   const [, sc, sr] = startCell.match(/^([A-Z]+)(\d+)$/i) || [];
   const [, ec, er] = endCell.match(/^([A-Z]+)(\d+)$/i) || [];
@@ -924,8 +1004,11 @@ const fillDmrHeader = (ws, { well, pad, report, wellGeneral, fluidName, interval
   setCellValue(ws, "BB2", reportNumber);
   setCellValue(ws, "BL7", reportNumber);
   setCellValue(ws, "H8", displayText(well?.wellNameNo));
-  setCellValue(ws, "T8", displayText(pad?.rig));
-  setCellValue(ws, "AB8", displayText(pad?.fieldBlock));
+  setCellValue(ws, "S8", "Rig Name");
+  setCellValue(ws, "AB8", displayText(pad?.rig));
+  setCellValue(ws, "AM8", "Field/Block");
+  setCellValue(ws, "AT8", displayText(pad?.fieldBlock));
+  setCellValue(ws, "BE8", "Location/State");
   setCellValue(ws, "BL8", displayText(pad?.country || pad?.stateProvince));
   setCellValue(ws, "H9", displayText(pad?.operator));
   setCellValue(ws, "AB9", displayText(pad?.contractor));
@@ -1385,9 +1468,9 @@ const fillDmrHydraulicsRows = (ws, {
     [87, "DS Vel (ft/min)"],
     [88, "DS P. Loss (psi)"],
     [89, "Ann. P. Loss (psi)"],
-  ].forEach(([row, label]) => fillRowRange(ws, row, "A", "K", label));
+  ].forEach(([row, label]) => fillRowRange(ws, row, "A", "H", label));
 
-  const columns = [["L", "O"], ["P", "T"], ["U", "Y"], ["Z", "AD"], ["AE", "AI"]];
+  const columns = [["I", "K"], ["L", "O"], ["P", "T"], ["U", "Y"], ["Z", "AD"], ["AE", "AI"]];
   columns.forEach(([start, end], index) => {
     const item = segments[index];
     const annArea = item ? Math.max(item.holeSize * item.holeSize - item.pipeOd * item.pipeOd, 0) : 0;
@@ -1727,6 +1810,12 @@ const fillDmrTopSections = (ws, { drillStrings, casings, summary, activePits, fl
     fillRowRange(ws, row, "AJ", "AT", label);
     fillRowRange(ws, row, "AU", "AY", value);
   });
+  applyRangeAlignment(ws, "AJ23", "AT34", {
+    horizontal: "left",
+    vertical: "middle",
+    wrapText: false,
+    shrinkToFit: true,
+  });
 
   for (let index = 0; index < 12; index += 1) {
     const row = 23 + index;
@@ -1737,6 +1826,13 @@ const fillDmrTopSections = (ws, { drillStrings, casings, summary, activePits, fl
 
   fillMudPropertyRows(ws, { mudReportState, activePits, fluidName, wellGeneral });
   fillDmrSolidsAnalysisRows(ws, solidsAnalysisRows);
+
+  setCellValue(ws, "AJ36", "Product Name");
+  setCellValue(ws, "AT36", "Size");
+  setCellValue(ws, "AY36", "Used");
+  setCellValue(ws, "BC36", "Cum. Used");
+  setCellValue(ws, "BH36", "Unit Cost (Kwd)");
+  setCellValue(ws, "BN36", "Daily Cost (Kwd)");
 
   for (let index = 0; index < 16; index += 1) {
     const row = 37 + index;
@@ -2735,6 +2831,7 @@ export const exportInventoryReport = async (req, res) => {
       costSummary,
       productMetadataMap,
     });
+    applyReportLayout(dmrSheet, inventorySheet);
 
     const reportNumber = text(report?.userReportNo || report?.reportNo || wellGeneral?.reportNo, "1");
     const filename = `${safeFilename(well.wellNameNo || "daily_report")}_Report_${safeFilename(reportNumber)}.xlsx`;
