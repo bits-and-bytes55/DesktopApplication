@@ -556,6 +556,22 @@ const prepareCasingOpenHoleRows = ({ casings, wellGeneral, intervals }) => {
 };
 const openHoleRowHasData = (row = {}) =>
   [row.description, row.id, row.md, row.washout].some((value) => text(value));
+const isGenericCasingLabel = (value) => {
+  const label = text(value).trim().toLowerCase();
+  return label === "casing" || label === "liner";
+};
+const isSavedCasedHoleRow = (casing = {}) => {
+  const description = text(casing.description).trim();
+  const type = text(casing.type).trim();
+  if (
+    !description ||
+    isGenericCasingLabel(description) ||
+    isGenericCasingLabel(type)
+  ) {
+    return false;
+  }
+  return hasCasingData(casing);
+};
 const normalizeSavedOpenHoleRows = (wellGeneral = {}) => {
   const rows = Array.isArray(wellGeneral?.openHoleRows)
     ? wellGeneral.openHoleRows
@@ -574,7 +590,7 @@ const normalizeSavedOpenHoleRows = (wellGeneral = {}) => {
     }));
 };
 const prepareSavedCasingOpenHoleRows = ({ casings, wellGeneral }) => [
-  ...casings.filter(hasCasingData),
+  ...casings.filter(isSavedCasedHoleRow),
   ...normalizeSavedOpenHoleRows(wellGeneral),
 ].slice(0, 8);
 const calculatePumpDisplacement = (pump = {}) => {
@@ -1787,8 +1803,8 @@ const fillDmrTopSections = (ws, { drillStrings, casings, summary, activePits, fl
     setCellValue(ws, `W${row}`, drill ? round(drill.id, 3) : "");
     setCellValue(ws, `AC${row}`, drill ? round(drill.length, 2) : "");
     const casingLabel = firstText(
-      casing?.type,
       casing?.description,
+      casing?.type,
       meaningfulText(casing?.id) ? `${meaningfulText(casing.id)}" OPEN HOLE` : ""
     );
     const casingOd = firstMeaningfulText(casing?.od, casing?.id, casing?.bit);
