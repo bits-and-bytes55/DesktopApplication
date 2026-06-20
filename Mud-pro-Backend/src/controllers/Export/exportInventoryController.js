@@ -752,6 +752,17 @@ const applyReportLayout = (dmrSheet, inventorySheet) => {
   applySheetLayout(dmrSheet, DMR_COLUMN_WIDTHS, DMR_ROW_HEIGHTS);
   applySheetLayout(inventorySheet, INVENTORY_COLUMN_WIDTHS, INVENTORY_ROW_HEIGHTS);
 };
+const applyRangeAlignment = (ws, startCell, endCell, alignment) => {
+  const [, sc, sr] = startCell.match(/^([A-Z]+)(\d+)$/i) || [];
+  const [, ec, er] = endCell.match(/^([A-Z]+)(\d+)$/i) || [];
+  if (!sc || !sr || !ec || !er) return;
+  for (let row = Number(sr); row <= Number(er); row += 1) {
+    for (let col = columnToNumber(sc); col <= columnToNumber(ec); col += 1) {
+      const cell = ws.getRow(row).getCell(col);
+      cell.alignment = { ...(cell.alignment ?? {}), ...alignment };
+    }
+  }
+};
 const clearRange = (ws, startCell, endCell) => {
   const [, sc, sr] = startCell.match(/^([A-Z]+)(\d+)$/i) || [];
   const [, ec, er] = endCell.match(/^([A-Z]+)(\d+)$/i) || [];
@@ -1798,6 +1809,12 @@ const fillDmrTopSections = (ws, { drillStrings, casings, summary, activePits, fl
   ].forEach(([row, label, value]) => {
     fillRowRange(ws, row, "AJ", "AT", label);
     fillRowRange(ws, row, "AU", "AY", value);
+  });
+  applyRangeAlignment(ws, "AJ23", "AT34", {
+    horizontal: "left",
+    vertical: "middle",
+    wrapText: false,
+    shrinkToFit: true,
   });
 
   for (let index = 0; index < 12; index += 1) {
