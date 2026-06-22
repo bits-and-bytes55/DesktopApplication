@@ -148,6 +148,7 @@ class _PumpPageState extends State<PumpPage> {
   final RxList<_PumpRow> _pumpRows = <_PumpRow>[].obs;
   final RxList<_ShakerRow> _shakerRows = <_ShakerRow>[].obs;
   final RxList<_OtherSceRow> _sceRows = <_OtherSceRow>[].obs;
+  _PumpRow? _pumpClipboard;
   _ShakerRow? _shakerClipboard;
   _OtherSceRow? _otherSceClipboard;
 
@@ -572,6 +573,84 @@ class _PumpPageState extends State<PumpPage> {
     );
   }
 
+  Future<void> _deletePumpReportRow(_PumpRow row) async {
+    _pumpSaveTimers[row]?.cancel();
+    _pumpSaveTimers.remove(row);
+    _pumpSaveScopes.remove(row);
+
+    final id = row.id;
+    if (id != null && id.isNotEmpty) {
+      try {
+        await pumpController.repository.deletePump(id);
+      } catch (e) {
+        debugPrint('Pump report delete error: $e');
+      }
+    }
+
+    row.clear();
+    _pumpRows.refresh();
+  }
+
+  Future<void> _showPumpRowMenu(
+    TapDownDetails details,
+    _PumpRow row,
+    int rowIndex,
+  ) async {
+    final hasData = row.hasData;
+    final action = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        details.globalPosition.dx,
+        details.globalPosition.dy,
+        details.globalPosition.dx,
+        details.globalPosition.dy,
+      ),
+      items: [
+        _rowMenuItem(
+          'cut',
+          'Cut',
+          'Ctrl+X',
+          enabled: !dashboard.isLocked.value && hasData,
+        ),
+        _rowMenuItem('copy', 'Copy', 'Ctrl+C', enabled: hasData),
+        _rowMenuItem(
+          'paste',
+          'Paste',
+          'Ctrl+V',
+          enabled: !dashboard.isLocked.value && _pumpClipboard != null,
+        ),
+        _rowMenuItem(
+          'delete',
+          'Delete',
+          'Delete',
+          enabled: !dashboard.isLocked.value && hasData,
+        ),
+      ],
+    );
+
+    if (!mounted || action == null) return;
+    switch (action) {
+      case 'cut':
+        _pumpClipboard = _clonePumpRow(row);
+        await _deletePumpReportRow(row);
+        break;
+      case 'copy':
+        _pumpClipboard = _clonePumpRow(row);
+        break;
+      case 'paste':
+        final clip = _pumpClipboard;
+        if (clip == null) return;
+        _applyPumpRow(row, clip);
+        _checkAddPumpRow(rowIndex);
+        _pumpRows.refresh();
+        _savePumpRowNow(row, rowIndex);
+        break;
+      case 'delete':
+        await _deletePumpReportRow(row);
+        break;
+    }
+  }
+
   Future<void> _deleteShakerReportRow(_ShakerRow row) async {
     _shakerSaveTimers[row]?.cancel();
     _shakerSaveTimers.remove(row);
@@ -831,6 +910,34 @@ class _PumpPageState extends State<PumpPage> {
     row.time.value = item['time']?.toString() ?? '';
     row.oocWt.value = item['oocWt']?.toString() ?? '';
     return row;
+  }
+
+  _PumpRow _clonePumpRow(_PumpRow source) {
+    final row = _PumpRow();
+    row.rowNumber = source.rowNumber;
+    row.model.value = source.model.value;
+    row.type.value = source.type.value;
+    row.linerId.value = source.linerId.value;
+    row.rodOd.value = source.rodOd.value;
+    row.strokeLength.value = source.strokeLength.value;
+    row.efficiency.value = source.efficiency.value;
+    row.displacement.value = source.displacement.value;
+    row.spm.value = source.spm.value;
+    row.rate.value = source.rate.value;
+    return row;
+  }
+
+  void _applyPumpRow(_PumpRow target, _PumpRow source) {
+    target.id = null;
+    target.model.value = source.model.value;
+    target.type.value = source.type.value;
+    target.linerId.value = source.linerId.value;
+    target.rodOd.value = source.rodOd.value;
+    target.strokeLength.value = source.strokeLength.value;
+    target.efficiency.value = source.efficiency.value;
+    target.displacement.value = source.displacement.value;
+    target.spm.value = source.spm.value;
+    target.rate.value = source.rate.value;
   }
 
   _ReportSaveScope _currentSaveScope() {
@@ -1279,105 +1386,112 @@ class _PumpPageState extends State<PumpPage> {
                               itemCount: rows.length,
                               itemBuilder: (context, index) {
                                 final row = rows[index];
-                                return Container(
-                                  height: 32,
-                                  decoration: BoxDecoration(
-                                    color: index % 2 == 0
-                                        ? Colors.white
-                                        : Colors.grey.shade50,
-                                    border: Border(
-                                      bottom: BorderSide(
-                                        color: Colors.grey.shade300,
-                                        width: 0.5,
+                                return GestureDetector(
+                                  behavior: HitTestBehavior.opaque,
+                                  onSecondaryTapDown: (details) =>
+                                      _showPumpRowMenu(details, row, index),
+                                  child: Container(
+                                    height: 32,
+                                    decoration: BoxDecoration(
+                                      color: index % 2 == 0
+                                          ? Colors.white
+                                          : Colors.grey.shade50,
+                                      border: Border(
+                                        bottom: BorderSide(
+                                          color: Colors.grey.shade300,
+                                          width: 0.5,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                  child: IntrinsicHeight(
-                                    child: Row(
-                                      children: [
-                                        _dataCell(
-                                          width: w(100),
-                                          child: _pumpModelDropdown(
-                                            row: row,
-                                            models: models,
-                                            isLocked: isLocked,
-                                            rowIndex: index,
-                                          ),
-                                        ),
-                                        _verticalDivider(),
-                                        _dataCell(
-                                          width: w(85),
-                                          child: Obx(
-                                            () => _readOnlyCell(row.type.value),
-                                          ),
-                                        ),
-                                        _verticalDivider(),
-                                        _dataCell(
-                                          width: w(68),
-                                          child: Obx(
-                                            () => _readOnlyCell(
-                                              row.linerId.value,
+                                    child: IntrinsicHeight(
+                                      child: Row(
+                                        children: [
+                                          _dataCell(
+                                            width: w(100),
+                                            child: _pumpModelDropdown(
+                                              row: row,
+                                              models: models,
+                                              isLocked: isLocked,
+                                              rowIndex: index,
                                             ),
                                           ),
-                                        ),
-                                        _verticalDivider(),
-                                        _dataCell(
-                                          width: w(68),
-                                          child: Obx(
-                                            () =>
-                                                _readOnlyCell(row.rodOd.value),
-                                          ),
-                                        ),
-                                        _verticalDivider(),
-                                        _dataCell(
-                                          width: w(80),
-                                          child: Obx(
-                                            () => _readOnlyCell(
-                                              row.strokeLength.value,
+                                          _verticalDivider(),
+                                          _dataCell(
+                                            width: w(85),
+                                            child: Obx(
+                                              () =>
+                                                  _readOnlyCell(row.type.value),
                                             ),
                                           ),
-                                        ),
-                                        _verticalDivider(),
-                                        _dataCell(
-                                          width: w(75),
-                                          child: Obx(
-                                            () => _readOnlyCell(
-                                              row.efficiency.value,
+                                          _verticalDivider(),
+                                          _dataCell(
+                                            width: w(68),
+                                            child: Obx(
+                                              () => _readOnlyCell(
+                                                row.linerId.value,
+                                              ),
                                             ),
                                           ),
-                                        ),
-                                        _verticalDivider(),
-                                        _dataCell(
-                                          width: w(80),
-                                          child: Obx(
-                                            () => _readOnlyCell(
-                                              row.displacement.value.isEmpty
-                                                  ? '-'
-                                                  : row.displacement.value,
+                                          _verticalDivider(),
+                                          _dataCell(
+                                            width: w(68),
+                                            child: Obx(
+                                              () => _readOnlyCell(
+                                                row.rodOd.value,
+                                              ),
                                             ),
                                           ),
-                                        ),
-                                        _verticalDivider(),
-                                        _dataCell(
-                                          width: w(80),
-                                          child: _spmField(
-                                            row: row,
-                                            isLocked: isLocked,
-                                            rowIndex: index,
-                                          ),
-                                        ),
-                                        _verticalDivider(),
-                                        _dataCell(
-                                          width: w(68),
-                                          child: Obx(
-                                            () => _readOnlyCell(
-                                              row.rate.value.isEmpty
-                                                  ? '-'
-                                                  : row.rate.value,
+                                          _verticalDivider(),
+                                          _dataCell(
+                                            width: w(80),
+                                            child: Obx(
+                                              () => _readOnlyCell(
+                                                row.strokeLength.value,
+                                              ),
                                             ),
                                           ),
-                                        ),
-                                      ],
+                                          _verticalDivider(),
+                                          _dataCell(
+                                            width: w(75),
+                                            child: Obx(
+                                              () => _readOnlyCell(
+                                                row.efficiency.value,
+                                              ),
+                                            ),
+                                          ),
+                                          _verticalDivider(),
+                                          _dataCell(
+                                            width: w(80),
+                                            child: Obx(
+                                              () => _readOnlyCell(
+                                                row.displacement.value.isEmpty
+                                                    ? '-'
+                                                    : row.displacement.value,
+                                              ),
+                                            ),
+                                          ),
+                                          _verticalDivider(),
+                                          _dataCell(
+                                            width: w(80),
+                                            child: _spmField(
+                                              row: row,
+                                              isLocked: isLocked,
+                                              rowIndex: index,
+                                            ),
+                                          ),
+                                          _verticalDivider(),
+                                          _dataCell(
+                                            width: w(68),
+                                            child: Obx(
+                                              () => _readOnlyCell(
+                                                row.rate.value.isEmpty
+                                                    ? '-'
+                                                    : row.rate.value,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ),
                                 );
