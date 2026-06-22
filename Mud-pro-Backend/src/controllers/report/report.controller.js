@@ -484,35 +484,6 @@ const cloneExtraReportScopedDocuments = async ({
   }
 };
 
-const legacyPitScopeFilter = (wellId) => ({
-  wellId,
-  $or: [{ reportId: { $exists: false } }, { reportId: null }, { reportId: "" }],
-});
-
-const legacyScopedFilter = (wellId) => ({
-  wellId,
-  $or: [{ reportId: { $exists: false } }, { reportId: null }],
-});
-
-const sortByCreatedAtAsc = (items = []) =>
-  [...items].sort((left, right) => {
-    const leftTime = new Date(left.createdAt ?? 0).getTime();
-    const rightTime = new Date(right.createdAt ?? 0).getTime();
-    return leftTime - rightTime;
-  });
-
-const dedupeLatestPits = (items = []) => {
-  const latestByName = new Map();
-
-  for (const item of items) {
-    const key = toText(item.pitName).toLowerCase();
-    if (!key || latestByName.has(key)) continue;
-    latestByName.set(key, item);
-  }
-
-  return sortByCreatedAtAsc(Array.from(latestByName.values()));
-};
-
 const findSourceReport = async (wellId, reportId) => {
   if (!mongoose.Types.ObjectId.isValid(reportId)) {
     return null;
@@ -531,54 +502,30 @@ const loadSourceWellGeneral = async ({ wellId, sourceReport }) => {
 };
 
 const loadSourcePits = async ({ wellId, sourceReport }) => {
-  const scopedPits = await findManyForReport({
+  return findManyForReport({
     model: Pit,
     wellId,
     report: sourceReport,
     sort: { createdAt: 1, _id: 1 },
   });
-
-  if (scopedPits.length > 0) {
-    return scopedPits;
-  }
-
-  const legacyPits = await Pit.find(legacyPitScopeFilter(wellId))
-    .sort({ createdAt: -1, _id: -1 })
-    .lean();
-
-  return dedupeLatestPits(legacyPits);
 };
 
 const loadSourcePumps = async ({ wellId, sourceReport }) => {
-  const scopedPumps = await findManyForReport({
+  return findManyForReport({
     model: Pump,
     wellId,
     report: sourceReport,
     sort: { rowNumber: 1, createdAt: 1, _id: 1 },
   });
-
-  if (scopedPumps.length > 0) {
-    return scopedPumps;
-  }
-
-  return Pump.find(legacyScopedFilter(wellId))
-    .sort({ rowNumber: 1, createdAt: 1, _id: 1 })
-    .lean();
 };
 
 const loadSourceNozzle = async ({ wellId, sourceReport }) => {
-  const scopedNozzle = await findOneForReport({
+  return findOneForReport({
     model: Nozzle,
     wellId,
     report: sourceReport,
     sort: { createdAt: -1, _id: -1 },
   });
-
-  if (scopedNozzle) return scopedNozzle;
-
-  return Nozzle.findOne(legacyScopedFilter(wellId))
-    .sort({ createdAt: -1, _id: -1 })
-    .lean();
 };
 
 const loadSourceShakers = async ({ wellId, sourceReport }) => {
