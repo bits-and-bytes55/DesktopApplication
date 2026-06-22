@@ -612,7 +612,7 @@ const calculatePumpDisplacement = (pump = {}) => {
     Quadplex: 0.000324,
     Quintuplex: 0.000405,
   };
-  const constant = constants[pump.type] || 0;
+  const constant = constants[pump.type] || constants.Triplex;
   return constant ? constant * linerId * linerId * strokeLength * efficiency : 0;
 };
 const getPumpDisplacement = (pump = {}) => {
@@ -1640,11 +1640,7 @@ const shakerScreenInfo = (row = {}) => {
     row.screen8,
   ].map((value) => text(value)).filter(Boolean);
   const screenText = firstText(screens.join("/"), row.screens);
-  const modelText = text(row.model);
-  return [modelText, screenText]
-    .filter(Boolean)
-    .filter((value, index, values) => values.indexOf(value) === index)
-    .join(" / ");
+  return screenText;
 };
 const otherSceModelInfo = (row = {}) =>
   [row.model1, row.model2, row.model3].map((value) => text(value)).filter(Boolean).join("/");
