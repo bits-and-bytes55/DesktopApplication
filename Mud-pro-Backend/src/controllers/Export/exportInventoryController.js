@@ -556,6 +556,22 @@ const prepareCasingOpenHoleRows = ({ casings, wellGeneral, intervals }) => {
 };
 const openHoleRowHasData = (row = {}) =>
   [row.description, row.id, row.md, row.washout].some((value) => text(value));
+const isGenericCasingLabel = (value) => {
+  const label = text(value).trim().toLowerCase();
+  return label === "casing" || label === "liner";
+};
+const isSavedCasedHoleRow = (casing = {}) => {
+  const description = text(casing.description).trim();
+  const type = text(casing.type).trim();
+  if (
+    !description ||
+    isGenericCasingLabel(description) ||
+    isGenericCasingLabel(type)
+  ) {
+    return false;
+  }
+  return hasCasingData(casing);
+};
 const normalizeSavedOpenHoleRows = (wellGeneral = {}) => {
   const rows = Array.isArray(wellGeneral?.openHoleRows)
     ? wellGeneral.openHoleRows
@@ -574,7 +590,7 @@ const normalizeSavedOpenHoleRows = (wellGeneral = {}) => {
     }));
 };
 const prepareSavedCasingOpenHoleRows = ({ casings, wellGeneral }) => [
-  ...casings.filter(hasCasingData),
+  ...casings.filter(isSavedCasedHoleRow),
   ...normalizeSavedOpenHoleRows(wellGeneral),
 ].slice(0, 8);
 const calculatePumpDisplacement = (pump = {}) => {
@@ -1554,9 +1570,63 @@ const fillDmrHydraulicsRows = (ws, {
 const normalizeSceKey = (value) => text(value).toLowerCase().replace(/\s+/g, " ").trim();
 const sceHasText = (row = {}, fields = []) =>
   fields.some((field) => text(row?.[field]));
+const displayShakerTypeLabel = (value) => {
+  const label = text(value);
+  const numeric = Number(label);
+  if (Number.isInteger(numeric) && numeric >= 1 && numeric <= 10) {
+    return `Shaker ${numeric}`;
+  }
+  const match = label.toLowerCase().match(/^shaker\s+(\d+)$/);
+  if (match) return `Shaker ${match[1]}`;
+  return label;
+};
 const shakerSortValue = (row = {}) => {
-  const number = Number(text(row.shaker).match(/\d+/)?.[0]);
+  const number = Number(text(displayShakerTypeLabel(row.shaker)).match(/\d+/)?.[0]);
   return Number.isFinite(number) ? number : 999;
+};
+const latestTimestamp = (row = {}) =>
+  new Date(row?.updatedAt ?? row?.createdAt ?? 0).getTime();
+const shakerDataFields = [
+  "model",
+  "screens",
+  "screen1",
+  "screen2",
+  "screen3",
+  "screen4",
+  "screen5",
+  "screen6",
+  "screen7",
+  "screen8",
+  "time",
+  "hours",
+  "oocWt",
+];
+const mergeSceField = (primary = {}, secondary = {}, field) =>
+  firstMeaningfulText(primary?.[field], secondary?.[field]);
+const mergeShakerRows = (left = {}, right = {}) => {
+  const primary = latestTimestamp(right) >= latestTimestamp(left) ? right : left;
+  const secondary = primary === right ? left : right;
+  const merged = { ...secondary, ...primary };
+
+  shakerDataFields.forEach((field) => {
+    merged[field] = mergeSceField(primary, secondary, field);
+  });
+  merged.shaker = displayShakerTypeLabel(
+    firstMeaningfulText(primary.shaker, secondary.shaker)
+  );
+  return merged;
+};
+const dedupeShakerRows = (rows = []) => {
+  const byKey = new Map();
+
+  rows.forEach((row) => {
+    const key = normalizeSceKey(displayShakerTypeLabel(row?.shaker));
+    if (!key) return;
+    const existing = byKey.get(key);
+    byKey.set(key, existing ? mergeShakerRows(existing, row) : row);
+  });
+
+  return Array.from(byKey.values());
 };
 const shakerScreenInfo = (row = {}) => {
   const screens = [
@@ -1569,7 +1639,12 @@ const shakerScreenInfo = (row = {}) => {
     row.screen7,
     row.screen8,
   ].map((value) => text(value)).filter(Boolean);
-  return firstText(screens.join("/"), row.screens, row.model);
+  const screenText = firstText(screens.join("/"), row.screens);
+  const modelText = text(row.model);
+  return [modelText, screenText]
+    .filter(Boolean)
+    .filter((value, index, values) => values.indexOf(value) === index)
+    .join(" / ");
 };
 const otherSceModelInfo = (row = {}) =>
   [row.model1, row.model2, row.model3].map((value) => text(value)).filter(Boolean).join("/");
@@ -1579,29 +1654,17 @@ const otherSceInInfo = (row = {}) =>
 const otherSceOutInfo = (row = {}) =>
   firstMeaningfulText(row.of, row.out, row.outPpg, row.outlet, row.outletPpg);
 const fillDmrSceRows = (ws, { shakers = [], otherSceRows = [] }) => {
-  const shakerRows = [...shakers]
-    .filter((row) =>
-      sceHasText(row, [
-        "shaker",
-        "model",
-        "screens",
-        "screen1",
-        "screen2",
-        "screen3",
-        "screen4",
-        "screen5",
-        "screen6",
-        "screen7",
-        "screen8",
-        "time",
-      ])
+  const shakerRows = dedupeShakerRows(
+    [...shakers].filter((row) =>
+      sceHasText(row, shakerDataFields)
     )
+  )
     .sort((left, right) => shakerSortValue(left) - shakerSortValue(right))
     .slice(0, 3);
 
   [97, 98, 99].forEach((row, index) => {
     const item = shakerRows[index];
-    fillRowRange(ws, row, "AY", "BE", firstText(item?.shaker, "Shaker"));
+    fillRowRange(ws, row, "AY", "BE", item ? displayShakerTypeLabel(item.shaker) : "");
     fillRowRange(ws, row, "BF", "BO", item ? shakerScreenInfo(item) : "");
     fillRowRange(ws, row, "BP", "BS", item ? sceHours(item) : "");
   });
@@ -1623,7 +1686,7 @@ const fillDmrSceRows = (ws, { shakers = [], otherSceRows = [] }) => {
     const item =
       byType.get(key) ||
       availableOtherRows.find((candidate) => normalizeSceKey(candidate.type).includes(key));
-    fillRowRange(ws, row, "AY", "BE", firstText(item?.type, label));
+    fillRowRange(ws, row, "AY", "BE", item ? firstText(item?.type, label) : "");
     fillRowRange(ws, row, "BF", "BJ", item ? otherSceInInfo(item) : "");
     fillRowRange(ws, row, "BK", "BO", item ? otherSceOutInfo(item) : "");
     fillRowRange(ws, row, "BP", "BS", item ? sceHours(item) : "");
@@ -1740,8 +1803,8 @@ const fillDmrTopSections = (ws, { drillStrings, casings, summary, activePits, fl
     setCellValue(ws, `W${row}`, drill ? round(drill.id, 3) : "");
     setCellValue(ws, `AC${row}`, drill ? round(drill.length, 2) : "");
     const casingLabel = firstText(
-      casing?.type,
       casing?.description,
+      casing?.type,
       meaningfulText(casing?.id) ? `${meaningfulText(casing.id)}" OPEN HOLE` : ""
     );
     const casingOd = firstMeaningfulText(casing?.od, casing?.id, casing?.bit);
