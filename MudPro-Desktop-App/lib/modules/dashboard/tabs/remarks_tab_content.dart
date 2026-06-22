@@ -272,7 +272,6 @@ class _RemarksViewState extends State<RemarksView> {
           child: Column(
             children: [
               Expanded(
-                flex: 16,
                 child: _buildMemoPanel(
                   title: 'Recap Remarks',
                   controller: recapCtrl,
@@ -283,7 +282,6 @@ class _RemarksViewState extends State<RemarksView> {
               ),
               const SizedBox(height: 12),
               Expanded(
-                flex: 12,
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
