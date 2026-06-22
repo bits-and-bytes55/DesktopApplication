@@ -1136,6 +1136,7 @@ const buildOperationVolumeEffects = ({
   let addWaterActiveSystemDelta = 0;
   let otherVolActiveSystemDelta = 0;
   let endVolDelta = 0;
+  let returnLostStorageDelta = 0;
   let forceEndVolZero = false;
   const activeDeltaByPit = new Map();
   const storageDeltaByPit = new Map();
@@ -1168,7 +1169,20 @@ const buildOperationVolumeEffects = ({
   for (const item of returnLostMud) {
     const returned = toNumber(item.volReturned);
     const lost = toNumber(item.volLost);
-    endVolDelta -= returned + lost;
+    endVolDelta -= returned;
+
+    if (lost > 0) {
+      const fromKey = toText(item.from).toLowerCase();
+      if (isActiveSystemName(item.from)) {
+        endVolDelta -= lost;
+      } else if (activePitNames.has(fromKey)) {
+        endVolDelta -= lost;
+        addPitDelta(activeDeltaByPit, item.from, -lost);
+      } else {
+        addPitDelta(storageDeltaByPit, item.from, -lost);
+        returnLostStorageDelta -= lost;
+      }
+    }
   }
 
   for (const item of otherVolAdditions) {
@@ -1250,6 +1264,7 @@ const buildOperationVolumeEffects = ({
     addWaterActiveSystemDelta: round2(addWaterActiveSystemDelta),
     otherVolActiveSystemDelta: round2(otherVolActiveSystemDelta),
     endVolDelta: round2(endVolDelta),
+    returnLostStorageDelta: round2(returnLostStorageDelta),
     forceEndVolZero,
     activeDeltaByPit,
     storageDeltaByPit,
@@ -2039,6 +2054,9 @@ export const getVolumeNameCalculation = async (req, res) => {
     for (const [pitName, volume] of operationVolumeEffects.storageDeltaByPit) {
       addPitDelta(calculatedVolumeByPit, pitName, volume);
     }
+    const adjustedTotalStorage = round2(
+      totalStorage + operationVolumeEffects.returnLostStorageDelta
+    );
     const derivedActiveSystem = round2(hole + activePitsWithTransfer);
     const activeSystem = derivedActiveSystem;
     const activeSystemPendingInput = round2(
@@ -2217,7 +2235,7 @@ export const getVolumeNameCalculation = async (req, res) => {
       ).toFixed(2)
     );
     const totalOnLocation = hasCurrentReportVolumeData
-      ? Number((activeSystem + totalStorage).toFixed(2))
+      ? Number((activeSystem + adjustedTotalStorage).toFixed(2))
       : 0;
     const previousTotalOnLocation = previousReportMeta
       ? await calculateTotalOnLocationForReport({
@@ -2271,7 +2289,7 @@ export const getVolumeNameCalculation = async (req, res) => {
           endVol,
           endVolMinusActiveSystem,
           totalStorage: hasCurrentReportVolumeData
-            ? totalStorage
+            ? adjustedTotalStorage
             : 0,
           totalOnLocation,
           ledgerTotalOnLocation,

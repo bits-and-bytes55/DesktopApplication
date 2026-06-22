@@ -903,12 +903,15 @@ class PitSnapshotController extends GetxController {
     );
     allocations.forEach((system, fraction) {
       if (fraction <= 0) return;
+      final currentVolume = volumes[system] ?? 0.0;
+      final addedVolume = volumeBbl * fraction;
+      final denominator = currentVolume > 0 ? currentVolume : addedVolume;
       productEndVolumesBySystem.putIfAbsent(
         system,
         () => <String, double>{},
-      )[product.key] = volumes[system] ?? 0.0;
+      )[product.key] = denominator;
       _addProductMass(ledger, system, product.key, amount * fraction);
-      _addVolume(volumes, system, volumeBbl * fraction);
+      _addVolume(volumes, system, addedVolume);
     });
   }
 
