@@ -405,12 +405,15 @@ const findOneForReport = async ({
 const carryOverExtraModels = [
   Casing,
   DrillString,
-  InventorySnapshot,
-  MudReportState,
   WellPlan,
   FormationConfig,
   SurveyConfig,
   SolidsAnalysis,
+];
+
+const carryOverDeleteOnlyModels = [
+  InventorySnapshot,
+  MudReportState,
 ];
 
 const operationReportModels = [
@@ -441,6 +444,7 @@ const reportArtifactModels = [
   Shaker,
   OtherSce,
   ...carryOverExtraModels,
+  ...carryOverDeleteOnlyModels,
   ...operationReportModels,
 ];
 
