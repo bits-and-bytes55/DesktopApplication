@@ -22,6 +22,7 @@ import 'package:mudpro_desktop_app/modules/dashboard/controller/mud_controller.d
 import 'package:mudpro_desktop_app/modules/dashboard/controller/operation_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/recievemud_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/cased_hole_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/add_water_save_bridge.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/consume_product_save_bridge.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/drill_string_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/return_lostmud_controller.dart';
@@ -617,13 +618,23 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
               }
             } else if (selectedOp == OperationType.addWater) {
               // ── Add Water ────────────────────────────────────────────────
-              final waterRes = await opCtrl.saveAddWater();
-              if (waterRes['success'] == true) {
-                successMessage = waterRes['message'];
+              final addWaterBridge = Get.isRegistered<AddWaterSaveBridge>()
+                  ? Get.find<AddWaterSaveBridge>()
+                  : null;
+              if (addWaterBridge == null) {
+                errorMessages.add('Add Water view is not ready');
               } else {
-                if (waterRes['message'] != 'No new transfers to save' &&
-                    !waterRes['message'].contains('No new')) {
-                  errorMessages.add('Add Water: ${waterRes['message']}');
+                final waterRes = await addWaterBridge.save(
+                  selectedOperationInstanceKey,
+                );
+                if (waterRes['success'] == true) {
+                  successMessage = waterRes['message'];
+                } else {
+                  final message = waterRes['message']?.toString() ?? 'Failed';
+                  if (message != 'No new transfers to save' &&
+                      !message.contains('No new')) {
+                    errorMessages.add('Add Water: $message');
+                  }
                 }
               }
             } else if (selectedOp == OperationType.transferMud) {
@@ -643,8 +654,13 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
               }
             } else if (selectedOp == OperationType.receiveMud) {
               // ── Receive Mud ──────────────────────────────────────────────
-              final recieveMudCtrl = Get.isRegistered<ReceiveMudController>()
-                  ? Get.find<ReceiveMudController>()
+              final recieveMudCtrl =
+                  Get.isRegistered<ReceiveMudController>(
+                    tag: selectedOperationInstanceKey,
+                  )
+                  ? Get.find<ReceiveMudController>(
+                      tag: selectedOperationInstanceKey,
+                    )
                   : null;
               if (recieveMudCtrl != null) {
                 final res = await recieveMudCtrl.saveReceiveMud();
@@ -679,8 +695,12 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
               }
             } else if (selectedOp == OperationType.mudLossActiveSystem) {
               final mudLossCtrl =
-                  Get.isRegistered<MudLossActiveSystemController>()
-                  ? Get.find<MudLossActiveSystemController>()
+                  Get.isRegistered<MudLossActiveSystemController>(
+                    tag: selectedOperationInstanceKey,
+                  )
+                  ? Get.find<MudLossActiveSystemController>(
+                      tag: selectedOperationInstanceKey,
+                    )
                   : null;
               if (mudLossCtrl != null) {
                 final res = await mudLossCtrl.save();
@@ -696,8 +716,12 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
               }
             } else if (selectedOp == OperationType.otherVolAddition) {
               final otherVolCtrl =
-                  Get.isRegistered<OtherVolAdditionController>()
-                  ? Get.find<OtherVolAdditionController>()
+                  Get.isRegistered<OtherVolAdditionController>(
+                    tag: selectedOperationInstanceKey,
+                  )
+                  ? Get.find<OtherVolAdditionController>(
+                      tag: selectedOperationInstanceKey,
+                    )
                   : null;
               if (otherVolCtrl != null) {
                 final res = await otherVolCtrl.save();
@@ -713,8 +737,12 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
               }
             } else if (selectedOp == OperationType.mudLossStorage) {
               final mudLossStorageCtrl =
-                  Get.isRegistered<MudLossStorageController>()
-                  ? Get.find<MudLossStorageController>()
+                  Get.isRegistered<MudLossStorageController>(
+                    tag: selectedOperationInstanceKey,
+                  )
+                  ? Get.find<MudLossStorageController>(
+                      tag: selectedOperationInstanceKey,
+                    )
                   : null;
               if (mudLossStorageCtrl != null) {
                 final res = await mudLossStorageCtrl.save();

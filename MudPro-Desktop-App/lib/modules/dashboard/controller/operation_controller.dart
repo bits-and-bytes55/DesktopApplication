@@ -655,7 +655,11 @@ class OperationController extends GetxController {
         : index.clamp(0, selected.length - 1).toInt();
   }
 
-  void _clearLocalStateForOperation(OperationType operation, String wellId) {
+  void _clearLocalStateForOperation(
+    OperationType operation,
+    String wellId,
+    String instanceKey,
+  ) {
     switch (operation) {
       case OperationType.addWater:
         _resetAddWaterState();
@@ -668,23 +672,33 @@ class OperationController extends GetxController {
         }
         break;
       case OperationType.otherVolAddition:
-        if (Get.isRegistered<OtherVolAdditionController>()) {
-          Get.find<OtherVolAdditionController>().clearLocalState();
+        if (Get.isRegistered<OtherVolAdditionController>(tag: instanceKey)) {
+          Get.find<OtherVolAdditionController>(
+            tag: instanceKey,
+          ).clearLocalState();
         }
         break;
       case OperationType.mudLossActiveSystem:
-        if (Get.isRegistered<MudLossActiveSystemController>()) {
-          Get.find<MudLossActiveSystemController>().clearLocalState();
+        if (Get.isRegistered<MudLossActiveSystemController>(
+          tag: instanceKey,
+        )) {
+          Get.find<MudLossActiveSystemController>(
+            tag: instanceKey,
+          ).clearLocalState();
         }
         break;
       case OperationType.mudLossStorage:
-        if (Get.isRegistered<MudLossStorageController>()) {
-          Get.find<MudLossStorageController>().clearLocalState();
+        if (Get.isRegistered<MudLossStorageController>(tag: instanceKey)) {
+          Get.find<MudLossStorageController>(
+            tag: instanceKey,
+          ).clearLocalState();
         }
         break;
       case OperationType.emptyActiveSystem:
-        if (Get.isRegistered<EmptyActiveSystemController>()) {
-          Get.find<EmptyActiveSystemController>().clearLocalState();
+        if (Get.isRegistered<EmptyActiveSystemController>(tag: instanceKey)) {
+          Get.find<EmptyActiveSystemController>(
+            tag: instanceKey,
+          ).clearLocalState();
         }
         break;
       default:
@@ -780,24 +794,26 @@ class OperationController extends GetxController {
 
     deletingOperationRowIndex.value = index;
     try {
+      final operationInstanceKey = operationInstanceKeyAt(index);
       final sameOperationCount = dropdownValues
           .where((item) => item == operation)
           .length;
       if (sameOperationCount > 1) {
         if (operation == OperationType.addWater) {
-          await _deleteAddWaterInstance(wellId, operationInstanceKeyAt(index));
+          await _deleteAddWaterInstance(wellId, operationInstanceKey);
         } else if (operation == OperationType.transferMud) {
           await _deleteTransferMudInstance(
             wellId,
-            operationInstanceKeyAt(index),
+            operationInstanceKey,
           );
         } else {
           await _repository.deleteOperationData(
             wellId: wellId,
             operationType: operation.name,
-            operationInstanceKey: operationInstanceKeyAt(index),
+            operationInstanceKey: operationInstanceKey,
           );
         }
+        _clearLocalStateForOperation(operation, wellId, operationInstanceKey);
         _removeOperationSelectionAt(index);
         await _saveOperationSelectionsNow();
         await _refreshPitState();
@@ -813,7 +829,7 @@ class OperationController extends GetxController {
       );
 
       if (result['success'] == true) {
-        _clearLocalStateForOperation(operation, wellId);
+        _clearLocalStateForOperation(operation, wellId, operationInstanceKey);
         _removeOperationSelectionAt(index);
         await _saveOperationSelectionsNow();
         await _refreshPitState();

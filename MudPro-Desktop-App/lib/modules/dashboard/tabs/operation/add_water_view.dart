@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/add_water_save_bridge.dart';
 import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 import '../../controller/dashboard_controller.dart';
@@ -21,6 +22,7 @@ class AddWaterView extends StatefulWidget {
 class _AddWaterViewState extends State<AddWaterView> {
   late final DashboardController dashboardController;
   late final PitController pitController;
+  late final AddWaterSaveBridge _saveBridge;
   final AuthRepository _repository = AuthRepository();
   final RxString _selectedTo = "Active System".obs;
   final RxString _mainVol = "".obs;
@@ -42,6 +44,10 @@ class _AddWaterViewState extends State<AddWaterView> {
     pitController = Get.isRegistered<PitController>()
         ? Get.find<PitController>()
         : Get.put(PitController());
+    _saveBridge = Get.isRegistered<AddWaterSaveBridge>()
+        ? Get.find<AddWaterSaveBridge>()
+        : Get.put(AddWaterSaveBridge(), permanent: true);
+    _saveBridge.register(widget.instanceKey, _saveForToolbar);
     _mainVolController = TextEditingController(text: _mainVol.value);
     _syncExtraControllers();
     _workers.addAll([
@@ -64,6 +70,7 @@ class _AddWaterViewState extends State<AddWaterView> {
   @override
   void dispose() {
     _autoSaveTimer?.cancel();
+    _saveBridge.unregister(widget.instanceKey);
     for (final worker in _workers) {
       worker.dispose();
     }
@@ -303,6 +310,17 @@ class _AddWaterViewState extends State<AddWaterView> {
       await _save();
     } catch (e) {
       debugPrint('Add Water save error: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> _saveForToolbar() async {
+    try {
+      await _save();
+      return {'success': true, 'message': 'Add Water saved successfully'};
+    } catch (e) {
+      final message = e.toString().replaceFirst(RegExp(r'^Exception:\s*'), '');
+      debugPrint('Add Water save error: $message');
+      return {'success': false, 'message': message};
     }
   }
 
