@@ -2,15 +2,11 @@ import Casing from "../../modules/casing/casing.model.js";
 
 const getWellId = (req) =>
   String(req.params.wellId ?? req.body.wellId ?? req.query.wellId ?? "").trim();
-const getReportId = (req) =>
-  String(req.query.reportId ?? req.body.reportId ?? "").trim();
-const toText = (value) => String(value ?? "").trim();
 
 
 
-const buildFilter = ({ wellId, reportId }) => {
+const buildFilter = ({ wellId }) => {
   if (!wellId) return null;
-  if (reportId) return { wellId, reportId };
   return { wellId };
 };
 
@@ -22,7 +18,6 @@ const toSortOrder = (value) => {
 export const getAllCasings = async (req, res) => {
   try {
     const wellId = getWellId(req);
-    const reportId = getReportId(req);
 
     if (!wellId) {
       return res.status(400).json({
@@ -31,7 +26,7 @@ export const getAllCasings = async (req, res) => {
       });
     }
 
-    const filter = buildFilter({ wellId, reportId });
+    const filter = buildFilter({ wellId });
     const casings = await Casing.find(filter).sort({
       sortOrder: 1,
       createdAt: 1,
@@ -46,7 +41,6 @@ export const getAllCasings = async (req, res) => {
 export const addCasing = async (req, res) => {
   try {
     const wellId = getWellId(req);
-    const reportId = getReportId(req);
 
     if (!wellId) {
       return res.status(400).json({
@@ -58,7 +52,7 @@ export const addCasing = async (req, res) => {
     const newCasing = await Casing.create({
       ...req.body,
       wellId,
-      reportId,
+      reportId: "",
       sortOrder: toSortOrder(req.body.sortOrder),
     });
 
@@ -71,7 +65,6 @@ export const addCasing = async (req, res) => {
 export const updateCasing = async (req, res) => {
   try {
     const wellId = getWellId(req);
-    const reportId = getReportId(req);
 
     if (!wellId) {
       return res.status(400).json({
@@ -84,15 +77,12 @@ export const updateCasing = async (req, res) => {
       {
         _id: req.params.id,
         wellId,
-        ...(reportId ? { reportId } : {}),
       },
       {
         ...req.body,
         wellId,
+        reportId: "",
         sortOrder: toSortOrder(req.body.sortOrder),
-        ...(req.body.reportId !== undefined || reportId
-          ? { reportId: toText(req.body.reportId ?? reportId) }
-          : {}),
       },
       { new: true }
     );
@@ -111,7 +101,6 @@ export const updateCasing = async (req, res) => {
 export const deleteCasing = async (req, res) => {
   try {
     const wellId = getWellId(req);
-    const reportId = getReportId(req);
 
     if (!wellId) {
       return res.status(400).json({
@@ -123,16 +112,9 @@ export const deleteCasing = async (req, res) => {
     const filter = {
       _id: req.params.id,
       wellId,
-      ...(reportId ? { reportId } : {}),
     };
 
-    let deletedCasing = await Casing.findOneAndDelete(filter);
-    if (!deletedCasing && reportId) {
-      deletedCasing = await Casing.findOneAndDelete({
-        _id: req.params.id,
-        wellId,
-      });
-    }
+    const deletedCasing = await Casing.findOneAndDelete(filter);
     if (!deletedCasing) {
       return res
         .status(404)
