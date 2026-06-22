@@ -177,6 +177,10 @@ const buildShakerPayload = ({
     typeof body.plot === 'boolean'
       ? body.plot
       : Boolean(existing.plot ?? false),
+  reportSelection:
+    typeof body.reportSelection === 'boolean'
+      ? body.reportSelection
+      : Boolean(existing.reportSelection ?? false),
   screen1: toText(body.screen1 ?? existing.screen1),
   screen2: toText(body.screen2 ?? existing.screen2),
   screen3: toText(body.screen3 ?? existing.screen3),
@@ -208,6 +212,10 @@ const buildOtherScePayload = ({
     typeof body.plot === 'boolean'
       ? body.plot
       : Boolean(existing.plot ?? false),
+  reportSelection:
+    typeof body.reportSelection === 'boolean'
+      ? body.reportSelection
+      : Boolean(existing.reportSelection ?? false),
   uf: toText(body.uf ?? existing.uf),
   of: toText(body.of ?? existing.of),
   time: toText(body.time ?? existing.time),

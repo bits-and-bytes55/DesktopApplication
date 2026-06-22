@@ -148,6 +148,8 @@ class _PumpPageState extends State<PumpPage> {
   final RxList<_PumpRow> _pumpRows = <_PumpRow>[].obs;
   final RxList<_ShakerRow> _shakerRows = <_ShakerRow>[].obs;
   final RxList<_OtherSceRow> _sceRows = <_OtherSceRow>[].obs;
+  _ShakerRow? _shakerClipboard;
+  _OtherSceRow? _otherSceClipboard;
 
   final RxString _screenFillSelected = ''.obs;
   int? _activeScreenRowIndex;
@@ -434,11 +436,13 @@ class _PumpPageState extends State<PumpPage> {
     final reportShakers = (reportShakerResult['data'] as List? ?? const [])
         .whereType<Map>()
         .where((item) => item['reportId']?.toString() == reportId)
+        .where((item) => item['reportSelection'] == true)
         .map(_shakerRowFromMap)
         .toList(growable: true);
     final reportOtherSce = (reportOtherResult['data'] as List? ?? const [])
         .whereType<Map>()
         .where((item) => item['reportId']?.toString() == reportId)
+        .where((item) => item['reportSelection'] == true)
         .map(_otherSceRowFromMap)
         .toList(growable: true);
     if (setupShakerResult['success'] == true || localSetupShakers.isNotEmpty) {
@@ -488,6 +492,240 @@ class _PumpPageState extends State<PumpPage> {
     row.of_.value = '';
     row.time.value = '';
     row.oocWt.value = '';
+  }
+
+  _ShakerRow _cloneShakerRow(_ShakerRow source) {
+    final row = _ShakerRow();
+    row.shakerType.value = source.shakerType.value;
+    row.model.value = source.model.value;
+    row.screen1.value = source.screen1.value;
+    row.screen2.value = source.screen2.value;
+    row.screen3.value = source.screen3.value;
+    row.screen4.value = source.screen4.value;
+    row.screen5.value = source.screen5.value;
+    row.screen6.value = source.screen6.value;
+    row.screen7.value = source.screen7.value;
+    row.screen8.value = source.screen8.value;
+    row.time.value = source.time.value;
+    row.oocWt.value = source.oocWt.value;
+    row.enabledScreens.value = source.enabledScreens.value;
+    return row;
+  }
+
+  void _applyShakerRow(_ShakerRow target, _ShakerRow source) {
+    target.id = null;
+    target.shakerType.value = source.shakerType.value;
+    target.model.value = source.model.value;
+    target.screen1.value = source.screen1.value;
+    target.screen2.value = source.screen2.value;
+    target.screen3.value = source.screen3.value;
+    target.screen4.value = source.screen4.value;
+    target.screen5.value = source.screen5.value;
+    target.screen6.value = source.screen6.value;
+    target.screen7.value = source.screen7.value;
+    target.screen8.value = source.screen8.value;
+    target.time.value = source.time.value;
+    target.oocWt.value = source.oocWt.value;
+    target.enabledScreens.value = source.enabledScreens.value;
+  }
+
+  _OtherSceRow _cloneOtherSceRow(_OtherSceRow source) {
+    final row = _OtherSceRow();
+    row.type.value = source.type.value;
+    row.model.value = source.model.value;
+    row.uf.value = source.uf.value;
+    row.of_.value = source.of_.value;
+    row.time.value = source.time.value;
+    row.oocWt.value = source.oocWt.value;
+    return row;
+  }
+
+  void _applyOtherSceRow(_OtherSceRow target, _OtherSceRow source) {
+    target.id = null;
+    target.type.value = source.type.value;
+    target.model.value = source.model.value;
+    target.uf.value = source.uf.value;
+    target.of_.value = source.of_.value;
+    target.time.value = source.time.value;
+    target.oocWt.value = source.oocWt.value;
+  }
+
+  PopupMenuItem<String> _rowMenuItem(
+    String value,
+    String label,
+    String shortcut, {
+    required bool enabled,
+  }) {
+    final color = enabled ? const Color(0xFF2F2F2F) : const Color(0xFF9EA4AD);
+    return PopupMenuItem<String>(
+      value: value,
+      enabled: enabled,
+      height: 28,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: TextStyle(fontSize: 11, color: color)),
+          const SizedBox(width: 20),
+          Text(shortcut, style: TextStyle(fontSize: 11, color: color)),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteShakerReportRow(_ShakerRow row) async {
+    _shakerSaveTimers[row]?.cancel();
+    _shakerSaveTimers.remove(row);
+    _shakerSaveScopes.remove(row);
+
+    final id = row.id;
+    if (id != null && id.isNotEmpty) {
+      try {
+        await sceController.repository.deleteShaker(id);
+      } catch (e) {
+        debugPrint('Shaker report delete error: $e');
+      }
+    }
+
+    _clearShakerRow(row);
+    _rememberReportSceRows();
+    _shakerRows.refresh();
+  }
+
+  Future<void> _deleteOtherSceReportRow(_OtherSceRow row) async {
+    _otherSceSaveTimers[row]?.cancel();
+    _otherSceSaveTimers.remove(row);
+    _otherSceSaveScopes.remove(row);
+
+    final id = row.id;
+    if (id != null && id.isNotEmpty) {
+      try {
+        await sceController.repository.deleteOtherSce(id);
+      } catch (e) {
+        debugPrint('Other SCE report delete error: $e');
+      }
+    }
+
+    _clearOtherSceRow(row);
+    _rememberReportSceRows();
+    _sceRows.refresh();
+  }
+
+  Future<void> _showShakerRowMenu(
+    TapDownDetails details,
+    _ShakerRow row,
+  ) async {
+    final hasData = row.hasData;
+    final action = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        details.globalPosition.dx,
+        details.globalPosition.dy,
+        details.globalPosition.dx,
+        details.globalPosition.dy,
+      ),
+      items: [
+        _rowMenuItem(
+          'cut',
+          'Cut',
+          'Ctrl+X',
+          enabled: !dashboard.isLocked.value && hasData,
+        ),
+        _rowMenuItem('copy', 'Copy', 'Ctrl+C', enabled: hasData),
+        _rowMenuItem(
+          'paste',
+          'Paste',
+          'Ctrl+V',
+          enabled: !dashboard.isLocked.value && _shakerClipboard != null,
+        ),
+        _rowMenuItem(
+          'delete',
+          'Delete',
+          'Delete',
+          enabled: !dashboard.isLocked.value && hasData,
+        ),
+      ],
+    );
+
+    if (!mounted || action == null) return;
+    switch (action) {
+      case 'cut':
+        _shakerClipboard = _cloneShakerRow(row);
+        await _deleteShakerReportRow(row);
+        break;
+      case 'copy':
+        _shakerClipboard = _cloneShakerRow(row);
+        break;
+      case 'paste':
+        final clip = _shakerClipboard;
+        if (clip == null) return;
+        _applyShakerRow(row, clip);
+        _rememberReportSceRows();
+        _shakerRows.refresh();
+        _scheduleSaveShakerRow(row);
+        break;
+      case 'delete':
+        await _deleteShakerReportRow(row);
+        break;
+    }
+  }
+
+  Future<void> _showOtherSceRowMenu(
+    TapDownDetails details,
+    _OtherSceRow row,
+  ) async {
+    final hasData = row.hasData;
+    final action = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        details.globalPosition.dx,
+        details.globalPosition.dy,
+        details.globalPosition.dx,
+        details.globalPosition.dy,
+      ),
+      items: [
+        _rowMenuItem(
+          'cut',
+          'Cut',
+          'Ctrl+X',
+          enabled: !dashboard.isLocked.value && hasData,
+        ),
+        _rowMenuItem('copy', 'Copy', 'Ctrl+C', enabled: hasData),
+        _rowMenuItem(
+          'paste',
+          'Paste',
+          'Ctrl+V',
+          enabled: !dashboard.isLocked.value && _otherSceClipboard != null,
+        ),
+        _rowMenuItem(
+          'delete',
+          'Delete',
+          'Delete',
+          enabled: !dashboard.isLocked.value && hasData,
+        ),
+      ],
+    );
+
+    if (!mounted || action == null) return;
+    switch (action) {
+      case 'cut':
+        _otherSceClipboard = _cloneOtherSceRow(row);
+        await _deleteOtherSceReportRow(row);
+        break;
+      case 'copy':
+        _otherSceClipboard = _cloneOtherSceRow(row);
+        break;
+      case 'paste':
+        final clip = _otherSceClipboard;
+        if (clip == null) return;
+        _applyOtherSceRow(row, clip);
+        _rememberReportSceRows();
+        _sceRows.refresh();
+        _scheduleSaveOtherSceRow(row);
+        break;
+      case 'delete':
+        await _deleteOtherSceReportRow(row);
+        break;
+    }
   }
 
   void _rememberReportSceRows() {
@@ -823,6 +1061,7 @@ class _PumpPageState extends State<PumpPage> {
           ? row.enabledScreens.value.toString()
           : '',
       'plot': true,
+      'reportSelection': true,
       'screen1': row.screen1.value.trim(),
       'screen2': row.screen2.value.trim(),
       'screen3': row.screen3.value.trim(),
@@ -876,6 +1115,7 @@ class _PumpPageState extends State<PumpPage> {
       'type': row.type.value.trim(),
       'model1': row.model.value.trim(),
       'plot': true,
+      'reportSelection': true,
       'uf': row.uf.value.trim(),
       'of': row.of_.value.trim(),
       'time': row.time.value.trim(),
@@ -1340,64 +1580,73 @@ class _PumpPageState extends State<PumpPage> {
                                 itemCount: rows.length,
                                 itemBuilder: (ctx, index) {
                                   final row = rows[index];
-                                  return Container(
-                                    height: 30,
-                                    decoration: BoxDecoration(
-                                      color: index % 2 == 0
-                                          ? Colors.white
-                                          : Colors.grey.shade50,
-                                      border: Border(
-                                        bottom: BorderSide(
-                                          color: Colors.grey.shade300,
-                                          width: 0.5,
+                                  return GestureDetector(
+                                    behavior: HitTestBehavior.opaque,
+                                    onSecondaryTapDown: (details) =>
+                                        _showShakerRowMenu(details, row),
+                                    child: Container(
+                                      height: 30,
+                                      decoration: BoxDecoration(
+                                        color: index % 2 == 0
+                                            ? Colors.white
+                                            : Colors.grey.shade50,
+                                        border: Border(
+                                          bottom: BorderSide(
+                                            color: Colors.grey.shade300,
+                                            width: 0.5,
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                    child: IntrinsicHeight(
-                                      child: Row(
-                                        children: [
-                                          _dataCell(
-                                            width: w(100),
-                                            child: _shakerTypeDropdown(
-                                              row: row,
-                                              types: shakerTypes,
-                                              isLocked: isLocked,
-                                              rowIndex: index,
+                                      child: IntrinsicHeight(
+                                        child: Row(
+                                          children: [
+                                            _dataCell(
+                                              width: w(100),
+                                              child: _shakerTypeDropdown(
+                                                row: row,
+                                                types: shakerTypes,
+                                                isLocked: isLocked,
+                                                rowIndex: index,
+                                              ),
                                             ),
-                                          ),
-                                          _verticalDivider(),
-                                          _dataCell(
-                                            width: w(120),
-                                            child: _shakerModelDropdown(
-                                              row: row,
-                                              models: shakerModels,
-                                              isLocked: isLocked,
-                                              rowIndex: index,
+                                            _verticalDivider(),
+                                            _dataCell(
+                                              width: w(120),
+                                              child: _shakerModelDropdown(
+                                                row: row,
+                                                models: shakerModels,
+                                                isLocked: isLocked,
+                                                rowIndex: index,
+                                              ),
                                             ),
-                                          ),
-                                          _verticalDivider(),
-                                          ..._buildScreenCols(row, isLocked, w),
-                                          _verticalDivider(),
-                                          _dataCell(
-                                            width: w(70),
-                                            child: _rxTextField(
-                                              row.time,
+                                            _verticalDivider(),
+                                            ..._buildScreenCols(
+                                              row,
                                               isLocked,
-                                              onChanged: () =>
-                                                  _scheduleSaveShakerRow(row),
+                                              w,
                                             ),
-                                          ),
-                                          _verticalDivider(),
-                                          _dataCell(
-                                            width: w(75),
-                                            child: _rxTextField(
-                                              row.oocWt,
-                                              isLocked,
-                                              onChanged: () =>
-                                                  _scheduleSaveShakerRow(row),
+                                            _verticalDivider(),
+                                            _dataCell(
+                                              width: w(70),
+                                              child: _rxTextField(
+                                                row.time,
+                                                isLocked,
+                                                onChanged: () =>
+                                                    _scheduleSaveShakerRow(row),
+                                              ),
                                             ),
-                                          ),
-                                        ],
+                                            _verticalDivider(),
+                                            _dataCell(
+                                              width: w(75),
+                                              child: _rxTextField(
+                                                row.oocWt,
+                                                isLocked,
+                                                onChanged: () =>
+                                                    _scheduleSaveShakerRow(row),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     ),
                                   );
@@ -1908,82 +2157,87 @@ class _PumpPageState extends State<PumpPage> {
                           itemCount: rows.length,
                           itemBuilder: (ctx, index) {
                             final row = rows[index];
-                            return Container(
-                              height: 30,
-                              decoration: BoxDecoration(
-                                color: index % 2 == 0
-                                    ? Colors.white
-                                    : Colors.grey.shade50,
-                                border: Border(
-                                  bottom: BorderSide(
-                                    color: Colors.grey.shade300,
-                                    width: 0.5,
+                            return GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onSecondaryTapDown: (details) =>
+                                  _showOtherSceRowMenu(details, row),
+                              child: Container(
+                                height: 30,
+                                decoration: BoxDecoration(
+                                  color: index % 2 == 0
+                                      ? Colors.white
+                                      : Colors.grey.shade50,
+                                  border: Border(
+                                    bottom: BorderSide(
+                                      color: Colors.grey.shade300,
+                                      width: 0.5,
+                                    ),
                                   ),
                                 ),
-                              ),
-                              child: IntrinsicHeight(
-                                child: Row(
-                                  children: [
-                                    _dataCell(
-                                      width: w(90),
-                                      child: _sceTypeDropdown(
-                                        row: row,
-                                        types: sceTypes,
-                                        isLocked: isLocked,
-                                        rowIndex: index,
+                                child: IntrinsicHeight(
+                                  child: Row(
+                                    children: [
+                                      _dataCell(
+                                        width: w(90),
+                                        child: _sceTypeDropdown(
+                                          row: row,
+                                          types: sceTypes,
+                                          isLocked: isLocked,
+                                          rowIndex: index,
+                                        ),
                                       ),
-                                    ),
-                                    _verticalDivider(),
-                                    _dataCell(
-                                      width: w(110),
-                                      child: _sceModelDropdown(
-                                        row: row,
-                                        models: sceModels,
-                                        isLocked: isLocked,
-                                        rowIndex: index,
+                                      _verticalDivider(),
+                                      _dataCell(
+                                        width: w(110),
+                                        child: _sceModelDropdown(
+                                          row: row,
+                                          models: sceModels,
+                                          isLocked: isLocked,
+                                          rowIndex: index,
+                                        ),
                                       ),
-                                    ),
-                                    _verticalDivider(),
-                                    _dataCell(
-                                      width: w(70),
-                                      child: _rxTextField(
-                                        row.uf,
-                                        isLocked,
-                                        onChanged: () =>
-                                            _scheduleSaveOtherSceRow(row),
+                                      _verticalDivider(),
+                                      _dataCell(
+                                        width: w(70),
+                                        child: _rxTextField(
+                                          row.uf,
+                                          isLocked,
+                                          onChanged: () =>
+                                              _scheduleSaveOtherSceRow(row),
+                                        ),
                                       ),
-                                    ),
-                                    _verticalDivider(),
-                                    _dataCell(
-                                      width: w(70),
-                                      child: _rxTextField(
-                                        row.of_,
-                                        isLocked,
-                                        onChanged: () =>
-                                            _scheduleSaveOtherSceRow(row),
+                                      _verticalDivider(),
+                                      _dataCell(
+                                        width: w(70),
+                                        child: _rxTextField(
+                                          row.of_,
+                                          isLocked,
+                                          onChanged: () =>
+                                              _scheduleSaveOtherSceRow(row),
+                                        ),
                                       ),
-                                    ),
-                                    _verticalDivider(),
-                                    _dataCell(
-                                      width: w(70),
-                                      child: _rxTextField(
-                                        row.time,
-                                        isLocked,
-                                        onChanged: () =>
-                                            _scheduleSaveOtherSceRow(row),
+                                      _verticalDivider(),
+                                      _dataCell(
+                                        width: w(70),
+                                        child: _rxTextField(
+                                          row.time,
+                                          isLocked,
+                                          onChanged: () =>
+                                              _scheduleSaveOtherSceRow(row),
+                                        ),
                                       ),
-                                    ),
-                                    _verticalDivider(),
-                                    _dataCell(
-                                      width: w(75),
-                                      child: _rxTextField(
-                                        row.oocWt,
-                                        isLocked,
-                                        onChanged: () =>
-                                            _scheduleSaveOtherSceRow(row),
+                                      _verticalDivider(),
+                                      _dataCell(
+                                        width: w(75),
+                                        child: _rxTextField(
+                                          row.oocWt,
+                                          isLocked,
+                                          onChanged: () =>
+                                              _scheduleSaveOtherSceRow(row),
+                                        ),
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
                               ),
                             );

@@ -34,6 +34,11 @@ const shakerSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  reportSelection: {
+    type: Boolean,
+    default: false,
+    index: true,
+  },
   screen1: {
     type: String,
     default: ''
@@ -115,6 +120,11 @@ const otherSceSchema = new mongoose.Schema({
   plot: {
     type: Boolean,
     default: false
+  },
+  reportSelection: {
+    type: Boolean,
+    default: false,
+    index: true,
   },
   uf: {
     type: String,

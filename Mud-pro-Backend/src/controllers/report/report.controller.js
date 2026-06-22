@@ -582,21 +582,25 @@ const loadSourceNozzle = async ({ wellId, sourceReport }) => {
 };
 
 const loadSourceShakers = async ({ wellId, sourceReport }) => {
-  return findManyForReport({
+  const sourceRows = await findManyForReport({
     model: Shaker,
     wellId,
     report: sourceReport,
     sort: { createdAt: 1, _id: 1 },
   });
+
+  return sourceRows.filter((row) => row.reportSelection === true);
 };
 
 const loadSourceOtherSce = async ({ wellId, sourceReport }) => {
-  return findManyForReport({
+  const sourceRows = await findManyForReport({
     model: OtherSce,
     wellId,
     report: sourceReport,
     sort: { createdAt: 1, _id: 1 },
   });
+
+  return sourceRows.filter((row) => row.reportSelection === true);
 };
 
 const cloneReportSnapshots = async ({ sourceReport, targetReport }) => {
