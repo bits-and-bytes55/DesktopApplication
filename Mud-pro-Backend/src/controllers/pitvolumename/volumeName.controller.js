@@ -1169,20 +1169,23 @@ const buildOperationVolumeEffects = ({
   for (const item of returnLostMud) {
     const returned = toNumber(item.volReturned);
     const lost = toNumber(item.volLost);
-    endVolDelta -= returned;
 
-    if (lost > 0) {
+    const deductFromSource = (volume) => {
+      if (volume <= 0) return;
       const fromKey = toText(item.from).toLowerCase();
       if (isActiveSystemName(item.from)) {
-        endVolDelta -= lost;
+        endVolDelta -= volume;
       } else if (activePitNames.has(fromKey)) {
-        endVolDelta -= lost;
-        addPitDelta(activeDeltaByPit, item.from, -lost);
+        endVolDelta -= volume;
+        addPitDelta(activeDeltaByPit, item.from, -volume);
       } else {
-        addPitDelta(storageDeltaByPit, item.from, -lost);
-        returnLostStorageDelta -= lost;
+        addPitDelta(storageDeltaByPit, item.from, -volume);
+        returnLostStorageDelta -= volume;
       }
-    }
+    };
+
+    deductFromSource(returned);
+    deductFromSource(lost);
   }
 
   for (const item of otherVolAdditions) {
