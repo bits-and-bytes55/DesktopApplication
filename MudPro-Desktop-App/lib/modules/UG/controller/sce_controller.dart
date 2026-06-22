@@ -238,7 +238,7 @@ class SceController extends GetxController {
     try {
       final result = await repository.getShakers(
         wellId,
-        includeReportId: false,
+        includeReportId: true,
       );
       if (result['success']) {
         final List<dynamic> shakerData = _mergeDuplicateRows(
@@ -304,7 +304,7 @@ class SceController extends GetxController {
     try {
       final result = await repository.getOtherSce(
         wellId,
-        includeReportId: false,
+        includeReportId: true,
       );
       if (result['success']) {
         final List<dynamic> sceData = _mergeDuplicateRows(
@@ -416,7 +416,7 @@ class SceController extends GetxController {
       final result = await repository.createShaker(
         currentWellId!,
         shaker.toJson(),
-        includeReportId: false,
+        includeReportId: true,
       );
 
       if (result['success']) {
@@ -516,7 +516,7 @@ class SceController extends GetxController {
       final result = await repository.createOtherSce(
         currentWellId!,
         sce.toJson(),
-        includeReportId: false,
+        includeReportId: true,
       );
 
       if (result['success']) {

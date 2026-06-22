@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/switch_mudtype_controller.dart';
@@ -70,38 +68,26 @@ class _SwitchMudTypeViewState extends State<SwitchMudTypeView> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // ================= ENHANCED HEADER =================
-                      // _buildHeader(),
-
-                      // const SizedBox(height: 20),
-
-                      /// SECTION 1
                       _twoTableSection(
-                        title: "1. Remove Mud from Active Pits",
+                        title: '1. Remove Mud from Active Pits',
                         selected: controller.section1Selected,
-                        leftLabel: "Transfer",
-                        rightLabel: "Make Storage",
+                        leftLabel: 'Transfer',
+                        rightLabel: 'Make Storage',
                         leftList: controller.section1Left,
                         rightList: controller.section1Right,
                       ),
-
                       const SizedBox(height: 20),
-
-                      /// SECTION 2
                       _twoTableSection(
-                        title: "2. Fill Active Pits",
+                        title: '2. Fill Active Pits',
                         selected: controller.section2Selected,
-                        leftLabel: "Transfer",
-                        rightLabel: "Make Storage",
+                        leftLabel: 'Transfer',
+                        rightLabel: 'Make Storage',
                         leftList: controller.section2Left,
                         rightList: controller.section2Right,
                       ),
-
                       const SizedBox(height: 20),
-
-                      /// SECTION 3
                       _singleTableSection(
-                        title: "3. Displace Fluid in Hole to Storage",
+                        title: '3. Displace Fluid in Hole to Storage',
                         list: controller.section3,
                       ),
                     ],
@@ -251,14 +237,7 @@ class _SwitchMudTypeViewState extends State<SwitchMudTypeView> {
                 children: [
                   _selectionDot(active),
                   const SizedBox(width: 10),
-                  Text(
-                    label,
-                    style: const TextStyle(
-                      color: Colors.black,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
+                  Text(label, style: _inputTextStyle),
                 ],
               ),
             ),
@@ -304,10 +283,7 @@ class _SwitchMudTypeViewState extends State<SwitchMudTypeView> {
         children: [
           _cell(
             width: width - 120,
-            child: const Text(
-              'Pit',
-              style: _headerTextStyle,
-            ),
+            child: const Text('Pit', style: _headerTextStyle),
           ),
           _cell(
             width: 120,

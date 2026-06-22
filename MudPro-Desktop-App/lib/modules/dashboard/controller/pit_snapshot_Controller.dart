@@ -43,7 +43,8 @@ class PitSnapshotController extends GetxController {
 
   List<_ComputedConcentrationRow> _computedConcentrationRows =
       const <_ComputedConcentrationRow>[];
-  Map<String, List<_ComputedConcentrationRow>> _computedConcentrationRowsBySystem =
+  Map<String, List<_ComputedConcentrationRow>>
+  _computedConcentrationRowsBySystem =
       const <String, List<_ComputedConcentrationRow>>{};
   double _activeSystemVolume = 0.0;
   double _endVolume = 0.0;
@@ -251,7 +252,8 @@ class PitSnapshotController extends GetxController {
     final massLedger = <String, Map<String, double>>{};
     final productMetaByKey = <String, _SnapshotProduct>{};
     var selectedRows = const <_ComputedConcentrationRow>[];
-    var selectedRowsBySystem = const <String, List<_ComputedConcentrationRow>>{};
+    var selectedRowsBySystem =
+        const <String, List<_ComputedConcentrationRow>>{};
 
     for (final report in reports) {
       final source = report.id == currentReportId
@@ -303,7 +305,8 @@ class PitSnapshotController extends GetxController {
       if (report.id == currentReportId) {
         selectedRowsBySystem = rowsBySystem;
         selectedRows =
-            rowsBySystem['Active System'] ?? const <_ComputedConcentrationRow>[];
+            rowsBySystem['Active System'] ??
+            const <_ComputedConcentrationRow>[];
       }
     }
 
@@ -325,22 +328,14 @@ class PitSnapshotController extends GetxController {
     required Iterable<String> keys,
     required Map<String, _SnapshotProduct> productMetaByKey,
   }) {
-    return keys.toSet().toList()
-      ..sort((left, right) {
-        final leftMeta = productMetaByKey[left];
-        final rightMeta = productMetaByKey[right];
-        final leftOrder = leftMeta?.sortOrder ?? 0;
-        final rightOrder = rightMeta?.sortOrder ?? 0;
-        if (leftOrder > 0 || rightOrder > 0) {
-          if (leftOrder <= 0) return 1;
-          if (rightOrder <= 0) return -1;
-          final byOrder = leftOrder.compareTo(rightOrder);
-          if (byOrder != 0) return byOrder;
-        }
-        final leftName = leftMeta?.itemName.toLowerCase() ?? left;
-        final rightName = rightMeta?.itemName.toLowerCase() ?? right;
-        return leftName.compareTo(rightName);
-      });
+    return keys.toSet().toList()..sort((left, right) {
+      final leftMeta = productMetaByKey[left];
+      final rightMeta = productMetaByKey[right];
+      final leftName = leftMeta?.itemName.toLowerCase() ?? left;
+      final rightName = rightMeta?.itemName.toLowerCase() ?? right;
+      final byName = leftName.compareTo(rightName);
+      return byName != 0 ? byName : left.compareTo(right);
+    });
   }
 
   Map<String, List<_ComputedConcentrationRow>> _rowsFromLedgers({
@@ -543,15 +538,18 @@ class PitSnapshotController extends GetxController {
     final distribution = _map(payload['consumeProductDistribution']);
     final volumes = <String, double>{};
     final distributionTotal = _number(distribution['totalVolume']);
-    final standaloneActiveSystemWater = _standaloneAddWaterVolumeForSystem(
+    final standaloneActiveSystemAdditions = _standaloneVolumeAdditionForSystem(
       payload,
       'Active System',
     );
     final activeSystem = _number(volumeName['activeSystem']);
     final endVol = _number(volumeName['endVol']);
-    volumes['Active System'] = distributionTotal > 0
-        ? distributionTotal + standaloneActiveSystemWater
-        : (activeSystem > 0 ? activeSystem : endVol);
+    final hasActiveSystemOutflow = _hasActiveSystemOutflow(payload);
+    volumes['Active System'] = hasActiveSystemOutflow && endVol > 0
+        ? endVol
+        : (distributionTotal > 0
+              ? distributionTotal + standaloneActiveSystemAdditions
+              : (activeSystem > 0 ? activeSystem : endVol));
 
     for (final row in _extractList(payload['storageTable'])) {
       final pitName = _text(row['pitName']);
@@ -565,35 +563,96 @@ class PitSnapshotController extends GetxController {
     return volumes;
   }
 
-  double _standaloneAddWaterVolumeForSystem(
+  bool _hasActiveSystemOutflow(Map<String, dynamic> payload) {
+    final operations = _map(payload['concentrationOperations']);
+    final transfers = _extractList(operations['transfers']);
+    for (final row in transfers) {
+      if (_normalizeText(row['from']) == 'active system' &&
+          _transferTotal(row, _extractList(row['transfers'])) > 0) {
+        return true;
+      }
+    }
+
+    final activeLoss = _extractList(
+      operations['mudLoss'],
+    ).fold<double>(0.0, (sum, row) => sum + _number(row['totalLoss']));
+    if (activeLoss > 0) return true;
+
+    for (final row in _extractList(operations['emptyFluid'])) {
+      final actionType = _text(row['actionType']).toLowerCase();
+      if (actionType == 'transfer to storage' && _number(row['volume']) > 0) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  double _standaloneVolumeAdditionForSystem(
     Map<String, dynamic> payload,
     String system,
   ) {
     final operations = _map(payload['concentrationOperations']);
     final target = _normalizeSystemName(system);
-    return _extractList(operations['addWater']).fold<double>(0.0, (sum, row) {
+    var total = _extractList(operations['addWater']).fold<double>(0.0, (
+      sum,
+      row,
+    ) {
       final to = _normalizeSystemName(_text(row['to']));
       if (to != target) return sum;
       return sum + _number(row['volume']);
     });
+    total += _extractList(operations['receiveMud']).fold<double>(0.0, (
+      sum,
+      row,
+    ) {
+      final to = _normalizeSystemName(_text(row['to']));
+      if (to != target) return sum;
+      return sum + _number(row['volume']);
+    });
+    total += _extractList(operations['returnLostMud']).fold<double>(0.0, (
+      sum,
+      row,
+    ) {
+      final to = _normalizeSystemName(_text(row['to']));
+      final from = _normalizeSystemName(_text(row['from']));
+      if (to != target || from == target) return sum;
+      return sum + _number(row['volume']);
+    });
+    return total;
   }
 
   Map<String, double> _initialVolumesForReplay(Map<String, dynamic> payload) {
-    final volumes = Map<String, double>.from(_systemVolumesFromPayload(payload));
+    final volumes = Map<String, double>.from(
+      _systemVolumesFromPayload(payload),
+    );
     final operations = _map(payload['concentrationOperations']);
     final distributionStates = _distributionStatesByOperation(payload);
     final events = <Map<String, dynamic>>[
-      ..._extractList(payload['consumeProductMassSources']).map(
-        (row) => {'type': 'chemical', 'time': _eventTime(row), 'row': row},
+      ..._extractList(
+        payload['consumeProductMassSources'],
+      ).map((row) => {'type': 'chemical', 'time': _eventTime(row), 'row': row}),
+      ..._extractList(
+        operations['addWater'],
+      ).map((row) => {'type': 'addWater', 'time': _eventTime(row), 'row': row}),
+      ..._extractList(operations['receiveMud']).map(
+        (row) => {'type': 'receiveMud', 'time': _eventTime(row), 'row': row},
       ),
-      ..._extractList(operations['transfers']).map(
-        (row) => {'type': 'transfer', 'time': _eventTime(row), 'row': row},
+      ..._extractList(operations['returnLostMud']).map(
+        (row) => {'type': 'returnLostMud', 'time': _eventTime(row), 'row': row},
       ),
-      ..._extractList(operations['mudLoss']).map(
-        (row) => {'type': 'mudLoss', 'time': _eventTime(row), 'row': row},
-      ),
+      ..._extractList(
+        operations['transfers'],
+      ).map((row) => {'type': 'transfer', 'time': _eventTime(row), 'row': row}),
+      ..._extractList(
+        operations['mudLoss'],
+      ).map((row) => {'type': 'mudLoss', 'time': _eventTime(row), 'row': row}),
       ..._extractList(operations['mudLossStorage']).map(
-        (row) => {'type': 'mudLossStorage', 'time': _eventTime(row), 'row': row},
+        (row) => {
+          'type': 'mudLossStorage',
+          'time': _eventTime(row),
+          'row': row,
+        },
       ),
       ..._extractList(operations['emptyFluid']).map(
         (row) => {'type': 'emptyFluid', 'time': _eventTime(row), 'row': row},
@@ -613,6 +672,32 @@ class PitSnapshotController extends GetxController {
             if (fraction <= 0) return;
             _addVolume(volumes, system, -volumeBbl * fraction);
           });
+          break;
+        case 'addWater':
+          _addVolume(
+            volumes,
+            _normalizeSystemName(_text(row['to'])),
+            -_number(row['volume']),
+          );
+          break;
+        case 'receiveMud':
+          _addVolume(
+            volumes,
+            _normalizeSystemName(_text(row['to'])),
+            -_number(row['volume']),
+          );
+          break;
+        case 'returnLostMud':
+          _addVolume(
+            volumes,
+            _normalizeSystemName(_text(row['to'])),
+            -_number(row['volume']),
+          );
+          _addVolume(
+            volumes,
+            _normalizeSystemName(_text(row['from'])),
+            _number(row['volume']),
+          );
           break;
         case 'transfer':
           final from = _normalizeSystemName(_text(row['from']));
@@ -641,7 +726,11 @@ class PitSnapshotController extends GetxController {
           final volume = _number(row['volume']);
           if (_text(row['actionType']).toLowerCase() == 'transfer to storage') {
             _addVolume(volumes, 'Active System', volume);
-            _addVolume(volumes, _normalizeSystemName(_text(row['pitName'])), -volume);
+            _addVolume(
+              volumes,
+              _normalizeSystemName(_text(row['pitName'])),
+              -volume,
+            );
           } else {
             _addVolume(volumes, 'Active System', volume);
           }
@@ -662,7 +751,9 @@ class PitSnapshotController extends GetxController {
   }) {
     final volumes = Map<String, double>.from(startVolumes);
     final operations = _map(volumePayload['concentrationOperations']);
-    final massSources = _extractList(volumePayload['consumeProductMassSources']);
+    final massSources = _extractList(
+      volumePayload['consumeProductMassSources'],
+    );
     final productRows = massSources.isNotEmpty
         ? massSources
         : inventoryItems
@@ -673,14 +764,27 @@ class PitSnapshotController extends GetxController {
       ...productRows.map(
         (row) => {'type': 'chemical', 'time': _eventTime(row), 'row': row},
       ),
-      ..._extractList(operations['transfers']).map(
-        (row) => {'type': 'transfer', 'time': _eventTime(row), 'row': row},
+      ..._extractList(
+        operations['addWater'],
+      ).map((row) => {'type': 'addWater', 'time': _eventTime(row), 'row': row}),
+      ..._extractList(operations['receiveMud']).map(
+        (row) => {'type': 'receiveMud', 'time': _eventTime(row), 'row': row},
       ),
-      ..._extractList(operations['mudLoss']).map(
-        (row) => {'type': 'mudLoss', 'time': _eventTime(row), 'row': row},
+      ..._extractList(operations['returnLostMud']).map(
+        (row) => {'type': 'returnLostMud', 'time': _eventTime(row), 'row': row},
       ),
+      ..._extractList(
+        operations['transfers'],
+      ).map((row) => {'type': 'transfer', 'time': _eventTime(row), 'row': row}),
+      ..._extractList(
+        operations['mudLoss'],
+      ).map((row) => {'type': 'mudLoss', 'time': _eventTime(row), 'row': row}),
       ..._extractList(operations['mudLossStorage']).map(
-        (row) => {'type': 'mudLossStorage', 'time': _eventTime(row), 'row': row},
+        (row) => {
+          'type': 'mudLossStorage',
+          'time': _eventTime(row),
+          'row': row,
+        },
       ),
       ..._extractList(operations['emptyFluid']).map(
         (row) => {'type': 'emptyFluid', 'time': _eventTime(row), 'row': row},
@@ -700,13 +804,44 @@ class PitSnapshotController extends GetxController {
             productEndVolumesBySystem: productEndVolumesBySystem,
           );
           break;
+        case 'addWater':
+          _applyAddWaterToLedger(
+            ledger: ledger,
+            volumes: volumes,
+            row: row,
+            productEndVolumesBySystem: productEndVolumesBySystem,
+          );
+          break;
+        case 'receiveMud':
+          _applyReceiveMudToLedger(
+            ledger: ledger,
+            volumes: volumes,
+            row: row,
+            productMetaByKey: productMetaByKey,
+            productEndVolumesBySystem: productEndVolumesBySystem,
+          );
+          break;
+        case 'returnLostMud':
+          _applyReturnLostMudToLedger(
+            ledger: ledger,
+            volumes: volumes,
+            row: row,
+            productEndVolumesBySystem: productEndVolumesBySystem,
+          );
+          break;
         case 'transfer':
-          _applyTransferToLedger(ledger: ledger, volumes: volumes, row: row);
+          _applyTransferToLedger(
+            ledger: ledger,
+            volumes: volumes,
+            row: row,
+            productEndVolumesBySystem: productEndVolumesBySystem,
+          );
           break;
         case 'mudLoss':
           _loseVolumeFromLedger(
             ledger: ledger,
             volumes: volumes,
+            productEndVolumesBySystem: productEndVolumesBySystem,
             system: 'Active System',
             lossVolume: _number(row['totalLoss']),
           );
@@ -715,6 +850,7 @@ class PitSnapshotController extends GetxController {
           _loseVolumeFromLedger(
             ledger: ledger,
             volumes: volumes,
+            productEndVolumesBySystem: productEndVolumesBySystem,
             system: _normalizeSystemName(_text(row['storage'])),
             lossVolume: _number(row['totalLoss']),
           );
@@ -725,13 +861,17 @@ class PitSnapshotController extends GetxController {
             _transferMassBetweenSystems(
               ledger: ledger,
               volumes: volumes,
+              productEndVolumesBySystem: productEndVolumesBySystem,
               from: 'Active System',
-              destinations: {_normalizeSystemName(_text(row['pitName'])): volume},
+              destinations: {
+                _normalizeSystemName(_text(row['pitName'])): volume,
+              },
             );
           } else {
             _loseVolumeFromLedger(
               ledger: ledger,
               volumes: volumes,
+              productEndVolumesBySystem: productEndVolumesBySystem,
               system: 'Active System',
               lossVolume: volume,
             );
@@ -763,18 +903,112 @@ class PitSnapshotController extends GetxController {
     );
     allocations.forEach((system, fraction) {
       if (fraction <= 0) return;
-      productEndVolumesBySystem
-          .putIfAbsent(system, () => <String, double>{})[product.key] =
-          volumes[system] ?? 0.0;
+      final currentVolume = volumes[system] ?? 0.0;
+      final addedVolume = volumeBbl * fraction;
+      final denominator = currentVolume > 0 ? currentVolume : addedVolume;
+      productEndVolumesBySystem.putIfAbsent(
+        system,
+        () => <String, double>{},
+      )[product.key] = denominator;
       _addProductMass(ledger, system, product.key, amount * fraction);
-      _addVolume(volumes, system, volumeBbl * fraction);
+      _addVolume(volumes, system, addedVolume);
     });
+  }
+
+  void _applyAddWaterToLedger({
+    required Map<String, Map<String, double>> ledger,
+    required Map<String, double> volumes,
+    required Map<String, dynamic> row,
+    required Map<String, Map<String, double>> productEndVolumesBySystem,
+  }) {
+    final system = _normalizeSystemName(_text(row['to']));
+    final volume = _number(row['volume']);
+    if (system.isEmpty || volume <= 0) return;
+
+    _addProductEndVolumeForExistingProducts(
+      ledger: ledger,
+      productEndVolumesBySystem: productEndVolumesBySystem,
+      system: system,
+      volume: volume,
+    );
+    _addVolume(volumes, system, volume);
+  }
+
+  void _applyReceiveMudToLedger({
+    required Map<String, Map<String, double>> ledger,
+    required Map<String, double> volumes,
+    required Map<String, dynamic> row,
+    required Map<String, _SnapshotProduct> productMetaByKey,
+    required Map<String, Map<String, double>> productEndVolumesBySystem,
+  }) {
+    final system = _normalizeSystemName(_text(row['to']));
+    final volume = _number(row['volume']);
+    if (system.isEmpty || volume <= 0) return;
+
+    final currentVolume = volumes[system] ?? 0.0;
+    final nextVolume = currentVolume + volume;
+    final products = _extractList(row['concentrationProducts']);
+    for (final rawProduct in products) {
+      final productRow = _map(rawProduct);
+      final product = _snapshotProductFromConcentrationProduct(
+        productRow,
+        productMetaByKey,
+      );
+      if (product == null) continue;
+
+      productMetaByKey[product.key] = product;
+      final incomingConcentration = _number(productRow['concentration']);
+      final incomingAmount = incomingConcentration * volume;
+      if (incomingAmount > 0) {
+        _addProductMass(ledger, system, product.key, incomingAmount);
+      }
+    }
+
+    _addVolume(volumes, system, volume);
+    _setProductEndVolumesToSystemVolume(
+      ledger: ledger,
+      productEndVolumesBySystem: productEndVolumesBySystem,
+      system: system,
+      volume: nextVolume,
+    );
+  }
+
+  void _applyReturnLostMudToLedger({
+    required Map<String, Map<String, double>> ledger,
+    required Map<String, double> volumes,
+    required Map<String, dynamic> row,
+    required Map<String, Map<String, double>> productEndVolumesBySystem,
+  }) {
+    final from = _normalizeSystemName(_text(row['from']));
+    final to = _normalizeSystemName(_text(row['to']));
+    final volume = _number(row['volume']);
+    if (to.isEmpty || volume <= 0) return;
+
+    if (from.isNotEmpty && (volumes[from] ?? 0.0) > 0) {
+      _transferMassBetweenSystems(
+        ledger: ledger,
+        volumes: volumes,
+        productEndVolumesBySystem: productEndVolumesBySystem,
+        from: from,
+        destinations: {to: volume},
+      );
+      return;
+    }
+
+    _addSameConcentrationVolume(
+      ledger: ledger,
+      volumes: volumes,
+      productEndVolumesBySystem: productEndVolumesBySystem,
+      system: to,
+      volume: volume,
+    );
   }
 
   void _applyTransferToLedger({
     required Map<String, Map<String, double>> ledger,
     required Map<String, double> volumes,
     required Map<String, dynamic> row,
+    required Map<String, Map<String, double>> productEndVolumesBySystem,
   }) {
     final transfers = _extractList(row['transfers']);
     final destinations = <String, double>{};
@@ -789,6 +1023,7 @@ class PitSnapshotController extends GetxController {
     _transferMassBetweenSystems(
       ledger: ledger,
       volumes: volumes,
+      productEndVolumesBySystem: productEndVolumesBySystem,
       from: _normalizeSystemName(_text(row['from'])),
       destinations: destinations,
     );
@@ -797,18 +1032,31 @@ class PitSnapshotController extends GetxController {
   void _transferMassBetweenSystems({
     required Map<String, Map<String, double>> ledger,
     required Map<String, double> volumes,
+    required Map<String, Map<String, double>> productEndVolumesBySystem,
     required String from,
     required Map<String, double> destinations,
   }) {
     final sourceVolume = volumes[from] ?? 0.0;
     if (from.isEmpty || sourceVolume <= 0) return;
 
-    final requestedTotal = destinations.values.fold<double>(0.0, (sum, v) => sum + v);
+    final requestedTotal = destinations.values.fold<double>(
+      0.0,
+      (sum, v) => sum + v,
+    );
     if (requestedTotal <= 0) return;
 
-    final scale = requestedTotal > sourceVolume ? sourceVolume / requestedTotal : 1.0;
-    final sourceMasses = Map<String, double>.from(ledger[from] ?? const <String, double>{});
+    final scale = requestedTotal > sourceVolume
+        ? sourceVolume / requestedTotal
+        : 1.0;
+    final sourceMasses = Map<String, double>.from(
+      ledger[from] ?? const <String, double>{},
+    );
+    final sourceProductVolumes = Map<String, double>.from(
+      productEndVolumesBySystem[from] ?? const <String, double>{},
+    );
     final actualTotal = requestedTotal * scale;
+    final remainingFraction = 1 - (actualTotal / sourceVolume);
+    final initializedSourceDenominators = <String>{};
 
     for (final destEntry in destinations.entries) {
       final movedVolume = destEntry.value * scale;
@@ -818,6 +1066,26 @@ class PitSnapshotController extends GetxController {
         final movedMass = massEntry.value * fraction;
         _addProductMass(ledger, from, massEntry.key, -movedMass);
         _addProductMass(ledger, destEntry.key, massEntry.key, movedMass);
+
+        final sourceProductVolume =
+            sourceProductVolumes[massEntry.key] ?? sourceVolume;
+        if (sourceProductVolume > 0) {
+          final movedProductVolume = sourceProductVolume * fraction;
+          if (initializedSourceDenominators.add(massEntry.key)) {
+            _setProductEndVolume(
+              productEndVolumesBySystem,
+              from,
+              massEntry.key,
+              sourceProductVolume * remainingFraction,
+            );
+          }
+          _addProductEndVolume(
+            productEndVolumesBySystem,
+            destEntry.key,
+            massEntry.key,
+            movedProductVolume,
+          );
+        }
       }
       _addVolume(volumes, destEntry.key, movedVolume);
     }
@@ -828,6 +1096,7 @@ class PitSnapshotController extends GetxController {
   void _loseVolumeFromLedger({
     required Map<String, Map<String, double>> ledger,
     required Map<String, double> volumes,
+    required Map<String, Map<String, double>> productEndVolumesBySystem,
     required String system,
     required double lossVolume,
   }) {
@@ -836,11 +1105,93 @@ class PitSnapshotController extends GetxController {
 
     final actualLoss = lossVolume > currentVolume ? currentVolume : lossVolume;
     final fraction = actualLoss / currentVolume;
-    final masses = Map<String, double>.from(ledger[system] ?? const <String, double>{});
+    final masses = Map<String, double>.from(
+      ledger[system] ?? const <String, double>{},
+    );
     for (final massEntry in masses.entries) {
-      _addProductMass(ledger, system, massEntry.key, -massEntry.value * fraction);
+      _addProductMass(
+        ledger,
+        system,
+        massEntry.key,
+        -massEntry.value * fraction,
+      );
+      final currentProductVolume =
+          productEndVolumesBySystem[system]?[massEntry.key] ?? currentVolume;
+      _setProductEndVolume(
+        productEndVolumesBySystem,
+        system,
+        massEntry.key,
+        currentProductVolume * (1 - fraction),
+      );
     }
     _addVolume(volumes, system, -actualLoss);
+  }
+
+  void _addProductEndVolumeForExistingProducts({
+    required Map<String, Map<String, double>> ledger,
+    required Map<String, Map<String, double>> productEndVolumesBySystem,
+    required String system,
+    required double volume,
+  }) {
+    final masses = ledger[system] ?? const <String, double>{};
+    for (final productKey in masses.keys) {
+      _addProductEndVolume(
+        productEndVolumesBySystem,
+        system,
+        productKey,
+        volume,
+      );
+    }
+  }
+
+  void _setProductEndVolumesToSystemVolume({
+    required Map<String, Map<String, double>> ledger,
+    required Map<String, Map<String, double>> productEndVolumesBySystem,
+    required String system,
+    required double volume,
+  }) {
+    final masses = ledger[system] ?? const <String, double>{};
+    for (final productKey in masses.keys) {
+      _setProductEndVolume(
+        productEndVolumesBySystem,
+        system,
+        productKey,
+        volume,
+      );
+    }
+  }
+
+  void _addSameConcentrationVolume({
+    required Map<String, Map<String, double>> ledger,
+    required Map<String, double> volumes,
+    required Map<String, Map<String, double>> productEndVolumesBySystem,
+    required String system,
+    required double volume,
+  }) {
+    final currentVolume = volumes[system] ?? 0.0;
+    if (system.isEmpty || volume <= 0 || currentVolume <= 0) return;
+
+    final masses = Map<String, double>.from(
+      ledger[system] ?? const <String, double>{},
+    );
+    final fraction = volume / currentVolume;
+    for (final massEntry in masses.entries) {
+      _addProductMass(
+        ledger,
+        system,
+        massEntry.key,
+        massEntry.value * fraction,
+      );
+      final currentProductVolume =
+          productEndVolumesBySystem[system]?[massEntry.key] ?? currentVolume;
+      _addProductEndVolume(
+        productEndVolumesBySystem,
+        system,
+        massEntry.key,
+        currentProductVolume * fraction,
+      );
+    }
+    _addVolume(volumes, system, volume);
   }
 
   void _addProductMass(
@@ -849,7 +1200,8 @@ class PitSnapshotController extends GetxController {
     String productKey,
     double amount,
   ) {
-    if (system.isEmpty || productKey.isEmpty || amount.abs() <= 0.000001) return;
+    if (system.isEmpty || productKey.isEmpty || amount.abs() <= 0.000001)
+      return;
     final masses = ledger.putIfAbsent(system, () => <String, double>{});
     final next = (masses[productKey] ?? 0.0) + amount;
     if (next.abs() <= 0.000001) {
@@ -859,22 +1211,67 @@ class PitSnapshotController extends GetxController {
     }
   }
 
+  void _addProductEndVolume(
+    Map<String, Map<String, double>> productEndVolumesBySystem,
+    String system,
+    String productKey,
+    double volume,
+  ) {
+    if (system.isEmpty || productKey.isEmpty || volume.abs() <= 0.000001) {
+      return;
+    }
+    final volumes = productEndVolumesBySystem.putIfAbsent(
+      system,
+      () => <String, double>{},
+    );
+    final next = (volumes[productKey] ?? 0.0) + volume;
+    if (next <= 0.000001) {
+      volumes.remove(productKey);
+    } else {
+      volumes[productKey] = next;
+    }
+  }
+
+  void _setProductEndVolume(
+    Map<String, Map<String, double>> productEndVolumesBySystem,
+    String system,
+    String productKey,
+    double volume,
+  ) {
+    if (system.isEmpty || productKey.isEmpty) return;
+    final volumes = productEndVolumesBySystem.putIfAbsent(
+      system,
+      () => <String, double>{},
+    );
+    if (volume <= 0.000001) {
+      volumes.remove(productKey);
+    } else {
+      volumes[productKey] = volume;
+    }
+  }
+
   void _addVolume(Map<String, double> volumes, String system, double volume) {
     if (system.isEmpty || volume.abs() <= 0.000001) return;
     final next = (volumes[system] ?? 0.0) + volume;
     volumes[system] = next <= 0.000001 ? 0.0 : next;
   }
 
-  double _transferTotal(Map<String, dynamic> row, List<Map<String, dynamic>> transfers) {
+  double _transferTotal(
+    Map<String, dynamic> row,
+    List<Map<String, dynamic>> transfers,
+  ) {
     final rowTotal = _number(row['totalTransferVol']);
     if (rowTotal > 0) return rowTotal;
-    return transfers.fold<double>(0.0, (sum, item) => sum + _number(item['volume']));
+    return transfers.fold<double>(
+      0.0,
+      (sum, item) => sum + _number(item['volume']),
+    );
   }
 
   double _eventTime(Map<String, dynamic> item) {
-    final updated = DateTime.tryParse(_text(item['updatedAt']));
     final created = DateTime.tryParse(_text(item['createdAt']));
-    return (updated ?? created ?? DateTime.fromMillisecondsSinceEpoch(0))
+    final updated = DateTime.tryParse(_text(item['updatedAt']));
+    return (created ?? updated ?? DateTime.fromMillisecondsSinceEpoch(0))
         .millisecondsSinceEpoch
         .toDouble();
   }
@@ -902,7 +1299,9 @@ class PitSnapshotController extends GetxController {
     Map<String, dynamic> volumePayload,
   ) {
     final states = <String, Map<String, dynamic>>{};
-    for (final state in _extractList(volumePayload['consumeProductDistributionStates'])) {
+    for (final state in _extractList(
+      volumePayload['consumeProductDistributionStates'],
+    )) {
       final key = _text(state['operationInstanceKey']);
       states[key] = state;
     }
@@ -921,14 +1320,18 @@ class PitSnapshotController extends GetxController {
     required String operationKey,
     required Map<String, Map<String, dynamic>> distributionStates,
   }) {
-    final state = distributionStates[operationKey] ??
+    final state =
+        distributionStates[operationKey] ??
         distributionStates[''] ??
         (distributionStates.isNotEmpty
             ? distributionStates.values.first
             : const <String, dynamic>{});
     final rows = _extractList(state['distributions']);
     final positiveRows = rows
-        .where((row) => _text(row['pitName']).isNotEmpty && _number(row['volume']) > 0)
+        .where(
+          (row) =>
+              _text(row['pitName']).isNotEmpty && _number(row['volume']) > 0,
+        )
         .toList(growable: false);
     final total = positiveRows.fold<double>(
       0.0,
@@ -985,6 +1388,37 @@ class PitSnapshotController extends GetxController {
       code: _text(item['code']),
       unit: _text(item['unit']),
       sortOrder: _number(item['sortOrder']).toInt(),
+    );
+  }
+
+  _SnapshotProduct? _snapshotProductFromConcentrationProduct(
+    Map<String, dynamic> item,
+    Map<String, _SnapshotProduct> productMetaByKey,
+  ) {
+    final itemName = _text(item['product'] ?? item['itemName']);
+    final code = _text(item['code']);
+    final key = _keyFromCodeOrName(code, itemName);
+    final existing = productMetaByKey[key];
+    if (existing != null) return existing;
+
+    final unit = _text(item['unit']);
+    if (itemName.isEmpty && code.isEmpty) return null;
+    if (unit.isNotEmpty) {
+      return _snapshotProductFromFields(
+        itemName: itemName.isNotEmpty ? itemName : code,
+        code: code,
+        unit: unit,
+      );
+    }
+
+    return _SnapshotProduct(
+      key: key,
+      itemName: itemName.isNotEmpty ? itemName : code,
+      code: code,
+      unitDisplay: unit,
+      concentrationUnit: 'lb/bbl',
+      factorPerPack: 0,
+      sortOrder: 0,
     );
   }
 
@@ -1059,7 +1493,9 @@ class PitSnapshotController extends GetxController {
         concentrationUnit: 'lb/bbl',
       );
     }
-    if (normalized.contains('ton') || normalized == 'mt' || normalized.endsWith(' mt')) {
+    if (normalized.contains('ton') ||
+        normalized == 'mt' ||
+        normalized.endsWith(' mt')) {
       return _ConcentrationBasis(
         factorPerPack: amount * 1000 * _kgToLb,
         concentrationUnit: 'lb/bbl',

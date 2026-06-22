@@ -1,5 +1,7 @@
 import Casing from "../../modules/casing/casing.model.js";
 
+const CASED_HOLE_TOC_MARKER = "__cased_hole__";
+
 const getWellId = (req) =>
   String(req.params.wellId ?? req.body.wellId ?? req.query.wellId ?? "").trim();
 const getReportId = (req) =>
@@ -11,7 +13,7 @@ const toText = (value) => String(value ?? "").trim();
 const buildFilter = ({ wellId, reportId }) => {
   if (!wellId) return null;
   if (reportId) return { wellId, reportId };
-  return { wellId };
+  return { wellId, toc: { $ne: CASED_HOLE_TOC_MARKER } };
 };
 
 const toSortOrder = (value) => {
@@ -55,10 +57,11 @@ export const addCasing = async (req, res) => {
       });
     }
 
+    const isCasedHole = toText(req.body.toc) === CASED_HOLE_TOC_MARKER;
     const newCasing = await Casing.create({
       ...req.body,
       wellId,
-      reportId,
+      reportId: isCasedHole ? reportId : "",
       sortOrder: toSortOrder(req.body.sortOrder),
     });
 
@@ -80,19 +83,18 @@ export const updateCasing = async (req, res) => {
       });
     }
 
+    const isCasedHole = toText(req.body.toc) === CASED_HOLE_TOC_MARKER;
     const updatedCasing = await Casing.findOneAndUpdate(
       {
         _id: req.params.id,
         wellId,
-        ...(reportId ? { reportId } : {}),
+        ...(isCasedHole && reportId ? { reportId } : {}),
       },
       {
         ...req.body,
         wellId,
+        reportId: isCasedHole ? reportId : "",
         sortOrder: toSortOrder(req.body.sortOrder),
-        ...(req.body.reportId !== undefined || reportId
-          ? { reportId: toText(req.body.reportId ?? reportId) }
-          : {}),
       },
       { new: true }
     );
@@ -126,13 +128,7 @@ export const deleteCasing = async (req, res) => {
       ...(reportId ? { reportId } : {}),
     };
 
-    let deletedCasing = await Casing.findOneAndDelete(filter);
-    if (!deletedCasing && reportId) {
-      deletedCasing = await Casing.findOneAndDelete({
-        _id: req.params.id,
-        wellId,
-      });
-    }
+    const deletedCasing = await Casing.findOneAndDelete(filter);
     if (!deletedCasing) {
       return res
         .status(404)

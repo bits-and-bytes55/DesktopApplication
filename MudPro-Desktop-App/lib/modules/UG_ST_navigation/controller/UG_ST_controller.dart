@@ -194,10 +194,7 @@ class UgStController extends GetxController {
     });
   }
 
-  Map<String, String> get _casingQueryParams => {
-    if (reportContext.selectedReportId.value.trim().isNotEmpty)
-      'reportId': reportContext.selectedReportId.value.trim(),
-  };
+  Map<String, String> get _casingQueryParams => const {};
 
   Map<String, String> get _planQueryParams => {
     if (reportContext.selectedReportId.value.trim().isNotEmpty)
@@ -674,8 +671,6 @@ class UgStController extends GetxController {
         body: json.encode({
           ...casing.toJson(),
           'wellId': wellId,
-          if (reportContext.selectedReportId.value.trim().isNotEmpty)
-            'reportId': reportContext.selectedReportId.value.trim(),
         }),
       );
       if (response.statusCode == 201) {
@@ -705,8 +700,6 @@ class UgStController extends GetxController {
         body: json.encode({
           ...casing.toJson(),
           'wellId': wellId,
-          if (reportContext.selectedReportId.value.trim().isNotEmpty)
-            'reportId': reportContext.selectedReportId.value.trim(),
         }),
       );
       if (response.statusCode == 200) {

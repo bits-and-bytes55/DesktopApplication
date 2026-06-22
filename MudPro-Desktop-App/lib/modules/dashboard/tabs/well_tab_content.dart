@@ -4256,7 +4256,7 @@ class _TimeDistributionSectionState extends State<TimeDistributionSection> {
                                                       .toList(),
                                                 ),
                                               ),
-                                      ),
+                                       ),
                               ),
                             ),
                             Container(

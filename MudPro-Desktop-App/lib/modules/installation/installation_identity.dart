@@ -19,14 +19,10 @@ class InstallationIdentity {
     if (_id.isNotEmpty) return;
 
     final file = await _identityFile();
-    final machineKey = await _machineFingerprint();
-    _machineKey = machineKey;
     if (await file.exists()) {
       final saved = (await file.readAsString()).trim();
       final record = _parseRecord(saved);
-      if (record != null &&
-          _isValid(record.id) &&
-          record.machineKey == machineKey) {
+      if (record != null && _isValid(record.id)) {
         _id = record.id;
         _machineKey = record.machineKey;
         return;
@@ -36,8 +32,9 @@ class InstallationIdentity {
     }
 
     _id = _generateId();
+    _machineKey = _generateMachineKey();
     await file.parent.create(recursive: true);
-    await file.writeAsString(_encodeRecord(_id, machineKey), flush: true);
+    await file.writeAsString(_encodeRecord(_id, _machineKey), flush: true);
   }
 
   static bool _isValid(String value) =>
@@ -182,6 +179,12 @@ class InstallationIdentity {
         .join();
     final stamp = DateTime.now().millisecondsSinceEpoch.toRadixString(16);
     return 'mudpro_${stamp}_$token';
+  }
+
+  static String _generateMachineKey() {
+    final random = Random.secure();
+    final bytes = List<int>.generate(8, (_) => random.nextInt(256));
+    return bytes.map((byte) => byte.toRadixString(16).padLeft(2, '0')).join();
   }
 }
 
