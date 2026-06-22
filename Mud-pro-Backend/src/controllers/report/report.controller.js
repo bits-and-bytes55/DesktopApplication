@@ -582,37 +582,21 @@ const loadSourceNozzle = async ({ wellId, sourceReport }) => {
 };
 
 const loadSourceShakers = async ({ wellId, sourceReport }) => {
-  const scopedShakers = await findManyForReport({
+  return findManyForReport({
     model: Shaker,
     wellId,
     report: sourceReport,
     sort: { createdAt: 1, _id: 1 },
   });
-
-  if (scopedShakers.length > 0) {
-    return scopedShakers;
-  }
-
-  return Shaker.find(legacyScopedFilter(wellId))
-    .sort({ createdAt: 1, _id: 1 })
-    .lean();
 };
 
 const loadSourceOtherSce = async ({ wellId, sourceReport }) => {
-  const scopedOtherSce = await findManyForReport({
+  return findManyForReport({
     model: OtherSce,
     wellId,
     report: sourceReport,
     sort: { createdAt: 1, _id: 1 },
   });
-
-  if (scopedOtherSce.length > 0) {
-    return scopedOtherSce;
-  }
-
-  return OtherSce.find(legacyScopedFilter(wellId))
-    .sort({ createdAt: 1, _id: 1 })
-    .lean();
 };
 
 const cloneReportSnapshots = async ({ sourceReport, targetReport }) => {

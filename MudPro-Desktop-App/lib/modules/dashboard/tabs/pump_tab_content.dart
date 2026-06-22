@@ -406,7 +406,6 @@ class _PumpPageState extends State<PumpPage> {
     final wellId = currentBackendWellId.trim();
     final reportId = reportContext.selectedReportId.value.trim();
     if (wellId.isEmpty || reportId.isEmpty) return;
-    final cacheKey = '$wellId::$reportId';
 
     final reportShakerResult = await sceController.repository.getShakers(
       wellId,
@@ -443,12 +442,9 @@ class _PumpPageState extends State<PumpPage> {
         .map(_otherSceRowFromMap)
         .toList(growable: true);
     if (setupShakerResult['success'] == true || localSetupShakers.isNotEmpty) {
-      final cachedRows = _cachedShakerRows[cacheKey];
       final rows = reportShakers.isNotEmpty
           ? reportShakers
-          : (cachedRows == null
-              ? List.generate(_initialShakerRows, (_) => _ShakerRow())
-              : cachedRows.map(_shakerRowFromMap).toList(growable: true));
+          : List.generate(_initialShakerRows, (_) => _ShakerRow());
       while (rows.length < _initialShakerRows) {
         rows.add(_ShakerRow());
       }
@@ -457,12 +453,9 @@ class _PumpPageState extends State<PumpPage> {
     }
 
     if (setupOtherResult['success'] == true || localSetupOtherSce.isNotEmpty) {
-      final cachedRows = _cachedOtherSceRows[cacheKey];
       final rows = reportOtherSce.isNotEmpty
           ? reportOtherSce
-          : (cachedRows == null
-              ? List.generate(_initialSceRows, (_) => _OtherSceRow())
-              : cachedRows.map(_otherSceRowFromMap).toList(growable: true));
+          : List.generate(_initialSceRows, (_) => _OtherSceRow());
       while (rows.length < _initialSceRows) {
         rows.add(_OtherSceRow());
       }
@@ -1452,7 +1445,7 @@ class _PumpPageState extends State<PumpPage> {
                     return;
                   }
                   row.shakerType.value = sel;
-                  await _applyShakerScreensFromType(row);
+                  await _applyShakerDataFromType(row);
                   // ✅ Auto-add row when last row gets a type selected
                   _checkAddShakerRow(rowIndex);
                   _scheduleSaveShakerRow(row);
@@ -1618,6 +1611,30 @@ class _PumpPageState extends State<PumpPage> {
     _clearDisabledShakerScreens(row);
   }
 
+  Future<void> _applyShakerDataFromType(_ShakerRow row) async {
+    final shakerType = row.shakerType.value.trim();
+    if (shakerType.isEmpty) {
+      row.enabledScreens.value = 0;
+      _clearDisabledShakerScreens(row);
+      return;
+    }
+
+    final data = await sceController.getShakerDataByType(shakerType);
+    if (data == null) {
+      await _applyShakerScreensFromType(row);
+      return;
+    }
+
+    final model = data['model']?.toString().trim() ?? '';
+    if (model.isNotEmpty) {
+      row.model.value = model;
+    }
+
+    final screenCount = int.tryParse(data['screens']?.toString() ?? '') ?? 0;
+    row.enabledScreens.value = screenCount.clamp(0, _totalScreenCols);
+    _clearDisabledShakerScreens(row);
+  }
+
   void _clearDisabledShakerScreens(_ShakerRow row) {
     final fields = [
       row.screen1,
@@ -1633,6 +1650,49 @@ class _PumpPageState extends State<PumpPage> {
     for (var i = row.enabledScreens.value; i < fields.length; i++) {
       fields[i].value = '';
     }
+  }
+
+  Future<void> _applyOtherSceDataFromType(_OtherSceRow row) async {
+    final sceType = row.type.value.trim();
+    if (sceType.isEmpty) return;
+
+    final data = await sceController.getOtherSceDataByType(sceType);
+    _applyOtherSceData(row, data);
+  }
+
+  Future<void> _applyOtherSceDataFromModel(_OtherSceRow row) async {
+    final model = row.model.value.trim();
+    if (model.isEmpty) return;
+
+    final data = await sceController.getOtherSceDataByModel(model);
+    _applyOtherSceData(row, data, fillType: row.type.value.trim().isEmpty);
+  }
+
+  void _applyOtherSceData(
+    _OtherSceRow row,
+    Map<String, dynamic>? data, {
+    bool fillType = false,
+  }) {
+    if (data == null) return;
+
+    final type = data['type']?.toString().trim() ?? '';
+    if (fillType && type.isNotEmpty) {
+      row.type.value = type;
+    }
+
+    final model = data['model1']?.toString().trim() ?? '';
+    if (model.isNotEmpty) {
+      row.model.value = model;
+    }
+
+    final uf = data['uf']?.toString().trim() ?? '';
+    final of = data['of']?.toString().trim() ?? '';
+    final time = data['time']?.toString().trim() ?? '';
+    final oocWt = data['oocWt']?.toString().trim() ?? '';
+    if (uf.isNotEmpty) row.uf.value = uf;
+    if (of.isNotEmpty) row.of_.value = of;
+    if (time.isNotEmpty) row.time.value = time;
+    if (oocWt.isNotEmpty) row.oocWt.value = oocWt;
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -1958,7 +2018,7 @@ class _PumpPageState extends State<PumpPage> {
           style: const TextStyle(fontSize: 11, color: Colors.black),
           onChanged: isLocked
               ? null
-              : (sel) {
+              : (sel) async {
                   if (sel == null || sel.isEmpty) {
                     _clearOtherSceRow(row);
                     _rememberReportSceRows();
@@ -1966,6 +2026,7 @@ class _PumpPageState extends State<PumpPage> {
                     return;
                   }
                   row.type.value = sel;
+                  await _applyOtherSceDataFromType(row);
                   // ✅ Auto-add row when last row gets a type
                   _checkAddSceRow(rowIndex);
                   _scheduleSaveOtherSceRow(row);
@@ -2004,7 +2065,7 @@ class _PumpPageState extends State<PumpPage> {
           style: const TextStyle(fontSize: 11, color: Colors.black),
           onChanged: isLocked
               ? null
-              : (sel) {
+              : (sel) async {
                   if (sel == null || sel.isEmpty) {
                     _clearOtherSceRow(row);
                     _rememberReportSceRows();
@@ -2012,6 +2073,7 @@ class _PumpPageState extends State<PumpPage> {
                     return;
                   }
                   row.model.value = sel;
+                  await _applyOtherSceDataFromModel(row);
                   // ✅ Auto-add row when last row's model is selected
                   _checkAddSceRow(rowIndex);
                   _scheduleSaveOtherSceRow(row);
