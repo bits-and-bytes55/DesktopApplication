@@ -116,6 +116,7 @@ class UgStController extends GetxController {
 
   @override
   void onClose() {
+    unawaited(flushPendingCasingSave());
     casingVerticalScroll.dispose();
     casingHorizontalScroll.dispose();
     _casingAutoSaveTimer?.cancel();
@@ -192,6 +193,39 @@ class UgStController extends GetxController {
         _isSavingCasing = false;
       }
     });
+  }
+
+  Future<void> flushPendingCasingSave() async {
+    final pending = _pendingCasingAutoSave;
+    _casingAutoSaveTimer?.cancel();
+    _casingAutoSaveTimer = null;
+    if (pending == null ||
+        isLocked.value ||
+        isLoading.value ||
+        _selectedWellId.isEmpty ||
+        !_hasCasingData(pending)) {
+      return;
+    }
+
+    while (_isSavingCasing) {
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    }
+
+    _isSavingCasing = true;
+    try {
+      final isNew = pending.dbId == null || pending.dbId!.trim().isEmpty;
+      final saved = isNew
+          ? await addCasing(pending, refresh: false)
+          : await updateCasing(pending, refresh: false);
+      if (saved && isNew) {
+        casings.refresh();
+      }
+    } finally {
+      _isSavingCasing = false;
+      if (identical(_pendingCasingAutoSave, pending)) {
+        _pendingCasingAutoSave = null;
+      }
+    }
   }
 
   Map<String, String> get _casingQueryParams => const {};

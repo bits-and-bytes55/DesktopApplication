@@ -748,6 +748,9 @@ class _DraftCasingRowState extends State<_DraftCasingRow> {
   @override
   void dispose() {
     _timer?.cancel();
+    if (_hasData && !_isSaving) {
+      unawaited(_save());
+    }
     _descFocus.dispose();
     _odFocus.dispose();
     _wtFocus.dispose();
@@ -777,16 +780,6 @@ class _DraftCasingRowState extends State<_DraftCasingRow> {
       _shoe.text.trim().isNotEmpty ||
       _bit.text.trim().isNotEmpty ||
       _toc.text.trim().isNotEmpty;
-
-  bool get _hasInputFocus =>
-      _descFocus.hasFocus ||
-      _odFocus.hasFocus ||
-      _wtFocus.hasFocus ||
-      _idFocus.hasFocus ||
-      _topFocus.hasFocus ||
-      _shoeFocus.hasFocus ||
-      _bitFocus.hasFocus ||
-      _tocFocus.hasFocus;
 
   Map<String, String> _draftMap() => {
     'description': _desc.text.trim(),
@@ -822,10 +815,6 @@ class _DraftCasingRowState extends State<_DraftCasingRow> {
 
   Future<void> _save() async {
     if (widget.locked || !_hasData || _isSaving) return;
-    if (_hasInputFocus) {
-      _scheduleSave();
-      return;
-    }
     _isSaving = true;
     final row = CasingRow(
       description: _desc.text.trim(),
