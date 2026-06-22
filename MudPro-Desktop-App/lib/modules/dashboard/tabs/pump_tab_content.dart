@@ -408,6 +408,14 @@ class _PumpPageState extends State<PumpPage> {
     if (wellId.isEmpty || reportId.isEmpty) return;
     final cacheKey = '$wellId::$reportId';
 
+    final reportShakerResult = await sceController.repository.getShakers(
+      wellId,
+      includeReportId: true,
+    );
+    final reportOtherResult = await sceController.repository.getOtherSce(
+      wellId,
+      includeReportId: true,
+    );
     final setupShakerResult = await sceController.repository.getShakers(
       wellId,
       includeReportId: false,
@@ -424,11 +432,23 @@ class _PumpPageState extends State<PumpPage> {
         .where((row) => row.hasData)
         .map((row) => row.toJson())
         .toList(growable: false);
+    final reportShakers = (reportShakerResult['data'] as List? ?? const [])
+        .whereType<Map>()
+        .where((item) => item['reportId']?.toString() == reportId)
+        .map(_shakerRowFromMap)
+        .toList(growable: true);
+    final reportOtherSce = (reportOtherResult['data'] as List? ?? const [])
+        .whereType<Map>()
+        .where((item) => item['reportId']?.toString() == reportId)
+        .map(_otherSceRowFromMap)
+        .toList(growable: true);
     if (setupShakerResult['success'] == true || localSetupShakers.isNotEmpty) {
       final cachedRows = _cachedShakerRows[cacheKey];
-      final rows = cachedRows == null
-          ? List.generate(_initialShakerRows, (_) => _ShakerRow())
-          : cachedRows.map(_shakerRowFromMap).toList(growable: true);
+      final rows = reportShakers.isNotEmpty
+          ? reportShakers
+          : (cachedRows == null
+              ? List.generate(_initialShakerRows, (_) => _ShakerRow())
+              : cachedRows.map(_shakerRowFromMap).toList(growable: true));
       while (rows.length < _initialShakerRows) {
         rows.add(_ShakerRow());
       }
@@ -438,9 +458,11 @@ class _PumpPageState extends State<PumpPage> {
 
     if (setupOtherResult['success'] == true || localSetupOtherSce.isNotEmpty) {
       final cachedRows = _cachedOtherSceRows[cacheKey];
-      final rows = cachedRows == null
-          ? List.generate(_initialSceRows, (_) => _OtherSceRow())
-          : cachedRows.map(_otherSceRowFromMap).toList(growable: true);
+      final rows = reportOtherSce.isNotEmpty
+          ? reportOtherSce
+          : (cachedRows == null
+              ? List.generate(_initialSceRows, (_) => _OtherSceRow())
+              : cachedRows.map(_otherSceRowFromMap).toList(growable: true));
       while (rows.length < _initialSceRows) {
         rows.add(_OtherSceRow());
       }
