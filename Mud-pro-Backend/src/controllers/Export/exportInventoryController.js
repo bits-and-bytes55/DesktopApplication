@@ -1994,16 +1994,14 @@ const fillDmrBottomSections = (ws, {
   pumps.slice(0, 4).forEach((pump, index) => {
     const startColumn = ["L", "R", "X", "AD"][index];
     const baseColumn = columnToNumber(startColumn);
-    const displacement = firstMeaningfulText(
-      pump.displacement,
-      calculatePumpDisplacement(pump)
-    );
+    const displacement = getPumpDisplacement(pump);
     ws.getRow(100).getCell(baseColumn).value = index + 1;
     ws.getRow(101).getCell(baseColumn).value = roundOrBlank(pump.linerId, 3);
     ws.getRow(102).getCell(baseColumn).value = roundOrBlank(pump.strokeLength, 3);
     ws.getRow(103).getCell(baseColumn).value = roundOrBlank(pump.efficiency, 2);
     ws.getRow(104).getCell(baseColumn).value = roundOrBlank(pump.spm, 2);
-    ws.getRow(105).getCell(baseColumn).value = roundOrBlank(displacement, 4);
+    ws.getRow(105).getCell(baseColumn).value =
+      displacement > 0 ? round(displacement, 4) : "";
   });
 
   const pumpFlow = summarizePumpFlow(pumps);
