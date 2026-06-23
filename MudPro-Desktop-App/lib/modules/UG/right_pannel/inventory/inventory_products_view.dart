@@ -283,6 +283,27 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
     }).toList();
   }
 
+  String _unitForObmItem(ObmModel item) {
+    final directUnit = item.unit.trim();
+    if (directUnit.isNotEmpty) return directUnit;
+    if (!Get.isRegistered<InventoryProductsStore>()) return '';
+
+    final store = Get.find<InventoryProductsStore>();
+    final itemCode = item.code.trim().toLowerCase();
+    final itemName = item.product.trim().toLowerCase();
+    for (final product in store.selectedProducts) {
+      final codeMatches =
+          itemCode.isNotEmpty && product.code.trim().toLowerCase() == itemCode;
+      final nameMatches =
+          itemName.isNotEmpty &&
+          product.product.trim().toLowerCase() == itemName;
+      if (codeMatches || nameMatches) {
+        return product.formattedUnit;
+      }
+    }
+    return '';
+  }
+
   void _schedulePremixedDraftSave() {
     if (c.isLocked.value) return;
     _premixedCreateTimer?.cancel();
@@ -1576,20 +1597,22 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
 	                                final index = entry.key;
 	                                final e = entry.value;
 	                                final rowCells = [
-	                                  _tableCell((index + 1).toString()),
-	                                  _readOnlyInventoryCell(e.product),
-	                                  _readOnlyInventoryCell(e.code),
-	                                  _readOnlyInventoryCell(e.sg),
-	                                  _editableTableCell(
-	                                    e.conc,
-	                                    key: ValueKey('${e.id}-conc'),
-	                                    onChanged: (v) {
-	                                      e.conc = v;
-	                                      _scheduleObmUpdate(e);
-	                                    },
-	                                  ),
-	                                  _readOnlyInventoryCell(e.unit),
-	                                ];
+		                                  _tableCell((index + 1).toString()),
+		                                  _readOnlyInventoryCell(e.product),
+		                                  _readOnlyInventoryCell(e.code),
+		                                  _readOnlyInventoryCell(e.sg),
+		                                  _editableTableCell(
+		                                    e.conc,
+		                                    key: ValueKey('${e.id}-conc'),
+		                                    onChanged: (v) {
+		                                      e.conc = v;
+		                                      _scheduleObmUpdate(e);
+		                                    },
+		                                  ),
+		                                  _readOnlyInventoryCell(
+		                                    _unitForObmItem(e),
+		                                  ),
+		                                ];
 
 	                                return TableRow(
 	                                  decoration: BoxDecoration(

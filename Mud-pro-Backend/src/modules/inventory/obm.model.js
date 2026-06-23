@@ -18,6 +18,11 @@ const obmSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  unit: {
+    type: String,
+    default: '',
+    trim: true
+  },
   wellId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Well',
