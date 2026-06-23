@@ -1,10 +1,11 @@
-import dotenv from "dotenv";  
-import "./src/plugins/installationScopePlugin.js";
-import app from "./src/app.js";
-import connectDB from "./src/config/db.js";
-
+import dotenv from "dotenv";
 
 dotenv.config();
+
+await import("./src/plugins/installationScopePlugin.js");
+const { default: app } = await import("./src/app.js");
+const { default: connectDB } = await import("./src/config/db.js");
+
 connectDB();
 
 
