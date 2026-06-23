@@ -97,7 +97,7 @@ const SERVICE_ROWS = { start: 76, end: 84 };
 const ACTIVE_PIT_ROWS = { start: 77, end: 84 };
 const TIME_ROWS = { start: 75, end: 84 };
 const ENGINEERING_ROWS = { start: 87, end: 91 };
-const RESERVE_ROWS = { start: 95, end: 101 };
+const RESERVE_ROWS = { start: 91, end: 101 };
 
 const PRODUCT_COLUMNS = [
   "A",
@@ -2185,6 +2185,10 @@ const fillInventorySheet = (ws, {
   setCellValue(ws, "AA74", "Time Breakdown");
   setCellValue(ws, "A85", "Engineering");
   setCellValue(ws, "M89", "Reserve");
+  applyRangeBorder(ws, "M88", "AD89", {
+    bottom: { style: "thin", color: { argb: "FF000000" } },
+    top: { style: "thin", color: { argb: "FF000000" } },
+  });
   applyRangeBorder(ws, "M89", "AD101", {
     top: { style: "thin", color: { argb: "FF000000" } },
     left: { style: "thin", color: { argb: "FF000000" } },
@@ -2260,7 +2264,7 @@ const fillInventorySheet = (ws, {
   fitColumnRange(ws, "M", 77, 84);
   fitColumnRange(ws, "AA", 75, 84);
   fitColumnRange(ws, "A", 87, 91);
-  fitColumnRange(ws, "M", 95, 101);
+  fitColumnRange(ws, "M", 91, 101);
 
   const totalDailyCost = round(
     costSummary?.totalDailyCost ?? productDailyCost + engineeringDailyCost,
