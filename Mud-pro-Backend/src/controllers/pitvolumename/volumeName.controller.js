@@ -1487,6 +1487,11 @@ export const calculateEndVolForReport = async ({
   const normalizedAddWaterEntries = normalizeAddWaterItems(addWaterEntries);
   const normalizedOtherVolAdditions =
     normalizeOtherVolAdditionItems(otherVolAdditions);
+  const activeSystemMudLossTotal = Number(
+    normalizedMudLossEntries
+      .reduce((sum, item) => sum + toNumber(item.totalLoss), 0)
+      .toFixed(2)
+  );
 
   const operationVolumeEffects = buildOperationVolumeEffects({
     receivedMud,
@@ -1573,6 +1578,10 @@ export const calculateEndVolForReport = async ({
 
   if (operationVolumeEffects.forceEndVolZero) return 0;
 
+  if (normalizedMudLossEntries.length > 0) {
+    return round2(derivedActiveSystem - activeSystemMudLossTotal);
+  }
+
   if (hasOperationVolumeRows && hasPendingActiveSystemInput && previousEndVol > 0) {
     return round2(previousEndVol + effectiveEndVolDelta - pendingActiveSystemInput);
   }
@@ -1581,10 +1590,6 @@ export const calculateEndVolForReport = async ({
     return previousEndVol > 0
       ? round2(previousEndVol + operationOnlyEndVolDelta)
       : operationOnlyEndVolDelta;
-  }
-
-  if (normalizedMudLossEntries.length > 0) {
-    return round2(derivedActiveSystem + operationVolumeEffects.endVolDelta);
   }
 
   if (hasOperationVolumeRows) {
@@ -2056,6 +2061,11 @@ export const getVolumeNameCalculation = async (req, res) => {
     const normalizedAddWaterEntries = normalizeAddWaterItems(addWaterEntries);
     const normalizedOtherVolAdditions =
       normalizeOtherVolAdditionItems(otherVolAdditions);
+    const activeSystemMudLossTotal = Number(
+      normalizedMudLossEntries
+        .reduce((sum, item) => sum + toNumber(item.totalLoss), 0)
+        .toFixed(2)
+    );
 
     const md = toNumber(wellGeneral?.md);
 
@@ -2274,13 +2284,13 @@ export const getVolumeNameCalculation = async (req, res) => {
     const endVolBase = round2(previousEndVol);
     const operationRowsEndVol =
       hasOperationVolumeRows
-        ? hasPendingActiveSystemInput && endVolBase > 0
-          ? round2(endVolBase + effectiveEndVolDelta - pendingActiveSystemInput)
-          : hasFullyAdjustedActiveSystemInput && endVolBase > 0
-            ? round2(endVolBase + operationOnlyEndVolDelta)
-            : normalizedMudLossEntries.length > 0
-              ? round2(derivedActiveSystem + operationVolumeEffects.endVolDelta)
-          : operationOnlyEndVolDelta
+        ? normalizedMudLossEntries.length > 0
+          ? round2(derivedActiveSystem - activeSystemMudLossTotal)
+          : hasPendingActiveSystemInput && endVolBase > 0
+            ? round2(endVolBase + effectiveEndVolDelta - pendingActiveSystemInput)
+            : hasFullyAdjustedActiveSystemInput && endVolBase > 0
+              ? round2(endVolBase + operationOnlyEndVolDelta)
+              : operationOnlyEndVolDelta
         : null;
     const endVol = !hasCurrentReportVolumeData
       ? 0
@@ -2299,6 +2309,8 @@ export const getVolumeNameCalculation = async (req, res) => {
     let endVolMinusActiveSystem = 0;
     if (!hasCurrentReportVolumeData) {
       endVolMinusActiveSystem = 0;
+    } else if (normalizedMudLossEntries.length > 0) {
+      endVolMinusActiveSystem = round2(-activeSystemMudLossTotal);
     } else if (hasPendingActiveSystemInput && endVolBase > 0) {
       endVolMinusActiveSystem = pendingActiveSystemInput;
     } else if (hasFullyAdjustedActiveSystemInput && hasOperationVolumeRows) {
