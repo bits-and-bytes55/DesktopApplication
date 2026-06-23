@@ -1094,6 +1094,7 @@ const calculateAdjustedActiveSystemPendingInput = ({
   otherVolAdditions = [],
   activePitsList = [],
   activePitBaselineByName = new Map(),
+  activePitsSnapshot,
 }) => {
   const activeSystemPendingEntries = [
     ...addWaterEntries.filter(
@@ -1112,6 +1113,23 @@ const calculateAdjustedActiveSystemPendingInput = ({
   if (!pendingTimes.length) return 0;
 
   const firstPendingTime = Math.min(...pendingTimes);
+  if (
+    activePitBaselineByName.size === 0 &&
+    activePitsSnapshot !== null &&
+    activePitsSnapshot !== undefined
+  ) {
+    const hasPitAdjustedAfterPending = activePitsList.some((pit) => {
+      const pitTime = itemTime(pit);
+      return Number.isFinite(pitTime) && pitTime >= firstPendingTime;
+    });
+    if (!hasPitAdjustedAfterPending) return 0;
+
+    const currentActivePits = Number(
+      activePitsList.reduce((sum, pit) => sum + toNumber(pit.volume), 0).toFixed(2)
+    );
+    return round2(Math.max(0, currentActivePits - toNumber(activePitsSnapshot)));
+  }
+
   const adjustedActivePitVolume = activePitsList.reduce((sum, pit) => {
     const pitTime = itemTime(pit);
     if (!Number.isFinite(pitTime) || pitTime < firstPendingTime) return sum;
@@ -1571,6 +1589,7 @@ export const calculateEndVolForReport = async ({
       otherVolAdditions: normalizedOtherVolAdditions,
       activePitsList,
       activePitBaselineByName: previousActivePitBaselineByName,
+      activePitsSnapshot: reportMeta?.volumeNameHoleActivePitsSnapshot,
     });
   const pendingActiveSystemInput = round2(
     Math.max(0, activeSystemPendingInput - adjustedActiveSystemPendingInput)
@@ -2272,6 +2291,7 @@ export const getVolumeNameCalculation = async (req, res) => {
         otherVolAdditions: normalizedOtherVolAdditions,
         activePitsList,
         activePitBaselineByName: previousActivePitBaselineByName,
+        activePitsSnapshot: reportMeta?.volumeNameHoleActivePitsSnapshot,
       });
     const pendingActiveSystemInput = round2(
       Math.max(
