@@ -802,6 +802,16 @@ const applyRangeAlignment = (ws, startCell, endCell, alignment) => {
     }
   }
 };
+const applyRangeBorder = (ws, startCell, endCell, border) => {
+  const [, sc, sr] = startCell.match(/^([A-Z]+)(\d+)$/i) || [];
+  const [, ec, er] = endCell.match(/^([A-Z]+)(\d+)$/i) || [];
+  if (!sc || !sr || !ec || !er) return;
+  for (let row = Number(sr); row <= Number(er); row += 1) {
+    for (let col = columnToNumber(sc); col <= columnToNumber(ec); col += 1) {
+      ws.getRow(row).getCell(col).border = border;
+    }
+  }
+};
 const clearRange = (ws, startCell, endCell) => {
   const [, sc, sr] = startCell.match(/^([A-Z]+)(\d+)$/i) || [];
   const [, ec, er] = endCell.match(/^([A-Z]+)(\d+)$/i) || [];
@@ -2175,6 +2185,12 @@ const fillInventorySheet = (ws, {
   setCellValue(ws, "AA74", "Time Breakdown");
   setCellValue(ws, "A85", "Engineering");
   setCellValue(ws, "M89", "Reserve");
+  applyRangeBorder(ws, "M89", "AD101", {
+    top: { style: "thin", color: { argb: "FF000000" } },
+    left: { style: "thin", color: { argb: "FF000000" } },
+    bottom: { style: "thin", color: { argb: "FF000000" } },
+    right: { style: "thin", color: { argb: "FF000000" } },
+  });
   setCellValue(ws, "A92", "Cost Summary");
 
   writeRows(ws, PRODUCT_ROWS, PRODUCT_COLUMNS, productRows, (item) => ({
