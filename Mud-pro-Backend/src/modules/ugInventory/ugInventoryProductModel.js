@@ -31,6 +31,7 @@ const obmItemSchema = new mongoose.Schema({
   code:    { type: String, default: "" },
   sg:      { type: String, default: "" },
   conc:    { type: String, default: "" },
+  unit:    { type: String, default: "" },
 });
 
 // ── Services Categories ──────────────────────────────────────────
