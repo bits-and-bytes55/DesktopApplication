@@ -64,9 +64,10 @@ export const createMudLoss = async (req, res) => {
       });
     }
 
-    await deductFromActivePits({ wellId, reportId, totalLoss });
-
-    const item = await MudLoss.create({
+    const normalizedOperationInstanceKey = String(
+      operationInstanceKey || ""
+    ).trim();
+    const payload = {
       wellId,
       reportId,
       cuttingsRetention: toNumber(cuttingsRetention),
@@ -82,9 +83,20 @@ export const createMudLoss = async (req, res) => {
       tripping: toNumber(tripping),
       extraLossLabel: String(extraLossLabel || "").trim(),
       extraLossVolume: extraLossVol,
-      operationInstanceKey: String(operationInstanceKey || "").trim(),
+      operationInstanceKey: normalizedOperationInstanceKey,
       totalLoss,
-    });
+    };
+
+    await deductFromActivePits({ wellId, reportId, totalLoss });
+
+    const scopeFilter = buildScopedFilter(wellId, reportId);
+    const item = normalizedOperationInstanceKey
+      ? await MudLoss.findOneAndUpdate(
+          { ...scopeFilter, operationInstanceKey: normalizedOperationInstanceKey },
+          payload,
+          { new: true, upsert: true, setDefaultsOnInsert: true }
+        )
+      : await MudLoss.create(payload);
 
     return res.status(201).json({
       success: true,

@@ -184,6 +184,26 @@ const normalizeOtherVolAdditionItems = (items = []) => {
   return [...latestByInstance.values(), ...unscopedItems];
 };
 
+const normalizeMudLossItems = (items = []) => {
+  const latestByInstance = new Map();
+  const unscopedItems = [];
+
+  for (const item of items) {
+    const operationInstanceKey = toText(item.operationInstanceKey);
+    if (!operationInstanceKey) {
+      unscopedItems.push(item);
+      continue;
+    }
+
+    const existing = latestByInstance.get(operationInstanceKey);
+    if (!existing || itemTime(item) >= itemTime(existing)) {
+      latestByInstance.set(operationInstanceKey, item);
+    }
+  }
+
+  return [...latestByInstance.values(), ...unscopedItems];
+};
+
 const rawCylinderVolume = ({ id, length }) => {
   const idIn = toNumber(id);
   const lengthFt = toNumber(length);
@@ -1406,6 +1426,7 @@ export const calculateEndVolForReport = async ({
 
   const normalizedMudLossStorageEntries =
     normalizeMudLossStorageItems(mudLossStorageEntries);
+  const normalizedMudLossEntries = normalizeMudLossItems(mudLossEntries);
   const normalizedAddWaterEntries = normalizeAddWaterItems(addWaterEntries);
   const normalizedOtherVolAdditions =
     normalizeOtherVolAdditionItems(otherVolAdditions);
@@ -1415,7 +1436,7 @@ export const calculateEndVolForReport = async ({
     returnLostMud,
     addWaterEntries: normalizedAddWaterEntries,
     otherVolAdditions: normalizedOtherVolAdditions,
-    mudLossEntries,
+    mudLossEntries: normalizedMudLossEntries,
     mudLossStorageEntries: normalizedMudLossStorageEntries,
     transferMudEntries,
     emptyFluidEntries,
@@ -1469,7 +1490,7 @@ export const calculateEndVolForReport = async ({
     returnLostMud.length > 0 ||
     normalizedAddWaterEntries.length > 0 ||
     normalizedOtherVolAdditions.length > 0 ||
-    mudLossEntries.length > 0 ||
+    normalizedMudLossEntries.length > 0 ||
     normalizedMudLossStorageEntries.length > 0 ||
     transferMudEntries.length > 0 ||
     emptyFluidEntries.length > 0;
@@ -1505,7 +1526,7 @@ export const calculateEndVolForReport = async ({
       : operationOnlyEndVolDelta;
   }
 
-  if (mudLossEntries.length > 0) {
+  if (normalizedMudLossEntries.length > 0) {
     return round2(derivedActiveSystem + operationOnlyEndVolDelta);
   }
 
@@ -1932,6 +1953,7 @@ export const getVolumeNameCalculation = async (req, res) => {
 
     const normalizedMudLossStorageEntries =
       normalizeMudLossStorageItems(mudLossStorageEntries);
+    const normalizedMudLossEntries = normalizeMudLossItems(mudLossEntries);
     const normalizedAddWaterEntries = normalizeAddWaterItems(addWaterEntries);
     const normalizedOtherVolAdditions =
       normalizeOtherVolAdditionItems(otherVolAdditions);
@@ -2045,7 +2067,7 @@ export const getVolumeNameCalculation = async (req, res) => {
       returnLostMud,
       addWaterEntries: normalizedAddWaterEntries,
       otherVolAdditions: normalizedOtherVolAdditions,
-      mudLossEntries,
+      mudLossEntries: normalizedMudLossEntries,
       mudLossStorageEntries: normalizedMudLossStorageEntries,
       transferMudEntries,
       emptyFluidEntries,
@@ -2110,7 +2132,7 @@ export const getVolumeNameCalculation = async (req, res) => {
       returnLostMud.length > 0 ||
       normalizedAddWaterEntries.length > 0 ||
       normalizedOtherVolAdditions.length > 0 ||
-      mudLossEntries.length > 0 ||
+      normalizedMudLossEntries.length > 0 ||
       normalizedMudLossStorageEntries.length > 0 ||
       transferMudEntries.length > 0 ||
       emptyFluidEntries.length > 0;
@@ -2157,7 +2179,7 @@ export const getVolumeNameCalculation = async (req, res) => {
           ? round2(endVolBase + effectiveEndVolDelta - pendingActiveSystemInput)
           : hasFullyAdjustedActiveSystemInput && endVolBase > 0
             ? round2(endVolBase + operationOnlyEndVolDelta)
-            : mudLossEntries.length > 0
+            : normalizedMudLossEntries.length > 0
               ? round2(derivedActiveSystem + operationOnlyEndVolDelta)
           : operationOnlyEndVolDelta
         : null;
@@ -2217,7 +2239,9 @@ export const getVolumeNameCalculation = async (req, res) => {
     );
 
     const mudLossTotal = Number(
-      mudLossEntries.reduce((sum, item) => sum + toNumber(item.totalLoss), 0).toFixed(2)
+      normalizedMudLossEntries
+        .reduce((sum, item) => sum + toNumber(item.totalLoss), 0)
+        .toFixed(2)
     );
 
     const mudLossStorageTotal = Number(
@@ -2412,7 +2436,7 @@ export const getVolumeNameCalculation = async (req, res) => {
             createdAt: item.createdAt,
             updatedAt: item.updatedAt,
           })),
-          mudLoss: mudLossEntries.map((item) => ({
+          mudLoss: normalizedMudLossEntries.map((item) => ({
             totalLoss: toNumber(item.totalLoss),
             operationInstanceKey: toText(item.operationInstanceKey),
             createdAt: item.createdAt,
