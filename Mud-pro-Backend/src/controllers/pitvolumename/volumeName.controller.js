@@ -1560,6 +1560,10 @@ export const calculateEndVolForReport = async ({
       activeSystemVolume +
       operationVolumeEffects.otherVolActiveSystemDelta
   );
+  const activeSystemPendingInputForMudLoss = round2(
+    operationVolumeEffects.addWaterActiveSystemDelta +
+      operationVolumeEffects.otherVolActiveSystemDelta
+  );
   const adjustedActiveSystemPendingInput =
     calculateAdjustedActiveSystemPendingInput({
       addWaterEntries: normalizedAddWaterEntries,
@@ -1578,11 +1582,8 @@ export const calculateEndVolForReport = async ({
   const hasFullyAdjustedActiveSystemInput =
     activeSystemPendingInput > 0.005 &&
     adjustedActiveSystemPendingInput + 0.005 >= activeSystemPendingInput;
-  const activeSystemInputBalance = hasFullyAdjustedActiveSystemInput
-    ? activeSystemAdjustmentBalance
-    : pendingActiveSystemInput;
   const mudLossActiveSystemBalance = round2(
-    activeSystemInputBalance - pendingActiveSystemMudLoss
+    activeSystemPendingInputForMudLoss - pendingActiveSystemMudLoss
   );
   const effectiveEndVolDelta = round2(
     operationVolumeEffects.endVolDelta -
@@ -2260,6 +2261,10 @@ export const getVolumeNameCalculation = async (req, res) => {
         activeSystemVolume +
         operationVolumeEffects.otherVolActiveSystemDelta
     );
+    const activeSystemPendingInputForMudLoss = round2(
+      operationVolumeEffects.addWaterActiveSystemDelta +
+        operationVolumeEffects.otherVolActiveSystemDelta
+    );
     const adjustedActiveSystemPendingInput =
       calculateAdjustedActiveSystemPendingInput({
         addWaterEntries: normalizedAddWaterEntries,
@@ -2281,11 +2286,8 @@ export const getVolumeNameCalculation = async (req, res) => {
     const hasFullyAdjustedActiveSystemInput =
       activeSystemPendingInput > 0.005 &&
       adjustedActiveSystemPendingInput + 0.005 >= activeSystemPendingInput;
-    const activeSystemInputBalance = hasFullyAdjustedActiveSystemInput
-      ? activeSystemAdjustmentBalance
-      : pendingActiveSystemInput;
     const mudLossActiveSystemBalance = round2(
-      activeSystemInputBalance - pendingActiveSystemMudLoss
+      activeSystemPendingInputForMudLoss - pendingActiveSystemMudLoss
     );
     const effectiveEndVolDelta = round2(
       operationVolumeEffects.endVolDelta -
