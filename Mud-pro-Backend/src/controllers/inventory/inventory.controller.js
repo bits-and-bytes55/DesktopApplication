@@ -162,7 +162,7 @@ export const getObm = async (req, res) => {
 export const createObm = async (req, res) => {
   try {
     const { wellId } = req.params;
-    const { product, code, sg, conc } = req.body;
+    const { product, code, sg, conc, unit } = req.body;
     
     // Validation
     if (!product || !code || !sg || !conc) {
@@ -177,6 +177,7 @@ export const createObm = async (req, res) => {
       code,
       sg,
       conc,
+      unit: unit ?? '',
       wellId
     });
     
@@ -201,7 +202,7 @@ export const createObm = async (req, res) => {
 export const updateObm = async (req, res) => {
   try {
     const { id } = req.params;
-    const { product, code, sg, conc } = req.body;
+    const { product, code, sg, conc, unit } = req.body;
     
     const updatedObm = await Obm.findByIdAndUpdate(
       id,
@@ -210,6 +211,7 @@ export const updateObm = async (req, res) => {
         code,
         sg,
         conc,
+        unit: unit ?? '',
         updatedAt: Date.now()
       },
       { new: true, runValidators: true }

@@ -48,6 +48,13 @@ const keyFromCodeOrName = (code, name, fallback) => {
   return fallback;
 };
 
+const isChecked = (value) =>
+  value === true ||
+  value === 1 ||
+  normalizeText(value) === "true" ||
+  normalizeText(value) === "1" ||
+  normalizeText(value) === "yes";
+
 const summaryFromRows = (rows = []) => {
   const first = rows[0] || {};
   return {
@@ -332,21 +339,22 @@ export const generateInventorySnapshot = async (req, res) => {
 
     let snapshotData = [];
 
-    const productKeys = [
-      ...new Set([
-        ...receives.map((row, index) =>
-          keyFromCodeOrName(row.code, row.productName, `receive:${index}`)
-        ),
-        ...consumes.map((row, index) =>
-          keyFromCodeOrName(row.code, row.product, `consume:${index}`)
-        ),
-        ...returns.map((row, index) =>
-          keyFromCodeOrName(row.code, row.productName, `return:${index}`)
-        ),
-      ]),
-    ];
+    const plottedInventoryProducts = (inventoryConfig?.products || [])
+      .map((row, index) => ({ row, index }))
+      .filter(({ row }) => isChecked(row?.plot));
+
+    const productConfigByKey = new Map();
+    const productKeys = [];
+    for (const { row, index } of plottedInventoryProducts) {
+      const key = keyFromCodeOrName(row.code, row.product, `inventory:${index}`);
+      if (!productConfigByKey.has(key)) {
+        productConfigByKey.set(key, { ...row, sortOrder: index + 1 });
+        productKeys.push(key);
+      }
+    }
 
     for (const key of productKeys) {
+      const inventoryProduct = productConfigByKey.get(key) || {};
       const productReceives = receives.filter(
         (row, index) =>
           keyFromCodeOrName(row.code, row.productName, `receive:${index}`) === key
@@ -373,22 +381,25 @@ export const generateInventorySnapshot = async (req, res) => {
         productConsumes.reduce((sum, row) => sum + toNumber(row.adjust), 0)
       );
 
-      const price = round2(productConsumes[0]?.price);
-      const initial = round2(productConsumes[0]?.initial);
+      const price = round2(inventoryProduct.price || productConsumes[0]?.price);
+      const initial = round2(inventoryProduct.initial || productConsumes[0]?.initial);
 
       const itemName =
+        inventoryProduct.product ||
         productReceives[0]?.productName ||
         productConsumes[0]?.product ||
         productReturns[0]?.productName ||
         "";
 
       const code =
+        inventoryProduct.code ||
         productReceives[0]?.code ||
         productConsumes[0]?.code ||
         productReturns[0]?.code ||
         "";
 
       const unit =
+        inventoryProduct.unit ||
         productReceives[0]?.unit ||
         productConsumes[0]?.unit ||
         productReturns[0]?.unit ||
@@ -418,7 +429,7 @@ export const generateInventorySnapshot = async (req, res) => {
         final: finalVal,
         subtotal,
         costDollar: subtotal,
-        sortOrder: toNumber(productConsumes[0]?.sortOrder),
+        sortOrder: toNumber(inventoryProduct.sortOrder || productConsumes[0]?.sortOrder),
       });
     }
 

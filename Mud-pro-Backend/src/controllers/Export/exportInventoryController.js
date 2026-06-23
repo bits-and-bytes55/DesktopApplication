@@ -9,6 +9,7 @@ import Pad from "../../modules/pad/pad.model.js";
 import WellGeneral from "../../modules/wellGeneral/wellGeneralModel.js";
 import Report from "../../modules/report/report.model.js";
 import Engineer from "../../modules/engineers/engineer.model.js";
+import Company from "../../modules/company/company.model.js";
 import DrillString from "../../modules/DrillString/DrillString.js";
 import Casing from "../../modules/casing/casing.model.js";
 import Pump from "../../modules/pump/pump.model.js";
@@ -37,6 +38,7 @@ const TEMPLATE_PATH = fileURLToPath(
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const PAD_LOGO_UPLOADS_ROOT = path.resolve(__dirname, "../../uploads/pad-logos");
+const COMPANY_LOGO_UPLOADS_ROOT = path.resolve(__dirname, "../../uploads/company-logos");
 const DMR_SHEET_NAME = "DMR";
 const INVENTORY_SHEET_NAME = "Inventory";
 
@@ -97,7 +99,7 @@ const SERVICE_ROWS = { start: 76, end: 84 };
 const ACTIVE_PIT_ROWS = { start: 77, end: 84 };
 const TIME_ROWS = { start: 75, end: 84 };
 const ENGINEERING_ROWS = { start: 87, end: 91 };
-const RESERVE_ROWS = { start: 95, end: 101 };
+const RESERVE_ROWS = { start: 91, end: 101 };
 
 const PRODUCT_COLUMNS = [
   "A",
@@ -172,8 +174,8 @@ const normalizeImageExtension = (extension = "") => {
   if (cleaned === "jpeg" || cleaned === "png") return cleaned;
   return "";
 };
-const resolvePadLogoImage = (pad = {}) => {
-  const logoUrl = text(pad?.clientLogoUrl);
+const resolveLogoImage = async (logoUrlValue, uploadsRoot) => {
+  const logoUrl = text(logoUrlValue);
   if (!logoUrl) return null;
 
   const dataMatch = logoUrl.match(/^data:image\/(png|jpe?g);base64,(.+)$/i);
@@ -181,6 +183,22 @@ const resolvePadLogoImage = (pad = {}) => {
     const extension = normalizeImageExtension(dataMatch[1]);
     const buffer = Buffer.from(dataMatch[2], "base64");
     return extension && buffer.length ? { buffer, extension } : null;
+  }
+
+  if (/^https?:\/\//i.test(logoUrl)) {
+    try {
+      const response = await fetch(logoUrl);
+      if (response.ok) {
+        const contentType = response.headers.get("content-type") || "";
+        const extension =
+          normalizeImageExtension(contentType.split("/").pop() || "") ||
+          normalizeImageExtension(path.extname(new URL(logoUrl).pathname));
+        const buffer = Buffer.from(await response.arrayBuffer());
+        if (extension && buffer.length) return { buffer, extension };
+      }
+    } catch {
+      // Fall back to local filename resolution below.
+    }
   }
 
   let filename = "";
@@ -192,8 +210,8 @@ const resolvePadLogoImage = (pad = {}) => {
   filename = decodeURIComponent(filename || "");
   if (!filename) return null;
 
-  const logoPath = path.resolve(PAD_LOGO_UPLOADS_ROOT, filename);
-  if (!logoPath.startsWith(PAD_LOGO_UPLOADS_ROOT) || !fs.existsSync(logoPath)) {
+  const logoPath = path.resolve(uploadsRoot, filename);
+  if (!logoPath.startsWith(uploadsRoot) || !fs.existsSync(logoPath)) {
     return null;
   }
 
@@ -202,14 +220,17 @@ const resolvePadLogoImage = (pad = {}) => {
   const buffer = fs.readFileSync(logoPath);
   return buffer.length ? { buffer, extension } : null;
 };
-const addPadLogoToSheet = (workbook, ws, logoImage) => {
+const resolvePadLogoImage = (pad = {}) =>
+  resolveLogoImage(pad?.clientLogoUrl, PAD_LOGO_UPLOADS_ROOT);
+const resolveCompanyLogoImage = (company = {}) =>
+  resolveLogoImage(company?.logoUrl, COMPANY_LOGO_UPLOADS_ROOT);
+const clearTemplateLogos = (ws) => {
+  if (Array.isArray(ws?._media)) ws._media = [];
+};
+const addLogoToSheet = (workbook, ws, logoImage, placement) => {
   if (!logoImage) return;
   const imageId = workbook.addImage(logoImage);
-  ws.addImage(imageId, {
-    tl: { col: 0.25, row: 0.25 },
-    ext: { width: 145, height: 52 },
-    editAs: "oneCell",
-  });
+  ws.addImage(imageId, placement);
 };
 const meaningfulText = (value) => {
   const raw = text(value);
@@ -799,6 +820,16 @@ const applyRangeAlignment = (ws, startCell, endCell, alignment) => {
     for (let col = columnToNumber(sc); col <= columnToNumber(ec); col += 1) {
       const cell = ws.getRow(row).getCell(col);
       cell.alignment = { ...(cell.alignment ?? {}), ...alignment };
+    }
+  }
+};
+const applyRangeBorder = (ws, startCell, endCell, border) => {
+  const [, sc, sr] = startCell.match(/^([A-Z]+)(\d+)$/i) || [];
+  const [, ec, er] = endCell.match(/^([A-Z]+)(\d+)$/i) || [];
+  if (!sc || !sr || !ec || !er) return;
+  for (let row = Number(sr); row <= Number(er); row += 1) {
+    for (let col = columnToNumber(sc); col <= columnToNumber(ec); col += 1) {
+      ws.getRow(row).getCell(col).border = border;
     }
   }
 };
@@ -1994,16 +2025,14 @@ const fillDmrBottomSections = (ws, {
   pumps.slice(0, 4).forEach((pump, index) => {
     const startColumn = ["L", "R", "X", "AD"][index];
     const baseColumn = columnToNumber(startColumn);
-    const displacement = firstMeaningfulText(
-      pump.displacement,
-      calculatePumpDisplacement(pump)
-    );
+    const displacement = getPumpDisplacement(pump);
     ws.getRow(100).getCell(baseColumn).value = index + 1;
     ws.getRow(101).getCell(baseColumn).value = roundOrBlank(pump.linerId, 3);
     ws.getRow(102).getCell(baseColumn).value = roundOrBlank(pump.strokeLength, 3);
     ws.getRow(103).getCell(baseColumn).value = roundOrBlank(pump.efficiency, 2);
     ws.getRow(104).getCell(baseColumn).value = roundOrBlank(pump.spm, 2);
-    ws.getRow(105).getCell(baseColumn).value = roundOrBlank(displacement, 4);
+    ws.getRow(105).getCell(baseColumn).value =
+      displacement > 0 ? round(displacement, 4) : "";
   });
 
   const pumpFlow = summarizePumpFlow(pumps);
@@ -2177,6 +2206,16 @@ const fillInventorySheet = (ws, {
   setCellValue(ws, "AA74", "Time Breakdown");
   setCellValue(ws, "A85", "Engineering");
   setCellValue(ws, "M89", "Reserve");
+  applyRangeBorder(ws, "M88", "AD89", {
+    bottom: { style: "thin", color: { argb: "FF000000" } },
+    top: { style: "thin", color: { argb: "FF000000" } },
+  });
+  applyRangeBorder(ws, "M89", "AD101", {
+    top: { style: "thin", color: { argb: "FF000000" } },
+    left: { style: "thin", color: { argb: "FF000000" } },
+    bottom: { style: "thin", color: { argb: "FF000000" } },
+    right: { style: "thin", color: { argb: "FF000000" } },
+  });
   setCellValue(ws, "A92", "Cost Summary");
 
   writeRows(ws, PRODUCT_ROWS, PRODUCT_COLUMNS, productRows, (item) => ({
@@ -2246,7 +2285,7 @@ const fillInventorySheet = (ws, {
   fitColumnRange(ws, "M", 77, 84);
   fitColumnRange(ws, "AA", 75, 84);
   fitColumnRange(ws, "A", 87, 91);
-  fitColumnRange(ws, "M", 95, 101);
+  fitColumnRange(ws, "M", 91, 101);
 
   const totalDailyCost = round(
     costSummary?.totalDailyCost ?? productDailyCost + engineeringDailyCost,
@@ -2738,8 +2777,9 @@ export const exportInventoryReport = async (req, res) => {
       return res.status(404).json({ success: false, message: "Well not found" });
     }
 
-    const [pad, wellGeneral, pits] = await Promise.all([
+    const [pad, company, wellGeneral, pits] = await Promise.all([
       well?.padId ? Pad.findById(well.padId).lean() : null,
+      Company.findOne().sort({ updatedAt: -1, createdAt: -1 }).lean(),
       loadExportWellGeneral({ wellId, reportId, report }),
       reportId
         ? loadMergedPits({ wellId, reportId })
@@ -2836,9 +2876,35 @@ export const exportInventoryReport = async (req, res) => {
     clearDmrDynamicAreas(dmrSheet);
     clearInventoryDynamicAreas(inventorySheet);
 
-    const padLogoImage = resolvePadLogoImage(pad);
-    addPadLogoToSheet(workbook, dmrSheet, padLogoImage);
-    addPadLogoToSheet(workbook, inventorySheet, padLogoImage);
+    clearTemplateLogos(dmrSheet);
+    clearTemplateLogos(inventorySheet);
+
+    const [companyLogoImage, padLogoImage] = await Promise.all([
+      resolveCompanyLogoImage(company),
+      resolvePadLogoImage(pad),
+    ]);
+    const leftLogoPlacement = {
+      tl: { col: 0.05, row: 0.15 },
+      ext: { width: 230, height: 88 },
+      editAs: "oneCell",
+    };
+    const inventoryLeftLogoPlacement = {
+      tl: { col: 0.05, row: 0.2 },
+      ext: { width: 220, height: 80 },
+      editAs: "oneCell",
+    };
+    addLogoToSheet(workbook, dmrSheet, companyLogoImage, leftLogoPlacement);
+    addLogoToSheet(workbook, inventorySheet, companyLogoImage, inventoryLeftLogoPlacement);
+    addLogoToSheet(workbook, dmrSheet, padLogoImage, {
+      tl: { col: 58.1, row: 0.05 },
+      ext: { width: 150, height: 95 },
+      editAs: "oneCell",
+    });
+    addLogoToSheet(workbook, inventorySheet, padLogoImage, {
+      tl: { col: 29.75, row: 0.18 },
+      ext: { width: 120, height: 76 },
+      editAs: "oneCell",
+    });
 
     fillDmrHeader(dmrSheet, { well, pad, report, wellGeneral, fluidName, intervals });
     fillDmrTopSections(dmrSheet, {
