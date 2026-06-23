@@ -1126,6 +1126,39 @@ const calculateAdjustedActiveSystemPendingInput = ({
   return round2(Math.max(0, adjustedActivePitVolume));
 };
 
+const calculateAdjustedActiveSystemMudLoss = ({
+  mudLossEntries = [],
+  activePitsList = [],
+  activePitsSnapshot,
+}) => {
+  const totalLoss = Number(
+    mudLossEntries.reduce((sum, item) => sum + toNumber(item.totalLoss), 0).toFixed(2)
+  );
+  if (totalLoss <= 0) return 0;
+
+  if (activePitsSnapshot === null || activePitsSnapshot === undefined) return 0;
+
+  const lossTimes = mudLossEntries
+    .map((item) => itemTime(item))
+    .filter((time) => Number.isFinite(time) && time > 0);
+  if (!lossTimes.length) return 0;
+
+  const firstLossTime = Math.min(...lossTimes);
+  const hasPitAdjustedAfterLoss = activePitsList.some((pit) => {
+    const pitTime = itemTime(pit);
+    return Number.isFinite(pitTime) && pitTime >= firstLossTime;
+  });
+  if (!hasPitAdjustedAfterLoss) return 0;
+
+  const currentActivePits = Number(
+    activePitsList.reduce((sum, pit) => sum + toNumber(pit.volume), 0).toFixed(2)
+  );
+  const activePitReduction = round2(toNumber(activePitsSnapshot) - currentActivePits);
+  if (activePitReduction <= 0) return 0;
+
+  return round2(Math.min(totalLoss, activePitReduction));
+};
+
 const isIgnoredDestination = (value) => {
   const key = toText(value).toLowerCase();
   return !key || key === "imp";
@@ -1492,6 +1525,14 @@ export const calculateEndVolForReport = async ({
       .reduce((sum, item) => sum + toNumber(item.totalLoss), 0)
       .toFixed(2)
   );
+  const adjustedActiveSystemMudLoss = calculateAdjustedActiveSystemMudLoss({
+    mudLossEntries: normalizedMudLossEntries,
+    activePitsList,
+    activePitsSnapshot: reportMeta?.volumeNameHoleActivePitsSnapshot,
+  });
+  const pendingActiveSystemMudLoss = round2(
+    Math.max(0, activeSystemMudLossTotal - adjustedActiveSystemMudLoss)
+  );
 
   const operationVolumeEffects = buildOperationVolumeEffects({
     receivedMud,
@@ -1579,7 +1620,7 @@ export const calculateEndVolForReport = async ({
   if (operationVolumeEffects.forceEndVolZero) return 0;
 
   if (normalizedMudLossEntries.length > 0) {
-    return round2(derivedActiveSystem - activeSystemMudLossTotal);
+    return round2(derivedActiveSystem - pendingActiveSystemMudLoss);
   }
 
   if (hasOperationVolumeRows && hasPendingActiveSystemInput && previousEndVol > 0) {
@@ -2131,6 +2172,14 @@ export const getVolumeNameCalculation = async (req, res) => {
     const activePits = Number(
       activePitsList.reduce((sum, pit) => sum + toNumber(pit.volume), 0).toFixed(2)
     );
+    const adjustedActiveSystemMudLoss = calculateAdjustedActiveSystemMudLoss({
+      mudLossEntries: normalizedMudLossEntries,
+      activePitsList,
+      activePitsSnapshot: reportMeta?.volumeNameHoleActivePitsSnapshot,
+    });
+    const pendingActiveSystemMudLoss = round2(
+      Math.max(0, activeSystemMudLossTotal - adjustedActiveSystemMudLoss)
+    );
     const hasPitVolume = pits.some(
       (pit) => Math.abs(toNumber(pit?.volume)) >= 0.005
     );
@@ -2285,7 +2334,7 @@ export const getVolumeNameCalculation = async (req, res) => {
     const operationRowsEndVol =
       hasOperationVolumeRows
         ? normalizedMudLossEntries.length > 0
-          ? round2(derivedActiveSystem - activeSystemMudLossTotal)
+          ? round2(derivedActiveSystem - pendingActiveSystemMudLoss)
           : hasPendingActiveSystemInput && endVolBase > 0
             ? round2(endVolBase + effectiveEndVolDelta - pendingActiveSystemInput)
             : hasFullyAdjustedActiveSystemInput && endVolBase > 0
@@ -2310,7 +2359,7 @@ export const getVolumeNameCalculation = async (req, res) => {
     if (!hasCurrentReportVolumeData) {
       endVolMinusActiveSystem = 0;
     } else if (normalizedMudLossEntries.length > 0) {
-      endVolMinusActiveSystem = round2(-activeSystemMudLossTotal);
+      endVolMinusActiveSystem = round2(-pendingActiveSystemMudLoss);
     } else if (hasPendingActiveSystemInput && endVolBase > 0) {
       endVolMinusActiveSystem = pendingActiveSystemInput;
     } else if (hasFullyAdjustedActiveSystemInput && hasOperationVolumeRows) {
