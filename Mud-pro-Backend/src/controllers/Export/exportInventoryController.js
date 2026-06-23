@@ -9,6 +9,7 @@ import Pad from "../../modules/pad/pad.model.js";
 import WellGeneral from "../../modules/wellGeneral/wellGeneralModel.js";
 import Report from "../../modules/report/report.model.js";
 import Engineer from "../../modules/engineers/engineer.model.js";
+import Company from "../../modules/company/company.model.js";
 import DrillString from "../../modules/DrillString/DrillString.js";
 import Casing from "../../modules/casing/casing.model.js";
 import Pump from "../../modules/pump/pump.model.js";
@@ -37,6 +38,7 @@ const TEMPLATE_PATH = fileURLToPath(
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const PAD_LOGO_UPLOADS_ROOT = path.resolve(__dirname, "../../uploads/pad-logos");
+const COMPANY_LOGO_UPLOADS_ROOT = path.resolve(__dirname, "../../uploads/company-logos");
 const DMR_SHEET_NAME = "DMR";
 const INVENTORY_SHEET_NAME = "Inventory";
 
@@ -172,8 +174,8 @@ const normalizeImageExtension = (extension = "") => {
   if (cleaned === "jpeg" || cleaned === "png") return cleaned;
   return "";
 };
-const resolvePadLogoImage = (pad = {}) => {
-  const logoUrl = text(pad?.clientLogoUrl);
+const resolveLogoImage = async (logoUrlValue, uploadsRoot) => {
+  const logoUrl = text(logoUrlValue);
   if (!logoUrl) return null;
 
   const dataMatch = logoUrl.match(/^data:image\/(png|jpe?g);base64,(.+)$/i);
@@ -181,6 +183,22 @@ const resolvePadLogoImage = (pad = {}) => {
     const extension = normalizeImageExtension(dataMatch[1]);
     const buffer = Buffer.from(dataMatch[2], "base64");
     return extension && buffer.length ? { buffer, extension } : null;
+  }
+
+  if (/^https?:\/\//i.test(logoUrl)) {
+    try {
+      const response = await fetch(logoUrl);
+      if (response.ok) {
+        const contentType = response.headers.get("content-type") || "";
+        const extension =
+          normalizeImageExtension(contentType.split("/").pop() || "") ||
+          normalizeImageExtension(path.extname(new URL(logoUrl).pathname));
+        const buffer = Buffer.from(await response.arrayBuffer());
+        if (extension && buffer.length) return { buffer, extension };
+      }
+    } catch {
+      // Fall back to local filename resolution below.
+    }
   }
 
   let filename = "";
@@ -192,8 +210,8 @@ const resolvePadLogoImage = (pad = {}) => {
   filename = decodeURIComponent(filename || "");
   if (!filename) return null;
 
-  const logoPath = path.resolve(PAD_LOGO_UPLOADS_ROOT, filename);
-  if (!logoPath.startsWith(PAD_LOGO_UPLOADS_ROOT) || !fs.existsSync(logoPath)) {
+  const logoPath = path.resolve(uploadsRoot, filename);
+  if (!logoPath.startsWith(uploadsRoot) || !fs.existsSync(logoPath)) {
     return null;
   }
 
@@ -202,14 +220,17 @@ const resolvePadLogoImage = (pad = {}) => {
   const buffer = fs.readFileSync(logoPath);
   return buffer.length ? { buffer, extension } : null;
 };
-const addPadLogoToSheet = (workbook, ws, logoImage) => {
+const resolvePadLogoImage = (pad = {}) =>
+  resolveLogoImage(pad?.clientLogoUrl, PAD_LOGO_UPLOADS_ROOT);
+const resolveCompanyLogoImage = (company = {}) =>
+  resolveLogoImage(company?.logoUrl, COMPANY_LOGO_UPLOADS_ROOT);
+const clearTemplateLogos = (ws) => {
+  if (Array.isArray(ws?._media)) ws._media = [];
+};
+const addLogoToSheet = (workbook, ws, logoImage, placement) => {
   if (!logoImage) return;
   const imageId = workbook.addImage(logoImage);
-  ws.addImage(imageId, {
-    tl: { col: 0.25, row: 0.25 },
-    ext: { width: 145, height: 52 },
-    editAs: "oneCell",
-  });
+  ws.addImage(imageId, placement);
 };
 const meaningfulText = (value) => {
   const raw = text(value);
@@ -2756,8 +2777,9 @@ export const exportInventoryReport = async (req, res) => {
       return res.status(404).json({ success: false, message: "Well not found" });
     }
 
-    const [pad, wellGeneral, pits] = await Promise.all([
+    const [pad, company, wellGeneral, pits] = await Promise.all([
       well?.padId ? Pad.findById(well.padId).lean() : null,
+      Company.findOne().sort({ updatedAt: -1, createdAt: -1 }).lean(),
       loadExportWellGeneral({ wellId, reportId, report }),
       reportId
         ? loadMergedPits({ wellId, reportId })
@@ -2854,9 +2876,30 @@ export const exportInventoryReport = async (req, res) => {
     clearDmrDynamicAreas(dmrSheet);
     clearInventoryDynamicAreas(inventorySheet);
 
-    const padLogoImage = resolvePadLogoImage(pad);
-    addPadLogoToSheet(workbook, dmrSheet, padLogoImage);
-    addPadLogoToSheet(workbook, inventorySheet, padLogoImage);
+    clearTemplateLogos(dmrSheet);
+    clearTemplateLogos(inventorySheet);
+
+    const [companyLogoImage, padLogoImage] = await Promise.all([
+      resolveCompanyLogoImage(company),
+      resolvePadLogoImage(pad),
+    ]);
+    const leftLogoPlacement = {
+      tl: { col: 0.25, row: 0.25 },
+      ext: { width: 145, height: 52 },
+      editAs: "oneCell",
+    };
+    addLogoToSheet(workbook, dmrSheet, companyLogoImage, leftLogoPlacement);
+    addLogoToSheet(workbook, inventorySheet, companyLogoImage, leftLogoPlacement);
+    addLogoToSheet(workbook, dmrSheet, padLogoImage, {
+      tl: { col: 63.2, row: 0.25 },
+      ext: { width: 110, height: 60 },
+      editAs: "oneCell",
+    });
+    addLogoToSheet(workbook, inventorySheet, padLogoImage, {
+      tl: { col: 29.5, row: 0.25 },
+      ext: { width: 110, height: 60 },
+      editAs: "oneCell",
+    });
 
     fillDmrHeader(dmrSheet, { well, pad, report, wellGeneral, fluidName, intervals });
     fillDmrTopSections(dmrSheet, {
