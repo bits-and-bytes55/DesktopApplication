@@ -546,6 +546,9 @@ const resolveReportMeta = async ({ wellId, reportId, reportNo }) => {
     reportDate: report ? toText(report.reportDate) : "",
     carryOverFromReportId: report ? toText(report.carryOverFromReportId) : "",
     carryOverCompletedAt: report?.carryOverCompletedAt ?? null,
+    operationSelections: Array.isArray(report?.operationSelections)
+      ? report.operationSelections.map(toText).filter(Boolean)
+      : [],
     volumeNameHoleSnapshot:
       report?.volumeNameHoleSnapshot === null ||
       report?.volumeNameHoleSnapshot === undefined
@@ -561,6 +564,18 @@ const resolveReportMeta = async ({ wellId, reportId, reportNo }) => {
       ? toNumber(report.volumeNameLastActivePitVolume)
       : 0,
   };
+};
+
+const filterSelectedOperationItems = (items = [], reportMeta, operationName) => {
+  const selected = new Set(reportMeta?.operationSelections ?? []);
+  if (selected.size === 0) return items;
+
+  const legacyKey = `${operationName}::legacy0`;
+  return items.filter((item) => {
+    const key = toText(item?.operationInstanceKey);
+    if (key) return selected.has(key);
+    return selected.has(legacyKey);
+  });
 };
 
 const resolveCarryOverVisibleHole = ({
@@ -1377,6 +1392,48 @@ export const calculateEndVolForReport = async ({
       .lean(),
   ]);
 
+  distributionStates = filterSelectedOperationItems(
+    distributionStates,
+    reportMeta,
+    "consumeProduct"
+  );
+  receivedMud = filterSelectedOperationItems(receivedMud, reportMeta, "receiveMud");
+  returnLostMud = filterSelectedOperationItems(
+    returnLostMud,
+    reportMeta,
+    "returnLostMud"
+  );
+  addWaterEntries = filterSelectedOperationItems(
+    addWaterEntries,
+    reportMeta,
+    "addWater"
+  );
+  otherVolAdditions = filterSelectedOperationItems(
+    otherVolAdditions,
+    reportMeta,
+    "otherVolAddition"
+  );
+  mudLossEntries = filterSelectedOperationItems(
+    mudLossEntries,
+    reportMeta,
+    "mudLossActiveSystem"
+  );
+  mudLossStorageEntries = filterSelectedOperationItems(
+    mudLossStorageEntries,
+    reportMeta,
+    "mudLossStorage"
+  );
+  transferMudEntries = filterSelectedOperationItems(
+    transferMudEntries,
+    reportMeta,
+    "transferMud"
+  );
+  emptyFluidEntries = filterSelectedOperationItems(
+    emptyFluidEntries,
+    reportMeta,
+    "emptyActiveSystem"
+  );
+
   const holeVolumeResult = calculateCombinedHoleVolumeResult({
     casings,
     wellGeneral,
@@ -1948,6 +2005,48 @@ export const getVolumeNameCalculation = async (req, res) => {
         ).sort({ createdAt: 1, _id: 1 }),
         buildUgInventoryLookups(wellId),
       ]);
+
+    distributionStates = filterSelectedOperationItems(
+      distributionStates,
+      reportMeta,
+      "consumeProduct"
+    );
+    receivedMud = filterSelectedOperationItems(receivedMud, reportMeta, "receiveMud");
+    returnLostMud = filterSelectedOperationItems(
+      returnLostMud,
+      reportMeta,
+      "returnLostMud"
+    );
+    addWaterEntries = filterSelectedOperationItems(
+      addWaterEntries,
+      reportMeta,
+      "addWater"
+    );
+    otherVolAdditions = filterSelectedOperationItems(
+      otherVolAdditions,
+      reportMeta,
+      "otherVolAddition"
+    );
+    mudLossEntries = filterSelectedOperationItems(
+      mudLossEntries,
+      reportMeta,
+      "mudLossActiveSystem"
+    );
+    mudLossStorageEntries = filterSelectedOperationItems(
+      mudLossStorageEntries,
+      reportMeta,
+      "mudLossStorage"
+    );
+    transferMudEntries = filterSelectedOperationItems(
+      transferMudEntries,
+      reportMeta,
+      "transferMud"
+    );
+    emptyFluidEntries = filterSelectedOperationItems(
+      emptyFluidEntries,
+      reportMeta,
+      "emptyActiveSystem"
+    );
 
     const uiDistributionStates = [...(distributionStates ?? [])];
 
