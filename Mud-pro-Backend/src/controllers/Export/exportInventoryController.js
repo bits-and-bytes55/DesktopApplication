@@ -2413,7 +2413,7 @@ const isProductCostCategory = (category) =>
 const isEngineeringCostCategory = (category) =>
   normalizeCostCategory(category) === "engineering";
 const snapshotCost = (row = {}) =>
-  toNumber(row.costDollar) || toNumber(row.subtotal) || toNumber(row.totalDollar);
+  toNumber(row.costDollar) || toNumber(row.subtotal);
 const snapshotSummaryValue = (rows = [], field) => {
   const row = rows.find((item) => toNumber(item?.[field]) !== 0) || rows[0] || {};
   return round(row?.[field], 3);
