@@ -242,17 +242,23 @@ const prepareInventoryHeaderLayout = (ws) => {
   try {
     ws.unMergeCells("V2:W5");
   } catch {}
+  try {
+    ws.unMergeCells("H2:V5");
+  } catch {}
+  try {
+    ws.unMergeCells("W2:X5");
+  } catch {}
   for (let row = 2; row <= 5; row += 1) {
-    for (let col = 9; col <= 23; col += 1) {
+    for (let col = 8; col <= 24; col += 1) {
       const cell = ws.getRow(row).getCell(col);
       cell.fill = titleStyle.fill;
       cell.alignment = { horizontal: "center", vertical: "middle" };
       cell.border = {};
     }
   }
-  ws.mergeCells("I2:V5");
-  ws.mergeCells("W2:W5");
-  ws.getCell("I2").style = {
+  ws.mergeCells("H2:V5");
+  ws.mergeCells("W2:X5");
+  ws.getCell("H2").style = {
     ...titleStyle,
     alignment: { horizontal: "center", vertical: "middle" },
   };
@@ -260,7 +266,7 @@ const prepareInventoryHeaderLayout = (ws) => {
     ...reportNoStyle,
     alignment: { horizontal: "center", vertical: "middle" },
   };
-  for (let col = 9; col <= 23; col += 1) {
+  for (let col = 8; col <= 24; col += 1) {
     ws.getCell(2, col).border = {
       ...ws.getCell(2, col).border,
       top: boxBorder,
@@ -271,8 +277,8 @@ const prepareInventoryHeaderLayout = (ws) => {
     };
   }
   for (let row = 2; row <= 5; row += 1) {
-    ws.getCell(row, 9).border = {
-      ...ws.getCell(row, 9).border,
+    ws.getCell(row, 8).border = {
+      ...ws.getCell(row, 8).border,
       left: boxBorder,
     };
     ws.getCell(row, 22).border = {
@@ -282,6 +288,9 @@ const prepareInventoryHeaderLayout = (ws) => {
     ws.getCell(row, 23).border = {
       ...ws.getCell(row, 23).border,
       left: boxBorder,
+    };
+    ws.getCell(row, 24).border = {
+      ...ws.getCell(row, 24).border,
       right: boxBorder,
     };
   }
@@ -928,7 +937,7 @@ const clearDmrDynamicAreas = (ws) => {
 
 const clearInventoryDynamicAreas = (ws) => {
   [
-    "W2","L7","U7","AC7","D8","L8","U8","AC8","D9","L9","U9","AC9",
+    "H2","W2","L7","U7","AC7","D8","L8","U8","AC8","D9","L9","U9","AC9",
     "D10","L10","U10","AC10","D11","L11","U11","AC11",
   ].forEach((address) => setCellValue(ws, address, ""));
   clearCells(ws, SUMMARY_VALUE_CELLS);
@@ -2162,7 +2171,7 @@ const fillDmrBottomSections = (ws, {
 const fillInventoryHeader = (ws, { well, pad, report, wellGeneral, fluidName, intervals = [] }) => {
   const formationText = resolveWellFormationText(wellGeneral, intervals);
   const activityText = resolveWellActivityText(wellGeneral);
-  setCellValue(ws, "I2", "Daily Inventory Report");
+  setCellValue(ws, "H2", "Daily Inventory Report");
   setCellValue(ws, "W2", text(report?.userReportNo || report?.reportNo || wellGeneral?.reportNo, "1"));
   setCellValue(ws, "L7", text(well?._id || report?._id));
   setCellValue(ws, "U7", formatDate(report?.reportDate || wellGeneral?.date, getReportDate()));
@@ -2968,7 +2977,7 @@ export const exportInventoryReport = async (req, res) => {
       editAs: "oneCell",
     });
     addLogoToSheet(workbook, inventorySheet, padLogoImage, {
-      tl: { col: 27.7, row: 0.35 },
+      tl: { col: 29.0, row: 0.35 },
       ext: { width: 150, height: 95 },
       editAs: "oneCell",
     });
