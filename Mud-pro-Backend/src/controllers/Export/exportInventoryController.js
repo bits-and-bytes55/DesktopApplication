@@ -235,16 +235,56 @@ const addLogoToSheet = (workbook, ws, logoImage, placement) => {
 const prepareInventoryHeaderLayout = (ws) => {
   const titleStyle = { ...ws.getCell("I2").style };
   const reportNoStyle = { ...ws.getCell("V2").style };
+  const boxBorder = { style: "thin", color: { argb: "FF000000" } };
   try {
     ws.unMergeCells("I2:U5");
   } catch {}
   try {
     ws.unMergeCells("V2:W5");
   } catch {}
+  for (let row = 2; row <= 5; row += 1) {
+    for (let col = 9; col <= 23; col += 1) {
+      const cell = ws.getRow(row).getCell(col);
+      cell.fill = titleStyle.fill;
+      cell.alignment = { horizontal: "center", vertical: "middle" };
+      cell.border = {};
+    }
+  }
   ws.mergeCells("I2:V5");
   ws.mergeCells("W2:W5");
-  ws.getCell("I2").style = titleStyle;
-  ws.getCell("W2").style = reportNoStyle;
+  ws.getCell("I2").style = {
+    ...titleStyle,
+    alignment: { horizontal: "center", vertical: "middle" },
+  };
+  ws.getCell("W2").style = {
+    ...reportNoStyle,
+    alignment: { horizontal: "center", vertical: "middle" },
+  };
+  for (let col = 9; col <= 23; col += 1) {
+    ws.getCell(2, col).border = {
+      ...ws.getCell(2, col).border,
+      top: boxBorder,
+    };
+    ws.getCell(5, col).border = {
+      ...ws.getCell(5, col).border,
+      bottom: boxBorder,
+    };
+  }
+  for (let row = 2; row <= 5; row += 1) {
+    ws.getCell(row, 9).border = {
+      ...ws.getCell(row, 9).border,
+      left: boxBorder,
+    };
+    ws.getCell(row, 22).border = {
+      ...ws.getCell(row, 22).border,
+      right: boxBorder,
+    };
+    ws.getCell(row, 23).border = {
+      ...ws.getCell(row, 23).border,
+      left: boxBorder,
+      right: boxBorder,
+    };
+  }
 };
 const meaningfulText = (value) => {
   const raw = text(value);
