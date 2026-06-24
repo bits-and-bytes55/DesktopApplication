@@ -1243,11 +1243,11 @@ const buildOperationVolumeEffects = ({
 
   for (const item of receivedMud) {
     const volume = toNumber(item.netVolume);
-    endVolDelta += volume;
-      if (isActiveSystemName(item.to)) {
-        activeSystemDelta += volume;
-        addWaterActiveSystemDelta += volume;
-      } else {
+    if (isActiveSystemName(item.to)) {
+      endVolDelta += volume;
+      activeSystemDelta += volume;
+      addWaterActiveSystemDelta += volume;
+    } else {
       addPitDelta(storageDeltaByPit, item.to, volume);
     }
   }
@@ -1659,11 +1659,11 @@ export const calculateEndVolForReport = async ({
   if (hasOperationVolumeRows && hasFullyAdjustedActiveSystemInput) {
     return previousEndVol > 0
       ? round2(previousEndVol + operationOnlyEndVolDelta)
-      : operationOnlyEndVolDelta;
+      : round2(derivedActiveSystem + activeSystemAdjustmentBalance);
   }
 
   if (hasOperationVolumeRows) {
-    return operationOnlyEndVolDelta;
+    return round2(derivedActiveSystem + operationOnlyEndVolDelta);
   }
 
   if (derivedActiveSystem > 0 || Math.abs(effectiveEndVolDelta) >= 0.005) {
@@ -2374,9 +2374,11 @@ export const getVolumeNameCalculation = async (req, res) => {
           ? round2(derivedActiveSystem + mudLossActiveSystemBalance)
           : hasPendingActiveSystemInput && endVolBase > 0
             ? round2(endVolBase + effectiveEndVolDelta - pendingActiveSystemInput)
-            : hasFullyAdjustedActiveSystemInput && endVolBase > 0
-              ? round2(endVolBase + operationOnlyEndVolDelta)
-              : operationOnlyEndVolDelta
+            : hasFullyAdjustedActiveSystemInput
+              ? endVolBase > 0
+                ? round2(endVolBase + operationOnlyEndVolDelta)
+                : round2(derivedActiveSystem + activeSystemAdjustmentBalance)
+              : round2(derivedActiveSystem + operationOnlyEndVolDelta)
         : null;
     const endVol = !hasCurrentReportVolumeData
       ? 0
@@ -2398,9 +2400,9 @@ export const getVolumeNameCalculation = async (req, res) => {
     } else if (normalizedMudLossEntries.length > 0) {
       endVolMinusActiveSystem = mudLossActiveSystemBalance;
     } else if (hasPendingActiveSystemInput && endVolBase > 0) {
-      endVolMinusActiveSystem = pendingActiveSystemInput;
+      endVolMinusActiveSystem = baseEndVolMinusActiveSystem;
     } else if (hasFullyAdjustedActiveSystemInput && hasOperationVolumeRows) {
-      endVolMinusActiveSystem = activeSystemAdjustmentBalance;
+      endVolMinusActiveSystem = baseEndVolMinusActiveSystem;
     } else if (firstReportStartsEmpty || hasOperationVolumeRows) {
       endVolMinusActiveSystem = baseEndVolMinusActiveSystem;
     } else if (Math.abs(baseEndVolMinusActiveSystem) < 0.005) {
