@@ -201,18 +201,14 @@ class ProductsPickupController extends GetxController {
           .map(_pickupProductKey)
           .where((key) => key.isNotEmpty)
           .toSet();
-      final selectedNames = <String>{};
+      final selectedKeys = <String>{};
 
       for (final product in selectedProducts) {
         final name = product.product.trim().toLowerCase();
         final key = _pickupProductKey(product);
         if (name.isEmpty) continue;
-        if (!selectedNames.add(name)) {
-          showErrorAlert('Product already exists in inventory');
-          return false;
-        }
-        if (existingKeys.contains(key) &&
-            !(overwriteKeys?.contains(key) ?? false)) {
+        final selectedKey = key.isNotEmpty ? key : 'name:$name';
+        if (!selectedKeys.add(selectedKey)) {
           showErrorAlert('Product already exists in inventory');
           return false;
         }
@@ -240,12 +236,12 @@ class ProductsPickupController extends GetxController {
   }
 
   String _pickupProductKey(ProductModel product) {
-    final id = product.id?.trim() ?? '';
-    if (id.isNotEmpty) return 'id:$id';
     final code = product.code.trim().toLowerCase();
     if (code.isNotEmpty) return 'code:$code';
     final name = product.product.trim().toLowerCase();
     if (name.isNotEmpty) return 'name:$name';
+    final id = product.id?.trim() ?? '';
+    if (id.isNotEmpty) return 'id:$id';
     return '';
   }
 

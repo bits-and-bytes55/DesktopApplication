@@ -782,7 +782,7 @@ class _InventoryOverwriteDialogState extends State<_InventoryOverwriteDialog> {
           child: const Text('Close'),
         ),
         ElevatedButton(
-          onPressed: () => Navigator.of(context).pop(_selectedKeys),
+          onPressed: () => Navigator.of(context).pop(Set<String>.from(_selectedKeys)),
           child: const Text('Accept'),
         ),
       ],
