@@ -235,7 +235,7 @@ const addLogoToSheet = (workbook, ws, logoImage, placement) => {
 const prepareInventoryHeaderLayout = (ws) => {
   const titleStyle = { ...ws.getCell("I2").style };
   const reportNoStyle = { ...ws.getCell("V2").style };
-  const boxBorder = { style: "thin", color: { argb: "FF000000" } };
+  const boxBorder = { style: "medium", color: { argb: "FF000000" } };
   try {
     ws.unMergeCells("I2:U5");
   } catch {}
@@ -267,10 +267,22 @@ const prepareInventoryHeaderLayout = (ws) => {
   ws.getCell("H2").style = {
     ...titleStyle,
     alignment: { horizontal: "center", vertical: "middle" },
+    font: {
+      ...(titleStyle.font || {}),
+      bold: false,
+      size: 24,
+      color: { argb: "FF000000" },
+    },
   };
-  ws.getCell("W2").style = {
+  ws.getCell("Y2").style = {
     ...reportNoStyle,
     alignment: { horizontal: "center", vertical: "middle" },
+    font: {
+      ...(reportNoStyle.font || {}),
+      bold: false,
+      size: 22,
+      color: { argb: "FF000000" },
+    },
   };
   for (let col = 8; col <= 26; col += 1) {
     ws.getCell(2, col).border = {
@@ -289,7 +301,7 @@ const prepareInventoryHeaderLayout = (ws) => {
     };
     ws.getCell(row, 22).border = {
       ...ws.getCell(row, 22).border,
-      right: boxBorder,
+      right: undefined,
     };
     ws.getCell(row, 25).border = {
       ...ws.getCell(row, 25).border,
