@@ -2901,20 +2901,20 @@ export const exportInventoryReport = async (req, res) => {
       editAs: "oneCell",
     };
     const inventoryLeftLogoPlacement = {
-      tl: { col: 0.05, row: 0.2 },
-      ext: { width: 220, height: 80 },
+      tl: { col: 0.05, row: 0.15 },
+      ext: { width: 230, height: 88 },
       editAs: "oneCell",
     };
     addLogoToSheet(workbook, dmrSheet, companyLogoImage, leftLogoPlacement);
     addLogoToSheet(workbook, inventorySheet, companyLogoImage, inventoryLeftLogoPlacement);
     addLogoToSheet(workbook, dmrSheet, padLogoImage, {
-      tl: { col: 58.1, row: 0.05 },
+      tl: { col: 59.1, row: 0.05 },
       ext: { width: 150, height: 95 },
       editAs: "oneCell",
     });
     addLogoToSheet(workbook, inventorySheet, padLogoImage, {
-      tl: { col: 29.75, row: 0.18 },
-      ext: { width: 120, height: 76 },
+      tl: { col: 31.0, row: 0.05 },
+      ext: { width: 150, height: 95 },
       editAs: "oneCell",
     });
 
