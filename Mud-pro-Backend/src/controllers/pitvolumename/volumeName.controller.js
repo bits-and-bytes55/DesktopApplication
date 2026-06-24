@@ -1147,6 +1147,7 @@ const calculateAdjustedActiveSystemPendingInput = ({
 const calculateAdjustedActiveSystemMudLoss = ({
   mudLossEntries = [],
   activePitsList = [],
+  activePitBaselineByName = new Map(),
   activePitsSnapshot,
 }) => {
   const totalLoss = Number(
@@ -1167,6 +1168,21 @@ const calculateAdjustedActiveSystemMudLoss = ({
     return Number.isFinite(pitTime) && pitTime >= firstLossTime;
   });
   if (!hasPitAdjustedAfterLoss) return 0;
+
+  if (activePitBaselineByName.size > 0) {
+    const adjustedActivePitLoss = activePitsList.reduce((sum, pit) => {
+      const pitTime = itemTime(pit);
+      if (!Number.isFinite(pitTime) || pitTime < firstLossTime) return sum;
+      const key = toText(pit?.pitName).toLowerCase();
+      const currentVolume = toNumber(pit?.volume);
+      const baselineVolume = activePitBaselineByName.has(key)
+        ? activePitBaselineByName.get(key)
+        : 0;
+      return sum + Math.max(0, round2(baselineVolume - currentVolume));
+    }, 0);
+
+    return round2(Math.min(totalLoss, adjustedActivePitLoss));
+  }
 
   const currentActivePits = Number(
     activePitsList.reduce((sum, pit) => sum + toNumber(pit.volume), 0).toFixed(2)
@@ -1546,6 +1562,7 @@ export const calculateEndVolForReport = async ({
   const adjustedActiveSystemMudLoss = calculateAdjustedActiveSystemMudLoss({
     mudLossEntries: normalizedMudLossEntries,
     activePitsList,
+    activePitBaselineByName: previousActivePitBaselineByName,
     activePitsSnapshot: reportMeta?.volumeNameHoleActivePitsSnapshot,
   });
   const pendingActiveSystemMudLoss = round2(
@@ -2204,6 +2221,7 @@ export const getVolumeNameCalculation = async (req, res) => {
     const adjustedActiveSystemMudLoss = calculateAdjustedActiveSystemMudLoss({
       mudLossEntries: normalizedMudLossEntries,
       activePitsList,
+      activePitBaselineByName: previousActivePitBaselineByName,
       activePitsSnapshot: reportMeta?.volumeNameHoleActivePitsSnapshot,
     });
     const pendingActiveSystemMudLoss = round2(
