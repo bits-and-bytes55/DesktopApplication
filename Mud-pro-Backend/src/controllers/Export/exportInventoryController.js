@@ -232,6 +232,20 @@ const addLogoToSheet = (workbook, ws, logoImage, placement) => {
   const imageId = workbook.addImage(logoImage);
   ws.addImage(imageId, placement);
 };
+const prepareInventoryHeaderLayout = (ws) => {
+  const titleStyle = { ...ws.getCell("I2").style };
+  const reportNoStyle = { ...ws.getCell("V2").style };
+  try {
+    ws.unMergeCells("I2:U5");
+  } catch {}
+  try {
+    ws.unMergeCells("V2:W5");
+  } catch {}
+  ws.mergeCells("I2:V5");
+  ws.mergeCells("W2:W5");
+  ws.getCell("I2").style = titleStyle;
+  ws.getCell("W2").style = reportNoStyle;
+};
 const meaningfulText = (value) => {
   const raw = text(value);
   if (!raw) return "";
@@ -874,7 +888,7 @@ const clearDmrDynamicAreas = (ws) => {
 
 const clearInventoryDynamicAreas = (ws) => {
   [
-    "V2","L7","U7","AC7","D8","L8","U8","AC8","D9","L9","U9","AC9",
+    "W2","L7","U7","AC7","D8","L8","U8","AC8","D9","L9","U9","AC9",
     "D10","L10","U10","AC10","D11","L11","U11","AC11",
   ].forEach((address) => setCellValue(ws, address, ""));
   clearCells(ws, SUMMARY_VALUE_CELLS);
@@ -2109,7 +2123,7 @@ const fillInventoryHeader = (ws, { well, pad, report, wellGeneral, fluidName, in
   const formationText = resolveWellFormationText(wellGeneral, intervals);
   const activityText = resolveWellActivityText(wellGeneral);
   setCellValue(ws, "I2", "Daily Inventory Report");
-  setCellValue(ws, "V2", text(report?.userReportNo || report?.reportNo || wellGeneral?.reportNo, "1"));
+  setCellValue(ws, "W2", text(report?.userReportNo || report?.reportNo || wellGeneral?.reportNo, "1"));
   setCellValue(ws, "L7", text(well?._id || report?._id));
   setCellValue(ws, "U7", formatDate(report?.reportDate || wellGeneral?.date, getReportDate()));
   setCellValue(ws, "AC7", text(report?.userReportNo || report?.reportNo || wellGeneral?.reportNo, "1"));
@@ -2890,6 +2904,7 @@ export const exportInventoryReport = async (req, res) => {
 
     clearTemplateLogos(dmrSheet);
     clearTemplateLogos(inventorySheet);
+    prepareInventoryHeaderLayout(inventorySheet);
 
     const [companyLogoImage, padLogoImage] = await Promise.all([
       resolveCompanyLogoImage(company),
@@ -2913,7 +2928,7 @@ export const exportInventoryReport = async (req, res) => {
       editAs: "oneCell",
     });
     addLogoToSheet(workbook, inventorySheet, padLogoImage, {
-      tl: { col: 27.7, row: 0.05 },
+      tl: { col: 27.7, row: 0.35 },
       ext: { width: 150, height: 95 },
       editAs: "oneCell",
     });
