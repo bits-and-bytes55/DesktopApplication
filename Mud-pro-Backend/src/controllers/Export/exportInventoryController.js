@@ -2913,7 +2913,7 @@ export const exportInventoryReport = async (req, res) => {
       editAs: "oneCell",
     });
     addLogoToSheet(workbook, inventorySheet, padLogoImage, {
-      tl: { col: 31.0, row: 0.05 },
+      tl: { col: 35.0, row: 0.05 },
       ext: { width: 150, height: 95 },
       editAs: "oneCell",
     });
