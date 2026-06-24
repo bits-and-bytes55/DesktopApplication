@@ -156,6 +156,11 @@ const inventorySnapshotSchema = new mongoose.Schema(
       default: 0,
     },
 
+    intervalName: {
+      type: String,
+      default: "",
+    },
+
     stockBalance: {
       type: Number,
       default: 0,

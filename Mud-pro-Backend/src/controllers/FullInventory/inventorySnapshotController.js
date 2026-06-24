@@ -65,6 +65,7 @@ const summaryFromRows = (rows = []) => {
     prevTotal: round2(first.prevTotal),
     cumTotal: round2(first.cumTotal || first.totalDollar),
     intervalTotal: round2(first.intervalTotal),
+    intervalName: toText(first.intervalName),
     stockBalance: round2(first.stockBalance),
     bulkTankSetupFee: round2(first.bulkTankSetupFee),
   };
@@ -242,6 +243,35 @@ const findPreviousReportDailyTotal = async ({ wellId, reportId }) => {
   return summaryFromRows(rows).dailyTotal;
 };
 
+const findPreviousReportSummary = async ({ wellId, reportId }) => {
+  const previousReport = await findPreviousReport({ wellId, reportId });
+  if (!previousReport) return { report: null, summary: summaryFromRows([]) };
+
+  const rows = await InventorySnapshot.find({
+    wellId,
+    reportId: toText(previousReport._id),
+  }).lean();
+
+  return { report: previousReport, summary: summaryFromRows(rows) };
+};
+
+const findReportInterval = async ({ wellId, reportId, reportNo }) => {
+  const row = await findScopedWellGeneral({ wellId, reportId, reportNo });
+  return toText(row?.interval).trim();
+};
+
+const serviceConfigKey = (item = {}) =>
+  keyFromCodeOrName(item.code, item.name, "");
+
+const buildServiceConfigMap = (items = []) => {
+  const map = new Map();
+  for (const item of items || []) {
+    const key = serviceConfigKey(item);
+    if (key) map.set(key, item);
+  }
+  return map;
+};
+
 const resolveConcentrationVolumeBasis = async ({ wellId, reportId, reportNo }) => {
   if (!wellId || !reportId) return 0;
 
@@ -319,10 +349,11 @@ export const generateInventorySnapshot = async (req, res) => {
     const packageReceives = await ReceivePackage.find(sourceFilter).lean();
     const packageReturns = await ReturnPackage.find(sourceFilter).lean();
 
-    const previousDailyTotal =
+    const previousSummaryResult =
       wellId && reportId
-        ? await findPreviousReportDailyTotal({ wellId, reportId })
-        : 0;
+        ? await findPreviousReportSummary({ wellId, reportId })
+        : { report: null, summary: summaryFromRows([]) };
+    const previousDailyTotal = previousSummaryResult.summary.dailyTotal;
 
     const inventoryConfig = wellId
       ? await UgInventorySnapshot.findOne({ wellId }).sort({ updatedAt: -1 }).lean()
@@ -335,6 +366,11 @@ export const generateInventorySnapshot = async (req, res) => {
     const taxRate = round2(inventoryConfig?.taxRate);
     const bulkTankSetupFee = round2(
       inventoryConfig?.bulkTankSetupFee || wellConfig?.bulkTankSetupFee
+    );
+    const packageConfigByKey = buildServiceConfigMap(inventoryConfig?.packages);
+    const serviceConfigByKey = buildServiceConfigMap(inventoryConfig?.services);
+    const engineeringConfigByKey = buildServiceConfigMap(
+      inventoryConfig?.engineering
     );
 
     let snapshotData = [];
@@ -429,11 +465,15 @@ export const generateInventorySnapshot = async (req, res) => {
         final: finalVal,
         subtotal,
         costDollar: subtotal,
+        tax: isChecked(inventoryProduct.tax),
         sortOrder: toNumber(inventoryProduct.sortOrder || productConsumes[0]?.sortOrder),
       });
     }
 
     for (const srv of services) {
+      const serviceConfig =
+        serviceConfigByKey.get(keyFromCodeOrName(srv.code, srv.serviceName, "")) ||
+        {};
       const subtotal = round2(toNumber(srv.price) * toNumber(srv.usage));
       snapshotData.push({
         wellId,
@@ -448,10 +488,15 @@ export const generateInventorySnapshot = async (req, res) => {
         final: 0,
         subtotal,
         costDollar: subtotal,
+        tax: isChecked(serviceConfig.tax),
       });
     }
 
     for (const eng of engineering) {
+      const engineeringConfig =
+        engineeringConfigByKey.get(
+          keyFromCodeOrName(eng.code, eng.engineeringName, "")
+        ) || {};
       const subtotal = round2(toNumber(eng.price) * toNumber(eng.usage));
       snapshotData.push({
         wellId,
@@ -466,6 +511,7 @@ export const generateInventorySnapshot = async (req, res) => {
         final: 0,
         subtotal,
         costDollar: subtotal,
+        tax: isChecked(engineeringConfig.tax),
       });
     }
 
@@ -484,6 +530,7 @@ export const generateInventorySnapshot = async (req, res) => {
     ];
 
     for (const key of packageKeys) {
+      const packageConfig = packageConfigByKey.get(key) || {};
       const rec = packageReceives.filter(
         (row, index) =>
           keyFromCodeOrName(row.code, row.packageName, `pkg-receive:${index}`) ===
@@ -539,6 +586,7 @@ export const generateInventorySnapshot = async (req, res) => {
         final: finalVal,
         subtotal,
         costDollar: subtotal,
+        tax: isChecked(packageConfig.tax),
       });
     }
 
@@ -590,11 +638,44 @@ export const generateInventorySnapshot = async (req, res) => {
     const subtotal = round2(
       snapshotData.reduce((sum, item) => sum + toNumber(item.subtotal), 0)
     );
-    const taxAmount = round2(subtotal * (taxRate / 100));
+    const taxableSubtotal = round2(
+      snapshotData.reduce(
+        (sum, item) =>
+          sum + (isChecked(item.tax) ? toNumber(item.subtotal) : 0),
+        0
+      )
+    );
+    const taxAmount = round2(taxableSubtotal * (taxRate / 100));
     const dailyTotal = round2(subtotal + taxAmount);
     const prevTotal = previousDailyTotal;
     const cumTotal = round2(prevTotal + dailyTotal);
-    const intervalTotal = dailyTotal;
+    const currentInterval =
+      wellId && reportId
+        ? await findReportInterval({
+            wellId,
+            reportId,
+            reportNo: currentReport?.reportNo,
+          })
+        : "";
+    const savedPreviousInterval = toText(
+      previousSummaryResult.summary.intervalName
+    );
+    const previousInterval =
+      savedPreviousInterval ||
+      (wellId && previousSummaryResult.report
+        ? await findReportInterval({
+            wellId,
+            reportId: toText(previousSummaryResult.report._id),
+            reportNo: previousSummaryResult.report.reportNo,
+          })
+        : "");
+    const prevIntervalTotal =
+      currentInterval &&
+      previousInterval &&
+      normalizeText(currentInterval) === normalizeText(previousInterval)
+        ? toNumber(previousSummaryResult.summary.intervalTotal)
+        : 0;
+    const intervalTotal = round2(prevIntervalTotal + dailyTotal);
     const stockBalance = round2(
       snapshotData.reduce(
         (sum, item) => sum + toNumber(item.final) * toNumber(item.price),
@@ -611,6 +692,7 @@ export const generateInventorySnapshot = async (req, res) => {
       prevTotal,
       cumTotal,
       intervalTotal,
+      intervalName: currentInterval,
       stockBalance,
       bulkTankSetupFee,
     }));

@@ -28,7 +28,16 @@ class InventoryProductsStore extends GetxController {
     for (final product in products) {
       final key = _productKey(product);
       if (key.isNotEmpty) {
-        merged[key] = _cloneProduct(product);
+        final existing = merged[key];
+        final next = _cloneProduct(product);
+        if (existing != null) {
+          next.volAdd = next.volAdd || existing.volAdd;
+          next.calculate = next.calculate || existing.calculate;
+          next.plot = (next.plot ?? false) || (existing.plot ?? false);
+          next.tax = next.tax || existing.tax;
+          if (next.initial.trim().isEmpty) next.initial = existing.initial;
+        }
+        merged[key] = next;
       }
     }
 
@@ -43,14 +52,14 @@ class InventoryProductsStore extends GetxController {
   }
 
   String _productKey(ProductModel product) {
-    final id = product.id?.trim() ?? '';
-    if (id.isNotEmpty) return 'id:$id';
-
     final code = product.code.trim().toLowerCase();
     if (code.isNotEmpty) return 'code:$code';
 
     final name = product.product.trim().toLowerCase();
     if (name.isNotEmpty) return 'name:$name';
+
+    final id = product.id?.trim() ?? '';
+    if (id.isNotEmpty) return 'id:$id';
 
     return '';
   }
