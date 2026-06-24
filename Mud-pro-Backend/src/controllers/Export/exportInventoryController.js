@@ -2411,9 +2411,13 @@ const normalizeCostCategory = (value) => text(value).toLowerCase();
 const isProductCostCategory = (category) =>
   normalizeCostCategory(category) === "product";
 const isEngineeringCostCategory = (category) =>
-  ["service", "engineering", "package"].includes(normalizeCostCategory(category));
+  normalizeCostCategory(category) === "engineering";
 const snapshotCost = (row = {}) =>
   toNumber(row.costDollar) || toNumber(row.subtotal) || toNumber(row.totalDollar);
+const snapshotSummaryValue = (rows = [], field) => {
+  const row = rows.find((item) => toNumber(item?.[field]) !== 0) || rows[0] || {};
+  return round(row?.[field], 3);
+};
 const summarizeCostRows = (rows = []) => {
   const productCost = sumBy(
     rows.filter((row) => isProductCostCategory(row.category)),
@@ -2499,7 +2503,9 @@ const loadDmrCostSummary = async ({
 
     if (historyRows.length > 0) {
       cumulativeRows = historyRows;
-      const currentInterval = normalizeIntervalKey(wellGeneral?.interval);
+      const currentInterval =
+        normalizeIntervalKey(wellGeneral?.interval) ||
+        normalizeIntervalKey(currentRows[0]?.intervalName);
 
       if (currentInterval) {
         const wellGeneralRows = await WellGeneral.find({
@@ -2518,7 +2524,9 @@ const loadDmrCostSummary = async ({
         sectionRows =
           sectionReportIds.size > 0
             ? historyRows.filter((item) => sectionReportIds.has(text(item.reportId)))
-            : historyRows;
+            : historyRows.filter(
+                (item) => normalizeIntervalKey(item.intervalName) === currentInterval
+              );
       } else {
         sectionRows = historyRows;
       }
@@ -2547,8 +2555,12 @@ const loadDmrCostSummary = async ({
     sectionEngineeringCost,
     cumProductCost,
     cumEngineeringCost,
-    totalDailyCost: round(dailyProductCost + dailyEngineeringCost, 3),
-    totalWellCost: round(cumProductCost + cumEngineeringCost, 3),
+    totalDailyCost:
+      snapshotSummaryValue(currentRows, "dailyTotal") ||
+      round(dailyProductCost + dailyEngineeringCost, 3),
+    totalWellCost:
+      snapshotSummaryValue(currentRows, "cumTotal") ||
+      round(cumProductCost + cumEngineeringCost, 3),
   };
 };
 
