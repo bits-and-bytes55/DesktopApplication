@@ -248,16 +248,22 @@ const prepareInventoryHeaderLayout = (ws) => {
   try {
     ws.unMergeCells("W2:X5");
   } catch {}
+  try {
+    ws.unMergeCells("H2:X5");
+  } catch {}
+  try {
+    ws.unMergeCells("Y2:Z5");
+  } catch {}
   for (let row = 2; row <= 5; row += 1) {
-    for (let col = 8; col <= 24; col += 1) {
+    for (let col = 8; col <= 26; col += 1) {
       const cell = ws.getRow(row).getCell(col);
       cell.fill = titleStyle.fill;
       cell.alignment = { horizontal: "center", vertical: "middle" };
       cell.border = {};
     }
   }
-  ws.mergeCells("H2:V5");
-  ws.mergeCells("W2:X5");
+  ws.mergeCells("H2:X5");
+  ws.mergeCells("Y2:Z5");
   ws.getCell("H2").style = {
     ...titleStyle,
     alignment: { horizontal: "center", vertical: "middle" },
@@ -266,7 +272,7 @@ const prepareInventoryHeaderLayout = (ws) => {
     ...reportNoStyle,
     alignment: { horizontal: "center", vertical: "middle" },
   };
-  for (let col = 8; col <= 24; col += 1) {
+  for (let col = 8; col <= 26; col += 1) {
     ws.getCell(2, col).border = {
       ...ws.getCell(2, col).border,
       top: boxBorder,
@@ -285,12 +291,12 @@ const prepareInventoryHeaderLayout = (ws) => {
       ...ws.getCell(row, 22).border,
       right: boxBorder,
     };
-    ws.getCell(row, 23).border = {
-      ...ws.getCell(row, 23).border,
+    ws.getCell(row, 25).border = {
+      ...ws.getCell(row, 25).border,
       left: boxBorder,
     };
-    ws.getCell(row, 24).border = {
-      ...ws.getCell(row, 24).border,
+    ws.getCell(row, 26).border = {
+      ...ws.getCell(row, 26).border,
       right: boxBorder,
     };
   }
@@ -937,7 +943,7 @@ const clearDmrDynamicAreas = (ws) => {
 
 const clearInventoryDynamicAreas = (ws) => {
   [
-    "H2","W2","L7","U7","AC7","D8","L8","U8","AC8","D9","L9","U9","AC9",
+    "H2","Y2","L7","U7","AC7","D8","L8","U8","AC8","D9","L9","U9","AC9",
     "D10","L10","U10","AC10","D11","L11","U11","AC11",
   ].forEach((address) => setCellValue(ws, address, ""));
   clearCells(ws, SUMMARY_VALUE_CELLS);
@@ -2172,7 +2178,7 @@ const fillInventoryHeader = (ws, { well, pad, report, wellGeneral, fluidName, in
   const formationText = resolveWellFormationText(wellGeneral, intervals);
   const activityText = resolveWellActivityText(wellGeneral);
   setCellValue(ws, "H2", "Daily Inventory Report");
-  setCellValue(ws, "W2", text(report?.userReportNo || report?.reportNo || wellGeneral?.reportNo, "1"));
+  setCellValue(ws, "Y2", text(report?.userReportNo || report?.reportNo || wellGeneral?.reportNo, "1"));
   setCellValue(ws, "L7", text(well?._id || report?._id));
   setCellValue(ws, "U7", formatDate(report?.reportDate || wellGeneral?.date, getReportDate()));
   setCellValue(ws, "AC7", text(report?.userReportNo || report?.reportNo || wellGeneral?.reportNo, "1"));
