@@ -584,6 +584,11 @@ const filterSelectedOperationItems = (items = [], reportMeta, operationName) => 
   });
 };
 
+const filterTransferMudItems = (items = [], reportMeta) => {
+  const filtered = filterSelectedOperationItems(items, reportMeta, "transferMud");
+  return filtered.length > 0 ? filtered : items;
+};
+
 const resolveCarryOverVisibleHole = ({
   currentHole,
 }) => {
@@ -1601,11 +1606,7 @@ export const calculateEndVolForReport = async ({
     reportMeta,
     "mudLossStorage"
   );
-  transferMudEntries = filterSelectedOperationItems(
-    transferMudEntries,
-    reportMeta,
-    "transferMud"
-  );
+  transferMudEntries = filterTransferMudItems(transferMudEntries, reportMeta);
   emptyFluidEntries = filterSelectedOperationItems(
     emptyFluidEntries,
     reportMeta,
@@ -2281,11 +2282,7 @@ export const getVolumeNameCalculation = async (req, res) => {
       reportMeta,
       "mudLossStorage"
     );
-    transferMudEntries = filterSelectedOperationItems(
-      transferMudEntries,
-      reportMeta,
-      "transferMud"
-    );
+    transferMudEntries = filterTransferMudItems(transferMudEntries, reportMeta);
     emptyFluidEntries = filterSelectedOperationItems(
       emptyFluidEntries,
       reportMeta,
