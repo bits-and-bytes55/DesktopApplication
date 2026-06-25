@@ -1172,8 +1172,15 @@ const calculateAdjustedActiveSystemPendingInput = ({
   activePitBaselineByName = new Map(),
   activePitsSnapshot,
   activePitInputAdjustmentTotal = 0,
+  activePitLossAdjustmentTotal = 0,
 }) => {
-  const recordedAdjustment = Math.max(0, toNumber(activePitInputAdjustmentTotal));
+  const recordedAdjustment = Math.max(
+    0,
+    round2(
+      toNumber(activePitInputAdjustmentTotal) -
+        toNumber(activePitLossAdjustmentTotal)
+    )
+  );
   const activeSystemPendingEntries = [
     ...addWaterEntries.filter(
       (item) => isActiveSystemName(item?.to) && toNumber(item?.volume) > 0
@@ -1217,13 +1224,20 @@ const calculateAdjustedActiveSystemMudLoss = ({
   activePitsList = [],
   activePitBaselineByName = new Map(),
   activePitsSnapshot,
+  activePitInputAdjustmentTotal = 0,
   activePitLossAdjustmentTotal = 0,
 }) => {
   const totalLoss = Number(
     mudLossEntries.reduce((sum, item) => sum + toNumber(item.totalLoss), 0).toFixed(2)
   );
   if (totalLoss <= 0) return 0;
-  const recordedAdjustment = Math.max(0, toNumber(activePitLossAdjustmentTotal));
+  const recordedAdjustment = Math.max(
+    0,
+    round2(
+      toNumber(activePitLossAdjustmentTotal) -
+        toNumber(activePitInputAdjustmentTotal)
+    )
+  );
 
   if (activePitBaselineByName.size > 0) {
     const adjustedActivePitLoss = activePitsList.reduce((sum, pit) => {
@@ -1628,6 +1642,8 @@ export const calculateEndVolForReport = async ({
     activePitsList,
     activePitBaselineByName: previousActivePitBaselineByName,
     activePitsSnapshot: reportMeta?.volumeNameHoleActivePitsSnapshot,
+    activePitInputAdjustmentTotal:
+      reportMeta?.volumeNameActivePitInputAdjustmentTotal,
     activePitLossAdjustmentTotal:
       reportMeta?.volumeNameActivePitLossAdjustmentTotal,
   });
@@ -1675,6 +1691,8 @@ export const calculateEndVolForReport = async ({
       activePitsSnapshot: reportMeta?.volumeNameHoleActivePitsSnapshot,
       activePitInputAdjustmentTotal:
         reportMeta?.volumeNameActivePitInputAdjustmentTotal,
+      activePitLossAdjustmentTotal:
+        reportMeta?.volumeNameActivePitLossAdjustmentTotal,
     });
   const pendingActiveSystemInput = round2(
     Math.max(0, activeSystemPendingInput - adjustedActiveSystemPendingInput)
@@ -2305,6 +2323,8 @@ export const getVolumeNameCalculation = async (req, res) => {
       activePitsList,
       activePitBaselineByName: previousActivePitBaselineByName,
       activePitsSnapshot: reportMeta?.volumeNameHoleActivePitsSnapshot,
+      activePitInputAdjustmentTotal:
+        reportMeta?.volumeNameActivePitInputAdjustmentTotal,
       activePitLossAdjustmentTotal:
         reportMeta?.volumeNameActivePitLossAdjustmentTotal,
     });
@@ -2396,6 +2416,8 @@ export const getVolumeNameCalculation = async (req, res) => {
         activePitsSnapshot: reportMeta?.volumeNameHoleActivePitsSnapshot,
         activePitInputAdjustmentTotal:
           reportMeta?.volumeNameActivePitInputAdjustmentTotal,
+        activePitLossAdjustmentTotal:
+          reportMeta?.volumeNameActivePitLossAdjustmentTotal,
       });
     const pendingActiveSystemInput = round2(
       Math.max(
