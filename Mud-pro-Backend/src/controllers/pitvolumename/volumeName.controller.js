@@ -1355,6 +1355,8 @@ const buildOperationVolumeEffects = ({
       if (volume <= 0) return;
       const fromKey = toText(item.from).toLowerCase();
       if (isActiveSystemName(item.from)) {
+        activeSystemDelta -= volume;
+        transferActiveSystemDelta -= volume;
         endVolDelta -= volume;
       } else if (activePitNames.has(fromKey)) {
         endVolDelta -= volume;
@@ -1365,7 +1367,23 @@ const buildOperationVolumeEffects = ({
       }
     };
 
+    const addToDestination = (volume) => {
+      if (volume <= 0 || isIgnoredDestination(item.to)) return;
+      const toKey = toText(item.to).toLowerCase();
+      if (isActiveSystemName(item.to)) {
+        activeSystemDelta += volume;
+        transferActiveSystemDelta += volume;
+        endVolDelta += volume;
+      } else if (activePitNames.has(toKey)) {
+        endVolDelta += volume;
+        addPitDelta(activeDeltaByPit, item.to, volume);
+      } else {
+        addPitDelta(storageDeltaByPit, item.to, volume);
+      }
+    };
+
     deductFromSource(returned);
+    addToDestination(returned);
     deductFromSource(lost);
   }
 
