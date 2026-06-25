@@ -1704,11 +1704,7 @@ export const calculateEndVolForReport = async ({
     return sum + toNumber(pit.volume) + delta;
   }, 0);
 
-  const adjustedActivePitsWithTransfer = round2(
-    activePitsWithTransfer +
-      operationVolumeEffects.transferActiveSystemDelta -
-      pendingActiveSystemMudLoss
-  );
+  const adjustedActivePitsWithTransfer = round2(activePitsWithTransfer);
   const derivedActiveSystem = round2(hole + adjustedActivePitsWithTransfer);
   const activeSystemPendingInput = round2(
     operationVolumeEffects.addWaterActiveSystemDelta +
@@ -2451,11 +2447,7 @@ export const getVolumeNameCalculation = async (req, res) => {
     const adjustedTotalStorage = round2(
       totalStorage + operationVolumeEffects.returnLostStorageDelta
     );
-    const adjustedActivePitsWithTransfer = round2(
-      activePitsWithTransfer +
-        operationVolumeEffects.transferActiveSystemDelta -
-        pendingActiveSystemMudLoss
-    );
+    const adjustedActivePitsWithTransfer = round2(activePitsWithTransfer);
     const derivedActiveSystem = round2(hole + adjustedActivePitsWithTransfer);
     const activeSystem = derivedActiveSystem;
     const activeSystemPendingInput = round2(
