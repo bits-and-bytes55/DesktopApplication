@@ -716,7 +716,10 @@ const resolveSameReportHoleDelta = async ({
         $set: {
           volumeNameHoleSnapshot: currentHole,
           volumeNameHoleDelta: 0,
-          volumeNameHoleActivePitsSnapshot: currentActivePits,
+          ...(reportMeta?.volumeNameHoleActivePitsSnapshot === null ||
+          reportMeta?.volumeNameHoleActivePitsSnapshot === undefined
+            ? { volumeNameHoleActivePitsSnapshot: currentActivePits }
+            : {}),
         },
       }
     );
@@ -780,7 +783,10 @@ const resolveSameReportHoleDelta = async ({
       $set: {
         volumeNameHoleSnapshot: currentHole,
         volumeNameHoleDelta: holeDelta,
-        volumeNameHoleActivePitsSnapshot: currentActivePits,
+        ...(reportMeta?.volumeNameHoleActivePitsSnapshot === null ||
+        reportMeta?.volumeNameHoleActivePitsSnapshot === undefined
+          ? { volumeNameHoleActivePitsSnapshot: currentActivePits }
+          : {}),
       },
     }
   );
@@ -2494,7 +2500,10 @@ export const getVolumeNameCalculation = async (req, res) => {
           $set: {
             volumeNameHoleSnapshot: round2(hole),
             volumeNameHoleDelta: 0,
-            volumeNameHoleActivePitsSnapshot: activePits,
+            ...(reportMeta?.volumeNameHoleActivePitsSnapshot === null ||
+            reportMeta?.volumeNameHoleActivePitsSnapshot === undefined
+              ? { volumeNameHoleActivePitsSnapshot: activePits }
+              : {}),
             volumeNameLastActivePitName: "",
             volumeNameLastActivePitVolume: 0,
             volumeNameLastActivePitUpdatedAt: null,

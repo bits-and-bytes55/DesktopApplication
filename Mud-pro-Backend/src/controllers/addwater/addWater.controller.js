@@ -2,6 +2,7 @@ import Pit from "../../modules/pit/pit.model.js";
 import AddWater from "../../modules/addwater/AddWater.js";
 import { findWritablePitByName, getWritablePits } from "../../utils/pitReportState.js";
 import { buildScopedFilter, readReportId } from "../../utils/reportScope.js";
+import { ensureVolumeNameActivePitsBaseline } from "../../utils/volumeNameBaseline.js";
 
 
 
@@ -94,6 +95,10 @@ export const createAddWater = async (req, res) => {
 
     for (const payload of payloads) {
       const prepared = prepareAddWaterData(wellId, reportId, payload);
+      await ensureVolumeNameActivePitsBaseline({
+        wellId: prepared.wellId,
+        reportId: prepared.reportId,
+      });
 
       await addWaterToPit({
         wellId: prepared.wellId,
@@ -230,6 +235,10 @@ export const updateAddWater = async (req, res) => {
     };
 
     const prepared = prepareAddWaterData(wellId, reportId, mergedPayload);
+    await ensureVolumeNameActivePitsBaseline({
+      wellId: prepared.wellId,
+      reportId: prepared.reportId,
+    });
 
     await addWaterToPit({
       wellId: prepared.wellId,

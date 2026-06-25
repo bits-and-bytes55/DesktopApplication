@@ -2,6 +2,7 @@ import Pit from "../../modules/pit/pit.model.js";
 import MudLoss from "../../modules/mudloss/MudLoss.js";
 import { getWritablePits } from "../../utils/pitReportState.js";
 import { buildScopedFilter, readReportId } from "../../utils/reportScope.js";
+import { ensureVolumeNameActivePitsBaseline } from "../../utils/volumeNameBaseline.js";
 
 const toNumber = (value) => {
   if (value === null || value === undefined || value === "") return 0;
@@ -87,6 +88,7 @@ export const createMudLoss = async (req, res) => {
       totalLoss,
     };
 
+    await ensureVolumeNameActivePitsBaseline({ wellId, reportId });
     await deductFromActivePits({ wellId, reportId, totalLoss });
 
     const scopeFilter = buildScopedFilter(wellId, reportId);
@@ -230,6 +232,7 @@ export const updateMudLoss = async (req, res) => {
       updatedData.operationInstanceKey || ""
     ).trim();
 
+    await ensureVolumeNameActivePitsBaseline({ wellId, reportId });
     await deductFromActivePits({ wellId, reportId, totalLoss });
 
     existing.set({ ...updatedData, totalLoss, reportId });

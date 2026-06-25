@@ -1,5 +1,6 @@
 import OtherVolAddition from "../../modules/othervol/OtherVolAddition.js";
 import { buildScopedFilter, readReportId } from "../../utils/reportScope.js";
+import { ensureVolumeNameActivePitsBaseline } from "../../utils/volumeNameBaseline.js";
 
 const toNumber = (value) => {
   if (value === null || value === undefined || value === "") return 0;
@@ -85,6 +86,10 @@ export const createOtherVolAddition = async (req, res) => {
         fallbackWellId,
         fallbackReportId
       );
+      await ensureVolumeNameActivePitsBaseline({
+        wellId: prepared.wellId,
+        reportId: prepared.reportId,
+      });
 
       await addToActivePits({
         wellId: prepared.wellId,
@@ -230,6 +235,10 @@ export const updateOtherVolAddition = async (req, res) => {
     };
 
     const prepared = prepareOtherVolAdditionData(mergedPayload);
+    await ensureVolumeNameActivePitsBaseline({
+      wellId: prepared.wellId,
+      reportId: prepared.reportId,
+    });
 
     await addToActivePits({
       wellId: prepared.wellId,

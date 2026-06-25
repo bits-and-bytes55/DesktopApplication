@@ -1,6 +1,7 @@
 import Premixed from "../../modules/inventory/premixed.model.js";
 import ReceiveMud from "../../modules/receivemud/ReceiveMud.js";
 import { buildScopedFilter, readReportId } from "../../utils/reportScope.js";
+import { ensureVolumeNameActivePitsBaseline } from "../../utils/volumeNameBaseline.js";
 
 const toNumber = (value) => {
   if (value === null || value === undefined || value === "") return 0;
@@ -126,6 +127,12 @@ export const createReceiveMud = async (req, res) => {
 
     for (const payload of payloads) {
       const prepared = await prepareReceiveMudData(wellId, reportId, payload);
+      if (String(prepared.to || "").trim().toLowerCase() === "active system") {
+        await ensureVolumeNameActivePitsBaseline({
+          wellId,
+          reportId,
+        });
+      }
 
       await applyVolumeToPit({
         wellId,
@@ -272,6 +279,12 @@ export const updateReceiveMud = async (req, res) => {
     };
 
     const prepared = await prepareReceiveMudData(wellId, reportId, mergedPayload);
+    if (String(prepared.to || "").trim().toLowerCase() === "active system") {
+      await ensureVolumeNameActivePitsBaseline({
+        wellId,
+        reportId,
+      });
+    }
 
     await applyVolumeToPit({
       wellId,
