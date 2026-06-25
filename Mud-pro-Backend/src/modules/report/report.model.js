@@ -135,6 +135,14 @@ const reportSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    volumeNameActivePitInputAdjustmentTotal: {
+      type: Number,
+      default: 0,
+    },
+    volumeNameActivePitLossAdjustmentTotal: {
+      type: Number,
+      default: 0,
+    },
   },
   { timestamps: true }
 );

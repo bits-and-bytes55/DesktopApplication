@@ -318,6 +318,8 @@ const volumeNameCarryOverReset = {
   volumeNameLastActivePitName: "",
   volumeNameLastActivePitVolume: 0,
   volumeNameLastActivePitUpdatedAt: null,
+  volumeNameActivePitInputAdjustmentTotal: 0,
+  volumeNameActivePitLossAdjustmentTotal: 0,
 };
 
 const activePitsVolumeForReport = async ({ wellId, reportId }) => {
