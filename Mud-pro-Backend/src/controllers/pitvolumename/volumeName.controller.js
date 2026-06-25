@@ -1276,6 +1276,17 @@ const isIgnoredDestination = (value) => {
   return !key || key === "imp";
 };
 
+const calculateReturnLostActiveSystemBalance = (returnLostMud = []) =>
+  round2(
+    returnLostMud.reduce((sum, item) => {
+      if (!isActiveSystemName(item?.from)) return sum;
+      const returnedOutside = isIgnoredDestination(item?.to)
+        ? toNumber(item?.volReturned)
+        : 0;
+      return sum - returnedOutside - toNumber(item?.volLost);
+    }, 0)
+  );
+
 const addPitDelta = (map, pitName, volume) => {
   const key = toText(pitName).toLowerCase();
   const amount = toNumber(volume);
@@ -1708,6 +1719,8 @@ export const calculateEndVolForReport = async ({
     operationVolumeEffects.addWaterActiveSystemDelta +
       operationVolumeEffects.otherVolActiveSystemDelta
   );
+  const returnLostActiveSystemBalance =
+    calculateReturnLostActiveSystemBalance(returnLostMud);
   const adjustedActiveSystemPendingInput =
     calculateAdjustedActiveSystemPendingInput({
       addWaterEntries: normalizedAddWaterEntries,
@@ -1734,6 +1747,9 @@ export const calculateEndVolForReport = async ({
     adjustedActiveSystemPendingInput + 0.005 >= activeSystemPendingInput;
   const mudLossActiveSystemBalance = round2(
     activeSystemPendingInputForMudLoss - pendingActiveSystemMudLoss
+  );
+  const activeSystemOutputBalance = round2(
+    mudLossActiveSystemBalance + returnLostActiveSystemBalance
   );
   const effectiveEndVolDelta = round2(
     operationVolumeEffects.endVolDelta -
@@ -1779,8 +1795,11 @@ export const calculateEndVolForReport = async ({
 
   if (operationVolumeEffects.forceEndVolZero) return 0;
 
-  if (normalizedMudLossEntries.length > 0) {
-    return round2(derivedActiveSystem + mudLossActiveSystemBalance);
+  if (
+    normalizedMudLossEntries.length > 0 ||
+    Math.abs(returnLostActiveSystemBalance) >= 0.005
+  ) {
+    return round2(derivedActiveSystem + activeSystemOutputBalance);
   }
 
   if (hasOperationVolumeRows && activeSystemPendingInput > 0.005) {
@@ -2448,6 +2467,8 @@ export const getVolumeNameCalculation = async (req, res) => {
       operationVolumeEffects.addWaterActiveSystemDelta +
         operationVolumeEffects.otherVolActiveSystemDelta
     );
+    const returnLostActiveSystemBalance =
+      calculateReturnLostActiveSystemBalance(returnLostMud);
     const adjustedActiveSystemPendingInput =
       calculateAdjustedActiveSystemPendingInput({
         addWaterEntries: normalizedAddWaterEntries,
@@ -2477,6 +2498,9 @@ export const getVolumeNameCalculation = async (req, res) => {
       adjustedActiveSystemPendingInput + 0.005 >= activeSystemPendingInput;
     const mudLossActiveSystemBalance = round2(
       activeSystemPendingInputForMudLoss - pendingActiveSystemMudLoss
+    );
+    const activeSystemOutputBalance = round2(
+      mudLossActiveSystemBalance + returnLostActiveSystemBalance
     );
     const effectiveEndVolDelta = round2(
       operationVolumeEffects.endVolDelta -
@@ -2544,8 +2568,9 @@ export const getVolumeNameCalculation = async (req, res) => {
     const endVolBase = round2(previousEndVol);
     const operationRowsEndVol =
       hasOperationVolumeRows
-        ? normalizedMudLossEntries.length > 0
-          ? round2(derivedActiveSystem + mudLossActiveSystemBalance)
+        ? normalizedMudLossEntries.length > 0 ||
+          Math.abs(returnLostActiveSystemBalance) >= 0.005
+          ? round2(derivedActiveSystem + activeSystemOutputBalance)
           : activeSystemPendingInput > 0.005
             ? round2(derivedActiveSystem + activeSystemAdjustmentBalance)
             : hasFullyAdjustedActiveSystemInput
@@ -2571,8 +2596,11 @@ export const getVolumeNameCalculation = async (req, res) => {
     let endVolMinusActiveSystem = 0;
     if (!hasCurrentReportVolumeData) {
       endVolMinusActiveSystem = 0;
-    } else if (normalizedMudLossEntries.length > 0) {
-      endVolMinusActiveSystem = mudLossActiveSystemBalance;
+    } else if (
+      normalizedMudLossEntries.length > 0 ||
+      Math.abs(returnLostActiveSystemBalance) >= 0.005
+    ) {
+      endVolMinusActiveSystem = activeSystemOutputBalance;
     } else if (activeSystemPendingInput > 0.005) {
       endVolMinusActiveSystem = activeSystemAdjustmentBalance;
     } else if (hasFullyAdjustedActiveSystemInput && hasOperationVolumeRows) {
