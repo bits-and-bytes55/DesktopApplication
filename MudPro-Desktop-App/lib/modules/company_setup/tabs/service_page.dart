@@ -136,7 +136,7 @@ class ServicesPage extends StatelessWidget {
           children: [
             _sectionHeader(title, icon, gradient),
             _tableHeader(),
-            Container(height: 1, color: Colors.grey.shade300),
+            Container(height: 1, color: AppTheme.tableGridBlue),
             Expanded(
               child: ListView.builder(
                 itemCount: existingData.length + newRows.length,
@@ -220,7 +220,7 @@ class ServicesPage extends StatelessWidget {
       height: 32,
       decoration: BoxDecoration(
         color: isEditing ? Colors.blue.withOpacity(0.05) : (index % 2 == 0 ? Colors.white : AppTheme.cardColor),
-        border: Border(bottom: BorderSide(color: Colors.grey.shade200, width: 0.5)),
+        border: Border(bottom: BorderSide(color: AppTheme.tableBorderBlue, width: 0.5)),
       ),
       child: Row(
         children: [
@@ -255,7 +255,7 @@ class ServicesPage extends StatelessWidget {
       height: 32,
       decoration: BoxDecoration(
         color: index % 2 == 0 ? Colors.white : AppTheme.cardColor,
-        border: Border(bottom: BorderSide(color: Colors.grey.shade200, width: 0.5)),
+        border: Border(bottom: BorderSide(color: AppTheme.tableBorderBlue, width: 0.5)),
       ),
       child: Row(
         children: [
@@ -275,7 +275,7 @@ class ServicesPage extends StatelessWidget {
       width: width,
       padding: const EdgeInsets.symmetric(horizontal: 4),
       alignment: Alignment.center,
-      decoration: BoxDecoration(border: Border(left: BorderSide(color: Colors.grey.shade200, width: 0.5))),
+      decoration: BoxDecoration(border: Border(left: BorderSide(color: AppTheme.tableBorderBlue, width: 0.5))),
       child: child,
     );
     return flex != null ? Expanded(flex: flex, child: c) : c;

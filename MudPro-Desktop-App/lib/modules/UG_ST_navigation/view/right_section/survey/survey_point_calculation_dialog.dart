@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/survey/controller/survey_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/survey/survey_graph_utils.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
+import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class SurveyPointCalculationDialog extends StatefulWidget {
   const SurveyPointCalculationDialog({super.key});
@@ -11,7 +12,6 @@ class SurveyPointCalculationDialog extends StatefulWidget {
   State<SurveyPointCalculationDialog> createState() =>
       _SurveyPointCalculationDialogState();
 }
-
 class _SurveyPointCalculationDialogState
     extends State<SurveyPointCalculationDialog> {
   final SurveyController controller = Get.find<SurveyController>();
@@ -37,7 +37,7 @@ class _SurveyPointCalculationDialogState
         width: 1480,
         height: 1010,
         decoration: BoxDecoration(
-          border: Border.all(color: const Color(0xFFC3C9D1)),
+          border: Border.all(color: AppTheme.tableBorderBlue),
           color: Colors.white,
         ),
         child: Column(
@@ -101,13 +101,20 @@ class _SurveyPointCalculationDialogState
     return Container(
       height: 42,
       padding: const EdgeInsets.symmetric(horizontal: 14),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(bottom: BorderSide(color: Color(0xFFC3C9D1))),
+      decoration: BoxDecoration(
+        color: AppTheme.tableHeaderBlue,
+        border: Border(bottom: BorderSide(color: AppTheme.tableBorderBlue)),
       ),
       child: Row(
         children: [
-          const Text('Point Calculation', style: TextStyle(fontSize: 14)),
+          Text(
+            'Point Calculation',
+            style: AppTheme.caption.copyWith(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: AppTheme.textPrimary,
+            ),
+          ),
           const Spacer(),
           InkWell(
             onTap: () => Navigator.of(context).pop(),
@@ -132,7 +139,7 @@ class _SurveyPointCalculationDialogState
 
     return Container(
       decoration: BoxDecoration(
-        border: Border.all(color: const Color(0xFFB9BEC7)),
+        border: Border.all(color: AppTheme.tableBorderBlue),
       ),
       child: Column(
         children: List.generate(rows.length, (index) {
@@ -147,10 +154,10 @@ class _SurveyPointCalculationDialogState
                   decoration: BoxDecoration(
                     color: index == 0
                         ? const Color(0xFF1278D2)
-                        : const Color(0xFFF2F2F2),
+                        : AppTheme.readOnlyCell,
                     border: const Border(
-                      right: BorderSide(color: Color(0xFFB9BEC7)),
-                      bottom: BorderSide(color: Color(0xFFB9BEC7)),
+                      right: BorderSide(color: AppTheme.tableBorderBlue),
+                      bottom: BorderSide(color: AppTheme.tableBorderBlue),
                     ),
                   ),
                   child: Text(
@@ -168,10 +175,10 @@ class _SurveyPointCalculationDialogState
                   alignment: Alignment.centerRight,
                   padding: const EdgeInsets.symmetric(horizontal: 10),
                   decoration: const BoxDecoration(
-                    color: Color(0xFFFFF8C9),
+                    color: AppTheme.calculatedCell,
                     border: Border(
-                      right: BorderSide(color: Color(0xFFB9BEC7)),
-                      bottom: BorderSide(color: Color(0xFFB9BEC7)),
+                      right: BorderSide(color: AppTheme.tableBorderBlue),
+                      bottom: BorderSide(color: AppTheme.tableBorderBlue),
                     ),
                   ),
                   child: Text(
@@ -185,7 +192,7 @@ class _SurveyPointCalculationDialogState
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                     decoration: const BoxDecoration(
                       border: Border(
-                        bottom: BorderSide(color: Color(0xFFB9BEC7)),
+                        bottom: BorderSide(color: AppTheme.tableBorderBlue),
                       ),
                     ),
                     child: Text(
@@ -205,7 +212,7 @@ class _SurveyPointCalculationDialogState
   Widget _sectionMiniChart(dynamic point) {
     return Container(
       decoration: BoxDecoration(
-        border: Border.all(color: const Color(0xFFB9BEC7)),
+        border: Border.all(color: AppTheme.tableBorderBlue),
       ),
       child: CustomPaint(
         painter: _PointMiniPainter(
@@ -225,7 +232,7 @@ class _SurveyPointCalculationDialogState
   Widget _planMiniChart(dynamic point) {
     return Container(
       decoration: BoxDecoration(
-        border: Border.all(color: const Color(0xFFB9BEC7)),
+        border: Border.all(color: AppTheme.tableBorderBlue),
       ),
       child: CustomPaint(
         painter: _PointMiniPainter(

@@ -28,7 +28,7 @@ class AlertUsagePredictionPage extends StatelessWidget {
               ? AppTheme.primaryColor
               : isSubHeader
                   ? AppTheme.primaryColor.withOpacity(0.3)
-                  : Colors.grey.shade300,
+                  : AppTheme.tableGridBlue,
           width: 0.5,
         ),
         color: isHeader
@@ -85,7 +85,7 @@ class AlertUsagePredictionPage extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
       decoration: AppTheme.cardDecoration.copyWith(
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(color: AppTheme.tableGridBlue),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -96,7 +96,7 @@ class AlertUsagePredictionPage extends StatelessWidget {
             decoration: BoxDecoration(
               color: Colors.white,
               border: Border(
-                bottom: BorderSide(color: Colors.grey.shade200, width: 1),
+                bottom: BorderSide(color: AppTheme.tableBorderBlue, width: 1),
               ),
             ),
             child: Row(
@@ -195,7 +195,7 @@ class AlertUsagePredictionPage extends StatelessWidget {
                             decoration: BoxDecoration(
                               border: Border(
                                 bottom: BorderSide(
-                                  color: Colors.grey.shade200,
+                                  color: AppTheme.tableBorderBlue,
                                   width: 0.5,
                                 ),
                               ),
@@ -251,7 +251,7 @@ class AlertUsagePredictionPage extends StatelessWidget {
   Widget serviceTable() {
     return Container(
       decoration: AppTheme.cardDecoration.copyWith(
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(color: AppTheme.tableGridBlue),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -262,7 +262,7 @@ class AlertUsagePredictionPage extends StatelessWidget {
             decoration: BoxDecoration(
               color: Colors.white,
               border: Border(
-                bottom: BorderSide(color: Colors.grey.shade200, width: 1),
+                bottom: BorderSide(color: AppTheme.tableBorderBlue, width: 1),
               ),
             ),
             child: Row(
@@ -357,7 +357,7 @@ class AlertUsagePredictionPage extends StatelessWidget {
                             decoration: BoxDecoration(
                               border: Border(
                                 bottom: BorderSide(
-                                  color: Colors.grey.shade200,
+                                  color: AppTheme.tableBorderBlue,
                                   width: 0.5,
                                 ),
                               ),
@@ -492,7 +492,7 @@ class AlertUsagePredictionPage extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.grey.shade200),
+                        border: Border.all(color: AppTheme.tableBorderBlue),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,

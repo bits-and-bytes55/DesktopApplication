@@ -1531,7 +1531,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(color: AppTheme.tableGridBlue),
       ),
       child: Row(
         children: [
@@ -1597,7 +1597,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     return Container(
       height: 32,
       decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(color: AppTheme.tableGridBlue),
       ),
       child: Obx(() {
         final previousReports = _previousReports();
@@ -1670,7 +1670,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
             border: Border.all(
               color: selectedMethod.value == value
                   ? AppTheme.primaryColor
-                  : Colors.grey.shade300,
+                  : AppTheme.tableGridBlue,
             ),
           ),
           child: Row(
@@ -1735,7 +1735,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
 
     return Container(
       decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(color: AppTheme.tableGridBlue),
       ),
       child: Column(
         children: [
@@ -1744,7 +1744,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
             decoration: BoxDecoration(
               color: Colors.white,
-              border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
+              border: Border(bottom: BorderSide(color: AppTheme.tableGridBlue)),
             ),
             child: Text(
               "Consume Product",
@@ -1787,7 +1787,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                         ),
                         border: TableBorder(
                           verticalInside: BorderSide(
-                            color: Colors.grey.shade300,
+                            color: AppTheme.tableGridBlue,
                           ),
                           horizontalInside: BorderSide(
                             color: Colors.grey.shade200,
@@ -2199,7 +2199,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
   Widget _buildDistributeTable() {
     return Container(
       decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(color: AppTheme.tableGridBlue),
       ),
       child: Column(
         children: [
@@ -2208,7 +2208,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
               color: AppTheme.primaryColor,
-              border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
+              border: Border(bottom: BorderSide(color: AppTheme.tableGridBlue)),
             ),
             child: Row(
               children: [
@@ -2229,7 +2229,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                     onTap: dashboardController.isLocked.value
                         ? null
                         : _calculateDistribution,
-                    color: Colors.grey.shade100,
+                    color: AppTheme.tableHeaderBlue,
                     iconColor: AppTheme.primaryColor,
                   ),
                 ),
@@ -2244,7 +2244,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                             _addDistributeRow();
                             _scheduleDistributionAutoSave();
                           },
-                    color: Colors.grey.shade100,
+                    color: AppTheme.tableHeaderBlue,
                     iconColor: AppTheme.primaryColor,
                   ),
                 ),
@@ -2256,7 +2256,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
           Container(
             decoration: BoxDecoration(
               color: AppTheme.primaryColor,
-              border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
+              border: Border(bottom: BorderSide(color: AppTheme.tableGridBlue)),
             ),
             child: Row(
               children: [
@@ -2506,10 +2506,10 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
           height: 22,
           decoration: BoxDecoration(
             color: onTap == null
-                ? Colors.grey.shade100
-                : (color ?? Colors.grey.shade100),
+                ? AppTheme.tableHeaderBlue
+                : (color ?? AppTheme.tableHeaderBlue),
             borderRadius: BorderRadius.circular(3),
-            border: Border.all(color: Colors.grey.shade300),
+            border: Border.all(color: AppTheme.tableGridBlue),
           ),
           child: Icon(
             icon,
@@ -2549,7 +2549,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(color: AppTheme.tableGridBlue),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2559,7 +2559,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
               color: AppTheme.primaryColor,
-              border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
+              border: Border(bottom: BorderSide(color: AppTheme.tableGridBlue)),
             ),
             child: Text(
               'Add Water',
@@ -2594,7 +2594,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                         border: Border.all(
                           color: addWater.value
                               ? AppTheme.primaryColor
-                              : Colors.grey.shade300,
+                              : AppTheme.tableGridBlue,
                         ),
                       ),
                       child: Row(
@@ -2775,7 +2775,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(3),
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(color: AppTheme.tableGridBlue),
       ),
       child: Row(
         children: [

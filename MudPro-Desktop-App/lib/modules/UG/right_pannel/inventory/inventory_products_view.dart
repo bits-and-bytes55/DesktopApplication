@@ -661,7 +661,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: const Color(0xFFC9CDD3)),
+        border: Border.all(color: AppTheme.tableBorderBlue),
       ),
       child: Column(
         children: [
@@ -703,7 +703,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                           controller: _mainVerticalScroll,
                           child: Table(
                             border: TableBorder.all(
-                              color: Colors.grey.shade300,
+                              color: AppTheme.tableGridBlue,
                               width: 1,
                             ),
                             defaultVerticalAlignment:
@@ -1313,7 +1313,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: const Color(0xFFC9CDD3)),
+        border: Border.all(color: AppTheme.tableBorderBlue),
       ),
       child: Column(
         children: [
@@ -1335,7 +1335,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                         child: Obx(
                           () => Table(
                             border: TableBorder.all(
-                              color: Colors.grey.shade300,
+                              color: AppTheme.tableGridBlue,
                               width: 1,
                             ),
                             defaultVerticalAlignment:
@@ -1511,7 +1511,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: const Color(0xFFC9CDD3)),
+        border: Border.all(color: AppTheme.tableBorderBlue),
       ),
       child: Column(
         children: [
@@ -1566,7 +1566,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                                   : 0;
                               return Table(
 	                            border: TableBorder.all(
-	                              color: Colors.grey.shade300,
+	                              color: AppTheme.tableGridBlue,
 	                              width: 1,
 	                            ),
 	                            defaultVerticalAlignment:
@@ -2252,7 +2252,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
           decoration: BoxDecoration(
             color: checked
                 ? AppTheme.successColor.withOpacity(0.1)
-                : Colors.grey.shade100,
+                : AppTheme.tableHeaderBlue,
             borderRadius: BorderRadius.circular(3),
             border: Border.all(
               color: checked ? AppTheme.successColor : Colors.grey.shade400,

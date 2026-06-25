@@ -39,7 +39,7 @@ export const saveSelectedMudProperties = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Saved successfully',
+      message: 'Mud properties saved successfully',
       data: {
         waterBased: record.waterBased,
         oilBased: record.oilBased,

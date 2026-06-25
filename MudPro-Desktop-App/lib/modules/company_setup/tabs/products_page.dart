@@ -83,7 +83,7 @@ class ProductsPage extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Color(0xffD1D5DB), width: 1),
+                      border: Border.all(color: AppTheme.tableBorderBlue, width: 1),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withOpacity(0.05),

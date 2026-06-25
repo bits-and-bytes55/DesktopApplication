@@ -741,7 +741,7 @@ class _ReceiveProductViewState extends State<ReceiveProductView> {
                 decoration: BoxDecoration(
                   color: AppTheme.primaryColor,
                   border: Border(
-                    bottom: BorderSide(color: Colors.grey.shade300),
+                    bottom: BorderSide(color: AppTheme.tableGridBlue),
                   ),
                 ),
                 child: Row(
@@ -759,7 +759,7 @@ class _ReceiveProductViewState extends State<ReceiveProductView> {
                       child: Container(
                         height: 32,
                         decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey.shade300),
+                          border: Border.all(color: AppTheme.tableGridBlue),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: TextField(
@@ -892,7 +892,7 @@ class _ReceiveProductViewState extends State<ReceiveProductView> {
   }) {
     return Container(
       decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(color: AppTheme.tableGridBlue),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -902,7 +902,7 @@ class _ReceiveProductViewState extends State<ReceiveProductView> {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
               color: AppTheme.primaryColor,
-              border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
+              border: Border(bottom: BorderSide(color: AppTheme.tableGridBlue)),
             ),
             child: Row(
               children: [
@@ -1012,7 +1012,7 @@ class _ReceiveProductViewState extends State<ReceiveProductView> {
                                           decoration: BoxDecoration(
                                             border: Border(
                                               right: BorderSide(
-                                                color: Colors.grey.shade300,
+                                                color: AppTheme.tableGridBlue,
                                                 width: 0.5,
                                               ),
                                             ),
@@ -1235,7 +1235,7 @@ class _ReceiveProductViewState extends State<ReceiveProductView> {
     return Container(
       decoration: BoxDecoration(
         color: AppTheme.primaryColor,
-        border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
+        border: Border(bottom: BorderSide(color: AppTheme.tableGridBlue)),
       ),
       child: Row(
         children: headers
@@ -1245,7 +1245,7 @@ class _ReceiveProductViewState extends State<ReceiveProductView> {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                 decoration: BoxDecoration(
                   border: Border(
-                    right: BorderSide(color: Colors.grey.shade300, width: 0.5),
+                    right: BorderSide(color: AppTheme.tableGridBlue, width: 0.5),
                   ),
                 ),
                 alignment: h == 'Amount'
@@ -1280,7 +1280,7 @@ class _ReceiveProductViewState extends State<ReceiveProductView> {
           ? null
           : BoxDecoration(
               border: Border(
-                right: BorderSide(color: Colors.grey.shade300, width: 0.5),
+                right: BorderSide(color: AppTheme.tableGridBlue, width: 0.5),
               ),
             ),
       alignment: center ? Alignment.center : Alignment.centerLeft,

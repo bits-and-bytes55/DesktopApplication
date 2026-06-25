@@ -336,7 +336,7 @@ class _MudCompanyPageState extends State<MudCompanyPage> {
       height: 32,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: Colors.grey.shade300, width: 1),
+        border: Border.all(color: AppTheme.tableGridBlue, width: 1),
       ),
       child: Row(
         children: [
@@ -409,7 +409,7 @@ class _MudCompanyPageState extends State<MudCompanyPage> {
       return Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.grey.shade300),
+          border: Border.all(color: AppTheme.tableGridBlue),
         ),
         child: Column(
           children: [
@@ -493,7 +493,7 @@ class _MudCompanyPageState extends State<MudCompanyPage> {
                 borderRadius: const BorderRadius.vertical(
                   bottom: Radius.circular(8),
                 ),
-                border: Border(top: BorderSide(color: Colors.grey.shade300)),
+                border: Border(top: BorderSide(color: AppTheme.tableGridBlue)),
               ),
               child: Row(
                 children: [
@@ -554,7 +554,7 @@ class _MudCompanyPageState extends State<MudCompanyPage> {
       height: 32,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: Colors.grey.shade300, width: 1),
+        border: Border.all(color: AppTheme.tableGridBlue, width: 1),
       ),
       child: Row(
         children: [
@@ -634,7 +634,7 @@ class _MudCompanyPageState extends State<MudCompanyPage> {
       height: 32,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: Colors.grey.shade300, width: 1),
+        border: Border.all(color: AppTheme.tableGridBlue, width: 1),
       ),
       child: Row(
         children: [
@@ -830,7 +830,7 @@ class _MudCompanyPageState extends State<MudCompanyPage> {
                                               : AppTheme.cardColor),
                                     border: Border(
                                       bottom: BorderSide(
-                                        color: Colors.grey.shade200,
+                                        color: AppTheme.tableBorderBlue,
                                         width: 0.5,
                                       ),
                                     ),
@@ -930,7 +930,7 @@ class _MudCompanyPageState extends State<MudCompanyPage> {
                 bottomRight: Radius.circular(12),
               ),
               border: Border(
-                top: BorderSide(color: Colors.grey.shade300, width: 1),
+                top: BorderSide(color: AppTheme.tableGridBlue, width: 1),
               ),
             ),
             child: Obx(() {
@@ -1069,7 +1069,7 @@ class _MudCompanyPageState extends State<MudCompanyPage> {
     return Container(
       width: 1,
       height: double.infinity,
-      color: Colors.grey.shade300,
+      color: AppTheme.tableGridBlue,
     );
   }
 

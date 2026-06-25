@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mudpro_desktop_app/theme/app_theme.dart';
 import 'time_distribution_graph.dart';
 import 'time_distribution_table.dart';
 
@@ -33,7 +34,7 @@ class _TimeDistributionPageState extends State<TimeDistributionPage>
             decoration: BoxDecoration(
               color: Colors.white,
               border: Border(
-                bottom: BorderSide(color: Colors.grey.shade200, width: 1),
+                bottom: BorderSide(color: AppTheme.tableBorderBlue, width: 1),
               ),
             ),
             child: Row(
@@ -53,7 +54,7 @@ class _TimeDistributionPageState extends State<TimeDistributionPage>
                 Container(
                   height: 32,
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
+                    color: AppTheme.tableHeaderBlue,
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: TabBar(

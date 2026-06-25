@@ -140,7 +140,7 @@ class _DailyCostTabViewState extends State<DailyCostTabView> with SingleTickerPr
                   decoration: BoxDecoration(
                     color: AppTheme.cardColor,
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.grey.shade200),
+                    border: Border.all(color: AppTheme.tableBorderBlue),
                   ),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),

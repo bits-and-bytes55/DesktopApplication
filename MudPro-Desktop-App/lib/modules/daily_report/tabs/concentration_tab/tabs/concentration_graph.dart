@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mudpro_desktop_app/theme/app_theme.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 
@@ -15,7 +16,7 @@ class ConcentrationGraphTab extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Color(0xffE2E8F0), width: 1),
+            border: Border.all(color: AppTheme.tableBorderBlue, width: 1),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.05),
@@ -32,7 +33,7 @@ class ConcentrationGraphTab extends StatelessWidget {
                 padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                 decoration: BoxDecoration(
                   border: Border(
-                    bottom: BorderSide(color: Color(0xffE2E8F0), width: 1),
+                    bottom: BorderSide(color: AppTheme.tableBorderBlue, width: 1),
                   ),
                 ),
                 child: Row(
@@ -53,7 +54,7 @@ class ConcentrationGraphTab extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: Color(0xffF8F9FA),
                         borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: Color(0xffE2E8F0), width: 1),
+                        border: Border.all(color: AppTheme.tableBorderBlue, width: 1),
                       ),
                       child: Obx(
                         () => Text(
@@ -88,7 +89,7 @@ class ConcentrationGraphTab extends StatelessWidget {
                 padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 decoration: BoxDecoration(
                   border: Border(
-                    top: BorderSide(color: Color(0xffE2E8F0), width: 1),
+                    top: BorderSide(color: AppTheme.tableBorderBlue, width: 1),
                   ),
                 ),
                 child: Wrap(
@@ -147,7 +148,7 @@ class _GraphPainter extends CustomPainter {
     canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), paint);
     
     // Draw grid lines
-    paint.color = Color(0xffE2E8F0);
+    paint.color = AppTheme.tableBorderBlue;
     paint.strokeWidth = 0.5;
     
     // Vertical grid lines

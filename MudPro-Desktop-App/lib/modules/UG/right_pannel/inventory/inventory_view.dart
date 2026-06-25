@@ -80,7 +80,7 @@ class _InventoryViewState extends State<InventoryView> {
           decoration: BoxDecoration(
             color: Colors.white,
             border: Border(
-              bottom: BorderSide(color: Colors.grey.shade300, width: 1),
+              bottom: BorderSide(color: AppTheme.tableGridBlue, width: 1),
             ),
           ),
           child: Row(
@@ -120,7 +120,7 @@ class _InventoryViewState extends State<InventoryView> {
               color: active ? null : Colors.transparent,
               borderRadius: BorderRadius.circular(6),
               border: Border.all(
-                color: active ? Colors.transparent : Colors.grey.shade300,
+                color: active ? Colors.transparent : AppTheme.tableGridBlue,
               ),
             ),
             child: Column(
@@ -157,8 +157,8 @@ class _InventoryViewState extends State<InventoryView> {
       height: 180,
       padding: const EdgeInsets.fromLTRB(10, 10, 16, 10),
       decoration: BoxDecoration(
-        color: const Color(0xFFF3F3F3),
-        border: Border(top: BorderSide(color: Colors.grey.shade300, width: 1)),
+        color: AppTheme.tableHeaderBlue,
+        border: Border(top: BorderSide(color: AppTheme.tableGridBlue, width: 1)),
       ),
       child: LayoutBuilder(
         builder: (ctx, constraints) {
@@ -215,8 +215,8 @@ class _InventoryViewState extends State<InventoryView> {
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
       decoration: BoxDecoration(
-        border: Border.all(color: const Color(0xFFC7C7C7)),
-        color: const Color(0xFFF3F3F3),
+        border: Border.all(color: AppTheme.tableBorderBlue),
+        color: AppTheme.tableHeaderBlue,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -248,7 +248,7 @@ class _InventoryViewState extends State<InventoryView> {
                         padding: const EdgeInsets.symmetric(horizontal: 8),
                         decoration: BoxDecoration(
                           color: c.isLocked.value
-                              ? Colors.grey.shade100
+                              ? AppTheme.tableHeaderBlue
                               : Colors.white,
                           border: Border.all(color: Colors.grey.shade400),
                         ),
@@ -330,7 +330,7 @@ class _InventoryViewState extends State<InventoryView> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primaryColor,
                   foregroundColor: Colors.white,
-                  disabledBackgroundColor: Colors.grey.shade300,
+                  disabledBackgroundColor: AppTheme.tableGridBlue,
                   padding: EdgeInsets.zero,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(0),
@@ -449,7 +449,11 @@ class _InventoryViewState extends State<InventoryView> {
       _showToast(context, 'Inventory saved successfully');
     } catch (e) {
       if (context.mounted) Navigator.of(context, rootNavigator: true).pop();
-      _showToast(context, 'Failed to save: ${e.toString()}', isError: true);
+	      _showToast(
+	        context,
+	        'Failed to save inventory: ${e.toString()}',
+	        isError: true,
+	      );
     }
   }
 

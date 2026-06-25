@@ -211,7 +211,7 @@ class _SafetyPageState extends State<SafetyPage> {
             offset: const Offset(0, 3),
           ),
         ],
-        border: Border.all(color: Colors.grey.shade200, width: 1),
+        border: Border.all(color: AppTheme.tableBorderBlue, width: 1),
       ),
       child: Column(
         children: [
@@ -230,7 +230,7 @@ class _SafetyPageState extends State<SafetyPage> {
                     decoration: BoxDecoration(
                       color: i % 2 == 0 ? Colors.white : Colors.grey.shade50,
                       border: Border(
-                        bottom: BorderSide(color: Colors.grey.shade200, width: 0.5),
+                        bottom: BorderSide(color: AppTheme.tableBorderBlue, width: 0.5),
                       ),
                     ),
                     child: Material(
@@ -244,7 +244,7 @@ class _SafetyPageState extends State<SafetyPage> {
                             padding: const EdgeInsets.symmetric(horizontal: 4),
                             decoration: BoxDecoration(
                               border: Border(
-                                right: BorderSide(color: Colors.grey.shade300, width: 1),
+                                right: BorderSide(color: AppTheme.tableGridBlue, width: 1),
                               ),
                             ),
                             child: Center(
@@ -325,7 +325,7 @@ class _SafetyPageState extends State<SafetyPage> {
             offset: const Offset(0, 3),
           ),
         ],
-        border: Border.all(color: Colors.grey.shade200, width: 1),
+        border: Border.all(color: AppTheme.tableBorderBlue, width: 1),
       ),
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -363,7 +363,7 @@ class _SafetyPageState extends State<SafetyPage> {
               child: Container(
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: Colors.grey.shade300),
+                  border: Border.all(color: AppTheme.tableGridBlue),
                 ),
                 child: TextField(
                   controller: body,
@@ -462,12 +462,12 @@ class _SafetyPageState extends State<SafetyPage> {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            Colors.grey.shade100,
-            Colors.grey.shade200,
+            AppTheme.tableHeaderBlue,
+            AppTheme.tableBorderBlue,
           ],
         ),
         border: Border(
-          bottom: BorderSide(color: Colors.grey.shade300, width: 1),
+          bottom: BorderSide(color: AppTheme.tableGridBlue, width: 1),
         ),
       ),
       child: Row(
@@ -477,7 +477,7 @@ class _SafetyPageState extends State<SafetyPage> {
             padding: const EdgeInsets.symmetric(horizontal: 4),
             decoration: BoxDecoration(
               border: Border(
-                right: BorderSide(color: Colors.grey.shade300, width: 1),
+                right: BorderSide(color: AppTheme.tableGridBlue, width: 1),
               ),
             ),
             child: const Center(

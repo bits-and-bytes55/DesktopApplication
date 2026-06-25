@@ -481,7 +481,9 @@ class ReturnLostMudController extends GetxController {
         if (deleteResult['success'] == true) {
           _clearForm();
           await _refreshPitState();
-          if (!silent) _showToast('Data deleted successfully', isError: false);
+          if (!silent) {
+            _showToast('Return / Lost Mud deleted successfully', isError: false);
+          }
           return {
             'success': true,
             'message': 'Return / Lost Mud deleted successfully',
@@ -489,19 +491,25 @@ class ReturnLostMudController extends GetxController {
         } else {
           if (!silent) {
             _showToast(
-              deleteResult['message'] ?? 'Failed to delete data',
+              deleteResult['message'] ?? 'Failed to delete Return / Lost Mud',
               isError: true,
             );
           }
           return {
             'success': false,
-            'message': deleteResult['message'] ?? 'Failed to delete data',
+            'message':
+                deleteResult['message'] ?? 'Failed to delete Return / Lost Mud',
           };
         }
       } catch (e) {
         print('Error deleting return/lost mud: $e');
-        if (!silent) _showToast('Failed to delete data', isError: true);
-        return {'success': false, 'message': 'Failed to delete data'};
+        if (!silent) {
+          _showToast('Failed to delete Return / Lost Mud', isError: true);
+        }
+        return {
+          'success': false,
+          'message': 'Failed to delete Return / Lost Mud',
+        };
       } finally {
         isSaving.value = false;
       }
@@ -567,11 +575,14 @@ class ReturnLostMudController extends GetxController {
           : await _repository.createReturnLostMud(currentWellId, data);
       if (result['success'] != true) {
         if (!silent) {
-          _showToast(result['message'] ?? 'Failed to save data', isError: true);
+	          _showToast(
+	            result['message'] ?? 'Failed to save Return / Lost Mud',
+	            isError: true,
+	          );
         }
         return {
           'success': false,
-          'message': result['message'] ?? 'Failed to save data',
+	          'message': result['message'] ?? 'Failed to save Return / Lost Mud',
         };
       }
 
@@ -581,15 +592,22 @@ class ReturnLostMudController extends GetxController {
       }
 
       await _refreshPitState();
-      if (!silent) _showToast('Data saved successfully', isError: false);
+	      if (!silent) {
+	        _showToast('Return / Lost Mud saved successfully', isError: false);
+	      }
       return {
         'success': true,
         'message': 'Return / Lost Mud saved successfully',
       };
     } catch (e) {
       print('❌ Error saving return/lost mud: $e');
-      if (!silent) _showToast('Failed to save data', isError: true);
-      return {'success': false, 'message': 'Failed to save data'};
+	      if (!silent) {
+	        _showToast('Failed to save Return / Lost Mud', isError: true);
+	      }
+	      return {
+	        'success': false,
+	        'message': 'Failed to save Return / Lost Mud',
+	      };
     } finally {
       isSaving.value = false;
     }
@@ -694,7 +712,9 @@ class ReturnLostMudController extends GetxController {
       if (result['success'] == true) {
         clearCurrentForm();
         await _refreshPitState();
-        if (!silent) _showToast('Data deleted successfully', isError: false);
+        if (!silent) {
+          _showToast('Return / Lost Mud deleted successfully', isError: false);
+        }
         return {
           'success': true,
           'message': 'Return / Lost Mud deleted successfully',
@@ -702,16 +722,24 @@ class ReturnLostMudController extends GetxController {
       }
 
       if (!silent) {
-        _showToast(result['message'] ?? 'Failed to delete data', isError: true);
+        _showToast(
+          result['message'] ?? 'Failed to delete Return / Lost Mud',
+          isError: true,
+        );
       }
       return {
         'success': false,
-        'message': result['message'] ?? 'Failed to delete data',
+        'message': result['message'] ?? 'Failed to delete Return / Lost Mud',
       };
     } catch (e) {
       print('Error deleting return/lost mud: $e');
-      if (!silent) _showToast('Failed to delete data', isError: true);
-      return {'success': false, 'message': 'Failed to delete data'};
+      if (!silent) {
+        _showToast('Failed to delete Return / Lost Mud', isError: true);
+      }
+      return {
+        'success': false,
+        'message': 'Failed to delete Return / Lost Mud',
+      };
     } finally {
       isSaving.value = false;
     }
