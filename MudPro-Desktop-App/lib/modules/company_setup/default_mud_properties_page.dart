@@ -75,7 +75,7 @@ class _DefaultMudPropertiesPageState extends State<DefaultMudPropertiesPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Saved successfully!'),
+	            content: Text('Default mud properties saved successfully!'),
             backgroundColor: Colors.green,
             duration: Duration(seconds: 2),
           ),
@@ -83,7 +83,7 @@ class _DefaultMudPropertiesPageState extends State<DefaultMudPropertiesPage> {
       }
     } catch (e) {
       setState(() => _isSaving = false);
-      if (mounted) _showError('Failed to save: $e');
+      if (mounted) _showError('Failed to save default mud properties: $e');
     }
   }
 
@@ -390,7 +390,7 @@ class _DefaultMudPropertiesPageState extends State<DefaultMudPropertiesPage> {
                               : Colors.grey.shade50,
                           border: Border(
                             bottom: BorderSide(
-                              color: Colors.grey.shade300,
+                              color: AppTheme.tableGridBlue,
                               width: 0.5,
                             ),
                           ),
@@ -523,7 +523,7 @@ class _DefaultMudPropertiesPageState extends State<DefaultMudPropertiesPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border(
-          right: BorderSide(color: Colors.grey.shade300, width: 1),
+          right: BorderSide(color: AppTheme.tableGridBlue, width: 1),
         ),
       ),
       child: Center(
@@ -568,7 +568,7 @@ class _DefaultMudPropertiesPageState extends State<DefaultMudPropertiesPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border(
-          right: BorderSide(color: Colors.grey.shade300, width: 1),
+          right: BorderSide(color: AppTheme.tableGridBlue, width: 1),
         ),
       ),
       child: Center(
@@ -606,7 +606,7 @@ class _DefaultMudPropertiesPageState extends State<DefaultMudPropertiesPage> {
       padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
         border: Border(
-          right: BorderSide(color: Colors.grey.shade300, width: 1),
+          right: BorderSide(color: AppTheme.tableGridBlue, width: 1),
         ),
       ),
       child: Center(
@@ -663,7 +663,7 @@ class _DefaultMudPropertiesPageState extends State<DefaultMudPropertiesPage> {
                 ? AppTheme.primaryColor.withOpacity(0.12)
                 : backgroundColor,
             border: Border(
-              right: BorderSide(color: Colors.grey.shade300, width: 1),
+              right: BorderSide(color: AppTheme.tableGridBlue, width: 1),
             ),
           ),
           child: Text(

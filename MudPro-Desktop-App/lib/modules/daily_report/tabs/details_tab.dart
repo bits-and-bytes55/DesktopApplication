@@ -310,7 +310,7 @@ Widget _buildEditableCell({
     height: 36, // Fixed row height
     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
     decoration: BoxDecoration(
-      border: Border.all(color: Colors.grey.shade200),
+      border: Border.all(color: AppTheme.tableBorderBlue),
       color: backgroundColor ?? Colors.white,
     ),
     child: Center(
@@ -345,7 +345,7 @@ Widget _buildStaticCell({
     width: width,
     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
     decoration: BoxDecoration(
-      border: Border.all(color: Colors.grey.shade200),
+      border: Border.all(color: AppTheme.tableBorderBlue),
       color: backgroundColor ?? Colors.white,
     ),
     child: Center(
@@ -512,7 +512,7 @@ class GeometryTable extends StatelessWidget {
       "Geometry",
       Table(
         defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-        border: TableBorder.all(color: Colors.grey.shade200, width: 1),
+        border: TableBorder.all(color: AppTheme.tableBorderBlue, width: 1),
         columnWidths: const {
           0: FixedColumnWidth(50),   // #
           1: FixedColumnWidth(200),  // Description
@@ -614,7 +614,7 @@ class CirculationTable extends StatelessWidget {
       "Circulation",
       Table(
         defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-        border: TableBorder.all(color: Colors.grey.shade200, width: 1),
+        border: TableBorder.all(color: AppTheme.tableBorderBlue, width: 1),
         columnWidths: const {
           0: FixedColumnWidth(50),   // #
           1: FixedColumnWidth(170),  // Path
@@ -774,7 +774,7 @@ class AnnularHydraulicsTable extends StatelessWidget {
                       padding: const EdgeInsets.all(1),
                       child: Table(
                         defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-                        border: TableBorder.all(color: Colors.grey.shade200, width: 1),
+                        border: TableBorder.all(color: AppTheme.tableBorderBlue, width: 1),
                         columnWidths: const {
                           0: FixedColumnWidth(50),   // #
                           1: FixedColumnWidth(150),  // Section
@@ -899,7 +899,7 @@ class SolidsAnalysisTable extends StatelessWidget {
           "Solids Analysis",
           Table(
             defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-            border: TableBorder.all(color: Colors.grey.shade200, width: 1),
+            border: TableBorder.all(color: AppTheme.tableBorderBlue, width: 1),
             columnWidths: {
               0: FixedColumnWidth(descriptionWidth.clamp(150, double.infinity)),  // Description
               1: FixedColumnWidth(sampleWidth.clamp(80, double.infinity)),  // Sample 1
@@ -991,7 +991,7 @@ class BitHydraulicsTable extends StatelessWidget {
       "Bit Hydraulics",
       Table(
         defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-        border: TableBorder.all(color: Colors.grey.shade200, width: 1),
+        border: TableBorder.all(color: AppTheme.tableBorderBlue, width: 1),
         columnWidths: const {
           0: FixedColumnWidth(200),  // Parameter
           1: FixedColumnWidth(140),  // Value
@@ -1067,7 +1067,7 @@ class VolumeTable extends StatelessWidget {
       "Volume (bbl)",
       Table(
         defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-        border: TableBorder.all(color: Colors.grey.shade200, width: 1),
+        border: TableBorder.all(color: AppTheme.tableBorderBlue, width: 1),
         columnWidths: const {
           0: FixedColumnWidth(200),  // Section
           1: FixedColumnWidth(140),  // Volume

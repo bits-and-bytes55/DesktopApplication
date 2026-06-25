@@ -46,7 +46,7 @@ class MudPropertiesController {
       if (json['success'] == true) {
         return SelectedMudProperties.fromJson(json['data']);
       }
-      throw Exception(json['message'] ?? 'Failed to save');
+	      throw Exception(json['message'] ?? 'Failed to save mud properties');
     }
     throw Exception('Server error: ${response.statusCode}');
   }

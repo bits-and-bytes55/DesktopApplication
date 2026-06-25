@@ -224,7 +224,7 @@ export const deleteEmptyFluid = async (req, res) => {
       ),
     });
 
-    res.json({ success: true, message: "Deleted successfully" });
+    res.json({ success: true, message: "Empty Active System deleted successfully" });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

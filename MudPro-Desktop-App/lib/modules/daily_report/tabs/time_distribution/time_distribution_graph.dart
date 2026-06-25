@@ -47,7 +47,7 @@ class TimeDistributionGraph extends StatelessWidget {
                           color: AppTheme.backgroundColor,
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
-                            color: Colors.grey.shade200,
+                            color: AppTheme.tableBorderBlue,
                           ),
                         ),
                         child: Column(
@@ -60,7 +60,7 @@ class TimeDistributionGraph extends StatelessWidget {
                                     bottom: BorderSide(
                                       color: i == 4 
                                           ? Colors.transparent
-                                          : Colors.grey.shade200,
+                                          : AppTheme.tableBorderBlue,
                                       width: 1,
                                     ),
                                   ),
@@ -75,7 +75,7 @@ class TimeDistributionGraph extends StatelessWidget {
                                             right: BorderSide(
                                               color: j == 10
                                                   ? Colors.transparent
-                                                  : Colors.grey.shade100,
+                                                  : AppTheme.tableHeaderBlue,
                                               width: 1,
                                             ),
                                           ),
@@ -219,7 +219,7 @@ class TimeDistributionGraph extends StatelessWidget {
             decoration: BoxDecoration(
               color: Colors.grey.shade50,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey.shade200),
+              border: Border.all(color: AppTheme.tableBorderBlue),
             ),
             child: Wrap(
               spacing: 20,

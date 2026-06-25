@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mudpro_desktop_app/theme/app_theme.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 
@@ -54,7 +55,7 @@ class _ConcentrationCurrentTableState extends State<ConcentrationCurrentTable> {
       decoration: BoxDecoration(
         color: bg ?? (isHeader ? Colors.transparent : null),
         border: Border.all(
-          color: isHeader ? Colors.white.withOpacity(0.3) : Color(0xffE2E8F0),
+          color: isHeader ? Colors.white.withOpacity(0.3) : AppTheme.tableBorderBlue,
           width: 0.5,
         ),
       ),
@@ -171,7 +172,7 @@ class _ConcentrationCurrentTableState extends State<ConcentrationCurrentTable> {
       height: rowH,
       decoration: BoxDecoration(
         color: bg,
-        border: Border.all(color: Color(0xffE2E8F0), width: 0.5),
+        border: Border.all(color: AppTheme.tableBorderBlue, width: 0.5),
       ),
       child: TextField(
         controller: TextEditingController(text: value),
@@ -227,7 +228,7 @@ class _ConcentrationCurrentTableState extends State<ConcentrationCurrentTable> {
             decoration: BoxDecoration(
               color: Colors.white,
               border: Border(
-                right: BorderSide(color: Color(0xffE2E8F0), width: 1),
+                right: BorderSide(color: AppTheme.tableBorderBlue, width: 1),
               ),
             ),
             child: Column(

@@ -115,7 +115,7 @@ class _TimeDistributionTableState extends State<TimeDistributionTable> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey.shade300, width: 1),
+                border: Border.all(color: AppTheme.tableGridBlue, width: 1),
               ),
               child: Column(
                 children: [
@@ -125,7 +125,7 @@ class _TimeDistributionTableState extends State<TimeDistributionTable> {
                     decoration: BoxDecoration(
                       color: AppTheme.primaryColor,
                       border: Border(
-                        bottom: BorderSide(color: Colors.grey.shade300, width: 1),
+                        bottom: BorderSide(color: AppTheme.tableGridBlue, width: 1),
                       ),
                     ),
                     child: const Row(
@@ -148,7 +148,7 @@ class _TimeDistributionTableState extends State<TimeDistributionTable> {
                     decoration: BoxDecoration(
                       color: Colors.blue.shade50,
                       border: Border(
-                        top: BorderSide(color: Colors.grey.shade300, width: 1),
+                        top: BorderSide(color: AppTheme.tableGridBlue, width: 1),
                       ),
                     ),
                     child: Row(
@@ -211,7 +211,7 @@ class _TimeDistributionTableState extends State<TimeDistributionTable> {
       decoration: BoxDecoration(
         border: Border(
           bottom: BorderSide(
-            color: Colors.grey.shade200,
+            color: AppTheme.tableBorderBlue,
             width: index == rows.length - 1 ? 0 : 1,
           ),
         ),

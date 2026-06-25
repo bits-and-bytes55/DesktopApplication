@@ -282,7 +282,7 @@ class _OthersPageState extends State<OthersPage> {
 
     return Container(
       height: 32,
-      decoration: BoxDecoration(color: index % 2 == 0 ? Colors.white : AppTheme.cardColor, border: Border(bottom: BorderSide(color: Colors.grey.shade200, width: 0.5))),
+      decoration: BoxDecoration(color: index % 2 == 0 ? Colors.white : AppTheme.cardColor, border: Border(bottom: BorderSide(color: AppTheme.tableBorderBlue, width: 0.5))),
       child: Row(
         children: [
           _cell(width: 40, child: Text('${index + 1}', style: const TextStyle(fontSize: 11))),
@@ -358,7 +358,7 @@ class _OthersPageState extends State<OthersPage> {
     bool globallyLocked = setupController.isLocked.value;
     return Container(
       height: 32,
-      decoration: BoxDecoration(color: index % 2 == 0 ? Colors.white : AppTheme.cardColor, border: Border(bottom: BorderSide(color: Colors.grey.shade200, width: 0.5))),
+      decoration: BoxDecoration(color: index % 2 == 0 ? Colors.white : AppTheme.cardColor, border: Border(bottom: BorderSide(color: AppTheme.tableBorderBlue, width: 0.5))),
       child: Row(
         children: [
           _cell(width: 40, child: Text('${index + 1}', style: const TextStyle(fontSize: 11))),
@@ -417,7 +417,7 @@ class _OthersPageState extends State<OthersPage> {
       width: width,
       padding: const EdgeInsets.symmetric(horizontal: 4),
       alignment: Alignment.center,
-      decoration: BoxDecoration(border: Border(left: BorderSide(color: Colors.grey.shade200, width: 0.5))),
+      decoration: BoxDecoration(border: Border(left: BorderSide(color: AppTheme.tableBorderBlue, width: 0.5))),
       child: child,
     );
     return flex != null ? Expanded(flex: flex, child: c) : c;

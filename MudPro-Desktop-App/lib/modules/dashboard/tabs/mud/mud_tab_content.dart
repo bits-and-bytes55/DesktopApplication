@@ -551,7 +551,7 @@ class _MudViewState extends State<MudView> {
               }
               return Container(
                 decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade300),
+                  border: Border.all(color: AppTheme.tableBorderBlue),
                   borderRadius: BorderRadius.circular(3),
                 ),
                 child: Column(
@@ -702,8 +702,10 @@ class _MudViewState extends State<MudView> {
     return Container(
       height: _kMudHeaderHeight,
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
+        color: AppTheme.tableHeaderBlue,
+        border: const Border(
+          bottom: BorderSide(color: AppTheme.tableBorderBlue),
+        ),
         borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(3),
           topRight: Radius.circular(3),
@@ -1060,10 +1062,10 @@ class _MudViewState extends State<MudView> {
         height: _kMudRowHeight,
         decoration: BoxDecoration(
           // Grey tint for auto-calculated rows, white for editable
-          color: isAutoCalc ? Colors.grey.shade100 : Colors.white,
+          color: isAutoCalc ? AppTheme.readOnlyCell : Colors.white,
           border: Border(
             bottom: BorderSide(
-              color: isLast ? Colors.transparent : Colors.grey.shade400,
+              color: isLast ? Colors.transparent : AppTheme.tableGridBlue,
             ),
           ),
         ),
@@ -1075,8 +1077,10 @@ class _MudViewState extends State<MudView> {
               height: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 6),
               decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                border: Border(right: BorderSide(color: Colors.grey.shade400)),
+                color: AppTheme.readOnlyCell,
+                border: const Border(
+                  right: BorderSide(color: AppTheme.tableGridBlue),
+                ),
               ),
               child: Obx(() {
                 final unit = c.propertyUnits[name] ?? '';
@@ -1088,8 +1092,8 @@ class _MudViewState extends State<MudView> {
                         displayName,
                         style: AppTheme.caption.copyWith(
                           color: AppTheme.textPrimary,
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w600,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -1124,12 +1128,12 @@ class _MudViewState extends State<MudView> {
                   height: double.infinity,
                   padding: const EdgeInsets.symmetric(horizontal: 2),
                   decoration: BoxDecoration(
-                    color: isGreyReadOnly ? Colors.grey.shade100 : Colors.white,
+                    color: isGreyReadOnly ? AppTheme.readOnlyCell : Colors.white,
                     border: Border(
                       right: BorderSide(
                         color: isLastCol
                             ? Colors.transparent
-                            : Colors.grey.shade400,
+                            : AppTheme.tableGridBlue,
                       ),
                     ),
                   ),
@@ -1143,7 +1147,7 @@ class _MudViewState extends State<MudView> {
                                 color: cell.value.value.isEmpty
                                     ? Colors.grey.shade400
                                     : AppTheme.textPrimary,
-                                fontSize: 11.5,
+                                fontSize: 12.5,
                                 fontWeight: FontWeight.w600,
                               ),
                               textAlign: TextAlign.center,
@@ -1170,7 +1174,7 @@ class _MudViewState extends State<MudView> {
                               onChanged: (v) => cell.value.value = v,
                               style: AppTheme.caption.copyWith(
                                 color: AppTheme.textPrimary,
-                                fontSize: 11.5,
+                                fontSize: 12.5,
                               ),
                               decoration: const InputDecoration(
                                 isDense: true,
@@ -1319,7 +1323,7 @@ class _MudViewState extends State<MudView> {
             child: Obx(
               () => Container(
                 decoration: BoxDecoration(
-                  border: Border.all(color: const Color(0xFFB8D0EA)),
+                  border: Border.all(color: AppTheme.tableBorderBlue),
                   borderRadius: BorderRadius.circular(3),
                 ),
                 child: Column(
@@ -1327,9 +1331,9 @@ class _MudViewState extends State<MudView> {
                     Container(
                       height: _kMudHeaderHeight,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFEAF3FC),
+                        color: AppTheme.tableHeaderBlue,
                         border: const Border(
-                          bottom: BorderSide(color: Color(0xFFB8D0EA)),
+                          bottom: BorderSide(color: AppTheme.tableBorderBlue),
                         ),
                         borderRadius: const BorderRadius.only(
                           topLeft: Radius.circular(3),
@@ -1361,13 +1365,13 @@ class _MudViewState extends State<MudView> {
                                 height: _kMudRowHeight,
                                 decoration: BoxDecoration(
                                   color: isCalc
-                                      ? const Color(0xFFFFFDE7)
+                                      ? AppTheme.calculatedCell
                                       : Colors.white,
                                   border: Border(
                                     bottom: BorderSide(
                                       color: isLast
                                           ? Colors.transparent
-                                          : const Color(0xFFDCEAF7),
+                                          : AppTheme.tableGridBlue,
                                     ),
                                   ),
                                 ),
@@ -1381,10 +1385,10 @@ class _MudViewState extends State<MudView> {
                                         horizontal: 6,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: Colors.grey.shade100,
+                                        color: AppTheme.readOnlyCell,
                                         border: Border(
                                           right: BorderSide(
-                                            color: const Color(0xFFCFE0F2),
+                                            color: AppTheme.tableGridBlue,
                                           ),
                                         ),
                                       ),
@@ -1392,7 +1396,7 @@ class _MudViewState extends State<MudView> {
                                         entry.key,
                                         style: AppTheme.caption.copyWith(
                                           color: AppTheme.textPrimary,
-                                          fontSize: 11,
+                                          fontSize: 12,
                                           fontWeight: FontWeight.w600,
                                         ),
                                         overflow: TextOverflow.ellipsis,
@@ -1412,7 +1416,7 @@ class _MudViewState extends State<MudView> {
                                               right: BorderSide(
                                                 color: isLastCol
                                                     ? Colors.transparent
-                                                    : const Color(0xFFCFE0F2),
+                                                    : AppTheme.tableGridBlue,
                                               ),
                                             ),
                                           ),
@@ -1435,7 +1439,7 @@ class _MudViewState extends State<MudView> {
                                                                       .shade400
                                                                 : AppTheme
                                                                       .textPrimary,
-                                                            fontSize: 11,
+                                                            fontSize: 12,
                                                             fontWeight:
                                                                 FontWeight.w600,
                                                           ),
@@ -1490,7 +1494,7 @@ class _MudViewState extends State<MudView> {
                                                           .copyWith(
                                                             color: AppTheme
                                                                 .textPrimary,
-                                                            fontSize: 11,
+                                                            fontSize: 12,
                                                           ),
                                                       decoration:
                                                           const InputDecoration(

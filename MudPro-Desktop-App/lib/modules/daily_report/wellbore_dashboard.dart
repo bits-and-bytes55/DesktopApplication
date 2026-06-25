@@ -88,7 +88,7 @@ class WellboreDashboard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: AppTheme.cardDecoration.copyWith(
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(color: AppTheme.tableGridBlue),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -133,7 +133,7 @@ class WellboreDashboard extends StatelessWidget {
             decoration: BoxDecoration(
               color: Colors.grey.shade50,
               borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: Colors.grey.shade200),
+              border: Border.all(color: AppTheme.tableBorderBlue),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -180,7 +180,7 @@ class WellboreDashboard extends StatelessWidget {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey.shade200),
+                border: Border.all(color: AppTheme.tableBorderBlue),
               ),
               child: CustomPaint(
                 painter: EnhancedWellborePainter(),
@@ -197,7 +197,7 @@ class WellboreDashboard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: AppTheme.cardDecoration.copyWith(
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(color: AppTheme.tableGridBlue),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -283,7 +283,7 @@ class WellboreDashboard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: AppTheme.tableBorderBlue),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -348,7 +348,7 @@ class WellboreDashboard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: AppTheme.cardDecoration.copyWith(
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(color: AppTheme.tableGridBlue),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -408,7 +408,7 @@ class WellboreDashboard extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.grey.shade200),
+                      border: Border.all(color: AppTheme.tableBorderBlue),
                     ),
                     child: Obx(() => _buildBarChart(controller.topProducts, AppTheme.primaryColor)),
                   ),
@@ -430,7 +430,7 @@ class WellboreDashboard extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.grey.shade200),
+                      border: Border.all(color: AppTheme.tableBorderBlue),
                     ),
                     child: Obx(() => _buildBarChart(controller.categories, AppTheme.secondaryColor)),
                   ),
@@ -490,7 +490,7 @@ class WellboreDashboard extends StatelessWidget {
                         height: 20,
                         width: availableWidth,
                         decoration: BoxDecoration(
-                          color: Colors.grey.shade100,
+                          color: AppTheme.tableHeaderBlue,
                           borderRadius: BorderRadius.circular(4),
                         ),
                       ),
@@ -545,7 +545,7 @@ class WellboreDashboard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: AppTheme.cardDecoration.copyWith(
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(color: AppTheme.tableGridBlue),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -628,7 +628,7 @@ class WellboreDashboard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: AppTheme.tableBorderBlue),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -649,7 +649,7 @@ class WellboreDashboard extends StatelessWidget {
               decoration: BoxDecoration(
                 color: Colors.grey.shade50,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey.shade200),
+                border: Border.all(color: AppTheme.tableBorderBlue),
               ),
               child: CustomPaint(
                 painter: EnhancedLineChartPainter(data: data, unit: unit, color: color),
@@ -746,7 +746,7 @@ class EnhancedWellborePainter extends CustomPainter {
       
       // Draw horizontal guide line
       final linePaint = Paint()
-        ..color = Colors.grey.shade300
+        ..color = AppTheme.tableGridBlue
         ..strokeWidth = 0.5;
       canvas.drawLine(
         Offset(textPainter.width + 15, size.height * (item['position'] as double)),
@@ -798,7 +798,7 @@ class EnhancedGaugePainter extends CustomPainter {
 
     // Background arc (semi-circle)
     final backgroundPaint = Paint()
-      ..color = Colors.grey.shade200
+      ..color = AppTheme.tableBorderBlue
       ..style = PaintingStyle.stroke
       ..strokeWidth = 16
       ..strokeCap = StrokeCap.round;
@@ -900,7 +900,7 @@ class EnhancedLineChartPainter extends CustomPainter {
 
     // Draw grid
     final gridPaint = Paint()
-      ..color = Colors.grey.shade200
+      ..color = AppTheme.tableBorderBlue
       ..strokeWidth = 0.5;
 
     // Horizontal grid lines

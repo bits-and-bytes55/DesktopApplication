@@ -1,6 +1,7 @@
 // ======================== FILE 3: graph_tab.dart ========================
 
 import 'package:flutter/material.dart';
+import 'package:mudpro_desktop_app/theme/app_theme.dart';
 import 'package:fl_chart/fl_chart.dart';
 
 class DailyTotalCostGraphTab extends StatelessWidget {
@@ -51,7 +52,7 @@ class DailyTotalCostGraphTab extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Color(0xffE2E8F0)),
+        border: Border.all(color: AppTheme.tableBorderBlue),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
@@ -73,7 +74,7 @@ class DailyTotalCostGraphTab extends StatelessWidget {
                 topRight: Radius.circular(12),
               ),
               border: Border(
-                bottom: BorderSide(color: Color(0xffE2E8F0)),
+                bottom: BorderSide(color: AppTheme.tableBorderBlue),
               ),
             ),
             child: Row(
@@ -111,7 +112,7 @@ class DailyTotalCostGraphTab extends StatelessWidget {
                     horizontalInterval: 1000,
                     getDrawingHorizontalLine: (value) {
                       return FlLine(
-                        color: Color(0xffE2E8F0),
+                        color: AppTheme.tableBorderBlue,
                         strokeWidth: 1,
                       );
                     },
@@ -158,7 +159,7 @@ class DailyTotalCostGraphTab extends StatelessWidget {
                   borderData: FlBorderData(
                     show: true,
                     border: Border.all(
-                      color: Color(0xffE2E8F0),
+                      color: AppTheme.tableBorderBlue,
                       width: 1,
                     ),
                   ),
@@ -217,7 +218,7 @@ class DailyTotalCostGraphTab extends StatelessWidget {
                 bottomRight: Radius.circular(12),
               ),
               border: Border(
-                top: BorderSide(color: Color(0xffE2E8F0)),
+                top: BorderSide(color: AppTheme.tableBorderBlue),
               ),
             ),
             child: Row(

@@ -20,7 +20,7 @@ class DetailReportPage extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               color: Colors.grey.shade50,
-              border: Border.all(color: Colors.grey.shade300),
+              border: Border.all(color: AppTheme.tableGridBlue),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Row(
@@ -169,7 +169,7 @@ class DetailReportPage extends StatelessWidget {
                           if (states.contains(MaterialState.selected)) {
                             return AppTheme.primaryColor;
                           }
-                          return Colors.grey.shade300;
+                          return AppTheme.tableGridBlue;
                         },
                       ),
                       side: BorderSide(
@@ -214,7 +214,7 @@ class DetailReportPage extends StatelessWidget {
                       if (states.contains(MaterialState.selected)) {
                         return AppTheme.primaryColor;
                       }
-                      return Colors.grey.shade300;
+                      return AppTheme.tableGridBlue;
                     },
                   ),
                   side: BorderSide(

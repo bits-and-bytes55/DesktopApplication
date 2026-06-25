@@ -1,6 +1,7 @@
 // ======================== FILE 2: table_tab.dart ========================
 
 import 'package:flutter/material.dart';
+import 'package:mudpro_desktop_app/theme/app_theme.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 
 class DailyTotalCostTableTab extends StatelessWidget {
@@ -36,7 +37,7 @@ class DailyTotalCostTableTab extends StatelessWidget {
           color: Colors.white,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: Color(0xffE2E8F0),
+            color: AppTheme.tableBorderBlue,
             width: 1,
           ),
           boxShadow: [
@@ -151,7 +152,7 @@ class DailyTotalCostTableTab extends StatelessWidget {
         border: Border(
           top: index == 1
               ? BorderSide.none // No top border for first data row
-              : BorderSide(color: Colors.grey.shade100, width: 0.5),
+              : BorderSide(color: AppTheme.tableHeaderBlue, width: 0.5),
         ),
       ),
       child: Row(
@@ -165,7 +166,7 @@ class DailyTotalCostTableTab extends StatelessWidget {
               border: Border(
                 right: i < colWidths.length - 1
                     ? BorderSide(
-                        color: Colors.grey.shade200,
+                        color: AppTheme.tableBorderBlue,
                         width: 0.5,
                       )
                     : BorderSide.none,

@@ -579,7 +579,7 @@ class VolumeSnapshotPage extends StatelessWidget {
           child: _sheetPanel(
             child: SingleChildScrollView(
               child: Table(
-                border: TableBorder.all(color: const Color(0xFFC4C4C4)),
+                border: TableBorder.all(color: AppTheme.tableGridBlue),
                 columnWidths: const {
                   0: FixedColumnWidth(102),
                   1: FlexColumnWidth(1.5),
@@ -746,7 +746,7 @@ class VolumeSnapshotPage extends StatelessWidget {
                 _tableSection(
                   title: 'Storage Loss',
                   child: Table(
-                    border: TableBorder.all(color: const Color(0xFFC4C4C4)),
+                    border: TableBorder.all(color: AppTheme.tableGridBlue),
                     columnWidths: const {
                       0: FlexColumnWidth(),
                       1: FixedColumnWidth(132),
@@ -774,7 +774,7 @@ class VolumeSnapshotPage extends StatelessWidget {
                 _tableSection(
                   title: 'Premixed Mud',
                   child: Table(
-                    border: TableBorder.all(color: const Color(0xFFC4C4C4)),
+                    border: TableBorder.all(color: AppTheme.tableGridBlue),
                     columnWidths: const {
                       0: FlexColumnWidth(),
                       1: FixedColumnWidth(132),
@@ -816,7 +816,7 @@ class VolumeSnapshotPage extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Table(
-                        border: TableBorder.all(color: const Color(0xFFC4C4C4)),
+                        border: TableBorder.all(color: AppTheme.tableGridBlue),
                         columnWidths: const {
                           0: FlexColumnWidth(),
                           1: FixedColumnWidth(132),
@@ -886,7 +886,7 @@ class VolumeSnapshotPage extends StatelessWidget {
               onPressed: Get.back,
               style: OutlinedButton.styleFrom(
                 foregroundColor: const Color(0xFF555555),
-                side: const BorderSide(color: Color(0xFFC4C4C4)),
+                side: const BorderSide(color: AppTheme.tableGridBlue),
                 backgroundColor: const Color(0xFFF8F8F8),
                 shape: const RoundedRectangleBorder(),
                 padding: const EdgeInsets.symmetric(vertical: 10),
@@ -926,7 +926,7 @@ class VolumeSnapshotPage extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: const Color(0xFFC4C4C4)),
+        border: Border.all(color: AppTheme.tableGridBlue),
       ),
       child: child,
     );

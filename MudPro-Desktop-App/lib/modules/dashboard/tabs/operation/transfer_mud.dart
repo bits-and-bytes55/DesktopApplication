@@ -103,7 +103,7 @@ class _TransferMudViewState extends State<TransferMudView> {
           child: Container(
             height: 28,
             decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey.shade300),
+              border: Border.all(color: AppTheme.tableGridBlue),
               borderRadius: BorderRadius.circular(4),
             ),
             child: Obx(() {
@@ -260,7 +260,7 @@ class _TransferMudViewState extends State<TransferMudView> {
         return Container(
           width: double.infinity,
           decoration: BoxDecoration(
-            border: Border.all(color: Colors.grey.shade300),
+            border: Border.all(color: AppTheme.tableGridBlue),
             borderRadius: BorderRadius.circular(6),
           ),
           child: SizedBox(
@@ -288,7 +288,7 @@ class _TransferMudViewState extends State<TransferMudView> {
                           decoration: BoxDecoration(
                             color: AppTheme.primaryColor,
                             border: Border(
-                              bottom: BorderSide(color: Colors.grey.shade300),
+                              bottom: BorderSide(color: AppTheme.tableGridBlue),
                             ),
                           ),
                           child: Row(
@@ -371,7 +371,7 @@ class _TransferMudViewState extends State<TransferMudView> {
       decoration: BoxDecoration(
         color: AppTheme.primaryColor,
         border: Border(
-          right: BorderSide(color: Colors.grey.shade300, width: 0.5),
+          right: BorderSide(color: AppTheme.tableGridBlue, width: 0.5),
         ),
       ),
       child: Text(
@@ -402,7 +402,7 @@ class _TransferMudViewState extends State<TransferMudView> {
       padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
         border: Border(
-          right: BorderSide(color: Colors.grey.shade300, width: 0.5),
+          right: BorderSide(color: AppTheme.tableGridBlue, width: 0.5),
         ),
       ),
       child: Row(
@@ -479,7 +479,7 @@ class _TransferMudViewState extends State<TransferMudView> {
       padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
         border: Border(
-          right: BorderSide(color: Colors.grey.shade300, width: 0.5),
+          right: BorderSide(color: AppTheme.tableGridBlue, width: 0.5),
         ),
       ),
       child: TextField(

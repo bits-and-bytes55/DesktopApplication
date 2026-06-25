@@ -178,7 +178,7 @@ class _InventoryServicesViewState extends State<InventoryServicesView> {
       () => Container(
         decoration: BoxDecoration(
           color: Colors.white,
-          border: Border.all(color: const Color(0xFFC9CDD3)),
+          border: Border.all(color: AppTheme.tableBorderBlue),
         ),
         child: Column(
           children: [
@@ -235,7 +235,7 @@ class _InventoryServicesViewState extends State<InventoryServicesView> {
       () => Container(
         decoration: BoxDecoration(
           color: Colors.white,
-          border: Border.all(color: const Color(0xFFC9CDD3)),
+          border: Border.all(color: AppTheme.tableBorderBlue),
         ),
         child: Column(
           children: [
@@ -290,7 +290,7 @@ class _InventoryServicesViewState extends State<InventoryServicesView> {
       () => Container(
         decoration: BoxDecoration(
           color: Colors.white,
-          border: Border.all(color: const Color(0xFFC9CDD3)),
+          border: Border.all(color: AppTheme.tableBorderBlue),
         ),
         child: Column(
           children: [
@@ -357,16 +357,19 @@ class _InventoryServicesViewState extends State<InventoryServicesView> {
               ),
             ),
           ),
-          if (hasHeaderCheckbox)
-            Transform.scale(
-              scale: 0.72,
-              child: Checkbox(
-                value: false,
-                onChanged: c.isLocked.value ? null : (_) {},
-                visualDensity: VisualDensity.compact,
-                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-            ),
+	          if (hasHeaderCheckbox)
+	            Obx(() {
+	              final locked = c.isLocked.value;
+	              return Transform.scale(
+	                scale: 0.72,
+	                child: Checkbox(
+	                  value: false,
+	                  onChanged: locked ? null : (_) {},
+	                  visualDensity: VisualDensity.compact,
+	                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+	                ),
+	              );
+	            }),
         ],
       ),
     );
@@ -478,7 +481,7 @@ class _InventoryServicesViewState extends State<InventoryServicesView> {
             child: SizedBox(
               width: tableWidth,
               child: Table(
-                border: TableBorder.all(color: Colors.grey.shade300, width: 1),
+                border: TableBorder.all(color: AppTheme.tableGridBlue, width: 1),
                 defaultVerticalAlignment: TableCellVerticalAlignment.middle,
                 columnWidths: columnWidths,
                 children: [

@@ -55,7 +55,7 @@ class _SurveyActualTablePageState extends State<SurveyTableActual> {
       alignment: Alignment.center,
       decoration: BoxDecoration(
         border: Border.all(
-          color: Colors.grey.shade300,
+          color: AppTheme.tableGridBlue,
           width: 0.5,
         ),
         color: isHeader
@@ -168,7 +168,7 @@ class _SurveyActualTablePageState extends State<SurveyTableActual> {
       decoration: BoxDecoration(
         border: Border(
           bottom: BorderSide(
-            color: Colors.grey.shade200,
+            color: AppTheme.tableBorderBlue,
             width: 0.5,
           ),
         ),
@@ -200,7 +200,7 @@ class _SurveyActualTablePageState extends State<SurveyTableActual> {
           bottomRight: Radius.circular(8),
         ),
         border: Border.all(
-          color: Colors.grey.shade300,
+          color: AppTheme.tableGridBlue,
         ),
       ),
       child: SingleChildScrollView(

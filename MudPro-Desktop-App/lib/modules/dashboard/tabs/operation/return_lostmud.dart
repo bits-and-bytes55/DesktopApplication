@@ -21,7 +21,7 @@ class ReturnLostMudView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: Colors.grey.shade100,
+      color: AppTheme.tableHeaderBlue,
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -150,7 +150,7 @@ class ReturnLostMudView extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(color: AppTheme.tableGridBlue),
       ),
       child: Row(
         children: [
@@ -213,9 +213,9 @@ class ReturnLostMudView extends StatelessWidget {
                   color:
                       dashboardController.isLocked.value ||
                           !controller.isPremixedMud.value
-                      ? Colors.grey.shade100
+                      ? AppTheme.tableHeaderBlue
                       : Colors.white,
-                  border: Border.all(color: Colors.grey.shade300),
+                  border: Border.all(color: AppTheme.tableGridBlue),
                   borderRadius: BorderRadius.circular(3),
                 ),
                 child: controller.isLoading.value
@@ -290,7 +290,7 @@ class ReturnLostMudView extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(color: AppTheme.tableGridBlue),
       ),
       child: Obx(() {
         if (controller.isLoading.value) {
@@ -309,8 +309,8 @@ class ReturnLostMudView extends StatelessWidget {
 
         return Table(
           border: TableBorder(
-            horizontalInside: BorderSide(color: Colors.grey.shade300, width: 1),
-            verticalInside: BorderSide(color: Colors.grey.shade300, width: 1),
+            horizontalInside: BorderSide(color: AppTheme.tableGridBlue, width: 1),
+            verticalInside: BorderSide(color: AppTheme.tableGridBlue, width: 1),
           ),
           columnWidths: const {
             0: FixedColumnWidth(120),
@@ -373,9 +373,9 @@ class ReturnLostMudView extends StatelessWidget {
               height: 30,
               decoration: BoxDecoration(
                 color: dashboardController.isLocked.value
-                    ? Colors.grey.shade100
+                    ? AppTheme.tableHeaderBlue
                     : Colors.white,
-                border: Border.all(color: Colors.grey.shade300),
+                border: Border.all(color: AppTheme.tableGridBlue),
                 borderRadius: BorderRadius.circular(3),
               ),
               child: DropdownButtonHideUnderline(
@@ -470,7 +470,7 @@ class ReturnLostMudView extends StatelessWidget {
                   disabledBorder: InputBorder.none,
                   filled: true,
                   fillColor: dashboardController.isLocked.value
-                      ? Colors.grey.shade100
+                      ? AppTheme.tableHeaderBlue
                       : Colors.white,
                 ),
               ),
