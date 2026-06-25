@@ -378,8 +378,8 @@ class _RemarksViewState extends State<RemarksView> {
           child: Text(
             title,
             style: AppTheme.bodySmall.copyWith(
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
               color: AppTheme.textPrimary,
             ),
           ),
@@ -388,7 +388,7 @@ class _RemarksViewState extends State<RemarksView> {
           child: Container(
             decoration: BoxDecoration(
               color: Colors.white,
-              border: Border.all(color: Colors.grey.shade400),
+              border: Border.all(color: AppTheme.tableBorderBlue),
             ),
             child: TextField(
               controller: controller,
@@ -408,7 +408,7 @@ class _RemarksViewState extends State<RemarksView> {
                 ),
                 border: InputBorder.none,
                 filled: true,
-                fillColor: isLocked ? Colors.grey.shade100 : Colors.white,
+                fillColor: isLocked ? AppTheme.readOnlyCell : Colors.white,
                 contentPadding: const EdgeInsets.all(10),
               ),
             ),
@@ -431,7 +431,7 @@ class _RemarksViewState extends State<RemarksView> {
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               color: Colors.white,
-              border: Border.all(color: Colors.grey.shade400),
+              border: Border.all(color: AppTheme.tableBorderBlue),
             ),
             child: _buildPreviewArea(),
           ),
@@ -441,7 +441,7 @@ class _RemarksViewState extends State<RemarksView> {
           onPressed: isLocked ? null : pickFile,
           style: OutlinedButton.styleFrom(
             minimumSize: const Size.fromHeight(38),
-            side: BorderSide(color: Colors.grey.shade400),
+            side: BorderSide(color: AppTheme.tableBorderBlue),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(0),
             ),
@@ -455,7 +455,7 @@ class _RemarksViewState extends State<RemarksView> {
           onPressed: isLocked || !hasAttachment ? null : deleteFile,
           style: OutlinedButton.styleFrom(
             minimumSize: const Size.fromHeight(38),
-            side: BorderSide(color: Colors.grey.shade400),
+            side: BorderSide(color: AppTheme.tableBorderBlue),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(0),
             ),
@@ -510,7 +510,7 @@ class _RemarksViewState extends State<RemarksView> {
       width: double.infinity,
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(color: AppTheme.tableBorderBlue),
       ),
       child: Center(
         child: Text(
@@ -527,7 +527,7 @@ class _RemarksViewState extends State<RemarksView> {
       width: double.infinity,
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(color: AppTheme.tableBorderBlue),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -556,7 +556,7 @@ class _RemarksViewState extends State<RemarksView> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(color: AppTheme.tableBorderBlue),
       ),
       child: Center(
         child: isLoading

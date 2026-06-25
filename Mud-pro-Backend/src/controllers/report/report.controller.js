@@ -318,16 +318,37 @@ const volumeNameCarryOverReset = {
   volumeNameLastActivePitName: "",
   volumeNameLastActivePitVolume: 0,
   volumeNameLastActivePitUpdatedAt: null,
+  volumeNameActivePitInputAdjustmentTotal: 0,
+  volumeNameActivePitLossAdjustmentTotal: 0,
+};
+
+const activePitsVolumeForReport = async ({ wellId, reportId }) => {
+  const activePits = await Pit.find({
+    wellId,
+    reportId,
+    initialActive: true,
+  }).lean();
+
+  return round2(
+    activePits.reduce((sum, pit) => sum + toNumber(pit.volume), 0)
+  );
 };
 
 const finalizeCarryOverTargetReport = async (targetReport) => {
   const targetReportId = toText(targetReport?._id ?? targetReport?.id);
   if (!targetReportId) return targetReport;
+  const wellId = toText(targetReport?.wellId);
+  const activePitsSnapshot = wellId
+    ? await activePitsVolumeForReport({ wellId, reportId: targetReportId })
+    : null;
 
   const updatedReport = await Report.findByIdAndUpdate(
     targetReportId,
     {
-      $set: volumeNameCarryOverReset,
+      $set: {
+        ...volumeNameCarryOverReset,
+        volumeNameHoleActivePitsSnapshot: activePitsSnapshot,
+      },
       $unset: {
         carryOverSourceHoleSnapshot: "",
         carryOverSourceEndVolSnapshot: "",

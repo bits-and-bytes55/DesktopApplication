@@ -1,7 +1,13 @@
 import Pit from "../../modules/pit/pit.model.js";
+import Report from "../../modules/report/report.model.js";
 import { currentInstallationId } from "../../utils/installationContext.js";
 
 const toText = (value) => String(value ?? "").trim();
+const toNumber = (value) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+const round2 = (value) => Number(toNumber(value).toFixed(2));
 
 const legacyScopeFilter = (wellId) => ({
   wellId,
@@ -46,6 +52,74 @@ const mergeScopedWithLegacy = (scopedItems = [], legacyItems = []) => {
   }
 
   return sortByCreatedAtAsc(Array.from(merged.values()));
+};
+
+const activePitsVolumeForReport = async ({ wellId, reportId }) => {
+  const activePits = await Pit.find({
+    wellId,
+    reportId,
+    initialActive: true,
+  }).lean();
+
+  return round2(
+    activePits.reduce((sum, pit) => sum + toNumber(pit.volume), 0)
+  );
+};
+
+const ensureActivePitsBaselineSnapshot = async ({ wellId, reportId }) => {
+  const cleanReportId = toText(reportId);
+  if (!cleanReportId) return;
+
+  const report = await Report.findOne({ _id: cleanReportId, wellId }).lean();
+  if (!report) return;
+  if (
+    report.volumeNameHoleActivePitsSnapshot !== null &&
+    report.volumeNameHoleActivePitsSnapshot !== undefined
+  ) {
+    return;
+  }
+
+  const activePitsSnapshot = await activePitsVolumeForReport({
+    wellId,
+    reportId: cleanReportId,
+  });
+
+  await Report.updateOne(
+    { _id: cleanReportId, wellId },
+    { $set: { volumeNameHoleActivePitsSnapshot: activePitsSnapshot } }
+  );
+};
+
+const recordActivePitVolumeAdjustment = async ({
+  reportId,
+  pitName,
+  previousVolume,
+  nextVolume,
+}) => {
+  const cleanReportId = toText(reportId);
+  if (!cleanReportId) return;
+
+  const delta = round2(toNumber(nextVolume) - toNumber(previousVolume));
+  if (Math.abs(delta) < 0.005) return;
+
+  const inc = {};
+  if (delta > 0) {
+    inc.volumeNameActivePitInputAdjustmentTotal = delta;
+  } else {
+    inc.volumeNameActivePitLossAdjustmentTotal = Math.abs(delta);
+  }
+
+  await Report.updateOne(
+    { _id: cleanReportId },
+    {
+      $inc: inc,
+      $set: {
+        volumeNameLastActivePitName: toText(pitName),
+        volumeNameLastActivePitVolume: delta,
+        volumeNameLastActivePitUpdatedAt: new Date(),
+      },
+    }
+  );
 };
 
 const loadScopedPits = async ({ wellId, reportId, initialActive }) => {
@@ -428,6 +502,9 @@ export const updatePit = async (req, res) => {
       });
     }
 
+    const previousVolume = toNumber(pit.volume);
+    const wasActivePit = pit.initialActive === true;
+
     if (req.body.pitName !== undefined) {
       pit.pitName = toText(req.body.pitName);
     }
@@ -450,7 +527,28 @@ export const updatePit = async (req, res) => {
       pit.reportId = reportId;
     }
 
+    if (reportId && pit.initialActive === true && req.body.volume !== undefined) {
+      await ensureActivePitsBaselineSnapshot({
+        wellId: toText(pit.wellId),
+        reportId,
+      });
+    }
+
     await pit.save();
+
+    if (
+      reportId &&
+      wasActivePit &&
+      pit.initialActive === true &&
+      req.body.volume !== undefined
+    ) {
+      await recordActivePitVolumeAdjustment({
+        reportId,
+        pitName: pit.pitName,
+        previousVolume,
+        nextVolume: pit.volume,
+      });
+    }
 
     res.status(200).json({
       success: true,
