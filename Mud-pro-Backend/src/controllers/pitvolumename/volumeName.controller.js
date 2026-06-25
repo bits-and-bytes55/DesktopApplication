@@ -1755,8 +1755,8 @@ export const calculateEndVolForReport = async ({
     return round2(derivedActiveSystem + mudLossActiveSystemBalance);
   }
 
-  if (hasOperationVolumeRows && hasPendingActiveSystemInput && previousEndVol > 0) {
-    return round2(previousEndVol + effectiveEndVolDelta - pendingActiveSystemInput);
+  if (hasOperationVolumeRows && activeSystemPendingInput > 0.005) {
+    return round2(derivedActiveSystem + activeSystemAdjustmentBalance);
   }
 
   if (hasOperationVolumeRows && hasFullyAdjustedActiveSystemInput) {
@@ -2500,8 +2500,8 @@ export const getVolumeNameCalculation = async (req, res) => {
       hasOperationVolumeRows
         ? normalizedMudLossEntries.length > 0
           ? round2(derivedActiveSystem + mudLossActiveSystemBalance)
-          : hasPendingActiveSystemInput && endVolBase > 0
-            ? round2(endVolBase + effectiveEndVolDelta - pendingActiveSystemInput)
+          : activeSystemPendingInput > 0.005
+            ? round2(derivedActiveSystem + activeSystemAdjustmentBalance)
             : hasFullyAdjustedActiveSystemInput
               ? endVolBase > 0
                 ? round2(endVolBase + operationOnlyEndVolDelta)
@@ -2527,8 +2527,8 @@ export const getVolumeNameCalculation = async (req, res) => {
       endVolMinusActiveSystem = 0;
     } else if (normalizedMudLossEntries.length > 0) {
       endVolMinusActiveSystem = mudLossActiveSystemBalance;
-    } else if (hasPendingActiveSystemInput && endVolBase > 0) {
-      endVolMinusActiveSystem = baseEndVolMinusActiveSystem;
+    } else if (activeSystemPendingInput > 0.005) {
+      endVolMinusActiveSystem = activeSystemAdjustmentBalance;
     } else if (hasFullyAdjustedActiveSystemInput && hasOperationVolumeRows) {
       endVolMinusActiveSystem = baseEndVolMinusActiveSystem;
     } else if (firstReportStartsEmpty || hasOperationVolumeRows) {
