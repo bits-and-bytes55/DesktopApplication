@@ -2241,27 +2241,29 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
   );
 
   Widget _checkboxCell(bool Function() getter, Function(bool) onChange) {
-    return Center(
-      child: Container(
-        decoration: BoxDecoration(
-          color: getter()
-              ? AppTheme.successColor.withOpacity(0.1)
-              : Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(3),
-          border: Border.all(
-            color: getter() ? AppTheme.successColor : Colors.grey.shade400,
+    return Obx(
+      () => Center(
+        child: Container(
+          decoration: BoxDecoration(
+            color: getter()
+                ? AppTheme.successColor.withOpacity(0.1)
+                : Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(3),
+            border: Border.all(
+              color: getter() ? AppTheme.successColor : Colors.grey.shade400,
+            ),
           ),
-        ),
-        margin: const EdgeInsets.symmetric(vertical: 2, horizontal: 4),
-        child: Transform.scale(
-          scale: 0.7,
-          child: Checkbox(
-            value: getter(),
-            onChanged: c.isLocked.value ? null : (v) => onChange(v!),
-            activeColor: AppTheme.successColor,
-            checkColor: Colors.white,
-            visualDensity: VisualDensity.compact,
-            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          margin: const EdgeInsets.symmetric(vertical: 2, horizontal: 4),
+          child: Transform.scale(
+            scale: 0.7,
+            child: Checkbox(
+              value: getter(),
+              onChanged: c.isLocked.value ? null : (v) => onChange(v!),
+              activeColor: AppTheme.successColor,
+              checkColor: Colors.white,
+              visualDensity: VisualDensity.compact,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
           ),
         ),
       ),

@@ -232,6 +232,87 @@ const addLogoToSheet = (workbook, ws, logoImage, placement) => {
   const imageId = workbook.addImage(logoImage);
   ws.addImage(imageId, placement);
 };
+const prepareInventoryHeaderLayout = (ws) => {
+  const titleStyle = { ...ws.getCell("I2").style };
+  const reportNoStyle = { ...ws.getCell("V2").style };
+  const boxBorder = { style: "medium", color: { argb: "FF000000" } };
+  try {
+    ws.unMergeCells("I2:U5");
+  } catch {}
+  try {
+    ws.unMergeCells("V2:W5");
+  } catch {}
+  try {
+    ws.unMergeCells("H2:V5");
+  } catch {}
+  try {
+    ws.unMergeCells("W2:X5");
+  } catch {}
+  try {
+    ws.unMergeCells("H2:X5");
+  } catch {}
+  try {
+    ws.unMergeCells("Y2:Z5");
+  } catch {}
+  for (let row = 2; row <= 5; row += 1) {
+    for (let col = 8; col <= 26; col += 1) {
+      const cell = ws.getRow(row).getCell(col);
+      cell.fill = titleStyle.fill;
+      cell.alignment = { horizontal: "center", vertical: "middle" };
+      cell.border = {};
+    }
+  }
+  ws.mergeCells("H2:X5");
+  ws.mergeCells("Y2:Z5");
+  ws.getCell("H2").style = {
+    ...titleStyle,
+    alignment: { horizontal: "center", vertical: "middle" },
+    font: {
+      ...(titleStyle.font || {}),
+      bold: false,
+      size: 24,
+      color: { argb: "FF000000" },
+    },
+  };
+  ws.getCell("Y2").style = {
+    ...reportNoStyle,
+    alignment: { horizontal: "center", vertical: "middle" },
+    font: {
+      ...(reportNoStyle.font || {}),
+      bold: false,
+      size: 22,
+      color: { argb: "FF000000" },
+    },
+  };
+  for (let col = 8; col <= 26; col += 1) {
+    ws.getCell(2, col).border = {
+      ...ws.getCell(2, col).border,
+      top: boxBorder,
+    };
+    ws.getCell(5, col).border = {
+      ...ws.getCell(5, col).border,
+      bottom: boxBorder,
+    };
+  }
+  for (let row = 2; row <= 5; row += 1) {
+    ws.getCell(row, 8).border = {
+      ...ws.getCell(row, 8).border,
+      left: boxBorder,
+    };
+    ws.getCell(row, 22).border = {
+      ...ws.getCell(row, 22).border,
+      right: undefined,
+    };
+    ws.getCell(row, 25).border = {
+      ...ws.getCell(row, 25).border,
+      left: boxBorder,
+    };
+    ws.getCell(row, 26).border = {
+      ...ws.getCell(row, 26).border,
+      right: boxBorder,
+    };
+  }
+};
 const meaningfulText = (value) => {
   const raw = text(value);
   if (!raw) return "";
@@ -874,7 +955,7 @@ const clearDmrDynamicAreas = (ws) => {
 
 const clearInventoryDynamicAreas = (ws) => {
   [
-    "V2","L7","U7","AC7","D8","L8","U8","AC8","D9","L9","U9","AC9",
+    "H2","Y2","L7","U7","AC7","D8","L8","U8","AC8","D9","L9","U9","AC9",
     "D10","L10","U10","AC10","D11","L11","U11","AC11",
   ].forEach((address) => setCellValue(ws, address, ""));
   clearCells(ws, SUMMARY_VALUE_CELLS);
@@ -2108,8 +2189,8 @@ const fillDmrBottomSections = (ws, {
 const fillInventoryHeader = (ws, { well, pad, report, wellGeneral, fluidName, intervals = [] }) => {
   const formationText = resolveWellFormationText(wellGeneral, intervals);
   const activityText = resolveWellActivityText(wellGeneral);
-  setCellValue(ws, "I2", "Daily Inventory Report");
-  setCellValue(ws, "V2", text(report?.userReportNo || report?.reportNo || wellGeneral?.reportNo, "1"));
+  setCellValue(ws, "H2", "Daily Inventory Report");
+  setCellValue(ws, "Y2", text(report?.userReportNo || report?.reportNo || wellGeneral?.reportNo, "1"));
   setCellValue(ws, "L7", text(well?._id || report?._id));
   setCellValue(ws, "U7", formatDate(report?.reportDate || wellGeneral?.date, getReportDate()));
   setCellValue(ws, "AC7", text(report?.userReportNo || report?.reportNo || wellGeneral?.reportNo, "1"));
@@ -2411,9 +2492,13 @@ const normalizeCostCategory = (value) => text(value).toLowerCase();
 const isProductCostCategory = (category) =>
   normalizeCostCategory(category) === "product";
 const isEngineeringCostCategory = (category) =>
-  ["service", "engineering", "package"].includes(normalizeCostCategory(category));
+  normalizeCostCategory(category) === "engineering";
 const snapshotCost = (row = {}) =>
-  toNumber(row.costDollar) || toNumber(row.subtotal) || toNumber(row.totalDollar);
+  toNumber(row.costDollar) || toNumber(row.subtotal);
+const snapshotSummaryValue = (rows = [], field) => {
+  const row = rows.find((item) => toNumber(item?.[field]) !== 0) || rows[0] || {};
+  return round(row?.[field], 3);
+};
 const summarizeCostRows = (rows = []) => {
   const productCost = sumBy(
     rows.filter((row) => isProductCostCategory(row.category)),
@@ -2499,7 +2584,9 @@ const loadDmrCostSummary = async ({
 
     if (historyRows.length > 0) {
       cumulativeRows = historyRows;
-      const currentInterval = normalizeIntervalKey(wellGeneral?.interval);
+      const currentInterval =
+        normalizeIntervalKey(wellGeneral?.interval) ||
+        normalizeIntervalKey(currentRows[0]?.intervalName);
 
       if (currentInterval) {
         const wellGeneralRows = await WellGeneral.find({
@@ -2518,7 +2605,9 @@ const loadDmrCostSummary = async ({
         sectionRows =
           sectionReportIds.size > 0
             ? historyRows.filter((item) => sectionReportIds.has(text(item.reportId)))
-            : historyRows;
+            : historyRows.filter(
+                (item) => normalizeIntervalKey(item.intervalName) === currentInterval
+              );
       } else {
         sectionRows = historyRows;
       }
@@ -2547,8 +2636,12 @@ const loadDmrCostSummary = async ({
     sectionEngineeringCost,
     cumProductCost,
     cumEngineeringCost,
-    totalDailyCost: round(dailyProductCost + dailyEngineeringCost, 3),
-    totalWellCost: round(cumProductCost + cumEngineeringCost, 3),
+    totalDailyCost:
+      snapshotSummaryValue(currentRows, "dailyTotal") ||
+      round(dailyProductCost + dailyEngineeringCost, 3),
+    totalWellCost:
+      snapshotSummaryValue(currentRows, "cumTotal") ||
+      round(cumProductCost + cumEngineeringCost, 3),
   };
 };
 
@@ -2878,6 +2971,7 @@ export const exportInventoryReport = async (req, res) => {
 
     clearTemplateLogos(dmrSheet);
     clearTemplateLogos(inventorySheet);
+    prepareInventoryHeaderLayout(inventorySheet);
 
     const [companyLogoImage, padLogoImage] = await Promise.all([
       resolveCompanyLogoImage(company),
@@ -2889,20 +2983,20 @@ export const exportInventoryReport = async (req, res) => {
       editAs: "oneCell",
     };
     const inventoryLeftLogoPlacement = {
-      tl: { col: 0.05, row: 0.2 },
-      ext: { width: 220, height: 80 },
+      tl: { col: 0.05, row: 0.15 },
+      ext: { width: 230, height: 88 },
       editAs: "oneCell",
     };
     addLogoToSheet(workbook, dmrSheet, companyLogoImage, leftLogoPlacement);
     addLogoToSheet(workbook, inventorySheet, companyLogoImage, inventoryLeftLogoPlacement);
     addLogoToSheet(workbook, dmrSheet, padLogoImage, {
-      tl: { col: 58.1, row: 0.05 },
+      tl: { col: 59.1, row: 0.05 },
       ext: { width: 150, height: 95 },
       editAs: "oneCell",
     });
     addLogoToSheet(workbook, inventorySheet, padLogoImage, {
-      tl: { col: 29.75, row: 0.18 },
-      ext: { width: 120, height: 76 },
+      tl: { col: 29.0, row: 0.35 },
+      ext: { width: 150, height: 95 },
       editAs: "oneCell",
     });
 
