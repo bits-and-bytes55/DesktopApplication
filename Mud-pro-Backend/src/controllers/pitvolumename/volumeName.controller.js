@@ -1199,6 +1199,17 @@ const calculateAdjustedActiveSystemPendingInput = ({
   ];
   if (!activeSystemPendingEntries.length) return 0;
 
+  if (activePitsSnapshot !== null && activePitsSnapshot !== undefined) {
+    const currentActivePits = Number(
+      activePitsList.reduce((sum, pit) => sum + toNumber(pit.volume), 0).toFixed(2)
+    );
+    const snapshotAdjustment = Math.max(
+      0,
+      currentActivePits - toNumber(activePitsSnapshot)
+    );
+    return round2(snapshotAdjustment);
+  }
+
   if (activePitBaselineByName.size > 0) {
     const adjustedActivePitVolume = activePitsList.reduce((sum, pit) => {
       const key = toText(pit?.pitName).toLowerCase();
@@ -1210,17 +1221,6 @@ const calculateAdjustedActiveSystemPendingInput = ({
     }, 0);
 
     return round2(adjustedActivePitVolume);
-  }
-
-  if (activePitsSnapshot !== null && activePitsSnapshot !== undefined) {
-    const currentActivePits = Number(
-      activePitsList.reduce((sum, pit) => sum + toNumber(pit.volume), 0).toFixed(2)
-    );
-    const snapshotAdjustment = Math.max(
-      0,
-      currentActivePits - toNumber(activePitsSnapshot)
-    );
-    return round2(snapshotAdjustment);
   }
 
   return round2(recordedAdjustment);
@@ -1243,20 +1243,20 @@ const calculateAdjustedActiveSystemMudLoss = ({
     toNumber(activePitLossAdjustmentTotal)
   );
 
-  if (activePitBaselineByName.size > 0) {
-    const adjustedActivePitLoss = activePitsList.reduce((sum, pit) => {
-      const key = toText(pit?.pitName).toLowerCase();
-      const currentVolume = toNumber(pit?.volume);
-      const baselineVolume = activePitBaselineByName.has(key)
-        ? activePitBaselineByName.get(key)
-        : 0;
-      return sum + Math.max(0, round2(baselineVolume - currentVolume));
-    }, 0);
-
-    return round2(Math.min(totalLoss, adjustedActivePitLoss));
-  }
-
   if (activePitsSnapshot === null || activePitsSnapshot === undefined) {
+    if (activePitBaselineByName.size > 0) {
+      const adjustedActivePitLoss = activePitsList.reduce((sum, pit) => {
+        const key = toText(pit?.pitName).toLowerCase();
+        const currentVolume = toNumber(pit?.volume);
+        const baselineVolume = activePitBaselineByName.has(key)
+          ? activePitBaselineByName.get(key)
+          : 0;
+        return sum + Math.max(0, round2(baselineVolume - currentVolume));
+      }, 0);
+
+      return round2(Math.min(totalLoss, adjustedActivePitLoss));
+    }
+
     return round2(Math.min(totalLoss, recordedAdjustment));
   }
 
@@ -1992,6 +1992,15 @@ export const createConsumeProduct = async (req, res) => {
           distributions: [],
         },
       });
+    }
+
+    if (reportId) {
+      const hasActiveSystemDistribution = distributions.some((row) =>
+        isActiveSystemName(row.pitName)
+      );
+      if (hasActiveSystemDistribution) {
+        await ensureActivePitsBaselineSnapshot({ wellId, reportId });
+      }
     }
 
     const item = await ConsumeProductDistributionState.findOneAndUpdate(
