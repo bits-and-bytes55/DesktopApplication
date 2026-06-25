@@ -23,7 +23,7 @@ class DailyreportOptionsLeftPannel extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
+            border: Border(bottom: BorderSide(color: AppTheme.tableGridBlue)),
           ),
           child: Row(
             children: [

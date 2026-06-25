@@ -75,7 +75,7 @@ class _ChartCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: AppTheme.elevatedCardDecoration.copyWith(
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: AppTheme.tableBorderBlue),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

@@ -43,7 +43,7 @@ class OperationPage extends StatelessWidget {
             Container(
               width: 1,
               height: double.infinity,
-              color: Colors.grey.shade300,
+              color: AppTheme.tableGridBlue,
               margin: const EdgeInsets.symmetric(horizontal: 8),
             ),
 
@@ -89,7 +89,7 @@ class OperationPage extends StatelessWidget {
       width: 322,
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: Colors.grey.shade300, width: 1),
+        border: Border.all(color: AppTheme.tableGridBlue, width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -99,7 +99,7 @@ class OperationPage extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
               color: Colors.white,
-              border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
+              border: Border(bottom: BorderSide(color: AppTheme.tableGridBlue)),
             ),
             child: Row(
               children: [

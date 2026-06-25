@@ -95,7 +95,7 @@ class PercentCostPage extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           decoration: BoxDecoration(
                             border: Border(
-                              right: BorderSide(color: Colors.grey.shade200),
+                              right: BorderSide(color: AppTheme.tableBorderBlue),
                             ),
                           ),
                           child: Text(
@@ -115,7 +115,7 @@ class PercentCostPage extends StatelessWidget {
                             padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
                             decoration: BoxDecoration(
                               border: Border(
-                                right: BorderSide(color: Colors.grey.shade200),
+                                right: BorderSide(color: AppTheme.tableBorderBlue),
                               ),
                             ),
                             child: Text(
@@ -139,7 +139,7 @@ class PercentCostPage extends StatelessWidget {
                                 padding: const EdgeInsets.symmetric(vertical: 10),
                                 decoration: BoxDecoration(
                                   border: Border(
-                                    bottom: BorderSide(color: Colors.grey.shade200),
+                                    bottom: BorderSide(color: AppTheme.tableBorderBlue),
                                   ),
                                 ),
                                 child: Text(
@@ -161,7 +161,7 @@ class PercentCostPage extends StatelessWidget {
                                       padding: const EdgeInsets.symmetric(vertical: 8),
                                       decoration: BoxDecoration(
                                         border: Border(
-                                          right: BorderSide(color: Colors.grey.shade200),
+                                          right: BorderSide(color: AppTheme.tableBorderBlue),
                                         ),
                                       ),
                                       child: Text(
@@ -207,7 +207,7 @@ class PercentCostPage extends StatelessWidget {
                           bottomLeft: Radius.circular(12),
                           bottomRight: Radius.circular(12),
                         ),
-                        border: Border.all(color: Colors.grey.shade200),
+                        border: Border.all(color: AppTheme.tableBorderBlue),
                       ),
                       child: Scrollbar(
                         child: ListView.builder(
@@ -225,7 +225,7 @@ class PercentCostPage extends StatelessWidget {
                                   border: Border(
                                     bottom: index == controller.rows.length - 1
                                       ? BorderSide.none
-                                      : BorderSide(color: Colors.grey.shade100),
+                                      : BorderSide(color: AppTheme.tableHeaderBlue),
                                   ),
                                 ),
                                 child: Row(
@@ -236,7 +236,7 @@ class PercentCostPage extends StatelessWidget {
                                       padding: const EdgeInsets.symmetric(horizontal: 8),
                                       decoration: BoxDecoration(
                                         border: Border(
-                                          right: BorderSide(color: Colors.grey.shade200),
+                                          right: BorderSide(color: AppTheme.tableBorderBlue),
                                         ),
                                       ),
                                       child: Center(
@@ -255,7 +255,7 @@ class PercentCostPage extends StatelessWidget {
                                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                         decoration: BoxDecoration(
                                           border: Border(
-                                            right: BorderSide(color: Colors.grey.shade200),
+                                            right: BorderSide(color: AppTheme.tableBorderBlue),
                                           ),
                                         ),
                                         child: Text(
@@ -278,7 +278,7 @@ class PercentCostPage extends StatelessWidget {
                                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                               decoration: BoxDecoration(
                                                 border: Border(
-                                                  right: BorderSide(color: Colors.grey.shade200),
+                                                  right: BorderSide(color: AppTheme.tableBorderBlue),
                                                 ),
                                               ),
                                               child: TextField(
@@ -377,7 +377,7 @@ class PercentCostPage extends StatelessWidget {
                                       width: 60,
                                       decoration: BoxDecoration(
                                         border: Border(
-                                          right: BorderSide(color: Colors.grey.shade200),
+                                          right: BorderSide(color: AppTheme.tableBorderBlue),
                                         ),
                                       ),
                                     ),
@@ -388,7 +388,7 @@ class PercentCostPage extends StatelessWidget {
                                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                         decoration: BoxDecoration(
                                           border: Border(
-                                            right: BorderSide(color: Colors.grey.shade200),
+                                            right: BorderSide(color: AppTheme.tableBorderBlue),
                                           ),
                                         ),
                                         child: Text(
@@ -412,7 +412,7 @@ class PercentCostPage extends StatelessWidget {
                                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                               decoration: BoxDecoration(
                                                 border: Border(
-                                                  right: BorderSide(color: Colors.grey.shade200),
+                                                  right: BorderSide(color: AppTheme.tableBorderBlue),
                                                 ),
                                               ),
                                               child: TextField(

@@ -19,7 +19,7 @@ class OtherVolAdditionActiveSystemView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: Colors.grey.shade100,
+      color: AppTheme.tableHeaderBlue,
       padding: const EdgeInsets.fromLTRB(6, 8, 12, 12),
       child: _OtherVolScrollArea(
         child: SizedBox(
@@ -151,7 +151,7 @@ class OtherVolAdditionActiveSystemView extends StatelessWidget {
                 ),
                 filled: true,
                 fillColor: dashboardController.isLocked.value
-                    ? Colors.grey.shade100
+                    ? AppTheme.tableHeaderBlue
                     : Colors.white,
               ),
             ),
@@ -181,7 +181,7 @@ class OtherVolAdditionActiveSystemView extends StatelessWidget {
                   height: 30,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
+                    color: AppTheme.tableHeaderBlue,
                     border: Border(
                       left: BorderSide(color: Colors.grey.shade400),
                     ),
@@ -259,7 +259,7 @@ class OtherVolAdditionActiveSystemView extends StatelessWidget {
                 ),
                 filled: true,
                 fillColor: dashboardController.isLocked.value
-                    ? Colors.grey.shade100
+                    ? AppTheme.tableHeaderBlue
                     : Colors.white,
               ),
             ),
@@ -304,7 +304,7 @@ class OtherVolAdditionActiveSystemView extends StatelessWidget {
           padding: EdgeInsets.zero,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(2)),
           side: BorderSide(color: Colors.grey.shade500),
-          backgroundColor: Colors.grey.shade100,
+          backgroundColor: AppTheme.tableHeaderBlue,
         ),
         onPressed: dashboardController.isLocked.value
             ? null
@@ -367,7 +367,7 @@ class OtherVolAdditionActiveSystemView extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(horizontal: 14),
                       decoration: BoxDecoration(
                         border: Border(
-                          bottom: BorderSide(color: Colors.grey.shade300),
+                          bottom: BorderSide(color: AppTheme.tableGridBlue),
                         ),
                       ),
                       child: Row(
@@ -398,7 +398,7 @@ class OtherVolAdditionActiveSystemView extends StatelessWidget {
                       padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
                       child: Table(
                         border: TableBorder.all(
-                          color: Colors.grey.shade300,
+                          color: AppTheme.tableGridBlue,
                           width: 1,
                         ),
                         columnWidths: const {

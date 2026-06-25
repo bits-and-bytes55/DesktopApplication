@@ -117,7 +117,7 @@ class _OperatorTabState extends State<OperatorTab> {
                   child: Opacity(
                     opacity: globallyLocked ? 0.6 : 1.0,
                     child: Container(
-                      decoration: BoxDecoration(borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.grey.shade300, width: 1), color: Colors.white, boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 4, offset: const Offset(0, 2))]),
+                      decoration: BoxDecoration(borderRadius: BorderRadius.circular(8), border: Border.all(color: AppTheme.tableGridBlue, width: 1), color: Colors.white, boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 4, offset: const Offset(0, 2))]),
                       child: Column(
                         children: [
                           Container(
@@ -153,7 +153,7 @@ class _OperatorTabState extends State<OperatorTab> {
                                     height: 32,
                                     decoration: BoxDecoration(
                                       color: isSelected ? AppTheme.primaryColor.withOpacity(0.08) : row % 2 == 0 ? Colors.white : AppTheme.cardColor,
-                                      border: Border(bottom: BorderSide(color: Colors.grey.shade200, width: 0.5)),
+                                      border: Border(bottom: BorderSide(color: AppTheme.tableBorderBlue, width: 0.5)),
                                     ),
                                     child: Material(
                                       color: Colors.transparent,
@@ -211,7 +211,7 @@ class _OperatorTabState extends State<OperatorTab> {
           ),
           Container(
             height: 44, margin: const EdgeInsets.only(top: 10), padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(color: AppTheme.cardColor, borderRadius: BorderRadius.circular(6), border: Border.all(color: Colors.grey.shade300)),
+            decoration: BoxDecoration(color: AppTheme.cardColor, borderRadius: BorderRadius.circular(6), border: Border.all(color: AppTheme.tableGridBlue)),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [

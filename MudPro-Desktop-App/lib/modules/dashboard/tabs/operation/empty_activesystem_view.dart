@@ -150,7 +150,7 @@ class _EmptyActiveSystemViewState extends State<EmptyActiveSystemView> {
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.grey.shade300),
+                              border: Border.all(color: AppTheme.tableGridBlue),
                             ),
                             child: Column(
                               children: [
@@ -163,7 +163,7 @@ class _EmptyActiveSystemViewState extends State<EmptyActiveSystemView> {
                                   decoration: BoxDecoration(
                                     border: Border(
                                       bottom: BorderSide(
-                                        color: Colors.grey.shade300,
+                                        color: AppTheme.tableGridBlue,
                                       ),
                                     ),
                                   ),
@@ -327,7 +327,7 @@ class _EmptyActiveSystemViewState extends State<EmptyActiveSystemView> {
                                             color: AppTheme.primaryColor,
                                             border: Border(
                                               bottom: BorderSide(
-                                                color: Colors.grey.shade300,
+                                                color: AppTheme.tableGridBlue,
                                               ),
                                             ),
                                           ),

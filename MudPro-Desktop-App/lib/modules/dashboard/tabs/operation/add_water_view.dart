@@ -381,7 +381,7 @@ class _AddWaterViewState extends State<AddWaterView> {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.grey.shade300),
+                  border: Border.all(color: AppTheme.tableGridBlue),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withOpacity(0.04),
@@ -419,7 +419,7 @@ class _AddWaterViewState extends State<AddWaterView> {
                                 ),
                                 border: Border(
                                   right: BorderSide(
-                                    color: Colors.grey.shade300,
+                                    color: AppTheme.tableGridBlue,
                                   ),
                                 ),
                               ),
@@ -467,7 +467,7 @@ class _AddWaterViewState extends State<AddWaterView> {
                                       color: Colors.white,
                                       borderRadius: BorderRadius.circular(4),
                                       border: Border.all(
-                                        color: Colors.grey.shade300,
+                                        color: AppTheme.tableGridBlue,
                                       ),
                                     ),
                                     alignment: Alignment.center,
@@ -549,7 +549,7 @@ class _AddWaterViewState extends State<AddWaterView> {
                         decoration: BoxDecoration(
                           color: Colors.white,
                           border: Border(
-                            bottom: BorderSide(color: Colors.grey.shade300),
+                            bottom: BorderSide(color: AppTheme.tableGridBlue),
                           ),
                         ),
                         child: Row(
@@ -564,7 +564,7 @@ class _AddWaterViewState extends State<AddWaterView> {
                                 color: AppTheme.primaryColor,
                                 border: Border(
                                   right: BorderSide(
-                                    color: Colors.grey.shade300,
+                                    color: AppTheme.tableGridBlue,
                                   ),
                                 ),
                               ),
@@ -659,7 +659,7 @@ class _AddWaterViewState extends State<AddWaterView> {
                                 decoration: BoxDecoration(
                                   border: Border(
                                     right: BorderSide(
-                                      color: Colors.grey.shade300,
+                                      color: AppTheme.tableGridBlue,
                                     ),
                                   ),
                                 ),

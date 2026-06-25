@@ -64,12 +64,12 @@ class _TitrationDialogState extends State<TitrationDialog> {
       height: 32,
       padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
-        color: Colors.grey.shade100,
+        color: AppTheme.tableHeaderBlue,
         borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(4),
           topRight: Radius.circular(4),
         ),
-        border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
+        border: const Border(bottom: BorderSide(color: AppTheme.tableBorderBlue)),
       ),
       child: Row(
         children: [
@@ -93,7 +93,7 @@ class _TitrationDialogState extends State<TitrationDialog> {
 
   Widget _table() {
     return Container(
-      decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade400)),
+      decoration: BoxDecoration(border: Border.all(color: AppTheme.tableBorderBlue)),
       child: Column(
         children: [
           _headerRow(),
@@ -162,18 +162,18 @@ class _TitrationDialogState extends State<TitrationDialog> {
       alignment: center ? Alignment.center : Alignment.centerLeft,
       padding: const EdgeInsets.symmetric(horizontal: 6),
       decoration: BoxDecoration(
-        color: header ? Colors.grey.shade100 : Colors.white,
+        color: header ? AppTheme.tableHeaderBlue : AppTheme.readOnlyCell,
         border: Border(
-          right: BorderSide(color: Colors.grey.shade300),
-          bottom: BorderSide(color: Colors.grey.shade300),
+          right: BorderSide(color: AppTheme.tableGridBlue),
+          bottom: BorderSide(color: AppTheme.tableGridBlue),
         ),
       ),
       child: Text(
         text,
         style: AppTheme.caption.copyWith(
-          fontSize: 10,
+          fontSize: 11,
           color: AppTheme.textPrimary,
-          fontWeight: header ? FontWeight.w600 : FontWeight.normal,
+          fontWeight: header ? FontWeight.w700 : FontWeight.w600,
         ),
         overflow: TextOverflow.ellipsis,
       ),
@@ -184,16 +184,16 @@ class _TitrationDialogState extends State<TitrationDialog> {
   Widget _inputCell(TextEditingController controller) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xfffffdd6),
+        color: AppTheme.calculatedCell,
         border: Border(
-          right: BorderSide(color: Colors.grey.shade300),
-          bottom: BorderSide(color: Colors.grey.shade300),
+          right: BorderSide(color: AppTheme.tableGridBlue),
+          bottom: BorderSide(color: AppTheme.tableGridBlue),
         ),
       ),
       child: TextField(
         controller: controller,
         textAlign: TextAlign.center,
-        style: AppTheme.caption.copyWith(fontSize: 10),
+        style: AppTheme.caption.copyWith(fontSize: 11),
         decoration: const InputDecoration(
           border: InputBorder.none,
           isDense: true,
@@ -227,7 +227,7 @@ class _TitrationDialogState extends State<TitrationDialog> {
         onPressed: onPressed,
         style: OutlinedButton.styleFrom(
           padding: EdgeInsets.zero,
-          side: BorderSide(color: Colors.grey.shade400),
+          side: BorderSide(color: AppTheme.tableBorderBlue),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(2)),
           foregroundColor: AppTheme.textPrimary,
         ),

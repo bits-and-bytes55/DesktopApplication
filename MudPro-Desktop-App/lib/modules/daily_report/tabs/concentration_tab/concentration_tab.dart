@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mudpro_desktop_app/theme/app_theme.dart';
 import 'package:mudpro_desktop_app/modules/daily_report/tabs/concentration_tab/tabs/concentration_current_table.dart';
 import 'package:mudpro_desktop_app/modules/daily_report/tabs/concentration_tab/tabs/concentration_graph.dart';
 import 'package:mudpro_desktop_app/modules/daily_report/tabs/concentration_tab/tabs/concentration_table_history.dart';
@@ -83,7 +84,7 @@ class _ConcentrationPageState extends State<ConcentrationPage>
                   decoration: BoxDecoration(
                     color: Color(0xffF8F9FA),
                     borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: Color(0xffE2E8F0), width: 1),
+                    border: Border.all(color: AppTheme.tableBorderBlue, width: 1),
                   ),
                   child: DropdownButton<String>(
                     value: selectedSystem,
@@ -118,7 +119,7 @@ class _ConcentrationPageState extends State<ConcentrationPage>
             decoration: BoxDecoration(
               color: Colors.white,
               border: Border(
-                bottom: BorderSide(color: Color(0xffE2E8F0), width: 0.5),
+                bottom: BorderSide(color: AppTheme.tableBorderBlue, width: 0.5),
               ),
             ),
             child: TabBar(

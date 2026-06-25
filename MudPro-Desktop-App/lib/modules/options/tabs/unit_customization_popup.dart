@@ -220,7 +220,7 @@ class _UnitSystemCustomizationPopupState
             child: Column(children: [
               _header(),
               _radioRow(),
-              Divider(height: 1, color: Colors.grey.shade300),
+              Divider(height: 1, color: AppTheme.tableGridBlue),
               // FIX: Expanded must wrap the row/body so Column child has bounded height
               Expanded(child: _body()),
               _footer(),
@@ -238,7 +238,7 @@ class _UnitSystemCustomizationPopupState
         flex: 1,
         child: Container(
           decoration: BoxDecoration(
-            border: Border(right: BorderSide(color: Colors.grey[200]!)),
+            border: Border(right: BorderSide(color: AppTheme.tableBorderBlue)),
           ),
           child: Column(
             children: [
@@ -386,7 +386,7 @@ class _UnitSystemCustomizationPopupState
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: isSelected ? AppTheme.primaryColor : Colors.grey.shade300,
+            color: isSelected ? AppTheme.primaryColor : AppTheme.tableGridBlue,
             width: isSelected ? 2 : 1,
           ),
           color: isSelected ? AppTheme.primaryColor.withOpacity(0.1) : Colors.white,
@@ -423,7 +423,7 @@ class _UnitSystemCustomizationPopupState
           AppTheme.primaryColor.withOpacity(0.1),
           AppTheme.secondaryColor.withOpacity(0.1),
         ]),
-        border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
+        border: Border(bottom: BorderSide(color: AppTheme.tableGridBlue)),
       ),
       child: Row(children: [
         Icon(Icons.list, size: 18, color: AppTheme.primaryColor),
@@ -466,7 +466,7 @@ class _UnitSystemCustomizationPopupState
             border: Border.all(
               color: isSelected
                   ? AppTheme.primaryColor
-                  : Colors.grey.shade300,
+                  : AppTheme.tableGridBlue,
               width: isSelected ? 1.5 : 1,
             ),
           ),
@@ -516,7 +516,7 @@ class _UnitSystemCustomizationPopupState
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border(top: BorderSide(color: Colors.grey.shade300)),
+        border: Border(top: BorderSide(color: AppTheme.tableGridBlue)),
       ),
       child: Column(children: [
         Row(children: [
@@ -574,7 +574,7 @@ class _UnitSystemCustomizationPopupState
       padding: const EdgeInsets.symmetric(horizontal: 20),
       decoration: BoxDecoration(
         color: AppTheme.primaryColor.withOpacity(0.05),
-        border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
+        border: Border(bottom: BorderSide(color: AppTheme.tableGridBlue)),
       ),
       child: const Row(children: [
         SizedBox(
@@ -632,7 +632,7 @@ class _UnitSystemCustomizationPopupState
                 decoration: BoxDecoration(
                   color: index % 2 == 0 ? Colors.white : AppTheme.cardColor,
                   border: Border(
-                    bottom: BorderSide(color: Colors.grey.shade200, width: 0.5),
+                    bottom: BorderSide(color: AppTheme.tableBorderBlue, width: 0.5),
                   ),
                 ),
                 child: Row(children: [
@@ -672,9 +672,9 @@ class _UnitSystemCustomizationPopupState
                             alignment: Alignment.centerLeft,
                             padding: const EdgeInsets.symmetric(horizontal: 12),
                             decoration: BoxDecoration(
-                              color: Colors.grey.shade100,
+                              color: AppTheme.tableHeaderBlue,
                               borderRadius: BorderRadius.circular(6),
-                              border: Border.all(color: Colors.grey.shade300),
+                              border: Border.all(color: AppTheme.tableGridBlue),
                             ),
                             child: Text(currentUnit.isEmpty ? '-' : currentUnit,
                                 style: const TextStyle(fontSize: 13)),
@@ -736,7 +736,7 @@ class _UnitSystemCustomizationPopupState
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       decoration: BoxDecoration(
         color: AppTheme.cardColor,
-        border: Border(top: BorderSide(color: Colors.grey.shade300)),
+        border: Border(top: BorderSide(color: AppTheme.tableGridBlue)),
         boxShadow: [
           BoxShadow(
               color: Colors.black.withOpacity(0.05),

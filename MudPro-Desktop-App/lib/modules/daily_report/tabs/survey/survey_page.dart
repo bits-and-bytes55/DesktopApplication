@@ -21,7 +21,7 @@ class SurveyPage extends StatelessWidget {
             decoration: BoxDecoration(
               color: Colors.white,
               border: Border(
-                bottom: BorderSide(color: Colors.grey.shade200, width: 1),
+                bottom: BorderSide(color: AppTheme.tableBorderBlue, width: 1),
               ),
             ),
             child: Row(

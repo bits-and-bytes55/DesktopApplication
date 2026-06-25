@@ -1247,7 +1247,7 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
               color: Colors.white,
-              border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
+              border: Border(bottom: BorderSide(color: AppTheme.tableGridBlue)),
             ),
             child: Row(
               children: [
@@ -1470,7 +1470,7 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
   }) {
     return Container(
       decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(color: AppTheme.tableGridBlue),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start, // ✅ LEFT ALIGN
@@ -1480,7 +1480,7 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
               color: AppTheme.primaryColor,
-              border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
+              border: Border(bottom: BorderSide(color: AppTheme.tableGridBlue)),
             ),
             child: Text(
               title,
@@ -1526,7 +1526,7 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
                           ),
                           border: TableBorder(
                             verticalInside: BorderSide(
-                              color: Colors.grey.shade300,
+                              color: AppTheme.tableGridBlue,
                             ),
                             horizontalInside: BorderSide(
                               color: Colors.grey.shade200,
@@ -1927,7 +1927,7 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
             border: Border.all(
               color: selectedMethod.value == value
                   ? AppTheme.primaryColor
-                  : Colors.grey.shade300,
+                  : AppTheme.tableGridBlue,
             ),
           ),
           child: Row(

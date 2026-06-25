@@ -34,7 +34,7 @@ class MudLossActiveSystemView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: Colors.grey.shade100,
+      color: AppTheme.tableHeaderBlue,
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -246,7 +246,7 @@ class MudLossActiveSystemView extends StatelessWidget {
           ),
           filled: true,
           fillColor: dashboardController.isLocked.value
-              ? Colors.grey.shade100
+              ? AppTheme.tableHeaderBlue
               : Colors.white,
         ),
       ),
@@ -269,7 +269,7 @@ class MudLossActiveSystemView extends StatelessWidget {
               width: 25,
               height: 31,
               alignment: Alignment.center,
-              color: Colors.grey.shade300,
+              color: AppTheme.tableGridBlue,
               child: Icon(
                 Icons.arrow_drop_down,
                 size: 18,
@@ -343,7 +343,7 @@ class MudLossActiveSystemView extends StatelessWidget {
             ),
             filled: true,
             fillColor: dashboardController.isLocked.value
-                ? Colors.grey.shade100
+                ? AppTheme.tableHeaderBlue
                 : Colors.white,
           ),
         ),
@@ -413,7 +413,7 @@ class MudLossActiveSystemView extends StatelessWidget {
           padding: EdgeInsets.zero,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(2)),
           side: BorderSide(color: Colors.grey.shade500),
-          backgroundColor: Colors.grey.shade100,
+          backgroundColor: AppTheme.tableHeaderBlue,
         ),
         child: Icon(icon, size: 16, color: color),
       ),

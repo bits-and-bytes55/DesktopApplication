@@ -63,7 +63,7 @@ class _AlertMainTabPageState extends State<AlertMainTabPage>
             decoration: BoxDecoration(
               color: Colors.white,
               border: Border(
-                bottom: BorderSide(color: Colors.grey.shade200, width: 1),
+                bottom: BorderSide(color: AppTheme.tableBorderBlue, width: 1),
               ),
               boxShadow: [
                 BoxShadow(
@@ -127,7 +127,7 @@ class _AlertMainTabPageState extends State<AlertMainTabPage>
                   decoration: BoxDecoration(
                     color: Colors.grey.shade50,
                     borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: Colors.grey.shade300),
+                    border: Border.all(color: AppTheme.tableGridBlue),
                   ),
                   child: Text(
                     '4 Tabs',

@@ -19,7 +19,7 @@ class ReceiveMudView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: Colors.grey.shade100,
+      color: AppTheme.tableHeaderBlue,
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -81,7 +81,7 @@ class ReceiveMudView extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(color: AppTheme.tableGridBlue),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -90,12 +90,12 @@ class ReceiveMudView extends StatelessWidget {
           // BOL No
           _buildBolSection(),
 
-          Divider(height: 1, color: Colors.grey.shade300),
+          Divider(height: 1, color: AppTheme.tableGridBlue),
 
           // Data Table
           _buildDataTable(),
 
-          Divider(height: 1, color: Colors.grey.shade300),
+          Divider(height: 1, color: AppTheme.tableGridBlue),
 
           // Loss Volume Section (below table)
           _buildLossVolumeSection(),
@@ -109,7 +109,7 @@ class ReceiveMudView extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
+        border: Border(bottom: BorderSide(color: AppTheme.tableGridBlue)),
       ),
       child: Row(
         children: [
@@ -141,11 +141,11 @@ class ReceiveMudView extends StatelessWidget {
                     vertical: 8,
                   ),
                   border: OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.grey.shade300),
+                    borderSide: BorderSide(color: AppTheme.tableGridBlue),
                     borderRadius: BorderRadius.circular(3),
                   ),
                   enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.grey.shade300),
+                    borderSide: BorderSide(color: AppTheme.tableGridBlue),
                     borderRadius: BorderRadius.circular(3),
                   ),
                   focusedBorder: OutlineInputBorder(
@@ -157,7 +157,7 @@ class ReceiveMudView extends StatelessWidget {
                   ),
                   filled: true,
                   fillColor: dashboardController.isLocked.value
-                      ? Colors.grey.shade100
+                      ? AppTheme.tableHeaderBlue
                       : Colors.white,
                 ),
               ),
@@ -184,8 +184,8 @@ class ReceiveMudView extends StatelessWidget {
 
       return Table(
         border: TableBorder(
-          horizontalInside: BorderSide(color: Colors.grey.shade300, width: 1),
-          verticalInside: BorderSide(color: Colors.grey.shade300, width: 1),
+          horizontalInside: BorderSide(color: AppTheme.tableGridBlue, width: 1),
+          verticalInside: BorderSide(color: AppTheme.tableGridBlue, width: 1),
         ),
         columnWidths: const {
           0: FixedColumnWidth(100),
@@ -243,11 +243,11 @@ class ReceiveMudView extends StatelessWidget {
                   vertical: 8,
                 ),
                 border: OutlineInputBorder(
-                  borderSide: BorderSide(color: Colors.grey.shade300),
+                  borderSide: BorderSide(color: AppTheme.tableGridBlue),
                   borderRadius: BorderRadius.circular(3),
                 ),
                 enabledBorder: OutlineInputBorder(
-                  borderSide: BorderSide(color: Colors.grey.shade300),
+                  borderSide: BorderSide(color: AppTheme.tableGridBlue),
                   borderRadius: BorderRadius.circular(3),
                 ),
                 focusedBorder: OutlineInputBorder(
@@ -259,7 +259,7 @@ class ReceiveMudView extends StatelessWidget {
                 ),
                 filled: true,
                 fillColor: dashboardController.isLocked.value
-                    ? Colors.grey.shade100
+                    ? AppTheme.tableHeaderBlue
                     : Colors.white,
               ),
             ),
@@ -423,9 +423,9 @@ class ReceiveMudView extends StatelessWidget {
                     height: 30,
                     decoration: BoxDecoration(
                       color: dashboardController.isLocked.value
-                          ? Colors.grey.shade100
+                          ? AppTheme.tableHeaderBlue
                           : Colors.white,
-                      border: Border.all(color: Colors.grey.shade300),
+                      border: Border.all(color: AppTheme.tableGridBlue),
                       borderRadius: BorderRadius.circular(3),
                     ),
                     child: DropdownButtonHideUnderline(
@@ -686,11 +686,11 @@ class ReceiveMudView extends StatelessWidget {
                     vertical: 8,
                   ),
                   border: OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.grey.shade300),
+                    borderSide: BorderSide(color: AppTheme.tableGridBlue),
                     borderRadius: BorderRadius.circular(3),
                   ),
                   enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.grey.shade300),
+                    borderSide: BorderSide(color: AppTheme.tableGridBlue),
                     borderRadius: BorderRadius.circular(3),
                   ),
                   focusedBorder: OutlineInputBorder(
@@ -708,7 +708,7 @@ class ReceiveMudView extends StatelessWidget {
                   fillColor:
                       !controller.hasLossVolume.value ||
                           dashboardController.isLocked.value
-                      ? Colors.grey.shade100
+                      ? AppTheme.tableHeaderBlue
                       : Colors.white,
                   suffixText: '(bbl)',
                   suffixStyle: TextStyle(
@@ -873,7 +873,7 @@ class _PremixedMudConcentrationDialog extends StatelessWidget {
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: Colors.white,
-                border: Border(top: BorderSide(color: Colors.grey.shade300)),
+                border: Border(top: BorderSide(color: AppTheme.tableGridBlue)),
                 borderRadius: const BorderRadius.only(
                   bottomLeft: Radius.circular(8),
                   bottomRight: Radius.circular(8),
@@ -915,7 +915,7 @@ class _PremixedMudConcentrationDialog extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: Colors.grey.shade200,
-        border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
+        border: Border(bottom: BorderSide(color: AppTheme.tableGridBlue)),
       ),
       child: const Row(
         children: [
@@ -935,7 +935,7 @@ class _PremixedMudConcentrationDialog extends StatelessWidget {
       height: 28,
       decoration: BoxDecoration(
         border: Border(
-          bottom: BorderSide(color: Colors.grey.shade300.withOpacity(0.5)),
+          bottom: BorderSide(color: AppTheme.tableGridBlue.withOpacity(0.5)),
         ),
       ),
       child: Row(
@@ -944,7 +944,7 @@ class _PremixedMudConcentrationDialog extends StatelessWidget {
             width: 40,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              border: Border(right: BorderSide(color: Colors.grey.shade300)),
+              border: Border(right: BorderSide(color: AppTheme.tableGridBlue)),
             ),
             child: Text('${index + 1}', style: const TextStyle(fontSize: 10)),
           ),
@@ -970,7 +970,7 @@ class _HeaderCell extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 8),
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        border: Border(right: BorderSide(color: Colors.grey.shade300)),
+        border: Border(right: BorderSide(color: AppTheme.tableGridBlue)),
       ),
       child: Text(
         text,
@@ -989,7 +989,7 @@ class _CellInput extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        border: Border(right: BorderSide(color: Colors.grey.shade300)),
+        border: Border(right: BorderSide(color: AppTheme.tableGridBlue)),
       ),
       child: const TextField(
         style: TextStyle(fontSize: 10),

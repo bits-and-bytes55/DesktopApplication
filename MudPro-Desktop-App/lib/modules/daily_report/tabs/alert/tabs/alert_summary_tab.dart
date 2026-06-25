@@ -30,7 +30,7 @@ class AlertSummaryPage extends StatelessWidget {
                 ? AppTheme.primaryColor.withOpacity(0.1)
                 : bgColor ?? Colors.white,
         border: Border.all(
-          color: isHeader ? AppTheme.primaryColor : Colors.grey.shade300,
+          color: isHeader ? AppTheme.primaryColor : AppTheme.tableGridBlue,
           width: 0.5,
         ),
       ),
@@ -134,7 +134,7 @@ class AlertSummaryPage extends StatelessWidget {
         Container(
           height: 10,
           decoration: BoxDecoration(
-            color: Colors.grey.shade200,
+            color: AppTheme.tableBorderBlue,
             borderRadius: BorderRadius.circular(5),
           ),
           child: Stack(
@@ -142,7 +142,7 @@ class AlertSummaryPage extends StatelessWidget {
               Container(
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade200,
+                  color: AppTheme.tableBorderBlue,
                   borderRadius: BorderRadius.circular(5),
                 ),
               ),
@@ -251,7 +251,7 @@ class AlertSummaryPage extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         border: Border(
-          bottom: BorderSide(color: Colors.grey.shade200, width: 0.5),
+          bottom: BorderSide(color: AppTheme.tableBorderBlue, width: 0.5),
         ),
       ),
       child: Row(children: [
@@ -444,7 +444,7 @@ class AlertSummaryPage extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         border: Border(
-          bottom: BorderSide(color: Colors.grey.shade200, width: 0.5),
+          bottom: BorderSide(color: AppTheme.tableBorderBlue, width: 0.5),
         ),
       ),
       child: Row(children: [
@@ -468,7 +468,7 @@ class AlertSummaryPage extends StatelessWidget {
               Container(
                 height: 14,
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade200,
+                  color: AppTheme.tableBorderBlue,
                   borderRadius: BorderRadius.circular(7),
                 ),
               ),
@@ -599,7 +599,7 @@ class AlertSummaryPage extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.grey.shade200),
+                  border: Border.all(color: AppTheme.tableBorderBlue),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,

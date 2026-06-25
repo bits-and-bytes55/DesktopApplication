@@ -121,14 +121,14 @@ Future<void> showVolumeByGroupDialog(
                 ),
                 const SizedBox(height: 4),
                 Table(
-                  border: TableBorder.all(color: Colors.grey.shade300),
+                  border: TableBorder.all(color: AppTheme.tableGridBlue),
                   columnWidths: const {
                     0: FlexColumnWidth(),
                     1: FixedColumnWidth(190),
                   },
                   children: [
                     TableRow(
-                      decoration: BoxDecoration(color: Colors.grey.shade100),
+                      decoration: BoxDecoration(color: AppTheme.tableHeaderBlue),
                       children: [
                         const SizedBox(height: 34),
                         _tableHeader('Vol. (bbl)'),
@@ -351,7 +351,7 @@ Future<List<ProductModel>?> showSelectProductsDialog({
                       decoration: BoxDecoration(
                         color: AppTheme.primaryColor,
                         border: Border(
-                          bottom: BorderSide(color: Colors.grey.shade300),
+                          bottom: BorderSide(color: AppTheme.tableGridBlue),
                         ),
                       ),
                       child: Row(
@@ -412,7 +412,7 @@ Future<List<ProductModel>?> showSelectProductsDialog({
                     Expanded(
                       child: Container(
                         decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey.shade300),
+                          border: Border.all(color: AppTheme.tableGridBlue),
                         ),
                         child: Scrollbar(
                           controller: verticalController,
@@ -436,7 +436,7 @@ Future<List<ProductModel>?> showSelectProductsDialog({
                                   child: Table(
                                     border: TableBorder.symmetric(
                                       inside: BorderSide(
-                                        color: Colors.grey.shade300,
+                                        color: AppTheme.tableGridBlue,
                                       ),
                                     ),
                                     columnWidths: const {
@@ -656,7 +656,7 @@ Widget _calculationDialog({
               ],
             ),
             Table(
-              border: TableBorder.all(color: Colors.grey.shade300),
+              border: TableBorder.all(color: AppTheme.tableGridBlue),
               columnWidths: const {
                 0: FlexColumnWidth(),
                 1: FixedColumnWidth(220),

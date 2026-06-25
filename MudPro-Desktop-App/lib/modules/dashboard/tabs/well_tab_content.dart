@@ -26,23 +26,23 @@ const double _kHeaderH = 22.0;
 const double _kTableHeaderH = 36.0;
 const double _kFooterH = 18.0;
 const double _kSectionGap = 3.0;
-const Color _kWellPanelBorder = Color(0xFFC8CCD1);
-const Color _kGridHeaderColor = Color(0xFFF1F1F1);
+const Color _kWellPanelBorder = AppTheme.tableBorderBlue;
+const Color _kGridHeaderColor = AppTheme.tableHeaderBlue;
 const Color _kEditableCellColor = Color(0xFFFFF7CC);
 const Color _kSelectedRowColor = Color(0xFFDCE8F7);
 const Color _kAltRowColor = Color(0xFFFBFBFB);
 const TextStyle _kWellHeaderTextStyle = TextStyle(
+  fontSize: 12,
+  fontWeight: FontWeight.w700,
+  color: Colors.white,
+);
+const TextStyle _kWellInputTextStyle = TextStyle(
   fontSize: 11,
   fontWeight: FontWeight.w700,
   color: Colors.black,
 );
-const TextStyle _kWellInputTextStyle = TextStyle(
-  fontSize: 10,
-  fontWeight: FontWeight.w700,
-  color: Colors.black,
-);
 const TextStyle _kWellSmallInputTextStyle = TextStyle(
-  fontSize: 9,
+  fontSize: 10,
   fontWeight: FontWeight.w700,
   color: Colors.black,
 );

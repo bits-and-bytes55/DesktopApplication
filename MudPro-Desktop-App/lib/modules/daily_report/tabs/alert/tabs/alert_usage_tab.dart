@@ -79,7 +79,7 @@ class _AlertUsagePageState extends State<AlertUsagePage> {
             Expanded(
               child: Container(
                 decoration: AppTheme.cardDecoration.copyWith(
-                  border: Border.all(color: Colors.grey.shade300),
+                  border: Border.all(color: AppTheme.tableGridBlue),
                 ),
                 child: MouseRegion(
                   onHover: (event) {
@@ -113,7 +113,7 @@ class _AlertUsagePageState extends State<AlertUsagePage> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey.shade200),
+                border: Border.all(color: AppTheme.tableBorderBlue),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -184,7 +184,7 @@ class _EnhancedUsageChartPainter extends CustomPainter {
 
     // ================= GRID HORIZONTAL =================
     final gridPaint = Paint()
-      ..color = Colors.grey.shade100
+      ..color = AppTheme.tableHeaderBlue
       ..strokeWidth = 0.8;
 
     for (int i = 0; i <= 5; i++) {

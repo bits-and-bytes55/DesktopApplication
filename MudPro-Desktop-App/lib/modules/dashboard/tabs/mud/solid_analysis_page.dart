@@ -69,7 +69,7 @@ class _SolidAnalysisDialogState extends State<SolidAnalysisDialog> {
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
         child: SizedBox(
-          width: 600,
+          width: 640,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [_header(context), _body(), _footer(context)],
@@ -256,7 +256,7 @@ class _SolidAnalysisDialogState extends State<SolidAnalysisDialog> {
         _tableHeader(),
         Container(
           decoration: BoxDecoration(
-            border: Border.all(color: Colors.grey.shade300),
+            border: Border.all(color: AppTheme.tableBorderBlue),
             borderRadius: const BorderRadius.only(
               bottomLeft: Radius.circular(4),
               bottomRight: Radius.circular(4),
@@ -268,10 +268,12 @@ class _SolidAnalysisDialogState extends State<SolidAnalysisDialog> {
               (i) => Container(
                 height: 30,
                 decoration: BoxDecoration(
-                  color: i % 2 == 0 ? Colors.white : Colors.grey.shade50,
+                  color: Colors.white,
                   border: Border(
                     bottom: BorderSide(
-                      color: i < 12 ? Colors.grey.shade200 : Colors.transparent,
+                      color: i < 12
+                          ? AppTheme.tableGridBlue
+                          : Colors.transparent,
                     ),
                   ),
                 ),
@@ -308,7 +310,7 @@ class _SolidAnalysisDialogState extends State<SolidAnalysisDialog> {
         _tableHeader(),
         Container(
           decoration: BoxDecoration(
-            border: Border.all(color: Colors.grey.shade300),
+            border: Border.all(color: AppTheme.tableBorderBlue),
             borderRadius: const BorderRadius.only(
               bottomLeft: Radius.circular(4),
               bottomRight: Radius.circular(4),
@@ -324,12 +326,10 @@ class _SolidAnalysisDialogState extends State<SolidAnalysisDialog> {
               return Container(
                 height: 30,
                 decoration: BoxDecoration(
-                  color: row.highlight
-                      ? AppTheme.primaryColor.withOpacity(0.04)
-                      : Colors.white,
+                  color: Colors.white,
                   border: Border(
                     bottom: BorderSide(
-                      color: isLast ? Colors.transparent : Colors.grey.shade400,
+                      color: isLast ? Colors.transparent : AppTheme.tableGridBlue,
                     ),
                   ),
                 ),
@@ -342,9 +342,9 @@ class _SolidAnalysisDialogState extends State<SolidAnalysisDialog> {
                         height: double.infinity,
                         padding: const EdgeInsets.symmetric(horizontal: 8),
                         decoration: BoxDecoration(
-                          color: Colors.grey.shade100,
+                          color: AppTheme.readOnlyCell,
                           border: Border(
-                            right: BorderSide(color: Colors.grey.shade400),
+                            right: BorderSide(color: AppTheme.tableGridBlue),
                           ),
                         ),
                         child: Row(
@@ -363,8 +363,8 @@ class _SolidAnalysisDialogState extends State<SolidAnalysisDialog> {
                               child: Text(
                                 row.name,
                                 style: TextStyle(
-                                  fontSize: 11.5,
-                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w700,
                                   color: AppTheme.textPrimary,
                                 ),
                                 overflow: TextOverflow.ellipsis,
@@ -406,7 +406,7 @@ class _SolidAnalysisDialogState extends State<SolidAnalysisDialog> {
                               right: BorderSide(
                                 color: isLast2
                                     ? Colors.transparent
-                                    : Colors.grey.shade400,
+                                    : AppTheme.tableGridBlue,
                               ),
                             ),
                           ),
@@ -415,7 +415,7 @@ class _SolidAnalysisDialogState extends State<SolidAnalysisDialog> {
                             child: Text(
                               raw,
                               style: TextStyle(
-                                fontSize: 11.5,
+                                fontSize: 12.5,
                                 fontWeight: row.highlight
                                     ? FontWeight.w600
                                     : FontWeight.normal,
@@ -468,8 +468,8 @@ class _SolidAnalysisDialogState extends State<SolidAnalysisDialog> {
     return Container(
       height: 32,
       decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        border: Border.all(color: Colors.grey.shade300),
+        color: AppTheme.tableHeaderBlue,
+        border: Border.all(color: AppTheme.tableBorderBlue),
         borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(4),
           topRight: Radius.circular(4),
@@ -483,13 +483,13 @@ class _SolidAnalysisDialogState extends State<SolidAnalysisDialog> {
               height: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 8),
               decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                border: Border(right: BorderSide(color: Colors.grey.shade400)),
+                color: AppTheme.tableHeaderBlue,
+                border: Border(right: BorderSide(color: AppTheme.tableGridBlue)),
               ),
               child: Text(
                 'Property',
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: 13,
                   fontWeight: FontWeight.w700,
                   color: AppTheme.textPrimary,
                 ),
@@ -506,7 +506,7 @@ class _SolidAnalysisDialogState extends State<SolidAnalysisDialog> {
                     right: BorderSide(
                       color: e.key == 2
                           ? Colors.transparent
-                          : Colors.grey.shade400,
+                          : AppTheme.tableGridBlue,
                     ),
                   ),
                 ),
@@ -514,7 +514,7 @@ class _SolidAnalysisDialogState extends State<SolidAnalysisDialog> {
                   'Sample ${e.value}',
                   textAlign: TextAlign.right,
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 13,
                     fontWeight: FontWeight.w700,
                     color: AppTheme.textPrimary,
                   ),

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/tabular_database_editor_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/widgets/tabular_database_editor.dart';
+import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class CompactTabularDatabaseDialog extends StatefulWidget {
   const CompactTabularDatabaseDialog({super.key});
@@ -189,9 +190,9 @@ class _CompactTabularDatabaseDialogState
     return Container(
       height: 30,
       padding: const EdgeInsets.symmetric(horizontal: 10),
-      decoration: const BoxDecoration(
-        color: Color(0xFFF3F3F3),
-        border: Border(bottom: BorderSide(color: Color(0xFFBFC5CC))),
+      decoration: BoxDecoration(
+        color: AppTheme.tableHeaderBlue,
+        border: Border(bottom: BorderSide(color: AppTheme.tableBorderBlue)),
       ),
       child: Row(
         children: [
@@ -294,7 +295,7 @@ class _CompactTabularDatabaseDialogState
             child: Container(
               decoration: BoxDecoration(
                 color: Colors.white,
-                border: Border.all(color: const Color(0xFFBFC5CC)),
+                border: Border.all(color: AppTheme.tableBorderBlue),
               ),
               child: child,
             ),
@@ -365,8 +366,8 @@ class _CompactTabularDatabaseDialogState
               padding: const EdgeInsets.symmetric(horizontal: 8),
               alignment: Alignment.centerLeft,
               decoration: BoxDecoration(
-                border: Border.all(color: const Color(0xFFBFC5CC)),
-                color: const Color(0xFFF8F8F8),
+                border: Border.all(color: AppTheme.tableBorderBlue),
+                color: AppTheme.tableHeaderBlue,
               ),
               child: Text(
                 '${c.selectedTypeName} - ${c.selectedCatalogName} : $od ${c.diameterUnitLabel}, $weight ${c.lineDensityUnitLabel}, $grade',
@@ -379,10 +380,10 @@ class _CompactTabularDatabaseDialogState
               ),
             ),
             Expanded(
-              child: Container(
-                decoration: BoxDecoration(
-                  border: Border.all(color: const Color(0xFFBFC5CC)),
-                ),
+	              child: Container(
+	                decoration: BoxDecoration(
+	                  border: Border.all(color: AppTheme.tableBorderBlue),
+	                ),
                 child: Column(
                   children: [
                     Align(
@@ -454,10 +455,10 @@ class _CompactTabularDatabaseDialogState
           children: [
             Container(
               height: 22,
-              decoration: const BoxDecoration(
-                color: Color(0xFFF8F8F8),
-                border: Border(bottom: BorderSide(color: Color(0xFFBFC5CC))),
-              ),
+	              decoration: BoxDecoration(
+	                color: AppTheme.tableHeaderBlue,
+	                border: Border(bottom: BorderSide(color: AppTheme.tableBorderBlue)),
+	              ),
               child: Row(
                 children: [
                   SizedBox(width: rowNoW),
@@ -473,10 +474,10 @@ class _CompactTabularDatabaseDialogState
             ),
             Container(
               height: 38,
-              decoration: const BoxDecoration(
-                color: Color(0xFFF8F8F8),
-                border: Border(bottom: BorderSide(color: Color(0xFFBFC5CC))),
-              ),
+	              decoration: BoxDecoration(
+	                color: AppTheme.tableHeaderBlue,
+	                border: Border(bottom: BorderSide(color: AppTheme.tableBorderBlue)),
+	              ),
               child: Row(
                 children: [
                   SizedBox(width: rowNoW),
@@ -503,9 +504,9 @@ class _CompactTabularDatabaseDialogState
       width: width,
       height: height,
       alignment: Alignment.center,
-      decoration: const BoxDecoration(
-        border: Border(right: BorderSide(color: Color(0xFFBFC5CC))),
-      ),
+	      decoration: BoxDecoration(
+	        border: Border(right: BorderSide(color: AppTheme.tableBorderBlue)),
+	      ),
       child: Text(
         value,
         textAlign: TextAlign.center,
@@ -520,9 +521,9 @@ class _CompactTabularDatabaseDialogState
       width: width,
       height: 38,
       alignment: Alignment.center,
-      decoration: const BoxDecoration(
-        border: Border(right: BorderSide(color: Color(0xFFBFC5CC))),
-      ),
+	      decoration: BoxDecoration(
+	        border: Border(right: BorderSide(color: AppTheme.tableBorderBlue)),
+	      ),
       child: Text(
         value,
         textAlign: TextAlign.center,
@@ -576,12 +577,12 @@ class _CompactTabularDatabaseDialogState
       height: 22,
       alignment: Alignment.center,
       padding: const EdgeInsets.symmetric(horizontal: 4),
-      decoration: const BoxDecoration(
-        border: Border(
-          right: BorderSide(color: Color(0xFFD4D8DD)),
-          bottom: BorderSide(color: Color(0xFFD4D8DD)),
-        ),
-      ),
+	      decoration: BoxDecoration(
+	        border: Border(
+	          right: BorderSide(color: AppTheme.tableGridBlue),
+	          bottom: BorderSide(color: AppTheme.tableGridBlue),
+	        ),
+	      ),
       child: Text(
         value,
         textAlign: align,

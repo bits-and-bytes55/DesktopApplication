@@ -245,7 +245,7 @@ class _PitPageState extends State<PitPage> {
         Expanded(
           child: Container(
             decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey.shade300, width: 1),
+              border: Border.all(color: AppTheme.tableGridBlue, width: 1),
               borderRadius: const BorderRadius.only(
                 bottomLeft: Radius.circular(4),
                 bottomRight: Radius.circular(4),
@@ -277,9 +277,9 @@ class _PitPageState extends State<PitPage> {
   Widget _buildActivePitsTableHeader() {
     return Table(
       border: TableBorder(
-        verticalInside: BorderSide(color: Colors.grey.shade300, width: 1),
-        left: BorderSide(color: Colors.grey.shade300, width: 1),
-        right: BorderSide(color: Colors.grey.shade300, width: 1),
+        verticalInside: BorderSide(color: AppTheme.tableGridBlue, width: 1),
+        left: BorderSide(color: AppTheme.tableGridBlue, width: 1),
+        right: BorderSide(color: AppTheme.tableGridBlue, width: 1),
       ),
       columnWidths: const {
         0: FlexColumnWidth(2),
@@ -289,7 +289,7 @@ class _PitPageState extends State<PitPage> {
       },
       children: [
         TableRow(
-          decoration: BoxDecoration(color: Colors.grey.shade100),
+          decoration: BoxDecoration(color: AppTheme.tableHeaderBlue),
           children: [
             _headerCell("Pit"),
             _headerCell("Measured Vol\n(bbl)"),
@@ -312,8 +312,8 @@ class _PitPageState extends State<PitPage> {
     );
     return Table(
       border: TableBorder(
-        horizontalInside: BorderSide(color: Colors.grey.shade300, width: 1),
-        verticalInside: BorderSide(color: Colors.grey.shade300, width: 1),
+        horizontalInside: BorderSide(color: AppTheme.tableGridBlue, width: 1),
+        verticalInside: BorderSide(color: AppTheme.tableGridBlue, width: 1),
       ),
       defaultVerticalAlignment: TableCellVerticalAlignment.middle,
       columnWidths: const {
@@ -398,7 +398,7 @@ class _PitPageState extends State<PitPage> {
         Expanded(
           child: Container(
             decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey.shade300, width: 1),
+              border: Border.all(color: AppTheme.tableGridBlue, width: 1),
               borderRadius: const BorderRadius.only(
                 bottomLeft: Radius.circular(4),
                 bottomRight: Radius.circular(4),
@@ -430,9 +430,9 @@ class _PitPageState extends State<PitPage> {
   Widget _buildStorageTableHeader() {
     return Table(
       border: TableBorder(
-        verticalInside: BorderSide(color: Colors.grey.shade300, width: 1),
-        left: BorderSide(color: Colors.grey.shade300, width: 1),
-        right: BorderSide(color: Colors.grey.shade300, width: 1),
+        verticalInside: BorderSide(color: AppTheme.tableGridBlue, width: 1),
+        left: BorderSide(color: AppTheme.tableGridBlue, width: 1),
+        right: BorderSide(color: AppTheme.tableGridBlue, width: 1),
       ),
       columnWidths: const {
         0: FlexColumnWidth(2),
@@ -443,7 +443,7 @@ class _PitPageState extends State<PitPage> {
       },
       children: [
         TableRow(
-          decoration: BoxDecoration(color: Colors.grey.shade100),
+          decoration: BoxDecoration(color: AppTheme.tableHeaderBlue),
           children: [
             _headerCell("Pit"),
             _headerCell("Calculated Vol\n(bbl)"),
@@ -467,8 +467,8 @@ class _PitPageState extends State<PitPage> {
     );
     return Table(
       border: TableBorder(
-        horizontalInside: BorderSide(color: Colors.grey.shade300, width: 1),
-        verticalInside: BorderSide(color: Colors.grey.shade300, width: 1),
+        horizontalInside: BorderSide(color: AppTheme.tableGridBlue, width: 1),
+        verticalInside: BorderSide(color: AppTheme.tableGridBlue, width: 1),
       ),
       defaultVerticalAlignment: TableCellVerticalAlignment.middle,
       columnWidths: const {
@@ -555,7 +555,7 @@ class _PitPageState extends State<PitPage> {
         Expanded(
           child: Container(
             decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey.shade300, width: 1),
+              border: Border.all(color: AppTheme.tableGridBlue, width: 1),
               borderRadius: const BorderRadius.only(
                 bottomLeft: Radius.circular(4),
                 bottomRight: Radius.circular(4),
@@ -584,14 +584,14 @@ class _PitPageState extends State<PitPage> {
   Widget _buildVolumeNameHeader() {
     return Table(
       border: TableBorder(
-        verticalInside: BorderSide(color: Colors.grey.shade300, width: 1),
-        left: BorderSide(color: Colors.grey.shade300, width: 1),
-        right: BorderSide(color: Colors.grey.shade300, width: 1),
+        verticalInside: BorderSide(color: AppTheme.tableGridBlue, width: 1),
+        left: BorderSide(color: AppTheme.tableGridBlue, width: 1),
+        right: BorderSide(color: AppTheme.tableGridBlue, width: 1),
       ),
       columnWidths: const {0: FlexColumnWidth(3), 1: FlexColumnWidth(1.5)},
       children: [
         TableRow(
-          decoration: BoxDecoration(color: Colors.grey.shade100),
+          decoration: BoxDecoration(color: AppTheme.tableHeaderBlue),
           children: [_headerCell("Volume Name"), _headerCell("Volume\n(bbl)")],
         ),
       ],
@@ -632,8 +632,8 @@ class _PitPageState extends State<PitPage> {
 
     return Table(
       border: TableBorder(
-        horizontalInside: BorderSide(color: Colors.grey.shade300, width: 1),
-        verticalInside: BorderSide(color: Colors.grey.shade300, width: 1),
+        horizontalInside: BorderSide(color: AppTheme.tableGridBlue, width: 1),
+        verticalInside: BorderSide(color: AppTheme.tableGridBlue, width: 1),
       ),
       defaultVerticalAlignment: TableCellVerticalAlignment.middle,
       columnWidths: const {0: FlexColumnWidth(3), 1: FlexColumnWidth(1.5)},
@@ -718,7 +718,7 @@ class _PitPageState extends State<PitPage> {
         Expanded(
           child: Container(
             decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey.shade300, width: 1),
+              border: Border.all(color: AppTheme.tableGridBlue, width: 1),
               borderRadius: const BorderRadius.only(
                 bottomLeft: Radius.circular(4),
                 bottomRight: Radius.circular(4),
@@ -734,9 +734,9 @@ class _PitPageState extends State<PitPage> {
   Widget _buildHaulOffTableHeader() {
     return Table(
       border: TableBorder(
-        verticalInside: BorderSide(color: Colors.grey.shade300, width: 1),
-        left: BorderSide(color: Colors.grey.shade300, width: 1),
-        right: BorderSide(color: Colors.grey.shade300, width: 1),
+        verticalInside: BorderSide(color: AppTheme.tableGridBlue, width: 1),
+        left: BorderSide(color: AppTheme.tableGridBlue, width: 1),
+        right: BorderSide(color: AppTheme.tableGridBlue, width: 1),
       ),
       columnWidths: const {
         0: FlexColumnWidth(2),
@@ -745,7 +745,7 @@ class _PitPageState extends State<PitPage> {
       },
       children: [
         TableRow(
-          decoration: BoxDecoration(color: Colors.grey.shade100),
+          decoration: BoxDecoration(color: AppTheme.tableHeaderBlue),
           children: [
             _headerCell("Item"),
             _headerCell("Value"),
@@ -769,8 +769,8 @@ class _PitPageState extends State<PitPage> {
 
     return Table(
       border: TableBorder(
-        horizontalInside: BorderSide(color: Colors.grey.shade300, width: 1),
-        verticalInside: BorderSide(color: Colors.grey.shade300, width: 1),
+        horizontalInside: BorderSide(color: AppTheme.tableGridBlue, width: 1),
+        verticalInside: BorderSide(color: AppTheme.tableGridBlue, width: 1),
       ),
       defaultVerticalAlignment: TableCellVerticalAlignment.middle,
       columnWidths: const {

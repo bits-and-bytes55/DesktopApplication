@@ -20,7 +20,7 @@ class ReportOptionSummaryPage extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               color: Colors.grey.shade50,
-              border: Border.all(color: Colors.grey.shade300),
+              border: Border.all(color: AppTheme.tableGridBlue),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Row(
@@ -115,7 +115,7 @@ class ReportOptionSummaryPage extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(color: AppTheme.tableGridBlue),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
@@ -131,7 +131,7 @@ class ReportOptionSummaryPage extends StatelessWidget {
                 topRight: Radius.circular(8),
               ),
               border: Border(
-                bottom: BorderSide(color: Colors.grey.shade300),
+                bottom: BorderSide(color: AppTheme.tableGridBlue),
               ),
             ),
             child: Row(
@@ -262,7 +262,7 @@ class ReportOptionSummaryPage extends StatelessWidget {
                       border: Border.all(
                         color: isSelected
                             ? AppTheme.primaryColor.withOpacity(0.2)
-                            : Colors.grey.shade200,
+                            : AppTheme.tableBorderBlue,
                       ),
                     ),
                     child: CheckboxListTile(
@@ -475,7 +475,7 @@ class ReportOptionSummaryPage extends StatelessWidget {
                       border: Border.all(
                         color: isSelected
                             ? AppTheme.primaryColor.withOpacity(0.2)
-                            : Colors.grey.shade200,
+                            : AppTheme.tableBorderBlue,
                       ),
                     ),
                     child: CheckboxListTile(
@@ -527,7 +527,7 @@ class ReportOptionSummaryPage extends StatelessWidget {
         border: Border.all(
           color: value
               ? AppTheme.primaryColor.withOpacity(0.2)
-              : Colors.grey.shade200,
+              : AppTheme.tableBorderBlue,
         ),
       ),
       child: CheckboxListTile(

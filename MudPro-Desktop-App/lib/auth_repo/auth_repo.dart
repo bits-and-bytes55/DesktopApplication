@@ -113,7 +113,11 @@ class AuthRepository {
       return {
         'success': response.statusCode == 200 || response.statusCode == 201,
         'data': data,
-        'message': data['message'] ?? 'Saved successfully',
+        'message':
+            data['message'] ??
+            (isUpdate
+                ? 'Well general updated successfully'
+                : 'Well general saved successfully'),
       };
     } catch (e) {
       print('Error in saveWellGeneral: $e');
@@ -150,7 +154,11 @@ class AuthRepository {
       return {
         'success': response.statusCode == 200 || response.statusCode == 201,
         'data': data,
-        'message': data['message'] ?? 'Saved successfully',
+        'message':
+            data['message'] ??
+            (isUpdate
+                ? 'Casing updated successfully'
+                : 'Casing saved successfully'),
       };
     } catch (e) {
       print('Error in saveCasing: $e');
@@ -177,7 +185,8 @@ class AuthRepository {
       return {
         'success': response.statusCode == 200 || response.statusCode == 201,
         'data': data,
-        'message': data['message'] ?? 'Saved successfully',
+        'message':
+            data['message'] ?? 'Consume product distribution saved successfully',
       };
     } catch (e) {
       print('Error in saveConsumeProductVolumeName: $e');
@@ -226,7 +235,7 @@ class AuthRepository {
       return {
         'success': response.statusCode == 200 || response.statusCode == 201,
         'data': data,
-        'message': data['message'] ?? 'Saved successfully',
+        'message': data['message'] ?? 'Pit volume saved successfully',
       };
     } catch (e) {
       print('Error in updatePitVolumeData: $e');
@@ -319,7 +328,7 @@ class AuthRepository {
         'message': _messageFromResponse(
           data,
           response.statusCode,
-          'Saved successfully',
+          'Transfer Mud saved successfully',
         ),
       };
     } catch (e) {
@@ -350,7 +359,7 @@ class AuthRepository {
         'message': _messageFromResponse(
           data,
           response.statusCode,
-          'Updated successfully',
+          'Transfer Mud updated successfully',
         ),
       };
     } catch (e) {
@@ -567,7 +576,7 @@ class AuthRepository {
       final data = jsonDecode(response.body);
       return {
         'success': response.statusCode == 200,
-        'message': data['message'] ?? 'Deleted successfully',
+        'message': data['message'] ?? 'Transfer Mud deleted successfully',
       };
     } catch (e) {
       print('Error in deleteTransferMud: $e');
