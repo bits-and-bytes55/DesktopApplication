@@ -357,16 +357,19 @@ class _InventoryServicesViewState extends State<InventoryServicesView> {
               ),
             ),
           ),
-          if (hasHeaderCheckbox)
-            Transform.scale(
-              scale: 0.72,
-              child: Checkbox(
-                value: false,
-                onChanged: c.isLocked.value ? null : (_) {},
-                visualDensity: VisualDensity.compact,
-                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-            ),
+	          if (hasHeaderCheckbox)
+	            Obx(() {
+	              final locked = c.isLocked.value;
+	              return Transform.scale(
+	                scale: 0.72,
+	                child: Checkbox(
+	                  value: false,
+	                  onChanged: locked ? null : (_) {},
+	                  visualDensity: VisualDensity.compact,
+	                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+	                ),
+	              );
+	            }),
         ],
       ),
     );

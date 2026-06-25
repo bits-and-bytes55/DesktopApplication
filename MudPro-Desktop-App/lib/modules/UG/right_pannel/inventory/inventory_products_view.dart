@@ -2071,34 +2071,37 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
     bool value,
     ValueChanged<bool> onChanged,
   ) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Transform.scale(
-          scale: 0.7,
-          child: Checkbox(
-            value: value,
-            onChanged: c.isLocked.value ? null : (v) => onChanged(v ?? false),
-            visualDensity: VisualDensity.compact,
-            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 2),
-          child: Text(
-            text,
-            textAlign: TextAlign.center,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 9.5,
-              fontWeight: FontWeight.w700,
-              color: AppTheme.textPrimary,
+    return Obx(() {
+      final locked = c.isLocked.value;
+      return Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Transform.scale(
+            scale: 0.7,
+            child: Checkbox(
+              value: value,
+              onChanged: locked ? null : (v) => onChanged(v ?? false),
+              visualDensity: VisualDensity.compact,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
           ),
-        ),
-      ],
-    );
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 2),
+            child: Text(
+              text,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 9.5,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.textPrimary,
+              ),
+            ),
+          ),
+        ],
+      );
+    });
   }
 
   Widget _tableCell(String value) => Padding(
@@ -2241,24 +2244,26 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
   );
 
   Widget _checkboxCell(bool Function() getter, Function(bool) onChange) {
-    return Obx(
-      () => Center(
+    return Obx(() {
+      final locked = c.isLocked.value;
+      final checked = getter();
+      return Center(
         child: Container(
           decoration: BoxDecoration(
-            color: getter()
+            color: checked
                 ? AppTheme.successColor.withOpacity(0.1)
                 : Colors.grey.shade100,
             borderRadius: BorderRadius.circular(3),
             border: Border.all(
-              color: getter() ? AppTheme.successColor : Colors.grey.shade400,
+              color: checked ? AppTheme.successColor : Colors.grey.shade400,
             ),
           ),
           margin: const EdgeInsets.symmetric(vertical: 2, horizontal: 4),
           child: Transform.scale(
             scale: 0.7,
             child: Checkbox(
-              value: getter(),
-              onChanged: c.isLocked.value ? null : (v) => onChange(v!),
+              value: checked,
+              onChanged: locked ? null : (v) => onChange(v!),
               activeColor: AppTheme.successColor,
               checkColor: Colors.white,
               visualDensity: VisualDensity.compact,
@@ -2266,8 +2271,8 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
             ),
           ),
         ),
-      ),
-    );
+      );
+    });
   }
 }
 
