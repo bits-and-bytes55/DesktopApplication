@@ -1107,41 +1107,27 @@ const calculateAdjustedActiveSystemPendingInput = ({
   ];
   if (!activeSystemPendingEntries.length) return 0;
 
-  const pendingTimes = activeSystemPendingEntries
-    .map((item) => itemTime(item))
-    .filter((time) => Number.isFinite(time) && time > 0);
-  if (!pendingTimes.length) return 0;
+  if (activePitBaselineByName.size > 0) {
+    const adjustedActivePitVolume = activePitsList.reduce((sum, pit) => {
+      const key = toText(pit?.pitName).toLowerCase();
+      const currentVolume = toNumber(pit?.volume);
+      const baselineVolume = activePitBaselineByName.has(key)
+        ? activePitBaselineByName.get(key)
+        : 0;
+      return sum + Math.max(0, round2(currentVolume - baselineVolume));
+    }, 0);
 
-  const firstPendingTime = Math.min(...pendingTimes);
-  if (
-    activePitBaselineByName.size === 0 &&
-    activePitsSnapshot !== null &&
-    activePitsSnapshot !== undefined
-  ) {
-    const hasPitAdjustedAfterPending = activePitsList.some((pit) => {
-      const pitTime = itemTime(pit);
-      return Number.isFinite(pitTime) && pitTime >= firstPendingTime;
-    });
-    if (!hasPitAdjustedAfterPending) return 0;
+    return round2(adjustedActivePitVolume);
+  }
 
+  if (activePitsSnapshot !== null && activePitsSnapshot !== undefined) {
     const currentActivePits = Number(
       activePitsList.reduce((sum, pit) => sum + toNumber(pit.volume), 0).toFixed(2)
     );
     return round2(Math.max(0, currentActivePits - toNumber(activePitsSnapshot)));
   }
 
-  const adjustedActivePitVolume = activePitsList.reduce((sum, pit) => {
-    const pitTime = itemTime(pit);
-    if (!Number.isFinite(pitTime) || pitTime < firstPendingTime) return sum;
-    const key = toText(pit?.pitName).toLowerCase();
-    const currentVolume = toNumber(pit?.volume);
-    const baselineVolume = activePitBaselineByName.has(key)
-      ? activePitBaselineByName.get(key)
-      : 0;
-    return sum + round2(currentVolume - baselineVolume);
-  }, 0);
-
-  return round2(Math.max(0, adjustedActivePitVolume));
+  return 0;
 };
 
 const calculateAdjustedActiveSystemMudLoss = ({
@@ -1155,24 +1141,8 @@ const calculateAdjustedActiveSystemMudLoss = ({
   );
   if (totalLoss <= 0) return 0;
 
-  if (activePitsSnapshot === null || activePitsSnapshot === undefined) return 0;
-
-  const lossTimes = mudLossEntries
-    .map((item) => itemTime(item))
-    .filter((time) => Number.isFinite(time) && time > 0);
-  if (!lossTimes.length) return 0;
-
-  const firstLossTime = Math.min(...lossTimes);
-  const hasPitAdjustedAfterLoss = activePitsList.some((pit) => {
-    const pitTime = itemTime(pit);
-    return Number.isFinite(pitTime) && pitTime >= firstLossTime;
-  });
-  if (!hasPitAdjustedAfterLoss) return 0;
-
   if (activePitBaselineByName.size > 0) {
     const adjustedActivePitLoss = activePitsList.reduce((sum, pit) => {
-      const pitTime = itemTime(pit);
-      if (!Number.isFinite(pitTime) || pitTime < firstLossTime) return sum;
       const key = toText(pit?.pitName).toLowerCase();
       const currentVolume = toNumber(pit?.volume);
       const baselineVolume = activePitBaselineByName.has(key)
@@ -1183,6 +1153,8 @@ const calculateAdjustedActiveSystemMudLoss = ({
 
     return round2(Math.min(totalLoss, adjustedActivePitLoss));
   }
+
+  if (activePitsSnapshot === null || activePitsSnapshot === undefined) return 0;
 
   const currentActivePits = Number(
     activePitsList.reduce((sum, pit) => sum + toNumber(pit.volume), 0).toFixed(2)
