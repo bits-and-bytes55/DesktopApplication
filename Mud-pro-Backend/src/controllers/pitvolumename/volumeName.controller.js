@@ -1355,8 +1355,6 @@ const buildOperationVolumeEffects = ({
       if (volume <= 0) return;
       const fromKey = toText(item.from).toLowerCase();
       if (isActiveSystemName(item.from)) {
-        activeSystemDelta -= volume;
-        transferActiveSystemDelta -= volume;
         endVolDelta -= volume;
       } else if (activePitNames.has(fromKey)) {
         endVolDelta -= volume;
