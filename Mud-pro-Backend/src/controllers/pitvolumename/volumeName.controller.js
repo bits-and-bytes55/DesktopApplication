@@ -1228,14 +1228,16 @@ const calculateAdjustedActiveSystemPendingInput = ({
 
 const calculateAdjustedActiveSystemMudLoss = ({
   mudLossEntries = [],
+  extraLossTotal = 0,
   activePitsList = [],
   activePitBaselineByName = new Map(),
   activePitsSnapshot,
   activePitInputAdjustmentTotal = 0,
   activePitLossAdjustmentTotal = 0,
 }) => {
-  const totalLoss = Number(
-    mudLossEntries.reduce((sum, item) => sum + toNumber(item.totalLoss), 0).toFixed(2)
+  const totalLoss = round2(
+    mudLossEntries.reduce((sum, item) => sum + toNumber(item.totalLoss), 0) +
+      toNumber(extraLossTotal)
   );
   if (totalLoss <= 0) return 0;
   const recordedAdjustment = Math.max(
@@ -1276,14 +1278,14 @@ const isIgnoredDestination = (value) => {
   return !key || key === "imp";
 };
 
-const calculateReturnLostActiveSystemBalance = (returnLostMud = []) =>
+const calculateReturnLostActiveSystemOutputTotal = (returnLostMud = []) =>
   round2(
     returnLostMud.reduce((sum, item) => {
       if (!isActiveSystemName(item?.from)) return sum;
       const returnedOutside = isIgnoredDestination(item?.to)
         ? toNumber(item?.volReturned)
         : 0;
-      return sum - returnedOutside - toNumber(item?.volLost);
+      return sum + returnedOutside + toNumber(item?.volLost);
     }, 0)
   );
 
@@ -1670,8 +1672,14 @@ export const calculateEndVolForReport = async ({
       .reduce((sum, item) => sum + toNumber(item.totalLoss), 0)
       .toFixed(2)
   );
+  const returnLostActiveSystemOutputTotal =
+    calculateReturnLostActiveSystemOutputTotal(returnLostMud);
+  const activeSystemOutputTotal = round2(
+    activeSystemMudLossTotal + returnLostActiveSystemOutputTotal
+  );
   const adjustedActiveSystemMudLoss = calculateAdjustedActiveSystemMudLoss({
     mudLossEntries: normalizedMudLossEntries,
+    extraLossTotal: returnLostActiveSystemOutputTotal,
     activePitsList,
     activePitBaselineByName: previousActivePitBaselineByName,
     activePitsSnapshot: reportMeta?.volumeNameHoleActivePitsSnapshot,
@@ -1682,6 +1690,9 @@ export const calculateEndVolForReport = async ({
   });
   const pendingActiveSystemMudLoss = round2(
     Math.max(0, activeSystemMudLossTotal - adjustedActiveSystemMudLoss)
+  );
+  const pendingActiveSystemOutput = round2(
+    Math.max(0, activeSystemOutputTotal - adjustedActiveSystemMudLoss)
   );
 
   const operationVolumeEffects = buildOperationVolumeEffects({
@@ -1719,8 +1730,6 @@ export const calculateEndVolForReport = async ({
     operationVolumeEffects.addWaterActiveSystemDelta +
       operationVolumeEffects.otherVolActiveSystemDelta
   );
-  const returnLostActiveSystemBalance =
-    calculateReturnLostActiveSystemBalance(returnLostMud);
   const adjustedActiveSystemPendingInput =
     calculateAdjustedActiveSystemPendingInput({
       addWaterEntries: normalizedAddWaterEntries,
@@ -1749,7 +1758,7 @@ export const calculateEndVolForReport = async ({
     activeSystemPendingInputForMudLoss - pendingActiveSystemMudLoss
   );
   const activeSystemOutputBalance = round2(
-    mudLossActiveSystemBalance + returnLostActiveSystemBalance
+    activeSystemPendingInputForMudLoss - pendingActiveSystemOutput
   );
   const effectiveEndVolDelta = round2(
     operationVolumeEffects.endVolDelta -
@@ -1797,7 +1806,7 @@ export const calculateEndVolForReport = async ({
 
   if (
     normalizedMudLossEntries.length > 0 ||
-    Math.abs(returnLostActiveSystemBalance) >= 0.005
+    returnLostActiveSystemOutputTotal > 0.005
   ) {
     return round2(derivedActiveSystem + activeSystemOutputBalance);
   }
@@ -2309,6 +2318,11 @@ export const getVolumeNameCalculation = async (req, res) => {
         .reduce((sum, item) => sum + toNumber(item.totalLoss), 0)
         .toFixed(2)
     );
+    const returnLostActiveSystemOutputTotal =
+      calculateReturnLostActiveSystemOutputTotal(returnLostMud);
+    const activeSystemOutputTotal = round2(
+      activeSystemMudLossTotal + returnLostActiveSystemOutputTotal
+    );
 
     const md = toNumber(wellGeneral?.md);
 
@@ -2376,6 +2390,7 @@ export const getVolumeNameCalculation = async (req, res) => {
     );
     const adjustedActiveSystemMudLoss = calculateAdjustedActiveSystemMudLoss({
       mudLossEntries: normalizedMudLossEntries,
+      extraLossTotal: returnLostActiveSystemOutputTotal,
       activePitsList,
       activePitBaselineByName: previousActivePitBaselineByName,
       activePitsSnapshot: reportMeta?.volumeNameHoleActivePitsSnapshot,
@@ -2386,6 +2401,9 @@ export const getVolumeNameCalculation = async (req, res) => {
     });
     const pendingActiveSystemMudLoss = round2(
       Math.max(0, activeSystemMudLossTotal - adjustedActiveSystemMudLoss)
+    );
+    const pendingActiveSystemOutput = round2(
+      Math.max(0, activeSystemOutputTotal - adjustedActiveSystemMudLoss)
     );
     const hasPitVolume = pits.some(
       (pit) => Math.abs(toNumber(pit?.volume)) >= 0.005
@@ -2467,8 +2485,6 @@ export const getVolumeNameCalculation = async (req, res) => {
       operationVolumeEffects.addWaterActiveSystemDelta +
         operationVolumeEffects.otherVolActiveSystemDelta
     );
-    const returnLostActiveSystemBalance =
-      calculateReturnLostActiveSystemBalance(returnLostMud);
     const adjustedActiveSystemPendingInput =
       calculateAdjustedActiveSystemPendingInput({
         addWaterEntries: normalizedAddWaterEntries,
@@ -2500,7 +2516,7 @@ export const getVolumeNameCalculation = async (req, res) => {
       activeSystemPendingInputForMudLoss - pendingActiveSystemMudLoss
     );
     const activeSystemOutputBalance = round2(
-      mudLossActiveSystemBalance + returnLostActiveSystemBalance
+      activeSystemPendingInputForMudLoss - pendingActiveSystemOutput
     );
     const effectiveEndVolDelta = round2(
       operationVolumeEffects.endVolDelta -
@@ -2569,7 +2585,7 @@ export const getVolumeNameCalculation = async (req, res) => {
     const operationRowsEndVol =
       hasOperationVolumeRows
         ? normalizedMudLossEntries.length > 0 ||
-          Math.abs(returnLostActiveSystemBalance) >= 0.005
+          returnLostActiveSystemOutputTotal > 0.005
           ? round2(derivedActiveSystem + activeSystemOutputBalance)
           : activeSystemPendingInput > 0.005
             ? round2(derivedActiveSystem + activeSystemAdjustmentBalance)
@@ -2598,7 +2614,7 @@ export const getVolumeNameCalculation = async (req, res) => {
       endVolMinusActiveSystem = 0;
     } else if (
       normalizedMudLossEntries.length > 0 ||
-      Math.abs(returnLostActiveSystemBalance) >= 0.005
+      returnLostActiveSystemOutputTotal > 0.005
     ) {
       endVolMinusActiveSystem = activeSystemOutputBalance;
     } else if (activeSystemPendingInput > 0.005) {
