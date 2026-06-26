@@ -1,3 +1,8 @@
 Mud-pro-Backend/logs
 Mud-pro-Backend/runtime-logs
 Mud-pro-Backend/node_modules
+backend-start.err.log
+backend-start.out.log
+Mud-pro-Backend/.env
+
+
