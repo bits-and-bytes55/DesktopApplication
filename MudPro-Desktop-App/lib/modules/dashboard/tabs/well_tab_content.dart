@@ -42,7 +42,7 @@ const TextStyle _kWellInputTextStyle = TextStyle(
   color: Colors.black,
 );
 const TextStyle _kWellSmallInputTextStyle = TextStyle(
-  fontSize: 10,
+  fontSize: 11,
   fontWeight: FontWeight.w700,
   color: Colors.black,
 );
@@ -913,9 +913,9 @@ class _GeneralSectionState extends State<GeneralSection> {
     child: Text(
       t,
       style: const TextStyle(
-        fontSize: 10,
-        fontWeight: FontWeight.w400,
-        color: Colors.black87,
+        fontSize: 11,
+        fontWeight: FontWeight.w700,
+        color: Colors.black,
       ),
     ),
   );
@@ -926,7 +926,11 @@ class _GeneralSectionState extends State<GeneralSection> {
     alignment: Alignment.center,
     child: Text(
       AppUnits.unitText(t),
-      style: TextStyle(fontSize: 10, color: Colors.grey.shade700),
+      style: const TextStyle(
+        fontSize: 10.5,
+        fontWeight: FontWeight.w600,
+        color: Colors.black87,
+      ),
     ),
   );
 
@@ -1081,7 +1085,7 @@ class _GeneralSectionState extends State<GeneralSection> {
                             child: Text(
                               _displayDate,
                               style: const TextStyle(
-                                fontSize: 10,
+                                fontSize: 11,
                                 fontWeight: FontWeight.w700,
                                 color: Colors.black,
                               ),
@@ -1127,7 +1131,7 @@ class _GeneralSectionState extends State<GeneralSection> {
                         isExpanded: true,
                         icon: const Icon(Icons.arrow_drop_down, size: 13),
                         style: const TextStyle(
-                          fontSize: 10,
+                          fontSize: 11,
                           fontWeight: FontWeight.w700,
                           color: Colors.black,
                         ),
@@ -1185,7 +1189,7 @@ class _GeneralSectionState extends State<GeneralSection> {
                         isExpanded: true,
                         icon: const Icon(Icons.arrow_drop_down, size: 13),
                         style: const TextStyle(
-                          fontSize: 10,
+                          fontSize: 11,
                           fontWeight: FontWeight.w700,
                           color: Colors.black,
                         ),
@@ -1250,7 +1254,7 @@ class _GeneralSectionState extends State<GeneralSection> {
                         isExpanded: true,
                         icon: const Icon(Icons.arrow_drop_down, size: 13),
                         style: const TextStyle(
-                          fontSize: 10,
+                          fontSize: 11,
                           fontWeight: FontWeight.w700,
                           color: Colors.black,
                         ),
@@ -1307,9 +1311,9 @@ Widget _hCell(String t, Color primary) => Container(
   child: Text(
     AppUnits.label(t),
     style: const TextStyle(
-      fontSize: 8.5,
-      fontWeight: FontWeight.w500,
-      color: Colors.black87,
+      fontSize: 10,
+      fontWeight: FontWeight.w700,
+      color: Colors.black,
       height: 1.05,
     ),
     maxLines: 2,
@@ -1324,8 +1328,9 @@ Widget _noCell(int rowNo, bool sel, Color primary) => Container(
   child: Text(
     rowNo > 0 ? '$rowNo' : '',
     style: TextStyle(
-      fontSize: 9,
-      color: sel ? Colors.black87 : Colors.grey.shade600,
+      fontSize: 10,
+      fontWeight: FontWeight.w600,
+      color: sel ? Colors.black : Colors.black87,
     ),
     textAlign: TextAlign.center,
   ),
@@ -1645,7 +1650,11 @@ class _MiddlePortionState extends State<MiddlePortion> {
           Expanded(
             child: Text(
               AppUnits.label("Cement Plug Vol. (bbl)"),
-              style: const TextStyle(fontSize: 10),
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: Colors.black,
+              ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -1668,7 +1677,11 @@ class _MiddlePortionState extends State<MiddlePortion> {
           Flexible(
             child: Text(
               AppUnits.label("Plug Top (ft)"),
-              style: const TextStyle(fontSize: 10),
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: Colors.black,
+              ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -1806,7 +1819,7 @@ class _CasedHoleSectionState extends State<CasedHoleSection> {
                     child: Text(
                       "Add New Casing",
                       style: const TextStyle(
-                        fontSize: 10,
+                        fontSize: 11,
                         fontWeight: FontWeight.w700,
                         color: Colors.black,
                       ),
@@ -1863,7 +1876,7 @@ class _CasedHoleSectionState extends State<CasedHoleSection> {
                               hint: const SizedBox.shrink(),
                               icon: const Icon(Icons.arrow_drop_down, size: 13),
                               style: const TextStyle(
-                                fontSize: 9,
+                                fontSize: 11,
                                 fontWeight: FontWeight.w700,
                                 color: Colors.black,
                               ),
@@ -2875,7 +2888,7 @@ class _DrillStringSectionState extends State<DrillStringSection> {
                     child: Text(
                       '-ID',
                       style: TextStyle(
-                        fontSize: 8,
+                        fontSize: 9.5,
                         fontWeight: FontWeight.w700,
                         color: c.isLocked.value
                             ? Colors.grey.shade400
@@ -3009,8 +3022,9 @@ class _DrillStringSectionState extends State<DrillStringSection> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                            fontSize: 10,
-                            color: Colors.black54,
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black87,
                           ),
                         ),
                       ),
@@ -3018,8 +3032,9 @@ class _DrillStringSectionState extends State<DrillStringSection> {
                       Text(
                         AppUnits.label("Total Length (ft)"),
                         style: const TextStyle(
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w600,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.black,
                         ),
                       ),
                       const SizedBox(width: 4),
@@ -3037,8 +3052,9 @@ class _DrillStringSectionState extends State<DrillStringSection> {
                             ds.totalLength.value.toStringAsFixed(1),
                             textAlign: TextAlign.right,
                             style: const TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.black,
                             ),
                           ),
                         ),
@@ -3445,9 +3461,9 @@ class _BitSectionState extends State<BitSection> {
           child: Text(
             label,
             style: TextStyle(
-              fontSize: 9,
-              fontWeight: FontWeight.w500,
-              color: AppTheme.textPrimary,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: Colors.black,
             ),
           ),
         ),
@@ -3503,7 +3519,11 @@ class _BitSectionState extends State<BitSection> {
           alignment: Alignment.center,
           child: Text(
             AppUnits.unitText(unit),
-            style: TextStyle(fontSize: 9, color: AppTheme.textSecondary),
+            style: const TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w600,
+              color: Colors.black87,
+            ),
           ),
         ),
       ],
@@ -3740,8 +3760,9 @@ class _NozzleSectionState extends State<NozzleSection> {
                           const Text(
                             "TFA (in²)",
                             style: TextStyle(
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w600,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.black,
                             ),
                           ),
                           const SizedBox(width: 4),
@@ -3773,8 +3794,9 @@ class _NozzleSectionState extends State<NozzleSection> {
                               : nc.tfa.value.toStringAsFixed(3),
                           textAlign: TextAlign.right,
                           style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.black,
                           ),
                         ),
                       ),
@@ -4217,7 +4239,7 @@ class _TimeDistributionSectionState extends State<TimeDistributionSection> {
                                                     size: 12,
                                                   ),
                                                   style: const TextStyle(
-                                                    fontSize: 9,
+                                                    fontSize: 11,
                                                     fontWeight: FontWeight.w700,
                                                     color: Colors.black,
                                                   ),
