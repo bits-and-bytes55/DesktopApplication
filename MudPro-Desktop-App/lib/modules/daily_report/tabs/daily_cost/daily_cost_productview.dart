@@ -79,7 +79,7 @@ class DailyCostProductsPage extends StatelessWidget {
                 Container(
                   width: 1,
                   margin: const EdgeInsets.symmetric(vertical: 20),
-                  color: Colors.grey.shade200,
+                  color: AppTheme.tableBorderBlue,
                 ),
 
                 // Right Chart

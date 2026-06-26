@@ -31,7 +31,7 @@ class HorizontalCostChart extends StatelessWidget {
             offset: const Offset(0, 4),
           ),
         ],
-        border: Border.all(color: Colors.grey.shade100, width: 1),
+        border: Border.all(color: AppTheme.tableHeaderBlue, width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -95,7 +95,7 @@ class HorizontalCostChart extends StatelessWidget {
                       bottom: 0,
                       child: Container(
                         width: 1,
-                        color: Colors.grey.shade300,
+                        color: AppTheme.tableGridBlue,
                       ),
                     ),
 
@@ -288,7 +288,7 @@ class HorizontalCostChart extends StatelessWidget {
             decoration: BoxDecoration(
               border: Border(
                 top: BorderSide(
-                  color: Colors.grey.shade200,
+                  color: AppTheme.tableBorderBlue,
                   width: 0.5,
                 ),
               ),

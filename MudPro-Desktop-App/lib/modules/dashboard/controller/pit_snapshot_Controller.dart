@@ -981,26 +981,48 @@ class PitSnapshotController extends GetxController {
   }) {
     final from = _normalizeSystemName(_text(row['from']));
     final to = _normalizeSystemName(_text(row['to']));
-    final volume = _number(row['volume']);
-    if (to.isEmpty || volume <= 0) return;
+    final returnedVolume = _number(row['volReturned']);
+    final lostVolume = _number(row['volLost']);
 
-    if (from.isNotEmpty && (volumes[from] ?? 0.0) > 0) {
+    final hasDestination = to.isNotEmpty && !_isIgnoredSystem(to);
+
+    if (returnedVolume > 0 &&
+        hasDestination &&
+        from.isNotEmpty &&
+        (volumes[from] ?? 0.0) > 0) {
       _transferMassBetweenSystems(
         ledger: ledger,
         volumes: volumes,
         productEndVolumesBySystem: productEndVolumesBySystem,
         from: from,
-        destinations: {to: volume},
+        destinations: {to: returnedVolume},
       );
-      return;
+    } else if (returnedVolume > 0 && hasDestination) {
+      _addSameConcentrationVolume(
+        ledger: ledger,
+        volumes: volumes,
+        productEndVolumesBySystem: productEndVolumesBySystem,
+        system: to,
+        volume: returnedVolume,
+      );
+    } else if (returnedVolume > 0 && from.isNotEmpty) {
+      _loseVolumeFromLedger(
+        ledger: ledger,
+        volumes: volumes,
+        productEndVolumesBySystem: productEndVolumesBySystem,
+        system: from,
+        lossVolume: returnedVolume,
+      );
     }
 
-    _addSameConcentrationVolume(
+    if (lostVolume <= 0) return;
+
+    _loseVolumeFromLedger(
       ledger: ledger,
       volumes: volumes,
       productEndVolumesBySystem: productEndVolumesBySystem,
-      system: to,
-      volume: volume,
+      system: from,
+      lossVolume: lostVolume,
     );
   }
 
@@ -1354,6 +1376,11 @@ class PitSnapshotController extends GetxController {
 
   String _normalizeSystemName(String value) {
     return _normalizeText(value) == 'active system' ? 'Active System' : value;
+  }
+
+  bool _isIgnoredSystem(String value) {
+    final key = _normalizeText(value);
+    return key.isEmpty || key == 'imp';
   }
 
   List<PitHoleVolumeRow> _buildHoleVolumeRows(Map<String, dynamic> values) {

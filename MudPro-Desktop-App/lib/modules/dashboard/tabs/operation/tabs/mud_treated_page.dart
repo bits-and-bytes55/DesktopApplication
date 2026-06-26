@@ -307,14 +307,14 @@ class MudTreatedPage extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: const Color(0xFFA0A0A0), width: 1),
+        border: Border.all(color: AppTheme.tableBorderBlue, width: 1),
       ),
       child: Table(
         columnWidths: const {
           0: FlexColumnWidth(3),
           1: FlexColumnWidth(2),
         },
-        border: TableBorder.all(color: const Color(0xFFD0D0D0), width: 0.5),
+        border: TableBorder.all(color: AppTheme.tableGridBlue, width: 0.5),
         children: [
           TableRow(
             decoration: BoxDecoration(color: AppTheme.primaryColor),
@@ -353,7 +353,7 @@ class MudTreatedPage extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: const Color(0xFFA0A0A0), width: 1),
+        border: Border.all(color: AppTheme.tableBorderBlue, width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -364,7 +364,7 @@ class MudTreatedPage extends StatelessWidget {
             decoration: BoxDecoration(
               color: AppTheme.primaryColor,
               border: const Border(
-                bottom: BorderSide(color: Color(0xFFD0D0D0), width: 0.5),
+                bottom: BorderSide(color: AppTheme.tableGridBlue, width: 0.5),
               ),
             ),
             child: const Text(
@@ -441,7 +441,7 @@ class MudTreatedPage extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: const BoxDecoration(
         border: Border(
-          bottom: BorderSide(color: Color(0xFFD0D0D0), width: 0.5),
+          bottom: BorderSide(color: AppTheme.tableGridBlue, width: 0.5),
         ),
       ),
       child: Row(

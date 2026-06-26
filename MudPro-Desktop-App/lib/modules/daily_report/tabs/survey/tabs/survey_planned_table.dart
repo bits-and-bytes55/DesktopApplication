@@ -20,7 +20,7 @@ class SurveyTablePlanned extends StatelessWidget {
       alignment: Alignment.center,
       decoration: BoxDecoration(
         border: Border.all(
-          color: Colors.grey.shade300,
+          color: AppTheme.tableGridBlue,
           width: 0.5,
         ),
         color: isHeader
@@ -176,7 +176,7 @@ class SurveyTablePlanned extends StatelessWidget {
                                 decoration: BoxDecoration(
                                   border: Border(
                                     bottom: BorderSide(
-                                      color: Colors.grey.shade200,
+                                      color: AppTheme.tableBorderBlue,
                                       width: 0.5,
                                     ),
                                   ),
@@ -211,7 +211,7 @@ class SurveyTablePlanned extends StatelessWidget {
             decoration: BoxDecoration(
               color: AppTheme.backgroundColor,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey.shade300),
+              border: Border.all(color: AppTheme.tableGridBlue),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -246,7 +246,7 @@ class SurveyTablePlanned extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(4),
-                        border: Border.all(color: Colors.grey.shade300),
+                        border: Border.all(color: AppTheme.tableGridBlue),
                       ),
                       child: Text(
                         'Page 1/1',

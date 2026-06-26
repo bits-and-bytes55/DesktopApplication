@@ -2557,18 +2557,18 @@ class _PumpPageState extends State<PumpPage> {
                     vertical: 4,
                   ),
                   filled: true,
-                  fillColor: Colors.grey.shade50,
+                  fillColor: Colors.white,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(3),
                     borderSide: BorderSide(
-                      color: Colors.grey.shade300,
+                      color: AppTheme.tableBorderBlue,
                       width: 0.5,
                     ),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(3),
                     borderSide: BorderSide(
-                      color: Colors.grey.shade300,
+                      color: AppTheme.tableBorderBlue,
                       width: 0.5,
                     ),
                   ),
@@ -2694,7 +2694,7 @@ class _PumpPageState extends State<PumpPage> {
     );
   }
 
-  Widget _verticalDivider() => Container(width: 1, color: Colors.grey.shade300);
+  Widget _verticalDivider() => Container(width: 1, color: AppTheme.tableGridBlue);
 
   Widget _dataCell({
     required Widget child,
@@ -2707,7 +2707,7 @@ class _PumpPageState extends State<PumpPage> {
           ? null
           : BoxDecoration(
               color: backgroundColor,
-              border: Border.all(color: Colors.grey.shade500, width: 0.6),
+              border: Border.all(color: AppTheme.tableGridBlue, width: 0.6),
             ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 2),
@@ -2728,7 +2728,7 @@ class _PumpPageState extends State<PumpPage> {
       child: Container(
         decoration: BoxDecoration(
           border: Border(
-            right: BorderSide(color: Colors.grey.shade500, width: 0.6),
+            right: BorderSide(color: AppTheme.tableGridBlue, width: 0.6),
           ),
         ),
         child: Padding(
@@ -2745,7 +2745,7 @@ class _PumpPageState extends State<PumpPage> {
       style: TextStyle(
         fontSize: 11,
         color: text.isEmpty || text == '-'
-            ? Colors.grey.shade700
+            ? AppTheme.textSecondary
             : Colors.black,
       ),
       textAlign: TextAlign.center,
@@ -2790,6 +2790,6 @@ class _PumpPageState extends State<PumpPage> {
         offset: const Offset(0, 1),
       ),
     ],
-    border: Border.all(color: Colors.grey.shade300, width: 0.5),
+    border: Border.all(color: AppTheme.tableBorderBlue, width: 0.5),
   );
 }

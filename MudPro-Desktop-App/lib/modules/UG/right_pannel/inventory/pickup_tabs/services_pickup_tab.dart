@@ -3,6 +3,7 @@ import 'package:mudpro_desktop_app/modules/company_setup/controller/service_cont
 import 'package:mudpro_desktop_app/modules/company_setup/model/service_model.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/inventory_store/inventory_store.dart';
+import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class ServicesPickupPage extends StatefulWidget {
   const ServicesPickupPage({super.key});
@@ -653,7 +654,7 @@ class _ServicesPageState extends State<ServicesPickupPage> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: const Color(0xFFC7CBD2)),
+        border: Border.all(color: AppTheme.tableBorderBlue),
       ),
       child: Column(
         children: [
@@ -674,7 +675,7 @@ class _ServicesPageState extends State<ServicesPickupPage> {
 	            },
 	          ),
           _tableHeader(widths),
-          Container(height: 1, color: const Color(0xFFC7CBD2)),
+          Container(height: 1, color: AppTheme.tableBorderBlue),
           Expanded(
             child: _tableRows(
               existingData,
@@ -732,7 +733,7 @@ class _ServicesPageState extends State<ServicesPickupPage> {
   Widget _tableHeader(List<double> widths) {
     return Container(
       height: 30,
-      color: const Color(0xFFF3F3F3),
+      color: AppTheme.tableHeaderBlue,
       child: Row(
         children: [
           _HeaderCell(width: widths[0], text: ''),
@@ -780,7 +781,7 @@ class _ServicesPageState extends State<ServicesPickupPage> {
                     ? const Color(0xFFDCE9F9)
                     : (isExisting ? Colors.white : const Color(0xFFFFF9CC)),
                 border: Border(
-                  bottom: BorderSide(color: Colors.grey.shade300, width: 0.6),
+                  bottom: BorderSide(color: AppTheme.tableGridBlue, width: 0.6),
                 ),
               ),
               child: Material(
@@ -791,26 +792,26 @@ class _ServicesPageState extends State<ServicesPickupPage> {
                     Container(
                       width: 1,
                       height: double.infinity,
-                      color: Colors.grey.shade300,
+                      color: AppTheme.tableGridBlue,
                     ),
                     if (isExisting) ...[
                       _lockedCell(widths[1], existingData[index].name),
                       Container(
                         width: 1,
                         height: double.infinity,
-                        color: Colors.grey.shade300,
+                        color: AppTheme.tableGridBlue,
                       ),
                       _lockedCell(widths[2], existingData[index].code),
                       Container(
                         width: 1,
                         height: double.infinity,
-                        color: Colors.grey.shade300,
+                        color: AppTheme.tableGridBlue,
                       ),
                       _lockedCell(widths[3], existingData[index].unit),
                       Container(
                         width: 1,
                         height: double.infinity,
-                        color: Colors.grey.shade300,
+                        color: AppTheme.tableGridBlue,
                       ),
 	                      _lockedCell(
 	                        widths[4],
@@ -828,7 +829,7 @@ class _ServicesPageState extends State<ServicesPickupPage> {
                       Container(
                         width: 1,
                         height: double.infinity,
-                        color: Colors.grey.shade300,
+                        color: AppTheme.tableGridBlue,
                       ),
                       _editCell(
                         widths[2],
@@ -837,7 +838,7 @@ class _ServicesPageState extends State<ServicesPickupPage> {
                       Container(
                         width: 1,
                         height: double.infinity,
-                        color: Colors.grey.shade300,
+                        color: AppTheme.tableGridBlue,
                       ),
                       _editCell(
                         widths[3],
@@ -846,7 +847,7 @@ class _ServicesPageState extends State<ServicesPickupPage> {
                       Container(
                         width: 1,
                         height: double.infinity,
-                        color: Colors.grey.shade300,
+                        color: AppTheme.tableGridBlue,
                       ),
 	                      _editCell(
 	                        widths[4],
@@ -955,7 +956,7 @@ class _ServicesPageState extends State<ServicesPickupPage> {
 	      width: width,
 	      decoration: BoxDecoration(
 	        border: Border(
-	          left: BorderSide(color: Colors.grey.shade300, width: 1),
+	          left: BorderSide(color: AppTheme.tableGridBlue, width: 1),
 	        ),
 	      ),
 	      alignment: Alignment.center,
@@ -975,7 +976,7 @@ class _ServicesPageState extends State<ServicesPickupPage> {
       height: 42,
       width: double.infinity,
       decoration: BoxDecoration(
-        border: Border(top: BorderSide(color: Colors.grey.shade300)),
+        border: Border(top: BorderSide(color: AppTheme.tableGridBlue)),
       ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
@@ -1007,7 +1008,7 @@ class _ServicesPageState extends State<ServicesPickupPage> {
       padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: const Color(0xFFC7CBD2)),
+        border: Border.all(color: AppTheme.tableBorderBlue),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
@@ -1029,7 +1030,7 @@ class _ServicesPageState extends State<ServicesPickupPage> {
               Navigator.pop(context);
             },
             style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: Color(0xFFC7CBD2)),
+              side: const BorderSide(color: AppTheme.tableBorderBlue),
               foregroundColor: const Color(0xFF2F2F2F),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               shape: const RoundedRectangleBorder(),
@@ -1042,7 +1043,7 @@ class _ServicesPageState extends State<ServicesPickupPage> {
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF2E74C9),
               foregroundColor: Colors.white,
-              disabledBackgroundColor: Colors.grey.shade300,
+              disabledBackgroundColor: AppTheme.tableGridBlue,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               shape: const RoundedRectangleBorder(),
             ),
@@ -1070,7 +1071,7 @@ class _HeaderCell extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 6),
       decoration: BoxDecoration(
         border: Border(
-          right: BorderSide(color: Colors.grey.shade300, width: 1),
+          right: BorderSide(color: AppTheme.tableGridBlue, width: 1),
         ),
       ),
       child: Row(
@@ -1148,14 +1149,14 @@ class _InventoryOverwriteDialogState extends State<_InventoryOverwriteDialog> {
               style: TextStyle(fontSize: 12),
             ),
             const SizedBox(height: 10),
-            Container(
-              decoration: BoxDecoration(
-                border: Border.all(color: const Color(0xFFC8C8C8)),
-              ),
+	            Container(
+	              decoration: BoxDecoration(
+	                border: Border.all(color: AppTheme.tableBorderBlue),
+	              ),
               child: Column(
                 children: [
                   Container(
-                    color: const Color(0xFFF3F3F3),
+                    color: AppTheme.tableHeaderBlue,
                     padding: const EdgeInsets.symmetric(vertical: 6),
                     child: Row(
                       children: [
@@ -1196,10 +1197,10 @@ class _InventoryOverwriteDialogState extends State<_InventoryOverwriteDialog> {
                         final row = widget.rows[index];
                         final key = (row['key'] ?? '').toString();
                         final checked = _selectedKeys.contains(key);
-                        return Container(
-                          color: index.isEven
-                              ? const Color(0xFFFFF9CC)
-                              : Colors.white,
+	                        return Container(
+	                          color: index.isEven
+	                              ? AppTheme.calculatedCell
+	                              : Colors.white,
                           child: Row(
                             children: [
                               SizedBox(
@@ -1273,12 +1274,12 @@ class _InventoryOverwriteDialogState extends State<_InventoryOverwriteDialog> {
     return Container(
       width: width,
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      decoration: const BoxDecoration(
-        border: Border(
-          left: BorderSide(color: Color(0xFFD8D8D8)),
-          top: BorderSide(color: Color(0xFFD8D8D8)),
-        ),
-      ),
+	      decoration: BoxDecoration(
+	        border: Border(
+	          left: BorderSide(color: AppTheme.tableGridBlue),
+	          top: BorderSide(color: AppTheme.tableGridBlue),
+	        ),
+	      ),
       alignment: alignRight ? Alignment.centerRight : Alignment.centerLeft,
       child: Text(
         text,

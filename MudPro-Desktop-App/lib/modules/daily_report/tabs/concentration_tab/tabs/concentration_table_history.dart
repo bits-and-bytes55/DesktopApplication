@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mudpro_desktop_app/theme/app_theme.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 
@@ -123,7 +124,7 @@ class _ConcentrationTableHistoryState extends State<ConcentrationTableHistory> {
       padding: EdgeInsets.symmetric(horizontal: 2),
       decoration: BoxDecoration(
         border: Border.all(
-          color: isHeader ? Colors.white.withOpacity(0.3) : Color(0xffE2E8F0),
+          color: isHeader ? Colors.white.withOpacity(0.3) : AppTheme.tableBorderBlue,
           width: 0.5,
         ),
         color: isHeader ? Colors.transparent : null,
@@ -149,7 +150,7 @@ class _ConcentrationTableHistoryState extends State<ConcentrationTableHistory> {
       alignment: Alignment.center,
       padding: EdgeInsets.symmetric(horizontal: 2),
       decoration: BoxDecoration(
-        border: Border.all(color: Color(0xffE2E8F0), width: 0.5),
+        border: Border.all(color: AppTheme.tableBorderBlue, width: 0.5),
       ),
       child: TextField(
         controller: TextEditingController(text: leftRowData[rowIndex][colIndex]),
@@ -189,7 +190,7 @@ class _ConcentrationTableHistoryState extends State<ConcentrationTableHistory> {
       padding: EdgeInsets.symmetric(horizontal: 4),
       decoration: BoxDecoration(
         border: Border.all(
-          color: isHeader ? Colors.white.withOpacity(0.3) : Color(0xffE2E8F0),
+          color: isHeader ? Colors.white.withOpacity(0.3) : AppTheme.tableBorderBlue,
           width: 0.5,
         ),
         color: isHeader ? (bold ? Color(0xff8BB8E8) : Colors.transparent) : null,
@@ -213,7 +214,7 @@ class _ConcentrationTableHistoryState extends State<ConcentrationTableHistory> {
       alignment: Alignment.center,
       padding: EdgeInsets.symmetric(horizontal: 2),
       decoration: BoxDecoration(
-        border: Border.all(color: Color(0xffE2E8F0), width: 0.5),
+        border: Border.all(color: AppTheme.tableBorderBlue, width: 0.5),
       ),
       child: TextField(
         controller: TextEditingController(text: rightRowData[rowIndex][colIndex]),
@@ -266,7 +267,7 @@ class _ConcentrationTableHistoryState extends State<ConcentrationTableHistory> {
             decoration: BoxDecoration(
               color: Colors.white,
               border: Border(
-                right: BorderSide(color: Color(0xffE2E8F0), width: 1),
+                right: BorderSide(color: AppTheme.tableBorderBlue, width: 1),
               ),
             ),
             child: Column(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mudpro_desktop_app/theme/app_theme.dart';
 import '../../../controller/inventory_snapshot_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
@@ -195,7 +196,7 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
         border: Border.all(
           color: isHeader
               ? Colors.white.withValues(alpha: 0.3)
-              : Colors.grey.shade200,
+              : AppTheme.tableBorderBlue,
           width: 0.5,
         ),
       ),
@@ -374,7 +375,7 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
             padding: const EdgeInsets.symmetric(horizontal: 8),
             decoration: BoxDecoration(
               color: Colors.grey.shade50,
-              border: Border.all(color: Colors.grey.shade200, width: 0.5),
+              border: Border.all(color: AppTheme.tableBorderBlue, width: 0.5),
             ),
             child: Text(
               label,
@@ -393,7 +394,7 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
           padding: const EdgeInsets.symmetric(horizontal: 8),
           decoration: BoxDecoration(
             color: Colors.grey.shade50,
-            border: Border.all(color: Colors.grey.shade200, width: 0.5),
+            border: Border.all(color: AppTheme.tableBorderBlue, width: 0.5),
           ),
           child: Text(
             value,
@@ -444,8 +445,8 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
         );
       default:
         return _CategoryStyle(
-          bgLabel: Colors.grey.shade100,
-          bgTotal: Colors.grey.shade100,
+          bgLabel: AppTheme.tableHeaderBlue,
+          bgTotal: AppTheme.tableHeaderBlue,
           labelColor: Colors.grey.shade700,
           totalColor: Colors.grey.shade700,
         );
@@ -491,7 +492,7 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
             padding: const EdgeInsets.symmetric(horizontal: 6),
             decoration: BoxDecoration(
               color: style.bgLabel,
-              border: Border.all(color: Colors.grey.shade200, width: 0.5),
+              border: Border.all(color: AppTheme.tableBorderBlue, width: 0.5),
             ),
             child: Text(
               category,
@@ -515,7 +516,7 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
             padding: const EdgeInsets.symmetric(horizontal: 6),
             decoration: BoxDecoration(
               color: style.bgTotal.withValues(alpha: 0.7),
-              border: Border.all(color: Colors.grey.shade200, width: 0.5),
+              border: Border.all(color: AppTheme.tableBorderBlue, width: 0.5),
             ),
             child: Text(
               _fmt(catTotal),
@@ -646,7 +647,7 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0xffE2E8F0), width: 1),
+          border: Border.all(color: AppTheme.tableBorderBlue, width: 1),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.03),
@@ -696,7 +697,7 @@ class _DailyCostTableUsagePageState extends State<DailyCostTableUsagePage> {
                               decoration: BoxDecoration(
                                 color: const Color(0xffF8F9FA),
                                 border: Border.all(
-                                  color: Colors.grey.shade200,
+                                  color: AppTheme.tableBorderBlue,
                                   width: 0.5,
                                 ),
                               ),

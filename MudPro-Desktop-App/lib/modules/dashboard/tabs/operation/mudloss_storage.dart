@@ -51,7 +51,7 @@ class _MudLossStorageViewState extends State<MudLossStorageView> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: Colors.grey.shade100,
+      color: AppTheme.tableHeaderBlue,
       padding: const EdgeInsets.fromLTRB(8, 8, 12, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -321,7 +321,7 @@ class _MudLossStorageViewState extends State<MudLossStorageView> {
           ),
           filled: true,
           fillColor: dashboardController.isLocked.value
-              ? Colors.grey.shade100
+              ? AppTheme.tableHeaderBlue
               : Colors.white,
         ),
         onTap: () {

@@ -876,7 +876,7 @@ class _PumpViewState extends State<PumpView> {
                     }
                   } catch (e) {
                     if (mounted) {
-                      _showAlert('Failed to save: $e', isSuccess: false);
+	                      _showAlert('Failed to save pump: $e', isSuccess: false);
                     }
                   }
                 },

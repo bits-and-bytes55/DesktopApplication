@@ -15,6 +15,12 @@ class AppTheme {
   static const Color errorColor = Color(0xffFC8181);
   static const Color infoColor = Color(0xff4299E1);
   static const Color tableHeadColor = Color(0xff0d9488);
+  static const Color panelHeaderBlue = Color(0xff6C9BCF);
+  static const Color tableHeaderBlue = Color(0xffEAF3FC);
+  static const Color tableBorderBlue = Color(0xffB8D0EA);
+  static const Color tableGridBlue = Color(0xffCFE0F2);
+  static const Color readOnlyCell = Color(0xffF2F2F2);
+  static const Color calculatedCell = Color(0xffFFFDE7);
   
   // Dark Theme Colors
   static const Color darkPrimaryColor = Color(0xff5D8BCF);

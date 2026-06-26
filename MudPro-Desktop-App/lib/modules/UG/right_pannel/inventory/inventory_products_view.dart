@@ -283,6 +283,27 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
     }).toList();
   }
 
+  String _unitForObmItem(ObmModel item) {
+    final directUnit = item.unit.trim();
+    if (directUnit.isNotEmpty) return directUnit;
+    if (!Get.isRegistered<InventoryProductsStore>()) return '';
+
+    final store = Get.find<InventoryProductsStore>();
+    final itemCode = item.code.trim().toLowerCase();
+    final itemName = item.product.trim().toLowerCase();
+    for (final product in store.selectedProducts) {
+      final codeMatches =
+          itemCode.isNotEmpty && product.code.trim().toLowerCase() == itemCode;
+      final nameMatches =
+          itemName.isNotEmpty &&
+          product.product.trim().toLowerCase() == itemName;
+      if (codeMatches || nameMatches) {
+        return product.formattedUnit;
+      }
+    }
+    return '';
+  }
+
   void _schedulePremixedDraftSave() {
     if (c.isLocked.value) return;
     _premixedCreateTimer?.cancel();
@@ -640,7 +661,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: const Color(0xFFC9CDD3)),
+        border: Border.all(color: AppTheme.tableBorderBlue),
       ),
       child: Column(
         children: [
@@ -682,7 +703,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                           controller: _mainVerticalScroll,
                           child: Table(
                             border: TableBorder.all(
-                              color: Colors.grey.shade300,
+                              color: AppTheme.tableGridBlue,
                               width: 1,
                             ),
                             defaultVerticalAlignment:
@@ -1292,7 +1313,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: const Color(0xFFC9CDD3)),
+        border: Border.all(color: AppTheme.tableBorderBlue),
       ),
       child: Column(
         children: [
@@ -1314,7 +1335,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                         child: Obx(
                           () => Table(
                             border: TableBorder.all(
-                              color: Colors.grey.shade300,
+                              color: AppTheme.tableGridBlue,
                               width: 1,
                             ),
                             defaultVerticalAlignment:
@@ -1490,7 +1511,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: const Color(0xFFC9CDD3)),
+        border: Border.all(color: AppTheme.tableBorderBlue),
       ),
       child: Column(
         children: [
@@ -1545,7 +1566,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                                   : 0;
                               return Table(
 	                            border: TableBorder.all(
-	                              color: Colors.grey.shade300,
+	                              color: AppTheme.tableGridBlue,
 	                              width: 1,
 	                            ),
 	                            defaultVerticalAlignment:
@@ -1576,20 +1597,22 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
 	                                final index = entry.key;
 	                                final e = entry.value;
 	                                final rowCells = [
-	                                  _tableCell((index + 1).toString()),
-	                                  _readOnlyInventoryCell(e.product),
-	                                  _readOnlyInventoryCell(e.code),
-	                                  _readOnlyInventoryCell(e.sg),
-	                                  _editableTableCell(
-	                                    e.conc,
-	                                    key: ValueKey('${e.id}-conc'),
-	                                    onChanged: (v) {
-	                                      e.conc = v;
-	                                      _scheduleObmUpdate(e);
-	                                    },
-	                                  ),
-	                                  _readOnlyInventoryCell(e.unit),
-	                                ];
+		                                  _tableCell((index + 1).toString()),
+		                                  _readOnlyInventoryCell(e.product),
+		                                  _readOnlyInventoryCell(e.code),
+		                                  _readOnlyInventoryCell(e.sg),
+		                                  _editableTableCell(
+		                                    e.conc,
+		                                    key: ValueKey('${e.id}-conc'),
+		                                    onChanged: (v) {
+		                                      e.conc = v;
+		                                      _scheduleObmUpdate(e);
+		                                    },
+		                                  ),
+		                                  _readOnlyInventoryCell(
+		                                    _unitForObmItem(e),
+		                                  ),
+		                                ];
 
 	                                return TableRow(
 	                                  decoration: BoxDecoration(
@@ -2048,34 +2071,37 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
     bool value,
     ValueChanged<bool> onChanged,
   ) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Transform.scale(
-          scale: 0.7,
-          child: Checkbox(
-            value: value,
-            onChanged: c.isLocked.value ? null : (v) => onChanged(v ?? false),
-            visualDensity: VisualDensity.compact,
-            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 2),
-          child: Text(
-            text,
-            textAlign: TextAlign.center,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 9.5,
-              fontWeight: FontWeight.w700,
-              color: AppTheme.textPrimary,
+    return Obx(() {
+      final locked = c.isLocked.value;
+      return Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Transform.scale(
+            scale: 0.7,
+            child: Checkbox(
+              value: value,
+              onChanged: locked ? null : (v) => onChanged(v ?? false),
+              visualDensity: VisualDensity.compact,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
           ),
-        ),
-      ],
-    );
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 2),
+            child: Text(
+              text,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 9.5,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.textPrimary,
+              ),
+            ),
+          ),
+        ],
+      );
+    });
   }
 
   Widget _tableCell(String value) => Padding(
@@ -2218,31 +2244,35 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
   );
 
   Widget _checkboxCell(bool Function() getter, Function(bool) onChange) {
-    return Center(
-      child: Container(
-        decoration: BoxDecoration(
-          color: getter()
-              ? AppTheme.successColor.withOpacity(0.1)
-              : Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(3),
-          border: Border.all(
-            color: getter() ? AppTheme.successColor : Colors.grey.shade400,
+    return Obx(() {
+      final locked = c.isLocked.value;
+      final checked = getter();
+      return Center(
+        child: Container(
+          decoration: BoxDecoration(
+            color: checked
+                ? AppTheme.successColor.withOpacity(0.1)
+                : AppTheme.tableHeaderBlue,
+            borderRadius: BorderRadius.circular(3),
+            border: Border.all(
+              color: checked ? AppTheme.successColor : Colors.grey.shade400,
+            ),
+          ),
+          margin: const EdgeInsets.symmetric(vertical: 2, horizontal: 4),
+          child: Transform.scale(
+            scale: 0.7,
+            child: Checkbox(
+              value: checked,
+              onChanged: locked ? null : (v) => onChange(v!),
+              activeColor: AppTheme.successColor,
+              checkColor: Colors.white,
+              visualDensity: VisualDensity.compact,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
           ),
         ),
-        margin: const EdgeInsets.symmetric(vertical: 2, horizontal: 4),
-        child: Transform.scale(
-          scale: 0.7,
-          child: Checkbox(
-            value: getter(),
-            onChanged: c.isLocked.value ? null : (v) => onChange(v!),
-            activeColor: AppTheme.successColor,
-            checkColor: Colors.white,
-            visualDensity: VisualDensity.compact,
-            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          ),
-        ),
-      ),
-    );
+      );
+    });
   }
 }
 

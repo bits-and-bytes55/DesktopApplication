@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/model/survey_model.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/survey/controller/survey_controller.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
+import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class SurveyImportDialog extends StatefulWidget {
   const SurveyImportDialog({super.key});
@@ -11,7 +12,6 @@ class SurveyImportDialog extends StatefulWidget {
   @override
   State<SurveyImportDialog> createState() => _SurveyImportDialogState();
 }
-
 class _SurveyImportDialogState extends State<SurveyImportDialog>
     with SingleTickerProviderStateMixin {
   final SurveyController controller = Get.find<SurveyController>();
@@ -58,7 +58,7 @@ class _SurveyImportDialogState extends State<SurveyImportDialog>
         width: 1330,
         height: 970,
         decoration: BoxDecoration(
-          border: Border.all(color: const Color(0xFFC3C9D1)),
+          border: Border.all(color: AppTheme.tableBorderBlue),
           color: Colors.white,
         ),
         child: Column(
@@ -89,13 +89,20 @@ class _SurveyImportDialogState extends State<SurveyImportDialog>
     return Container(
       height: 42,
       padding: const EdgeInsets.symmetric(horizontal: 14),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(bottom: BorderSide(color: Color(0xFFC3C9D1))),
+      decoration: BoxDecoration(
+        color: AppTheme.tableHeaderBlue,
+        border: Border(bottom: BorderSide(color: AppTheme.tableBorderBlue)),
       ),
       child: Row(
         children: [
-          const Text('Survey Import', style: TextStyle(fontSize: 14)),
+          Text(
+            'Survey Import',
+            style: AppTheme.caption.copyWith(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: AppTheme.textPrimary,
+            ),
+          ),
           const Spacer(),
           InkWell(
             onTap: () => Navigator.of(context).pop(),
@@ -142,13 +149,13 @@ class _SurveyImportDialogState extends State<SurveyImportDialog>
                 Expanded(
                   child: Container(
                     decoration: BoxDecoration(
-                      border: Border.all(color: const Color(0xFFB9BEC7)),
+                      border: Border.all(color: AppTheme.tableBorderBlue),
                     ),
                     child: Column(
                       children: [
                         Container(
                           height: 32,
-                          color: const Color(0xFFF2F2F2),
+                          color: AppTheme.readOnlyCell,
                           alignment: Alignment.center,
                           child: const Text('Data'),
                         ),
@@ -311,13 +318,13 @@ class _SurveyImportDialogState extends State<SurveyImportDialog>
         Expanded(
           child: Container(
             decoration: BoxDecoration(
-              border: Border.all(color: const Color(0xFFB9BEC7)),
+              border: Border.all(color: AppTheme.tableBorderBlue),
             ),
             child: Column(
               children: [
                 Container(
                   height: 32,
-                  color: const Color(0xFFF2F2F2),
+                  color: AppTheme.readOnlyCell,
                   child: const Row(
                     children: [
                       SizedBox(width: 46),
@@ -361,7 +368,7 @@ class _SurveyImportDialogState extends State<SurveyImportDialog>
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        border: Border.all(color: const Color(0xFFD0D5DC)),
+        border: Border.all(color: AppTheme.tableGridBlue),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -420,7 +427,7 @@ class _SurveyImportDialogState extends State<SurveyImportDialog>
         width: 30,
         height: 30,
         decoration: BoxDecoration(
-          border: Border.all(color: const Color(0xFFB9BEC7)),
+          border: Border.all(color: AppTheme.tableBorderBlue),
         ),
         child: Icon(icon, size: 18, color: const Color(0xFF2780E3)),
       ),
@@ -517,7 +524,7 @@ class _HeadCell extends StatelessWidget {
       width: width,
       alignment: Alignment.center,
       decoration: const BoxDecoration(
-        border: Border(left: BorderSide(color: Color(0xFFB9BEC7))),
+        border: Border(left: BorderSide(color: AppTheme.tableBorderBlue)),
       ),
       child: Text(label),
     );
@@ -537,8 +544,8 @@ class _BodyCell extends StatelessWidget {
       alignment: Alignment.center,
       decoration: const BoxDecoration(
         border: Border(
-          left: BorderSide(color: Color(0xFFB9BEC7)),
-          top: BorderSide(color: Color(0xFFB9BEC7)),
+          left: BorderSide(color: AppTheme.tableBorderBlue),
+          top: BorderSide(color: AppTheme.tableBorderBlue),
         ),
       ),
       child: Text(text),

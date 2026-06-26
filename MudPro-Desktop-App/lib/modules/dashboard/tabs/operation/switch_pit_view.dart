@@ -29,7 +29,7 @@ class _SwitchPitViewState extends State<SwitchPitView> {
   int selectedActiveIndex = 0;
   int selectedStorageIndex = 0;
 
-  static const Color _gridBorder = Color(0xFFC4C4C4);
+  static const Color _gridBorder = AppTheme.tableGridBlue;
   static const Color _editableFill = Color(0xFFFFF8C6);
   static const double _rowHeight = 28;
 

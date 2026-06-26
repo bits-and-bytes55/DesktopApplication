@@ -23,7 +23,7 @@ class DailyReportOptionPage extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
                 color: Colors.grey.shade50,
-                border: Border.all(color: Colors.grey.shade300),
+                border: Border.all(color: AppTheme.tableGridBlue),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
@@ -197,7 +197,7 @@ class DailyReportOptionPage extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(color: AppTheme.tableGridBlue),
         borderRadius: BorderRadius.circular(8),
         boxShadow: [
           BoxShadow(
@@ -220,7 +220,7 @@ class DailyReportOptionPage extends StatelessWidget {
                 topRight: Radius.circular(8),
               ),
               border: Border(
-                bottom: BorderSide(color: Colors.grey.shade300),
+                bottom: BorderSide(color: AppTheme.tableGridBlue),
               ),
             ),
             child: Row(
@@ -318,7 +318,7 @@ class DailyReportOptionPage extends StatelessWidget {
                       if (states.contains(MaterialState.selected)) {
                         return AppTheme.primaryColor;
                       }
-                      return Colors.grey.shade300;
+                      return AppTheme.tableGridBlue;
                     },
                   ),
                   side: BorderSide(

@@ -440,7 +440,26 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
 
     final List<String> errorMessages = [];
     final activeTab = controller.activeSectionTab.value;
-    String successMessage = "Data saved successfully!";
+    String defaultSuccessMessageForTab(int tab) {
+      switch (tab) {
+        case 0:
+          return 'Well data saved successfully!';
+        case 1:
+          return 'Mud data saved successfully!';
+        case 2:
+          return 'Pump data saved successfully!';
+        case 3:
+          return 'Operation data saved successfully!';
+        case 4:
+          return 'Pit data saved successfully!';
+        case 5:
+          return 'Remarks saved successfully!';
+        default:
+          return 'Report data saved successfully!';
+      }
+    }
+
+    String successMessage = defaultSuccessMessageForTab(activeTab);
     bool shouldUseSectionSuccessMessage(String message) {
       final normalized = message.trim().toLowerCase();
       if (normalized.isEmpty) return false;

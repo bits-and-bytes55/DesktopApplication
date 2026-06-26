@@ -173,7 +173,7 @@ class DailyCostOtherTab extends StatelessWidget {
             offset: const Offset(0, 4),
           ),
         ],
-        border: Border.all(color: Colors.grey.shade100),
+        border: Border.all(color: AppTheme.tableHeaderBlue),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -188,7 +188,7 @@ class DailyCostOtherTab extends StatelessWidget {
                 topRight: Radius.circular(12),
               ),
               border: Border(
-                bottom: BorderSide(color: Colors.grey.shade200),
+                bottom: BorderSide(color: AppTheme.tableBorderBlue),
               ),
             ),
             child: Row(
@@ -298,7 +298,7 @@ class _CustomHorizontalChart extends StatelessWidget {
               bottom: 0,
               child: Container(
                 width: 1,
-                color: Colors.grey.shade300,
+                color: AppTheme.tableGridBlue,
               ),
             ),
 
@@ -462,7 +462,7 @@ class _CustomHorizontalChart extends StatelessWidget {
             decoration: BoxDecoration(
               border: Border(
                 top: BorderSide(
-                  color: Colors.grey.shade200,
+                  color: AppTheme.tableBorderBlue,
                   width: index % 2 == 0 ? 0.5 : 0.3,
                 ),
               ),

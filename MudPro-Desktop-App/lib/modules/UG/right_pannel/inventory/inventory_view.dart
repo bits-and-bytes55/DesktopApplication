@@ -10,9 +10,65 @@ import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/model/ug_in
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/controller/ug_inventory_product_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
-class InventoryView extends StatelessWidget {
-  InventoryView({super.key});
+class InventoryView extends StatefulWidget {
+  const InventoryView({super.key});
+
+  @override
+  State<InventoryView> createState() => _InventoryViewState();
+}
+
+class _InventoryViewState extends State<InventoryView> {
   final c = Get.find<UgController>();
+  late final TextEditingController _bulkTankSetupFeeController;
+  late final TextEditingController _taxRateController;
+  late final FocusNode _bulkTankSetupFeeFocusNode;
+  late final FocusNode _taxRateFocusNode;
+  late final Worker _bulkTankSetupFeeWorker;
+  late final Worker _taxRateWorker;
+
+  @override
+  void initState() {
+    super.initState();
+    _bulkTankSetupFeeController = TextEditingController(
+      text: c.bulkTankSetupFee.value,
+    );
+    _taxRateController = TextEditingController(text: c.taxRate.value);
+    _bulkTankSetupFeeFocusNode = FocusNode();
+    _taxRateFocusNode = FocusNode();
+    _bulkTankSetupFeeWorker = ever<String>(c.bulkTankSetupFee, (value) {
+      _syncFooterController(
+        _bulkTankSetupFeeController,
+        _bulkTankSetupFeeFocusNode,
+        value,
+      );
+    });
+    _taxRateWorker = ever<String>(c.taxRate, (value) {
+      _syncFooterController(_taxRateController, _taxRateFocusNode, value);
+    });
+  }
+
+  @override
+  void dispose() {
+    _bulkTankSetupFeeWorker.dispose();
+    _taxRateWorker.dispose();
+    _bulkTankSetupFeeController.dispose();
+    _taxRateController.dispose();
+    _bulkTankSetupFeeFocusNode.dispose();
+    _taxRateFocusNode.dispose();
+    super.dispose();
+  }
+
+  void _syncFooterController(
+    TextEditingController controller,
+    FocusNode focusNode,
+    String value,
+  ) {
+    if (focusNode.hasFocus || controller.text == value) return;
+    controller.value = TextEditingValue(
+      text: value,
+      selection: TextSelection.collapsed(offset: value.length),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -24,7 +80,7 @@ class InventoryView extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.white,
             border: Border(
-              bottom: BorderSide(color: Colors.grey.shade300, width: 1),
+              bottom: BorderSide(color: AppTheme.tableGridBlue, width: 1),
             ),
           ),
           child: Row(
@@ -64,7 +120,7 @@ class InventoryView extends StatelessWidget {
               color: active ? null : Colors.transparent,
               borderRadius: BorderRadius.circular(6),
               border: Border.all(
-                color: active ? Colors.transparent : Colors.grey.shade300,
+                color: active ? Colors.transparent : AppTheme.tableGridBlue,
               ),
             ),
             child: Column(
@@ -101,8 +157,8 @@ class InventoryView extends StatelessWidget {
       height: 180,
       padding: const EdgeInsets.fromLTRB(10, 10, 16, 10),
       decoration: BoxDecoration(
-        color: const Color(0xFFF3F3F3),
-        border: Border(top: BorderSide(color: Colors.grey.shade300, width: 1)),
+        color: AppTheme.tableHeaderBlue,
+        border: Border(top: BorderSide(color: AppTheme.tableGridBlue, width: 1)),
       ),
       child: LayoutBuilder(
         builder: (ctx, constraints) {
@@ -138,17 +194,20 @@ class InventoryView extends StatelessWidget {
 
   // ── Fees box — UNCHANGED ──────────────────────────────────
   Widget _feesBox() {
-    return Padding(
-      padding: const EdgeInsets.only(top: 4),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _footerRow('Bulk Tank Setup Fee (Kwd)', enabled: !c.isLocked.value),
-          const SizedBox(height: 12),
-          _footerRow('Tax Rate (%)', enabled: !c.isLocked.value),
-        ],
-      ),
-    );
+    return Obx(() {
+      final enabled = !c.isLocked.value;
+      return Padding(
+        padding: const EdgeInsets.only(top: 4),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _footerRow('Bulk Tank Setup Fee (Kwd)', enabled: enabled),
+            const SizedBox(height: 12),
+            _footerRow('Tax Rate (%)', enabled: enabled),
+          ],
+        ),
+      );
+    });
   }
 
   // ── Apply Changed Prices box — UNCHANGED ──────────────────
@@ -156,8 +215,8 @@ class InventoryView extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
       decoration: BoxDecoration(
-        border: Border.all(color: const Color(0xFFC7C7C7)),
-        color: const Color(0xFFF3F3F3),
+        border: Border.all(color: AppTheme.tableBorderBlue),
+        color: AppTheme.tableHeaderBlue,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -189,7 +248,7 @@ class InventoryView extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(horizontal: 8),
                         decoration: BoxDecoration(
                           color: c.isLocked.value
-                              ? Colors.grey.shade100
+                              ? AppTheme.tableHeaderBlue
                               : Colors.white,
                           border: Border.all(color: Colors.grey.shade400),
                         ),
@@ -271,7 +330,7 @@ class InventoryView extends StatelessWidget {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primaryColor,
                   foregroundColor: Colors.white,
-                  disabledBackgroundColor: Colors.grey.shade300,
+                  disabledBackgroundColor: AppTheme.tableGridBlue,
                   padding: EdgeInsets.zero,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(0),
@@ -390,7 +449,11 @@ class InventoryView extends StatelessWidget {
       _showToast(context, 'Inventory saved successfully');
     } catch (e) {
       if (context.mounted) Navigator.of(context, rootNavigator: true).pop();
-      _showToast(context, 'Failed to save: ${e.toString()}', isError: true);
+	      _showToast(
+	        context,
+	        'Failed to save inventory: ${e.toString()}',
+	        isError: true,
+	      );
     }
   }
 
@@ -463,46 +526,44 @@ class InventoryView extends StatelessWidget {
         SizedBox(
           width: 90,
           height: 24,
-          child: Obx(
-            () => Listener(
-              onPointerSignal: enabled
-                  ? (event) {
-                      if (event is PointerScrollEvent) {
-                        _adjustFooterValue(
-                          isBulkTank,
-                          event.scrollDelta.dy < 0,
-                        );
-                      }
+          child: Listener(
+            onPointerSignal: enabled
+                ? (event) {
+                    if (event is PointerScrollEvent) {
+                      _adjustFooterValue(isBulkTank, event.scrollDelta.dy < 0);
                     }
-                  : null,
-              child: TextField(
-                controller: TextEditingController(
-                  text: isBulkTank ? c.bulkTankSetupFee.value : c.taxRate.value,
-                ),
-                enabled: enabled,
-                onChanged: (value) {
-                  if (isBulkTank) {
-                    c.bulkTankSetupFee.value = value;
-                  } else {
-                    c.taxRate.value = value;
                   }
-                },
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                decoration: InputDecoration(
-                  isDense: true,
-                  border: OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.grey.shade400),
-                    borderRadius: BorderRadius.circular(0),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                ),
-                style: const TextStyle(fontSize: 13),
+                : null,
+            child: TextField(
+              controller: isBulkTank
+                  ? _bulkTankSetupFeeController
+                  : _taxRateController,
+              focusNode: isBulkTank
+                  ? _bulkTankSetupFeeFocusNode
+                  : _taxRateFocusNode,
+              enabled: enabled,
+              onChanged: (value) {
+                if (isBulkTank) {
+                  c.bulkTankSetupFee.value = value;
+                } else {
+                  c.taxRate.value = value;
+                }
+              },
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
               ),
+              decoration: InputDecoration(
+                isDense: true,
+                border: OutlineInputBorder(
+                  borderSide: BorderSide(color: Colors.grey.shade400),
+                  borderRadius: BorderRadius.circular(0),
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 4,
+                ),
+              ),
+              style: const TextStyle(fontSize: 13),
             ),
           ),
         ),

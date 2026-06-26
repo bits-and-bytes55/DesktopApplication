@@ -231,7 +231,7 @@ class _Survey3DChartPageState extends State<Survey3DChartPage>
                     child: Container(
                       decoration: AppTheme.elevatedCardDecoration.copyWith(
                         border: Border.all(
-                          color: Colors.grey.shade300,
+                          color: AppTheme.tableGridBlue,
                         ),
                       ),
                       child: Column(
@@ -259,7 +259,7 @@ class _Survey3DChartPageState extends State<Survey3DChartPage>
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 12, vertical: 4),
                                   decoration: BoxDecoration(
-                                    color: Colors.grey.shade100,
+                                    color: AppTheme.tableHeaderBlue,
                                     borderRadius: BorderRadius.circular(6),
                                   ),
                                   child: Text(
@@ -450,7 +450,7 @@ class _InfoItem extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: AppTheme.tableBorderBlue),
       ),
       child: Row(
         children: [
@@ -530,7 +530,7 @@ class _Simple3DChartPainter extends CustomPainter {
 
   void _drawGrid(Canvas canvas) {
     final gridPaint = Paint()
-      ..color = Colors.grey.shade100
+      ..color = AppTheme.tableHeaderBlue
       ..strokeWidth = 1;
 
     // Horizontal lines

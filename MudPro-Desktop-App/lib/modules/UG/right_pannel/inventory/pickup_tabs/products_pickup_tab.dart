@@ -161,7 +161,7 @@ class _ProductsPickupPageState extends State<ProductsPickupPage> {
             padding: const EdgeInsets.symmetric(horizontal: 8),
             decoration: BoxDecoration(
               color: Colors.white,
-              border: Border.all(color: Colors.grey.shade300),
+              border: Border.all(color: AppTheme.tableGridBlue),
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
@@ -260,7 +260,7 @@ class _ProductsPickupPageState extends State<ProductsPickupPage> {
                     : (index.isEven ? AppTheme.cardColor : Colors.white),
                 border: Border(
                   bottom: BorderSide(
-                    color: Colors.grey.shade300,
+                    color: AppTheme.tableGridBlue,
                     width: 0.6,
                   ),
                 ),
@@ -458,7 +458,7 @@ class _ProductsPickupPageState extends State<ProductsPickupPage> {
       padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(color: AppTheme.tableGridBlue),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
@@ -510,7 +510,7 @@ class _ProductsPickupPageState extends State<ProductsPickupPage> {
               minimumSize: const Size(92, 34),
               backgroundColor: AppTheme.primaryColor,
               foregroundColor: Colors.white,
-              disabledBackgroundColor: Colors.grey.shade300,
+              disabledBackgroundColor: AppTheme.tableGridBlue,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(2),
               ),
@@ -680,14 +680,14 @@ class _InventoryOverwriteDialogState extends State<_InventoryOverwriteDialog> {
               style: TextStyle(fontSize: 12),
             ),
             const SizedBox(height: 10),
-            Container(
-              decoration: BoxDecoration(
-                border: Border.all(color: const Color(0xFFC8C8C8)),
-              ),
+	            Container(
+	              decoration: BoxDecoration(
+	                border: Border.all(color: AppTheme.tableBorderBlue),
+	              ),
               child: Column(
                 children: [
                   Container(
-                    color: const Color(0xFFF3F3F3),
+                    color: AppTheme.tableHeaderBlue,
                     padding: const EdgeInsets.symmetric(vertical: 6),
                     child: Row(
                       children: [
@@ -728,10 +728,10 @@ class _InventoryOverwriteDialogState extends State<_InventoryOverwriteDialog> {
                         final row = widget.rows[index];
                         final key = (row['key'] ?? '').toString();
                         final checked = _selectedKeys.contains(key);
-                        return Container(
-                          color: index.isEven
-                              ? const Color(0xFFFFF9CC)
-                              : Colors.white,
+	                        return Container(
+	                          color: index.isEven
+	                              ? AppTheme.calculatedCell
+	                              : Colors.white,
                           child: Row(
                             children: [
                               SizedBox(
@@ -782,7 +782,7 @@ class _InventoryOverwriteDialogState extends State<_InventoryOverwriteDialog> {
           child: const Text('Close'),
         ),
         ElevatedButton(
-          onPressed: () => Navigator.of(context).pop(_selectedKeys),
+          onPressed: () => Navigator.of(context).pop(Set<String>.from(_selectedKeys)),
           child: const Text('Accept'),
         ),
       ],
@@ -805,12 +805,12 @@ class _InventoryOverwriteDialogState extends State<_InventoryOverwriteDialog> {
     return Container(
       width: width,
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      decoration: const BoxDecoration(
-        border: Border(
-          left: BorderSide(color: Color(0xFFD8D8D8)),
-          top: BorderSide(color: Color(0xFFD8D8D8)),
-        ),
-      ),
+	      decoration: BoxDecoration(
+	        border: Border(
+	          left: BorderSide(color: AppTheme.tableGridBlue),
+	          top: BorderSide(color: AppTheme.tableGridBlue),
+	        ),
+	      ),
       alignment: alignRight ? Alignment.centerRight : Alignment.centerLeft,
       child: Text(
         text,
