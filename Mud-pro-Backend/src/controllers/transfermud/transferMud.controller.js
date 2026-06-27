@@ -1,5 +1,6 @@
 import TransferMud from "../../modules/transfermud/TransferMud.js";
 import { buildScopedFilter, readReportId } from "../../utils/reportScope.js";
+import { calculateTransferSourceBalanceForReport } from "../pitvolumename/volumeName.controller.js";
 
 const toNumber = (value) => {
   if (value === null || value === undefined || value === "") return 0;
@@ -36,6 +37,56 @@ const normalizeTransfers = (transfers = []) => {
     .filter((item) => item.pitName && item.volume > 0);
 };
 
+const transferEndVolEffect = (transfer) => {
+  if (!transfer) return 0;
+  const fromIsActiveSystem =
+    String(transfer.from || "").trim().toLowerCase() === "active system";
+  if (fromIsActiveSystem) {
+    return -toNumber(transfer.totalTransferVol);
+  }
+
+  return normalizeTransfers(transfer.transfers).reduce(
+    (sum, row) =>
+      row.pitName.toLowerCase() === "active system"
+        ? sum + row.volume
+        : sum,
+    0
+  );
+};
+
+const validateSourceBalance = async ({
+  wellId,
+  reportId,
+  from,
+  totalTransferVol,
+  existingTransfer = null,
+}) => {
+  const cleanFrom = String(from || "").trim();
+  const fromIsActiveSystem = cleanFrom.toLowerCase() === "active system";
+  let availableVolume = await calculateTransferSourceBalanceForReport({
+    wellId,
+    reportId,
+    source: cleanFrom,
+    excludeTransferId: fromIsActiveSystem ? "" : existingTransfer?._id,
+  });
+
+  if (fromIsActiveSystem && existingTransfer) {
+    availableVolume = round2(
+      availableVolume - transferEndVolEffect(existingTransfer)
+    );
+  }
+
+  availableVolume = Math.max(0, round2(availableVolume));
+  if (totalTransferVol > availableVolume + 0.005) {
+    const error = new Error(
+      `Transfer volume ${totalTransferVol.toFixed(2)} bbl exceeds available ` +
+        `${cleanFrom} volume ${availableVolume.toFixed(2)} bbl`
+    );
+    error.statusCode = 400;
+    throw error;
+  }
+};
+
 const addBackToActivePits = async ({ wellId, reportId, totalVolume }) => {
   return;
 };
@@ -48,7 +99,13 @@ const revertTransferOnPits = async ({ wellId, reportId, from, transfers }) => {
   return;
 };
 
-const applyTransferToPits = async ({ wellId, reportId, from, transfers }) => {
+const applyTransferToPits = async ({
+  wellId,
+  reportId,
+  from,
+  transfers,
+  existingTransfer = null,
+}) => {
   const cleanTransfers = normalizeTransfers(transfers);
 
   if (!wellId || !from || cleanTransfers.length === 0) {
@@ -67,6 +124,14 @@ const applyTransferToPits = async ({ wellId, reportId, from, transfers }) => {
       throw new Error("Source and destination cannot be the same");
     }
   }
+
+  await validateSourceBalance({
+    wellId,
+    reportId,
+    from: cleanFrom,
+    totalTransferVol,
+    existingTransfer,
+  });
 
   if (fromIsActiveSystem) {
     return {
@@ -127,7 +192,7 @@ export const createTransferMud = async (req, res) => {
       data: item,
     });
   } catch (error) {
-    return res.status(500).json({
+    return res.status(error.statusCode || 500).json({
       success: false,
       message: "Transfer mud failed",
       error: error.message,
@@ -192,7 +257,7 @@ export const createManyTransferMud = async (req, res) => {
       data: created,
     });
   } catch (error) {
-    return res.status(500).json({
+    return res.status(error.statusCode || 500).json({
       success: false,
       message: "Bulk transfer mud failed",
       error: error.message,
@@ -312,14 +377,11 @@ export const updateTransferMud = async (req, res) => {
       });
     }
 
-    const previousFrom = existing.from;
-    const previousTransfers = existing.transfers;
-
     await revertTransferOnPits({
       wellId,
       reportId,
-      from: previousFrom,
-      transfers: previousTransfers,
+      from: existing.from,
+      transfers: existing.transfers,
     });
 
     const nextFrom =
@@ -335,16 +397,11 @@ export const updateTransferMud = async (req, res) => {
         reportId,
         from: nextFrom,
         transfers: nextTransfers,
+        existingTransfer: existing,
       });
       cleanTransfers = applied.cleanTransfers;
       totalTransferVol = applied.totalTransferVol;
     } catch (error) {
-      await applyTransferToPits({
-        wellId,
-        reportId,
-        from: previousFrom,
-        transfers: previousTransfers,
-      });
       throw error;
     }
 
@@ -363,7 +420,7 @@ export const updateTransferMud = async (req, res) => {
       data: existing,
     });
   } catch (error) {
-    return res.status(500).json({
+    return res.status(error.statusCode || 500).json({
       success: false,
       message: "Failed to update Transfer Mud entry",
       error: error.message,

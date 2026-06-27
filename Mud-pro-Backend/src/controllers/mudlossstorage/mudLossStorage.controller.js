@@ -1,6 +1,7 @@
 import Pit from "../../modules/pit/pit.model.js";
 import MudLossStorage from "../../modules/mudlossstorage/MudLossStorage.js";
 import { buildScopedFilter, readReportId } from "../../utils/reportScope.js";
+import { calculateTransferSourceBalanceForReport } from "../pitvolumename/volumeName.controller.js";
 
 const toNumber = (value) => {
   if (value === null || value === undefined || value === "") return 0;
@@ -126,41 +127,32 @@ const assertStorageHasAvailableVolume = async ({
     storagePitFilter({ wellId, reportId, storage })
   ).sort({ createdAt: -1, _id: -1 });
 
-  const capacity = round2(toNumber(pit?.capacity));
-  if (!pit || capacity <= 0) {
-    throw makeValidationError(`Storage ${storage} has no capacity set`);
+  if (!pit) {
+    throw makeValidationError(`Storage ${storage} was not found`);
   }
 
-  const existingFilter = buildScopedFilter(wellId, reportId, { storage });
-  const excludeLogicalKey =
-    typeof excludeId === "object"
-      ? excludeId.logicalKey || ""
-      : "";
   const excludeRecordId =
     typeof excludeId === "object" ? excludeId.id || "" : excludeId;
-  if (excludeRecordId) {
-    existingFilter._id = { $ne: excludeRecordId };
-  }
-
-  const existingRows = normalizeMudLossStorageItems(
-    await MudLossStorage.find(existingFilter).lean()
-  ).filter(
-    (item) =>
-      !excludeLogicalKey ||
-      mudLossStorageLogicalKey(item) !== excludeLogicalKey
+  const available = Math.max(
+    0,
+    round2(
+      await calculateTransferSourceBalanceForReport({
+        wellId,
+        reportId,
+        source: storage,
+        excludeMudLossStorageId: excludeRecordId,
+      })
+    )
   );
-  const existingLoss = round2(
-    existingRows.reduce((sum, item) => sum + toNumber(item.totalLoss), 0)
-  );
-  const available = round2(capacity - existingLoss);
 
   if (available <= 0) {
-    throw makeValidationError(`Storage ${storage} has no available capacity`);
+    throw makeValidationError(`Storage ${storage} has no available volume`);
   }
 
-  if (toNumber(totalLoss) > available) {
+  if (toNumber(totalLoss) > available + 0.005) {
     throw makeValidationError(
-      `Storage ${storage} loss cannot exceed capacity (${available.toFixed(2)} bbl available)`
+      `Storage ${storage} loss ${toNumber(totalLoss).toFixed(2)} bbl exceeds ` +
+        `available volume ${available.toFixed(2)} bbl`
     );
   }
 };

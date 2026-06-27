@@ -1519,6 +1519,126 @@ export const calculateEndVolForReport = async ({
 const scopedOperationFilter = ({ wellId, reportId }) =>
   reportId ? { wellId, reportId } : legacyScopeFilter(wellId);
 
+export const calculateTransferSourceBalanceForReport = async ({
+  wellId,
+  reportId,
+  source,
+  excludeTransferId = "",
+  excludeReturnLostMudId = "",
+  excludeMudLossStorageId = "",
+}) => {
+  const cleanSource = toText(source);
+  const sourceKey = cleanSource.toLowerCase();
+  if (!wellId || !reportId || !sourceKey) return 0;
+
+  if (isActiveSystemName(cleanSource)) {
+    return round2(
+      await calculateEndVolForReport({
+        wellId,
+        reportId,
+      })
+    );
+  }
+
+  const [
+    pits,
+    distributionStates,
+    receivedMud,
+    returnLostMud,
+    addWaterEntries,
+    otherVolAdditions,
+    mudLossEntries,
+    mudLossStorageEntries,
+    transferMudEntries,
+    emptyFluidEntries,
+  ] = await Promise.all([
+    findScopedPits({ wellId, reportId }),
+    findScopedConsumeProductDistributionStates({
+      wellId,
+      reportId,
+      strictScope: true,
+    }),
+    ReceiveMud.find(scopedOperationFilter({ wellId, reportId })).lean(),
+    ReturnLostMud.find(scopedOperationFilter({ wellId, reportId })).lean(),
+    AddWater.find(scopedOperationFilter({ wellId, reportId })).lean(),
+    OtherVolAddition.find(scopedOperationFilter({ wellId, reportId })).lean(),
+    MudLoss.find(scopedOperationFilter({ wellId, reportId })).lean(),
+    MudLossStorage.find(scopedOperationFilter({ wellId, reportId })).lean(),
+    TransferMud.find(scopedOperationFilter({ wellId, reportId })).lean(),
+    EmptyFluidActiveSystem.find(
+      scopedOperationFilter({ wellId, reportId })
+    ).lean(),
+  ]);
+
+  const sourcePit = pits.find(
+    (pit) => toText(pit?.pitName).toLowerCase() === sourceKey
+  );
+  if (!sourcePit) return 0;
+
+  const activePitsList = pits.filter((pit) => pit.initialActive === true);
+  const storagePitsList = pits.filter((pit) => pit.initialActive === false);
+  const activePitNames = new Set(
+    activePitsList
+      .map((pit) => toText(pit.pitName).toLowerCase())
+      .filter(Boolean)
+  );
+  const distributionRows = (distributionStates ?? []).flatMap((state) =>
+    cleanDistributionRows(state?.distributions ?? [])
+  );
+  const {
+    calculatedVolumeByPit,
+    activeDeltaByPit: distributionActiveDeltaByPit,
+  } = buildCalculatedVolumeMap(distributionRows, activePitNames);
+
+  const filteredReturnLostMud = returnLostMud.filter(
+    (item) =>
+      !excludeReturnLostMudId ||
+      toText(item?._id) !== toText(excludeReturnLostMudId)
+  );
+  const filteredMudLossStorageEntries = normalizeMudLossStorageItems(
+    mudLossStorageEntries
+  ).filter(
+    (item) =>
+      !excludeMudLossStorageId ||
+      toText(item?._id) !== toText(excludeMudLossStorageId)
+  );
+  const filteredTransferEntries = transferMudEntries.filter(
+    (item) =>
+      !excludeTransferId ||
+      toText(item?._id) !== toText(excludeTransferId)
+  );
+  const operationVolumeEffects = buildOperationVolumeEffects({
+    receivedMud,
+    returnLostMud: filteredReturnLostMud,
+    addWaterEntries: normalizeAddWaterItems(addWaterEntries),
+    otherVolAdditions: normalizeOtherVolAdditionItems(otherVolAdditions),
+    mudLossEntries,
+    mudLossStorageEntries: filteredMudLossStorageEntries,
+    transferMudEntries: filteredTransferEntries,
+    emptyFluidEntries,
+    activePitNames,
+  });
+
+  if (sourcePit.initialActive === true) {
+    return round2(
+      toNumber(sourcePit.volume) +
+        (distributionActiveDeltaByPit.get(sourceKey) ?? 0) +
+        (operationVolumeEffects.activeDeltaByPit.get(sourceKey) ?? 0)
+    );
+  }
+
+  for (const pit of storagePitsList) {
+    const key = toText(pit.pitName).toLowerCase();
+    if (!key || calculatedVolumeByPit.has(key)) continue;
+    calculatedVolumeByPit.set(key, toNumber(pit.volume));
+  }
+  for (const [pitName, volume] of operationVolumeEffects.storageDeltaByPit) {
+    addPitDelta(calculatedVolumeByPit, pitName, volume);
+  }
+
+  return round2(calculatedVolumeByPit.get(sourceKey) ?? 0);
+};
+
 const buildWellGeneralPayload = ({ wellId, body, reportMeta, existing }) => ({
   wellId,
   reportId: reportMeta.reportId || toText(existing?.reportId),

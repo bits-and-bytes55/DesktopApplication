@@ -2,6 +2,7 @@ import Pit from "../../modules/pit/pit.model.js";
 import MudLoss from "../../modules/mudloss/MudLoss.js";
 import { getWritablePits } from "../../utils/pitReportState.js";
 import { buildScopedFilter, readReportId } from "../../utils/reportScope.js";
+import { calculateTransferSourceBalanceForReport } from "../pitvolumename/volumeName.controller.js";
 
 const toNumber = (value) => {
   if (value === null || value === undefined || value === "") return 0;
@@ -11,6 +12,11 @@ const toNumber = (value) => {
 
 const round2 = (num) => Number(num.toFixed(2));
 const getWellId = (req) => String(req.params.wellId || "").trim();
+const makeValidationError = (message) => {
+  const error = new Error(message);
+  error.statusCode = 400;
+  return error;
+};
 
 const deductFromActivePits = async ({ wellId, reportId, totalLoss }) => {
   return;
@@ -18,6 +24,30 @@ const deductFromActivePits = async ({ wellId, reportId, totalLoss }) => {
 
 const revertToActivePits = async ({ wellId, reportId, totalLoss }) => {
   return;
+};
+
+const assertActiveSystemHasAvailableVolume = async ({
+  wellId,
+  reportId,
+  totalLoss,
+  existingLoss = 0,
+}) => {
+  const currentEndVol = await calculateTransferSourceBalanceForReport({
+    wellId,
+    reportId,
+    source: "Active System",
+  });
+  const available = Math.max(
+    0,
+    round2(currentEndVol + toNumber(existingLoss))
+  );
+
+  if (totalLoss > available + 0.005) {
+    throw makeValidationError(
+      `Mud loss ${totalLoss.toFixed(2)} bbl exceeds available Active System ` +
+        `volume ${available.toFixed(2)} bbl`
+    );
+  }
 };
 
 export const createMudLoss = async (req, res) => {
@@ -64,6 +94,12 @@ export const createMudLoss = async (req, res) => {
       });
     }
 
+    await assertActiveSystemHasAvailableVolume({
+      wellId,
+      reportId,
+      totalLoss,
+    });
+
     await deductFromActivePits({ wellId, reportId, totalLoss });
 
     const item = await MudLoss.create({
@@ -92,7 +128,7 @@ export const createMudLoss = async (req, res) => {
       data: item,
     });
   } catch (error) {
-    return res.status(500).json({
+    return res.status(error.statusCode || 500).json({
       success: false,
       message: "Failed to save Mud Loss",
       error: error.message,
@@ -212,11 +248,22 @@ export const updateMudLoss = async (req, res) => {
         extraLossVol
     );
 
+    if (totalLoss <= 0) {
+      throw makeValidationError("Total mud loss must be greater than 0");
+    }
+
     updatedData.extraLossLabel = String(updatedData.extraLossLabel || "").trim();
     updatedData.extraLossVolume = extraLossVol;
     updatedData.operationInstanceKey = String(
       updatedData.operationInstanceKey || ""
     ).trim();
+
+    await assertActiveSystemHasAvailableVolume({
+      wellId,
+      reportId,
+      totalLoss,
+      existingLoss: existing.totalLoss,
+    });
 
     await deductFromActivePits({ wellId, reportId, totalLoss });
 
@@ -229,7 +276,7 @@ export const updateMudLoss = async (req, res) => {
       data: existing,
     });
   } catch (error) {
-    return res.status(500).json({
+    return res.status(error.statusCode || 500).json({
       success: false,
       message: "Failed to update Mud Loss",
       error: error.message,
