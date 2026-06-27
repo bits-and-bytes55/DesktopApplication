@@ -1,6 +1,7 @@
 import Premixed from "../../modules/inventory/premixed.model.js";
 import ReturnLostMud from "../../modules/returnlostmud/ReturnLostMud.js";
 import { buildScopedFilter, readReportId } from "../../utils/reportScope.js";
+import { calculateTransferSourceBalanceForReport } from "../pitvolumename/volumeName.controller.js";
 
 const getWellId = (req) => String(req.params.wellId || "").trim();
 
@@ -11,6 +12,11 @@ const toNumber = (value) => {
 };
 
 const round2 = (num) => Number(num.toFixed(2));
+const makeValidationError = (message) => {
+  const error = new Error(message);
+  error.statusCode = 400;
+  return error;
+};
 
 const findPremixedMud = async (wellId, premixedMud) => {
   return await Premixed.findOne({
@@ -40,6 +46,40 @@ const revertDeduction = async ({
 
 const revertAddition = async ({ wellId, reportId, to, returned }) => {
   return;
+};
+
+const assertSourceHasAvailableVolume = async ({
+  wellId,
+  reportId,
+  from,
+  totalDeduct,
+  existing = null,
+}) => {
+  const cleanFrom = String(from || "").trim();
+  const fromIsActiveSystem = cleanFrom.toLowerCase() === "active system";
+  let available = await calculateTransferSourceBalanceForReport({
+    wellId,
+    reportId,
+    source: cleanFrom,
+    excludeReturnLostMudId: fromIsActiveSystem ? "" : existing?._id,
+  });
+
+  if (
+    fromIsActiveSystem &&
+    existing &&
+    String(existing.from || "").trim().toLowerCase() === "active system"
+  ) {
+    available +=
+      toNumber(existing.volReturned) + toNumber(existing.volLost);
+  }
+
+  available = Math.max(0, round2(available));
+  if (totalDeduct > available + 0.005) {
+    throw makeValidationError(
+      `Return / Lost Mud volume ${totalDeduct.toFixed(2)} bbl exceeds ` +
+        `available ${cleanFrom} volume ${available.toFixed(2)} bbl`
+    );
+  }
 };
 
 const prepareReturnLostMudData = async (wellId, reportId, payload) => {
@@ -145,6 +185,13 @@ export const createReturnLostMud = async (req, res) => {
     for (const payload of payloads) {
       const prepared = await prepareReturnLostMudData(wellId, reportId, payload);
 
+      await assertSourceHasAvailableVolume({
+        wellId: prepared.wellId,
+        reportId: prepared.reportId,
+        from: prepared.from,
+        totalDeduct: prepared.totalDeduct,
+      });
+
       await deductFromLocation({
         wellId: prepared.wellId,
         reportId: prepared.reportId,
@@ -190,7 +237,7 @@ export const createReturnLostMud = async (req, res) => {
       data: createdItems,
     });
   } catch (error) {
-    return res.status(500).json({
+    return res.status(error.statusCode || 500).json({
       success: false,
       message: "Failed to save Return / Lost Mud",
       error: error.message,
@@ -326,6 +373,14 @@ export const updateReturnLostMud = async (req, res) => {
 
     const prepared = await prepareReturnLostMudData(wellId, reportId, mergedPayload);
 
+    await assertSourceHasAvailableVolume({
+      wellId: prepared.wellId,
+      reportId: prepared.reportId,
+      from: prepared.from,
+      totalDeduct: prepared.totalDeduct,
+      existing,
+    });
+
     await deductFromLocation({
       wellId: prepared.wellId,
       reportId: prepared.reportId,
@@ -363,7 +418,7 @@ export const updateReturnLostMud = async (req, res) => {
       data: existing,
     });
   } catch (error) {
-    return res.status(500).json({
+    return res.status(error.statusCode || 500).json({
       success: false,
       message: "Failed to update Return / Lost Mud",
       error: error.message,
