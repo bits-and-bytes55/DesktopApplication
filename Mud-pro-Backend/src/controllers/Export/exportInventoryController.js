@@ -1933,7 +1933,6 @@ const fillDmrHydraulicsRows = (ws, {
     fillRowRange(ws, row, "U", "AD", label);
     fillRowRange(ws, row, "AE", "AI", value);
   });
-  styleDmrHydraulicsBlock(ws);
 };
 
 const normalizeSceKey = (value) => text(value).toLowerCase().replace(/\s+/g, " ").trim();
@@ -3227,7 +3226,6 @@ export const exportInventoryReport = async (req, res) => {
     clearInventoryDynamicAreas(inventorySheet);
     clearTemplateLogos(dmrSheet);
     clearTemplateLogos(inventorySheet);
-    prepareInventoryHeaderLayout(inventorySheet);
 
     const [companyLogoImage, padLogoImage] = await Promise.all([
       resolveCompanyLogoImage(company),
@@ -3309,8 +3307,6 @@ export const exportInventoryReport = async (req, res) => {
       costSummary,
       productMetadataMap,
     });
-    applyReportLayout(dmrSheet, inventorySheet);
-
     const reportNumber = text(report?.userReportNo || report?.reportNo || wellGeneral?.reportNo, "1");
     const filename = `${safeFilename(well.wellNameNo || "daily_report")}_Report_${safeFilename(reportNumber)}.xlsx`;
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
