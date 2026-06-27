@@ -332,8 +332,17 @@ export const generateInventorySnapshot = async (req, res) => {
 
     let snapshotData = [];
 
+    const inventoryProducts = Array.isArray(inventoryConfig?.products)
+      ? inventoryConfig.products.filter(
+          (row) => normalizeText(row?.product) || normalizeText(row?.code)
+        )
+      : [];
+
     const productKeys = [
       ...new Set([
+        ...inventoryProducts.map((row, index) =>
+          keyFromCodeOrName(row.code, row.product, `inventory:${index}`)
+        ),
         ...receives.map((row, index) =>
           keyFromCodeOrName(row.code, row.productName, `receive:${index}`)
         ),
@@ -347,6 +356,10 @@ export const generateInventorySnapshot = async (req, res) => {
     ];
 
     for (const key of productKeys) {
+      const inventoryProduct = inventoryProducts.find(
+        (row, index) =>
+          keyFromCodeOrName(row.code, row.product, `inventory:${index}`) === key
+      );
       const productReceives = receives.filter(
         (row, index) =>
           keyFromCodeOrName(row.code, row.productName, `receive:${index}`) === key
@@ -373,22 +386,32 @@ export const generateInventorySnapshot = async (req, res) => {
         productConsumes.reduce((sum, row) => sum + toNumber(row.adjust), 0)
       );
 
-      const price = round2(productConsumes[0]?.price);
-      const initial = round2(productConsumes[0]?.initial);
+      const price = round2(
+        inventoryProduct?.price ||
+          productConsumes[0]?.price ||
+          productReceives[0]?.price ||
+          productReturns[0]?.price
+      );
+      const initial = round2(
+        inventoryProduct?.initial || productConsumes[0]?.initial
+      );
 
       const itemName =
+        inventoryProduct?.product ||
         productReceives[0]?.productName ||
         productConsumes[0]?.product ||
         productReturns[0]?.productName ||
         "";
 
       const code =
+        inventoryProduct?.code ||
         productReceives[0]?.code ||
         productConsumes[0]?.code ||
         productReturns[0]?.code ||
         "";
 
       const unit =
+        inventoryProduct?.unit ||
         productReceives[0]?.unit ||
         productConsumes[0]?.unit ||
         productReturns[0]?.unit ||
