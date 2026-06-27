@@ -37,7 +37,22 @@ class MyApp extends StatelessWidget {
     return GetMaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'MudPro Desktop',
-      theme: ThemeData(fontFamily: 'Segoe UI', useMaterial3: false),
+      theme: ThemeData(
+        fontFamily: 'Segoe UI',
+        useMaterial3: false,
+        dropdownMenuTheme: const DropdownMenuThemeData(
+          menuStyle: MenuStyle(
+            padding: WidgetStatePropertyAll(EdgeInsets.symmetric(vertical: 2)),
+            visualDensity: VisualDensity.compact,
+            shape: WidgetStatePropertyAll(
+              RoundedRectangleBorder(
+                borderRadius: BorderRadius.zero,
+                side: BorderSide(color: Color(0xFFB7B7B7)),
+              ),
+            ),
+          ),
+        ),
+      ),
       home: home ?? DashboardView(),
     );
   }

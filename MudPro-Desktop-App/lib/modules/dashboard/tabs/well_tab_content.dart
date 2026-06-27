@@ -908,6 +908,7 @@ class _GeneralSectionState extends State<GeneralSection> {
 
   Widget _lbl(String t) => Container(
     height: _kRowH,
+    color: AppTheme.readOnlyCell,
     padding: const EdgeInsets.symmetric(horizontal: 5),
     alignment: Alignment.centerLeft,
     child: Text(
@@ -922,6 +923,7 @@ class _GeneralSectionState extends State<GeneralSection> {
 
   Widget _unit(String t) => Container(
     height: _kRowH,
+    color: AppTheme.readOnlyCell,
     padding: const EdgeInsets.symmetric(horizontal: 2),
     alignment: Alignment.center,
     child: Text(
