@@ -1513,6 +1513,15 @@ const pressurePercentText = (loss, total) => {
   const percent = cleanTotal > 0 ? (cleanLoss / cleanTotal) * 100 : 0;
   return `${round(cleanLoss, 0)}/${round(percent, 1)}`;
 };
+const HYDRAULIC_CONSTANTS = {
+  velocity: 24.51,
+  jetVelocity: 0.32086,
+  bitPressureDrop: 10858,
+  annularPressureDenominator: 1000,
+  hydrostatic: 0.052,
+  horsepower: 1714,
+  hsi: 1.27,
+};
 const hydraulicDepthValue = (...values) => {
   const parsed = firstHydraulicNumber(...values);
   return parsed > 0 ? parsed : 0;
@@ -1523,41 +1532,139 @@ const calculateEcd = (mw, pressureLoss, depth) => {
   const depthFt = toNumber(depth);
   if (baseMw <= 0) return "";
   if (loss <= 0 || depthFt <= 0) return round(baseMw, 2);
-  return round(baseMw + loss / (0.052 * depthFt), 2);
+  return round(baseMw + loss / (HYDRAULIC_CONSTANTS.hydrostatic * depthFt), 2);
 };
 const hydraulicCriticalVelocity = ({ mw, pv, yp, holeSize, pipeOd }) => {
+  const density = toNumber(mw);
+  const plasticViscosity = toNumber(pv);
+  const yieldPoint = toNumber(yp);
   const gap = Math.max(0, toNumber(holeSize) - toNumber(pipeOd));
-  if (toNumber(mw) <= 0 || gap <= 0) return "";
-  const base = 180 + toNumber(pv) * 1.4 + toNumber(yp) * 0.9;
-  const gapAdjustment = clamp(gap / Math.max(toNumber(holeSize), 1), 0.2, 1) * 18;
-  return round(Math.max(0, base + gapAdjustment), 1);
+  if (density <= 0 || gap <= 0) return "";
+  const root = Math.sqrt(
+    plasticViscosity * plasticViscosity +
+      12.34 * gap * gap * yieldPoint * density
+  );
+  return round(
+    (1.08 * plasticViscosity + 1.08 * root) / (density * gap),
+    1
+  );
+};
+const hydraulicAnnularVelocity = ({ pumpRate, holeSize, pipeOd }) => {
+  const q = toNumber(pumpRate);
+  const dh = toNumber(holeSize);
+  const od = toNumber(pipeOd);
+  const area = dh * dh - od * od;
+  return q > 0 && area > 0 ? (HYDRAULIC_CONSTANTS.velocity * q) / area : 0;
+};
+const hydraulicPipeVelocity = ({ pumpRate, pipeId }) => {
+  const q = toNumber(pumpRate);
+  const id = toNumber(pipeId);
+  return q > 0 && id > 0 ? (HYDRAULIC_CONSTANTS.velocity * q) / (id * id) : 0;
+};
+const hydraulicAnnularPressureLoss = ({ pv, yp, length, annVel, holeSize, pipeOd }) => {
+  const gap = Math.max(0, toNumber(holeSize) - toNumber(pipeOd));
+  const l = toNumber(length);
+  if (gap <= 0 || l <= 0) return 0;
+  return (
+    (toNumber(pv) * l * toNumber(annVel)) /
+      (HYDRAULIC_CONSTANTS.annularPressureDenominator * gap * gap) +
+    (toNumber(yp) * l) / (225 * gap)
+  );
+};
+const hydraulicDrillStringPressureWeight = ({ pv, yp, length, pipeId, pumpRate }) => {
+  const id = toNumber(pipeId);
+  const l = toNumber(length);
+  if (id <= 0 || l <= 0) return 0;
+  const pipeVel = hydraulicPipeVelocity({ pumpRate, pipeId: id });
+  return (
+    (toNumber(pv) * l * pipeVel) / (3792 * id * id) +
+    (toNumber(yp) * l) / (225 * id)
+  );
+};
+const hydraulicBitPressureLoss = ({ mw, pumpRate, tfa }) => {
+  const density = toNumber(mw);
+  const q = toNumber(pumpRate);
+  const area = toNumber(tfa);
+  if (density <= 0 || q <= 0 || area <= 0) return 0;
+  return (density * q * q) / (HYDRAULIC_CONSTANTS.bitPressureDrop * area * area);
+};
+const hydraulicBitJetVelocity = ({ pumpRate, tfa }) => {
+  const q = toNumber(pumpRate);
+  const area = toNumber(tfa);
+  return q > 0 && area > 0 ? (HYDRAULIC_CONSTANTS.jetVelocity * q) / area : 0;
 };
 const buildHydraulicSegments = ({ drillStrings = [], casings = [], intervals = [], wellGeneral }) => {
   const intervalBitSize = resolveIntervalBitSize(intervals, wellGeneral?.interval);
-  const firstCasingWithSize = casings.find((item) =>
-    firstHydraulicNumber(item?.bit, item?.od, item?.id)
-  );
-  const holeSize = firstHydraulicNumber(
+  const casingRows = casings
+    .map((item) => ({
+      ...item,
+      shoeDepth: firstHydraulicNumber(item?.shoe, item?.md),
+      insideDiameter: firstHydraulicNumber(item?.id, item?.bit, item?.od),
+    }))
+    .filter((item) => item.shoeDepth > 0 && item.insideDiameter > 0)
+    .sort((a, b) => a.shoeDepth - b.shoeDepth);
+  const deepestCasing = casingRows[casingRows.length - 1];
+  const openHoleSize = firstHydraulicNumber(
     intervalBitSize,
-    firstCasingWithSize?.bit,
-    firstCasingWithSize?.od,
-    firstCasingWithSize?.id,
+    casings.find((item) => text(item?.bit))?.bit,
     wellGeneral?.bitSize
   );
+  const casedHoleSize = firstHydraulicNumber(deepestCasing?.insideDiameter, openHoleSize);
+  const shoeDepth = firstHydraulicNumber(deepestCasing?.shoeDepth);
 
-  return drillStrings
+  const segments = [];
+  let measuredDepth = 0;
+  drillStrings
     .filter((item) =>
       firstHydraulicNumber(item?.od) > 0 &&
       firstHydraulicNumber(item?.id) > 0 &&
       firstHydraulicNumber(item?.length) > 0
     )
-    .slice(0, 5)
-    .map((item) => ({
-      holeSize,
-      pipeOd: firstHydraulicNumber(item.od),
-      pipeId: firstHydraulicNumber(item.id),
-      length: firstHydraulicNumber(item.length),
-    }));
+    .forEach((item) => {
+      const pipeOd = firstHydraulicNumber(item.od);
+      const pipeId = firstHydraulicNumber(item.id);
+      const componentLength = firstHydraulicNumber(item.length);
+      const componentTop = measuredDepth;
+      const componentBottom = measuredDepth + componentLength;
+      measuredDepth = componentBottom;
+
+      const addSegment = (top, bottom, holeSize) => {
+        const length = Math.max(0, bottom - top);
+        if (length <= 0 || holeSize <= 0) return;
+        const previous = segments[segments.length - 1];
+        if (
+          previous &&
+          Math.abs(previous.holeSize - holeSize) < 0.0001 &&
+          Math.abs(previous.pipeOd - pipeOd) < 0.0001 &&
+          Math.abs(previous.pipeId - pipeId) < 0.0001
+        ) {
+          previous.length += length;
+          previous.bottom = bottom;
+          return;
+        }
+        segments.push({
+          holeSize,
+          pipeOd,
+          pipeId,
+          length,
+          top,
+          bottom,
+        });
+      };
+
+      if (shoeDepth > 0 && componentTop < shoeDepth && componentBottom > shoeDepth) {
+        addSegment(componentTop, shoeDepth, casedHoleSize);
+        addSegment(shoeDepth, componentBottom, openHoleSize);
+      } else {
+        addSegment(
+          componentTop,
+          componentBottom,
+          shoeDepth > 0 && componentBottom <= shoeDepth ? casedHoleSize : openHoleSize || casedHoleSize
+        );
+      }
+    });
+
+  return segments.slice(0, 6);
 };
 const fillDmrHydraulicsRows = (ws, {
   drillStrings,
@@ -1574,26 +1681,11 @@ const fillDmrHydraulicsRows = (ws, {
   const pumpFlow = summarizePumpFlow(pumps);
   const pumpRateAndPressure = report?.pumpRateAndPressure || {};
   const pumpRate = firstHydraulicNumber(pumpRateAndPressure.pumpRate, pumpFlow.rateGpm);
-  const totalPressureLoss = firstHydraulicNumber(pumpRateAndPressure.pumpPressure, pumpFlow.maxPumpP);
+  const enteredPressureLoss = firstHydraulicNumber(pumpRateAndPressure.pumpPressure, pumpFlow.maxPumpP);
   const dhToolsLoss = firstHydraulicNumber(pumpRateAndPressure.dhToolsPressureLoss);
   const motorLoss = firstHydraulicNumber(pumpRateAndPressure.motorPressureLoss);
   const segments = buildHydraulicSegments({ drillStrings, casings, intervals, wellGeneral });
 
-  const remainingPressure = Math.max(0, totalPressureLoss - dhToolsLoss - motorLoss);
-  const bitLoss = remainingPressure > 0 ? remainingPressure * 0.65 : 0;
-  const dsLossTotal = remainingPressure > 0 ? remainingPressure * 0.25 : 0;
-  const annLossTotal = remainingPressure > 0 ? remainingPressure * 0.10 : 0;
-  const dsLosses = distributeHydraulicLoss(
-    dsLossTotal,
-    segments.map((item) => item.length / Math.max(Math.pow(item.pipeId, 4), 0.0001))
-  );
-  const annLosses = distributeHydraulicLoss(
-    annLossTotal,
-    segments.map((item) => {
-      const hydraulicDiameter = Math.max(item.holeSize - item.pipeOd, 0.0001);
-      return item.length / Math.pow(hydraulicDiameter, 3);
-    })
-  );
   const tfa = nozzleTotalArea(nozzleData);
   const bitSize = firstHydraulicNumber(
     resolveIntervalBitSize(intervals, wellGeneral?.interval),
@@ -1601,14 +1693,69 @@ const fillDmrHydraulicsRows = (ws, {
     segments[0]?.holeSize
   );
   const bitArea = bitSize > 0 ? 0.785 * bitSize * bitSize : 0;
-  const bitJetVelocity = pumpRate > 0 && tfa > 0 ? (0.408 * pumpRate) / tfa : 0;
-  const bitHhp = bitLoss > 0 && pumpRate > 0 ? (bitLoss * pumpRate) / 1714 : 0;
-  const hsi = bitHhp > 0 && bitArea > 0 ? bitHhp / bitArea : 0;
+  const bitLoss = hydraulicBitPressureLoss({ mw: mud.mw, pumpRate, tfa });
+  const annLosses = segments.map((item) => {
+    const annVel = hydraulicAnnularVelocity({
+      pumpRate,
+      holeSize: item.holeSize,
+      pipeOd: item.pipeOd,
+    });
+    return hydraulicAnnularPressureLoss({
+      ...mud,
+      length: item.length,
+      annVel,
+      holeSize: item.holeSize,
+      pipeOd: item.pipeOd,
+    });
+  });
+  const annLossTotal = sumBy(annLosses, (value) => value);
+  const dsWeights = segments.map((item) =>
+    hydraulicDrillStringPressureWeight({
+      ...mud,
+      length: item.length,
+      pipeId: item.pipeId,
+      pumpRate,
+    })
+  );
+  const calculatedDsLossTotal = sumBy(dsWeights, (value) => value);
+  const calculatedPressureLoss =
+    bitLoss + calculatedDsLossTotal + annLossTotal + dhToolsLoss + motorLoss;
+  const totalPressureLoss =
+    enteredPressureLoss > 0 ? enteredPressureLoss : calculatedPressureLoss;
+  const dsLossTotal =
+    enteredPressureLoss > 0
+      ? Math.max(0, enteredPressureLoss - bitLoss - annLossTotal - dhToolsLoss - motorLoss)
+      : calculatedDsLossTotal;
+  const dsLosses =
+    enteredPressureLoss > 0
+      ? distributeHydraulicLoss(dsLossTotal, dsWeights)
+      : dsWeights;
+  const bitJetVelocity = hydraulicBitJetVelocity({ pumpRate, tfa });
+  const bitHhp =
+    bitLoss > 0 && pumpRate > 0
+      ? (bitLoss * pumpRate) / HYDRAULIC_CONSTANTS.horsepower
+      : 0;
+  const hsi =
+    bitHhp > 0 && bitArea > 0
+      ? (HYDRAULIC_CONSTANTS.hsi * bitHhp) / (bitSize * bitSize)
+      : 0;
   const tdDepth = hydraulicDepthValue(wellGeneral?.tvd, wellGeneral?.md, wellGeneral?.depthDrilled);
   const shoeDepth = hydraulicDepthValue(
     [...casings].reverse().find((item) => firstHydraulicNumber(item?.shoe))?.shoe,
     tdDepth
   );
+  const annLossAtDepth = (depth) => {
+    const targetDepth = toNumber(depth);
+    if (targetDepth <= 0) return 0;
+    return segments.reduce((total, item, index) => {
+      const segmentTop = toNumber(item.top);
+      const segmentBottom = toNumber(item.bottom);
+      const segmentLength = Math.max(0, segmentBottom - segmentTop);
+      if (segmentLength <= 0 || targetDepth <= segmentTop) return total;
+      const coveredLength = Math.min(segmentLength, Math.max(0, targetDepth - segmentTop));
+      return total + (toNumber(annLosses[index]) * coveredLength) / segmentLength;
+    }, 0);
+  };
 
   fillRowRange(ws, 82, "A", "AI", "Rheology/Hydraulics");
   [
@@ -1624,9 +1771,13 @@ const fillDmrHydraulicsRows = (ws, {
   const columns = [["I", "K"], ["L", "O"], ["P", "T"], ["U", "Y"], ["Z", "AD"], ["AE", "AI"]];
   columns.forEach(([start, end], index) => {
     const item = segments[index];
-    const annArea = item ? Math.max(item.holeSize * item.holeSize - item.pipeOd * item.pipeOd, 0) : 0;
-    const annVel = item && pumpRate > 0 && annArea > 0 ? (24.51 * pumpRate) / annArea : 0;
-    const dsVel = item && pumpRate > 0 && item.pipeId > 0 ? (24.51 * pumpRate) / (item.pipeId * item.pipeId) : 0;
+    const annVel = item
+      ? hydraulicAnnularVelocity({
+          pumpRate,
+          holeSize: item.holeSize,
+          pipeOd: item.pipeOd,
+        })
+      : 0;
     fillRowRange(
       ws,
       83,
@@ -1645,7 +1796,7 @@ const fillDmrHydraulicsRows = (ws, {
       end,
       item ? hydraulicCriticalVelocity({ ...mud, holeSize: item.holeSize, pipeOd: item.pipeOd }) : ""
     );
-    fillRowRange(ws, 87, start, end, dsVel > 0 ? round(dsVel, 1) : "");
+    fillRowRange(ws, 87, start, end, "");
     fillRowRange(ws, 88, start, end, totalPressureLoss > 0 ? round(dsLosses[index] || 0, 0) : "");
     fillRowRange(ws, 89, start, end, totalPressureLoss > 0 ? round(annLosses[index] || 0, 0) : "");
   });
@@ -1665,7 +1816,7 @@ const fillDmrHydraulicsRows = (ws, {
   });
 
   [
-    [91, "ECD /+ Cut at Shoe (ppg)", calculateEcd(mud.mw, annLossTotal, shoeDepth)],
+    [91, "ECD /+ Cut at Shoe (ppg)", calculateEcd(mud.mw, annLossAtDepth(shoeDepth), shoeDepth)],
     [92, "ECD /+ Cut at TD (ppg)", calculateEcd(mud.mw, annLossTotal, tdDepth)],
     [93, "ESD /+ Cut at Shoe (ppg)", mud.mw > 0 ? round(mud.mw, 2) : ""],
     [94, "ESD /+ Cut at TD (ppg)", mud.mw > 0 ? round(mud.mw, 2) : ""],
