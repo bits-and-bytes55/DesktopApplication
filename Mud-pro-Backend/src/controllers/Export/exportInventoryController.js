@@ -3237,15 +3237,19 @@ export const exportInventoryReport = async (req, res) => {
       editAs: "oneCell",
     };
     addLogoToSheet(workbook, dmrSheet, companyLogoImage, leftLogoPlacement);
-    addLogoToSheet(workbook, inventorySheet, companyLogoImage, leftLogoPlacement);
+    addLogoToSheet(workbook, inventorySheet, companyLogoImage, {
+      tl: { col: 0.05, row: 1.05 },
+      br: { col: 7.4, row: 5.2 },
+      editAs: "oneCell",
+    });
     addLogoToSheet(workbook, dmrSheet, padLogoImage, {
       tl: { col: 59.1, row: 0.05 },
       ext: { width: 150, height: 95 },
       editAs: "oneCell",
     });
     addLogoToSheet(workbook, inventorySheet, padLogoImage, {
-      tl: { col: 29.0, row: 0.35 },
-      ext: { width: 150, height: 95 },
+      tl: { col: 24.6, row: 0.1 },
+      br: { col: 30.05, row: 5.7 },
       editAs: "oneCell",
     });
 
