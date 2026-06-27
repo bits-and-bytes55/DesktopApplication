@@ -976,7 +976,7 @@ const clearDmrDynamicAreas = (ws) => {
     ["AB8", "AB11"], ["AT8", "AT11"], ["BL8", "BL11"], ["H14", "P21"], ["Q14", "V21"],
     ["W14", "AB21"], ["AC14", "AI21"], ["AJ14", "AR21"], ["AS14", "AX21"], ["AY14", "BD21"],
     ["BE14", "BK21"], ["BL14", "BS21"], ["M23", "BS34"], ["P36", "AI80"],
-    ["A82", "AI98"], ["AJ36", "BS51"], ["AJ53", "BS86"], ["L92", "Q96"], ["AC92", "AI94"],
+    ["A84", "AI98"], ["AJ36", "BS51"], ["AJ53", "BS86"], ["L92", "Q96"], ["AC92", "AI94"],
     ["AT91", "AY94"], ["BM91", "BS94"], ["AC96", "AI98"], ["AR96", "AX102"],
     ["BF97", "BS99"],
     ["L100", "AI105"], ["AR99", "AX101"], ["AD106", "AX109"],
@@ -1883,15 +1883,15 @@ const fillDmrHydraulicsRows = (ws, {
           pipeOd: item.pipeOd,
         })
       : 0;
-    fillRowRange(
-      ws,
-      83,
-      start,
-      end,
-      item
-        ? `${formatHydraulicTypeNumber(item.holeSize)} x ${formatHydraulicTypeNumber(item.pipeOd)} x ${formatHydraulicTypeNumber(item.pipeId)}`
-        : ""
-    );
+    if (item) {
+      fillRowRange(
+        ws,
+        83,
+        start,
+        end,
+        `${formatHydraulicTypeNumber(item.holeSize)} x ${formatHydraulicTypeNumber(item.pipeOd)} x ${formatHydraulicTypeNumber(item.pipeId)}`
+      );
+    }
     fillRowRange(ws, 84, start, end, item ? round(item.length, 1) : "");
     fillRowRange(ws, 85, start, end, annVel > 0 ? round(annVel, 1) : "");
     fillRowRange(
@@ -2399,6 +2399,8 @@ const fillDmrBottomSections = (ws, {
   setCellValue(ws, "BM94", roundOrBlank(wellGeneral?.offBottomTq, 2));
   fillRowRange(ws, 96, "AR", "AX", roundOrBlank(pumpPressure, 2));
   fillRowRange(ws, 97, "AR", "AX", roundOrBlank(pumpRate, 2));
+  fillRowRange(ws, 98, "AR", "AS", "Strokes");
+  fillRowRange(ws, 98, "AT", "AX", "Minutes");
   circulationVolumes.forEach(([row, volume]) => {
     const timing = calculateCirculationTiming(volume, pumpFlow);
     fillRowRange(ws, row, "AR", "AS", timing.strokes);
