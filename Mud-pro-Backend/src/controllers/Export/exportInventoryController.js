@@ -871,6 +871,18 @@ const buildReportFormat = (req) => ({
 const clearCells = (ws, addresses) => addresses.forEach((a) => setCellValue(ws, a, ""));
 const columnToNumber = (letters) =>
   letters.toUpperCase().split("").reduce((sum, ch) => sum * 26 + ch.charCodeAt(0) - 64, 0);
+const reportColors = {
+  green: "FF00843D",
+  lightGreen: "FFE2F0D9",
+  white: "FFFFFFFF",
+  black: "FF000000",
+};
+const thinBlackBorder = {
+  top: { style: "thin", color: { argb: reportColors.black } },
+  left: { style: "thin", color: { argb: reportColors.black } },
+  bottom: { style: "thin", color: { argb: reportColors.black } },
+  right: { style: "thin", color: { argb: reportColors.black } },
+};
 const fillRowRange = (ws, row, startColumn, endColumn, value = "") => {
   const start = columnToNumber(startColumn);
   const end = columnToNumber(endColumn);
@@ -913,6 +925,25 @@ const applyRangeBorder = (ws, startCell, endCell, border) => {
       ws.getRow(row).getCell(col).border = border;
     }
   }
+};
+const applyRangeStyle = (ws, startCell, endCell, style = {}) => {
+  const [, sc, sr] = startCell.match(/^([A-Z]+)(\d+)$/i) || [];
+  const [, ec, er] = endCell.match(/^([A-Z]+)(\d+)$/i) || [];
+  if (!sc || !sr || !ec || !er) return;
+  for (let row = Number(sr); row <= Number(er); row += 1) {
+    for (let col = columnToNumber(sc); col <= columnToNumber(ec); col += 1) {
+      const cell = ws.getRow(row).getCell(col);
+      if (style.fill) cell.fill = { ...style.fill };
+      if (style.font) cell.font = { ...(cell.font || {}), ...style.font };
+      if (style.alignment) cell.alignment = { ...(cell.alignment || {}), ...style.alignment };
+      if (style.border) cell.border = style.border;
+    }
+  }
+};
+const mergeRangeSafe = (ws, range) => {
+  try {
+    ws.mergeCells(range);
+  } catch {}
 };
 const clearRange = (ws, startCell, endCell) => {
   const [, sc, sr] = startCell.match(/^([A-Z]+)(\d+)$/i) || [];
@@ -1666,6 +1697,80 @@ const buildHydraulicSegments = ({ drillStrings = [], casings = [], intervals = [
 
   return segments.slice(0, 6);
 };
+const styleDmrHydraulicsBlock = (ws) => {
+  const greenFill = { type: "pattern", pattern: "solid", fgColor: { argb: reportColors.green } };
+  const lightGreenFill = { type: "pattern", pattern: "solid", fgColor: { argb: reportColors.lightGreen } };
+  const whiteFill = { type: "pattern", pattern: "solid", fgColor: { argb: reportColors.white } };
+  const centered = { horizontal: "center", vertical: "middle", wrapText: true };
+  const leftMiddle = { horizontal: "left", vertical: "middle", wrapText: true };
+  const segmentRanges = ["I83:K83", "L83:O83", "P83:T83", "U83:Y83", "Z83:AD83", "AE83:AI83"];
+
+  mergeRangeSafe(ws, "A82:AI82");
+  mergeRangeSafe(ws, "A83:H83");
+  segmentRanges.forEach((range) => mergeRangeSafe(ws, range));
+  mergeRangeSafe(ws, "A90:T90");
+  mergeRangeSafe(ws, "U90:AI90");
+  mergeRangeSafe(ws, "U95:AI95");
+
+  applyRangeStyle(ws, "A82", "AI82", {
+    fill: greenFill,
+    font: { bold: true, color: { argb: reportColors.white }, size: 11 },
+    alignment: centered,
+    border: thinBlackBorder,
+  });
+  applyRangeStyle(ws, "A83", "AI83", {
+    fill: lightGreenFill,
+    font: { bold: false, color: { argb: reportColors.black }, size: 9 },
+    alignment: centered,
+    border: thinBlackBorder,
+  });
+  applyRangeStyle(ws, "A84", "AI89", {
+    fill: whiteFill,
+    font: { color: { argb: reportColors.black }, size: 10 },
+    alignment: centered,
+    border: thinBlackBorder,
+  });
+  applyRangeStyle(ws, "A84", "H89", {
+    fill: whiteFill,
+    font: { color: { argb: reportColors.black }, size: 10 },
+    alignment: leftMiddle,
+    border: thinBlackBorder,
+  });
+  applyRangeStyle(ws, "A90", "AI90", {
+    fill: lightGreenFill,
+    font: { bold: false, color: { argb: reportColors.black }, size: 10 },
+    alignment: centered,
+    border: thinBlackBorder,
+  });
+  applyRangeStyle(ws, "A91", "AI98", {
+    fill: whiteFill,
+    font: { color: { argb: reportColors.black }, size: 10 },
+    alignment: centered,
+    border: thinBlackBorder,
+  });
+  applyRangeStyle(ws, "A91", "K96", {
+    fill: whiteFill,
+    font: { color: { argb: reportColors.black }, size: 10 },
+    alignment: leftMiddle,
+    border: thinBlackBorder,
+  });
+  applyRangeStyle(ws, "U91", "AD98", {
+    fill: whiteFill,
+    font: { color: { argb: reportColors.black }, size: 10 },
+    alignment: leftMiddle,
+    border: thinBlackBorder,
+  });
+  applyRangeStyle(ws, "U95", "AI95", {
+    fill: lightGreenFill,
+    font: { bold: false, color: { argb: reportColors.black }, size: 10 },
+    alignment: centered,
+    border: thinBlackBorder,
+  });
+
+  ws.getRow(82).height = 16;
+  ws.getRow(83).height = 25;
+  for (let row = 84; row <= 98; row += 1) ws.getRow(row).height = 17.2;
+};
 const fillDmrHydraulicsRows = (ws, {
   drillStrings,
   casings,
@@ -1828,6 +1933,7 @@ const fillDmrHydraulicsRows = (ws, {
     fillRowRange(ws, row, "U", "AD", label);
     fillRowRange(ws, row, "AE", "AI", value);
   });
+  styleDmrHydraulicsBlock(ws);
 };
 
 const normalizeSceKey = (value) => text(value).toLowerCase().replace(/\s+/g, " ").trim();
