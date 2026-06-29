@@ -33,6 +33,10 @@ const otherVolAdditionSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    activePitsBaselineTotal: {
+      type: Number,
+      default: null,
+    },
   },
   { timestamps: true }
 );

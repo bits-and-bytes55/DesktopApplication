@@ -244,6 +244,13 @@ export const deleteOperationData = async (req, res) => {
       });
     }
 
+    if (!operationInstanceKey) {
+      return res.status(400).json({
+        success: false,
+        message: "operationInstanceKey is required",
+      });
+    }
+
     if (!Object.prototype.hasOwnProperty.call(operationDataModels, operationType)) {
       return res.status(400).json({
         success: false,
@@ -279,6 +286,7 @@ export const deleteOperationData = async (req, res) => {
           ? "Operation data deleted successfully"
           : "Operation removed. No saved data found for this operation.",
       operationType,
+      operationInstanceKey,
       deletedCount,
       details: results,
     });

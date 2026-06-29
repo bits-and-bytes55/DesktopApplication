@@ -1306,10 +1306,6 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
 
   // ================= PREMIXED MUD TABLE =================
   Widget _premixedMudTable() {
-    final fillerRows = _minDisplayRows > c.premixed.length + 1
-        ? _minDisplayRows - (c.premixed.length + 1)
-        : 0;
-
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -1332,8 +1328,14 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                       width: tableWidth,
                       child: SingleChildScrollView(
                         controller: _premixedVerticalScroll,
-                        child: Obx(
-                          () => Table(
+                        child: Obx(() {
+                          final premixedItems = c.premixed.toList(
+                            growable: false,
+                          );
+                          final isLocked = c.isLocked.value;
+                          const fillerRows = _minDisplayRows;
+
+                          return Table(
                             border: TableBorder.all(
                               color: AppTheme.tableGridBlue,
                               width: 1,
@@ -1362,7 +1364,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                                   _tableHeaderCell('Tax'),
                                 ],
                               ),
-                              ...c.premixed.asMap().entries.map((entry) {
+                              ...premixedItems.asMap().entries.map((entry) {
                                 final index = entry.key;
                                 final e = entry.value;
                                 final currentDescription = e.description;
@@ -1433,7 +1435,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                                   ),
                                   children: _wrapMenuCells(
                                     rowCells,
-                                    onDelete: c.isLocked.value
+                                    onDelete: isLocked
                                         ? null
                                         : () => _deletePremixedItem(e),
                                   ),
@@ -1445,7 +1447,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                                 ),
                                 children: _wrapMenuCells(
                                   [
-                                    _tableCell('${c.premixed.length + 1}'),
+                                    _tableCell('${premixedItems.length + 1}'),
                                     _inventoryDraftCell(
                                       controller: c.premixedDescController,
                                       hint: '',
@@ -1466,23 +1468,20 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                                           _schedulePremixedDraftSave(),
                                     ),
                                     _premixedDraftMudTypeCell(),
-                                    Obx(
-                                      () => _checkboxCell(
-                                        () => c.premixedTaxNew.value,
-                                        (v) {
-                                          c.premixedTaxNew.value = v;
-                                          _schedulePremixedDraftSave();
-                                        },
-                                      ),
+                                    _checkboxCell(
+                                      () => c.premixedTaxNew.value,
+                                      (v) {
+                                        c.premixedTaxNew.value = v;
+                                        _schedulePremixedDraftSave();
+                                      },
                                     ),
                                   ],
                                   onAdd:
-                                      c.isLocked.value || !_hasPremixedDraftData
+                                      isLocked || !_hasPremixedDraftData
                                       ? null
                                       : () => _addPremixedFromDraft(),
                                   onDelete:
-                                      c.isLocked.value ||
-                                          !_hasAnyPremixedDraftData
+                                      isLocked || !_hasAnyPremixedDraftData
                                       ? null
                                       : () async => _clearPremixedDraft(),
                                 ),
@@ -1492,8 +1491,8 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                                 (_) => _emptyInventoryRow(columnCount: 6),
                               ),
                             ],
-                          ),
-                        ),
+                          );
+                        }),
                       ),
                     ),
                   ),

@@ -340,13 +340,6 @@ class ReturnLostMudView extends StatelessWidget {
             // BOL (Manual Input)
             _buildEditableRow('BOL', controller.bolController, ''),
 
-            // Vol. Lost (Manual Input)
-            _buildEditableRow(
-              'Vol. Lost',
-              controller.volLostController,
-              '(bbl)',
-            ),
-
             // Cost of Lost (Pre-tax) (Manual Input)
             _buildEditableRow(
               'Cost of Lost (Pre-tax)',
