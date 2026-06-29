@@ -40,11 +40,7 @@ export async function saveCompany(req, res) {
     let logoUrl = company?.logoUrl || null;
     let logoPublicId = company?.logoPublicId || null;
 
-    // =============================
-    // Upload New Logo
-    // =============================
     if (logoBase64) {
-      // delete old logo if exists
       if (logoPublicId) {
         await cloudinary.uploader.destroy(logoPublicId);
       }
