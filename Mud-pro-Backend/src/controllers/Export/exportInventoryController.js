@@ -1266,6 +1266,111 @@ const buildCombinedMudGroups = (direct, rows) => {
   const plans = rows.map(mudPlanValue).filter(Boolean);
   return [combineAt(0), combineAt(1), combineAt(2), plans.join("/")];
 };
+const mudExportRows = (mudReportState = {}) => {
+  const table = mudReportState?.propertyTable;
+  if (!table || typeof table !== "object") return [];
+  const units =
+    mudReportState?.propertyUnits && typeof mudReportState.propertyUnits === "object"
+      ? mudReportState.propertyUnits
+      : {};
+  const source = Object.entries(table).map(([label, values]) => ({
+    label: text(label),
+    key: normalizeMudKey(label),
+    unit: text(units[label]),
+    values: Array.isArray(values) ? values.map((value) => text(value)) : [],
+  }));
+  const byKey = (test) => source.find((row) => test(row.key));
+  const consumed = new Set();
+  const result = [];
+
+  const addCombined = (rows, label, unit) => {
+    const available = rows.filter(Boolean);
+    if (!available.length) return;
+    available.forEach((row) => consumed.add(row));
+    result.push({
+      label,
+      unit,
+      values: buildCombinedMudGroups([], available.map((row) => row.values)),
+    });
+  };
+
+  const rpm600 = byKey((key) => key === "r600");
+  const rpm300 = byKey((key) => key === "r300");
+  const rpm200 = byKey((key) => key === "r200");
+  const rpm100 = byKey((key) => key === "r100");
+  const rpm6 = byKey((key) => key === "r6");
+  const rpm3 = byKey((key) => key === "r3");
+  const gel10s = byKey(
+    (key) => key.includes("gel") && (key.includes("10s") || key.includes("10 sec"))
+  );
+  const gel10m = byKey(
+    (key) => key.includes("gel") && (key.includes("10m") || key.includes("10 min"))
+  );
+  const gel30m = byKey(
+    (key) => key.includes("gel") && (key.includes("30m") || key.includes("30 min"))
+  );
+  const cacl2Wt = byKey((key) => key.includes("cacl2 wt"));
+  const cacl2 = byKey((key) => key === "cacl2");
+  const naclWt = byKey((key) => key.includes("nacl wt"));
+  const nacl = byKey((key) => key === "nacl");
+  const fineLcm = byKey((key) => key.includes("fine lcm"));
+  const coarseLcm = byKey((key) => key.includes("coarse lcm"));
+
+  for (const row of source) {
+    if (consumed.has(row)) continue;
+    if (row === rpm600) {
+      addCombined([rpm600, rpm300], "R600/R300", rpm600?.unit || rpm300?.unit);
+      continue;
+    }
+    if (row === rpm200) {
+      addCombined([rpm200, rpm100], "R200/R100", rpm200?.unit || rpm100?.unit);
+      continue;
+    }
+    if (row === rpm6) {
+      addCombined([rpm6, rpm3], "R6/R3", rpm6?.unit || rpm3?.unit);
+      continue;
+    }
+    if (row === gel10s) {
+      addCombined(
+        [gel10s, gel10m, gel30m],
+        "Gel 10 sec/10 min/30 min",
+        gel10s?.unit || gel10m?.unit || gel30m?.unit
+      );
+      continue;
+    }
+    if (row === cacl2Wt && cacl2) {
+      addCombined(
+        [cacl2Wt, cacl2],
+        "CaCl2 Wt. / CaCl2",
+        [cacl2Wt.unit, cacl2.unit].filter(Boolean).join(" / ")
+      );
+      continue;
+    }
+    if (row === naclWt && nacl) {
+      addCombined(
+        [naclWt, nacl],
+        "NaCl Wt. / NaCl",
+        [naclWt.unit, nacl.unit].filter(Boolean).join(" / ")
+      );
+      continue;
+    }
+    if (row === fineLcm && coarseLcm) {
+      addCombined(
+        [fineLcm, coarseLcm],
+        "Fine LCM / Coarse LCM",
+        fineLcm.unit || coarseLcm.unit
+      );
+      continue;
+    }
+    consumed.add(row);
+    result.push({
+      label: row.label,
+      unit: row.unit,
+      values: buildMudGroups(row.values),
+    });
+  }
+  return result;
+};
 const fillMudPropertyRows = (ws, { mudReportState, activePits, fluidName, wellGeneral }) => {
   const savedFluidName = firstText(mudReportState?.fluidName, fluidName);
   const description = findMudRow(mudReportState, (key) => key === "description");
@@ -1461,6 +1566,23 @@ const fillMudPropertyRows = (ws, { mudReportState, activePits, fluidName, wellGe
   };
 
   const columns = [["P", "T"], ["U", "Y"], ["Z", "AD"], ["AE", "AI"]];
+  const selectedRows = mudExportRows(mudReportState);
+  if (selectedRows.length) {
+    for (let row = 36; row <= 71; row += 1) {
+      fillRowRange(ws, row, "A", "K", "");
+      fillRowRange(ws, row, "L", "O", "");
+      columns.forEach(([start, end]) => fillRowRange(ws, row, start, end, ""));
+    }
+    selectedRows.slice(0, 36).forEach((item, index) => {
+      const row = 36 + index;
+      fillRowRange(ws, row, "A", "K", item.label);
+      fillRowRange(ws, row, "L", "O", item.unit ? `(${item.unit})` : "");
+      columns.forEach(([start, end], columnIndex) => {
+        fillRowRange(ws, row, start, end, item.values[columnIndex] ?? "");
+      });
+    });
+    return;
+  }
   Object.entries(rowValues).forEach(([row, values]) => {
     columns.forEach(([start, end], index) => {
       fillRowRange(ws, Number(row), start, end, values[index] ?? "");
