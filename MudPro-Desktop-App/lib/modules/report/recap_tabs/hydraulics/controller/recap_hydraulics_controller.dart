@@ -37,8 +37,14 @@ class RecapHydraulicsController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    _wellWorker = ever<String>(_padWellController.selectedWellId, (_) => load());
-    _reportWorker = ever<String>(_reportContext.selectedReportId, (_) => load());
+    _wellWorker = ever<String>(
+      _padWellController.selectedWellId,
+      (_) => load(),
+    );
+    _reportWorker = ever<String>(
+      _reportContext.selectedReportId,
+      (_) => load(),
+    );
     load();
   }
 
@@ -87,8 +93,9 @@ class RecapHydraulicsController extends GetxController {
       final reportsById = <String, Map<String, dynamic>>{
         for (final report in reports)
           _text(report['_id']).isNotEmpty
-              ? _text(report['_id'])
-              : _text(report['id']): report,
+                  ? _text(report['_id'])
+                  : _text(report['id']):
+              report,
       };
 
       final wellGeneralByReportId = _pickLatestByKey(
@@ -107,7 +114,8 @@ class RecapHydraulicsController extends GetxController {
 
       final history = await Future.wait(
         ordered.map((summary) {
-          final report = reportsById[summary.reportId] ?? const <String, dynamic>{};
+          final report =
+              reportsById[summary.reportId] ?? const <String, dynamic>{};
           final matchedWellGeneral =
               wellGeneralByReportId[summary.reportId] ??
               wellGeneralByReportNo[summary.reportNo] ??
@@ -189,10 +197,7 @@ class RecapHydraulicsController extends GetxController {
           if (summary.reportId.isNotEmpty) 'reportId': summary.reportId,
         },
       ),
-      _fetchNozzle(
-        wellId: wellId,
-        reportId: summary.reportId,
-      ),
+      _fetchNozzle(wellId: wellId, reportId: summary.reportId),
       _fetchMudReportState(wellId, summary.reportId),
     ]);
 
@@ -235,17 +240,6 @@ class RecapHydraulicsController extends GetxController {
           : summary.interval,
     );
 
-    final remainingPressure = math.max(
-      0,
-      (totalPressureLoss ?? 0) - (dhToolsLoss ?? 0) - (motorLoss ?? 0),
-    );
-    final bitLoss = _positiveOrNull(remainingPressure > 0 ? remainingPressure * 0.65 : 0);
-    final dsLossTotal = _positiveOrNull(
-      remainingPressure > 0 ? remainingPressure * 0.25 : 0,
-    );
-    final annLossTotal = _positiveOrNull(
-      remainingPressure > 0 ? remainingPressure * 0.10 : 0,
-    );
     final tfa = _positiveOrNull(_nozzleTotalArea(nozzle));
     final bitSize = _positiveOrNull(
       _firstHydraulicNumber([
@@ -260,12 +254,69 @@ class RecapHydraulicsController extends GetxController {
         for (final casing in casings) casing['id'],
       ]),
     );
-    final bitArea = bitSize != null && bitSize > 0
-        ? 0.785 * bitSize * bitSize
+    final bitLossCalculated =
+        mud.mw != null &&
+            mud.mw! > 0 &&
+            pumpRate != null &&
+            pumpRate > 0 &&
+            tfa != null &&
+            tfa > 0
+        ? (mud.mw! * pumpRate * pumpRate) / (10858 * tfa * tfa)
         : 0.0;
+    final annularLosses = segments
+        .map(
+          (segment) => _annularPressureLoss(
+            segment: segment,
+            pumpRate: pumpRate ?? 0,
+            pv: mud.pv ?? 0,
+            yp: mud.yp ?? 0,
+          ),
+        )
+        .toList(growable: false);
+    final annLossCalculated = annularLosses.fold<double>(
+      0,
+      (sum, value) => sum + value,
+    );
+    final dsWeights = segments
+        .map(
+          (segment) => _drillStringPressureWeight(
+            segment: segment,
+            pumpRate: pumpRate ?? 0,
+            pv: mud.pv ?? 0,
+            yp: mud.yp ?? 0,
+          ),
+        )
+        .toList(growable: false);
+    final dsLossCalculated = dsWeights.fold<double>(
+      0,
+      (sum, value) => sum + value,
+    );
+    final calculatedTotalPressure =
+        bitLossCalculated +
+        dsLossCalculated +
+        annLossCalculated +
+        (dhToolsLoss ?? 0) +
+        (motorLoss ?? 0);
+    final effectiveTotalPressure =
+        totalPressureLoss ?? _positiveOrNull(calculatedTotalPressure);
+    final dsLossValue = totalPressureLoss != null
+        ? math
+              .max(
+                0,
+                totalPressureLoss -
+                    bitLossCalculated -
+                    annLossCalculated -
+                    (dhToolsLoss ?? 0) -
+                    (motorLoss ?? 0),
+              )
+              .toDouble()
+        : dsLossCalculated;
+    final bitLoss = _positiveOrNull(bitLossCalculated);
+    final dsLossTotal = _positiveOrNull(dsLossValue);
+    final annLossTotal = _positiveOrNull(annLossCalculated);
     final nozzleVelocity = _positiveOrNull(
       pumpRate != null && pumpRate > 0 && tfa != null && tfa > 0
-          ? (0.408 * pumpRate) / tfa
+          ? (0.32086 * pumpRate) / tfa
           : 0,
     );
     final bitHhp = _positiveOrNull(
@@ -274,7 +325,9 @@ class RecapHydraulicsController extends GetxController {
           : 0,
     );
     final hsi = _positiveOrNull(
-      bitHhp != null && bitHhp > 0 && bitArea > 0 ? bitHhp / bitArea : 0,
+      bitHhp != null && bitHhp > 0 && bitSize != null && bitSize > 0
+          ? (1.27 * bitHhp) / (bitSize * bitSize)
+          : 0,
     );
     final impactForce = _positiveOrNull(
       mud.mw != null &&
@@ -294,11 +347,7 @@ class RecapHydraulicsController extends GetxController {
         summary.md,
       ]),
     );
-    final bhEcd = _calculateEcd(
-      mud.mw,
-      annLossTotal,
-      tdDepth,
-    );
+    final bhEcd = _calculateEcd(mud.mw, annLossTotal, tdDepth);
 
     return HydraulicsHistoryRow(
       reportId: summary.reportId,
@@ -313,7 +362,7 @@ class RecapHydraulicsController extends GetxController {
           ? _text(wellGeneral?['activity'])
           : summary.activity,
       flowRateGpm: pumpRate,
-      pumpPressurePsi: totalPressureLoss,
+      pumpPressurePsi: effectiveTotalPressure,
       impactForceLbf: impactForce,
       hsi: hsi,
       bhEcdPpg: bhEcd,
@@ -346,7 +395,9 @@ class RecapHydraulicsController extends GetxController {
         .toList();
   }
 
-  Future<List<Map<String, dynamic>>> _fetchWellGeneralRows(String wellId) async {
+  Future<List<Map<String, dynamic>>> _fetchWellGeneralRows(
+    String wellId,
+  ) async {
     final decoded = await _getObject(path: 'well-general/$wellId');
     final data = decoded['data'];
     if (data is! List) return const <Map<String, dynamic>>[];
@@ -507,7 +558,9 @@ class RecapHydraulicsController extends GetxController {
     String? contentType,
   }) {
     final trimmed = body.trim();
-    final isJson = (contentType ?? '').toLowerCase().contains('application/json');
+    final isJson = (contentType ?? '').toLowerCase().contains(
+      'application/json',
+    );
     if (!isJson &&
         (trimmed.startsWith('<!DOCTYPE') || trimmed.startsWith('<html'))) {
       throw FormatException(
@@ -544,21 +597,19 @@ class RecapHydraulicsController extends GetxController {
       }
     }
 
-    return _HydraulicsFormationReference(
-      porePpg: pore,
-      fracPpg: frac,
-    );
+    return _HydraulicsFormationReference(porePpg: pore, fracPpg: frac);
   }
 
   Map<String, Map<String, dynamic>> _pickLatestByKey(
     List<Map<String, dynamic>> items,
     String Function(Map<String, dynamic> item) keyFor,
   ) {
-    final ordered = [...items]..sort((left, right) {
-      final leftTime = _timestampOf(left);
-      final rightTime = _timestampOf(right);
-      return rightTime.compareTo(leftTime);
-    });
+    final ordered = [...items]
+      ..sort((left, right) {
+        final leftTime = _timestampOf(left);
+        final rightTime = _timestampOf(right);
+        return rightTime.compareTo(leftTime);
+      });
 
     final output = <String, Map<String, dynamic>>{};
     for (final item in ordered) {
@@ -573,7 +624,8 @@ class RecapHydraulicsController extends GetxController {
     List<Map<String, dynamic>> candidates,
     ReportManagerRow summary,
   ) {
-    final targetDate = _parseDate(summary.reportDate) ?? _parseDate(summary.createdAt);
+    final targetDate =
+        _parseDate(summary.reportDate) ?? _parseDate(summary.createdAt);
     if (targetDate == null) return null;
 
     for (final candidate in candidates) {
@@ -595,7 +647,8 @@ class RecapHydraulicsController extends GetxController {
     final propertyTable = _mapFromDynamic(mudReportState['propertyTable']);
     final mwRow = _findMudRow(
       propertyTable,
-      (key) => key == 'mw' || key.startsWith('mw ') || key.contains('mud weight'),
+      (key) =>
+          key == 'mw' || key.startsWith('mw ') || key.contains('mud weight'),
     );
     final pvRow = _findMudRow(
       propertyTable,
@@ -631,8 +684,12 @@ class RecapHydraulicsController extends GetxController {
     return const <dynamic>[];
   }
 
-  _HydraulicsPumpFlowSummary _summarizePumpFlow(List<Map<String, dynamic>> pumps) {
-    final activePumps = pumps.where((pump) => _number(pump['spm']) > 0).toList();
+  _HydraulicsPumpFlowSummary _summarizePumpFlow(
+    List<Map<String, dynamic>> pumps,
+  ) {
+    final activePumps = pumps
+        .where((pump) => _number(pump['spm']) > 0)
+        .toList();
     final sourcePumps = activePumps.isNotEmpty ? activePumps : pumps;
 
     var displacementBblPerStroke = 0.0;
@@ -711,34 +768,140 @@ class RecapHydraulicsController extends GetxController {
     required String intervalName,
   }) {
     final intervalBitSize = _resolveIntervalBitSize(intervals, intervalName);
-    final firstCasingWithSize = casings.firstWhereOrNull(
-      (item) =>
-          _firstHydraulicNumber([item['bit'], item['od'], item['id']]) > 0,
-    );
-    final holeSize = _firstHydraulicNumber([
+    final casingRows =
+        casings
+            .map(
+              (item) => (
+                shoeDepth: _firstHydraulicNumber([item['shoe'], item['md']]),
+                insideDiameter: _firstHydraulicNumber([
+                  item['id'],
+                  item['bit'],
+                  item['od'],
+                ]),
+              ),
+            )
+            .where((item) => item.shoeDepth > 0 && item.insideDiameter > 0)
+            .toList()
+          ..sort((left, right) => left.shoeDepth.compareTo(right.shoeDepth));
+    final deepestCasing = casingRows.isEmpty ? null : casingRows.last;
+    final openHoleSize = _firstHydraulicNumber([
       intervalBitSize,
-      firstCasingWithSize?['bit'],
-      firstCasingWithSize?['od'],
-      firstCasingWithSize?['id'],
+      for (final casing in casings) casing['bit'],
     ]);
+    final casedHoleSize =
+        deepestCasing?.insideDiameter ?? (openHoleSize > 0 ? openHoleSize : 0);
+    final shoeDepth = deepestCasing?.shoeDepth ?? 0;
 
-    return drillStrings
-        .where(
-          (item) =>
-              _firstHydraulicNumber([item['od']]) > 0 &&
-              _firstHydraulicNumber([item['id']]) > 0 &&
-              _firstHydraulicNumber([item['length']]) > 0,
-        )
-        .take(5)
-        .map(
-          (item) => _HydraulicsSegment(
+    final segments = <_HydraulicsSegment>[];
+    var measuredDepth = 0.0;
+
+    void addSegment({
+      required double top,
+      required double bottom,
+      required double holeSize,
+      required double pipeOd,
+      required double pipeId,
+    }) {
+      final length = math.max(0, bottom - top).toDouble();
+      if (length <= 0 || holeSize <= 0) return;
+      if (segments.isNotEmpty) {
+        final previous = segments.last;
+        if ((previous.holeSize - holeSize).abs() < 0.0001 &&
+            (previous.pipeOd - pipeOd).abs() < 0.0001 &&
+            (previous.pipeId - pipeId).abs() < 0.0001) {
+          segments[segments.length - 1] = _HydraulicsSegment(
             holeSize: holeSize,
-            pipeOd: _firstHydraulicNumber([item['od']]),
-            pipeId: _firstHydraulicNumber([item['id']]),
-            length: _firstHydraulicNumber([item['length']]),
-          ),
-        )
-        .toList();
+            pipeOd: pipeOd,
+            pipeId: pipeId,
+            length: previous.length + length,
+          );
+          return;
+        }
+      }
+      segments.add(
+        _HydraulicsSegment(
+          holeSize: holeSize,
+          pipeOd: pipeOd,
+          pipeId: pipeId,
+          length: length,
+        ),
+      );
+    }
+
+    for (final item in drillStrings) {
+      final pipeOd = _firstHydraulicNumber([item['od']]);
+      final pipeId = _firstHydraulicNumber([item['id']]);
+      final componentLength = _firstHydraulicNumber([item['length']]);
+      if (pipeOd <= 0 || pipeId <= 0 || componentLength <= 0) continue;
+
+      final componentTop = measuredDepth;
+      final componentBottom = measuredDepth + componentLength;
+      measuredDepth = componentBottom;
+      if (shoeDepth > 0 &&
+          componentTop < shoeDepth &&
+          componentBottom > shoeDepth) {
+        addSegment(
+          top: componentTop,
+          bottom: shoeDepth,
+          holeSize: casedHoleSize,
+          pipeOd: pipeOd,
+          pipeId: pipeId,
+        );
+        addSegment(
+          top: shoeDepth,
+          bottom: componentBottom,
+          holeSize: openHoleSize,
+          pipeOd: pipeOd,
+          pipeId: pipeId,
+        );
+      } else {
+        addSegment(
+          top: componentTop,
+          bottom: componentBottom,
+          holeSize: shoeDepth > 0 && componentBottom <= shoeDepth
+              ? casedHoleSize
+              : (openHoleSize > 0 ? openHoleSize : casedHoleSize),
+          pipeOd: pipeOd,
+          pipeId: pipeId,
+        );
+      }
+    }
+
+    return segments.take(6).toList(growable: false);
+  }
+
+  double _annularVelocity(_HydraulicsSegment segment, double pumpRate) {
+    final area =
+        segment.holeSize * segment.holeSize - segment.pipeOd * segment.pipeOd;
+    return pumpRate > 0 && area > 0 ? 24.51 * pumpRate / area : 0;
+  }
+
+  double _annularPressureLoss({
+    required _HydraulicsSegment segment,
+    required double pumpRate,
+    required double pv,
+    required double yp,
+  }) {
+    final gap = segment.holeSize - segment.pipeOd;
+    if (gap <= 0 || segment.length <= 0) return 0;
+    final velocity = _annularVelocity(segment, pumpRate);
+    return (pv * segment.length * velocity) / (1000 * gap * gap) +
+        (yp * segment.length) / (225 * gap);
+  }
+
+  double _drillStringPressureWeight({
+    required _HydraulicsSegment segment,
+    required double pumpRate,
+    required double pv,
+    required double yp,
+  }) {
+    if (segment.pipeId <= 0 || segment.length <= 0) return 0;
+    final pipeVelocity = pumpRate > 0
+        ? 24.51 * pumpRate / (segment.pipeId * segment.pipeId)
+        : 0;
+    return (pv * segment.length * pipeVelocity) /
+            (3792 * segment.pipeId * segment.pipeId) +
+        (yp * segment.length) / (225 * segment.pipeId);
   }
 
   double _resolveIntervalBitSize(
@@ -800,10 +963,9 @@ class RecapHydraulicsController extends GetxController {
   }
 
   String _normalizeKey(dynamic value) {
-    return _text(value).toLowerCase().replaceAll('*', '').replaceAll(
-      RegExp(r'\s+'),
-      ' ',
-    ).trim();
+    return _text(
+      value,
+    ).toLowerCase().replaceAll('*', '').replaceAll(RegExp(r'\s+'), ' ').trim();
   }
 
   double _mudRowNumber(List<dynamic> row, [int preferredIndex = 0]) {
@@ -830,11 +992,9 @@ class RecapHydraulicsController extends GetxController {
   double? _parseFraction(dynamic value) {
     if (value is num) return value.toDouble();
 
-    final raw = _text(value)
-        .replaceAll('"', '')
-        .replaceAll("'", '')
-        .replaceAll(',', '')
-        .trim();
+    final raw = _text(
+      value,
+    ).replaceAll('"', '').replaceAll("'", '').replaceAll(',', '').trim();
     if (raw.isEmpty) return null;
 
     final plain = double.tryParse(raw);
@@ -1029,10 +1189,7 @@ class _HydraulicsFormationReference {
   final double? porePpg;
   final double? fracPpg;
 
-  const _HydraulicsFormationReference({
-    this.porePpg,
-    this.fracPpg,
-  });
+  const _HydraulicsFormationReference({this.porePpg, this.fracPpg});
 }
 
 int _compareRowsOldestFirst(ReportManagerRow left, ReportManagerRow right) {

@@ -1576,6 +1576,8 @@ const HYDRAULIC_CONSTANTS = {
   velocity: 24.51,
   jetVelocity: 0.32086,
   bitPressureDrop: 10858,
+  // The reference report's aggregate loss follows the vendor-fitted 1000
+  // denominator. The document's printed 60000 value yields about 49 psi.
   annularPressureDenominator: 1000,
   hydrostatic: 0.052,
   horsepower: 1714,
