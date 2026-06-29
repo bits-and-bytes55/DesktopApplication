@@ -31,6 +31,11 @@ import WellPlan from "../../modules/wellPlan/wellPlan.model.js";
 import FormationConfig from "../../modules/formation/formation.model.js";
 import SurveyConfig from "../../modules/survey/survey.model.js";
 import SolidsAnalysis from "../../modules/SolidAnalysis/solidanalysismodel.js";
+import {
+  calculateEndVolForReport,
+  calculateTotalOnLocationForReport,
+  calculateVisibleHoleForReport,
+} from "../pitvolumename/volumeName.controller.js";
 const toText = (value) => String(value ?? "").trim();
 
 const toNumber = (value, fallback = 0) => {
@@ -328,15 +333,6 @@ const finalizeCarryOverTargetReport = async (targetReport) => {
     targetReportId,
     {
       $set: volumeNameCarryOverReset,
-      $unset: {
-        carryOverSourceHoleSnapshot: "",
-        carryOverSourceEndVolSnapshot: "",
-        carryOverSourceTotalOnLocationSnapshot: "",
-        carryOverSourceActivePitsSnapshot: "",
-        carryOverSourceActiveSystemSnapshot: "",
-        carryOverSourceTotalStorageSnapshot: "",
-        carryOverSourceEndVolMinusActiveSystemSnapshot: "",
-      },
     },
     { new: true }
   );
@@ -416,25 +412,146 @@ const carryOverDeleteOnlyModels = [
   InventorySnapshot,
 ];
 
-const operationReportModels = [
-  AddWater,
-  EmptyFluidActiveSystem,
-  OtherVolAddition,
-  MudLossStorage,
-  MudLoss,
-  ReceiveMud,
-  ReturnLostMud,
-  TransferMud,
-  ConsumeProduct,
-  ConsumeProductDistributionState,
-  ConsumeService,
-  ConsumePackage,
-  ConsumeEngineering,
-  ReceiveProduct,
-  ReceivePackage,
-  ReturnProduct,
-  ReturnPackage,
-];
+const operationReportModelsByType = {
+  addWater: [AddWater],
+  emptyActiveSystem: [EmptyFluidActiveSystem],
+  otherVolAddition: [OtherVolAddition],
+  mudLossStorage: [MudLossStorage],
+  mudLossActiveSystem: [MudLoss],
+  receiveMud: [ReceiveMud],
+  returnLostMud: [ReturnLostMud],
+  transferMud: [TransferMud],
+  consumeProduct: [ConsumeProduct, ConsumeProductDistributionState],
+  consumeServices: [ConsumeService, ConsumePackage, ConsumeEngineering],
+  receiveProduct: [ReceiveProduct, ReceivePackage],
+  returnProduct: [ReturnProduct, ReturnPackage],
+  switchPit: [],
+  switchMudType: [],
+};
+
+const operationReportModels = Object.values(operationReportModelsByType).flat();
+
+const operationSelectionType = (selection) =>
+  toText(selection).split("::")[0].trim();
+
+const migrateLegacyOperationRows = async ({
+  wellId,
+  reportId,
+  reportNo,
+}) => {
+  const firstReport = await Report.findOne({ wellId })
+    .sort({ createdAt: 1, _id: 1 })
+    .select("_id")
+    .lean();
+  const isFirstReport = toText(firstReport?._id) === toText(reportId);
+  const legacyReportScope = {
+    $or: [
+      { reportId: { $exists: false } },
+      { reportId: null },
+      { reportId: "" },
+    ],
+  };
+  const matchingReportNo = toText(reportNo);
+
+  await Promise.all(
+    operationReportModels.map(async (model) => {
+      if (matchingReportNo) {
+        await model.updateMany(
+          {
+            wellId,
+            ...legacyReportScope,
+            reportNo: matchingReportNo,
+          },
+          { $set: { reportId } }
+        );
+      }
+
+      if (!isFirstReport) return;
+
+      await model.updateMany(
+        {
+          wellId,
+          ...legacyReportScope,
+          $and: [
+            {
+              $or: [
+                { reportNo: { $exists: false } },
+                { reportNo: null },
+                { reportNo: "" },
+              ],
+            },
+          ],
+        },
+        {
+          $set: {
+            reportId,
+            reportNo: matchingReportNo,
+          },
+        }
+      );
+    })
+  );
+};
+
+const cleanupInactiveOperationRows = async ({
+  wellId,
+  reportId,
+  operationSelections,
+}) => {
+  const selections = (operationSelections ?? []).map(toText).filter(Boolean);
+
+  await Promise.all(
+    Object.entries(operationReportModelsByType).flatMap(([type, models]) => {
+      const typeSelections = selections.filter(
+        (selection) => operationSelectionType(selection) === type
+      );
+      const keyedSelections = typeSelections.filter((selection) =>
+        selection.includes("::")
+      );
+      const keepLegacy =
+        typeSelections.includes(type) ||
+        keyedSelections.includes(`${type}::legacy0`);
+
+      return models.map((model) => {
+        const keepFilters = [];
+        if (keyedSelections.length > 0) {
+          keepFilters.push({ operationInstanceKey: { $in: keyedSelections } });
+        }
+        if (keepLegacy) {
+          keepFilters.push(
+            { operationInstanceKey: { $exists: false } },
+            { operationInstanceKey: null },
+            { operationInstanceKey: "" }
+          );
+        }
+
+        const filter = { wellId, reportId };
+        if (keepFilters.length > 0) {
+          filter.$nor = keepFilters;
+        }
+        return model.deleteMany(filter);
+      });
+    })
+  );
+};
+
+const reconcileReportOperationRows = async ({
+  wellId,
+  reportId,
+  reportNo,
+  operationSelections,
+}) => {
+  await migrateLegacyOperationRows({ wellId, reportId, reportNo });
+  await cleanupInactiveOperationRows({
+    wellId,
+    reportId,
+    operationSelections,
+  });
+  await Report.updateOne(
+    { _id: reportId, wellId },
+    { $set: { operationRecordsReconciledAt: new Date() } }
+  );
+};
 
 const reportArtifactModels = [
   Pit,
@@ -557,6 +674,8 @@ const loadSourceOtherSce = async ({ wellId, sourceReport }) => {
 const cloneReportSnapshots = async ({ sourceReport, targetReport }) => {
   const wellId = toText(targetReport?.wellId);
   const targetReportId = toText(targetReport?._id);
+  const sourceReportId = toText(sourceReport?._id);
+  const sourceReportNo = toText(sourceReport?.reportNo);
 
   if (!wellId || !targetReportId) {
     return;
@@ -569,6 +688,9 @@ const cloneReportSnapshots = async ({ sourceReport, targetReport }) => {
     sourceNozzle,
     sourceShakers,
     sourceOtherSce,
+    sourceHole,
+    sourceEndVol,
+    sourceTotalOnLocation,
   ] =
     await Promise.all([
     loadSourceWellGeneral({ wellId, sourceReport }),
@@ -577,7 +699,51 @@ const cloneReportSnapshots = async ({ sourceReport, targetReport }) => {
     loadSourceNozzle({ wellId, sourceReport }),
     loadSourceShakers({ wellId, sourceReport }),
     loadSourceOtherSce({ wellId, sourceReport }),
+    calculateVisibleHoleForReport({
+      wellId,
+      reportId: sourceReportId,
+      reportNo: sourceReportNo,
+    }),
+    calculateEndVolForReport({
+      wellId,
+      reportId: sourceReportId,
+      reportNo: sourceReportNo,
+    }),
+    calculateTotalOnLocationForReport({
+      wellId,
+      reportId: sourceReportId,
+      reportNo: sourceReportNo,
+    }),
   ]);
+
+  const sourceActivePits = round2(
+    sourcePits
+      .filter((pit) => pit.initialActive === true)
+      .reduce((sum, pit) => sum + toNumber(pit.volume), 0)
+  );
+  const sourceTotalStorage = round2(
+    sourcePits
+      .filter((pit) => pit.initialActive !== true)
+      .reduce((sum, pit) => sum + toNumber(pit.volume), 0)
+  );
+  const sourceActiveSystem = round2(sourceHole + sourceActivePits);
+
+  await Report.updateOne(
+    { _id: targetReportId },
+    {
+      $set: {
+        carryOverSourceHoleSnapshot: round2(sourceHole),
+        carryOverSourceEndVolSnapshot: round2(sourceEndVol),
+        carryOverSourceTotalOnLocationSnapshot: round2(sourceTotalOnLocation),
+        carryOverSourceActivePitsSnapshot: sourceActivePits,
+        carryOverSourceActiveSystemSnapshot: sourceActiveSystem,
+        carryOverSourceTotalStorageSnapshot: sourceTotalStorage,
+        carryOverSourceEndVolMinusActiveSystemSnapshot: round2(
+          sourceEndVol - sourceActiveSystem
+        ),
+      },
+    }
+  );
 
   if (sourceWellGeneral) {
     const clonedWellGeneral = cleanClone(sourceWellGeneral);
@@ -910,6 +1076,16 @@ export const getReports = async (req, res) => {
     }
 
     const reports = await Report.find(filter).sort({ createdAt: -1 }).lean();
+    for (const report of reports) {
+      if (report.operationRecordsReconciledAt) continue;
+      const reportId = toText(report._id);
+      await reconcileReportOperationRows({
+        wellId,
+        reportId,
+        reportNo: report.reportNo,
+        operationSelections: report.operationSelections,
+      });
+    }
 
     return res.status(200).json({
       success: true,
@@ -1058,6 +1234,17 @@ export const getReportById = async (req, res) => {
       });
     }
 
+    const wellId = toText(report.wellId);
+    const reportId = toText(report._id);
+    if (!report.operationRecordsReconciledAt) {
+      await reconcileReportOperationRows({
+        wellId,
+        reportId,
+        reportNo: report.reportNo,
+        operationSelections: report.operationSelections,
+      });
+    }
+
     return res.status(200).json({
       success: true,
       data: report,
@@ -1191,6 +1378,15 @@ export const updateReport = async (req, res) => {
         { $set: { reportNo: toText(report.reportNo) } }
       ),
     ]);
+
+    if (req.body.operationSelections !== undefined) {
+      await reconcileReportOperationRows({
+        wellId,
+        reportId,
+        reportNo: report.reportNo,
+        operationSelections: report.operationSelections,
+      });
+    }
 
     return res.status(200).json({
       success: true,

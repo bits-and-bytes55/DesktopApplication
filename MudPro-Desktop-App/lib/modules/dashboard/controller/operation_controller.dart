@@ -569,8 +569,8 @@ class OperationController extends GetxController {
     selectedRowIndex.value = firstSelected == -1 ? 0 : firstSelected;
   }
 
-  void setOperationAt(int index, OperationType? operation) {
-    if (index < 0 || index >= dropdownValues.length) return;
+  Future<bool> setOperationAt(int index, OperationType? operation) async {
+    if (index < 0 || index >= dropdownValues.length) return false;
 
     final nextSelections = dropdownValues.toList();
     final nextTokens = operationSelectionTokens.toList();
@@ -578,6 +578,45 @@ class OperationController extends GetxController {
       nextTokens.add('');
     }
     final previousOperation = nextSelections[index];
+    final previousToken = nextTokens[index].trim();
+
+    if (previousOperation != null && previousOperation != operation) {
+      final wellId = currentBackendWellId.trim();
+      final reportId = reportContext.selectedReportId.value.trim();
+      if (wellId.isEmpty || reportId.isEmpty || previousToken.isEmpty) {
+        menuError.value = 'Cannot replace operation before report data loads';
+        return false;
+      }
+
+      deletingOperationRowIndex.value = index;
+      try {
+        final result = await _repository.deleteOperationData(
+          wellId: wellId,
+          operationType: previousOperation.name,
+          operationInstanceKey: previousToken,
+        );
+        if (result['success'] != true) {
+          menuError.value =
+              result['message']?.toString() ??
+              'Failed to remove previous operation data';
+          return false;
+        }
+        _clearLocalStateForOperation(
+          previousOperation,
+          wellId,
+          previousToken,
+        );
+      } catch (error) {
+        menuError.value = error.toString().replaceFirst(
+          RegExp(r'^Exception:\s*'),
+          '',
+        );
+        return false;
+      } finally {
+        deletingOperationRowIndex.value = -1;
+      }
+    }
+
     nextSelections[index] = operation;
     if (operation == null) {
       nextTokens[index] = '';
@@ -587,7 +626,9 @@ class OperationController extends GetxController {
     dropdownValues.assignAll(nextSelections);
     operationSelectionTokens.assignAll(nextTokens);
     selectedRowIndex.value = index;
-    _scheduleOperationSelectionSave();
+    await _saveOperationSelectionsNow();
+    await _refreshPitState();
+    return true;
   }
 
   void _scheduleOperationSelectionSave() {
@@ -706,73 +747,6 @@ class OperationController extends GetxController {
     }
   }
 
-  Future<int> _deleteAddWaterInstance(String wellId, String instanceKey) async {
-    final result = await _repository.getAddWaterList(wellId);
-    if (result['success'] != true) return 0;
-
-    final envelope = result['data'];
-    final data = envelope is Map<String, dynamic>
-        ? envelope['data']
-        : envelope is Map
-        ? Map<String, dynamic>.from(envelope)['data']
-        : null;
-    final items = data is List
-        ? List<Map<String, dynamic>>.from(data)
-        : const <Map<String, dynamic>>[];
-    var deletedCount = 0;
-    for (final item in items) {
-      final key = (item['operationInstanceKey'] ?? '').toString().trim();
-      final isLegacyFirst =
-          key.isEmpty &&
-          instanceKey == '${OperationType.addWater.name}::legacy0';
-      if (key != instanceKey && !isLegacyFirst) continue;
-      final id = (item['_id'] ?? item['id'] ?? '').toString().trim();
-      if (id.isEmpty) continue;
-      final deleteRes = await _repository.deleteAddWater(wellId, id);
-      if (deleteRes['success'] == true) {
-        deletedCount++;
-      }
-    }
-    return deletedCount;
-  }
-
-  Future<int> _deleteTransferMudInstance(
-    String wellId,
-    String instanceKey,
-  ) async {
-    final result = await _repository.getTransferMud(
-      wellId,
-      operationInstanceKey: instanceKey,
-    );
-    if (result['success'] != true) return 0;
-
-    final envelope = result['data'];
-    final items = envelope is Map<String, dynamic>
-        ? envelope['data']
-        : envelope is Map
-        ? Map<String, dynamic>.from(envelope)['data']
-        : envelope is List
-        ? envelope
-        : null;
-    final data = items is List
-        ? List<Map<String, dynamic>>.from(items)
-        : const <Map<String, dynamic>>[];
-    var deletedCount = 0;
-    for (final item in data) {
-      final id = (item['_id'] ?? item['id'] ?? '').toString().trim();
-      if (id.isEmpty) continue;
-      final deleteRes = await _repository.deleteTransferMud(
-        wellId,
-        id,
-        operationInstanceKey: instanceKey,
-      );
-      if (deleteRes['success'] == true) {
-        deletedCount++;
-      }
-    }
-    return deletedCount;
-  }
-
   Future<Map<String, dynamic>> deleteOperationRow(int index) async {
     if (index < 0 || index >= dropdownValues.length) {
       return {'success': false, 'message': 'Invalid operation row'};
@@ -795,37 +769,10 @@ class OperationController extends GetxController {
     deletingOperationRowIndex.value = index;
     try {
       final operationInstanceKey = operationInstanceKeyAt(index);
-      final sameOperationCount = dropdownValues
-          .where((item) => item == operation)
-          .length;
-      if (sameOperationCount > 1) {
-        if (operation == OperationType.addWater) {
-          await _deleteAddWaterInstance(wellId, operationInstanceKey);
-        } else if (operation == OperationType.transferMud) {
-          await _deleteTransferMudInstance(
-            wellId,
-            operationInstanceKey,
-          );
-        } else {
-          await _repository.deleteOperationData(
-            wellId: wellId,
-            operationType: operation.name,
-            operationInstanceKey: operationInstanceKey,
-          );
-        }
-        _clearLocalStateForOperation(operation, wellId, operationInstanceKey);
-        _removeOperationSelectionAt(index);
-        await _saveOperationSelectionsNow();
-        await _refreshPitState();
-        return {
-          'success': true,
-          'message': 'Operation row removed successfully',
-        };
-      }
-
       final result = await _repository.deleteOperationData(
         wellId: wellId,
         operationType: operation.name,
+        operationInstanceKey: operationInstanceKey,
       );
 
       if (result['success'] == true) {

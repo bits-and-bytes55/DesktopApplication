@@ -1,4 +1,5 @@
 import OtherVolAddition from "../../modules/othervol/OtherVolAddition.js";
+import Pit from "../../modules/pit/pit.model.js";
 import { buildScopedFilter, readReportId } from "../../utils/reportScope.js";
 
 const toNumber = (value) => {
@@ -11,6 +12,15 @@ const round2 = (num) => Number(num.toFixed(2));
 
 const getWellId = (req) =>
   String(req.params.wellId || req.body.wellId || "").trim();
+
+const calculateActivePitsTotal = async ({ wellId, reportId }) => {
+  const pits = await Pit.find(
+    buildScopedFilter(wellId, reportId, { initialActive: true })
+  ).lean();
+  return round2(
+    pits.reduce((sum, pit) => sum + toNumber(pit.volume), 0)
+  );
+};
 
 const prepareOtherVolAdditionData = (
   payload = {},
@@ -85,6 +95,21 @@ export const createOtherVolAddition = async (req, res) => {
         fallbackWellId,
         fallbackReportId
       );
+      const existingInstance = prepared.operationInstanceKey
+        ? await OtherVolAddition.findOne(
+            buildScopedFilter(prepared.wellId, prepared.reportId, {
+              operationInstanceKey: prepared.operationInstanceKey,
+            })
+          ).sort({ createdAt: 1, _id: 1 })
+        : null;
+      const activePitsBaselineTotal =
+        existingInstance?.activePitsBaselineTotal !== null &&
+        existingInstance?.activePitsBaselineTotal !== undefined
+          ? toNumber(existingInstance.activePitsBaselineTotal)
+          : await calculateActivePitsTotal({
+              wellId: prepared.wellId,
+              reportId: prepared.reportId,
+            });
 
       await addToActivePits({
         wellId: prepared.wellId,
@@ -92,7 +117,10 @@ export const createOtherVolAddition = async (req, res) => {
         totalVolume: prepared.totalVolume,
       });
 
-      const item = await OtherVolAddition.create(prepared);
+      const item = await OtherVolAddition.create({
+        ...prepared,
+        activePitsBaselineTotal,
+      });
       createdItems.push(item);
     }
 
@@ -244,6 +272,15 @@ export const updateOtherVolAddition = async (req, res) => {
     existing.cuttings = prepared.cuttings;
     existing.volumeNotFluid = prepared.volumeNotFluid;
     existing.totalVolume = prepared.totalVolume;
+    if (
+      existing.activePitsBaselineTotal === null ||
+      existing.activePitsBaselineTotal === undefined
+    ) {
+      existing.activePitsBaselineTotal = await calculateActivePitsTotal({
+        wellId: prepared.wellId,
+        reportId: prepared.reportId,
+      });
+    }
 
     await existing.save();
 

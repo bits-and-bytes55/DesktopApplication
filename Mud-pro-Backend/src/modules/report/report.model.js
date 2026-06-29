@@ -110,6 +110,38 @@ const reportSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    carryOverSourceHoleSnapshot: {
+      type: Number,
+      default: null,
+    },
+    carryOverSourceEndVolSnapshot: {
+      type: Number,
+      default: null,
+    },
+    carryOverSourceTotalOnLocationSnapshot: {
+      type: Number,
+      default: null,
+    },
+    carryOverSourceActivePitsSnapshot: {
+      type: Number,
+      default: null,
+    },
+    carryOverSourceActiveSystemSnapshot: {
+      type: Number,
+      default: null,
+    },
+    carryOverSourceTotalStorageSnapshot: {
+      type: Number,
+      default: null,
+    },
+    carryOverSourceEndVolMinusActiveSystemSnapshot: {
+      type: Number,
+      default: null,
+    },
+    operationRecordsReconciledAt: {
+      type: Date,
+      default: null,
+    },
     volumeNameHoleSnapshot: {
       type: Number,
       default: null,

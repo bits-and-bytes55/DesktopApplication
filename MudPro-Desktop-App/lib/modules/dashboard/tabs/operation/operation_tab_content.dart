@@ -151,6 +151,7 @@ class OperationPage extends StatelessWidget {
           // Operations List - Dynamic rows
           Expanded(
             child: Scrollbar(
+              controller: scrollController,
               child: Obx(() {
                 final visibleRowCount = controller.dropdownValues.length;
 
@@ -215,49 +216,39 @@ class OperationPage extends StatelessWidget {
                                 ),
                               ),
                               Expanded(
-                                child: DropdownButtonHideUnderline(
-                                  child: DropdownButton<OperationType?>(
-                                    isExpanded: true,
-                                    isDense: true,
-                                    icon: Padding(
-                                      padding: const EdgeInsets.only(left: 4),
-                                      child: Icon(
-                                        Icons.arrow_drop_down_rounded,
-                                        size: 18,
-                                        color: AppTheme.textSecondary,
-                                      ),
-                                    ),
-                                    dropdownColor: Colors.white,
-                                    value: rowOperation,
-                                    onChanged: (v) {
-                                      controller.setOperationAt(index, v);
-                                    },
-                                    menuMaxHeight: 220,
-                                    itemHeight: null,
-                                    hint: const SizedBox.shrink(),
-                                    style: AppTheme.bodySmall.copyWith(
-                                      fontSize: 11,
-                                      color: AppTheme.textPrimary,
-                                    ),
-                                    items: [
-                                      const DropdownMenuItem<OperationType?>(
-                                        value: null,
-                                        child: SizedBox.shrink(),
-                                      ),
-                                      ...controller.dropdownItems.map(
-                                        (e) => DropdownMenuItem(
-                                          value: e,
+                                child: Builder(
+                                  builder: (menuContext) => InkWell(
+                                    onTap: isDeleting
+                                        ? null
+                                        : () => _showOperationDropdown(
+                                            menuContext,
+                                            index,
+                                            rowOperation,
+                                          ),
+                                    child: Row(
+                                      children: [
+                                        Expanded(
                                           child: Text(
-                                            controller.labelFor(e),
+                                            rowOperation == null
+                                                ? ''
+                                                : controller.labelFor(
+                                                    rowOperation,
+                                                  ),
                                             style: AppTheme.bodySmall.copyWith(
                                               fontSize: 11,
+                                              fontWeight: FontWeight.w700,
                                               color: AppTheme.textPrimary,
                                             ),
                                             overflow: TextOverflow.ellipsis,
                                           ),
                                         ),
-                                      ),
-                                    ],
+                                        Icon(
+                                          Icons.arrow_drop_down,
+                                          size: 16,
+                                          color: AppTheme.textSecondary,
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),
@@ -345,6 +336,102 @@ class OperationPage extends StatelessWidget {
         : Get.put(PitReviewController());
     pitReviewController.load();
     Get.to(() => const PitReviewPage());
+  }
+
+  Future<void> _showOperationDropdown(
+    BuildContext context,
+    int index,
+    OperationType? selectedOperation,
+  ) async {
+    controller.selectedRowIndex.value = index;
+
+    final button = context.findRenderObject() as RenderBox?;
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox?;
+    if (button == null || overlay == null) return;
+
+    final topLeft = button.localToGlobal(Offset.zero, ancestor: overlay);
+    final buttonSize = button.size;
+    const rowHeight = 24.0;
+    final desiredHeight = controller.dropdownItems.length * rowHeight;
+    final menuHeight = desiredHeight.clamp(96.0, 240.0).toDouble();
+    final preferredTop = topLeft.dy + buttonSize.height;
+    final menuTop = (preferredTop + menuHeight <= overlay.size.height - 8
+            ? preferredTop
+            : (overlay.size.height - menuHeight - 8).clamp(
+                8.0,
+                double.infinity,
+              ))
+        .toDouble();
+    final menuScrollController = ScrollController();
+
+    final selected = await showGeneralDialog<OperationType>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'Close operation menu',
+      barrierColor: Colors.transparent,
+      transitionDuration: Duration.zero,
+      pageBuilder: (dialogContext, _, __) => Stack(
+        children: [
+          Positioned(
+            left: topLeft.dx,
+            top: menuTop,
+            width: buttonSize.width,
+            height: menuHeight,
+            child: Material(
+              color: Colors.white,
+              elevation: 4,
+              shape: const RoundedRectangleBorder(
+                borderRadius: BorderRadius.zero,
+                side: BorderSide(color: Color(0xFF9CA3AF), width: 0.7),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Scrollbar(
+                controller: menuScrollController,
+                thumbVisibility: true,
+                trackVisibility: true,
+                thickness: 7,
+                child: ListView.builder(
+                  controller: menuScrollController,
+                  padding: EdgeInsets.zero,
+                  itemExtent: rowHeight,
+                  itemCount: controller.dropdownItems.length,
+                  itemBuilder: (_, itemIndex) {
+                    final operation = controller.dropdownItems[itemIndex];
+                    final isCurrent = operation == selectedOperation;
+                    return InkWell(
+                      onTap: () => Navigator.of(
+                        dialogContext,
+                      ).pop(operation),
+                      child: Container(
+                        alignment: Alignment.centerLeft,
+                        padding: const EdgeInsets.symmetric(horizontal: 7),
+                        color: isCurrent
+                            ? const Color(0xFFD1D5DB)
+                            : Colors.white,
+                        child: Text(
+                          controller.labelFor(operation),
+                          style: AppTheme.bodySmall.copyWith(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.black,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    menuScrollController.dispose();
+
+    if (selected != null) {
+      await controller.setOperationAt(index, selected);
+    }
   }
 
   Widget _buildIconButton({
