@@ -1259,6 +1259,13 @@ const buildMudRatioGroups = (direct, left, right) => {
     planLeft && planRight ? `${planLeft}/${planRight}` : planLeft || planRight,
   ];
 };
+const buildCombinedMudGroups = (direct, rows) => {
+  if (direct.some((value) => text(value))) return buildMudGroups(direct);
+  const combineAt = (index) =>
+    rows.map((row) => mudValueAt(row, index)).filter(Boolean).join("/");
+  const plans = rows.map(mudPlanValue).filter(Boolean);
+  return [combineAt(0), combineAt(1), combineAt(2), plans.join("/")];
+};
 const fillMudPropertyRows = (ws, { mudReportState, activePits, fluidName, wellGeneral }) => {
   const savedFluidName = firstText(mudReportState?.fluidName, fluidName);
   const description = findMudRow(mudReportState, (key) => key === "description");
@@ -1290,6 +1297,28 @@ const fillMudPropertyRows = (ws, { mudReportState, activePits, fluidName, wellGe
     (key) => (key === "pv" || key.startsWith("pv ")) && !key.includes("for")
   );
   const yp = findMudRow(mudReportState, (key) => key === "yp" || key.startsWith("yp "));
+  const r600r300 = findMudRow(
+    mudReportState,
+    (key) => key.includes("r600") && key.includes("r300")
+  );
+  const r200r100 = findMudRow(
+    mudReportState,
+    (key) => key.includes("r200") && key.includes("r100")
+  );
+  const r6r3 = findMudRow(
+    mudReportState,
+    (key) => key.includes("r6") && key.includes("r3") && !key.includes("r600")
+  );
+  const r600 = findMudRow(mudReportState, (key) => key === "r600" || key.startsWith("r600 "));
+  const r300 = findMudRow(mudReportState, (key) => key === "r300" || key.startsWith("r300 "));
+  const r200 = findMudRow(mudReportState, (key) => key === "r200" || key.startsWith("r200 "));
+  const r100 = findMudRow(mudReportState, (key) => key === "r100" || key.startsWith("r100 "));
+  const r6 = findMudRow(mudReportState, (key) => key === "r6" || key.startsWith("r6 "));
+  const r3 = findMudRow(mudReportState, (key) => key === "r3" || key.startsWith("r3 "));
+  const combinedGel = findMudRow(
+    mudReportState,
+    (key) => key.includes("gel") && key.includes("10") && key.includes("30")
+  );
   const gel10s = findMudRow(
     mudReportState,
     (key) =>
@@ -1390,7 +1419,6 @@ const fillMudPropertyRows = (ws, { mudReportState, activePits, fluidName, wellGe
     (key) => key.includes("solids adjusted") || key.includes("corrected solids")
   );
   const fineLcm = findMudRow(mudReportState, (key) => key.includes("fine lcm"));
-  const coarseLcm = findMudRow(mudReportState, (key) => key.includes("coarse lcm"));
 
   const activeDensity = firstMeaningfulText(activePits[0]?.density, activePits[1]?.density);
   const rowValues = {
@@ -1404,32 +1432,32 @@ const fillMudPropertyRows = (ws, { mudReportState, activePits, fluidName, wellGe
     43: buildMudGroups(tempForPv),
     44: buildMudGroups(pv),
     45: buildMudGroups(yp),
-    46: buildMudGroups(gel10s),
-    47: buildMudGroups(gel10m),
-    48: buildMudGroups(gel30m),
-    49: buildMudGroups(apiFiltrate),
-    50: buildMudGroups(apiCake),
-    51: buildMudGroups(hthpTemp),
-    52: buildMudGroups(hthpFiltrate),
-    53: buildMudGroups(hthpCake),
-    54: buildMudGroups(solids),
-    55: buildMudGroups(oil),
-    56: buildMudGroups(water),
-    57: buildMudGroups(sand),
-    58: buildMudGroups(mbt),
-    59: buildMudGroups(ph),
-    60: buildMudGroups(mudAlkalinity),
-    61: buildMudGroups(filtratePf),
-    62: buildMudGroups(filtrateMf),
-    63: buildMudGroups(calcium),
-    64: buildMudGroups(chlorides),
-    65: buildMudGroups(totalHardness),
-    66: buildMudGroups(excessLime),
-    67: buildMudGroups(potassium),
-    68: buildMudGroups(makeUpWaterChlorides),
-    69: buildMudGroups(solidsAdjusted),
-    70: buildMudGroups(fineLcm),
-    71: buildMudGroups(coarseLcm),
+    46: buildMudRatioGroups(r600r300, r600, r300),
+    47: buildMudRatioGroups(r200r100, r200, r100),
+    48: buildMudRatioGroups(r6r3, r6, r3),
+    49: buildCombinedMudGroups(combinedGel, [gel10s, gel10m, gel30m]),
+    50: buildMudGroups(apiFiltrate),
+    51: buildMudGroups(apiCake),
+    52: buildMudGroups(hthpTemp),
+    53: buildMudGroups(hthpFiltrate),
+    54: buildMudGroups(hthpCake),
+    55: buildMudGroups(solids),
+    56: buildMudGroups(oil),
+    57: buildMudGroups(water),
+    58: buildMudGroups(sand),
+    59: buildMudGroups(mbt),
+    60: buildMudGroups(ph),
+    61: buildMudGroups(mudAlkalinity),
+    62: buildMudGroups(filtratePf),
+    63: buildMudGroups(filtrateMf),
+    64: buildMudGroups(calcium),
+    65: buildMudGroups(chlorides),
+    66: buildMudGroups(totalHardness),
+    67: buildMudGroups(excessLime),
+    68: buildMudGroups(potassium),
+    69: buildMudGroups(makeUpWaterChlorides),
+    70: buildMudGroups(solidsAdjusted),
+    71: buildMudGroups(fineLcm),
   };
 
   const columns = [["P", "T"], ["U", "Y"], ["Z", "AD"], ["AE", "AI"]];
