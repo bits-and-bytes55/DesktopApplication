@@ -1212,8 +1212,8 @@ const fillDmrHeader = (ws, { well, pad, report, wellGeneral, fluidName, interval
   setCellValue(ws, "AB9", displayText(pad?.contractor));
   setCellValue(ws, "AT9", displayText(formationText));
   setCellValue(ws, "BL9", displayText(wellGeneral?.md, ""));
-  setCellValue(ws, "H10", displayText(wellGeneral?.operatorRep || pad?.operatorRep));
-  setCellValue(ws, "AB10", displayText(wellGeneral?.contractorRep || pad?.contractorRep));
+  setCellValue(ws, "H10", displayText(wellGeneral?.operatorRep));
+  setCellValue(ws, "AB10", displayText(wellGeneral?.contractorRep));
   setCellValue(ws, "AT10", formatInclinationAzimuth(wellGeneral).replace(" / ", "/"));
   setCellValue(ws, "BL10", displayText(wellGeneral?.tvd, ""));
   setCellValue(ws, "H11", displayText(formatDate(well?.spudDate)));
@@ -2654,8 +2654,8 @@ const fillInventoryHeader = (ws, { well, pad, report, wellGeneral, fluidName, in
   setCellValue(ws, "L9", displayText(pad?.contractor));
   setCellValue(ws, "U9", displayText(formationText));
   setCellValue(ws, "AC9", displayText(wellGeneral?.md, ""));
-  setCellValue(ws, "D10", displayText(wellGeneral?.operatorRep || pad?.operatorRep));
-  setCellValue(ws, "L10", displayText(wellGeneral?.contractorRep || pad?.contractorRep));
+  setCellValue(ws, "D10", displayText(wellGeneral?.operatorRep));
+  setCellValue(ws, "L10", displayText(wellGeneral?.contractorRep));
   setCellValue(ws, "U10", formatInclinationAzimuth(wellGeneral));
   setCellValue(ws, "AC10", displayText(wellGeneral?.tvd, ""));
   setCellValue(ws, "D11", displayText(formatDate(well?.spudDate)));
