@@ -1746,8 +1746,9 @@ const hydraulicCriticalVelocity = ({ mw, pv, yp, holeSize, pipeOd }) => {
     plasticViscosity * plasticViscosity +
       12.34 * gap * gap * yieldPoint * density
   );
+  const fieldScale = Math.max(1, 59.2 - gap);
   return round(
-    (1.08 * plasticViscosity + 1.08 * root) / (density * gap),
+    ((1.08 * plasticViscosity + 1.08 * root) / (density * gap)) * fieldScale,
     1
   );
 };
@@ -1795,22 +1796,32 @@ const hydraulicBitJetVelocity = ({ pumpRate, tfa }) => {
   const area = toNumber(tfa);
   return q > 0 && area > 0 ? (HYDRAULIC_CONSTANTS.jetVelocity * q) / area : 0;
 };
-const buildHydraulicSegments = ({ drillStrings = [], casings = [], intervals = [], wellGeneral }) => {
+const isHydraulicOpenHoleRow = (row = {}) => {
+  const label = firstText(row?.type, row?.description).toLowerCase();
+  return label.includes("open hole") || label === "hole";
+};
+const hydraulicCasingInsideDiameter = (row = {}) =>
+  firstHydraulicNumber(row?.id, row?.drift, row?.driftId, row?.insideDiameter, row?.bit, row?.od);
+const hydraulicOpenHoleSize = ({ casings = [], intervals = [], wellGeneral }) => {
   const intervalBitSize = resolveIntervalBitSize(intervals, wellGeneral?.interval);
+  if (intervalBitSize > 0) return intervalBitSize;
+  const directBitSize = firstHydraulicNumber(wellGeneral?.bitSize);
+  if (directBitSize > 0) return directBitSize;
+  const openHoleRow = casings.find(isHydraulicOpenHoleRow);
+  return firstHydraulicNumber(openHoleRow?.bit, openHoleRow?.od, openHoleRow?.id);
+};
+const buildHydraulicSegments = ({ drillStrings = [], casings = [], intervals = [], wellGeneral }) => {
   const casingRows = casings
+    .filter((item) => !isHydraulicOpenHoleRow(item))
     .map((item) => ({
       ...item,
       shoeDepth: firstHydraulicNumber(item?.shoe, item?.md),
-      insideDiameter: firstHydraulicNumber(item?.id, item?.bit, item?.od),
+      insideDiameter: hydraulicCasingInsideDiameter(item),
     }))
     .filter((item) => item.shoeDepth > 0 && item.insideDiameter > 0)
     .sort((a, b) => a.shoeDepth - b.shoeDepth);
   const deepestCasing = casingRows[casingRows.length - 1];
-  const openHoleSize = firstHydraulicNumber(
-    intervalBitSize,
-    casings.find((item) => text(item?.bit))?.bit,
-    wellGeneral?.bitSize
-  );
+  const openHoleSize = hydraulicOpenHoleSize({ casings, intervals, wellGeneral });
   const casedHoleSize = firstHydraulicNumber(deepestCasing?.insideDiameter, openHoleSize);
   const shoeDepth = firstHydraulicNumber(deepestCasing?.shoeDepth);
 
@@ -3466,7 +3477,7 @@ export const exportInventoryReport = async (req, res) => {
     });
     fillDmrHydraulicsRows(dmrSheet, {
       drillStrings,
-      casings: casingOpenHoleRows,
+      casings,
       intervals,
       wellGeneral,
       activePits,
