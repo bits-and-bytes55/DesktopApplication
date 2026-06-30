@@ -960,6 +960,22 @@ const clearRows = (ws, range, columns) => {
     for (const column of columns) setCellValue(ws, `${column}${row}`, "");
   }
 };
+const isZeroOnlyDisplayValue = (value) => {
+  if (typeof value === "number") return value === 0;
+  if (typeof value !== "string") return false;
+  const parts = value.trim().split("/");
+  return parts.length > 0 && parts.every((part) => {
+    const clean = part.trim();
+    return clean !== "" && Number.isFinite(Number(clean)) && Number(clean) === 0;
+  });
+};
+const clearZeroOnlyDisplayValues = (ws) => {
+  ws.eachRow({ includeEmpty: false }, (row) => {
+    row.eachCell({ includeEmpty: false }, (cell) => {
+      if (isZeroOnlyDisplayValue(cell.value)) cell.value = "";
+    });
+  });
+};
 const writeRows = (ws, range, columns, items, mapItem) => {
   clearRows(ws, range, columns);
   const maxRows = range.end - range.start + 1;
@@ -1273,12 +1289,16 @@ const mudExportRows = (mudReportState = {}) => {
     mudReportState?.propertyUnits && typeof mudReportState.propertyUnits === "object"
       ? mudReportState.propertyUnits
       : {};
-  const source = Object.entries(table).map(([label, values]) => ({
-    label: text(label),
-    key: normalizeMudKey(label),
-    unit: text(units[label]),
-    values: Array.isArray(values) ? values.map((value) => text(value)) : [],
-  }));
+  const source = Object.entries(table)
+    .map(([label, values]) => ({
+      label: text(label),
+      key: normalizeMudKey(label),
+      unit: text(units[label]),
+      values: Array.isArray(values) ? values.map((value) => text(value)) : [],
+    }))
+    .filter(
+      (row) => row.label && !/^[+-]?(?:\d+\.?\d*|\.\d+)$/.test(row.label)
+    );
   const byKey = (test) => source.find((row) => test(row.key));
   const consumed = new Set();
   const result = [];
@@ -3488,6 +3508,8 @@ export const exportInventoryReport = async (req, res) => {
       costSummary,
       productMetadataMap,
     });
+    clearZeroOnlyDisplayValues(dmrSheet);
+    clearZeroOnlyDisplayValues(inventorySheet);
     const reportNumber = text(report?.userReportNo || report?.reportNo || wellGeneral?.reportNo, "1");
     const filename = `${safeFilename(well.wellNameNo || "daily_report")}_Report_${safeFilename(reportNumber)}.xlsx`;
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
