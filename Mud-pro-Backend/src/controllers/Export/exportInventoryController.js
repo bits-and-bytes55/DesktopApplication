@@ -2162,11 +2162,19 @@ const shakerScreenInfo = (row = {}) => {
   const screenText = firstText(screens.join("/"), row.screens);
   return screenText;
 };
-const otherSceModelInfo = (row = {}) =>
-  [row.model1, row.model2, row.model3].map((value) => text(value)).filter(Boolean).join("/");
 const sceHours = (row = {}) => roundOrBlank(firstMeaningfulText(row.time, row.hours), 2);
+const otherSceValueFields = [
+  "uf", "in", "inPpg", "inlet", "inletPpg",
+  "of", "out", "outPpg", "outlet", "outletPpg",
+  "time", "hours",
+];
+const hasNumericOtherSceValue = (row = {}) =>
+  otherSceValueFields.some((field) => {
+    const value = text(row?.[field]);
+    return value !== "" && Number.isFinite(Number(value));
+  });
 const otherSceInInfo = (row = {}) =>
-  firstMeaningfulText(row.uf, row.in, row.inPpg, row.inlet, row.inletPpg, otherSceModelInfo(row));
+  firstMeaningfulText(row.uf, row.in, row.inPpg, row.inlet, row.inletPpg);
 const otherSceOutInfo = (row = {}) =>
   firstMeaningfulText(row.of, row.out, row.outPpg, row.outlet, row.outletPpg);
 const fillDmrSceRows = (ws, { shakers = [], otherSceRows = [] }) => {
@@ -2185,8 +2193,8 @@ const fillDmrSceRows = (ws, { shakers = [], otherSceRows = [] }) => {
     fillRowRange(ws, row, "BP", "BS", item ? sceHours(item) : "");
   });
 
-  const availableOtherRows = otherSceRows.filter((row) =>
-    sceHasText(row, ["type", "model1", "model2", "model3", "uf", "of", "time"])
+  const availableOtherRows = otherSceRows.filter(
+    (row) => meaningfulText(row?.type) && hasNumericOtherSceValue(row)
   );
   const byType = new Map(
     availableOtherRows.map((row) => [normalizeSceKey(row.type), row])
@@ -2306,9 +2314,24 @@ const fillDmrBitInformation = (ws, { casings = [], intervals = [], wellGeneral, 
 
 const fillDmrTopSections = (ws, { drillStrings, casings, summary, activePits, fluidName, wellGeneral, consumeProducts, mudReportState, solidsAnalysisRows, intervals, reportFormat, nozzleData }) => {
   const namedActivePits = activePits.filter((pit) => text(pit?.pitName));
+  const productUsageName = (item = {}) =>
+    firstText(item.product, item.itemName, item.name, item.code);
+  const productUsageSortKey = (item = {}) =>
+    productUsageName(item).trim().replace(/\s+/g, " ");
   const namedConsumeProducts = consumeProducts.filter((item) =>
-    firstText(item?.product, item?.itemName, item?.code)
+    productUsageName(item)
   );
+  const sortedConsumeProducts = [...namedConsumeProducts].sort((left, right) => {
+    const nameOrder = productUsageSortKey(left).localeCompare(productUsageSortKey(right), "en", {
+      numeric: true,
+      sensitivity: "base",
+    });
+    if (nameOrder !== 0) return nameOrder;
+    return text(left?.code).localeCompare(text(right?.code), undefined, {
+      numeric: true,
+      sensitivity: "base",
+    });
+  });
 
   for (let index = 0; index < 8; index += 1) {
     const row = 14 + index;
@@ -2438,8 +2461,8 @@ const fillDmrTopSections = (ws, { drillStrings, casings, summary, activePits, fl
 
   for (let index = 0; index < 16; index += 1) {
     const row = 37 + index;
-    const item = namedConsumeProducts[index];
-    setCellValue(ws, `AJ${row}`, text(item?.product));
+    const item = sortedConsumeProducts[index];
+    setCellValue(ws, `AJ${row}`, item ? productUsageName(item) : "");
     setCellValue(ws, `AT${row}`, text(item?.unit));
     setCellValue(ws, `AY${row}`, item ? round(item.used) : "");
     setCellValue(ws, `BC${row}`, item ? round(item.used) : "");
