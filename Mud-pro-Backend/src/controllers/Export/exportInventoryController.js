@@ -1628,7 +1628,6 @@ const fillDmrSolidsAnalysisRows = (ws, solidsAnalysisRows = []) => {
   const samples = normalizeSolidsAnalysisRows(solidsAnalysisRows);
   const columns = [["P", "T"], ["U", "Y"], ["Z", "AD"]];
   const rowMap = {
-    70: "correctedSolids",
     73: "brineSG",
     74: "dissolvedSolids",
     75: "correctedSolids",
