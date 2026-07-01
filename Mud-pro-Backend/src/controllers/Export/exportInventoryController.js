@@ -3077,11 +3077,20 @@ const loadReportScopedList = async (
 
 const loadExportDrillStrings = async ({ wellId, reportId }) => {
   if (!wellId) return [];
+  const validGeometry = {
+    length: { $gt: 0 },
+    od: { $gt: 0 },
+    id: { $gt: 0 },
+  };
 
   if (reportId) {
-    const scoped = await DrillString.find({ wellId, reportId })
-      .sort({ createdAt: 1, _id: 1 })
-      .limit(8)
+    const scoped = await DrillString.find({
+      wellId,
+      reportId,
+      ...validGeometry,
+    })
+      .sort({ sortOrder: 1, createdAt: 1, _id: 1 })
+      .limit(50)
       .lean();
     return scoped;
   }
@@ -3089,9 +3098,10 @@ const loadExportDrillStrings = async ({ wellId, reportId }) => {
   const wellScopedLegacy = await DrillString.find({
     wellId,
     ...legacyReportScope(),
+    ...validGeometry,
   })
-    .sort({ createdAt: 1, _id: 1 })
-    .limit(8)
+    .sort({ sortOrder: 1, createdAt: 1, _id: 1 })
+    .limit(50)
     .lean();
   if (wellScopedLegacy.length > 0) return wellScopedLegacy;
   return [];
