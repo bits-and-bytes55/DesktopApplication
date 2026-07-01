@@ -1678,11 +1678,30 @@ const fillDmrSolidsAnalysisRows = (ws, solidsAnalysisRows = []) => {
     79: "hgsLb",
     80: "avgSG",
   };
+  const rowFormats = {
+    73: "0.0000",
+    74: "0.00",
+    75: "0.00",
+    76: "0.00",
+    77: "0.00",
+    78: "0.00",
+    79: "0.00",
+    80: "0.00",
+  };
+  const formatSolidsValue = (value, digits) => {
+    if (value === undefined || value === null || value === "") return "";
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) return text(value);
+    return parsed.toFixed(digits);
+  };
 
   Object.entries(rowMap).forEach(([row, key]) => {
     columns.forEach(([start, end], index) => {
-      const value = roundOrBlank(samples[index]?.[key], key === "brineSG" ? 4 : 2);
+      const value = formatSolidsValue(samples[index]?.[key], key === "brineSG" ? 4 : 2);
       fillRowRange(ws, Number(row), start, end, value);
+      for (let col = columnToNumber(start); col <= columnToNumber(end); col += 1) {
+        ws.getRow(Number(row)).getCell(col).numFmt = rowFormats[row];
+      }
     });
   });
 };
