@@ -2086,7 +2086,7 @@ const fillDmrHydraulicsRows = (ws, {
       ? (bitLoss * pumpRate) / HYDRAULIC_CONSTANTS.horsepower
       : 0;
   const hsi =
-    bitHhp > 0 && bitArea > 0
+    bitHhp > 0 && bitSize > 0
       ? (HYDRAULIC_CONSTANTS.hsi * bitHhp) / (bitSize * bitSize)
       : 0;
   const tdDepth = hydraulicDepthValue(wellGeneral?.tvd, wellGeneral?.md, wellGeneral?.depthDrilled);
