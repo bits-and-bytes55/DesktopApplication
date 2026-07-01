@@ -423,8 +423,8 @@ const emptyFieldFilterForModel = (Model, field) => {
     ],
   };
 };
-const getPitVolume = (pit) => pit.volume || pit.capacity || "";
-const getActivePitVolume = (pit) => toNumber(pit.volume || pit.capacity);
+const getPitVolume = (pit) => pit?.volume ?? "";
+const getActivePitVolume = (pit) => toNumber(pit?.volume);
 const setCellValue = (ws, address, value = "") => {
   ws.getCell(address).value = value ?? "";
 };
@@ -2645,7 +2645,7 @@ const fillDmrTopSections = (ws, { drillStrings, casings, summary, activePits, fl
     const row = 23 + index;
     const pit = namedActivePits[index];
     setCellValue(ws, `BA${row}`, text(pit?.pitName));
-    setCellValue(ws, `BN${row}`, pit ? round(getActivePitVolume(pit)) : "");
+    setCellValue(ws, `BN${row}`, pit ? roundOrBlank(getPitVolume(pit)) : "");
   }
 
   fillMudPropertyRows(ws, { mudReportState, activePits, fluidName, wellGeneral });
@@ -2981,7 +2981,7 @@ const fillInventorySheet = (ws, {
   }));
   writeRows(ws, ACTIVE_PIT_ROWS, PIT_COLUMNS, activePitRows, (pit) => ({
     M: pit.pitName || "",
-    S: round(getPitVolume(pit)),
+    S: roundOrBlank(getPitVolume(pit)),
     U: round(pit.density),
     W: pit.fluidType || "",
   }));
@@ -2997,7 +2997,7 @@ const fillInventorySheet = (ws, {
   }));
   writeRows(ws, RESERVE_ROWS, PIT_COLUMNS, reservePitRows, (pit) => ({
     M: pit.pitName || "",
-    S: round(getPitVolume(pit)),
+    S: roundOrBlank(getPitVolume(pit)),
     U: round(pit.density),
     W: pit.fluidType || "",
   }));
