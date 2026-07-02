@@ -1823,7 +1823,7 @@ class _CasedHoleSectionState extends State<CasedHoleSection> {
                       style: const TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
-                        color: Colors.black,
+                        color: Colors.white,
                       ),
                     ),
                   ),
@@ -4202,7 +4202,8 @@ class _TimeDistributionSectionState extends State<TimeDistributionSection> {
                               ),
                               child: Obx(
                                 () => c.isLocked.value
-                                    ? SizedBox(
+                                    ? Container(
+                                        color: _kEditableCellColor,
                                         height: _kRowH,
                                         child: Align(
                                           alignment: Alignment.centerLeft,
@@ -4290,7 +4291,8 @@ class _TimeDistributionSectionState extends State<TimeDistributionSection> {
                               ),
                               child: Obx(
                                 () => c.isLocked.value
-                                    ? SizedBox(
+                                    ? Container(
+                                        color: _kEditableCellColor,
                                         height: _kRowH,
                                         child: Center(
                                           child: Text(

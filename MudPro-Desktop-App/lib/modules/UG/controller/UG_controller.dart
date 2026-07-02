@@ -5,26 +5,30 @@ import 'package:mudpro_desktop_app/auth_repo/auth_repo.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/formation_row_model.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/inventory_model.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/pit_model.dart';
-import 'package:mudpro_desktop_app/modules/UG/model/producst_model.dart' hide ProductModel;
+import 'package:mudpro_desktop_app/modules/UG/model/producst_model.dart'
+    hide ProductModel;
 import 'package:mudpro_desktop_app/modules/UG/model/pump_model.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/sce_model.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/controller/service_controller.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/model/products_model.dart';
+import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
 class UgController extends GetxController {
   final AuthRepository repository = AuthRepository();
-  
+
   String get wellId => currentBackendWellId;
 
   // Right panel main tab
   final activeRightTab = 'pad'.obs;
-   final location = 'Land'.obs;
+  final location = 'Land'.obs;
 
   // Lock / Unlock
   final isLocked = true.obs;
+  Worker? _dashboardLockWorker;
 
-   final inventoryTab = 'Products'.obs;
+  final inventoryTab = 'Products'.obs;
 
   // Products
   RxList<ProductModel> products = <ProductModel>[].obs;
@@ -32,7 +36,6 @@ class UgController extends GetxController {
   // Apply Changed Prices option
   final applyChangedPricesOption = 'To All'.obs;
   final fromDate = ''.obs;
-
 
   // Footer fields
   final bulkTankSetupFee = ''.obs;
@@ -53,17 +56,15 @@ class UgController extends GetxController {
   final premixedTaxNew = false.obs;
 
   // REPORT TAB STATE
-final considerROP = true.obs;
-final considerRPM = true.obs;
-final considerEccentricity = false.obs;
+  final considerROP = true.obs;
+  final considerRPM = true.obs;
+  final considerEccentricity = false.obs;
 
-final multiRheology = false.obs;
+  final multiRheology = false.obs;
 
-final safetyMargin = '80.0'.obs;
+  final safetyMargin = '80.0'.obs;
 
-
-
- // ================= FORMATION =================
+  // ================= FORMATION =================
   final poreFromTop = true.obs;
 
   /// Dropdown value (Density / Gradient / Pressure)
@@ -114,78 +115,68 @@ final safetyMargin = '80.0'.obs;
     }
   }
 
+  var premixed = <PremixModel>[].obs;
+  var obm = <ObmModel>[].obs;
 
+  final packages = <PackageModel>[
+    PackageModel('1', '', '', '', '', '', false),
+  ].obs;
 
+  final engineering = <EngineeringModel>[
+    EngineeringModel('1', 'Mud Supervisor-1', '1', '1', '173.33', false),
+    EngineeringModel('2', 'Mud Supervisor-2', '1', '1', '167.74', false),
+    EngineeringModel('3', 'Mud Supervisor-3', '1', '1', '185.72', false),
+    EngineeringModel('4', 'Mud Supervisor-4', '1', '1', '179.31', false),
+  ].obs;
 
+  final services = <ServiceModel>[ServiceModel('1', '', '', '', '', false)].obs;
 
-var premixed = <PremixModel>[].obs;
-var obm = <ObmModel>[].obs;
+  // final pumps = <PumpModel>[
+  //   PumpModel(
+  //     type: 'Triplex'.obs,
+  //     model: 'BOMCO-F16'.obs,
+  //     linerId: '6.500'.obs,
+  //     rodOd: ''.obs,
+  //     strokeLength: '12.000'.obs,
+  //     efficiency: '95.0'.obs,
+  //     displacement: '0.1170'.obs,
+  //     maxPumpP: ''.obs,
+  //     maxHp: ''.obs,
+  //     surfaceLen: ''.obs,
+  //     surfaceId: ''.obs,
+  //   ),
+  //   PumpModel(
+  //     type: 'Triplex'.obs,
+  //     model: 'BOMCO-F16'.obs,
+  //     linerId: '6.000'.obs,
+  //     rodOd: ''.obs,
+  //     strokeLength: '12.000'.obs,
+  //     efficiency: '97.0'.obs,
+  //     displacement: '0.1018'.obs,
+  //     maxPumpP: ''.obs,
+  //     maxHp: ''.obs,
+  //     surfaceLen: ''.obs,
+  //     surfaceId: ''.obs,
+  //   ),
+  // ];
 
-final packages = <PackageModel>[
-  PackageModel('1', '', '', '', '', '', false),
-].obs;
+  // ================= SCE =================
+  // final shakers = <ShakerModel>[
+  //   ShakerModel(id: 1, shaker: '1', model: 'DERRICK # 1', screens: '4', plot: true),
+  //   ShakerModel(id: 2, shaker: '2', model: 'DERRICK # 2', screens: '4', plot: true),
+  //   ShakerModel(id: 10, shaker: 'Mud Cleaner', model: 'DERRICK # 3', screens: '4', plot: true),
+  // ].obs;
 
-final engineering = <EngineeringModel>[
-  EngineeringModel('1', 'Mud Supervisor-1', '1', '1', '173.33', false),
-  EngineeringModel('2', 'Mud Supervisor-2', '1', '1', '167.74', false),
-  EngineeringModel('3', 'Mud Supervisor-3', '1', '1', '185.72', false),
-  EngineeringModel('4', 'Mud Supervisor-4', '1', '1', '179.31', false),
-].obs;
-
-final services = <ServiceModel>[
-  ServiceModel('1', '', '', '', '', false),
-].obs;
-
-
-// final pumps = <PumpModel>[
-//   PumpModel(
-//     type: 'Triplex'.obs,
-//     model: 'BOMCO-F16'.obs,
-//     linerId: '6.500'.obs,
-//     rodOd: ''.obs,
-//     strokeLength: '12.000'.obs,
-//     efficiency: '95.0'.obs,
-//     displacement: '0.1170'.obs,
-//     maxPumpP: ''.obs,
-//     maxHp: ''.obs,
-//     surfaceLen: ''.obs,
-//     surfaceId: ''.obs,
-//   ),
-//   PumpModel(
-//     type: 'Triplex'.obs,
-//     model: 'BOMCO-F16'.obs,
-//     linerId: '6.000'.obs,
-//     rodOd: ''.obs,
-//     strokeLength: '12.000'.obs,
-//     efficiency: '97.0'.obs,
-//     displacement: '0.1018'.obs,
-//     maxPumpP: ''.obs,
-//     maxHp: ''.obs,
-//     surfaceLen: ''.obs,
-//     surfaceId: ''.obs,
-//   ),
-// ];
-
-
-// ================= SCE =================
-// final shakers = <ShakerModel>[
-//   ShakerModel(id: 1, shaker: '1', model: 'DERRICK # 1', screens: '4', plot: true),
-//   ShakerModel(id: 2, shaker: '2', model: 'DERRICK # 2', screens: '4', plot: true),
-//   ShakerModel(id: 10, shaker: 'Mud Cleaner', model: 'DERRICK # 3', screens: '4', plot: true),
-// ].obs;
-
-// final otherSce = <OtherSceModel>[
-//   OtherSceModel(type: 'Degasser', model1: 'CHENGDU', plot: true),
-//   OtherSceModel(type: 'Desander', model1: 'DERRICK', plot: true),
-//   OtherSceModel(type: 'Desilter', model1: 'DERRICK', plot: true),
-//   OtherSceModel(type: 'Centrifuge', model1: 'KEMTRON', plot: true),
-//   OtherSceModel(type: 'Barite Rec.', plot: false),
-// ];
-
-
+  // final otherSce = <OtherSceModel>[
+  //   OtherSceModel(type: 'Degasser', model1: 'CHENGDU', plot: true),
+  //   OtherSceModel(type: 'Desander', model1: 'DERRICK', plot: true),
+  //   OtherSceModel(type: 'Desilter', model1: 'DERRICK', plot: true),
+  //   OtherSceModel(type: 'Centrifuge', model1: 'KEMTRON', plot: true),
+  //   OtherSceModel(type: 'Barite Rec.', plot: false),
+  // ];
 
   // ---------------- PIT DATA ----------------
-  
+
   // final pits = <PitModel>[
   //   PitModel(id: 1, pit: 'TRIP TANK', capacity: '120.00', active: true),
   //   PitModel(id: 2, pit: 'SANDTRAP # 1A', capacity: '150.00', active: true),
@@ -211,16 +202,37 @@ final services = <ServiceModel>[
   @override
   void onInit() {
     super.onInit();
-    
+    final dashboardController = Get.isRegistered<DashboardController>()
+        ? Get.find<DashboardController>()
+        : null;
+    if (dashboardController != null) {
+      isLocked.value = dashboardController.isLocked.value;
+      _dashboardLockWorker = ever<bool>(dashboardController.isLocked, (locked) {
+        if (isLocked.value != locked) {
+          isLocked.value = locked;
+        }
+      });
+    }
+
     // Initialize with empty lists
     premixed.value = [];
     obm.value = [];
-    
+
     fetchProducts();
   }
 
+  @override
+  void onClose() {
+    _dashboardLockWorker?.dispose();
+    super.onClose();
+  }
+
   // Fetch products from API
-  Future<void> fetchProducts({int page = 1, String? search, String? group}) async {
+  Future<void> fetchProducts({
+    int page = 1,
+    String? search,
+    String? group,
+  }) async {
     try {
       final result = await repository.getProducts(
         page: page,
@@ -257,15 +269,19 @@ final services = <ServiceModel>[
     try {
       final serviceController = ServiceController();
       final fetchedPackages = await serviceController.getPackages();
-      packages.value = fetchedPackages.map((item) => PackageModel(
-        item.id ?? '',
-        item.name,
-        item.code,
-        item.unit,
-        item.price.toString(),
-        '', // initial
-        false, // tax
-      )).toList();
+      packages.value = fetchedPackages
+          .map(
+            (item) => PackageModel(
+              item.id ?? '',
+              item.name,
+              item.code,
+              item.unit,
+              item.price.toString(),
+              '', // initial
+              false, // tax
+            ),
+          )
+          .toList();
     } catch (e) {
       Get.snackbar(
         'Error',
@@ -282,14 +298,18 @@ final services = <ServiceModel>[
     try {
       final serviceController = ServiceController();
       final fetchedEngineering = await serviceController.getEngineering();
-      engineering.value = fetchedEngineering.map((item) => EngineeringModel(
-        item.id ?? '',
-        item.name,
-        item.code,
-        item.unit,
-        item.price.toString(),
-        false, // tax
-      )).toList();
+      engineering.value = fetchedEngineering
+          .map(
+            (item) => EngineeringModel(
+              item.id ?? '',
+              item.name,
+              item.code,
+              item.unit,
+              item.price.toString(),
+              false, // tax
+            ),
+          )
+          .toList();
     } catch (e) {
       Get.snackbar(
         'Error',
@@ -306,14 +326,18 @@ final services = <ServiceModel>[
     try {
       final serviceController = ServiceController();
       final fetchedServices = await serviceController.getServices();
-      services.value = fetchedServices.map((item) => ServiceModel(
-        item.id ?? '',
-        item.name,
-        item.code,
-        item.unit,
-        item.price.toString(),
-        false, // tax
-      )).toList();
+      services.value = fetchedServices
+          .map(
+            (item) => ServiceModel(
+              item.id ?? '',
+              item.name,
+              item.code,
+              item.unit,
+              item.price.toString(),
+              false, // tax
+            ),
+          )
+          .toList();
     } catch (e) {
       Get.snackbar(
         'Error',
@@ -327,17 +351,13 @@ final services = <ServiceModel>[
 
   // Fetch all services data
   Future<void> fetchServicesData() async {
-    await Future.wait([
-      fetchPackages(),
-      fetchEngineering(),
-      fetchServices(),
-    ]);
+    await Future.wait([fetchPackages(), fetchEngineering(), fetchServices()]);
   }
 
   // ================= 计算总容量方法 =================
   // void updateTotalCapacity() {
   //   double sum = 0.0;
-    
+
   //   for (var pit in pits) {
   //     // 解析容量字符串为数字
   //     final capacityStr = pit.capacity;
@@ -352,7 +372,7 @@ final services = <ServiceModel>[
   //       }
   //     }
   //   }
-    
+
   //   totalCapacity.value = sum;
   // }
 
@@ -378,7 +398,7 @@ final services = <ServiceModel>[
   // // ================= 获取激活坑的总容量 =================
   // double getActivePitsTotalCapacity() {
   //   double sum = 0.0;
-    
+
   //   for (var pit in pits) {
   //     if (pit.active.value) {
   //       final capacityStr = pit.capacity;
@@ -394,7 +414,7 @@ final services = <ServiceModel>[
   //       }
   //     }
   //   }
-    
+
   //   return sum;
   // }
 
@@ -421,25 +441,36 @@ final services = <ServiceModel>[
   //   updateTotalCapacity();
   // }
 
-
   void switchRightTab(String tab) {
+    final previousTab = activeRightTab.value;
+    if (previousTab == 'pit' &&
+        previousTab != tab &&
+        Get.isRegistered<PitController>()) {
+      Get.find<PitController>().saveAllActivePits();
+    }
     activeRightTab.value = tab;
   }
 
   void toggleLock() {
+    final wasLocked = isLocked.value;
     isLocked.toggle();
+    if (wasLocked &&
+        activeRightTab.value == 'pit' &&
+        Get.isRegistered<PitController>()) {
+      Get.find<PitController>().fetchAllPits();
+    }
   }
 
   bool isInventoryDirty() {
     return premixedDescController.text.isNotEmpty ||
-           premixedMwController.text.isNotEmpty ||
-           premixedLeasingFeeController.text.isNotEmpty ||
-           premixedMudTypeController.text.isNotEmpty ||
-           obmProductController.text.isNotEmpty ||
-           obmCodeController.text.isNotEmpty ||
-           obmSgController.text.isNotEmpty ||
-           obmConcController.text.isNotEmpty ||
-           obmUnitController.text.isNotEmpty;
+        premixedMwController.text.isNotEmpty ||
+        premixedLeasingFeeController.text.isNotEmpty ||
+        premixedMudTypeController.text.isNotEmpty ||
+        obmProductController.text.isNotEmpty ||
+        obmCodeController.text.isNotEmpty ||
+        obmSgController.text.isNotEmpty ||
+        obmConcController.text.isNotEmpty ||
+        obmUnitController.text.isNotEmpty;
   }
 
   // ================= SAVE INVENTORY =================
@@ -457,7 +488,6 @@ final services = <ServiceModel>[
         premixedMwController.text.isNotEmpty ||
         premixedLeasingFeeController.text.isNotEmpty ||
         premixedMudTypeController.text.isNotEmpty) {
-      
       final newPremixed = PremixModel(
         description: premixedDescController.text,
         mw: premixedMwController.text,
@@ -468,13 +498,13 @@ final services = <ServiceModel>[
 
       try {
         await repository.createPremixed(activeWellId, newPremixed);
-        
+
         premixedDescController.clear();
         premixedMwController.clear();
         premixedLeasingFeeController.clear();
         premixedMudTypeController.clear();
         premixedTaxNew.value = false;
-        
+
         successMessages.add('Premixed mud saved');
       } catch (e) {
         errorMessages.add('Failed to save premixed: $e');
@@ -487,7 +517,6 @@ final services = <ServiceModel>[
         obmSgController.text.isNotEmpty ||
         obmConcController.text.isNotEmpty ||
         obmUnitController.text.isNotEmpty) {
-
       final newObm = ObmModel(
         product: obmProductController.text,
         code: obmCodeController.text,
@@ -512,19 +541,16 @@ final services = <ServiceModel>[
     }
 
     if (errorMessages.isNotEmpty) {
-      return {
-        'success': false, 
-        'message': errorMessages.join(', ')
-      };
+      return {'success': false, 'message': errorMessages.join(', ')};
     }
 
     if (successMessages.isNotEmpty) {
       // FORCE A FRESH LOAD FROM API
       await loadInventoryData(activeWellId);
-      
+
       return {
-        'success': true, 
-        'message': '${successMessages.join(', ')} successfully'
+        'success': true,
+        'message': '${successMessages.join(', ')} successfully',
       };
     }
 

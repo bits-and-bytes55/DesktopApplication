@@ -157,7 +157,7 @@ export const createNozzle = async (req, res) => {
             reportId: scope.reportId,
             reportNo: scope.reportNo,
           }),
-          { new: true, runValidators: true }
+          { returnDocument: "after", runValidators: true }
         );
 
         return res.status(200).json({ success: true, data: updated });
@@ -179,7 +179,7 @@ export const createNozzle = async (req, res) => {
           reportId: "",
           reportNo: "",
         }),
-        { new: true, runValidators: true }
+        { returnDocument: "after", runValidators: true }
       );
 
       return res.status(200).json({ success: true, data: updated });
@@ -246,7 +246,7 @@ export const updateNozzle = async (req, res) => {
         reportId: scope.reportId,
         reportNo: scope.reportNo,
       }),
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     );
 
     return res.status(200).json({ success: true, data: updated });

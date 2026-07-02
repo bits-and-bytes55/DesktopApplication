@@ -81,7 +81,7 @@ export const updatePremixed = async (req, res) => {
         tax,
         updatedAt: Date.now()
       },
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     );
     
     if (!updatedPremixed) {
@@ -212,7 +212,7 @@ export const updateObm = async (req, res) => {
         conc,
         updatedAt: Date.now()
       },
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     );
     
     if (!updatedObm) {

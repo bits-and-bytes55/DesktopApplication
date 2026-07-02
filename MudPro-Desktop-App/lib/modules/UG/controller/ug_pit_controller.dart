@@ -73,13 +73,7 @@ class PitController extends GetxController {
   bool get _hasTransferOperationInstance =>
       _activeTransferOperationInstanceKey.trim().isNotEmpty;
 
-  List<PitModel> _filterPitsForSelectedReport(List<PitModel> source) {
-    final reportId = reportContext.selectedReportId.value.trim();
-    if (reportId.isEmpty) return source;
-    return source
-        .where((pit) => (pit.reportId ?? '').trim() == reportId)
-        .toList();
-  }
+  List<PitModel> _filterPitsForSelectedReport(List<PitModel> source) => source;
 
   List<PitModel> get activePitRows =>
       pits.where((pit) => pit.initialActive.value).toList();
@@ -138,7 +132,6 @@ class PitController extends GetxController {
       _debounceTimer?.cancel();
       _pitAutoSaveTimer?.cancel();
       modifiedPitIds.clear();
-      fetchAllPits();
       fetchVolumeNameData();
       if (_hasTransferOperationInstance) fetchTransferMud();
     });
@@ -552,23 +545,24 @@ class PitController extends GetxController {
   }
 
   bool hasMeasuredVolumeReportWarning() {
+    const tolerance = 0.005;
     final rows = storagePitRows;
     for (var index = 0; index < rows.length; index++) {
       final pit = rows[index];
       final calculated = storageCalculatedVolumeForPit(pit);
       final measuredText = _measuredVolumeTextForPit(pit, index);
-      final measured = measuredText == null
-          ? pit.volume?.value ?? 0.0
-          : _parseVolume(measuredText);
-      final hasText = measuredText?.trim().isNotEmpty ?? true;
-      final wasCleared = measuredText != null && measuredText.trim().isEmpty;
-      final missingRequiredValue =
-          wasCleared ||
-          (!hasText && calculated.abs() >= 0.005) ||
-          (measured.abs() < 0.005 && calculated.abs() >= 0.005);
+      final measuredTextTrimmed = measuredText?.trim();
 
-      if (missingRequiredValue) return true;
-      if ((measured - calculated).abs() >= 0.005) return true;
+      if (measuredText != null && measuredTextTrimmed!.isEmpty) {
+        if (calculated.abs() >= tolerance) return true;
+        continue;
+      }
+
+      final measured = measuredText == null
+          ? storageMeasuredVolumeForPit(pit)
+          : _parseVolume(measuredTextTrimmed!);
+
+      if ((measured - calculated).abs() >= tolerance) return true;
     }
     return false;
   }
@@ -601,6 +595,27 @@ class PitController extends GetxController {
     return 0.0;
   }
 
+  double storageMeasuredVolumeForPit(
+    PitModel pit, {
+    Map<String, dynamic>? volumeNameData,
+  }) {
+    final rows = (volumeNameData ?? this.volumeNameData)['storageTable'];
+    if (rows is List) {
+      final match = rows.cast<dynamic>().firstWhereOrNull((row) {
+        if (row is! Map) return false;
+        final id = row['_id']?.toString() ?? '';
+        final name = row['pitName']?.toString().trim() ?? '';
+        return (pit.id != null && id == pit.id) || name == pit.pitName.trim();
+      });
+
+      if (match is Map) {
+        return _calculateDouble(match['measuredVol'] ?? match['volume']);
+      }
+    }
+
+    return 0.0;
+  }
+
   Map<dynamic, dynamic>? activeTableRowForPit(
     PitModel pit, {
     Map<String, dynamic>? volumeNameData,
@@ -626,7 +641,7 @@ class PitController extends GetxController {
     Map<String, dynamic>? volumeNameData,
   }) {
     final row = activeTableRowForPit(pit, volumeNameData: volumeNameData);
-    if (row == null) return pit.volume?.value ?? 0.0;
+    if (row == null) return 0.0;
     return _calculateDouble(row['measuredVol'] ?? row['volume']);
   }
 
@@ -706,9 +721,9 @@ class PitController extends GetxController {
       final String pitName = pitModel?.pitName ?? 'Unknown Pit';
 
       try {
-        // Hit the single-pit update API (PUT /pit/:id) as requested
-        final result = await authRepo.updatePit(
+        final result = await authRepo.updatePitVolumeData(
           id: pitId,
+          wellId: currentWellId!,
           pitName: pitName,
           volume: double.tryParse(ctrls['volume']!.text) ?? 0,
           density: double.tryParse(ctrls['density']!.text) ?? 0,
@@ -1174,13 +1189,11 @@ class PitController extends GetxController {
 
     try {
       final authRepo = AuthRepository();
-      final reportId = reportContext.selectedReportId.value.trim();
       final result = await authRepo.addPit(
         pitName: pit.pitName.trim(),
         capacity: _draftCapacity(pit),
         initialActive: pit.initialActive.value,
         wellId: currentWellId!,
-        reportId: reportId.isEmpty ? null : reportId,
       );
 
       if (result['success'] == true) {

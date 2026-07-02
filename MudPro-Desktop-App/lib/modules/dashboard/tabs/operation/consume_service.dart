@@ -10,6 +10,7 @@ import 'package:mudpro_desktop_app/modules/report_context/report_context_control
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 import '../../controller/dashboard_controller.dart';
 import 'operation_desktop_ui.dart';
+import 'operation_ui_pattern.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class ConsumeServicesView extends StatefulWidget {
@@ -1486,8 +1487,8 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
               title,
               style: AppTheme.bodySmall.copyWith(
                 fontWeight: FontWeight.w700,
-                fontSize: 12,
-                color: Colors.black,
+                fontSize: 13,
+                color: Colors.white,
               ),
             ),
           ),
@@ -1522,7 +1523,7 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
                           horizontalMargin: 0,
                           dividerThickness: 0,
                           headingRowColor: MaterialStateProperty.all(
-                            AppTheme.primaryColor,
+                            AppTheme.tableHeaderBlue,
                           ),
                           border: TableBorder(
                             verticalInside: BorderSide(
@@ -1538,7 +1539,7 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
                             color: Colors.black,
                           ),
                           dataTextStyle: AppTheme.bodySmall.copyWith(
-                            fontSize: 10,
+                            fontSize: 11,
                             fontWeight: FontWeight.w700,
                             color: Colors.black,
                           ),
@@ -1776,6 +1777,9 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
         child: Container(
           width: width,
           padding: const EdgeInsets.symmetric(horizontal: 6),
+          color: dashboardController.isLocked.value
+              ? operationLockedEditableColor
+              : Colors.transparent,
           child: Row(
             children: [
               if (isSelected)
@@ -1804,7 +1808,7 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
                             value: item,
                             child: Text(
                               getName(item),
-                              style: AppTheme.bodySmall.copyWith(fontSize: 9),
+                              style: operationDataTextStyle,
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
@@ -1843,8 +1847,8 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
         child: Text(
           val,
           style: AppTheme.bodySmall.copyWith(
-            fontSize: 9,
-            fontWeight: bold ? FontWeight.w600 : FontWeight.normal,
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
             color: color ?? Colors.grey.shade800,
           ),
         ),
@@ -1870,8 +1874,8 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
           return Text(
             value,
             style: AppTheme.bodySmall.copyWith(
-              fontSize: 9,
-              fontWeight: bold ? FontWeight.w600 : FontWeight.normal,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
               color:
                   colorForValue?.call(value) ?? color ?? Colors.grey.shade800,
             ),
@@ -1890,10 +1894,13 @@ class _ConsumeServicesViewState extends State<ConsumeServicesView> {
       Container(
         width: width,
         padding: const EdgeInsets.symmetric(horizontal: 6),
+        color: dashboardController.isLocked.value
+            ? operationLockedEditableColor
+            : Colors.transparent,
         child: TextFormField(
           controller: ctrl,
           enabled: !dashboardController.isLocked.value,
-          style: AppTheme.bodySmall.copyWith(fontSize: 9),
+          style: operationDataTextStyle,
           decoration: const InputDecoration(
             isDense: true,
             contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),

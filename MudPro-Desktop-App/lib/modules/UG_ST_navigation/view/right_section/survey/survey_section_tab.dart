@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/survey/controller/survey_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/survey/survey_graph_utils.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
+import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class SurveySectionTab extends StatelessWidget {
   SurveySectionTab({super.key});
@@ -33,9 +34,9 @@ class SurveySectionTab extends StatelessWidget {
         padding: const EdgeInsets.all(14),
         child: Column(
           children: [
-            const Text(
+            Text(
               'Section View',
-              style: TextStyle(fontSize: 18, color: Colors.black87),
+              style: AppTheme.wellLikeBodyText.copyWith(fontSize: 18),
             ),
             const SizedBox(height: 8),
             Expanded(
@@ -45,7 +46,7 @@ class SurveySectionTab extends StatelessWidget {
                     quarterTurns: 3,
                     child: Text(
                       'TVD ${AppUnits.unitText('(ft)')}',
-                      style: const TextStyle(fontSize: 14),
+                      style: AppTheme.wellLikeBodyText.copyWith(fontSize: 14),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -64,7 +65,7 @@ class SurveySectionTab extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               'Horizontal Displacement ${AppUnits.unitText('(ft)')}',
-              style: const TextStyle(fontSize: 14),
+              style: AppTheme.wellLikeBodyText.copyWith(fontSize: 14),
             ),
           ],
         ),
@@ -149,12 +150,7 @@ class _SectionGraphPainter extends CustomPainter {
     for (var i = 0; i <= tvdLabelDivisions; i++) {
       final value = _axisStep * i;
       final py = plot.top + (plot.height * value / maxTvd);
-      _drawLeftAxisLabel(
-        canvas,
-        value.toStringAsFixed(0),
-        plot.left,
-        py,
-      );
+      _drawLeftAxisLabel(canvas, value.toStringAsFixed(0), plot.left, py);
     }
     for (var i = 0; i <= xLabelDivisions; i++) {
       final value = minX + (_axisStep * i);
@@ -172,8 +168,9 @@ class _SectionGraphPainter extends CustomPainter {
       final xRatio = ((_numberValue(point.vsec) - minX) / xRange)
           .clamp(0.0, 1.0)
           .toDouble();
-      final yRatio =
-          (_numberValue(point.tvd) / maxTvd).clamp(0.0, 1.0).toDouble();
+      final yRatio = (_numberValue(point.tvd) / maxTvd)
+          .clamp(0.0, 1.0)
+          .toDouble();
       final px = plot.left + xRatio * plot.width;
       final py = plot.top + yRatio * plot.height;
       if (i == 0) {
@@ -185,8 +182,7 @@ class _SectionGraphPainter extends CustomPainter {
     canvas.drawPath(path, line);
 
     for (final marker in markers) {
-      final xRatio =
-          ((marker.x - minX) / xRange).clamp(0.0, 1.0).toDouble();
+      final xRatio = ((marker.x - minX) / xRange).clamp(0.0, 1.0).toDouble();
       final yRatio = (marker.y / maxTvd).clamp(0.0, 1.0).toDouble();
       final px = plot.left + xRatio * plot.width;
       final py = plot.top + yRatio * plot.height;
@@ -220,7 +216,7 @@ class _SectionGraphPainter extends CustomPainter {
     final painter = TextPainter(
       text: TextSpan(
         text: text,
-        style: const TextStyle(fontSize: 12, color: Color(0xFF2F2F2F)),
+        style: AppTheme.wellLikeBodyText.copyWith(fontSize: 12),
       ),
       textDirection: TextDirection.ltr,
     )..layout();

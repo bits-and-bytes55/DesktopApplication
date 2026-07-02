@@ -3,6 +3,7 @@ import 'package:mudpro_desktop_app/modules/company_setup/controller/service_cont
 import 'package:mudpro_desktop_app/modules/company_setup/model/service_model.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/inventory_store/inventory_store.dart';
+import 'package:mudpro_desktop_app/modules/UG/right_pannel/ug_ui_pattern.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class ServicesPickupPage extends StatefulWidget {
@@ -654,7 +655,8 @@ class _ServicesPageState extends State<ServicesPickupPage> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: AppTheme.tableBorderBlue),
+        border: Border.all(color: ugBorder),
+        borderRadius: BorderRadius.circular(4),
       ),
       child: Column(
         children: [
@@ -691,16 +693,17 @@ class _ServicesPageState extends State<ServicesPickupPage> {
     );
   }
 
-	  Widget _sectionHeader(
-	    String title,
-	    int selectedCount, {
-	    required bool allSelected,
-	    required VoidCallback onSelectAll,
-	  }) {
+  Widget _sectionHeader(
+    String title,
+    int selectedCount, {
+    required bool allSelected,
+    required VoidCallback onSelectAll,
+  }) {
     return Container(
       height: 28,
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 8),
+      color: ugSectionHeader,
       alignment: Alignment.centerLeft,
       child: Row(
         children: [
@@ -708,9 +711,10 @@ class _ServicesPageState extends State<ServicesPickupPage> {
             child: Text(
               title,
               style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-                color: Color(0xFF2F2F2F),
+                fontFamily: 'Segoe UI',
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
               ),
             ),
           ),
@@ -723,7 +727,7 @@ class _ServicesPageState extends State<ServicesPickupPage> {
 		          if (selectedCount > 0)
 		            Text(
 	              '$selectedCount selected',
-	              style: const TextStyle(fontSize: 10, color: Color(0xFF5F6B7A)),
+	              style: const TextStyle(fontSize: 10, color: Colors.white),
 	            ),
         ],
       ),
@@ -733,7 +737,7 @@ class _ServicesPageState extends State<ServicesPickupPage> {
   Widget _tableHeader(List<double> widths) {
     return Container(
       height: 30,
-      color: AppTheme.tableHeaderBlue,
+      color: ugColumnHeader,
       child: Row(
         children: [
           _HeaderCell(width: widths[0], text: ''),
@@ -882,8 +886,8 @@ class _ServicesPageState extends State<ServicesPickupPage> {
             Text(
               '$number',
               style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w500,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
                 color: isSelected
                     ? const Color(0xFF2E74C9)
                     : const Color(0xFF2F2F2F),
@@ -902,7 +906,7 @@ class _ServicesPageState extends State<ServicesPickupPage> {
       alignment: Alignment.centerLeft,
       child: Text(
         value,
-        style: const TextStyle(fontSize: 10.5, color: Color(0xFF2F2F2F)),
+        style: AppTheme.wellLikeBodyText,
         overflow: TextOverflow.ellipsis,
       ),
     );
@@ -914,7 +918,7 @@ class _ServicesPageState extends State<ServicesPickupPage> {
       padding: const EdgeInsets.symmetric(horizontal: 6),
       child: TextField(
         controller: controller,
-        style: const TextStyle(fontSize: 10.5, color: Color(0xFF2F2F2F)),
+        style: AppTheme.wellLikeBodyText,
         decoration: const InputDecoration(
           border: InputBorder.none,
           isDense: true,
@@ -1071,7 +1075,7 @@ class _HeaderCell extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 6),
       decoration: BoxDecoration(
         border: Border(
-          right: BorderSide(color: AppTheme.tableGridBlue, width: 1),
+          right: BorderSide(color: ugGrid, width: 1),
         ),
       ),
       child: Row(
@@ -1081,9 +1085,10 @@ class _HeaderCell extends StatelessWidget {
             child: Text(
               text,
               style: const TextStyle(
-                fontSize: 10.5,
-                fontWeight: FontWeight.w500,
-                color: Color(0xFF2F2F2F),
+                fontFamily: 'Segoe UI',
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: Colors.black,
               ),
               textAlign: TextAlign.center,
               overflow: TextOverflow.ellipsis,
@@ -1156,7 +1161,7 @@ class _InventoryOverwriteDialogState extends State<_InventoryOverwriteDialog> {
               child: Column(
                 children: [
                   Container(
-                    color: AppTheme.tableHeaderBlue,
+                    color: AppTheme.primaryColor,
                     padding: const EdgeInsets.symmetric(vertical: 6),
                     child: Row(
                       children: [

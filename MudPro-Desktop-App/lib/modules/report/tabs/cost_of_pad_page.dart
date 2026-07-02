@@ -6,6 +6,13 @@ import 'package:mudpro_desktop_app/modules/report/model/cost_of_pad_model.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_models.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
+const Color _costPage = Color(0xFFF4F6FA);
+const Color _costSection = Color(0xFF6C9BCF);
+const Color _costColumn = Color(0xFFEAF3FC);
+const Color _costStatic = Color(0xFFF2F2F2);
+const Color _costGrid = Color(0xFFCFE0F2);
+const Color _costBorder = Color(0xFFB8D0EA);
+
 class CostOfPadPage extends StatefulWidget {
   const CostOfPadPage({super.key});
 
@@ -48,29 +55,37 @@ class _CostOfPadPageState extends State<CostOfPadPage> {
       final activeWellId = _resolveWellFilter(snapshot);
       final filteredReports = _filteredReports(snapshot, activeWellId);
 
-      return Scaffold(
-        backgroundColor: AppTheme.backgroundColor,
-        body: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildHeader(pads, selectedPadId, snapshot),
-              const SizedBox(height: 16),
-              if (snapshot != null) _buildSummaryCards(snapshot),
-              if (snapshot != null) const SizedBox(height: 16),
-              if (controller.errorMessage.value.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: _banner(
-                    message: controller.errorMessage.value,
-                    color: AppTheme.warningColor,
+      return DefaultTextStyle.merge(
+        style: const TextStyle(
+          fontFamily: 'Segoe UI',
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: Colors.black,
+        ),
+        child: Scaffold(
+          backgroundColor: _costPage,
+          body: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildHeader(pads, selectedPadId, snapshot),
+                const SizedBox(height: 10),
+                if (snapshot != null) _buildSummaryCards(snapshot),
+                if (snapshot != null) const SizedBox(height: 10),
+                if (controller.errorMessage.value.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _banner(
+                      message: controller.errorMessage.value,
+                      color: AppTheme.warningColor,
+                    ),
                   ),
+                Expanded(
+                  child: _buildBody(snapshot, filteredReports, activeWellId),
                 ),
-              Expanded(
-                child: _buildBody(snapshot, filteredReports, activeWellId),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       );
@@ -83,21 +98,28 @@ class _CostOfPadPageState extends State<CostOfPadPage> {
     PadCostSnapshot? snapshot,
   ) {
     return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: AppTheme.elevatedCardDecoration.copyWith(color: Colors.white),
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: _costSection,
+        borderRadius: BorderRadius.circular(4),
+      ),
       child: Row(
         children: [
-          Icon(Icons.attach_money, size: 22, color: AppTheme.primaryColor),
-          const SizedBox(width: 12),
+          const Icon(Icons.attach_money, size: 16, color: Colors.white),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'Cost of Pad',
-                  style: AppTheme.bodyLarge.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.primaryColor,
+                  style: const TextStyle(
+                    fontFamily: 'Segoe UI',
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -105,7 +127,12 @@ class _CostOfPadPageState extends State<CostOfPadPage> {
                   snapshot == null
                       ? 'Pad-level cost rollup from report summaries.'
                       : 'Tracking ${snapshot.totalReports} reports across ${snapshot.totalWells} wells.',
-                  style: AppTheme.bodySmall,
+                  style: const TextStyle(
+                    fontFamily: 'Segoe UI',
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
                 ),
               ],
             ),
@@ -114,8 +141,9 @@ class _CostOfPadPageState extends State<CostOfPadPage> {
           Text(
             'Pad:',
             style: AppTheme.bodySmall.copyWith(
-              fontWeight: FontWeight.w600,
-              color: AppTheme.textSecondary,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
             ),
           ),
           const SizedBox(width: 8),
@@ -123,16 +151,21 @@ class _CostOfPadPageState extends State<CostOfPadPage> {
             padding: const EdgeInsets.symmetric(horizontal: 12),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: Colors.grey.shade300),
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: _costBorder),
             ),
             child: DropdownButton<String>(
               value: pads.any((pad) => pad.id == selectedPadId)
                   ? selectedPadId
                   : null,
               underline: const SizedBox(),
-              icon: Icon(Icons.arrow_drop_down, color: AppTheme.primaryColor),
-              style: AppTheme.bodySmall.copyWith(color: AppTheme.textPrimary),
+              icon: const Icon(Icons.arrow_drop_down, color: Colors.black),
+              style: const TextStyle(
+                fontFamily: 'Segoe UI',
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: Colors.black,
+              ),
               hint: Text('Select pad', style: AppTheme.bodySmall),
               items: pads
                   .map<DropdownMenuItem<String>>(
@@ -312,8 +345,10 @@ class _CostOfPadPageState extends State<CostOfPadPage> {
 
   Widget _wellPanel(PadCostSnapshot snapshot, String activeWellId) {
     return Container(
-      decoration: AppTheme.cardDecoration.copyWith(
-        border: Border.all(color: Colors.grey.shade200),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: _costBorder),
+        borderRadius: BorderRadius.circular(4),
       ),
       child: Column(
         children: [
@@ -423,8 +458,10 @@ class _CostOfPadPageState extends State<CostOfPadPage> {
 
     return Container(
       padding: const EdgeInsets.all(14),
-      decoration: AppTheme.cardDecoration.copyWith(
-        border: Border.all(color: Colors.grey.shade200),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: _costBorder),
+        borderRadius: BorderRadius.circular(4),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -461,8 +498,10 @@ class _CostOfPadPageState extends State<CostOfPadPage> {
   Widget _costDriversCard(PadCostSnapshot snapshot) {
     return Container(
       padding: const EdgeInsets.all(14),
-      decoration: AppTheme.cardDecoration.copyWith(
-        border: Border.all(color: Colors.grey.shade200),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: _costBorder),
+        borderRadius: BorderRadius.circular(4),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -496,8 +535,10 @@ class _CostOfPadPageState extends State<CostOfPadPage> {
 
   Widget _ledgerCard(List<PadCostReportRow> reports, String activeWellId) {
     return Container(
-      decoration: AppTheme.cardDecoration.copyWith(
-        border: Border.all(color: Colors.grey.shade200),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: _costBorder),
+        borderRadius: BorderRadius.circular(4),
       ),
       child: Column(
         children: [
@@ -532,9 +573,20 @@ class _CostOfPadPageState extends State<CostOfPadPage> {
                             headingRowHeight: 42,
                             dataRowMinHeight: 42,
                             dataRowMaxHeight: 52,
-                            headingTextStyle: AppTheme.bodySmall.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: AppTheme.textPrimary,
+                            headingRowColor: WidgetStateProperty.all(
+                              _costColumn,
+                            ),
+                            headingTextStyle: const TextStyle(
+                              fontFamily: 'Segoe UI',
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.black,
+                            ),
+                            dataTextStyle: const TextStyle(
+                              fontFamily: 'Segoe UI',
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.black,
                             ),
                             columns: const [
                               DataColumn(label: Text('Date')),
@@ -735,18 +787,11 @@ class _CostOfPadPageState extends State<CostOfPadPage> {
   }) {
     return Container(
       width: 208,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.22)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: _costBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -756,7 +801,7 @@ class _CostOfPadPageState extends State<CostOfPadPage> {
             height: 34,
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(4),
             ),
             child: Icon(Icons.insights_outlined, size: 18, color: color),
           ),
@@ -764,8 +809,9 @@ class _CostOfPadPageState extends State<CostOfPadPage> {
           Text(
             title,
             style: AppTheme.bodySmall.copyWith(
-              fontWeight: FontWeight.w600,
-              color: AppTheme.textSecondary,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: Colors.black,
             ),
           ),
           const SizedBox(height: 6),
@@ -801,18 +847,18 @@ class _CostOfPadPageState extends State<CostOfPadPage> {
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(4),
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: selected
               ? AppTheme.primaryColor.withValues(alpha: 0.08)
               : Colors.white,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(4),
           border: Border.all(
             color: selected
                 ? AppTheme.primaryColor.withValues(alpha: 0.35)
-                : Colors.grey.shade200,
+                : _costGrid,
           ),
         ),
         child: Column(
@@ -884,7 +930,8 @@ class _CostOfPadPageState extends State<CostOfPadPage> {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: _costGrid),
       ),
       child: Text(
         '$label: $value',
@@ -901,9 +948,9 @@ class _CostOfPadPageState extends State<CostOfPadPage> {
       width: 170,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.grey.shade200),
+        color: _costStatic,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: _costGrid),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -937,36 +984,42 @@ class _CostOfPadPageState extends State<CostOfPadPage> {
   }) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: const BoxDecoration(
+        color: _costSection,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(4)),
+        border: Border(bottom: BorderSide(color: _costGrid)),
       ),
       child: Row(
         children: [
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              color: AppTheme.primaryColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, size: 18, color: AppTheme.primaryColor),
-          ),
-          const SizedBox(width: 12),
+          Icon(icon, size: 16, color: Colors.white),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   title,
-                  style: AppTheme.bodySmall.copyWith(
+                  style: const TextStyle(
+                    fontFamily: 'Segoe UI',
+                    fontSize: 13,
                     fontWeight: FontWeight.w700,
-                    color: AppTheme.textPrimary,
+                    color: Colors.white,
                   ),
                 ),
                 const SizedBox(height: 2),
-                Text(subtitle, style: AppTheme.caption.copyWith(fontSize: 11)),
+                Text(
+                  subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontFamily: 'Segoe UI',
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
               ],
             ),
           ),
@@ -976,11 +1029,23 @@ class _CostOfPadPageState extends State<CostOfPadPage> {
   }
 
   Widget _sectionTitle(String title) {
-    return Text(
-      title,
-      style: AppTheme.bodyLarge.copyWith(
-        fontWeight: FontWeight.w700,
-        color: AppTheme.textPrimary,
+    return Container(
+      height: 34,
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      alignment: Alignment.centerLeft,
+      decoration: BoxDecoration(
+        color: _costSection,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontFamily: 'Segoe UI',
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+          color: Colors.white,
+        ),
       ),
     );
   }
@@ -991,7 +1056,7 @@ class _CostOfPadPageState extends State<CostOfPadPage> {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(4),
         border: Border.all(color: color.withValues(alpha: 0.22)),
       ),
       child: Text(
@@ -1012,8 +1077,10 @@ class _CostOfPadPageState extends State<CostOfPadPage> {
   }) {
     return Container(
       width: double.infinity,
-      decoration: AppTheme.cardDecoration.copyWith(
-        border: Border.all(color: Colors.grey.shade200),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: _costBorder),
+        borderRadius: BorderRadius.circular(4),
       ),
       child: Center(
         child: Padding(

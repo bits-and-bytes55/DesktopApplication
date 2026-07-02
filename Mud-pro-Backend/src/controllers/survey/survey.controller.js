@@ -194,7 +194,7 @@ export const saveSurveyConfig = async (req, res) => {
 
     const saved = existing?._id
       ? await SurveyConfig.findByIdAndUpdate(existing._id, payload, {
-          new: true,
+          returnDocument: "after",
           runValidators: true,
         })
       : await SurveyConfig.create(payload);

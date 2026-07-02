@@ -20,6 +20,7 @@ import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/tabs/pit_rev
 import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/tabs/vol_snapshot_page.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/transfer_mud.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_desktop_ui.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_ui_pattern.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class OperationPage extends StatelessWidget {
@@ -29,11 +30,13 @@ class OperationPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
-      body: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Row(
+    return DefaultTextStyle.merge(
+      style: operationDataTextStyle,
+      child: Scaffold(
+        backgroundColor: operationPageBackground,
+        body: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             /// LEFT SIDEBAR - OPERATION MENU
@@ -50,6 +53,7 @@ class OperationPage extends StatelessWidget {
             /// RIGHT PANEL - FULL PAGE CONTENT
             Expanded(child: _buildRightPanel()),
           ],
+          ),
         ),
       ),
     );
@@ -98,14 +102,14 @@ class OperationPage extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: AppTheme.primaryColor,
               border: Border(bottom: BorderSide(color: AppTheme.tableGridBlue)),
             ),
             child: Row(
               children: [
                 const Icon(
                   Icons.help_outline,
-                  color: Color(0xFF3B82F6),
+                  color: Colors.white,
                   size: 16,
                 ),
                 const SizedBox(width: 6),
@@ -113,8 +117,8 @@ class OperationPage extends StatelessWidget {
                   "Operation",
                   style: AppTheme.bodySmall.copyWith(
                     fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: AppTheme.textPrimary,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
                   ),
                 ),
                 const Spacer(),
@@ -455,11 +459,11 @@ class OperationPage extends StatelessWidget {
           width: 22,
           height: 22,
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Colors.transparent,
             borderRadius: BorderRadius.circular(2),
-            border: Border.all(color: Colors.grey.shade400, width: 0.8),
+            border: Border.all(color: Colors.white70, width: 0.8),
           ),
-          child: Icon(icon, size: 13, color: const Color(0xFF2563EB)),
+          child: Icon(icon, size: 13, color: Colors.white),
         ),
       ),
     );
@@ -468,7 +472,7 @@ class OperationPage extends StatelessWidget {
   // ----------------- RIGHT PANEL -----------------
   Widget _buildRightPanel() {
     return Container(
-      color: Colors.white,
+      color: operationPageBackground,
       child: Obx(() {
         final selectedIndex = controller.selectedRowIndex.value;
         final selectedOp = controller.dropdownValues[selectedIndex];

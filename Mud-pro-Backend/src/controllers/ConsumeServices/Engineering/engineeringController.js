@@ -143,7 +143,7 @@ export const updateEngineering = async (req, res) => {
     const updatedRecord = await Engineering.findOneAndUpdate(
       scopedIdFilter(req),
       buildPayload(req, existing),
-      { new: true }
+      { returnDocument: "after" }
     );
 
     res.status(200).json({

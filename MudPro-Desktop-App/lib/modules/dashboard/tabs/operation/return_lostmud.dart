@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/return_lostmud_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_ui_pattern.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class ReturnLostMudView extends StatelessWidget {
@@ -136,7 +137,7 @@ class ReturnLostMudView extends StatelessWidget {
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w700,
-              color: Colors.black,
+              color: Colors.white,
             ),
           ),
         ],
@@ -210,9 +211,9 @@ class ReturnLostMudView extends StatelessWidget {
               () => Container(
                 height: 30,
                 decoration: BoxDecoration(
-                  color:
-                      dashboardController.isLocked.value ||
-                          !controller.isPremixedMud.value
+                  color: dashboardController.isLocked.value
+                      ? operationLockedEditableColor
+                      : !controller.isPremixedMud.value
                       ? AppTheme.tableHeaderBlue
                       : Colors.white,
                   border: Border.all(color: AppTheme.tableGridBlue),
@@ -360,70 +361,74 @@ class ReturnLostMudView extends StatelessWidget {
       children: [
         _buildLabelCell('From'),
         Padding(
-          padding: const EdgeInsets.all(6),
-          child: Obx(
-            () => Container(
-              height: 30,
-              decoration: BoxDecoration(
-                color: dashboardController.isLocked.value
-                    ? AppTheme.tableHeaderBlue
-                    : Colors.white,
-                border: Border.all(color: AppTheme.tableGridBlue),
-                borderRadius: BorderRadius.circular(3),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: controller.selectedPitId.value.isEmpty
-                      ? null
-                      : controller.selectedPitId.value,
-                  hint: Text(
-                    'Select Pit',
+          padding: EdgeInsets.zero,
+          child: Obx(() {
+            final isLocked = dashboardController.isLocked.value;
+            const fieldTextColor = Colors.black;
+
+            return Container(
+              color: isLocked ? operationLockedEditableColor : Colors.white,
+              padding: const EdgeInsets.all(6),
+              child: Container(
+                height: 30,
+                decoration: BoxDecoration(
+                  border: Border.all(color: AppTheme.tableGridBlue),
+                  borderRadius: BorderRadius.circular(3),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: controller.selectedPitId.value.isEmpty
+                        ? null
+                        : controller.selectedPitId.value,
+                    hint: Text(
+                      'Select Pit',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey.shade500,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    isExpanded: true,
+                    isDense: true,
+                    icon: Icon(
+                      Icons.arrow_drop_down,
+                      size: 18,
+                      color: Colors.grey.shade700,
+                    ),
                     style: TextStyle(
                       fontSize: 11,
-                      color: Colors.grey.shade500,
+                      color: fieldTextColor,
                       fontWeight: FontWeight.w700,
                     ),
-                  ),
-                  isExpanded: true,
-                  isDense: true,
-                  icon: Icon(
-                    Icons.arrow_drop_down,
-                    size: 18,
-                    color: Colors.grey.shade700,
-                  ),
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Colors.black,
-                    fontWeight: FontWeight.w700,
-                  ),
-                  dropdownColor: Colors.white,
-                  items: controller.fromOptions.map((option) {
-                    return DropdownMenuItem<String>(
-                      value: option['id'],
-                      child: Text(
-                        option['name'] ?? '',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.black,
+                    dropdownColor: Colors.white,
+                    items: controller.fromOptions.map((option) {
+                      return DropdownMenuItem<String>(
+                        value: option['id'],
+                        child: Text(
+                          option['name'] ?? '',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.black,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    );
-                  }).toList(),
-                  onChanged: dashboardController.isLocked.value
-                      ? null
-                      : (value) {
-                          if (value != null) {
-                            controller.selectPit(value);
-                          }
-                        },
-                  padding: EdgeInsets.symmetric(horizontal: 8),
-                  menuMaxHeight: 200,
+                      );
+                    }).toList(),
+                    onChanged: isLocked
+                        ? null
+                        : (value) {
+                            if (value != null) {
+                              controller.selectPit(value);
+                            }
+                          },
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    menuMaxHeight: 200,
+                  ),
                 ),
               ),
-            ),
-          ),
+            );
+          }),
         ),
         _buildUnitCell(''),
       ],
@@ -439,36 +444,38 @@ class ReturnLostMudView extends StatelessWidget {
       children: [
         _buildLabelCell(label),
         Padding(
-          padding: const EdgeInsets.all(6),
-          child: Obx(
-            () => Container(
-              height: 30,
-              child: TextField(
-                controller: textController,
-                enabled: !dashboardController.isLocked.value,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.black,
-                ),
-                decoration: InputDecoration(
-                  isDense: true,
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 6,
+          padding: EdgeInsets.zero,
+          child: Obx(() {
+            final isLocked = dashboardController.isLocked.value;
+
+            return Container(
+              color: isLocked ? operationLockedEditableColor : Colors.white,
+              padding: const EdgeInsets.all(6),
+              child: SizedBox(
+                height: 30,
+                child: TextField(
+                  controller: textController,
+                  enabled: !isLocked,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black,
                   ),
-                  border: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                  focusedBorder: InputBorder.none,
-                  disabledBorder: InputBorder.none,
-                  filled: true,
-                  fillColor: dashboardController.isLocked.value
-                      ? AppTheme.tableHeaderBlue
-                      : Colors.white,
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 6,
+                    ),
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    disabledBorder: InputBorder.none,
+                  ),
                 ),
               ),
-            ),
-          ),
+            );
+          }),
         ),
         _buildUnitCell(unit),
       ],
@@ -543,7 +550,7 @@ class ReturnLostMudView extends StatelessWidget {
         style: TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w700,
-          color: Colors.black,
+          color: Colors.white,
         ),
       ),
     );

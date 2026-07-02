@@ -6,10 +6,10 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/report/recap_tabs/drilling_data/tabs/engineer/controller/recap_engineer_controller.dart';
 
-const Color _engineerOuterBorder = Color(0xFF2F92E8);
-const Color _engineerCanvas = Color(0xFFF4F4F4);
-const Color _engineerPanelBorder = Color(0xFFC8C8C8);
-const Color _engineerHeaderFill = Color(0xFFF7F7F7);
+const Color _engineerOuterBorder = Color(0xFFB8D0EA);
+const Color _engineerCanvas = Color(0xFFF4F6FA);
+const Color _engineerPanelBorder = Color(0xFFB8D0EA);
+const Color _engineerHeaderFill = Color(0xFFEAF3FC);
 const Color _engineerText = Color(0xFF1C1C1C);
 
 class RecapEngineerTabView extends StatelessWidget {

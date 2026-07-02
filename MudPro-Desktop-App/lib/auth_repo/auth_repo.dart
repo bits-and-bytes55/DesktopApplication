@@ -1260,7 +1260,6 @@ class AuthRepository {
     required double capacity,
     required bool initialActive,
     required String wellId,
-    String? reportId,
   }) async {
     try {
       final response = await http.post(
@@ -1271,7 +1270,6 @@ class AuthRepository {
           'capacity': capacity,
           'initialActive': initialActive,
           'wellId': wellId,
-          if (reportId != null) 'reportId': reportId,
         }),
       );
 
@@ -1299,14 +1297,12 @@ class AuthRepository {
     required String wellId,
   }) async {
     try {
-      final reportId = _selectedReportId;
       final response = await http.post(
         Uri.parse('${baseUrl}pit/bulk-add'),
         headers: ApiEndpoint.jsonHeaders,
         body: jsonEncode({
           'pits': pits,
           'wellId': wellId,
-          if (reportId.isNotEmpty) 'reportId': reportId,
         }),
       );
 
@@ -1336,11 +1332,8 @@ class AuthRepository {
 
   Future<Map<String, dynamic>> getAllPits(String wellId) async {
     try {
-      final reportId = reportContext.selectedReportId.value.trim();
       final response = await http.get(
-        Uri.parse('${baseUrl}pit/well/$wellId').replace(
-          queryParameters: {if (reportId.isNotEmpty) 'reportId': reportId},
-        ),
+        Uri.parse('${baseUrl}pit/well/$wellId'),
         headers: ApiEndpoint.jsonHeaders,
       );
 
@@ -1373,11 +1366,8 @@ class AuthRepository {
 
   Future<Map<String, dynamic>> getSelectedPits(String wellId) async {
     try {
-      final reportId = reportContext.selectedReportId.value.trim();
       final response = await http.get(
-        Uri.parse('${baseUrl}pit/well/$wellId/selected').replace(
-          queryParameters: {if (reportId.isNotEmpty) 'reportId': reportId},
-        ),
+        Uri.parse('${baseUrl}pit/well/$wellId/selected'),
         headers: ApiEndpoint.jsonHeaders,
       );
 
@@ -1407,11 +1397,8 @@ class AuthRepository {
 
   Future<Map<String, dynamic>> getUnselectedPits(String wellId) async {
     try {
-      final reportId = reportContext.selectedReportId.value.trim();
       final response = await http.get(
-        Uri.parse('${baseUrl}pit/well/$wellId/unselected').replace(
-          queryParameters: {if (reportId.isNotEmpty) 'reportId': reportId},
-        ),
+        Uri.parse('${baseUrl}pit/well/$wellId/unselected'),
         headers: ApiEndpoint.jsonHeaders,
       );
 
@@ -1456,7 +1443,6 @@ class AuthRepository {
         if (volume != null) 'volume': volume,
         if (density != null) 'density': density,
         if (fluidType != null) 'fluidType': fluidType,
-        if (_selectedReportId.isNotEmpty) 'reportId': _selectedReportId,
       };
       final response = await http.put(
         Uri.parse('${baseUrl}pit/$id'),
@@ -1485,12 +1471,10 @@ class AuthRepository {
 
   Future<Map<String, dynamic>> deletePit(String id) async {
     try {
-      final uri = Uri.parse('${baseUrl}pit/$id').replace(
-        queryParameters: {
-          if (_selectedReportId.isNotEmpty) 'reportId': _selectedReportId,
-        },
+      final response = await http.delete(
+        Uri.parse('${baseUrl}pit/$id'),
+        headers: ApiEndpoint.jsonHeaders,
       );
-      final response = await http.delete(uri, headers: ApiEndpoint.jsonHeaders);
 
       final data = jsonDecode(response.body);
 

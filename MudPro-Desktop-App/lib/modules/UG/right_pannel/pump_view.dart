@@ -6,6 +6,7 @@ import '../controller/pump_controller.dart';
 import '../controller/UG_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
+import 'package:mudpro_desktop_app/modules/UG/right_pannel/ug_ui_pattern.dart';
 
 class PumpView extends StatefulWidget {
   const PumpView({super.key});
@@ -227,7 +228,7 @@ class _PumpViewState extends State<PumpView> {
         padding: const EdgeInsets.all(12),
         child: Container(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(4),
             color: Colors.white,
             boxShadow: [
               BoxShadow(
@@ -236,13 +237,12 @@ class _PumpViewState extends State<PumpView> {
                 offset: const Offset(0, 2),
               ),
             ],
-            border: Border.all(color: Colors.grey.shade200, width: 1),
+            border: Border.all(color: ugBorder, width: 1),
           ),
           child: Column(
             children: [
               _headerRow(),
               Expanded(child: _tableBody()),
-              _buildFooter(),
             ],
           ),
         ),
@@ -256,10 +256,10 @@ class _PumpViewState extends State<PumpView> {
         Container(
           height: 36,
           decoration: BoxDecoration(
-            gradient: AppTheme.headerGradient,
+            color: ugSectionHeader,
             borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(8),
-              topRight: Radius.circular(8),
+                  topLeft: Radius.circular(4),
+                  topRight: Radius.circular(4),
             ),
           ),
           child: Row(
@@ -317,9 +317,9 @@ class _PumpViewState extends State<PumpView> {
         Container(
           height: rowH,
           decoration: BoxDecoration(
-            color: const Color(0xfff0f9ff),
+            color: ugColumnHeader,
             border: Border(
-              bottom: BorderSide(color: Colors.grey.shade200, width: 1),
+              bottom: BorderSide(color: ugGrid, width: 1),
             ),
           ),
           child: Row(
@@ -338,7 +338,7 @@ class _PumpViewState extends State<PumpView> {
                 flex: 4,
                 child: Container(
                   decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade300, width: 1),
+                    border: Border.all(color: ugGrid, width: 1),
                   ),
                   child: Column(
                     children: [
@@ -348,7 +348,7 @@ class _PumpViewState extends State<PumpView> {
                         decoration: BoxDecoration(
                           border: Border(
                             bottom: BorderSide(
-                              color: Colors.grey.shade300,
+                              color: ugGrid,
                               width: 1,
                             ),
                           ),
@@ -358,8 +358,8 @@ class _PumpViewState extends State<PumpView> {
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: AppTheme.textPrimary,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.black,
                           ),
                         ),
                       ),
@@ -373,7 +373,7 @@ class _PumpViewState extends State<PumpView> {
                                 decoration: BoxDecoration(
                                   border: Border(
                                     right: BorderSide(
-                                      color: Colors.grey.shade300,
+                                      color: ugGrid,
                                       width: 1,
                                     ),
                                   ),
@@ -383,8 +383,8 @@ class _PumpViewState extends State<PumpView> {
                                   textAlign: TextAlign.center,
                                   style: const TextStyle(
                                     fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppTheme.textPrimary,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.black,
                                   ),
                                 ),
                               ),
@@ -398,8 +398,8 @@ class _PumpViewState extends State<PumpView> {
                                   textAlign: TextAlign.center,
                                   style: const TextStyle(
                                     fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppTheme.textPrimary,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.black,
                                   ),
                                 ),
                               ),
@@ -470,8 +470,10 @@ class _PumpViewState extends State<PumpView> {
                     return Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6),
                       color: !isDuplex
-                          ? const Color(0xfff5f5f5)
-                          : null, // grey bg for non-Duplex
+                          ? ugReadOnlyFill
+                          : ugController.isLocked.value
+                          ? ugLockedEditable
+                          : Colors.white,
                       child: isLocked
                           ? Container(
                               padding: const EdgeInsets.symmetric(vertical: 8),
@@ -481,10 +483,7 @@ class _PumpViewState extends State<PumpView> {
                                     ? p.rodOd.value
                                     : '', // non-Duplex shows empty
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  color: AppTheme.textSecondary,
-                                ),
+                                style: AppTheme.wellLikeBodyText,
                               ),
                             )
                           : TextField(
@@ -501,10 +500,7 @@ class _PumpViewState extends State<PumpView> {
                                 pumpController.onFieldChanged(i);
                               },
                               textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                fontSize: 11,
-                                color: AppTheme.textPrimary,
-                              ),
+                              style: AppTheme.wellLikeBodyText,
                               decoration: const InputDecoration(
                                 isDense: true,
                                 contentPadding: EdgeInsets.symmetric(
@@ -561,6 +557,9 @@ class _PumpViewState extends State<PumpView> {
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6),
                             decoration: BoxDecoration(
+                              color: ugController.isLocked.value
+                                  ? ugLockedEditable
+                                  : Colors.white,
                               border: Border(
                                 right: BorderSide(
                                   color: Colors.grey.shade300,
@@ -578,10 +577,7 @@ class _PumpViewState extends State<PumpView> {
                                       child: Text(
                                         p.surfaceLen.value,
                                         textAlign: TextAlign.center,
-                                        style: const TextStyle(
-                                          fontSize: 11,
-                                          color: AppTheme.textSecondary,
-                                        ),
+                                        style: AppTheme.wellLikeBodyText,
                                       ),
                                     )
                                   : TextField(
@@ -603,10 +599,7 @@ class _PumpViewState extends State<PumpView> {
                                         pumpController.onFieldChanged(i);
                                       },
                                       textAlign: TextAlign.center,
-                                      style: const TextStyle(
-                                        fontSize: 11,
-                                        color: AppTheme.textPrimary,
-                                      ),
+                                      style: AppTheme.wellLikeBodyText,
                                       decoration: const InputDecoration(
                                         isDense: true,
                                         contentPadding: EdgeInsets.symmetric(
@@ -623,6 +616,9 @@ class _PumpViewState extends State<PumpView> {
                           flex: 1,
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6),
+                            color: ugController.isLocked.value
+                                ? ugLockedEditable
+                                : Colors.white,
                             child: Obx(
                               () => ugController.isLocked.value
                                   ? Container(
@@ -633,10 +629,7 @@ class _PumpViewState extends State<PumpView> {
                                       child: Text(
                                         p.surfaceId.value,
                                         textAlign: TextAlign.center,
-                                        style: const TextStyle(
-                                          fontSize: 11,
-                                          color: AppTheme.textSecondary,
-                                        ),
+                                        style: AppTheme.wellLikeBodyText,
                                       ),
                                     )
                                   : TextField(
@@ -658,10 +651,7 @@ class _PumpViewState extends State<PumpView> {
                                         pumpController.onFieldChanged(i);
                                       },
                                       textAlign: TextAlign.center,
-                                      style: const TextStyle(
-                                        fontSize: 11,
-                                        color: AppTheme.textPrimary,
-                                      ),
+                                      style: AppTheme.wellLikeBodyText,
                                       decoration: const InputDecoration(
                                         isDense: true,
                                         contentPadding: EdgeInsets.symmetric(
@@ -703,11 +693,7 @@ class _PumpViewState extends State<PumpView> {
           child: Text(
             val.isEmpty ? '-' : val,
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: val.isNotEmpty ? FontWeight.w600 : FontWeight.normal,
-              color: val.isNotEmpty ? Colors.green.shade700 : Colors.grey,
-            ),
+            style: AppTheme.wellLikeBodyText,
           ),
         );
       }),
@@ -739,7 +725,7 @@ class _PumpViewState extends State<PumpView> {
         child: Text(
           t,
           textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 11, color: AppTheme.textPrimary),
+          style: AppTheme.wellLikeBodyText,
         ),
       ),
     );
@@ -750,6 +736,9 @@ class _PumpViewState extends State<PumpView> {
       flex: flex,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 6),
+        color: ugController.isLocked.value
+            ? ugLockedEditable
+            : Colors.white,
         child: Obx(
           () => ugController.isLocked.value
               ? Container(
@@ -758,10 +747,7 @@ class _PumpViewState extends State<PumpView> {
                   child: Text(
                     pump.type.value,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: AppTheme.textSecondary,
-                    ),
+                    style: AppTheme.wellLikeBodyText,
                   ),
                 )
               : DropdownButtonHideUnderline(
@@ -773,7 +759,8 @@ class _PumpViewState extends State<PumpView> {
                     isDense: true,
                     style: const TextStyle(
                       fontSize: 11,
-                      color: AppTheme.textPrimary,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.black,
                     ),
                     items: pumpTypes.map((String type) {
                       return DropdownMenuItem<String>(
@@ -783,9 +770,8 @@ class _PumpViewState extends State<PumpView> {
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 11,
-                            color: type.isEmpty
-                                ? Colors.grey
-                                : AppTheme.textPrimary,
+                            fontWeight: FontWeight.w700,
+                            color: type.isEmpty ? Colors.grey : Colors.black,
                           ),
                         ),
                       );
@@ -814,6 +800,9 @@ class _PumpViewState extends State<PumpView> {
       flex: flex,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 6),
+        color: ugController.isLocked.value
+            ? ugLockedEditable
+            : Colors.white,
         child: Obx(
           () => ugController.isLocked.value
               ? Container(
@@ -822,10 +811,7 @@ class _PumpViewState extends State<PumpView> {
                   child: Text(
                     value.value,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: AppTheme.textSecondary,
-                    ),
+                    style: AppTheme.wellLikeBodyText,
                   ),
                 )
               : TextField(
@@ -835,10 +821,7 @@ class _PumpViewState extends State<PumpView> {
                     ),
                   onChanged: (v) => onChanged(v),
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: AppTheme.textPrimary,
-                  ),
+                  style: AppTheme.wellLikeBodyText,
                   decoration: const InputDecoration(
                     isDense: true,
                     contentPadding: EdgeInsets.symmetric(
@@ -864,28 +847,6 @@ class _PumpViewState extends State<PumpView> {
         return Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // NEW pump — show Save button
-            if (pump.hasData && pump.id == null)
-              IconButton(
-                icon: const Icon(Icons.save, size: 16),
-                onPressed: () async {
-                  try {
-                    await pumpController.savePump(index);
-                    if (mounted) {
-                      _showAlert('Pump saved successfully', isSuccess: true);
-                    }
-                  } catch (e) {
-                    if (mounted) {
-	                      _showAlert('Failed to save pump: $e', isSuccess: false);
-                    }
-                  }
-                },
-                tooltip: 'Save',
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                color: Colors.green,
-              ),
-
             // SAVED pump — show sync/check indicator
             if (pump.id != null)
               SizedBox(
@@ -957,84 +918,6 @@ class _PumpViewState extends State<PumpView> {
       }),
     );
   }
-
-  Widget _buildFooter() {
-    return Container(
-      height: 50,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        border: Border(top: BorderSide(color: Colors.grey.shade300, width: 1)),
-        borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(8),
-          bottomRight: Radius.circular(8),
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          Obx(
-            () => ElevatedButton.icon(
-              onPressed: pumpController.isLoading.value
-                  ? null
-                  : () => _bulkSavePumps(),
-              icon: pumpController.isLoading.value
-                  ? const SizedBox(
-                      width: 14,
-                      height: 14,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Icon(Icons.save, size: 16),
-              label: Text(
-                pumpController.isLoading.value ? 'Saving...' : 'Save All Pumps',
-                style: const TextStyle(fontSize: 12),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryColor,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 10,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _bulkSavePumps() async {
-    final pumpsWithData = pumpController.pumps
-        .where((pump) => pump.hasData)
-        .toList();
-
-    if (pumpsWithData.isEmpty) {
-      _showAlert('No pumps to save', isSuccess: false);
-      return;
-    }
-
-    try {
-      pumpController.isLoading.value = true;
-
-      for (int i = 0; i < pumpController.pumps.length; i++) {
-        if (pumpController.pumps[i].hasData) {
-          await pumpController.savePump(i);
-        }
-      }
-
-      await pumpController.loadPumps(pumpController.currentWellId);
-
-      if (mounted) _showAlert('All pumps saved successfully', isSuccess: true);
-    } catch (e) {
-      if (mounted) _showAlert('Failed to save pumps: $e', isSuccess: false);
-    } finally {
-      pumpController.isLoading.value = false;
-    }
-  }
 }
 
 class _HCell extends StatelessWidget {
@@ -1053,8 +936,8 @@ class _HCell extends StatelessWidget {
           textAlign: TextAlign.center,
           style: const TextStyle(
             fontSize: 11,
-            fontWeight: FontWeight.w600,
-            color: AppTheme.textPrimary,
+            fontWeight: FontWeight.w700,
+            color: Colors.black,
           ),
         ),
       ),

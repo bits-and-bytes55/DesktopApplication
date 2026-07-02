@@ -27,19 +27,21 @@ class _RecapBodyState extends State<RecapBody> {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        if (widget.isSidebarVisible)
-          RecapLeftSidebar(
-            selectedTab: _selectedSideTab,
-            onTabSelected: _onSideTabSelected,
-            onToggleSidebar: widget.onToggleSidebar,
-          ),
-        if (!widget.isSidebarVisible)
-          _SidebarRevealRail(onTap: widget.onToggleSidebar),
-
-        Expanded(child: buildRecapTabContent(_selectedSideTab)),
-      ],
+    return ColoredBox(
+      color: const Color(0xFFF4F6FA),
+      child: Row(
+        children: [
+          if (widget.isSidebarVisible)
+            RecapLeftSidebar(
+              selectedTab: _selectedSideTab,
+              onTabSelected: _onSideTabSelected,
+              onToggleSidebar: widget.onToggleSidebar,
+            ),
+          if (!widget.isSidebarVisible)
+            _SidebarRevealRail(onTap: widget.onToggleSidebar),
+          Expanded(child: buildRecapTabContent(_selectedSideTab)),
+        ],
+      ),
     );
   }
 }
@@ -53,7 +55,7 @@ class _SidebarRevealRail extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: 44,
-      color: const Color(0xFF3F5F8E),
+      color: const Color(0xFF6C9BCF),
       child: Center(
         child: IconButton(
           tooltip: 'Show recap navigation',

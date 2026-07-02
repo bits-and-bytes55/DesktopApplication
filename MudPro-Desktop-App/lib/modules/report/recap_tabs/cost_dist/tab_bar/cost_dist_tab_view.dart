@@ -2,15 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/report/recap_tabs/cost_dist/controller/recap_cost_dist_controller.dart';
 
-const Color _costDistOuterBorder = Color(0xFF2F92E8);
-const Color _costDistCanvas = Color(0xFFF4F4F4);
-const Color _costDistPanelBorder = Color(0xFFC8C8C8);
-const Color _costDistHeaderFill = Color(0xFFF7F7F7);
+const Color _costDistOuterBorder = Color(0xFFB8D0EA);
+const Color _costDistCanvas = Color(0xFFF4F6FA);
+const Color _costDistPanelBorder = Color(0xFFB8D0EA);
+const Color _costDistHeaderFill = Color(0xFFEAF3FC);
 const Color _costDistText = Color(0xFF1C1C1C);
-const Color _costDistGrid = Color(0xFFD7D7D7);
+const Color _costDistGrid = Color(0xFFCFE0F2);
 const Color _costDistBlueBar = Color(0xFF89ACD9);
 const Color _costDistAltBar = Color(0xFF8CC4D7);
-const Color _costDistTabFill = Color(0xFFEAEAEA);
+const Color _costDistTabFill = Color(0xFFEAF3FC);
 
 class CostDistTabView extends StatefulWidget {
   const CostDistTabView({super.key});

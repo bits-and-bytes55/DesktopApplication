@@ -4,13 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/report/recap_tabs/volume/controller/recap_volume_controller.dart';
 
-const Color _volumeOuterBorder = Color(0xFF2F92E8);
-const Color _volumeCanvas = Color(0xFFF4F4F4);
-const Color _volumePanelBorder = Color(0xFFC8C8C8);
-const Color _volumeHeaderFill = Color(0xFFF7F7F7);
+const Color _volumeOuterBorder = Color(0xFFB8D0EA);
+const Color _volumeCanvas = Color(0xFFF4F6FA);
+const Color _volumePanelBorder = Color(0xFFB8D0EA);
+const Color _volumeHeaderFill = Color(0xFFEAF3FC);
 const Color _volumeText = Color(0xFF1C1C1C);
-const Color _volumeGrid = Color(0xFFD6D6D6);
-const Color _volumeTabFill = Color(0xFFEAEAEA);
+const Color _volumeGrid = Color(0xFFCFE0F2);
+const Color _volumeTabFill = Color(0xFFEAF3FC);
 const Color _volumeLine = Color(0xFF86D8FB);
 
 class RecapVolumeTabView extends StatefulWidget {

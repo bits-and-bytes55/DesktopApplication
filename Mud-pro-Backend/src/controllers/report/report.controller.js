@@ -334,7 +334,7 @@ const finalizeCarryOverTargetReport = async (targetReport) => {
     {
       $set: volumeNameCarryOverReset,
     },
-    { new: true }
+    { returnDocument: "after" }
   );
 
   return updatedReport ?? targetReport;

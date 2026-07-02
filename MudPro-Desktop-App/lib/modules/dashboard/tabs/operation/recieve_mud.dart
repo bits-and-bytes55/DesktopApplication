@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/recievemud_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_ui_pattern.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class ReceiveMudView extends StatelessWidget {
@@ -157,7 +158,7 @@ class ReceiveMudView extends StatelessWidget {
                   ),
                   filled: true,
                   fillColor: dashboardController.isLocked.value
-                      ? AppTheme.tableHeaderBlue
+                      ? operationLockedEditableColor
                       : Colors.white,
                 ),
               ),
@@ -259,7 +260,7 @@ class ReceiveMudView extends StatelessWidget {
                 ),
                 filled: true,
                 fillColor: dashboardController.isLocked.value
-                    ? AppTheme.tableHeaderBlue
+                    ? operationLockedEditableColor
                     : Colors.white,
               ),
             ),
@@ -280,7 +281,9 @@ class ReceiveMudView extends StatelessWidget {
             () => Container(
               height: 25,
               decoration: BoxDecoration(
-                color: Colors.transparent,
+                color: dashboardController.isLocked.value
+                    ? operationLockedEditableColor
+                    : Colors.white,
                 borderRadius: BorderRadius.circular(3),
               ),
               child: DropdownButtonHideUnderline(
@@ -349,9 +352,13 @@ class ReceiveMudView extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 6),
           child: Obx(
-            () => TextField(
-              controller: controller.fromController,
-              enabled: !dashboardController.isLocked.value,
+            () => ColoredBox(
+              color: dashboardController.isLocked.value
+                  ? operationLockedEditableColor
+                  : Colors.white,
+              child: TextField(
+                controller: controller.fromController,
+                enabled: !dashboardController.isLocked.value,
               style: TextStyle(
                 fontSize: 11,
                 color: Colors.black,
@@ -368,6 +375,7 @@ class ReceiveMudView extends StatelessWidget {
                 focusedBorder: InputBorder.none,
               ),
             ),
+          ),
           ),
         ),
         _buildUnitCell(''),
@@ -423,7 +431,7 @@ class ReceiveMudView extends StatelessWidget {
                     height: 30,
                     decoration: BoxDecoration(
                       color: dashboardController.isLocked.value
-                          ? AppTheme.tableHeaderBlue
+                          ? operationLockedEditableColor
                           : Colors.white,
                       border: Border.all(color: AppTheme.tableGridBlue),
                       borderRadius: BorderRadius.circular(3),
@@ -519,9 +527,13 @@ class ReceiveMudView extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 6),
           child: Obx(
-            () => Opacity(
-              opacity: isReadOnly ? 0.6 : 1.0,
-              child: TextField(
+            () => ColoredBox(
+              color: !isReadOnly && dashboardController.isLocked.value
+                  ? operationLockedEditableColor
+                  : Colors.white,
+              child: Opacity(
+                opacity: isReadOnly ? 0.6 : 1.0,
+                child: TextField(
                 controller: controller,
                 enabled: !dashboardController.isLocked.value && !isReadOnly,
                 readOnly: isReadOnly,
@@ -541,6 +553,7 @@ class ReceiveMudView extends StatelessWidget {
                   focusedBorder: InputBorder.none,
                   filled: isReadOnly,
                   fillColor: isReadOnly ? Colors.grey.shade200 : null,
+                ),
                 ),
               ),
             ),
@@ -594,7 +607,7 @@ class ReceiveMudView extends StatelessWidget {
         style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w700,
-          color: Colors.black,
+          color: Colors.white,
         ),
       ),
     );
@@ -705,9 +718,9 @@ class ReceiveMudView extends StatelessWidget {
                     borderRadius: BorderRadius.circular(3),
                   ),
                   filled: true,
-                  fillColor:
-                      !controller.hasLossVolume.value ||
-                          dashboardController.isLocked.value
+                  fillColor: dashboardController.isLocked.value
+                      ? operationLockedEditableColor
+                      : !controller.hasLossVolume.value
                       ? AppTheme.tableHeaderBlue
                       : Colors.white,
                   suffixText: '(bbl)',

@@ -13,9 +13,20 @@ import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_models.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
+import 'package:mudpro_desktop_app/modules/UG/right_pannel/ug_ui_pattern.dart';
 
 class PadView extends StatefulWidget {
   const PadView({super.key});
+
+  static _PadViewState? _activeState;
+
+  static Future<Map<String, dynamic>> saveActivePad() async {
+    final state = _activeState;
+    if (state == null || !state.mounted) {
+      return {'success': false, 'message': 'Pad view is not ready'};
+    }
+    return state._savePad(silent: true);
+  }
 
   @override
   State<PadView> createState() => _PadViewState();
@@ -51,6 +62,7 @@ class _PadViewState extends State<PadView> {
   @override
   void initState() {
     super.initState();
+    PadView._activeState = this;
     _lengthUnit = AppUnits.length;
     _diameterUnit = AppUnits.diameter;
     _loadSelectedPad();
@@ -87,6 +99,9 @@ class _PadViewState extends State<PadView> {
 
   @override
   void dispose() {
+    if (PadView._activeState == this) {
+      PadView._activeState = null;
+    }
     _padWorker?.dispose();
     _newPadRequestWorker?.dispose();
     for (final worker in _unitWorkers) {
@@ -226,7 +241,7 @@ class _PadViewState extends State<PadView> {
         .replaceAll(RegExp(r'\.$'), '');
   }
 
-  Future<void> _savePad() async {
+  Future<Map<String, dynamic>> _savePad({bool silent = false}) async {
     final payload = <String, dynamic>{
       'locationType': _locationType,
       'memo': _memoController.text.trim(),
@@ -245,8 +260,10 @@ class _PadViewState extends State<PadView> {
     }
 
     if (!_hasMeaningfulData(payload)) {
-      _showFeedback('Enter pad details before saving.', isSuccess: false);
-      return;
+      if (!silent) {
+        _showFeedback('Enter pad details before saving.', isSuccess: false);
+      }
+      return {'success': false, 'message': 'Enter pad details before saving.'};
     }
 
     try {
@@ -257,9 +274,17 @@ class _PadViewState extends State<PadView> {
         _isCreatingNewPad = false;
       });
       _loadSelectedPad();
-      _showFeedback(result['message']?.toString() ?? 'Pad saved successfully');
+      final message = result['message']?.toString() ?? 'Pad saved successfully';
+      if (!silent) {
+        _showFeedback(message);
+      }
+      return {'success': true, 'message': message};
     } catch (e) {
-      _showFeedback(_cleanError(e), isSuccess: false);
+      final message = _cleanError(e);
+      if (!silent) {
+        _showFeedback(message, isSuccess: false);
+      }
+      return {'success': false, 'message': message};
     }
   }
 
@@ -322,7 +347,10 @@ class _PadViewState extends State<PadView> {
 
     final path = await _clipboardImagePath();
     if (path.isEmpty) {
-      _showFeedback('Copy an image file first, then paste here.', isSuccess: false);
+      _showFeedback(
+        'Copy an image file first, then paste here.',
+        isSuccess: false,
+      );
       return;
     }
 
@@ -334,7 +362,10 @@ class _PadViewState extends State<PadView> {
 
     final ext = path.split('.').last.toLowerCase();
     if (!_isSupportedImageExtension(ext)) {
-      _showFeedback('Only PNG, JPG, JPEG, or WEBP images are supported.', isSuccess: false);
+      _showFeedback(
+        'Only PNG, JPG, JPEG, or WEBP images are supported.',
+        isSuccess: false,
+      );
       return;
     }
 
@@ -349,7 +380,10 @@ class _PadViewState extends State<PadView> {
     final name = file.name.isNotEmpty ? file.name : file.path;
     final ext = name.split('.').last.toLowerCase();
     if (!_isSupportedImageExtension(ext)) {
-      _showFeedback('Only PNG, JPG, JPEG, or WEBP images are supported.', isSuccess: false);
+      _showFeedback(
+        'Only PNG, JPG, JPEG, or WEBP images are supported.',
+        isSuccess: false,
+      );
       return;
     }
 
@@ -364,7 +398,12 @@ class _PadViewState extends State<PadView> {
           '-Command',
           r'$files=Get-Clipboard -Format FileDropList; if($files){$files | Select-Object -First 1 -ExpandProperty FullName}',
         ]);
-        final path = result.stdout.toString().trim().split(RegExp(r'\r?\n')).first.trim();
+        final path = result.stdout
+            .toString()
+            .trim()
+            .split(RegExp(r'\r?\n'))
+            .first
+            .trim();
         if (path.isNotEmpty) return path;
       }
     } catch (_) {
@@ -396,10 +435,7 @@ class _PadViewState extends State<PadView> {
     final savedPin = activePad?.clientLogoPin ?? '';
 
     if (savedPin.isEmpty && _pendingClientLogoPin.isEmpty) {
-      final pin = await _askLogoPin(
-        title: 'Set Logo PIN',
-        label: 'New PIN',
-      );
+      final pin = await _askLogoPin(title: 'Set Logo PIN', label: 'New PIN');
       if (pin == null || pin.trim().isEmpty) return false;
       _pendingClientLogoPin = pin.trim();
       return true;
@@ -407,10 +443,7 @@ class _PadViewState extends State<PadView> {
 
     if (savedPin.isEmpty) return true;
 
-    final enteredPin = await _askLogoPin(
-      title: 'Logo PIN',
-      label: 'Enter PIN',
-    );
+    final enteredPin = await _askLogoPin(title: 'Logo PIN', label: 'Enter PIN');
     if (enteredPin == null) return false;
     if (enteredPin.trim() != savedPin) {
       _showFeedback('Invalid PIN.', isSuccess: false);
@@ -419,10 +452,7 @@ class _PadViewState extends State<PadView> {
     return true;
   }
 
-  Future<String?> _askLogoPin({
-    required String title,
-    required String label,
-  }) {
+  Future<String?> _askLogoPin({required String title, required String label}) {
     final controller = TextEditingController();
     return Get.dialog<String>(
       AlertDialog(
@@ -465,7 +495,7 @@ class _PadViewState extends State<PadView> {
           : padWellC.wellsForPad(activePad.id);
 
       return Container(
-        color: Colors.white,
+        color: ugPageBackground,
         padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
         child: Column(
           children: [
@@ -515,11 +545,7 @@ class _PadViewState extends State<PadView> {
         children: [
           Text(
             _isCreatingNewPad ? 'Pad - New Pad' : 'Pad',
-            style: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-              color: Color(0xFF2F2F2F),
-            ),
+            style: AppTheme.wellLikeBodyText,
           ),
           const Spacer(),
           if (!_isCreatingNewPad && activePad != null)
@@ -541,12 +567,6 @@ class _PadViewState extends State<PadView> {
                 ? 'Cancel new pad'
                 : 'Use New Pad from the left panel',
             onTap: canEdit && _isCreatingNewPad ? _cancelNewPad : null,
-          ),
-          const SizedBox(width: 4),
-          _stripButton(
-            icon: Icons.save_outlined,
-            tooltip: _isCreatingNewPad ? 'Create pad' : 'Save pad',
-            onTap: canEdit ? _savePad : null,
           ),
           const SizedBox(width: 4),
           _stripButton(
@@ -602,7 +622,7 @@ class _PadViewState extends State<PadView> {
         Expanded(
           child: Container(
             decoration: BoxDecoration(
-              border: Border.all(color: const Color(0xFFC9CDD3)),
+              border: Border.all(color: ugBorder),
               color: Colors.white,
             ),
             child: Scrollbar(
@@ -621,7 +641,7 @@ class _PadViewState extends State<PadView> {
                       defaultVerticalAlignment:
                           TableCellVerticalAlignment.middle,
                       border: TableBorder.all(
-                        color: const Color(0xFFD5D9DE),
+                        color: ugGrid,
                         width: 1,
                       ),
                       columnWidths: {
@@ -652,14 +672,7 @@ class _PadViewState extends State<PadView> {
         children: [
           const SizedBox(
             width: 94,
-            child: Text(
-              'Location',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-                color: Color(0xFF2F2F2F),
-              ),
-            ),
+            child: Text('Location', style: AppTheme.wellLikeBodyText),
           ),
           _radioOption('Land', enabled),
           const SizedBox(width: 26),
@@ -677,7 +690,7 @@ class _PadViewState extends State<PadView> {
       children: [
         _labelCell(field.label),
         fieldReadOnly
-            ? _readOnlyValueCell(controller.text)
+            ? _readOnlyValueCell(controller.text, locked: isLocked)
             : _editableValueCell(controller, field.hint),
         _unitCell(_displayUnit(field.unit)),
       ],
@@ -689,28 +702,18 @@ class _PadViewState extends State<PadView> {
       height: 31,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       alignment: Alignment.centerLeft,
-      color: const Color(0xFFF8F8F8),
-      child: Text(
-        text,
-        style: const TextStyle(
-          fontSize: 10.8,
-          fontWeight: FontWeight.w400,
-          color: Color(0xFF2F2F2F),
-        ),
-      ),
+      color: ugReadOnlyFill,
+      child: Text(text, style: AppTheme.wellLikeBodyText),
     );
   }
 
-  Widget _readOnlyValueCell(String value) {
+  Widget _readOnlyValueCell(String value, {required bool locked}) {
     return Container(
       height: 31,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       alignment: Alignment.centerLeft,
-      color: Colors.white,
-      child: Text(
-        value,
-        style: const TextStyle(fontSize: 10.8, color: Color(0xFF2F2F2F)),
-      ),
+      color: locked ? ugLockedEditable : ugReadOnlyFill,
+      child: Text(value, style: AppTheme.wellLikeBodyText),
     );
   }
 
@@ -722,7 +725,7 @@ class _PadViewState extends State<PadView> {
       color: Colors.white,
       child: TextField(
         controller: controller,
-        style: const TextStyle(fontSize: 10.8, color: Color(0xFF2F2F2F)),
+        style: AppTheme.wellLikeBodyText,
         decoration: InputDecoration(
           hintText: hint,
           hintStyle: TextStyle(fontSize: 10.5, color: Colors.grey.shade400),
@@ -742,11 +745,8 @@ class _PadViewState extends State<PadView> {
       height: 31,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       alignment: Alignment.centerLeft,
-      color: const Color(0xFFF8F8F8),
-      child: Text(
-        unit,
-        style: const TextStyle(fontSize: 10.5, color: Color(0xFF2F2F2F)),
-      ),
+      color: ugReadOnlyFill,
+      child: Text(unit, style: AppTheme.wellLikeUnitText),
     );
   }
 
@@ -782,7 +782,8 @@ class _PadViewState extends State<PadView> {
           Text(
             value,
             style: TextStyle(
-              fontSize: 10.8,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
               color: enabled ? const Color(0xFF2F2F2F) : Colors.grey.shade500,
             ),
           ),
@@ -799,29 +800,16 @@ class _PadViewState extends State<PadView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        const SizedBox(height: 14),
         const Padding(
           padding: EdgeInsets.only(left: 2, bottom: 6),
-          child: Text(
-            'Client Logo',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF2F2F2F),
-            ),
-          ),
+          child: Text('Client Logo', style: AppTheme.wellLikeBodyText),
         ),
         _buildClientLogoBox(isLocked, activePad, linkedWellCount),
         const SizedBox(height: 18),
         const Padding(
           padding: EdgeInsets.only(left: 2, bottom: 6),
-          child: Text(
-            'Memo',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-              color: Color(0xFF2F2F2F),
-            ),
-          ),
+          child: Text('Memo', style: AppTheme.wellLikeBodyText),
         ),
         Expanded(
           child: Container(
@@ -840,8 +828,9 @@ class _PadViewState extends State<PadView> {
                 expands: true,
                 scrollController: _memoScrollController,
                 style: const TextStyle(
-                  fontSize: 10.8,
-                  color: Color(0xFF2F2F2F),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.black,
                 ),
                 decoration: InputDecoration(
                   hintText: isLocked ? '' : 'Enter memo...',
@@ -881,7 +870,8 @@ class _PadViewState extends State<PadView> {
         focusNode: _logoFocusNode,
         onKeyEvent: (event) {
           if (event is! KeyDownEvent) return;
-          final isPaste = HardwareKeyboard.instance.isControlPressed &&
+          final isPaste =
+              HardwareKeyboard.instance.isControlPressed &&
               event.logicalKey == LogicalKeyboardKey.keyV;
           if (isPaste) {
             _pasteClientLogo();
@@ -895,99 +885,97 @@ class _PadViewState extends State<PadView> {
                   _pickClientLogo();
                 },
           child: Container(
-          width: 290,
-          height: 210,
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: _isLogoDragging
-                  ? const Color(0xFF2E74C9)
-                  : const Color(0xFF8E959D),
-              width: _isLogoDragging ? 2 : 1,
+            width: 290,
+            height: 210,
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: _isLogoDragging
+                    ? const Color(0xFF2E74C9)
+                    : const Color(0xFF8E959D),
+                width: _isLogoDragging ? 2 : 1,
+              ),
+              color: _isLogoDragging ? const Color(0xFFEAF3FF) : Colors.white,
             ),
-            color: _isLogoDragging ? const Color(0xFFEAF3FF) : Colors.white,
-          ),
-          child: Column(
-            children: [
-              Expanded(
-                child: Center(
-                  child: hasLogo
-                      ? _buildLogoPreview(_clientLogoUrl)
-                      : Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.image_outlined,
-                              size: 32,
-                              color: Colors.grey.shade400,
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              activePad?.displayName ?? 'No logo selected',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.grey.shade600,
+            child: Column(
+              children: [
+                Expanded(
+                  child: Center(
+                    child: hasLogo
+                        ? _buildLogoPreview(_clientLogoUrl)
+                        : Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.image_outlined,
+                                size: 32,
+                                color: Colors.grey.shade400,
                               ),
-                            ),
-                            if (activePad != null) ...[
-                              const SizedBox(height: 2),
+                              const SizedBox(height: 8),
                               Text(
-                                'Linked Wells: $linkedWellCount',
+                                activePad?.displayName ?? 'No logo selected',
+                                textAlign: TextAlign.center,
                                 style: TextStyle(
-                                  fontSize: 10,
-                                  color: Colors.grey.shade500,
+                                  fontSize: 11,
+                                  color: Colors.grey.shade600,
                                 ),
                               ),
+                              if (activePad != null) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Linked Wells: $linkedWellCount',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: Colors.grey.shade500,
+                                  ),
+                                ),
+                              ],
                             ],
-                          ],
-                        ),
-                ),
-              ),
-              Container(
-                height: 40,
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                decoration: const BoxDecoration(
-                  border: Border(
-                    top: BorderSide(color: Color(0xFFD5D9DE)),
+                          ),
                   ),
                 ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        hasLogo
-                            ? 'Click, paste, or drop to change'
-                            : 'Click, paste, or drop image',
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 10.5,
-                          color: isLocked
-                              ? Colors.grey.shade500
-                              : const Color(0xFF5F6B7A),
+                Container(
+                  height: 40,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  decoration: const BoxDecoration(
+                    border: Border(top: BorderSide(color: Color(0xFFD5D9DE))),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          hasLogo
+                              ? 'Click, paste, or drop to change'
+                              : 'Click, paste, or drop image',
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            color: isLocked
+                                ? Colors.grey.shade500
+                                : const Color(0xFF5F6B7A),
+                          ),
                         ),
                       ),
-                    ),
-                    IconButton(
-                      tooltip: 'Upload logo',
-                      icon: const Icon(Icons.upload_file, size: 16),
-                      visualDensity: VisualDensity.compact,
-                      padding: EdgeInsets.zero,
-                      onPressed: isLocked ? null : _pickClientLogo,
-                    ),
-                    IconButton(
-                      tooltip: 'Paste copied image file',
-                      icon: const Icon(Icons.content_paste, size: 16),
-                      visualDensity: VisualDensity.compact,
-                      padding: EdgeInsets.zero,
-                      onPressed: isLocked ? null : _pasteClientLogo,
-                    ),
-                  ],
+                      IconButton(
+                        tooltip: 'Upload logo',
+                        icon: const Icon(Icons.upload_file, size: 16),
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.zero,
+                        onPressed: isLocked ? null : _pickClientLogo,
+                      ),
+                      IconButton(
+                        tooltip: 'Paste copied image file',
+                        icon: const Icon(Icons.content_paste, size: 16),
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.zero,
+                        onPressed: isLocked ? null : _pasteClientLogo,
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-          ),
-      ),
+        ),
       ),
     );
   }
@@ -1018,9 +1006,7 @@ class _PadViewState extends State<PadView> {
 
     return Padding(
       padding: const EdgeInsets.all(8),
-      child: ClipRect(
-        child: SizedBox.expand(child: image),
-      ),
+      child: ClipRect(child: SizedBox.expand(child: image)),
     );
   }
 

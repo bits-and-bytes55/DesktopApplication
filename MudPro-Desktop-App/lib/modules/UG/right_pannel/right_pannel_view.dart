@@ -10,8 +10,8 @@ import 'package:mudpro_desktop_app/modules/UG/right_pannel/pad_view.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/pit_view.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/pump_view.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/sce_view.dart';
-import 'package:mudpro_desktop_app/modules/dashboard/widgets/home_secondary_tabbar.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
+import 'package:mudpro_desktop_app/modules/UG/right_pannel/ug_ui_pattern.dart';
 
 class UGRightPanel extends StatelessWidget {
   final c = Get.find<UgController>();
@@ -29,15 +29,19 @@ class UGRightPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
+    return DefaultTextStyle.merge(
+      style: ugDataText,
+      child: ColoredBox(
+        color: ugPageBackground,
+        child: Column(
+          children: [
         // ───── IMPROVED TOP TAB BAR ─────
         Container(
           height: 36,
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: ugPageBackground,
             border: Border(
-              bottom: BorderSide(color: Colors.grey.shade300, width: 1),
+              bottom: const BorderSide(color: ugBorder, width: 1),
             ),
             boxShadow: [
               BoxShadow(
@@ -52,39 +56,8 @@ class UGRightPanel extends StatelessWidget {
               Expanded(
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: tabs.map(_tabButton).toList(),
-                  ),
+                  child: Row(children: tabs.map(_tabButton).toList()),
                 ),
-              ),
-              Container(
-                margin: EdgeInsets.only(right: 8),
-                child: Obx(() => IconButton(
-                      icon: Container(
-                        padding: EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          gradient: c.isLocked.value 
-                            ? LinearGradient(
-                                colors: [Color(0xffFC8181), Color(0xffF56565)],
-                              )
-                            : AppTheme.secondaryGradient,
-                          borderRadius: BorderRadius.circular(6),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 3,
-                              offset: Offset(0, 1),
-                            ),
-                          ],
-                        ),
-                        child: Icon(
-                          c.isLocked.value ? Icons.lock : Icons.lock_open,
-                          size: 16,
-                          color: Colors.white,
-                        ),
-                      ),
-                      onPressed: c.toggleLock,
-                    )),
               ),
             ],
           ),
@@ -93,7 +66,7 @@ class UGRightPanel extends StatelessWidget {
         // ───── TAB CONTENT ─────
         Expanded(
           child: Container(
-            color: AppTheme.backgroundColor,
+            color: ugPageBackground,
             child: Obx(() {
               switch (c.activeRightTab.value) {
                 case 'pad':
@@ -120,7 +93,9 @@ class UGRightPanel extends StatelessWidget {
             }),
           ),
         ),
-      ],
+          ],
+        ),
+      ),
     );
   }
 
@@ -134,25 +109,20 @@ class UGRightPanel extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           margin: EdgeInsets.only(left: 2),
           decoration: BoxDecoration(
-            gradient: selected ? AppTheme.primaryGradient : null,
-            color: selected ? null : Colors.transparent,
+            color: selected ? ugSectionHeader : ugColumnHeader,
             borderRadius: BorderRadius.only(
               topLeft: Radius.circular(6),
               topRight: Radius.circular(6),
             ),
-            border: selected
-                ? null
-                : Border(
-                    bottom: BorderSide(color: Colors.grey.shade300, width: 1),
-                  ),
+            border: Border.all(color: ugBorder),
           ),
           child: Text(
             id.toUpperCase(),
             style: TextStyle(
               fontSize: 11,
-              fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-              color: selected ? Colors.white : AppTheme.textSecondary,
-              letterSpacing: 0.5,
+              fontWeight: FontWeight.w700,
+              color: selected ? Colors.white : Colors.black,
+              letterSpacing: 0,
             ),
           ),
         ),

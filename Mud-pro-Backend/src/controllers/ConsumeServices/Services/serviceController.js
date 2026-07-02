@@ -143,7 +143,7 @@ export const updateService = async (req, res) => {
     const updatedService = await Service.findOneAndUpdate(
       scopedIdFilter(req),
       buildPayload(req, existing),
-      { new: true }
+      { returnDocument: "after" }
     );
 
     res.status(200).json({

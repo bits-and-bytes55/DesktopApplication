@@ -48,22 +48,23 @@ class ProductsPage extends StatelessWidget {
                   Text(
                     'Products Management',
                     style: AppTheme.titleLarge.copyWith(
-                      color: Colors.white,
+                      color: AppTheme.companySetupHeaderTextColor,
                       fontSize: 20,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                   Spacer(),
                   Text(
                     'Total Products: ${controller.existingProductIds.length}',
-                    style: AppTheme.bodyLarge.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w500,
+                    style: AppTheme.companySetupBodyMedium.copyWith(
+                      color: AppTheme.companySetupHeaderTextColor,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                   SizedBox(width: 12),
                   IconButton(
                     onPressed: () => controller.loadProducts(),
-                    icon: Icon(Icons.refresh, color: Colors.white, size: 20),
+                    icon: Icon(Icons.refresh, color: AppTheme.companySetupHeaderTextColor, size: 20),
                     tooltip: 'Refresh',
                     padding: EdgeInsets.zero,
                     constraints: BoxConstraints(),
@@ -211,7 +212,7 @@ class ProductsPage extends StatelessWidget {
     return Container(
       height: 38,
       decoration: BoxDecoration(
-        color: AppTheme.darkPrimaryColor,
+        gradient: AppTheme.primaryGradient,
         borderRadius: BorderRadius.only(
           topLeft: Radius.circular(8),
           topRight: Radius.circular(8),
@@ -238,11 +239,7 @@ class ProductsPage extends StatelessWidget {
                     alignment: Alignment.center,
                     child: Text(
                       'Unit*',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style: AppTheme.companySetupHeaderDark,
                     ),
                   ),
                 ),
@@ -266,11 +263,7 @@ class ProductsPage extends StatelessWidget {
                           ),
                           child: Text(
                             'Num',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
-                            ),
+                            style: AppTheme.companySetupHeaderDark,
                           ),
                         ),
                       ),
@@ -279,11 +272,7 @@ class ProductsPage extends StatelessWidget {
                           alignment: Alignment.center,
                           child: Text(
                             'Class',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
-                            ),
+                            style: AppTheme.companySetupHeaderDark,
                           ),
                         ),
                       ),
@@ -313,11 +302,7 @@ class ProductsPage extends StatelessWidget {
       ),
       child: Text(
         title,
-        style: TextStyle(
-          color: Colors.white,
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-        ),
+        style: AppTheme.companySetupHeaderDark,
       ),
     );
   }
@@ -384,13 +369,10 @@ class ProductsPage extends StatelessWidget {
                         color: Colors.blue,
                       ),
                     ),
-                  Text(
-                    '${index + 1}',
-                    style: AppTheme.bodyLarge.copyWith(
-                      fontSize: 12,
-                      color: AppTheme.textSecondary,
-                    ),
-                  ),
+                   Text(
+                     '${index + 1}',
+                    style: AppTheme.companySetupBodyBold,
+                   ),
                 ],
               ),
             ),
@@ -546,10 +528,7 @@ class ProductsPage extends StatelessWidget {
         alignment: Alignment.center,
         child: Text(
           value,
-          style: AppTheme.bodyLarge.copyWith(
-            fontSize: 12,
-            color: AppTheme.textSecondary,
-          ),
+          style: AppTheme.companySetupBodyText,
           textAlign: TextAlign.center,
         ),
       );
@@ -632,7 +611,10 @@ class ProductsPage extends StatelessWidget {
         children: [
           Icon(icon, size: 16, color: color),
           const SizedBox(width: 8),
-          Text(label, style: TextStyle(color: color)),
+          Text(
+            label,
+            style: AppTheme.companySetupBodyText.copyWith(color: color),
+          ),
         ],
       ),
     );
@@ -742,9 +724,8 @@ class _ProductCellEditorState extends State<_ProductCellEditor> {
     return TextField(
       controller: _textController,
       focusNode: _focusNode,
-      style: AppTheme.bodyLarge.copyWith(
-        fontSize: 12,
-        color: widget.isEditing ? Colors.black : null,
+      style: AppTheme.companySetupBodyText.copyWith(
+        color: widget.isEditing ? AppTheme.companySetupText : null,
       ),
       textAlign: TextAlign.center,
       keyboardType: widget.isNumeric ? TextInputType.number : TextInputType.text,

@@ -32,7 +32,10 @@ import 'package:mudpro_desktop_app/modules/dashboard/controller/other_vol_additi
 import 'package:mudpro_desktop_app/modules/dashboard/controller/mud_loss_storage_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/empty_Activesystem_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart';
+import 'package:mudpro_desktop_app/modules/UG/controller/pump_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/UG_controller.dart';
+import 'package:mudpro_desktop_app/modules/UG/right_pannel/pad_view.dart';
+import 'package:mudpro_desktop_app/modules/UG_ST_navigation/controller/UG_ST_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/well_view.dart';
 import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
@@ -290,7 +293,11 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
                                       : 1.0,
                                 ),
                               child: Icon(
-                                tabs[index]["icon"] as IconData,
+                                index == 7
+                                    ? (controller.isLocked.value
+                                          ? Icons.lock
+                                          : Icons.lock_open)
+                                    : tabs[index]["icon"] as IconData,
                                 size: 16,
                                 color: !isEnabled
                                     ? Colors.grey.shade400
@@ -470,7 +477,37 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
     }
 
     try {
-      if (activeTab == 0) {
+      final selectedNode = controller.selectedNodeId.value;
+      final isUgNode =
+          selectedNode == 'pads' || selectedNode.startsWith('pad:');
+      final ugCtrl = Get.isRegistered<UgController>()
+          ? Get.find<UgController>()
+          : null;
+
+      if (isUgNode && ugCtrl?.activeRightTab.value == 'pad') {
+        final res = await PadView.saveActivePad().timeout(
+          const Duration(seconds: 12),
+          onTimeout: () {
+            return {'success': false, 'message': 'Pad save timed out (12s)'};
+          },
+        );
+        if (res['success'] == true) {
+          successMessage =
+              res['message']?.toString() ?? 'Pad saved successfully';
+        } else {
+          errorMessages.add(res['message']?.toString() ?? 'Pad save failed');
+        }
+      } else if (isUgNode && ugCtrl?.activeRightTab.value == 'pump') {
+        final pumpCtrl = Get.isRegistered<PumpController>()
+            ? Get.find<PumpController>()
+            : null;
+        if (pumpCtrl == null) {
+          errorMessages.add('Pump view is not ready');
+        } else {
+          await pumpCtrl.saveAllPumps().timeout(const Duration(seconds: 12));
+          successMessage = 'Pump data saved successfully!';
+        }
+      } else if (activeTab == 0) {
         // Well Tab
         final wellEditorRes = await WellView.saveActiveWell().timeout(
           const Duration(seconds: 12),
@@ -1605,6 +1642,9 @@ class _SecondaryTabBarState extends State<HomeSecondaryTabbar>
     final reportDate = DateFormat('MM/dd/yyyy').format(DateTime.now());
 
     try {
+      if (Get.isRegistered<UgStController>()) {
+        await Get.find<UgStController>().flushPendingCasingSave();
+      }
       if (Get.isRegistered<MudController>()) {
         Get.find<MudController>().markNextReportMudStateClean();
       }

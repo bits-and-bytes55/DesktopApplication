@@ -291,7 +291,7 @@ export const updateUnitSystem = async (req, res) => {
     const updated = await UnitSystem.findByIdAndUpdate(
       req.params.id,
       { $set: update },
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     );
 
     if (!updated) {
@@ -324,7 +324,7 @@ export const updateSingleParameterUnit = async (req, res) => {
     const updated = await UnitSystem.findOneAndUpdate(
       { _id: id, "parameters.number": number },
       { $set: { "parameters.$.unit": unit } },
-      { new: true }
+      { returnDocument: "after" }
     );
 
     if (!updated) {

@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/controller/product_controller.dart';
+import 'package:mudpro_desktop_app/modules/UG/right_pannel/ug_ui_pattern.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/model/products_model.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
@@ -82,7 +83,8 @@ class _ProductsPickupPageState extends State<ProductsPickupPage> {
                   return Container(
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      border: Border.all(color: const Color(0xFFC8C8C8)),
+                      border: Border.all(color: ugBorder),
+                      borderRadius: BorderRadius.circular(4),
                     ),
                     child: SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
@@ -216,9 +218,9 @@ class _ProductsPickupPageState extends State<ProductsPickupPage> {
     return Container(
       width: width,
       decoration: const BoxDecoration(
-        color: Colors.white,
+        color: ugColumnHeader,
         border: Border(
-          bottom: BorderSide(color: Color(0xFFD1D5DB)),
+          bottom: BorderSide(color: ugGrid),
         ),
       ),
       child: Row(
@@ -365,10 +367,7 @@ class _ProductsPickupPageState extends State<ProductsPickupPage> {
       ),
       child: Text(
         '$rowNo',
-        style: const TextStyle(
-          fontSize: 11,
-          color: Color(0xFF4C4C4C),
-        ),
+        style: AppTheme.wellLikeBodyText,
       ),
     );
   }
@@ -426,10 +425,7 @@ class _ProductsPickupPageState extends State<ProductsPickupPage> {
         child: Text(
           value,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            fontSize: 11,
-            color: Color(0xFF1F1F1F),
-          ),
+          style: AppTheme.wellLikeBodyText,
           textAlign: align,
         ),
       );
@@ -442,7 +438,7 @@ class _ProductsPickupPageState extends State<ProductsPickupPage> {
       controller: textController,
       keyboardType: isNumeric ? TextInputType.number : TextInputType.text,
       textAlign: align,
-      style: const TextStyle(fontSize: 11, color: Color(0xFF1F1F1F)),
+      style: AppTheme.wellLikeBodyText,
       decoration: const InputDecoration(
         border: InputBorder.none,
         isDense: true,
@@ -529,19 +525,20 @@ class _ProductsPickupPageState extends State<ProductsPickupPage> {
       alignment: Alignment.center,
       decoration: const BoxDecoration(
         border: Border(
-          right: BorderSide(color: Color(0xFFC8C8C8), width: 0.8),
+          right: BorderSide(color: ugGrid, width: 0.8),
         ),
       ),
       child: Text(
         title,
         style: const TextStyle(
+          fontFamily: 'Segoe UI',
           fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: Color(0xFF323232),
+          fontWeight: FontWeight.w700,
+          color: Colors.black,
         ),
       ),
-	    );
-	  }
+    );
+  }
 
   Widget _selectAllBox({
     required bool checked,
@@ -687,7 +684,7 @@ class _InventoryOverwriteDialogState extends State<_InventoryOverwriteDialog> {
               child: Column(
                 children: [
                   Container(
-                    color: AppTheme.tableHeaderBlue,
+                    color: AppTheme.primaryColor,
                     padding: const EdgeInsets.symmetric(vertical: 6),
                     child: Row(
                       children: [

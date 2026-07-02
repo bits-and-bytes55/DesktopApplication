@@ -14,6 +14,23 @@ import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 enum _MudPropertyMenuAction { cut, copy, paste, delete, top, bottom }
 
+const TextStyle _kMudHeaderTextStyle = TextStyle(
+  fontSize: 12,
+  fontWeight: FontWeight.w700,
+  color: Colors.white,
+);
+const TextStyle _kMudInputTextStyle = TextStyle(
+  fontSize: 11,
+  fontWeight: FontWeight.w700,
+  color: Colors.black,
+);
+const TextStyle _kMudSecondaryTextStyle = TextStyle(
+  fontSize: 10.5,
+  fontWeight: FontWeight.w600,
+  color: Colors.black87,
+);
+const Color _kMudLockedEditableColor = Color(0xFFFFF7CC);
+
 class MudView extends StatefulWidget {
   const MudView({super.key});
 
@@ -201,21 +218,24 @@ class _MudViewState extends State<MudView> {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isSmallScreen = constraints.maxWidth < 1024;
-        return Column(
-          children: [
-            _topControls(),
-            Divider(height: 1, color: Colors.grey.shade300),
-            Expanded(
-              child: isSmallScreen
-                  ? _buildMobileLayout()
-                  : _buildDesktopLayout(),
-            ),
-          ],
-        );
-      },
+    return DefaultTextStyle.merge(
+      style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w700),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isSmallScreen = constraints.maxWidth < 1024;
+          return Column(
+            children: [
+              _topControls(),
+              Divider(height: 1, color: Colors.grey.shade300),
+              Expanded(
+                child: isSmallScreen
+                    ? _buildMobileLayout()
+                    : _buildDesktopLayout(),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 
@@ -256,40 +276,41 @@ class _MudViewState extends State<MudView> {
           Text(
             'Fluid Name',
             style: AppTheme.caption.copyWith(
-              fontWeight: FontWeight.w600,
-              color: AppTheme.textPrimary,
+              fontWeight: FontWeight.w700,
+              color: Colors.black,
               fontSize: 11,
             ),
           ),
           const SizedBox(width: 8),
-          Container(
-            width: 172,
-            height: 26,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(2),
-              border: Border.all(color: Colors.grey.shade300),
-            ),
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onSecondaryTapDown: (details) => _showValueMenu(
-                details,
-                currentValue: c.fluidnameController.text,
-                onValueChanged: (value) =>
-                    _setControllerValue(c.fluidnameController, value),
+          Obx(
+            () => Container(
+              width: 172,
+              height: 26,
+              decoration: BoxDecoration(
+                color: dashboard.isLocked.value
+                    ? _kMudLockedEditableColor
+                    : Colors.white,
+                borderRadius: BorderRadius.circular(2),
+                border: Border.all(color: Colors.grey.shade300),
               ),
-              child: TextField(
-                controller: c.fluidnameController,
-                style: AppTheme.caption.copyWith(
-                  color: AppTheme.textPrimary,
-                  fontSize: 11,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onSecondaryTapDown: (details) => _showValueMenu(
+                  details,
+                  currentValue: c.fluidnameController.text,
+                  onValueChanged: (value) =>
+                      _setControllerValue(c.fluidnameController, value),
                 ),
-                decoration: const InputDecoration(
-                  isDense: true,
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 7,
+                child: TextField(
+                  controller: c.fluidnameController,
+                  style: _kMudInputTextStyle,
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 7,
+                    ),
                   ),
                 ),
               ),
@@ -299,8 +320,8 @@ class _MudViewState extends State<MudView> {
           Text(
             'Fluid Type',
             style: AppTheme.caption.copyWith(
-              fontWeight: FontWeight.w600,
-              color: AppTheme.textPrimary,
+              fontWeight: FontWeight.w700,
+              color: Colors.black,
               fontSize: 11,
             ),
           ),
@@ -310,7 +331,9 @@ class _MudViewState extends State<MudView> {
               height: 26,
               padding: const EdgeInsets.symmetric(horizontal: 8),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: dashboard.isLocked.value
+                    ? _kMudLockedEditableColor
+                    : Colors.white,
                 borderRadius: BorderRadius.circular(2),
                 border: Border.all(color: Colors.grey.shade300),
               ),
@@ -322,23 +345,42 @@ class _MudViewState extends State<MudView> {
                       value: 'Water-based',
                       child: Text(
                         'Water-based',
-                        style: TextStyle(fontSize: 11),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.black,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                     DropdownMenuItem(
                       value: 'Oil-based',
-                      child: Text('Oil-based', style: TextStyle(fontSize: 11)),
+                      child: Text(
+                        'Oil-based',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.black,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ),
                     DropdownMenuItem(
                       value: 'Synthetic',
-                      child: Text('Synthetic', style: TextStyle(fontSize: 11)),
+                      child: Text(
+                        'Synthetic',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.black,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ),
                   ],
                   onChanged: dashboard.isLocked.value
                       ? null
                       : (v) => c.changeFluidType(v!),
                   style: AppTheme.caption.copyWith(
-                    color: AppTheme.textPrimary,
+                    color: Colors.black,
+                    fontWeight: FontWeight.w700,
                     fontSize: 11,
                   ),
                   isDense: true,
@@ -363,10 +405,7 @@ class _MudViewState extends State<MudView> {
                 ),
                 Text(
                   'Completion Fluid',
-                  style: AppTheme.caption.copyWith(
-                    color: AppTheme.textSecondary,
-                    fontSize: 11,
-                  ),
+                  style: _kMudInputTextStyle,
                 ),
               ],
             ),
@@ -381,8 +420,8 @@ class _MudViewState extends State<MudView> {
                       Text(
                         'Salt Type',
                         style: AppTheme.caption.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.textPrimary,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.black,
                           fontSize: 11,
                         ),
                       ),
@@ -391,7 +430,9 @@ class _MudViewState extends State<MudView> {
                         height: 26,
                         padding: const EdgeInsets.symmetric(horizontal: 8),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: dashboard.isLocked.value
+                              ? _kMudLockedEditableColor
+                              : Colors.white,
                           borderRadius: BorderRadius.circular(2),
                           border: Border.all(color: Colors.grey.shade300),
                         ),
@@ -403,28 +444,44 @@ class _MudViewState extends State<MudView> {
                                 value: 'CaCl2',
                                 child: Text(
                                   'CaCl2',
-                                  style: TextStyle(fontSize: 11),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.black,
+                                    fontWeight: FontWeight.w700,
+                                  ),
                                 ),
                               ),
                               DropdownMenuItem(
                                 value: 'NaCl',
                                 child: Text(
                                   'NaCl',
-                                  style: TextStyle(fontSize: 11),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.black,
+                                    fontWeight: FontWeight.w700,
+                                  ),
                                 ),
                               ),
                               DropdownMenuItem(
                                 value: 'NaCl + CaCl2',
                                 child: Text(
                                   'NaCl + CaCl2',
-                                  style: TextStyle(fontSize: 11),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.black,
+                                    fontWeight: FontWeight.w700,
+                                  ),
                                 ),
                               ),
                               DropdownMenuItem(
                                 value: 'Sodium Formate',
                                 child: Text(
                                   'Sodium Formate',
-                                  style: TextStyle(fontSize: 11),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.black,
+                                    fontWeight: FontWeight.w700,
+                                  ),
                                 ),
                               ),
                             ],
@@ -436,7 +493,8 @@ class _MudViewState extends State<MudView> {
                                     }
                                   },
                             style: AppTheme.caption.copyWith(
-                              color: AppTheme.textPrimary,
+                              color: Colors.black,
+                              fontWeight: FontWeight.w700,
                               fontSize: 11,
                             ),
                             isDense: true,
@@ -473,7 +531,8 @@ class _MudViewState extends State<MudView> {
                       Text(
                         'Weighted Mud',
                         style: AppTheme.caption.copyWith(
-                          color: AppTheme.textPrimary,
+                          color: Colors.black,
+                          fontWeight: FontWeight.w700,
                           fontSize: 11,
                         ),
                       ),
@@ -512,7 +571,7 @@ class _MudViewState extends State<MudView> {
                 Text(
                   'Mud Properties',
                   style: AppTheme.caption.copyWith(
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
                     color: Colors.white,
                     fontSize: 12,
                   ),
@@ -647,16 +706,14 @@ class _MudViewState extends State<MudView> {
                 '*Required',
                 style: AppTheme.caption.copyWith(
                   color: Colors.red.shade400,
-                  fontSize: 10,
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
               const SizedBox(width: 8),
               Text(
                 'Sample for Calculation',
-                style: AppTheme.caption.copyWith(
-                  color: AppTheme.textSecondary,
-                  fontSize: 10,
-                ),
+                style: _kMudSecondaryTextStyle,
               ),
               const SizedBox(width: 8),
               Obx(
@@ -664,6 +721,9 @@ class _MudViewState extends State<MudView> {
                   height: 22,
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                   decoration: BoxDecoration(
+                    color: dashboard.isLocked.value
+                        ? _kMudLockedEditableColor
+                        : Colors.white,
                     border: Border.all(color: Colors.grey.shade300),
                     borderRadius: BorderRadius.circular(2),
                   ),
@@ -676,17 +736,14 @@ class _MudViewState extends State<MudView> {
                               value: s,
                               child: Text(
                                 s,
-                                style: const TextStyle(fontSize: 10),
+                                style: _kMudInputTextStyle,
                               ),
                             ),
                           )
                           .toList(),
                       onChanged: (v) => c.sampleForCalculation.value = v!,
                       isDense: true,
-                      style: AppTheme.caption.copyWith(
-                        color: AppTheme.textPrimary,
-                        fontSize: 10,
-                      ),
+                      style: _kMudInputTextStyle,
                     ),
                   ),
                 ),
@@ -900,17 +957,15 @@ class _MudViewState extends State<MudView> {
           child: Text(
             label,
             style: AppTheme.caption.copyWith(
-              color: AppTheme.textPrimary,
+              color: Colors.black,
+              fontWeight: FontWeight.w700,
               fontSize: 10.5,
             ),
           ),
         ),
         Text(
           shortcut,
-          style: AppTheme.caption.copyWith(
-            color: AppTheme.textSecondary,
-            fontSize: 10,
-          ),
+          style: _kMudSecondaryTextStyle,
         ),
       ],
     );
@@ -1090,11 +1145,7 @@ class _MudViewState extends State<MudView> {
                     Expanded(
                       child: Text(
                         displayName,
-                        style: AppTheme.caption.copyWith(
-                          color: AppTheme.textPrimary,
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w700,
-                        ),
+                        style: _kMudInputTextStyle,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
@@ -1128,7 +1179,11 @@ class _MudViewState extends State<MudView> {
                   height: double.infinity,
                   padding: const EdgeInsets.symmetric(horizontal: 2),
                   decoration: BoxDecoration(
-                    color: isGreyReadOnly ? AppTheme.readOnlyCell : Colors.white,
+                    color: isGreyReadOnly
+                        ? AppTheme.readOnlyCell
+                        : dashboard.isLocked.value
+                        ? _kMudLockedEditableColor
+                        : Colors.white,
                     border: Border(
                       right: BorderSide(
                         color: isLastCol
@@ -1146,9 +1201,9 @@ class _MudViewState extends State<MudView> {
                               style: AppTheme.caption.copyWith(
                                 color: cell.value.value.isEmpty
                                     ? Colors.grey.shade400
-                                    : AppTheme.textPrimary,
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w600,
+                                    : Colors.black,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
                               ),
                               textAlign: TextAlign.center,
                             ),
@@ -1172,10 +1227,7 @@ class _MudViewState extends State<MudView> {
                                       offset: cell.value.value.length,
                                     ),
                               onChanged: (v) => cell.value.value = v,
-                              style: AppTheme.caption.copyWith(
-                                color: AppTheme.textPrimary,
-                                fontSize: 12.5,
-                              ),
+                              style: _kMudInputTextStyle,
                               decoration: const InputDecoration(
                                 isDense: true,
                                 border: InputBorder.none,
@@ -1221,17 +1273,13 @@ class _MudViewState extends State<MudView> {
                   alignment: Alignment.centerLeft,
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    border: Border.all(color: Colors.grey.shade300),
+                    color: AppTheme.primaryColor,
+                    border: Border.all(color: AppTheme.primaryColor),
                     borderRadius: BorderRadius.circular(2),
                   ),
                   child: Text(
                     'Rheology Model',
-                    style: AppTheme.caption.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.textPrimary,
-                      fontSize: 13,
-                    ),
+                    style: _kMudHeaderTextStyle,
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -1240,7 +1288,9 @@ class _MudViewState extends State<MudView> {
                     height: 26,
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: dashboard.isLocked.value
+                          ? _kMudLockedEditableColor
+                          : Colors.white,
                       borderRadius: BorderRadius.circular(2),
                       border: Border.all(color: const Color(0xFFB8D0EA)),
                     ),
@@ -1252,40 +1302,28 @@ class _MudViewState extends State<MudView> {
                             value: 'Bingham',
                             child: Text(
                               'Bingham',
-                              style: TextStyle(
-                                color: AppTheme.textPrimary,
-                                fontSize: 13,
-                              ),
+                              style: _kMudInputTextStyle,
                             ),
                           ),
                           DropdownMenuItem(
                             value: 'Power Law',
                             child: Text(
                               'Power Law',
-                              style: TextStyle(
-                                color: AppTheme.textPrimary,
-                                fontSize: 13,
-                              ),
+                              style: _kMudInputTextStyle,
                             ),
                           ),
                           DropdownMenuItem(
                             value: 'HB',
                             child: Text(
                               'HB',
-                              style: TextStyle(
-                                color: AppTheme.textPrimary,
-                                fontSize: 13,
-                              ),
+                              style: _kMudInputTextStyle,
                             ),
                           ),
                         ],
                         onChanged: dashboard.isLocked.value
                             ? null
                             : (v) => c.changeModel(v!),
-                        style: AppTheme.caption.copyWith(
-                          color: AppTheme.textPrimary,
-                          fontSize: 13,
-                        ),
+                        style: _kMudInputTextStyle,
                         isDense: true,
                       ),
                     ),
@@ -1300,14 +1338,14 @@ class _MudViewState extends State<MudView> {
                       width: 26,
                       height: 26,
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: AppTheme.primaryColor,
                         borderRadius: BorderRadius.circular(2),
-                        border: Border.all(color: const Color(0xFFB8D0EA)),
+                        border: Border.all(color: AppTheme.primaryColor),
                       ),
                       child: const Icon(
                         Icons.file_download_outlined,
                         size: 15,
-                        color: AppTheme.primaryColor,
+                        color: Colors.white,
                       ),
                     ),
                   ),
@@ -1366,6 +1404,8 @@ class _MudViewState extends State<MudView> {
                                 decoration: BoxDecoration(
                                   color: isCalc
                                       ? AppTheme.calculatedCell
+                                      : dashboard.isLocked.value
+                                      ? _kMudLockedEditableColor
                                       : Colors.white,
                                   border: Border(
                                     bottom: BorderSide(
@@ -1394,11 +1434,7 @@ class _MudViewState extends State<MudView> {
                                       ),
                                       child: Text(
                                         entry.key,
-                                        style: AppTheme.caption.copyWith(
-                                          color: AppTheme.textPrimary,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                        ),
+                                        style: _kMudInputTextStyle,
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
@@ -1437,11 +1473,10 @@ class _MudViewState extends State<MudView> {
                                                                 ? Colors
                                                                       .grey
                                                                       .shade400
-                                                                : AppTheme
-                                                                      .textPrimary,
-                                                            fontSize: 12,
+                                                                : Colors.black,
+                                                            fontSize: 11,
                                                             fontWeight:
-                                                                FontWeight.w600,
+                                                                FontWeight.w700,
                                                           ),
                                                       textAlign:
                                                           TextAlign.center,
@@ -1490,12 +1525,8 @@ class _MudViewState extends State<MudView> {
                                                           cell.key,
                                                         );
                                                       },
-                                                      style: AppTheme.caption
-                                                          .copyWith(
-                                                            color: AppTheme
-                                                                .textPrimary,
-                                                            fontSize: 12,
-                                                          ),
+                                                      style:
+                                                          _kMudInputTextStyle,
                                                       decoration:
                                                           const InputDecoration(
                                                             isDense: true,
@@ -1561,10 +1592,7 @@ class _MudViewState extends State<MudView> {
                       ),
                       Text(
                         'API (RP 13D)',
-                        style: AppTheme.caption.copyWith(
-                          color: AppTheme.textSecondary,
-                          fontSize: 12,
-                        ),
+                        style: _kMudSecondaryTextStyle,
                       ),
                     ],
                   ),
@@ -1588,10 +1616,7 @@ class _MudViewState extends State<MudView> {
                       ),
                       Text(
                         'Use All Readings',
-                        style: AppTheme.caption.copyWith(
-                          color: AppTheme.textSecondary,
-                          fontSize: 12,
-                        ),
+                        style: _kMudSecondaryTextStyle,
                       ),
                     ],
                   ),
@@ -1695,7 +1720,7 @@ class _MudViewState extends State<MudView> {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
             decoration: BoxDecoration(
-              color: const Color(0xFFEAF3FC),
+              color: AppTheme.primaryColor,
               border: const Border(
                 bottom: BorderSide(color: Color(0xFFB8D0EA)),
               ),
@@ -1706,11 +1731,7 @@ class _MudViewState extends State<MudView> {
             ),
             child: Text(
               title,
-              style: AppTheme.caption.copyWith(
-                fontWeight: FontWeight.w600,
-                color: AppTheme.textPrimary,
-                fontSize: 13,
-              ),
+              style: _kMudHeaderTextStyle,
             ),
           ),
           if (isSpecificGravity) ...[
@@ -1742,11 +1763,7 @@ class _MudViewState extends State<MudView> {
               color: Colors.grey.shade100,
               child: Text(
                 label,
-                style: AppTheme.caption.copyWith(
-                  color: AppTheme.textPrimary,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: _kMudInputTextStyle,
               ),
             ),
           ),
@@ -1754,11 +1771,15 @@ class _MudViewState extends State<MudView> {
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
             child: Obx(() {
               if (dashboard.isLocked.value) {
-                return Text(
-                  controller.text.isEmpty ? '-' : controller.text,
-                  style: AppTheme.caption.copyWith(
-                    color: AppTheme.textPrimary,
-                    fontSize: 12,
+                return Container(
+                  width: 70,
+                  height: 22,
+                  color: _kMudLockedEditableColor,
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  child: Text(
+                    controller.text.isEmpty ? '-' : controller.text,
+                    style: _kMudInputTextStyle,
                   ),
                 );
               }
@@ -1788,10 +1809,7 @@ class _MudViewState extends State<MudView> {
                         vertical: 3,
                       ),
                     ),
-                    style: AppTheme.caption.copyWith(
-                      color: AppTheme.textPrimary,
-                      fontSize: 12,
-                    ),
+                    style: _kMudInputTextStyle,
                     textAlign: TextAlign.right,
                   ),
                 ),
@@ -1817,11 +1835,7 @@ class _MudViewState extends State<MudView> {
         alignment: center ? Alignment.center : Alignment.centerLeft,
         child: Text(
           text,
-          style: AppTheme.caption.copyWith(
-            fontWeight: FontWeight.w600,
-            color: AppTheme.textPrimary,
-            fontSize: 11,
-          ),
+          style: _kMudInputTextStyle,
           overflow: TextOverflow.ellipsis,
         ),
       ),
@@ -1841,8 +1855,8 @@ class _MudViewState extends State<MudView> {
         child: Text(
           text,
           style: AppTheme.caption.copyWith(
-            fontWeight: FontWeight.w600,
-            color: AppTheme.textPrimary,
+            fontWeight: FontWeight.w700,
+            color: Colors.black,
             fontSize: 11,
           ),
           overflow: TextOverflow.ellipsis,
@@ -1939,7 +1953,7 @@ class _SingleDropdownRowState extends State<_SingleDropdownRow> {
                         child: Text(
                           'Add property',
                           style: TextStyle(
-                            fontSize: 10,
+                            fontSize: 10.5,
                             color: Colors.grey.shade400,
                           ),
                           overflow: TextOverflow.ellipsis,
@@ -1955,8 +1969,9 @@ class _SingleDropdownRowState extends State<_SingleDropdownRow> {
                         child: Text(
                           p,
                           style: TextStyle(
-                            fontSize: 10,
-                            color: AppTheme.textPrimary,
+                            fontSize: 11,
+                            color: Colors.black,
+                            fontWeight: FontWeight.w700,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -1974,7 +1989,11 @@ class _SingleDropdownRowState extends State<_SingleDropdownRow> {
                   size: 14,
                   color: Colors.grey.shade400,
                 ),
-                style: TextStyle(color: AppTheme.textPrimary, fontSize: 10),
+                style: TextStyle(
+                  color: Colors.black,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 11,
+                ),
               ),
             ),
           ),

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_ui_pattern.dart';
 import 'package:mudpro_desktop_app/modules/daily_report/controller/inventory_snapshot_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/recieve_product_controller.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/model/products_model.dart';
@@ -751,7 +752,7 @@ class _ReceiveProductViewState extends State<ReceiveProductView> {
                       style: AppTheme.bodySmall.copyWith(
                         fontWeight: FontWeight.w700,
                         fontSize: 11,
-                        color: Colors.black,
+                        color: Colors.white,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -759,6 +760,9 @@ class _ReceiveProductViewState extends State<ReceiveProductView> {
                       child: Container(
                         height: 32,
                         decoration: BoxDecoration(
+                          color: dashboardController.isLocked.value
+                              ? operationLockedEditableColor
+                              : Colors.white,
                           border: Border.all(color: AppTheme.tableGridBlue),
                           borderRadius: BorderRadius.circular(4),
                         ),
@@ -910,8 +914,8 @@ class _ReceiveProductViewState extends State<ReceiveProductView> {
                   title,
                   style: AppTheme.bodySmall.copyWith(
                     fontWeight: FontWeight.w700,
-                    fontSize: 12,
-                    color: Colors.black,
+                    fontSize: 13,
+                    color: Colors.white,
                   ),
                 ),
                 const Spacer(),
@@ -1010,6 +1014,11 @@ class _ReceiveProductViewState extends State<ReceiveProductView> {
                                             horizontal: 8,
                                           ),
                                           decoration: BoxDecoration(
+                                            color: dashboardController
+                                                    .isLocked
+                                                    .value
+                                                ? operationLockedEditableColor
+                                                : Colors.transparent,
                                             border: Border(
                                               right: BorderSide(
                                                 color: AppTheme.tableGridBlue,
@@ -1048,7 +1057,7 @@ class _ReceiveProductViewState extends State<ReceiveProductView> {
                                                             style: AppTheme
                                                                 .bodySmall
                                                                 .copyWith(
-                                                                  fontSize: 10,
+                                                                  fontSize: 11,
                                                                   color: Colors
                                                                       .black,
                                                                   fontWeight:
@@ -1064,7 +1073,7 @@ class _ReceiveProductViewState extends State<ReceiveProductView> {
                                                             style: AppTheme
                                                                 .bodySmall
                                                                 .copyWith(
-                                                                  fontSize: 10,
+                                                                  fontSize: 11,
                                                                   color: Colors
                                                                       .grey,
                                                                 ),
@@ -1075,7 +1084,7 @@ class _ReceiveProductViewState extends State<ReceiveProductView> {
                                                         const SizedBox.shrink(),
                                                     style: AppTheme.bodySmall
                                                         .copyWith(
-                                                          fontSize: 10,
+                                                           fontSize: 11,
                                                           color: Colors.black,
                                                           fontWeight:
                                                               FontWeight.w700,
@@ -1095,7 +1104,7 @@ class _ReceiveProductViewState extends State<ReceiveProductView> {
                                                                   .bodySmall
                                                                   .copyWith(
                                                                     fontSize:
-                                                                        10,
+                                                                        11,
                                                                     color: Colors
                                                                         .black,
                                                                     fontWeight:
@@ -1139,7 +1148,7 @@ class _ReceiveProductViewState extends State<ReceiveProductView> {
                                         Text(
                                           code,
                                           style: AppTheme.bodySmall.copyWith(
-                                            fontSize: 10,
+                                             fontSize: 11,
                                             fontWeight: FontWeight.w700,
                                             color: Colors.black,
                                           ),
@@ -1153,7 +1162,7 @@ class _ReceiveProductViewState extends State<ReceiveProductView> {
                                         Text(
                                           unit,
                                           style: AppTheme.bodySmall.copyWith(
-                                            fontSize: 10,
+                                             fontSize: 11,
                                             fontWeight: FontWeight.w700,
                                             color: Colors.black,
                                           ),
@@ -1170,7 +1179,7 @@ class _ReceiveProductViewState extends State<ReceiveProductView> {
                                               .isLocked
                                               .value,
                                           style: AppTheme.bodySmall.copyWith(
-                                            fontSize: 10,
+                                             fontSize: 11,
                                             fontWeight: FontWeight.w700,
                                             color: Colors.black,
                                           ),
@@ -1209,9 +1218,14 @@ class _ReceiveProductViewState extends State<ReceiveProductView> {
                                           },
                                           // Enter dabao → auto save/update
                                           onSubmitted: (_) => onSaveRow(index),
-                                        ),
-                                        noBorder: true,
-                                      ),
+                                         ),
+                                         noBorder: true,
+                                         backgroundColor: dashboardController
+                                                 .isLocked
+                                                 .value
+                                             ? operationLockedEditableColor
+                                             : Colors.transparent,
+                                       ),
                                     ],
                                   ),
                                 ),
@@ -1234,7 +1248,7 @@ class _ReceiveProductViewState extends State<ReceiveProductView> {
   Widget _buildColumnHeaders(List<String> headers, Color color) {
     return Container(
       decoration: BoxDecoration(
-        color: AppTheme.primaryColor,
+        color: AppTheme.tableHeaderBlue,
         border: Border(bottom: BorderSide(color: AppTheme.tableGridBlue)),
       ),
       child: Row(
@@ -1271,18 +1285,23 @@ class _ReceiveProductViewState extends State<ReceiveProductView> {
     Widget child, {
     bool center = false,
     bool noBorder = false,
+    Color? backgroundColor,
   }) {
     return Container(
       width: width,
       height: 32,
       padding: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: noBorder
-          ? null
-          : BoxDecoration(
-              border: Border(
-                right: BorderSide(color: AppTheme.tableGridBlue, width: 0.5),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        border: noBorder
+            ? null
+            : Border(
+                right: BorderSide(
+                  color: AppTheme.tableGridBlue,
+                  width: 0.5,
+                ),
               ),
-            ),
+      ),
       alignment: center ? Alignment.center : Alignment.centerLeft,
       child: child,
     );

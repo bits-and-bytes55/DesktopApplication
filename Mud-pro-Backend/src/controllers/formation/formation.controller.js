@@ -195,7 +195,7 @@ export const saveFormationConfig = async (req, res) => {
 
     const saved = existing?._id
       ? await FormationConfig.findByIdAndUpdate(existing._id, payload, {
-          new: true,
+          returnDocument: "after",
           runValidators: true,
         })
       : await FormationConfig.create(payload);

@@ -12,6 +12,9 @@ import 'package:mudpro_desktop_app/theme/app_theme.dart';
 const double kRowHeight = 22.0;
 const double kHeaderHeight = 26.0;
 const int kEmptyFillRows = 8; // filler rows to fill height if needed
+const Color _kPitPageBackground = Color(0xFFF4F6FA);
+const Color _kPitLockedEditableColor = Color(0xFFFFF7CC);
+const Color _kPitReadOnlyFill = Color(0xFFF2F2F2);
 
 class PitPage extends StatefulWidget {
   const PitPage({super.key});
@@ -82,23 +85,26 @@ class _PitPageState extends State<PitPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: Colors.white,
-      child: Obx(() {
-        AppUnits.signature;
-        if (controller.isLoading.value) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        return LayoutBuilder(
-          builder: (context, constraints) {
-            if (constraints.maxWidth < 900) {
-              return _buildMobileLayout(context);
-            } else {
-              return _buildDesktopLayout(context);
-            }
-          },
-        );
-      }),
+    return DefaultTextStyle.merge(
+      style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w700),
+      child: Container(
+        color: _kPitPageBackground,
+        child: Obx(() {
+          AppUnits.signature;
+          if (controller.isLoading.value) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              if (constraints.maxWidth < 900) {
+                return _buildMobileLayout(context);
+              } else {
+                return _buildDesktopLayout(context);
+              }
+            },
+          );
+        }),
+      ),
     );
   }
 
@@ -152,7 +158,12 @@ class _PitPageState extends State<PitPage> {
               children: [
                 Expanded(child: _storageSection()),
                 const SizedBox(height: 12),
-                Expanded(child: _haulOffSection(context)),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: _haulOffSection(context),
+                  ),
+                ),
                 const SizedBox(height: 12),
                 // Aligns with Pit Snapshot button
                 const SizedBox(height: 40),
@@ -189,14 +200,14 @@ class _PitPageState extends State<PitPage> {
                     const Icon(
                       Icons.water_damage,
                       color: Colors.white,
-                      size: 14,
+                      size: 12,
                     ),
                     const SizedBox(width: 6),
                     const Text(
                       "Active Pits",
                       style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
                         color: Colors.white,
                       ),
                     ),
@@ -380,13 +391,13 @@ class _PitPageState extends State<PitPage> {
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: Row(
               children: [
-                const Icon(Icons.warehouse, color: Colors.white, size: 14),
+                const Icon(Icons.warehouse, color: Colors.white, size: 12),
                 const SizedBox(width: 6),
                 const Text(
                   "Storage",
                   style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
                     color: Colors.white,
                   ),
                 ),
@@ -541,7 +552,7 @@ class _PitPageState extends State<PitPage> {
                   "Volume Name",
                   style: TextStyle(
                     fontSize: 13,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
                     color: Colors.white,
                   ),
                 ),
@@ -606,7 +617,8 @@ class _PitPageState extends State<PitPage> {
       return double.tryParse(v?.toString() ?? '') ?? 0.0;
     }
 
-    String formatValue(double v) => v.abs() <= 0.005 ? '' : v.toStringAsFixed(2);
+    String formatValue(double v) =>
+        v.abs() <= 0.005 ? '' : v.toStringAsFixed(2);
     String formatSignedValue(double v) {
       if (v.abs() <= 0.005) return '';
       return v > 0 ? '+${v.toStringAsFixed(2)}' : v.toStringAsFixed(2);
@@ -643,32 +655,33 @@ class _PitPageState extends State<PitPage> {
         final numVal = double.tryParse(value.replaceFirst('+', '')) ?? 0.0;
         final isNegativeWarning = label == 'End Vol. - Active System';
         final isRed = isNegativeWarning && numVal.abs() > 0.005;
-        final rowBg = isRed ? Colors.red.shade50 : Colors.transparent;
-        final rowTextColor = isRed ? Colors.red : Colors.black87;
+        final labelBg = isRed ? Colors.red.shade50 : _kPitReadOnlyFill;
+        final valueBg = isRed ? Colors.red.shade50 : Colors.white;
+        final rowTextColor = isRed ? Colors.red : Colors.black;
 
         return TableRow(
           children: [
             Container(
-              color: rowBg,
+              color: labelBg,
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               child: Text(
                 label,
                 style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w500,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
                   color: rowTextColor,
                 ),
               ),
             ),
             Container(
-              color: rowBg,
+              color: valueBg,
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               child: Text(
                 value,
                 textAlign: TextAlign.right,
                 style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
                   color: rowTextColor,
                 ),
               ),
@@ -704,7 +717,7 @@ class _PitPageState extends State<PitPage> {
                   "Haul Off",
                   style: TextStyle(
                     fontSize: 13,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
                     color: Colors.white,
                   ),
                 ),
@@ -788,45 +801,52 @@ class _PitPageState extends State<PitPage> {
     return TableRow(
       children: [
         Container(
+          color: _kPitReadOnlyFill,
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
           child: Text(
             label,
             style: const TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w500,
-              color: Colors.black87,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: Colors.black,
             ),
           ),
         ),
+        Obx(() {
+          final isLocked = dashboard.isLocked.value;
+          return Container(
+            color: isLocked ? _kPitLockedEditableColor : Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            child: isLocked
+                ? Text(
+                    value,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.black,
+                    ),
+                    textAlign: TextAlign.right,
+                  )
+                : TextFormField(
+                    initialValue: value,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.black,
+                    ),
+                    textAlign: TextAlign.right,
+                    decoration: const InputDecoration(
+                      isDense: true,
+                      contentPadding: EdgeInsets.zero,
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                    ),
+                  ),
+          );
+        }),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          child: Obx(() {
-            if (dashboard.isLocked.value) {
-              return Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
-                ),
-                textAlign: TextAlign.right,
-              );
-            }
-            return TextFormField(
-              initialValue: value,
-              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600),
-              textAlign: TextAlign.right,
-              decoration: const InputDecoration(
-                isDense: true,
-                contentPadding: EdgeInsets.zero,
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-              ),
-            );
-          }),
-        ),
-        Container(
+          color: _kPitReadOnlyFill,
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
           child: Text(
             AppUnits.unitText(unit),
@@ -848,7 +868,7 @@ class _PitPageState extends State<PitPage> {
           "Pit Snapshot",
           style: TextStyle(
             fontSize: 12,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w700,
             color: Colors.white,
           ),
         ),
@@ -869,9 +889,9 @@ class _PitPageState extends State<PitPage> {
       child: Text(
         AppUnits.label(text),
         style: const TextStyle(
-          fontSize: 10,
+          fontSize: 11,
           fontWeight: FontWeight.w700,
-          color: Colors.black87,
+          color: Colors.black,
         ),
         textAlign: TextAlign.center,
       ),
@@ -883,7 +903,11 @@ class _PitPageState extends State<PitPage> {
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       child: Text(
         text,
-        style: const TextStyle(fontSize: 10, color: Colors.black87),
+        style: const TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: Colors.black,
+        ),
         textAlign: TextAlign.center,
       ),
     );
@@ -891,32 +915,50 @@ class _PitPageState extends State<PitPage> {
 
   Widget _pitNameCell(Map<String, TextEditingController> ctrls, PitModel pit) {
     final ctrl = ctrls['pitName']!;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-      child: Obx(() {
-        if (dashboard.isLocked.value || !controller.isDraftPit(pit)) {
-          return Text(
-            ctrl.text,
-            style: const TextStyle(fontSize: 10, color: Colors.black87),
-            textAlign: TextAlign.center,
-          );
-        }
-        return TextFormField(
-          controller: ctrl,
-          style: const TextStyle(fontSize: 10),
-          textAlign: TextAlign.center,
-          decoration: const InputDecoration(
-            isDense: true,
-            contentPadding: EdgeInsets.symmetric(vertical: 4, horizontal: 4),
-            border: InputBorder.none,
-            enabledBorder: InputBorder.none,
-            focusedBorder: InputBorder.none,
-            hintText: 'Pit',
-          ),
-          onChanged: (val) => controller.updateDraftPit(pit: pit, pitName: val),
-        );
-      }),
-    );
+    return Obx(() {
+      final isDraft = controller.isDraftPit(pit);
+      final isLocked = dashboard.isLocked.value;
+      return Container(
+        color: !isDraft
+            ? _kPitReadOnlyFill
+            : isLocked
+            ? _kPitLockedEditableColor
+            : Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        child: isLocked || !isDraft
+            ? Text(
+                ctrl.text,
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: Colors.black,
+                  fontWeight: FontWeight.w700,
+                ),
+                textAlign: TextAlign.center,
+              )
+            : TextFormField(
+                controller: ctrl,
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: Colors.black,
+                  fontWeight: FontWeight.w700,
+                ),
+                textAlign: TextAlign.center,
+                decoration: const InputDecoration(
+                  isDense: true,
+                  contentPadding: EdgeInsets.symmetric(
+                    vertical: 4,
+                    horizontal: 4,
+                  ),
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  hintText: 'Pit',
+                ),
+                onChanged: (val) =>
+                    controller.updateDraftPit(pit: pit, pitName: val),
+              ),
+      );
+    });
   }
 
   Widget _emptyCell() {
@@ -949,56 +991,69 @@ class _PitPageState extends State<PitPage> {
         () => ctrl.text,
       );
     }
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-      child: Obx(() {
-        if (dashboard.isLocked.value) {
-          return Text(
-            ctrl.text,
-            style: const TextStyle(fontSize: 10, color: Colors.black87),
-            textAlign: TextAlign.center,
-          );
-        }
-        return TextFormField(
-          controller: ctrl,
-          style: const TextStyle(fontSize: 10),
-          textAlign: TextAlign.center,
-          keyboardType: field == 'fluidType'
-              ? TextInputType.text
-              : const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(
-            isDense: true,
-            contentPadding: EdgeInsets.symmetric(vertical: 4, horizontal: 4),
-            border: InputBorder.none,
-            enabledBorder: InputBorder.none,
-            focusedBorder: InputBorder.none,
-          ),
-          onChanged: (val) {
-            if (field == 'volume' && !_validateMeasuredVolume(ctrl, pit, val)) {
-              return;
-            }
-            if (pit.id != null && pit.id!.isNotEmpty) {
-              controller.onPitFieldChanged(
-                pitId: pit.id!,
-                volume: double.tryParse(ctrls['volume']!.text) ?? 0,
-                density: double.tryParse(ctrls['density']!.text) ?? 0,
-                fluidType: ctrls['fluidType']!.text,
-              );
-            } else {
-              controller.updateDraftPit(
-                pit: pit,
-                volume: double.tryParse(ctrls['volume']!.text) ?? 0,
-                density: double.tryParse(ctrls['density']!.text) ?? 0,
-                fluidType: ctrls['fluidType']!.text,
-              );
-            }
-          },
-          onEditingComplete: () {
-            // Manual Save is now handled by the header save icon to prevents duplicate records creation
-          },
-        );
-      }),
-    );
+    return Obx(() {
+      final isLocked = dashboard.isLocked.value;
+      return Container(
+        color: isLocked ? _kPitLockedEditableColor : Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        child: isLocked
+            ? Text(
+                ctrl.text,
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: Colors.black,
+                  fontWeight: FontWeight.w700,
+                ),
+                textAlign: TextAlign.center,
+              )
+            : TextFormField(
+                controller: ctrl,
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: Colors.black,
+                  fontWeight: FontWeight.w700,
+                ),
+                textAlign: TextAlign.center,
+                keyboardType: field == 'fluidType'
+                    ? TextInputType.text
+                    : const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(
+                  isDense: true,
+                  contentPadding: EdgeInsets.symmetric(
+                    vertical: 4,
+                    horizontal: 4,
+                  ),
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                ),
+                onChanged: (val) {
+                  if (field == 'volume' &&
+                      !_validateMeasuredVolume(ctrl, pit, val)) {
+                    return;
+                  }
+                  if (pit.id != null && pit.id!.isNotEmpty) {
+                    controller.onPitFieldChanged(
+                      pitId: pit.id!,
+                      volume: double.tryParse(ctrls['volume']!.text) ?? 0,
+                      density: double.tryParse(ctrls['density']!.text) ?? 0,
+                      fluidType: ctrls['fluidType']!.text,
+                    );
+                  } else {
+                    controller.updateDraftPit(
+                      pit: pit,
+                      volume: double.tryParse(ctrls['volume']!.text) ?? 0,
+                      density: double.tryParse(ctrls['density']!.text) ?? 0,
+                      fluidType: ctrls['fluidType']!.text,
+                    );
+                  }
+                },
+                onEditingComplete: () {
+                  // Manual save is handled by the header save icon.
+                },
+              ),
+      );
+    });
   }
 
   String _storageCalculatedVol(

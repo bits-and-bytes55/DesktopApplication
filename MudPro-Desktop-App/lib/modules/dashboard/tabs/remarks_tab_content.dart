@@ -21,6 +21,9 @@ class RemarksView extends StatefulWidget {
 
 class _RemarksViewState extends State<RemarksView> {
   static const int _maxAttachmentBytes = 5 * 1024 * 1024;
+  static const Color _pageBackground = Color(0xFFF4F6FA);
+  static const Color _sectionHeader = Color(0xFF6C9BCF);
+  static const Color _lockedEditable = Color(0xFFFFF7CC);
 
   final DashboardController dashboard = Get.find<DashboardController>();
   final ReportContextController reports = reportContext;
@@ -214,26 +217,34 @@ class _RemarksViewState extends State<RemarksView> {
 
   @override
   Widget build(BuildContext context) {
-    return Obx(() {
-      final report = reports.selectedReport;
-      final isLocked = dashboard.isLocked.value || report == null;
-      final isLoading = reports.isLoading.value;
+    return DefaultTextStyle.merge(
+      style: const TextStyle(
+        fontFamily: 'Segoe UI',
+        fontSize: 11,
+        color: Colors.black,
+        fontWeight: FontWeight.w700,
+      ),
+      child: Obx(() {
+        final report = reports.selectedReport;
+        final isLocked = dashboard.isLocked.value || report == null;
+        final isLoading = reports.isLoading.value;
 
-      return Container(
-        color: AppTheme.backgroundColor,
-        padding: const EdgeInsets.all(6),
-        child: report == null
-            ? _buildEmptyState(isLoading)
-            : LayoutBuilder(
-                builder: (context, constraints) {
-                  if (constraints.maxWidth < 1050) {
-                    return _buildNarrowLayout(isLocked);
-                  }
-                  return _buildWideLayout(isLocked);
-                },
-              ),
-      );
-    });
+        return Container(
+          color: _pageBackground,
+          padding: const EdgeInsets.all(6),
+          child: report == null
+              ? _buildEmptyState(isLoading)
+              : LayoutBuilder(
+                  builder: (context, constraints) {
+                    if (constraints.maxWidth < 1050) {
+                      return _buildNarrowLayout(isLocked);
+                    }
+                    return _buildWideLayout(isLocked);
+                  },
+                ),
+        );
+      }),
+    );
   }
 
   Widget _buildWideLayout(bool isLocked) {
@@ -256,7 +267,7 @@ class _RemarksViewState extends State<RemarksView> {
               const SizedBox(height: 12),
               Expanded(
                 child: _buildMemoPanel(
-                  title: 'Remarks',
+                  title: 'Operational Comments',
                   controller: remarksCtrl,
                   icon: Icons.forum_outlined,
                   isLocked: isLocked,
@@ -273,7 +284,7 @@ class _RemarksViewState extends State<RemarksView> {
             children: [
               Expanded(
                 child: _buildMemoPanel(
-                  title: 'Recap Remarks',
+                  title: 'Remarks',
                   controller: recapCtrl,
                   icon: Icons.summarize_outlined,
                   isLocked: isLocked,
@@ -327,7 +338,7 @@ class _RemarksViewState extends State<RemarksView> {
           SizedBox(
             height: 250,
             child: _buildMemoPanel(
-              title: 'Remarks',
+              title: 'Operational Comments',
               controller: remarksCtrl,
               icon: Icons.forum_outlined,
               isLocked: isLocked,
@@ -338,7 +349,7 @@ class _RemarksViewState extends State<RemarksView> {
           SizedBox(
             height: 250,
             child: _buildMemoPanel(
-              title: 'Recap Remarks',
+              title: 'Remarks',
               controller: recapCtrl,
               icon: Icons.summarize_outlined,
               isLocked: isLocked,
@@ -371,24 +382,17 @@ class _RemarksViewState extends State<RemarksView> {
     required String hintText,
   }) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 2, bottom: 6),
-          child: Text(
-            title,
-            style: AppTheme.bodySmall.copyWith(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: AppTheme.textPrimary,
-            ),
-          ),
-        ),
+        _buildSectionHeader(title, icon),
         Expanded(
           child: Container(
             decoration: BoxDecoration(
               color: Colors.white,
               border: Border.all(color: AppTheme.tableBorderBlue),
+              borderRadius: const BorderRadius.vertical(
+                bottom: Radius.circular(4),
+              ),
             ),
             child: TextField(
               controller: controller,
@@ -398,17 +402,23 @@ class _RemarksViewState extends State<RemarksView> {
               expands: true,
               textAlignVertical: TextAlignVertical.top,
               style: AppTheme.bodySmall.copyWith(
-                color: AppTheme.textPrimary,
+                fontFamily: 'Segoe UI',
+                fontSize: 11,
+                color: Colors.black,
+                fontWeight: FontWeight.w700,
                 height: 1.35,
               ),
               decoration: InputDecoration(
                 hintText: hintText,
                 hintStyle: AppTheme.bodySmall.copyWith(
+                  fontFamily: 'Segoe UI',
+                  fontSize: 11,
                   color: Colors.grey.shade500,
+                  fontWeight: FontWeight.w700,
                 ),
                 border: InputBorder.none,
                 filled: true,
-                fillColor: isLocked ? AppTheme.readOnlyCell : Colors.white,
+                fillColor: isLocked ? _lockedEditable : Colors.white,
                 contentPadding: const EdgeInsets.all(10),
               ),
             ),
@@ -426,12 +436,16 @@ class _RemarksViewState extends State<RemarksView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        _buildSectionHeader('Attachment', Icons.attach_file),
         Expanded(
           child: Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               color: Colors.white,
               border: Border.all(color: AppTheme.tableBorderBlue),
+              borderRadius: const BorderRadius.vertical(
+                bottom: Radius.circular(4),
+              ),
             ),
             child: _buildPreviewArea(),
           ),
@@ -445,8 +459,10 @@ class _RemarksViewState extends State<RemarksView> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(0),
             ),
-            foregroundColor: AppTheme.textPrimary,
-            backgroundColor: Colors.white,
+            foregroundColor: Colors.white,
+            backgroundColor: AppTheme.primaryColor,
+            disabledForegroundColor: Colors.white70,
+            disabledBackgroundColor: AppTheme.primaryColor.withOpacity(0.55),
           ),
           child: const Text('Upload'),
         ),
@@ -459,8 +475,10 @@ class _RemarksViewState extends State<RemarksView> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(0),
             ),
-            foregroundColor: AppTheme.textPrimary,
-            backgroundColor: Colors.white,
+            foregroundColor: Colors.white,
+            backgroundColor: AppTheme.primaryColor,
+            disabledForegroundColor: Colors.white70,
+            disabledBackgroundColor: AppTheme.primaryColor.withOpacity(0.55),
           ),
           child: const Text('Delete'),
         ),
@@ -471,13 +489,42 @@ class _RemarksViewState extends State<RemarksView> {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: AppTheme.caption.copyWith(
-              color: AppTheme.textPrimary,
+              color: Colors.black,
               fontWeight: FontWeight.w700,
             ),
           ),
           Text(_formatBytes(fileSize), style: AppTheme.caption),
         ],
       ],
+    );
+  }
+
+  Widget _buildSectionHeader(String title, IconData icon) {
+    return Container(
+      height: 34,
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      decoration: const BoxDecoration(
+        color: _sectionHeader,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(4)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 12, color: Colors.white),
+          const SizedBox(width: 7),
+          Expanded(
+            child: Text(
+              title,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontFamily: 'Segoe UI',
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -542,7 +589,7 @@ class _RemarksViewState extends State<RemarksView> {
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
               style: AppTheme.bodySmall.copyWith(
-                color: AppTheme.textPrimary,
+                color: Colors.black,
                 fontWeight: FontWeight.w700,
               ),
             ),

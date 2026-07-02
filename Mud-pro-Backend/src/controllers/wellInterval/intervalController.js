@@ -98,7 +98,7 @@ export const updateInterval = async (req, res) => {
     const updated = await Interval.findByIdAndUpdate(
       req.params.id,
       { $set: req.body },
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     );
     if (!updated) return res.status(404).json({ success: false, message: "Not found" });
     res.status(200).json({ success: true, data: updated });
@@ -205,7 +205,7 @@ export const toggleGroupCollapse = async (req, res) => {
     const group = await IntervalGroup.findByIdAndUpdate(
       req.params.id,
       { $set: { collapsed } },
-      { new: true }
+      { returnDocument: "after" }
     );
     res.status(200).json({ success: true, data: group });
   } catch (err) {

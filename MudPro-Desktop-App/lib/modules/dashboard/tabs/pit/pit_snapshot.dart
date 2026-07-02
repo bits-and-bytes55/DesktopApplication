@@ -4,10 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/pit_snapshot_Controller.dart';
 
-const _snapshotFrameBlue = Color(0xFF3A98F5);
-const _snapshotBorder = Color(0xFFB7B7B7);
-const _snapshotHeaderFill = Color(0xFFF3F3F3);
-const _snapshotValueFill = Color(0xFFFFF8CC);
+const _snapshotFrameBlue = Color(0xFF6C9BCF);
+const _snapshotBorder = Color(0xFFB8D0EA);
+const _snapshotHeaderFill = Color(0xFFEAF3FC);
+const _snapshotValueFill = Color(0xFFFFF7CC);
+const _snapshotReadOnlyFill = Color(0xFFF2F2F2);
+const _snapshotPageBackground = Color(0xFFF4F6FA);
 const _snapshotActive = Color(0xFFF47B20);
 const _snapshotStorage = Color(0xFF4C78C6);
 const _snapshotWellGrey = Color(0xFFA6A6A6);
@@ -24,9 +26,16 @@ class PitSnapshotPage extends StatelessWidget {
 
     return Obx(
       () => Scaffold(
-        backgroundColor: Colors.white,
-        body: SafeArea(
-          child: Column(
+        backgroundColor: _snapshotPageBackground,
+        body: DefaultTextStyle.merge(
+          style: const TextStyle(
+            fontFamily: 'Segoe UI',
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: Colors.black,
+          ),
+          child: SafeArea(
+            child: Column(
             children: [
               _buildWindowBar(),
               Expanded(
@@ -78,6 +87,7 @@ class PitSnapshotPage extends StatelessWidget {
                 ),
               ),
             ],
+            ),
           ),
         ),
       ),
@@ -88,17 +98,22 @@ class PitSnapshotPage extends StatelessWidget {
     return Container(
       height: 48,
       padding: const EdgeInsets.symmetric(horizontal: 14),
-      color: _snapshotHeaderFill,
+      color: _snapshotFrameBlue,
       child: Row(
         children: [
           const Text(
             'Pit Snapshot',
-            style: TextStyle(fontSize: 18, color: Color(0xFF2B2B2B)),
+            style: TextStyle(
+              fontFamily: 'Segoe UI',
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+            ),
           ),
           const Spacer(),
           IconButton(
             onPressed: Get.back,
-            icon: const Icon(Icons.close, color: Color(0xFF666666), size: 26),
+            icon: const Icon(Icons.close, color: Colors.white, size: 18),
             splashRadius: 18,
           ),
         ],
@@ -205,15 +220,9 @@ class PitSnapshotPage extends StatelessWidget {
 
   Widget _buildVolumeSummary(PitSnapshotController controller) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Padding(
-          padding: EdgeInsets.only(left: 2, bottom: 6),
-          child: Text(
-            'Volume Summary',
-            style: TextStyle(fontSize: 13, color: Colors.black87),
-          ),
-        ),
+        _buildSectionHeader('Volume Summary', Icons.description_outlined),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -244,7 +253,7 @@ class PitSnapshotPage extends StatelessWidget {
                         children: [
                           _SummaryValueCell(
                             row.name,
-                            fill: Colors.white,
+                            fill: _snapshotReadOnlyFill,
                             alignRight: false,
                             textColor: Colors.black87,
                           ),
@@ -291,21 +300,30 @@ class PitSnapshotPage extends StatelessWidget {
 
   Widget _buildConcentration(PitSnapshotController controller) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
+        Container(
+          height: 34,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          color: _snapshotFrameBlue,
+          child: Row(
           children: [
+            const Icon(Icons.science_outlined, size: 12, color: Colors.white),
+            const SizedBox(width: 7),
             const Expanded(
-              child: Padding(
-                padding: EdgeInsets.only(left: 2, bottom: 6),
-                child: Text(
-                  'Pit Concentration',
-                  style: TextStyle(fontSize: 13, color: Colors.black87),
+              child: Text(
+                'Pit Concentration',
+                style: TextStyle(
+                  fontFamily: 'Segoe UI',
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
                 ),
               ),
             ),
             Container(
-              height: 30,
+              height: 26,
+              width: 160,
               padding: const EdgeInsets.symmetric(horizontal: 10),
               decoration: BoxDecoration(
                 border: Border.all(color: _snapshotBorder),
@@ -320,7 +338,12 @@ class PitSnapshotPage extends StatelessWidget {
                           value: item,
                           child: Text(
                             item,
-                            style: const TextStyle(fontSize: 12),
+                            style: const TextStyle(
+                              fontFamily: 'Segoe UI',
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.black,
+                            ),
                           ),
                         ),
                       )
@@ -334,6 +357,7 @@ class PitSnapshotPage extends StatelessWidget {
               ),
             ),
           ],
+          ),
         ),
         Expanded(
           child: Container(
@@ -401,7 +425,10 @@ class PitSnapshotPage extends StatelessWidget {
             child: Center(
               child: Text(
                 '${row.rowNumber}',
-                style: const TextStyle(fontSize: 11),
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ),
@@ -414,7 +441,10 @@ class PitSnapshotPage extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 8),
               child: Text(
                 row.product,
-                style: const TextStyle(fontSize: 11),
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -431,7 +461,10 @@ class PitSnapshotPage extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 8),
               child: Text(
                 row.unit,
-                style: const TextStyle(fontSize: 11),
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -446,7 +479,13 @@ class PitSnapshotPage extends StatelessWidget {
               ),
               alignment: Alignment.centerRight,
               padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: Text(row.startConc, style: const TextStyle(fontSize: 11)),
+              child: Text(
+                row.startConc,
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
           ),
           Expanded(
@@ -459,7 +498,13 @@ class PitSnapshotPage extends StatelessWidget {
               ),
               alignment: Alignment.centerRight,
               padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: Text(row.endConc, style: const TextStyle(fontSize: 11)),
+              child: Text(
+                row.endConc,
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
           ),
         ],
@@ -484,6 +529,35 @@ class PitSnapshotPage extends StatelessWidget {
           ),
           child: const Text('Close', style: TextStyle(fontSize: 12)),
         ),
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title, IconData icon) {
+    return Container(
+      height: 34,
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      decoration: const BoxDecoration(
+        color: _snapshotFrameBlue,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(4)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 12, color: Colors.white),
+          const SizedBox(width: 7),
+          Expanded(
+            child: Text(
+              title,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontFamily: 'Segoe UI',
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -547,7 +621,7 @@ class PitSnapshotPage extends StatelessWidget {
                         children: [
                           _SummaryValueCell(
                             row.label,
-                            fill: Colors.white,
+                            fill: _snapshotReadOnlyFill,
                             alignRight: false,
                             textColor: Colors.black87,
                           ),
@@ -605,7 +679,7 @@ class _SummaryHeaderCell extends StatelessWidget {
       child: Text(
         text,
         textAlign: alignRight ? TextAlign.right : TextAlign.center,
-        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
+        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
       ),
     );
   }
@@ -630,7 +704,14 @@ class _SummaryValueCell extends StatelessWidget {
       color: fill,
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       alignment: alignRight ? Alignment.centerRight : Alignment.centerLeft,
-      child: Text(text, style: TextStyle(fontSize: 11, color: textColor)),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 11,
+          color: textColor,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
     );
   }
 }
@@ -652,7 +733,7 @@ class _ConcentrationHeaderCell extends StatelessWidget {
       ),
       child: Text(
         text,
-        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
+        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
         textAlign: TextAlign.center,
       ),
     );

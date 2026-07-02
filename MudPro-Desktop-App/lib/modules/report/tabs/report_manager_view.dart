@@ -9,6 +9,13 @@ import 'package:mudpro_desktop_app/modules/report_context/report_models.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
+const Color _reportManagerPage = Color(0xFFF4F6FA);
+const Color _reportManagerSection = Color(0xFF6C9BCF);
+const Color _reportManagerColumn = Color(0xFFEAF3FC);
+const Color _reportManagerStatic = Color(0xFFF2F2F2);
+const Color _reportManagerGrid = Color(0xFFCFE0F2);
+const Color _reportManagerBorder = Color(0xFFB8D0EA);
+
 class ReportManagerPage extends StatefulWidget {
   const ReportManagerPage({super.key});
 
@@ -110,44 +117,54 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
       builder: (_, constraints) {
         final isSmallScreen = constraints.maxWidth < 1200;
 
-        return Container(
-          padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-          color: Colors.white,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildHeader(),
-              const SizedBox(height: 10),
-              Expanded(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SizedBox(
-                      width: isSmallScreen ? constraints.maxWidth * 0.38 : 575,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          border: Border.all(color: Colors.grey.shade400),
+        return DefaultTextStyle.merge(
+          style: const TextStyle(
+            fontFamily: 'Segoe UI',
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: Colors.black,
+          ),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+            color: _reportManagerPage,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildHeader(),
+                const SizedBox(height: 10),
+                Expanded(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(
+                        width: isSmallScreen ? constraints.maxWidth * 0.38 : 575,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            border: Border.all(color: _reportManagerBorder),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: _buildSearchCriteria(),
                         ),
-                        child: _buildSearchCriteria(),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          border: Border.all(color: Colors.grey.shade400),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            border: Border.all(color: _reportManagerBorder),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: _buildResultsPanel(),
                         ),
-                        child: _buildResultsPanel(),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              _buildActionButtons(),
-            ],
+                const SizedBox(height: 8),
+                _buildActionButtons(),
+              ],
+            ),
           ),
         );
       },
@@ -160,27 +177,43 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Text(
-                'MUDPRO+ - Report Manager',
-                style: AppTheme.bodyLarge.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.textPrimary,
+          Container(
+            height: 36,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: const BoxDecoration(
+              color: _reportManagerSection,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(4)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.assignment, size: 16, color: Colors.white),
+                const SizedBox(width: 8),
+                const Text(
+                  'MUDPRO+ - Report Manager',
+                  style: TextStyle(
+                    fontFamily: 'Segoe UI',
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
                 ),
-              ),
-              const Spacer(),
-              SizedBox(
-                width: 30,
-                height: 30,
-                child: IconButton(
-                  padding: EdgeInsets.zero,
-                  splashRadius: 16,
-                  onPressed: dashboardC.closeOverlay,
-                  icon: const Icon(Icons.close, size: 20),
+                const Spacer(),
+                SizedBox(
+                  width: 30,
+                  height: 30,
+                  child: IconButton(
+                    padding: EdgeInsets.zero,
+                    splashRadius: 16,
+                    onPressed: dashboardC.closeOverlay,
+                    icon: const Icon(
+                      Icons.close,
+                      size: 18,
+                      color: Colors.white,
+                    ),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
           const SizedBox(height: 8),
           Row(
@@ -190,8 +223,9 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
                 child: Text(
                   'Current Well',
                   style: AppTheme.bodySmall.copyWith(
-                    color: AppTheme.textPrimary,
-                    fontWeight: FontWeight.w500,
+                    color: Colors.black,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
@@ -201,7 +235,7 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  border: Border.all(color: Colors.grey.shade400),
+                  border: Border.all(color: _reportManagerBorder),
                 ),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
@@ -212,7 +246,9 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
                     isExpanded: true,
                     icon: const Icon(Icons.arrow_drop_down, size: 18),
                     style: AppTheme.bodySmall.copyWith(
-                      color: AppTheme.textPrimary,
+                      color: Colors.black,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
                     ),
                     hint: Text('Select well', style: AppTheme.bodySmall),
                     items: padWellC.wells
@@ -249,22 +285,30 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
-          child: Text(
+        Container(
+          height: 34,
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          alignment: Alignment.centerLeft,
+          decoration: const BoxDecoration(
+            color: _reportManagerSection,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(4)),
+          ),
+          child: const Text(
             'Search Criteria',
-            style: AppTheme.bodySmall.copyWith(
-              fontWeight: FontWeight.w600,
-              color: AppTheme.textPrimary,
+            style: TextStyle(
+              fontFamily: 'Segoe UI',
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
             ),
           ),
         ),
         Container(
-          height: 28,
-          margin: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(
-            color: Colors.grey.shade100,
-            border: Border.all(color: Colors.grey.shade400),
+          height: 34,
+          decoration: const BoxDecoration(
+            color: _reportManagerColumn,
+            border: Border(bottom: BorderSide(color: _reportManagerGrid)),
           ),
           child: Row(
             children: [
@@ -278,7 +322,7 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
         ),
         Expanded(
           child: ListView.builder(
-            padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            padding: EdgeInsets.zero,
             itemCount: criteria.length,
             itemBuilder: (_, index) => _criteriaRow(index, criteria[index]),
           ),
@@ -290,14 +334,16 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
   Widget _criteriaHeaderCell(String label, {double? width, int flex = 0}) {
     final child = Container(
       alignment: Alignment.center,
-      decoration: BoxDecoration(
-        border: Border(right: BorderSide(color: Colors.grey.shade400)),
+      decoration: const BoxDecoration(
+        border: Border(right: BorderSide(color: _reportManagerGrid)),
       ),
       child: Text(
         label,
-        style: AppTheme.caption.copyWith(
-          fontWeight: FontWeight.w600,
-          color: AppTheme.textPrimary,
+        style: const TextStyle(
+          fontFamily: 'Segoe UI',
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: Colors.black,
         ),
       ),
     );
@@ -313,12 +359,8 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
     return Container(
       height: 36,
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          left: BorderSide(color: Colors.grey.shade400),
-          right: BorderSide(color: Colors.grey.shade400),
-          bottom: BorderSide(color: Colors.grey.shade300),
-        ),
+        color: _reportManagerStatic,
+        border: const Border(bottom: BorderSide(color: _reportManagerGrid)),
       ),
       child: Row(
         children: [
@@ -327,7 +369,12 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
             child: Center(
               child: Text(
                 '${index + 1}',
-                style: AppTheme.caption.copyWith(color: AppTheme.textPrimary),
+                style: const TextStyle(
+                  fontFamily: 'Segoe UI',
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.black,
+                ),
               ),
             ),
           ),
@@ -347,7 +394,12 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
             flex: 3,
             child: Text(
               _criteriaLabel(item),
-              style: AppTheme.caption.copyWith(color: AppTheme.textPrimary),
+              style: const TextStyle(
+                fontFamily: 'Segoe UI',
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: Colors.black,
+              ),
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -384,12 +436,17 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
       padding: const EdgeInsets.symmetric(horizontal: 6),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(color: _reportManagerGrid),
       ),
       child: TextField(
         controller: controller,
         keyboardType: keyboardType,
-        style: AppTheme.caption.copyWith(color: AppTheme.textPrimary),
+        style: const TextStyle(
+          fontFamily: 'Segoe UI',
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: Colors.black,
+        ),
         decoration: InputDecoration(
           isDense: true,
           border: InputBorder.none,
@@ -447,13 +504,19 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
       height: 34,
       padding: const EdgeInsets.symmetric(horizontal: 12),
       alignment: Alignment.centerLeft,
+      decoration: const BoxDecoration(
+        color: _reportManagerSection,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(4)),
+      ),
       child: Row(
         children: [
-          Text(
+          const Text(
             'Result',
-            style: AppTheme.bodySmall.copyWith(
-              fontWeight: FontWeight.w600,
-              color: AppTheme.textPrimary,
+            style: TextStyle(
+              fontFamily: 'Segoe UI',
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
             ),
           ),
           const Spacer(),
@@ -461,8 +524,8 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
             Text(
               '$visibleCount report(s)',
               style: AppTheme.caption.copyWith(
-                color: AppTheme.textSecondary,
-                fontWeight: FontWeight.w500,
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
               ),
             ),
         ],
@@ -480,7 +543,7 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
           dataRowMinHeight: 32,
           dataRowMaxHeight: 32,
           dividerThickness: 0.5,
-          headingRowColor: WidgetStateProperty.all(Colors.grey.shade100),
+          headingRowColor: WidgetStateProperty.all(_reportManagerColumn),
           dataRowColor: WidgetStateProperty.resolveWith<Color?>((states) {
             if (states.contains(WidgetState.selected)) {
               return AppTheme.primaryColor.withValues(alpha: 0.1);
@@ -593,18 +656,22 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
       child: OutlinedButton(
         onPressed: onPressed,
         style: OutlinedButton.styleFrom(
-          foregroundColor: foreground ?? AppTheme.textPrimary,
-          side: BorderSide(color: Colors.grey.shade500),
-          shape: const RoundedRectangleBorder(),
-          backgroundColor: Colors.white,
+          foregroundColor: Colors.white,
+          backgroundColor: foreground ?? _reportManagerSection,
+          disabledForegroundColor: Colors.white70,
+          disabledBackgroundColor: _reportManagerSection.withOpacity(0.5),
+          side: BorderSide(color: foreground ?? _reportManagerSection),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(4),
+          ),
         ),
         child: Text(
           label,
-          style: AppTheme.bodySmall.copyWith(
-            fontWeight: FontWeight.w500,
-            color: onPressed == null
-                ? Colors.grey
-                : (foreground ?? AppTheme.textPrimary),
+          style: const TextStyle(
+            fontFamily: 'Segoe UI',
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
           ),
         ),
       ),
@@ -661,9 +728,11 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
         child: Obx(
           () => Text(
             AppUnits.label(label),
-            style: AppTheme.caption.copyWith(
-              fontWeight: FontWeight.w600,
-              color: AppTheme.textPrimary,
+            style: const TextStyle(
+              fontFamily: 'Segoe UI',
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: Colors.black,
             ),
           ),
         ),
@@ -695,9 +764,11 @@ class _ReportManagerPageState extends State<ReportManagerPage> {
           child: Text(
             text,
             overflow: TextOverflow.ellipsis,
-            style: AppTheme.caption.copyWith(
-              color: AppTheme.textPrimary,
-              fontWeight: bold ? FontWeight.w600 : FontWeight.w400,
+            style: const TextStyle(
+              fontFamily: 'Segoe UI',
+              fontSize: 11,
+              color: Colors.black,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ),

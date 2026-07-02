@@ -6,9 +6,11 @@ import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/i
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/interval/interval_left_pannel.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/interval/interval_mud_plan_tab.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/mud_controller.dart';
+import 'package:mudpro_desktop_app/theme/app_theme.dart';
+import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/well_setup_ui_pattern.dart';
 
-const Color _ivBorder = Color(0xFFC9CED6);
-const Color _ivLocked = Color(0xFFFFF6C7);
+const Color _ivBorder = wellSetupBorder;
+const Color _ivLocked = wellSetupLockedEditable;
 
 class IntervalView extends StatefulWidget {
   const IntervalView({super.key});
@@ -68,7 +70,7 @@ class _IntervalViewState extends State<IntervalView>
       padding: const EdgeInsets.all(6),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: wellSetupPageBackground,
           border: Border.all(color: _ivBorder),
         ),
         child: Column(
@@ -81,40 +83,34 @@ class _IntervalViewState extends State<IntervalView>
                   Expanded(
                     child: Column(
                       children: [
-                        Align(
+                        Container(
+                          width: double.infinity,
+                          height: 30,
+                          color: AppTheme.primaryColor,
                           alignment: Alignment.centerLeft,
-                          child: SizedBox(
-                            height: 30,
-                            child: TabBar(
-                              controller: _tabController,
-                              isScrollable: true,
-                              labelPadding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                              ),
-                              indicator: const BoxDecoration(
-                                color: Colors.white,
-                                border: Border(
-                                  top: BorderSide(color: _ivBorder),
-                                  left: BorderSide(color: _ivBorder),
-                                  right: BorderSide(color: _ivBorder),
-                                ),
-                              ),
-                              dividerColor: Colors.transparent,
-                              labelColor: const Color(0xFF2F2F2F),
-                              unselectedLabelColor: const Color(0xFF2F2F2F),
-                              labelStyle: const TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w500,
-                              ),
-                              unselectedLabelStyle: const TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w400,
-                              ),
-                              tabs: const [
-                                Tab(text: 'General'),
-                                Tab(text: 'Mud Plan'),
-                              ],
+                          child: TabBar(
+                            controller: _tabController,
+                            isScrollable: true,
+                            labelPadding: const EdgeInsets.symmetric(
+                              horizontal: 14,
                             ),
+                            indicatorColor: Colors.white,
+                            indicatorWeight: 2,
+                            dividerColor: Colors.transparent,
+                            labelColor: Colors.white,
+                            unselectedLabelColor: Colors.white,
+                            labelStyle: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                            unselectedLabelStyle: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                            tabs: const [
+                              Tab(text: 'General'),
+                              Tab(text: 'Mud Plan'),
+                            ],
                           ),
                         ),
                         Expanded(
@@ -149,11 +145,15 @@ class _IntervalViewState extends State<IntervalView>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Padding(
-                    padding: EdgeInsets.only(bottom: 6),
+                  Container(
+                    width: double.infinity,
+                    height: 34,
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    alignment: Alignment.centerLeft,
+                    color: wellSetupSectionHeader,
                     child: Text(
                       'End of Well Conclusion and Recommendations',
-                      style: TextStyle(fontSize: 10, color: Color(0xFF2F2F2F)),
+                      style: wellSetupSectionText,
                     ),
                   ),
                   Expanded(
@@ -163,10 +163,7 @@ class _IntervalViewState extends State<IntervalView>
                         readOnly: ugSt.isLocked.value,
                         maxLines: null,
                         expands: true,
-                        style: const TextStyle(
-                          fontSize: 10,
-                          color: Color(0xFF2F2F2F),
-                        ),
+                        style: AppTheme.wellLikeBodyText.copyWith(fontSize: 11),
                         decoration: InputDecoration(
                           filled: true,
                           fillColor: ugSt.isLocked.value

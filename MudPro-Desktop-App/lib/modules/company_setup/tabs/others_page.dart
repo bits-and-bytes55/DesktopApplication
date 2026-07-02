@@ -237,12 +237,12 @@ class _OthersPageState extends State<OthersPage> {
     return Container(
       height: 36,
       padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: BoxDecoration(gradient: gradient, borderRadius: const BorderRadius.only(topLeft: Radius.circular(8), topRight: Radius.circular(8))),
+      decoration: BoxDecoration(gradient: AppTheme.primaryGradient, borderRadius: const BorderRadius.only(topLeft: Radius.circular(8), topRight: Radius.circular(8))),
       child: Row(
         children: [
-          Icon(icon, size: 14, color: Colors.white),
+          Icon(icon, size: 14, color: AppTheme.companySetupHeaderTextColor),
           const SizedBox(width: 8),
-          Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white)),
+          Text(title, style: AppTheme.companySetupHeaderDark.copyWith(fontSize: 12)),
         ],
       ),
     );
@@ -263,7 +263,7 @@ class _OthersPageState extends State<OthersPage> {
   }
 
   Widget _headerCell({double? width, int? flex, required String text}) {
-    Widget cell = Container(width: width, alignment: Alignment.center, child: Text(text, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)));
+    Widget cell = Container(width: width, alignment: Alignment.center, child: Text(text, style: AppTheme.companySetupBodyBold));
     return flex != null ? Expanded(flex: flex, child: cell) : cell;
   }
 
@@ -285,7 +285,7 @@ class _OthersPageState extends State<OthersPage> {
       decoration: BoxDecoration(color: index % 2 == 0 ? Colors.white : AppTheme.cardColor, border: Border(bottom: BorderSide(color: AppTheme.tableBorderBlue, width: 0.5))),
       child: Row(
         children: [
-          _cell(width: 40, child: Text('${index + 1}', style: const TextStyle(fontSize: 11))),
+          _cell(width: 40, child: Text('${index + 1}', style: AppTheme.companySetupBodyText)),
           _cell(
             flex: 1,
             child: isEditing && editController != null
@@ -293,7 +293,7 @@ class _OthersPageState extends State<OthersPage> {
                     controller: editController,
                     autofocus: true,
                     enabled: !globallyLocked,
-                    style: const TextStyle(fontSize: 11),
+                    style: AppTheme.companySetupBodyText,
                     decoration: const InputDecoration(
                       border: InputBorder.none,
                       isDense: true,
@@ -304,7 +304,7 @@ class _OthersPageState extends State<OthersPage> {
                   )
                 : Text(
                     description,
-                    style: const TextStyle(fontSize: 11),
+                    style: AppTheme.companySetupBodyText,
                     overflow: TextOverflow.ellipsis,
                   ),
           ),
@@ -361,16 +361,16 @@ class _OthersPageState extends State<OthersPage> {
       decoration: BoxDecoration(color: index % 2 == 0 ? Colors.white : AppTheme.cardColor, border: Border(bottom: BorderSide(color: AppTheme.tableBorderBlue, width: 0.5))),
       child: Row(
         children: [
-          _cell(width: 40, child: Text('${index + 1}', style: const TextStyle(fontSize: 11))),
+          _cell(width: 40, child: Text('${index + 1}', style: AppTheme.companySetupBodyText)),
           _cell(flex: 1, child: TextField(
             controller: ctrl,
             enabled: !globallyLocked,
-            style: const TextStyle(fontSize: 11),
+            style: AppTheme.companySetupBodyText,
             decoration: const InputDecoration(border: InputBorder.none, isDense: true, contentPadding: EdgeInsets.symmetric(vertical: 8)),
             textAlign: TextAlign.center,
             onChanged: (_) => Get.find<OthersGetxController>().updateNewRows(rows),
           )),
-          _cell(width: 80, child: const Text('-', style: TextStyle(fontSize: 11))),
+          _cell(width: 80, child: const Text('-', style: AppTheme.companySetupBodyText)),
         ],
       ),
     );
@@ -434,7 +434,7 @@ class _OthersPageState extends State<OthersPage> {
           style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor),
           child: isSaving 
               ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-              : Text('Save $title', style: const TextStyle(fontSize: 11, color: Colors.white)),
+              : Text('Save $title', style: AppTheme.companySetupHeaderWhite),
         ),
       ),
     );

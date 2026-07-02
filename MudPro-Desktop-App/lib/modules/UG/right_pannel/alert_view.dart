@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controller/UG_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
+import 'package:mudpro_desktop_app/modules/UG/right_pannel/ug_ui_pattern.dart';
 
 class AlertView extends StatelessWidget {
   AlertView({super.key});
@@ -16,8 +17,10 @@ class AlertView extends StatelessWidget {
         child: Container(
           width: MediaQuery.of(context).size.width / 2,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
-            color: Colors.white,
+            borderRadius: BorderRadius.circular(4),
+                                 color: c.isLocked.value
+                                     ? ugLockedEditable
+                                     : Colors.white,
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.05),
@@ -25,7 +28,7 @@ class AlertView extends StatelessWidget {
                 offset: const Offset(0, 2),
               ),
             ],
-            border: Border.all(color: Colors.grey.shade200, width: 1),
+            border: Border.all(color: ugBorder, width: 1),
           ),
           child: Padding(
           padding: const EdgeInsets.all(16),
@@ -36,35 +39,43 @@ class AlertView extends StatelessWidget {
               children: [
             
                 // HEADER
-                Row(
-                  children: [
-                    const Icon(Icons.security, size: 16, color: AppTheme.primaryColor),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Safety Configuration',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.textPrimary,
-                      ),
-                    ),
-                    const Spacer(),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: AppTheme.primaryColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Obx(() => Text(
-                        '${double.tryParse(c.safetyMargin.value)?.toStringAsFixed(1) ?? '0.0'}%',
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryColor,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.security, size: 16, color: Colors.white),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Safety Configuration',
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: 13,
                           fontWeight: FontWeight.w600,
-                          color: AppTheme.primaryColor,
+                          color: Colors.white,
                         ),
-                      )),
-                    ),
-                  ],
+                      ),
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.18),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Obx(() => Text(
+                          '${double.tryParse(c.safetyMargin.value)?.toStringAsFixed(1) ?? '0.0'}%',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        )),
+                      ),
+                    ],
+                  ),
                 ),
                 
                 const Divider(height: 20, color: Colors.grey),
@@ -80,19 +91,26 @@ class AlertView extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryColor,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Row(
                             children: [
-                              Icon(Icons.margin, size: 14, color: AppTheme.textSecondary),
+                              const Icon(Icons.margin, size: 14, color: Colors.white),
                               const SizedBox(width: 6),
-                              Text(
+                              const Text(
                                 'Safety Margin',
                                 style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
-                                  color: AppTheme.textPrimary,
+                                  color: Colors.white,
                                 ),
                               ),
                             ],
@@ -100,20 +118,20 @@ class AlertView extends StatelessWidget {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                             decoration: BoxDecoration(
-                              color: AppTheme.primaryColor.withOpacity(0.1),
+                              color: Colors.white.withOpacity(0.18),
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Obx(() => Text(
                               '${double.tryParse(c.safetyMargin.value)?.toStringAsFixed(1) ?? '0.0'}%',
-                              style: TextStyle(
+                              style: const TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
-                                color: AppTheme.primaryColor,
+                                color: Colors.white,
                               ),
                             )),
                           ),
                         ],
-                      ),
+                      )),
                       
                       const SizedBox(height: 12),
                       
@@ -181,12 +199,20 @@ class AlertView extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Safety Status Indicator',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.textPrimary,
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryColor,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text(
+                          'Safety Status Indicator',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -365,20 +391,27 @@ class AlertView extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryColor,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Row(
                         children: [
-                          const Icon(Icons.legend_toggle, size: 14, color: AppTheme.textSecondary),
+                          const Icon(Icons.legend_toggle, size: 14, color: Colors.white),
                           const SizedBox(width: 6),
-                          Text(
+                          const Text(
                             'Safety Levels',
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
-                              color: AppTheme.textPrimary,
+                              color: Colors.white,
                             ),
                           ),
                         ],
-                      ),
+                      )),
                       const SizedBox(height: 12),
                       _legendRow(const Color(0xff1E7F3F), 'Safe Zone', '0 - 80%: Normal operating conditions'),
                       const SizedBox(height: 8),

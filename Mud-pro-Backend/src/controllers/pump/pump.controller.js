@@ -325,7 +325,7 @@ class PumpController {
         const updated = await Pump.findByIdAndUpdate(
           existingScoped._id,
           pumpData,
-          { new: true, runValidators: true }
+          { returnDocument: "after", runValidators: true }
         );
 
         return res.status(200).json({
@@ -385,7 +385,7 @@ class PumpController {
       });
 
       const pump = await Pump.findByIdAndUpdate(id, pumpData, {
-        new: true,
+        returnDocument: "after",
         runValidators: true,
       });
 

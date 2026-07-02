@@ -211,7 +211,7 @@ export const updateWellGeneral = async (req, res) => {
           reportNo: toText(payload.reportNo),
         }),
       },
-      { new: true }
+      { returnDocument: "after" }
     );
 
     if (!data) {

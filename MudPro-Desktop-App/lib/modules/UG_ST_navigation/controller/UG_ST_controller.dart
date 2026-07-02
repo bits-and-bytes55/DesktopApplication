@@ -98,7 +98,6 @@ class UgStController extends GetxController {
       fetchPlan();
     });
     _reportWorker = ever<String>(reportContext.selectedReportId, (_) {
-      fetchCasings();
       fetchPlan();
     });
     _unitWorkers.addAll([

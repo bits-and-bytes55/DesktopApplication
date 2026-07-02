@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/pickup_tabs/products_pickup_tab.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/pickup_tabs/services_pickup_tab.dart';
+import 'package:mudpro_desktop_app/modules/UG/right_pannel/ug_ui_pattern.dart';
+import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class InventoryPickupTabs extends StatefulWidget {
   const InventoryPickupTabs({super.key, this.applyProductsToMainInventory = true});
@@ -17,7 +19,7 @@ class _InventoryPickupTabsState extends State<InventoryPickupTabs> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: ugPageBackground,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(8, 8, 8, 10),
@@ -28,11 +30,7 @@ class _InventoryPickupTabsState extends State<InventoryPickupTabs> {
                 padding: EdgeInsets.only(left: 2, bottom: 6),
                 child: Text(
                   'Inventory Pickup',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF2F2F2F),
-                  ),
+                  style: AppTheme.wellLikeBodyText,
                 ),
               ),
               Row(
@@ -48,7 +46,8 @@ class _InventoryPickupTabsState extends State<InventoryPickupTabs> {
                   margin: const EdgeInsets.only(top: 0),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    border: Border.all(color: const Color(0xFFC7CBD2)),
+                    border: Border.all(color: ugBorder),
+                    borderRadius: BorderRadius.circular(4),
                   ),
                   child: _activeTab == 'Products'
                       ? ProductsPickupPage(
@@ -74,22 +73,23 @@ class _InventoryPickupTabsState extends State<InventoryPickupTabs> {
         padding: const EdgeInsets.symmetric(horizontal: 18),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: active ? ugSectionHeader : ugColumnHeader,
           border: Border(
-            left: const BorderSide(color: Color(0xFFC7CBD2)),
-            right: const BorderSide(color: Color(0xFFC7CBD2)),
-            top: const BorderSide(color: Color(0xFFC7CBD2)),
+            left: const BorderSide(color: ugBorder),
+            right: const BorderSide(color: ugBorder),
+            top: const BorderSide(color: ugBorder),
             bottom: BorderSide(
-              color: active ? Colors.white : const Color(0xFFC7CBD2),
+              color: active ? ugSectionHeader : ugBorder,
             ),
           ),
         ),
         child: Text(
           label,
           style: TextStyle(
+            fontFamily: 'Segoe UI',
             fontSize: 11,
-            fontWeight: active ? FontWeight.w600 : FontWeight.w400,
-            color: const Color(0xFF2F2F2F),
+            fontWeight: FontWeight.w700,
+            color: active ? Colors.white : Colors.black,
           ),
         ),
       ),

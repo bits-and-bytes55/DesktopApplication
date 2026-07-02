@@ -3,10 +3,12 @@ import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/mud_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/interval/controller/interval_controller.dart';
+import 'package:mudpro_desktop_app/theme/app_theme.dart';
+import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/well_setup_ui_pattern.dart';
 
-const Color _impBorder = Color(0xFFC9CED6);
-const Color _impHeader = Color(0xFFF3F3F3);
-const Color _impCell = Color(0xFFFFF6C7);
+const Color _impBorder = wellSetupBorder;
+const Color _impHeader = wellSetupReadOnlyFill;
+const Color _impCell = wellSetupLockedEditable;
 
 class IntervalMudPlanTab extends StatefulWidget {
   const IntervalMudPlanTab({super.key});
@@ -79,18 +81,18 @@ class _IntervalMudPlanTabState extends State<IntervalMudPlanTab> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Padding(
+            Padding(
               padding: EdgeInsets.only(bottom: 4),
               child: Text(
                 'Mud Properties',
-                style: TextStyle(fontSize: 10, color: Color(0xFF2F2F2F)),
+                style: AppTheme.wellLikeBodyText.copyWith(fontSize: 11),
               ),
             ),
             Row(
               children: [
-                const Text(
+                Text(
                   'Fluid Type',
-                  style: TextStyle(fontSize: 10, color: Color(0xFF2F2F2F)),
+                  style: AppTheme.wellLikeBodyText.copyWith(fontSize: 11),
                 ),
                 const SizedBox(width: 8),
                 _dropdownShell(
@@ -99,26 +101,32 @@ class _IntervalMudPlanTabState extends State<IntervalMudPlanTab> {
                     child: DropdownButton<String>(
                       value: c.selectedFluidType.value,
                       isDense: true,
-                      items: const [
+                      items: [
                         DropdownMenuItem(
                           value: 'Water-based',
                           child: Text(
                             'Water-based',
-                            style: TextStyle(fontSize: 10),
+                            style: AppTheme.wellLikeBodyText.copyWith(
+fontSize: 11,
+                            ),
                           ),
                         ),
                         DropdownMenuItem(
                           value: 'Oil-based',
                           child: Text(
                             'Oil-based',
-                            style: TextStyle(fontSize: 10),
+                            style: AppTheme.wellLikeBodyText.copyWith(
+fontSize: 11,
+                            ),
                           ),
                         ),
                         DropdownMenuItem(
                           value: 'Synthetic',
                           child: Text(
                             'Synthetic',
-                            style: TextStyle(fontSize: 10),
+                            style: AppTheme.wellLikeBodyText.copyWith(
+fontSize: 11,
+                            ),
                           ),
                         ),
                       ],
@@ -129,9 +137,9 @@ class _IntervalMudPlanTabState extends State<IntervalMudPlanTab> {
                 const SizedBox(width: 10),
                 if (c.selectedFluidType.value == 'Oil-based' ||
                     c.selectedFluidType.value == 'Synthetic') ...[
-                  const Text(
+                  Text(
                     'Salt Type',
-                    style: TextStyle(fontSize: 10, color: Color(0xFF2F2F2F)),
+                    style: AppTheme.wellLikeBodyText.copyWith(fontSize: 11),
                   ),
                   const SizedBox(width: 8),
                   _dropdownShell(
@@ -140,33 +148,41 @@ class _IntervalMudPlanTabState extends State<IntervalMudPlanTab> {
                       child: DropdownButton<String>(
                         value: c.selectedSaltType.value,
                         isDense: true,
-                        items: const [
+                        items: [
                           DropdownMenuItem(
                             value: 'CaCl2',
                             child: Text(
                               'CaCl2',
-                              style: TextStyle(fontSize: 10),
+                              style: AppTheme.wellLikeBodyText.copyWith(
+fontSize: 11,
+                              ),
                             ),
                           ),
                           DropdownMenuItem(
                             value: 'NaCl',
                             child: Text(
                               'NaCl',
-                              style: TextStyle(fontSize: 10),
+                              style: AppTheme.wellLikeBodyText.copyWith(
+fontSize: 11,
+                              ),
                             ),
                           ),
                           DropdownMenuItem(
                             value: 'NaCl + CaCl2',
                             child: Text(
                               'NaCl + CaCl2',
-                              style: TextStyle(fontSize: 10),
+                              style: AppTheme.wellLikeBodyText.copyWith(
+fontSize: 11,
+                              ),
                             ),
                           ),
                           DropdownMenuItem(
                             value: 'Sodium Formate',
                             child: Text(
                               'Sodium Formate',
-                              style: TextStyle(fontSize: 10),
+                              style: AppTheme.wellLikeBodyText.copyWith(
+fontSize: 11,
+                              ),
                             ),
                           ),
                         ],
@@ -193,19 +209,16 @@ class _IntervalMudPlanTabState extends State<IntervalMudPlanTab> {
                               },
                         visualDensity: VisualDensity.compact,
                       ),
-                      const Text(
+                      Text(
                         'Weighted Mud',
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: Color(0xFF2F2F2F),
-                        ),
+                        style: AppTheme.wellLikeBodyText.copyWith(fontSize: 11),
                       ),
                     ],
                   ),
                 const Spacer(),
-                const Text(
+                Text(
                   'Model',
-                  style: TextStyle(fontSize: 10, color: Color(0xFF2F2F2F)),
+                  style: AppTheme.wellLikeBodyText.copyWith(fontSize: 11),
                 ),
                 const SizedBox(width: 8),
                 _dropdownShell(
@@ -214,24 +227,33 @@ class _IntervalMudPlanTabState extends State<IntervalMudPlanTab> {
                     child: DropdownButton<String>(
                       value: c.rheologyModel.value,
                       isDense: true,
-                      items: const [
+                      items: [
                         DropdownMenuItem(
                           value: 'Bingham',
                           child: Text(
                             'Bingham',
-                            style: TextStyle(fontSize: 10),
+                            style: AppTheme.wellLikeBodyText.copyWith(
+fontSize: 11,
+                            ),
                           ),
                         ),
                         DropdownMenuItem(
                           value: 'Power Law',
                           child: Text(
                             'Power Law',
-                            style: TextStyle(fontSize: 10),
+                            style: AppTheme.wellLikeBodyText.copyWith(
+fontSize: 11,
+                            ),
                           ),
                         ),
                         DropdownMenuItem(
                           value: 'HB',
-                          child: Text('HB', style: TextStyle(fontSize: 10)),
+                          child: Text(
+                            'HB',
+                            style: AppTheme.wellLikeBodyText.copyWith(
+fontSize: 11,
+                            ),
+                          ),
                         ),
                       ],
                       onChanged: locked ? null : (v) => c.changeModel(v!),
@@ -280,7 +302,7 @@ class _IntervalMudPlanTabState extends State<IntervalMudPlanTab> {
         children: [
           Container(
             height: 28,
-            color: _impHeader,
+            color: AppTheme.primaryColor,
             child: Row(
               children: [
                 _headerCell('Property', flex: 4),
@@ -343,7 +365,7 @@ class _IntervalMudPlanTabState extends State<IntervalMudPlanTab> {
         children: [
           Container(
             height: 28,
-            color: _impHeader,
+            color: AppTheme.primaryColor,
             child: Row(
               children: [
                 _headerCell('Rheology', flex: 2),
@@ -386,9 +408,8 @@ class _IntervalMudPlanTabState extends State<IntervalMudPlanTab> {
                               alignment: Alignment.centerLeft,
                               child: Text(
                                 entry.key,
-                                style: const TextStyle(
-                                  fontSize: 10,
-                                  color: Color(0xFF2F2F2F),
+                                style: AppTheme.wellLikeBodyText.copyWith(
+fontSize: 11,
                                 ),
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -428,9 +449,9 @@ class _IntervalMudPlanTabState extends State<IntervalMudPlanTab> {
         child: Text(
           text,
           style: const TextStyle(
-            fontSize: 10,
+fontSize: 11,
             fontWeight: FontWeight.w500,
-            color: Color(0xFF2F2F2F),
+            color: Colors.white,
           ),
           overflow: TextOverflow.ellipsis,
         ),
@@ -511,10 +532,7 @@ class _PropertyRow extends StatelessWidget {
                 alignment: Alignment.centerLeft,
                 child: Text(
                   label,
-                  style: const TextStyle(
-                    fontSize: 10,
-                    color: Color(0xFF2F2F2F),
-                  ),
+                  style: AppTheme.wellLikeBodyText.copyWith(fontSize: 11),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -524,8 +542,7 @@ class _PropertyRow extends StatelessWidget {
                 flex: 2,
                 child: _MergedMudCell(
                   primary: values[_IntervalMudPlanTabState._planIndices.first],
-                  secondary:
-                      values[_IntervalMudPlanTabState._planIndices.last],
+                  secondary: values[_IntervalMudPlanTabState._planIndices.last],
                   readOnly: locked,
                 ),
               )
@@ -611,16 +628,16 @@ class _MergedMudCellState extends State<_MergedMudCell> {
       return Container(
         height: 28,
         padding: const EdgeInsets.symmetric(horizontal: 6),
-        decoration: const BoxDecoration(
-          color: _impCell,
-          border: Border(right: BorderSide(color: _impBorder)),
+        decoration: BoxDecoration(
+          color: widget.readOnly ? _impCell : Colors.white,
+          border: const Border(right: BorderSide(color: _impBorder)),
         ),
         child: TextField(
           controller: _controller,
           readOnly: widget.readOnly,
           textAlign: TextAlign.center,
           onChanged: _mirrorValue,
-          style: const TextStyle(fontSize: 10, color: Color(0xFF2F2F2F)),
+          style: AppTheme.wellLikeBodyText.copyWith(fontSize: 11),
           decoration: const InputDecoration(
             isDense: true,
             border: InputBorder.none,
@@ -673,9 +690,9 @@ class _AddPropertyRowState extends State<_AddPropertyRow> {
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
                     value: _selected,
-                    hint: const Text(
+                    hint: Text(
                       'Add property',
-                      style: TextStyle(fontSize: 10),
+                      style: AppTheme.wellLikeBodyText.copyWith(fontSize: 11),
                     ),
                     isExpanded: true,
                     isDense: true,
@@ -685,7 +702,9 @@ class _AddPropertyRowState extends State<_AddPropertyRow> {
                             value: item,
                             child: Text(
                               item,
-                              style: const TextStyle(fontSize: 10),
+                              style: AppTheme.wellLikeBodyText.copyWith(
+fontSize: 11,
+                              ),
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
@@ -776,16 +795,16 @@ class _MudCellState extends State<_MudCell> {
       return Container(
         height: 28,
         padding: const EdgeInsets.symmetric(horizontal: 6),
-        decoration: const BoxDecoration(
-          color: _impCell,
-          border: Border(right: BorderSide(color: _impBorder)),
+        decoration: BoxDecoration(
+          color: widget.readOnly ? _impCell : Colors.white,
+          border: const Border(right: BorderSide(color: _impBorder)),
         ),
         child: TextField(
           controller: _controller,
           readOnly: widget.readOnly,
           textAlign: widget.align,
           onChanged: (value) => widget.value.value = value,
-          style: const TextStyle(fontSize: 10, color: Color(0xFF2F2F2F)),
+          style: AppTheme.wellLikeBodyText.copyWith(fontSize: 11),
           decoration: const InputDecoration(
             isDense: true,
             border: InputBorder.none,
@@ -814,7 +833,8 @@ PopupMenuItem<String> _mudMenuItem(
       label,
       style: TextStyle(
         fontSize: 11,
-        color: enabled ? const Color(0xFF2F2F2F) : const Color(0xFF9EA4AD),
+        fontWeight: FontWeight.w700,
+        color: enabled ? Colors.black : const Color(0xFF9EA4AD),
       ),
     ),
   );

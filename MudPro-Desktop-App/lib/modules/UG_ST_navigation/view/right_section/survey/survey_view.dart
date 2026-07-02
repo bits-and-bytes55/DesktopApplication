@@ -6,6 +6,8 @@ import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/s
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/survey/survey_dogleg_tab.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/survey/survey_plan_tab.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/survey/survey_section_tab.dart';
+import 'package:mudpro_desktop_app/theme/app_theme.dart';
+import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/well_setup_ui_pattern.dart';
 
 class SurveyView extends StatelessWidget {
   SurveyView({super.key});
@@ -19,7 +21,7 @@ class SurveyView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: const Color(0xFFF2F2F2),
+      color: wellSetupPageBackground,
       padding: const EdgeInsets.fromLTRB(6, 6, 6, 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -38,9 +40,9 @@ class SurveyView extends StatelessWidget {
                     visualDensity: VisualDensity.compact,
                     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
-                  const Text(
+                  Text(
                     'Planned Survey',
-                    style: TextStyle(fontSize: 13, color: Color(0xFF2F2F2F)),
+                    style: AppTheme.wellLikeBodyText.copyWith(fontSize: 13),
                   ),
                 ],
               ),
@@ -50,8 +52,8 @@ class SurveyView extends StatelessWidget {
           Container(
             height: 28,
             decoration: BoxDecoration(
-              color: const Color(0xFFF2F2F2),
-              border: Border.all(color: const Color(0xFFC3C9D1)),
+              color: wellSetupColumnHeader,
+              border: Border.all(color: wellSetupBorder),
             ),
             child: Row(
               children: List.generate(_tabs.length, (index) {
@@ -64,24 +66,23 @@ class SurveyView extends StatelessWidget {
                       height: 26,
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
-                        color: active ? Colors.white : const Color(0xFFF2F2F2),
+                        color: active
+                            ? wellSetupSectionHeader
+                            : wellSetupColumnHeader,
                         border: Border(
-                          right: const BorderSide(color: Color(0xFFC3C9D1)),
+                          right: const BorderSide(color: wellSetupBorder),
                           bottom: BorderSide(
                             color: active
-                                ? Colors.white
-                                : const Color(0xFFC3C9D1),
+                                ? wellSetupSectionHeader
+                                : wellSetupBorder,
                           ),
                         ),
                       ),
                       child: Text(
                         _tabs[index],
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: const Color(0xFF2F2F2F),
-                          fontWeight: active
-                              ? FontWeight.w600
-                              : FontWeight.normal,
+                        style: AppTheme.wellLikeBodyText.copyWith(
+                          fontSize: 11,
+                          color: active ? Colors.white : Colors.black,
                         ),
                       ),
                     ),
@@ -95,7 +96,7 @@ class SurveyView extends StatelessWidget {
               width: double.infinity,
               decoration: BoxDecoration(
                 color: Colors.white,
-                border: Border.all(color: const Color(0xFFC3C9D1)),
+                border: Border.all(color: wellSetupBorder),
               ),
               child: Obx(() {
                 switch (controller.selectedTab.value) {

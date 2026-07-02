@@ -7,18 +7,20 @@ import 'package:mudpro_desktop_app/modules/UG_ST_navigation/controller/UG_ST_con
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/model/UG_ST_model.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/widgets/compact_tabular_database_dialog.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
+import 'package:mudpro_desktop_app/theme/app_theme.dart';
+import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/well_setup_ui_pattern.dart';
 
 const double _cIdx = 52.0;
 const double _cDesc = 180.0;
 const double _cType = 148.0;
 const double _cStd = 112.0;
 const double _cRowH = 31.0;
-const double _cHeadTopH = 25.0;
+const double _cHeadTopH = 34.0;
 const int _minVisibleRows = 20;
 
-const Color _cBorder = Color(0xFFC9CED6);
-const Color _cHeader = Color(0xFF6C9BCF);
-const Color _cLocked = Color(0xFFFFF6C7);
+const Color _cBorder = wellSetupBorder;
+const Color _cHeader = wellSetupSectionHeader;
+const Color _cLocked = wellSetupLockedEditable;
 const String _casingDiameterBaseUnit = '(mm)';
 const String _casingLineDensityBaseUnit = '(lb/ft)';
 const String _casingLengthBaseUnit = '(ft)';
@@ -33,8 +35,9 @@ int? _decimalPlacesFromText(String value) {
 }
 
 String _formatCasingNumber(double value, {String? sourceText}) {
-  final sourceDecimals =
-      sourceText == null ? null : _decimalPlacesFromText(sourceText);
+  final sourceDecimals = sourceText == null
+      ? null
+      : _decimalPlacesFromText(sourceText);
   if (sourceDecimals != null) {
     return value.toStringAsFixed(sourceDecimals);
   }
@@ -79,7 +82,7 @@ class CasingView extends StatefulWidget {
   State<CasingView> createState() => _CasingViewState();
 }
 
-class _CasingViewState extends State<CasingView> {
+class _CasingViewState extends State<CasingView> with WidgetsBindingObserver {
   late final UgStController c;
   final ScrollController _vScroll = ScrollController();
   Map<String, String>? _clipboard;
@@ -88,11 +91,23 @@ class _CasingViewState extends State<CasingView> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     c = Get.find<UgStController>();
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      unawaited(c.flushPendingCasingSave());
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    unawaited(c.flushPendingCasingSave());
     _vScroll.dispose();
     super.dispose();
   }
@@ -161,7 +176,9 @@ class _CasingViewState extends State<CasingView> {
     return Obx(
       () => Padding(
         padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
-        child: Column(
+        child: ColoredBox(
+          color: wellSetupPageBackground,
+          child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
@@ -175,7 +192,7 @@ class _CasingViewState extends State<CasingView> {
                       'Casing',
                       style: TextStyle(
                         fontSize: 13,
-                        color: Colors.black,
+                        color: Colors.white,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -211,6 +228,7 @@ class _CasingViewState extends State<CasingView> {
               ),
             ),
           ],
+          ),
         ),
       ),
     );
@@ -302,7 +320,7 @@ class _CasingViewState extends State<CasingView> {
       alignment: Alignment.center,
       padding: const EdgeInsets.symmetric(horizontal: 4),
       decoration: const BoxDecoration(
-        color: _cHeader,
+        color: wellSetupColumnHeader,
         border: Border(
           right: BorderSide(color: _cBorder),
           bottom: BorderSide(color: _cBorder),
@@ -312,7 +330,7 @@ class _CasingViewState extends State<CasingView> {
         text,
         textAlign: TextAlign.center,
         style: const TextStyle(
-          fontSize: 10,
+          fontSize: 11,
           color: Colors.black,
           fontWeight: FontWeight.w700,
         ),
@@ -411,9 +429,7 @@ class _SavedCasingRowState extends State<_SavedCasingRow> {
     super.initState();
     _desc = TextEditingController(text: widget.row.description.value);
     _od = TextEditingController(text: _displayDiameter(widget.row.od.value));
-    _wt = TextEditingController(
-      text: _displayLineDensity(widget.row.wt.value),
-    );
+    _wt = TextEditingController(text: _displayLineDensity(widget.row.wt.value));
     _id = TextEditingController(text: _displayDiameter(widget.row.id.value));
     _top = TextEditingController(text: _displayLength(widget.row.top.value));
     _shoe = TextEditingController(text: _displayLength(widget.row.shoe.value));
@@ -571,6 +587,10 @@ class _SavedCasingRowState extends State<_SavedCasingRow> {
               readOnly: widget.locked,
               bg: bg,
               onTap: widget.onSelected,
+              onEditingComplete: () =>
+                  unawaited(widget.ctrl.flushPendingCasingSave()),
+              onSubmitted: (_) =>
+                  unawaited(widget.ctrl.flushPendingCasingSave()),
               onChanged: (value) {
                 widget.row.description.value = value;
                 widget.ctrl.scheduleCasingAutoSave(widget.row);
@@ -595,6 +615,10 @@ class _SavedCasingRowState extends State<_SavedCasingRow> {
               bg: bg,
               align: TextAlign.right,
               onTap: widget.onSelected,
+              onEditingComplete: () =>
+                  unawaited(widget.ctrl.flushPendingCasingSave()),
+              onSubmitted: (_) =>
+                  unawaited(widget.ctrl.flushPendingCasingSave()),
               onChanged: (value) {
                 widget.row.od.value = _storeDiameter(value);
                 widget.ctrl.scheduleCasingAutoSave(widget.row);
@@ -607,6 +631,10 @@ class _SavedCasingRowState extends State<_SavedCasingRow> {
               bg: bg,
               align: TextAlign.right,
               onTap: widget.onSelected,
+              onEditingComplete: () =>
+                  unawaited(widget.ctrl.flushPendingCasingSave()),
+              onSubmitted: (_) =>
+                  unawaited(widget.ctrl.flushPendingCasingSave()),
               onChanged: (value) {
                 widget.row.wt.value = _storeLineDensity(value);
                 widget.ctrl.scheduleCasingAutoSave(widget.row);
@@ -619,6 +647,10 @@ class _SavedCasingRowState extends State<_SavedCasingRow> {
               bg: bg,
               align: TextAlign.right,
               onTap: widget.onSelected,
+              onEditingComplete: () =>
+                  unawaited(widget.ctrl.flushPendingCasingSave()),
+              onSubmitted: (_) =>
+                  unawaited(widget.ctrl.flushPendingCasingSave()),
               onChanged: (value) {
                 widget.row.id.value = _storeDiameter(value);
                 widget.ctrl.scheduleCasingAutoSave(widget.row);
@@ -631,6 +663,10 @@ class _SavedCasingRowState extends State<_SavedCasingRow> {
               bg: topBg,
               align: TextAlign.right,
               onTap: widget.onSelected,
+              onEditingComplete: () =>
+                  unawaited(widget.ctrl.flushPendingCasingSave()),
+              onSubmitted: (_) =>
+                  unawaited(widget.ctrl.flushPendingCasingSave()),
               onChanged: (value) {
                 widget.row.top.value = _storeLength(value);
                 widget.ctrl.scheduleCasingAutoSave(widget.row);
@@ -643,6 +679,10 @@ class _SavedCasingRowState extends State<_SavedCasingRow> {
               bg: bg,
               align: TextAlign.right,
               onTap: widget.onSelected,
+              onEditingComplete: () =>
+                  unawaited(widget.ctrl.flushPendingCasingSave()),
+              onSubmitted: (_) =>
+                  unawaited(widget.ctrl.flushPendingCasingSave()),
               onChanged: (value) {
                 widget.row.shoe.value = _storeLength(value);
                 widget.ctrl.scheduleCasingAutoSave(widget.row);
@@ -655,6 +695,10 @@ class _SavedCasingRowState extends State<_SavedCasingRow> {
               bg: bg,
               align: TextAlign.right,
               onTap: widget.onSelected,
+              onEditingComplete: () =>
+                  unawaited(widget.ctrl.flushPendingCasingSave()),
+              onSubmitted: (_) =>
+                  unawaited(widget.ctrl.flushPendingCasingSave()),
               onChanged: (value) {
                 widget.row.bit.value = _storeDiameter(value);
                 widget.ctrl.scheduleCasingAutoSave(widget.row);
@@ -667,6 +711,10 @@ class _SavedCasingRowState extends State<_SavedCasingRow> {
               bg: bg,
               align: TextAlign.right,
               onTap: widget.onSelected,
+              onEditingComplete: () =>
+                  unawaited(widget.ctrl.flushPendingCasingSave()),
+              onSubmitted: (_) =>
+                  unawaited(widget.ctrl.flushPendingCasingSave()),
               onChanged: (value) {
                 widget.row.toc.value = _storeLength(value);
                 widget.ctrl.scheduleCasingAutoSave(widget.row);
@@ -703,7 +751,8 @@ class _DraftCasingRow extends StatefulWidget {
   State<_DraftCasingRow> createState() => _DraftCasingRowState();
 }
 
-class _DraftCasingRowState extends State<_DraftCasingRow> {
+class _DraftCasingRowState extends State<_DraftCasingRow>
+    with WidgetsBindingObserver {
   late final TextEditingController _desc;
   late final TextEditingController _od;
   late final TextEditingController _wt;
@@ -727,6 +776,7 @@ class _DraftCasingRowState extends State<_DraftCasingRow> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _desc = TextEditingController();
     _od = TextEditingController();
     _wt = TextEditingController();
@@ -743,14 +793,45 @@ class _DraftCasingRowState extends State<_DraftCasingRow> {
     _shoeFocus = FocusNode();
     _bitFocus = FocusNode();
     _tocFocus = FocusNode();
+    for (final focusNode in [
+      _descFocus,
+      _odFocus,
+      _wtFocus,
+      _idFocus,
+      _topFocus,
+      _shoeFocus,
+      _bitFocus,
+      _tocFocus,
+    ]) {
+      focusNode.addListener(() {
+        if (!focusNode.hasFocus) {
+          _flushPendingSave();
+        }
+      });
+    }
+  }
+
+  void _flushPendingSave() {
+    _timer?.cancel();
+    _timer = null;
+    if (_hasData && !_isSaving) {
+      unawaited(_save());
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      _flushPendingSave();
+    }
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
-    if (_hasData && !_isSaving) {
-      unawaited(_save());
-    }
+    WidgetsBinding.instance.removeObserver(this);
+    _flushPendingSave();
     _descFocus.dispose();
     _odFocus.dispose();
     _wtFocus.dispose();
@@ -927,6 +1008,8 @@ class _DraftCasingRowState extends State<_DraftCasingRow> {
               readOnly: widget.locked,
               bg: bg,
               onTap: widget.onSelected,
+              onEditingComplete: _flushPendingSave,
+              onSubmitted: (_) => _flushPendingSave(),
               onChanged: (_) => _scheduleSave(),
             ),
             _typeCell(
@@ -949,6 +1032,8 @@ class _DraftCasingRowState extends State<_DraftCasingRow> {
               bg: bg,
               align: TextAlign.right,
               onTap: widget.onSelected,
+              onEditingComplete: _flushPendingSave,
+              onSubmitted: (_) => _flushPendingSave(),
               onChanged: (_) => _scheduleSave(),
             ),
             _editCell(
@@ -959,6 +1044,8 @@ class _DraftCasingRowState extends State<_DraftCasingRow> {
               bg: bg,
               align: TextAlign.right,
               onTap: widget.onSelected,
+              onEditingComplete: _flushPendingSave,
+              onSubmitted: (_) => _flushPendingSave(),
               onChanged: (_) => _scheduleSave(),
             ),
             _editCell(
@@ -969,6 +1056,8 @@ class _DraftCasingRowState extends State<_DraftCasingRow> {
               bg: bg,
               align: TextAlign.right,
               onTap: widget.onSelected,
+              onEditingComplete: _flushPendingSave,
+              onSubmitted: (_) => _flushPendingSave(),
               onChanged: (_) => _scheduleSave(),
             ),
             _editCell(
@@ -979,6 +1068,8 @@ class _DraftCasingRowState extends State<_DraftCasingRow> {
               bg: topBg,
               align: TextAlign.right,
               onTap: widget.onSelected,
+              onEditingComplete: _flushPendingSave,
+              onSubmitted: (_) => _flushPendingSave(),
               onChanged: (_) => _scheduleSave(),
             ),
             _editCell(
@@ -989,6 +1080,8 @@ class _DraftCasingRowState extends State<_DraftCasingRow> {
               bg: bg,
               align: TextAlign.right,
               onTap: widget.onSelected,
+              onEditingComplete: _flushPendingSave,
+              onSubmitted: (_) => _flushPendingSave(),
               onChanged: (_) => _scheduleSave(),
             ),
             _editCell(
@@ -999,6 +1092,8 @@ class _DraftCasingRowState extends State<_DraftCasingRow> {
               bg: bg,
               align: TextAlign.right,
               onTap: widget.onSelected,
+              onEditingComplete: _flushPendingSave,
+              onSubmitted: (_) => _flushPendingSave(),
               onChanged: (_) => _scheduleSave(),
             ),
             _editCell(
@@ -1009,6 +1104,8 @@ class _DraftCasingRowState extends State<_DraftCasingRow> {
               bg: bg,
               align: TextAlign.right,
               onTap: widget.onSelected,
+              onEditingComplete: _flushPendingSave,
+              onSubmitted: (_) => _flushPendingSave(),
               onChanged: (_) => _scheduleSave(),
             ),
           ],
@@ -1034,9 +1131,15 @@ PopupMenuItem<String> _menuItem(
     child: Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: TextStyle(fontSize: 11, color: color)),
+        Text(
+          label,
+          style: AppTheme.wellLikeBodyText.copyWith(fontSize: 11, color: color),
+        ),
         const SizedBox(width: 20),
-        Text(shortcut, style: TextStyle(fontSize: 11, color: color)),
+        Text(
+          shortcut,
+          style: AppTheme.wellLikeBodyText.copyWith(fontSize: 11, color: color),
+        ),
       ],
     ),
   );
@@ -1070,7 +1173,7 @@ Widget _indexCell(int index, bool selected) {
           child: Text(
             '${index + 1}',
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 10, color: Color(0xFF404040)),
+            style: AppTheme.wellLikeBodyText.copyWith(fontSize: 11),
           ),
         ),
       ],
@@ -1086,6 +1189,8 @@ Widget _editCell({
   required VoidCallback onTap,
   required ValueChanged<String> onChanged,
   FocusNode? focusNode,
+  VoidCallback? onEditingComplete,
+  ValueChanged<String>? onSubmitted,
   TextAlign align = TextAlign.left,
 }) {
   return Container(
@@ -1106,9 +1211,11 @@ Widget _editCell({
       readOnly: readOnly,
       onTap: onTap,
       onChanged: onChanged,
+      onEditingComplete: onEditingComplete,
+      onSubmitted: onSubmitted,
       textAlign: align,
       style: const TextStyle(
-        fontSize: 10,
+fontSize: 11,
         color: Colors.black,
         fontWeight: FontWeight.w700,
       ),
@@ -1149,7 +1256,7 @@ Widget _typeCell({
             child: Text(
               selectedValue,
               style: const TextStyle(
-                fontSize: 10,
+fontSize: 11,
                 color: Colors.black,
                 fontWeight: FontWeight.w700,
               ),
@@ -1163,7 +1270,7 @@ Widget _typeCell({
               onTap: onTap,
               icon: const Icon(Icons.arrow_drop_down, size: 16),
               style: const TextStyle(
-                fontSize: 10,
+fontSize: 11,
                 color: Colors.black,
                 fontWeight: FontWeight.w700,
               ),
@@ -1174,7 +1281,7 @@ Widget _typeCell({
                       child: Text(
                         item,
                         style: const TextStyle(
-                          fontSize: 10,
+fontSize: 11,
                           color: Colors.black,
                           fontWeight: FontWeight.w700,
                         ),

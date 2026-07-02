@@ -8,9 +8,6 @@ const legacyScopeFilter = (wellId) => ({
   $or: [{ reportId: { $exists: false } }, { reportId: null }, { reportId: "" }],
 });
 
-const exactScopeFilter = (wellId, reportId) =>
-  reportId ? { wellId, reportId } : legacyScopeFilter(wellId);
-
 const sortByCreatedAtAsc = (items = []) =>
   [...items].sort((left, right) => {
     const leftTime = new Date(left.createdAt ?? 0).getTime();
@@ -18,44 +15,26 @@ const sortByCreatedAtAsc = (items = []) =>
     return leftTime - rightTime;
   });
 
-const dedupeLatestPits = (items = []) => {
-  const latestByName = new Map();
+const dedupeNewestByPitName = (items = []) => {
+  const newestByName = new Map();
 
-  for (const item of items) {
+  for (const item of [...items].sort((left, right) => {
+    const leftTime = new Date(left.createdAt ?? 0).getTime();
+    const rightTime = new Date(right.createdAt ?? 0).getTime();
+    return rightTime - leftTime;
+  })) {
     const key = toText(item.pitName).toLowerCase();
-    if (!key || latestByName.has(key)) continue;
-    latestByName.set(key, item);
+    if (!key || newestByName.has(key)) continue;
+    newestByName.set(key, item);
   }
 
-  return sortByCreatedAtAsc(Array.from(latestByName.values()));
-};
-
-const mergeScopedWithLegacy = (scopedItems = [], legacyItems = []) => {
-  const merged = new Map();
-
-  for (const item of dedupeLatestPits(legacyItems)) {
-    const key = toText(item.pitName).toLowerCase();
-    if (!key) continue;
-    merged.set(key, item);
-  }
-
-  for (const item of sortByCreatedAtAsc(scopedItems)) {
-    const key = toText(item.pitName).toLowerCase();
-    if (!key) continue;
-    merged.set(key, item);
-  }
-
-  return sortByCreatedAtAsc(Array.from(merged.values()));
+  return sortByCreatedAtAsc(Array.from(newestByName.values()));
 };
 
 const loadScopedPits = async ({ wellId, reportId, initialActive }) => {
-  const scopedFilter = reportId ? { wellId, reportId } : { wellId };
+  const scopedFilter = reportId ? { wellId, reportId } : legacyScopeFilter(wellId);
   if (initialActive !== undefined) {
     scopedFilter.initialActive = initialActive;
-  }
-
-  if (reportId) {
-    return Pit.find(scopedFilter).sort({ createdAt: 1, _id: 1 });
   }
 
   return Pit.find(scopedFilter).sort({ createdAt: 1, _id: 1 });
@@ -123,7 +102,6 @@ export const addPit = async (req, res) => {
   try {
     const pitName = toText(req.body.pitName);
     const wellId = toText(req.body.wellId);
-    const reportId = toText(req.body.reportId);
     const capacity = Number(req.body.capacity);
 
     if (!pitName) {
@@ -148,7 +126,7 @@ export const addPit = async (req, res) => {
     }
 
     const existingPit = await Pit.findOne({
-      ...exactScopeFilter(wellId, reportId),
+      ...legacyScopeFilter(wellId),
       pitName,
       isLocked: false,
     });
@@ -168,7 +146,7 @@ export const addPit = async (req, res) => {
       density: Number(req.body.density) || 0,
       fluidType: toText(req.body.fluidType),
       wellId,
-      reportId,
+      reportId: "",
       isLocked: false,
     });
 
@@ -193,7 +171,6 @@ export const bulkAddPits = async (req, res) => {
   try {
     const pits = Array.isArray(req.body.pits) ? req.body.pits : [];
     const wellId = toText(req.body.wellId);
-    const reportId = toText(req.body.reportId);
 
     if (pits.length === 0) {
       return res.status(400).json({
@@ -211,7 +188,7 @@ export const bulkAddPits = async (req, res) => {
 
     const pitNames = pits.map((pit) => toText(pit.pitName)).filter(Boolean);
     const existingPits = await Pit.find({
-      ...exactScopeFilter(wellId, reportId),
+      ...legacyScopeFilter(wellId),
       pitName: { $in: pitNames },
       isLocked: false,
     });
@@ -230,7 +207,7 @@ export const bulkAddPits = async (req, res) => {
         density: Number(pit.density) || 0,
         fluidType: toText(pit.fluidType),
         wellId,
-        reportId: reportId || toText(pit.reportId),
+        reportId: "",
         isLocked: false,
       }))
       .filter((pit) => pit.pitName);
@@ -445,9 +422,6 @@ export const updatePit = async (req, res) => {
     }
     if (req.body.fluidType !== undefined) {
       pit.fluidType = toText(req.body.fluidType);
-    }
-    if (req.body.reportId !== undefined) {
-      pit.reportId = reportId;
     }
 
     await pit.save();

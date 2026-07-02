@@ -4,14 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/report/recap_tabs/customized/controller/recap_customized_controller.dart';
 
-const Color _customizedOuterBorder = Color(0xFF2F92E8);
-const Color _customizedCanvas = Color(0xFFF4F4F4);
-const Color _customizedPanelBorder = Color(0xFFC8C8C8);
+const Color _customizedOuterBorder = Color(0xFFB8D0EA);
+const Color _customizedCanvas = Color(0xFFF4F6FA);
+const Color _customizedPanelBorder = Color(0xFFB8D0EA);
 const Color _customizedText = Color(0xFF1C1C1C);
-const Color _customizedGrid = Color(0xFFD6D6D6);
+const Color _customizedGrid = Color(0xFFCFE0F2);
 const Color _customizedLine = Color(0xFF84D0F4);
-const Color _customizedTabFill = Color(0xFFEAEAEA);
-const Color _customizedHeaderFill = Color(0xFFF7F7F7);
+const Color _customizedTabFill = Color(0xFFEAF3FC);
+const Color _customizedHeaderFill = Color(0xFFEAF3FC);
 
 class RecapCustomizedTabView extends StatefulWidget {
   const RecapCustomizedTabView({super.key});

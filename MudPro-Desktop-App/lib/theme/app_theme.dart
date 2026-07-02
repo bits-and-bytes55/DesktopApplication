@@ -21,6 +21,9 @@ class AppTheme {
   static const Color tableGridBlue = Color(0xffCFE0F2);
   static const Color readOnlyCell = Color(0xffF2F2F2);
   static const Color calculatedCell = Color(0xffFFFDE7);
+  static const Color companySetupText = Color(0xFF2F2F2F);
+  static const Color companySetupMutedText = Color(0xFF4A4F57);
+  static const Color companySetupHeaderTextColor = Colors.white;
   
   // Dark Theme Colors
   static const Color darkPrimaryColor = Color(0xff5D8BCF);
@@ -87,6 +90,60 @@ class AppTheme {
     fontSize: 10,
     fontWeight: FontWeight.w400,
     color: textSecondary,
+  );
+
+  static const TextStyle companySetupBodyText = TextStyle(
+    fontSize: 11,
+    fontWeight: FontWeight.w700,
+    color: companySetupText,
+  );
+
+  static const TextStyle companySetupBodyMedium = TextStyle(
+    fontSize: 11,
+    fontWeight: FontWeight.w700,
+    color: companySetupText,
+  );
+
+  static const TextStyle companySetupBodyBold = TextStyle(
+    fontSize: 11,
+    fontWeight: FontWeight.w700,
+    color: companySetupText,
+  );
+
+  static const TextStyle companySetupMutedBody = TextStyle(
+    fontSize: 11,
+    fontWeight: FontWeight.w400,
+    color: companySetupMutedText,
+  );
+
+  static const TextStyle companySetupHeaderWhite = TextStyle(
+    fontSize: 10,
+    fontWeight: FontWeight.w700,
+    color: Colors.white,
+  );
+
+  static const TextStyle companySetupHeaderDark = TextStyle(
+    fontSize: 10,
+    fontWeight: FontWeight.w700,
+    color: Colors.white,
+  );
+
+  static const TextStyle companySetupSectionLabel = TextStyle(
+    fontSize: 11,
+    fontWeight: FontWeight.w500,
+    color: companySetupText,
+  );
+
+  static const TextStyle wellLikeBodyText = TextStyle(
+    fontSize: 11,
+    fontWeight: FontWeight.w700,
+    color: Colors.black,
+  );
+
+  static const TextStyle wellLikeUnitText = TextStyle(
+    fontSize: 10.5,
+    fontWeight: FontWeight.w600,
+    color: Colors.black87,
   );
   
   // Card Styles

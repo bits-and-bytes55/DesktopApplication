@@ -146,7 +146,7 @@ export const updatePackage = async (req, res) => {
     const updatedPackage = await Package.findOneAndUpdate(
       scopedIdFilter(req),
       buildPayload(req, existing),
-      { new: true }
+      { returnDocument: "after" }
     );
 
     res.status(200).json({

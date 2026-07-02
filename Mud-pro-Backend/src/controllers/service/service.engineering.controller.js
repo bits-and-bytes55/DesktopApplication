@@ -57,7 +57,7 @@ export const updateEngineering = async (req, res) => {
     const data = await Engineering.findByIdAndUpdate(
       req.params.id,
       req.body,
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     );
     
     if (!data) {

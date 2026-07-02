@@ -213,7 +213,7 @@ export const updateWell = async (req, res) => {
           bulkTankSetupFee: toNumber(bulkTankSetupFee),
         }),
       },
-      { new: true }
+      { returnDocument: "after" }
     );
 
     if (!updatedWell) {

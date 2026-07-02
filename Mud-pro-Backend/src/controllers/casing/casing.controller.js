@@ -96,7 +96,7 @@ export const updateCasing = async (req, res) => {
         reportId: isCasedHole ? reportId : "",
         sortOrder: toSortOrder(req.body.sortOrder),
       },
-      { new: true }
+      { returnDocument: "after" }
     );
 
     if (!updatedCasing) {

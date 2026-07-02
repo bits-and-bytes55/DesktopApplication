@@ -278,7 +278,7 @@ export const updatePad = async (req, res) => {
     const updatedPad = await Pad.findByIdAndUpdate(
       id,
       { $set: update },
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     );
 
     if (!updatedPad) {

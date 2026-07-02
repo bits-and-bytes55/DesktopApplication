@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/survey/controller/survey_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/survey/survey_graph_utils.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
+import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class SurveyDoglegTab extends StatelessWidget {
   SurveyDoglegTab({super.key});
@@ -19,9 +20,9 @@ class SurveyDoglegTab extends StatelessWidget {
         padding: const EdgeInsets.all(14),
         child: Column(
           children: [
-            const Text(
+            Text(
               'Dogleg',
-              style: TextStyle(fontSize: 18, color: Colors.black87),
+              style: AppTheme.wellLikeBodyText.copyWith(fontSize: 18),
             ),
             const SizedBox(height: 8),
             Expanded(
@@ -31,7 +32,7 @@ class SurveyDoglegTab extends StatelessWidget {
                     quarterTurns: 3,
                     child: Text(
                       'MD ${AppUnits.unitText('(ft)')}',
-                      style: const TextStyle(fontSize: 14),
+                      style: AppTheme.wellLikeBodyText.copyWith(fontSize: 14),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -47,7 +48,7 @@ class SurveyDoglegTab extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               'Dogleg Severity ${AppUnits.dogleg}',
-              style: const TextStyle(fontSize: 14),
+              style: AppTheme.wellLikeBodyText.copyWith(fontSize: 14),
             ),
           ],
         ),
@@ -115,12 +116,7 @@ class _DoglegGraphPainter extends CustomPainter {
     for (var i = 0; i <= mdLabelDivisions; i++) {
       final value = _mdStep * i;
       final py = plot.top + (plot.height * value / maxMd);
-      _drawLeftAxisLabel(
-        canvas,
-        value.toStringAsFixed(0),
-        plot.left,
-        py,
-      );
+      _drawLeftAxisLabel(canvas, value.toStringAsFixed(0), plot.left, py);
     }
     for (var i = 0; i <= doglegLabelDivisions; i++) {
       final value = _doglegStep * i;
@@ -135,10 +131,12 @@ class _DoglegGraphPainter extends CustomPainter {
     final path = Path();
     for (var i = 0; i < points.length; i++) {
       final point = points[i];
-      final xRatio =
-          (_numberValue(point.dogleg) / maxDogleg).clamp(0.0, 1.0).toDouble();
-      final yRatio =
-          (_numberValue(point.md) / maxMd).clamp(0.0, 1.0).toDouble();
+      final xRatio = (_numberValue(point.dogleg) / maxDogleg)
+          .clamp(0.0, 1.0)
+          .toDouble();
+      final yRatio = (_numberValue(point.md) / maxMd)
+          .clamp(0.0, 1.0)
+          .toDouble();
       final px = plot.left + xRatio * plot.width;
       final py = plot.top + yRatio * plot.height;
       if (i == 0) {
@@ -157,10 +155,7 @@ class _DoglegGraphPainter extends CustomPainter {
 
   double _doglegAxisMaxFor(double value) {
     if (value <= 0) return _doglegMinMax;
-    return math.max(
-      (value / _doglegStep).ceil() * _doglegStep,
-      _doglegMinMax,
-    );
+    return math.max((value / _doglegStep).ceil() * _doglegStep, _doglegMinMax);
   }
 
   double _numberValue(dynamic value) {
@@ -177,7 +172,7 @@ class _DoglegGraphPainter extends CustomPainter {
     final painter = TextPainter(
       text: TextSpan(
         text: text,
-        style: const TextStyle(fontSize: 12, color: Color(0xFF2F2F2F)),
+        style: AppTheme.wellLikeBodyText.copyWith(fontSize: 12),
       ),
       textDirection: TextDirection.ltr,
     )..layout();

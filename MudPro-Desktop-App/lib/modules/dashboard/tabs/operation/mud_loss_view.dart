@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/mud_loss_active_system_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_desktop_ui.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_ui_pattern.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class MudLossActiveSystemView extends StatelessWidget {
@@ -34,17 +35,25 @@ class MudLossActiveSystemView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: AppTheme.tableHeaderBlue,
+      color: operationPageBackground,
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Mud Loss - Active System',
-            style: AppTheme.bodySmall.copyWith(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: Colors.black,
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryColor,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: const Text(
+              'Mud Loss - Active System',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+              ),
             ),
           ),
           const SizedBox(height: 10),
@@ -117,7 +126,7 @@ class MudLossActiveSystemView extends StatelessWidget {
 
   TableRow _headerRow() {
     return TableRow(
-      decoration: BoxDecoration(color: AppTheme.primaryColor),
+      decoration: const BoxDecoration(color: AppTheme.tableHeaderBlue),
       children: [_headerCell(''), _headerCell('Loss'), _volumeHeaderCell()],
     );
   }
@@ -159,7 +168,7 @@ class MudLossActiveSystemView extends StatelessWidget {
         text,
         textAlign: TextAlign.center,
         style: AppTheme.bodySmall.copyWith(
-          fontSize: 12,
+          fontSize: 11,
           fontWeight: FontWeight.w700,
           color: Colors.black,
         ),
@@ -175,7 +184,7 @@ class MudLossActiveSystemView extends StatelessWidget {
         'Vol.\n(bbl)',
         textAlign: TextAlign.center,
         style: AppTheme.bodySmall.copyWith(
-          fontSize: 12,
+          fontSize: 11,
           fontWeight: FontWeight.w700,
           color: Colors.black,
         ),
@@ -246,7 +255,7 @@ class MudLossActiveSystemView extends StatelessWidget {
           ),
           filled: true,
           fillColor: dashboardController.isLocked.value
-              ? AppTheme.tableHeaderBlue
+              ? operationLockedEditableColor
               : Colors.white,
         ),
       ),
@@ -257,8 +266,12 @@ class MudLossActiveSystemView extends StatelessWidget {
     return SizedBox(
       height: 32,
       child: Obx(
-        () => DropdownButtonHideUnderline(
-          child: DropdownButton<String>(
+        () => ColoredBox(
+          color: dashboardController.isLocked.value
+              ? operationLockedEditableColor
+              : Colors.white,
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
             value: controller.selectedExtraLoss.value.isEmpty
                 ? null
                 : controller.selectedExtraLoss.value,
@@ -309,6 +322,7 @@ class MudLossActiveSystemView extends StatelessWidget {
                       controller.selectedExtraLoss.value = value;
                     }
                   },
+            ),
           ),
         ),
       ),
@@ -343,7 +357,7 @@ class MudLossActiveSystemView extends StatelessWidget {
             ),
             filled: true,
             fillColor: dashboardController.isLocked.value
-                ? AppTheme.tableHeaderBlue
+                ? operationLockedEditableColor
                 : Colors.white,
           ),
         ),

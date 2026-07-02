@@ -186,7 +186,7 @@ export const updateSolidsAnalysis = async (req, res) => {
         ...(reportId ? { reportId } : {}),
       },
       { $set: { ...computed, wellId: req.body.wellId ?? undefined, reportId: req.body.reportId ?? undefined, sampleIndex: req.body.sampleIndex ?? undefined } },
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     );
     if (!updated) {
       return res.status(404).json({ success: false, message: `No record found with id: ${id}` });

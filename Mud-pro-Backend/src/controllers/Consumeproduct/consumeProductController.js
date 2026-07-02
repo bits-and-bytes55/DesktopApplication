@@ -352,7 +352,7 @@ export const updateConsumeProduct = async (req, res) => {
       {
         ...updatedPayload,
       },
-      { new: true }
+      { returnDocument: "after" }
     );
 
     res.status(200).json({

@@ -102,7 +102,7 @@ class _OperatorTabState extends State<OperatorTab> {
             children: [
               Container(width: 32, height: 32, decoration: BoxDecoration(gradient: AppTheme.secondaryGradient, shape: BoxShape.circle), child: Icon(Icons.business_center, color: Colors.white, size: 18)),
               const SizedBox(width: 10),
-              Text('Operator', style: AppTheme.titleMedium.copyWith(color: AppTheme.textPrimary, fontSize: 15, fontWeight: FontWeight.w600)),
+              Text('Operator', style: AppTheme.companySetupSectionLabel.copyWith(fontSize: 12, fontWeight: FontWeight.w600)),
             ],
           ),
           const SizedBox(height: 12),
@@ -168,7 +168,7 @@ class _OperatorTabState extends State<OperatorTab> {
                                                 child: Container(
                                                   width: 22, height: 22,
                                                   decoration: BoxDecoration(shape: BoxShape.circle, color: isSelected ? AppTheme.accentColor : isLockedRow ? AppTheme.secondaryColor.withOpacity(0.15) : AppTheme.secondaryColor.withOpacity(0.15)),
-                                                  child: Center(child: Text('${row + 1}', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: isSelected ? Colors.white : AppTheme.textPrimary))),
+                                                  child: Center(child: Text('${row + 1}', style: AppTheme.companySetupBodyBold.copyWith(color: isSelected ? Colors.white : AppTheme.companySetupText))),
                                                 ),
                                               ),
                                             ),
@@ -219,7 +219,7 @@ class _OperatorTabState extends State<OperatorTab> {
                   children: [
                     Icon(Icons.info_outline, size: 14, color: AppTheme.infoColor),
                     const SizedBox(width: 6),
-                    Obx(() => Text('${controller.operators.length + controller.newEntryControllers.length} row(s) • Selected: ${selectedRow == -1 ? 'None' : 'Row ${selectedRow + 1}'}', style: AppTheme.bodySmall.copyWith(color: AppTheme.textSecondary, fontSize: 12))),
+                    Obx(() => Text('${controller.operators.length + controller.newEntryControllers.length} row(s) • Selected: ${selectedRow == -1 ? 'None' : 'Row ${selectedRow + 1}'}', style: AppTheme.companySetupMutedBody)),
                   ],
                 ),
                 Row(
@@ -306,14 +306,14 @@ class _OperatorTabState extends State<OperatorTab> {
   Widget _cell(double width, TextEditingController controller, String hintText, {bool enabled = true}) {
     return Container(
       width: width, padding: const EdgeInsets.symmetric(horizontal: 6), decoration: BoxDecoration(border: Border(right: BorderSide(color: Colors.grey.shade400, width: 1))),
-      child: TextField(controller: controller, enabled: enabled, style: AppTheme.bodyLarge.copyWith(fontSize: 12), decoration: InputDecoration(isDense: true, border: InputBorder.none, hintText: hintText, hintStyle: TextStyle(fontSize: 11, color: AppTheme.textSecondary.withOpacity(0.5)), contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4))),
+      child: TextField(controller: controller, enabled: enabled, style: AppTheme.companySetupBodyText, decoration: InputDecoration(isDense: true, border: InputBorder.none, hintText: hintText, hintStyle: AppTheme.companySetupMutedBody.copyWith(color: AppTheme.companySetupMutedText.withOpacity(0.5)), contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4))),
     );
   }
 
   Widget _lockedCell(double width, String text) {
     return Container(
       width: width, padding: const EdgeInsets.symmetric(horizontal: 6), decoration: BoxDecoration(border: Border(right: BorderSide(color: Colors.grey.shade400, width: 1))),
-      child: Row(children: [Expanded(child: Text(text, style: AppTheme.bodyLarge.copyWith(fontSize: 12, color: Colors.grey.shade600), overflow: TextOverflow.ellipsis))]),
+      child: Row(children: [Expanded(child: Text(text, style: AppTheme.companySetupBodyText, overflow: TextOverflow.ellipsis))]),
     );
   }
 
@@ -514,6 +514,6 @@ class _HeaderCell extends StatelessWidget {
   const _HeaderCell({required this.width, required this.text, required this.icon});
   @override
   Widget build(BuildContext context) {
-    return Container(width: width, decoration: BoxDecoration(border: Border(right: BorderSide(color: Colors.white.withOpacity(0.2)))), child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(icon, size: 12, color: Colors.white.withOpacity(0.9)), const SizedBox(width: 6), Text(text, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white, letterSpacing: 0.3))]));
+    return Container(width: width, decoration: BoxDecoration(border: Border(right: BorderSide(color: Colors.white.withOpacity(0.2)))), child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(icon, size: 12, color: AppTheme.companySetupHeaderTextColor), const SizedBox(width: 6), Text(text, style: AppTheme.companySetupHeaderDark)]));
   }
 }

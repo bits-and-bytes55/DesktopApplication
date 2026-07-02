@@ -115,7 +115,7 @@ export const saveUgInventory = async (req, res) => {
           fromDate: fromDate ?? "",
         },
       },
-      { new: true, upsert: true, runValidators: true }
+      { returnDocument: "after", upsert: true, runValidators: true }
     );
 
     res.status(200).json({
