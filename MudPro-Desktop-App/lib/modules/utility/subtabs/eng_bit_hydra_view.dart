@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/modules/utility/controller/bit_hydra_controller.dart';
+import 'package:mudpro_desktop_app/modules/utility/engineering_tools_ui_pattern.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class BitHydraulicsPage extends StatelessWidget {
@@ -20,11 +21,14 @@ class BitHydraulicsPage extends StatelessWidget {
           final isSmallScreen = constraints.maxWidth < 1024;
           final isVerySmallScreen = constraints.maxWidth < 768;
 
-          return Padding(
-            padding: const EdgeInsets.all(16),
-            child: isSmallScreen
-                ? _buildMobileLayout(c, isVerySmallScreen)
-                : _buildDesktopLayout(c),
+          return ColoredBox(
+            color: engineeringPage,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: isSmallScreen
+                  ? _buildMobileLayout(c, isVerySmallScreen)
+                  : _buildDesktopLayout(c),
+            ),
           );
         },
       );
@@ -40,8 +44,8 @@ class BitHydraulicsPage extends StatelessWidget {
           width: 400,
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.grey.shade200),
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(color: engineeringGrid),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.05),
@@ -60,7 +64,7 @@ class BitHydraulicsPage extends StatelessWidget {
                   Text(
                     "Input Parameters",
                     style: AppTheme.bodySmall.copyWith(
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
                       color: AppTheme.primaryColor,
                     ),
                   ),
@@ -97,7 +101,7 @@ class BitHydraulicsPage extends StatelessWidget {
                   Text(
                     "Jet Nozzles (1/32 in)",
                     style: AppTheme.caption.copyWith(
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
                       color: AppTheme.textPrimary,
                     ),
                   ),
@@ -158,8 +162,8 @@ class BitHydraulicsPage extends StatelessWidget {
           child: Container(
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey.shade200),
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: engineeringGrid),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.05),
@@ -179,7 +183,7 @@ class BitHydraulicsPage extends StatelessWidget {
                       Text(
                         "Calculation Results",
                         style: AppTheme.bodySmall.copyWith(
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w700,
                           color: AppTheme.primaryColor,
                         ),
                       ),
@@ -206,7 +210,7 @@ class BitHydraulicsPage extends StatelessWidget {
                               Icon(
                                 Icons.calculate_outlined,
                                 size: 48,
-                                color: Colors.grey.shade300,
+                                color: engineeringBorder,
                               ),
                               const SizedBox(height: 12),
                               Text(
@@ -238,8 +242,8 @@ class BitHydraulicsPage extends StatelessWidget {
             width: double.infinity,
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey.shade200),
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: engineeringGrid),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.05),
@@ -256,7 +260,7 @@ class BitHydraulicsPage extends StatelessWidget {
                   Text(
                     "Input Parameters",
                     style: AppTheme.bodySmall.copyWith(
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
                       color: AppTheme.primaryColor,
                     ),
                   ),
@@ -292,7 +296,7 @@ class BitHydraulicsPage extends StatelessWidget {
                   Text(
                     "Jet Nozzles (1/32 in)",
                     style: AppTheme.caption.copyWith(
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
                       color: AppTheme.textPrimary,
                     ),
                   ),
@@ -352,8 +356,8 @@ class BitHydraulicsPage extends StatelessWidget {
             width: double.infinity,
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey.shade200),
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: engineeringGrid),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.05),
@@ -371,7 +375,7 @@ class BitHydraulicsPage extends StatelessWidget {
                     Text(
                       "Calculation Results",
                       style: AppTheme.bodySmall.copyWith(
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w700,
                         color: AppTheme.primaryColor,
                       ),
                     ),
@@ -397,7 +401,7 @@ class BitHydraulicsPage extends StatelessWidget {
                             Icon(
                               Icons.calculate_outlined,
                               size: 36,
-                              color: Colors.grey.shade300,
+                              color: engineeringBorder,
                             ),
                             const SizedBox(height: 12),
                             Text(
@@ -423,9 +427,9 @@ class BitHydraulicsPage extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: Colors.grey.shade200),
+        color: engineeringReadOnly,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: engineeringGrid),
       ),
       padding: const EdgeInsets.all(8),
       child: Row(
@@ -437,7 +441,7 @@ class BitHydraulicsPage extends StatelessWidget {
                 Text(
                   label,
                   style: AppTheme.caption.copyWith(
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
                     color: AppTheme.textPrimary,
                   ),
                 ),
@@ -459,7 +463,7 @@ class BitHydraulicsPage extends StatelessWidget {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: Colors.grey.shade300),
+              border: Border.all(color: engineeringBorder),
             ),
             child: Row(
               children: [
@@ -488,9 +492,9 @@ class BitHydraulicsPage extends StatelessWidget {
                   width: 40,
                   padding: const EdgeInsets.symmetric(horizontal: 4),
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
+                    color: engineeringColumn,
                     border: Border(
-                      left: BorderSide(color: Colors.grey.shade300),
+                      left: BorderSide(color: engineeringBorder),
                     ),
                   ),
                   child: Text(
@@ -514,9 +518,9 @@ class BitHydraulicsPage extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: Colors.grey.shade200),
+        color: engineeringReadOnly,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: engineeringGrid),
       ),
       padding: const EdgeInsets.all(8),
       child: Row(
@@ -525,7 +529,7 @@ class BitHydraulicsPage extends StatelessWidget {
             child: Text(
               label,
               style: AppTheme.caption.copyWith(
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w700,
                 color: AppTheme.textPrimary,
               ),
             ),
@@ -537,7 +541,7 @@ class BitHydraulicsPage extends StatelessWidget {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: Colors.grey.shade300),
+              border: Border.all(color: engineeringBorder),
             ),
             child: Row(
               children: [
@@ -566,9 +570,9 @@ class BitHydraulicsPage extends StatelessWidget {
                   width: 40,
                   padding: const EdgeInsets.symmetric(horizontal: 4),
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
+                    color: engineeringColumn,
                     border: Border(
-                      left: BorderSide(color: Colors.grey.shade300),
+                      left: BorderSide(color: engineeringBorder),
                     ),
                   ),
                   child: Text(
@@ -591,9 +595,9 @@ class BitHydraulicsPage extends StatelessWidget {
   Widget _jetNozzleRow(String label, RxString controller, String example) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
+        color: engineeringReadOnly,
         borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: engineeringGrid),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: Row(
@@ -667,9 +671,9 @@ class BitHydraulicsPage extends StatelessWidget {
         return Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: Colors.grey.shade50,
-            borderRadius: BorderRadius.circular(6),
-            border: Border.all(color: Colors.grey.shade200),
+            color: engineeringReadOnly,
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(color: engineeringGrid),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -687,7 +691,7 @@ class BitHydraulicsPage extends StatelessWidget {
                 value == null ? "0.00" : value.toStringAsFixed(2),
                 style: TextStyle(
                   fontSize: 14,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
                   color: AppTheme.successColor,
                 ),
               ),
@@ -785,7 +789,7 @@ class BitHydraulicsPage extends StatelessWidget {
     Get.dialog(
       AlertDialog(
         backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
         contentPadding: const EdgeInsets.all(16),
         content: Container(
           width: 300,
@@ -812,7 +816,7 @@ class BitHydraulicsPage extends StatelessWidget {
               Text(
                 title,
                 style: AppTheme.bodySmall.copyWith(
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
                   color: AppTheme.textPrimary,
                   fontSize: 14,
                 ),
@@ -843,7 +847,7 @@ class BitHydraulicsPage extends StatelessWidget {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.orange.shade600,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(6),
+                      borderRadius: BorderRadius.circular(4),
                     ),
                     padding: const EdgeInsets.symmetric(vertical: 8),
                   ),
@@ -851,7 +855,7 @@ class BitHydraulicsPage extends StatelessWidget {
                     "OK",
                     style: AppTheme.caption.copyWith(
                       color: Colors.white,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),

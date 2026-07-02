@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/survey/controller/survey_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/survey/survey_graph_utils.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
+import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class SurveyPlanTab extends StatelessWidget {
   SurveyPlanTab({super.key});
@@ -33,9 +34,9 @@ class SurveyPlanTab extends StatelessWidget {
         padding: const EdgeInsets.all(14),
         child: Column(
           children: [
-            const Text(
+            Text(
               'Plan View',
-              style: TextStyle(fontSize: 18, color: Colors.black87),
+              style: AppTheme.wellLikeBodyText.copyWith(fontSize: 18),
             ),
             const SizedBox(height: 8),
             Expanded(
@@ -45,7 +46,7 @@ class SurveyPlanTab extends StatelessWidget {
                     quarterTurns: 3,
                     child: Text(
                       'N+/S- ${AppUnits.unitText('(ft)')}',
-                      style: const TextStyle(fontSize: 14),
+                      style: AppTheme.wellLikeBodyText.copyWith(fontSize: 14),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -64,7 +65,7 @@ class SurveyPlanTab extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               'E+/W- ${AppUnits.unitText('(ft)')}',
-              style: const TextStyle(fontSize: 14),
+              style: AppTheme.wellLikeBodyText.copyWith(fontSize: 14),
             ),
           ],
         ),
@@ -151,12 +152,7 @@ class _PlanGraphPainter extends CustomPainter {
     for (var i = 0; i <= yLabelDivisions; i++) {
       final value = minY + (_axisStep * i);
       final py = plot.bottom - (plot.height * (value - minY) / yRange);
-      _drawLeftAxisLabel(
-        canvas,
-        value.toStringAsFixed(0),
-        plot.left,
-        py,
-      );
+      _drawLeftAxisLabel(canvas, value.toStringAsFixed(0), plot.left, py);
     }
     for (var i = 0; i <= xLabelDivisions; i++) {
       final value = minX + (_axisStep * i);
@@ -188,10 +184,8 @@ class _PlanGraphPainter extends CustomPainter {
     canvas.drawPath(path, line);
 
     for (final marker in markers) {
-      final xRatio =
-          ((marker.x - minX) / xRange).clamp(0.0, 1.0).toDouble();
-      final yRatio =
-          ((marker.y - minY) / yRange).clamp(0.0, 1.0).toDouble();
+      final xRatio = ((marker.x - minX) / xRange).clamp(0.0, 1.0).toDouble();
+      final yRatio = ((marker.y - minY) / yRange).clamp(0.0, 1.0).toDouble();
       final px = plot.left + xRatio * plot.width;
       final py = plot.bottom - yRatio * plot.height;
       drawSurveyMarker(canvas, Offset(px, py), marker.symbol);
@@ -220,7 +214,7 @@ class _PlanGraphPainter extends CustomPainter {
     final painter = TextPainter(
       text: TextSpan(
         text: text,
-        style: const TextStyle(fontSize: 12, color: Color(0xFF2F2F2F)),
+        style: AppTheme.wellLikeBodyText.copyWith(fontSize: 12),
       ),
       textDirection: TextDirection.ltr,
     )..layout();

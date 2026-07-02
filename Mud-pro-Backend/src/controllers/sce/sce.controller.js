@@ -302,7 +302,7 @@ export const createShaker = async (req, res) => {
 
     const newShaker = existing
       ? await Shaker.findByIdAndUpdate(existing._id, payload, {
-          new: true,
+          returnDocument: "after",
           runValidators: true,
         })
       : await Shaker.create(payload);
@@ -371,13 +371,13 @@ export const updateShaker = async (req, res) => {
 
       updatedShaker = scopedMatch
         ? await Shaker.findByIdAndUpdate(scopedMatch._id, payload, {
-            new: true,
+            returnDocument: "after",
             runValidators: true,
           })
         : await Shaker.create(payload);
     } else {
       updatedShaker = await Shaker.findByIdAndUpdate(id, payload, {
-        new: true,
+        returnDocument: "after",
         runValidators: true,
       });
     }
@@ -536,7 +536,7 @@ export const createOtherSce = async (req, res) => {
 
     const newOtherSce = existing
       ? await OtherSce.findByIdAndUpdate(existing._id, payload, {
-          new: true,
+          returnDocument: "after",
           runValidators: true,
         })
       : await OtherSce.create(payload);
@@ -605,13 +605,13 @@ export const updateOtherSce = async (req, res) => {
 
       updatedOtherSce = scopedMatch
         ? await OtherSce.findByIdAndUpdate(scopedMatch._id, payload, {
-            new: true,
+            returnDocument: "after",
             runValidators: true,
           })
         : await OtherSce.create(payload);
     } else {
       updatedOtherSce = await OtherSce.findByIdAndUpdate(id, payload, {
-        new: true,
+        returnDocument: "after",
         runValidators: true,
       });
     }

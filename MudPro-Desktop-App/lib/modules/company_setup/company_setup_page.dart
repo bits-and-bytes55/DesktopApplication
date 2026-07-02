@@ -54,16 +54,13 @@ class _CompanySetupPageState extends State<CompanySetupPage>
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [
-                    AppTheme.backgroundColor,
-                    AppTheme.cardColor,
-                  ],
+                  colors: [AppTheme.backgroundColor, AppTheme.cardColor],
                 ),
               ),
               child: TabBarView(
                 controller: _tabController,
-                children:  [
-                MudCompanyPage(),
+                children: [
+                  MudCompanyPage(),
                   ProductsPage(),
                   ServicesPage(),
                   OperatorTab(),
@@ -86,7 +83,7 @@ class _CompanySetupPageState extends State<CompanySetupPage>
       height: 60,
       padding: const EdgeInsets.symmetric(horizontal: 20),
       decoration: BoxDecoration(
-        gradient: AppTheme.headerGradient,
+        gradient: AppTheme.primaryGradient,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.1),
@@ -106,7 +103,7 @@ class _CompanySetupPageState extends State<CompanySetupPage>
             ),
             child: Icon(
               Icons.business,
-              color: Colors.white,
+              color: AppTheme.companySetupHeaderTextColor,
               size: 22,
             ),
           ),
@@ -115,57 +112,69 @@ class _CompanySetupPageState extends State<CompanySetupPage>
             'MUDPRO+ - Company Setup',
             style: TextStyle(
               fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
-              letterSpacing: 0.5,
+              fontWeight: FontWeight.w700,
+              color: AppTheme.companySetupHeaderTextColor,
             ),
           ),
           const Spacer(),
-          Obx(() => InkWell(
-            onTap: () {
-              if (companySetupController.isLocked.value) {
-                _showPasswordDialog();
-              } else {
-                companySetupController.lock();
-              }
-            },
-            child: Container(
-              decoration: BoxDecoration(
-                color: companySetupController.isLocked.value 
-                    ? const Color(0xffEF4444).withOpacity(0.2) 
-                    : const Color(0xff10B981).withOpacity(0.2),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: companySetupController.isLocked.value ? const Color(0xffEF4444) : const Color(0xff10B981),
-                  width: 1,
+          Obx(
+            () => InkWell(
+              onTap: () {
+                if (companySetupController.isLocked.value) {
+                  _showPasswordDialog();
+                } else {
+                  companySetupController.lock();
+                }
+              },
+              child: Container(
+                decoration: BoxDecoration(
+                  color: companySetupController.isLocked.value
+                      ? const Color(0xffEF4444).withOpacity(0.2)
+                      : const Color(0xff10B981).withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: companySetupController.isLocked.value
+                        ? const Color(0xffEF4444)
+                        : const Color(0xff10B981),
+                    width: 1,
+                  ),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      companySetupController.isLocked.value
+                          ? Icons.lock
+                          : Icons.lock_open,
+                      color: Colors.white,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      companySetupController.isLocked.value
+                          ? 'Locked'
+                          : 'Editable',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              child: Row(
-                children: [
-                  Icon(
-                    companySetupController.isLocked.value ? Icons.lock : Icons.lock_open,
-                    color: Colors.white,
-                    size: 18,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    companySetupController.isLocked.value ? 'Locked' : 'Editable',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.white,
-                    ),
-                  ),
-                ],
-              ),
             ),
-          )),
+          ),
           const SizedBox(width: 12),
           ElevatedButton.icon(
             onPressed: () => companySetupController.handleImport(),
             style: AppTheme.secondaryButtonStyle.copyWith(
-              backgroundColor: MaterialStateProperty.all(Colors.white.withOpacity(0.9)),
+              backgroundColor: MaterialStateProperty.all(
+                Colors.white.withOpacity(0.9),
+              ),
               foregroundColor: MaterialStateProperty.all(AppTheme.primaryColor),
               padding: MaterialStateProperty.all(
                 const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -203,10 +212,10 @@ class _CompanySetupPageState extends State<CompanySetupPage>
           ElevatedButton.icon(
             onPressed: () => companySetupController.handleExportAll(),
             style: AppTheme.secondaryButtonStyle.copyWith(
-              backgroundColor:
-                  MaterialStateProperty.all(Colors.white.withOpacity(0.9)),
-              foregroundColor:
-                  MaterialStateProperty.all(AppTheme.primaryColor),
+              backgroundColor: MaterialStateProperty.all(
+                Colors.white.withOpacity(0.9),
+              ),
+              foregroundColor: MaterialStateProperty.all(AppTheme.primaryColor),
               padding: MaterialStateProperty.all(
                 const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               ),
@@ -248,14 +257,10 @@ class _CompanySetupPageState extends State<CompanySetupPage>
         indicatorColor: AppTheme.primaryColor,
         indicatorWeight: 3,
         indicatorSize: TabBarIndicatorSize.tab,
-        labelStyle: const TextStyle(
-          fontSize: 13,
+        labelStyle: AppTheme.companySetupSectionLabel.copyWith(
           fontWeight: FontWeight.w600,
         ),
-        unselectedLabelStyle: const TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w500,
-        ),
+        unselectedLabelStyle: AppTheme.companySetupSectionLabel,
         tabs: const [
           Tab(text: 'Engineers'),
           Tab(text: 'Product'),
@@ -282,19 +287,24 @@ class _CompanySetupPageState extends State<CompanySetupPage>
           ),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: const Text('Cancel'),
-          ),
+          TextButton(onPressed: () => Get.back(), child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () {
-              if (companySetupController.checkPassword(_passwordController.text)) {
+              if (companySetupController.checkPassword(
+                _passwordController.text,
+              )) {
                 Get.back();
-                Get.snackbar('Success', 'Pages unlocked successfully.',
-                    backgroundColor: Colors.green.withOpacity(0.1));
+                Get.snackbar(
+                  'Success',
+                  'Pages unlocked successfully.',
+                  backgroundColor: Colors.green.withOpacity(0.1),
+                );
               } else {
-                Get.snackbar('Error', 'Incorrect password.',
-                    backgroundColor: Colors.red.withOpacity(0.1));
+                Get.snackbar(
+                  'Error',
+                  'Incorrect password.',
+                  backgroundColor: Colors.red.withOpacity(0.1),
+                );
               }
             },
             child: const Text('Unlock'),
@@ -304,4 +314,3 @@ class _CompanySetupPageState extends State<CompanySetupPage>
     );
   }
 }
-

@@ -81,7 +81,7 @@ export async function updateOperator(req, res) {
     const data = await Operator.findByIdAndUpdate(
       req.params.id,
       updateData,
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     );
     
     if (!data) {

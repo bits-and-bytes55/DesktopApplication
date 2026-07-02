@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/empty_Activesystem_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_ui_pattern.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
@@ -212,16 +214,16 @@ class _EmptyActiveSystemViewState extends State<EmptyActiveSystemView> {
                                                     : null,
                                               ),
                                               const SizedBox(width: 8),
-                                              Text(
-                                                "Dump",
-                                                style: AppTheme.bodySmall
-                                                    .copyWith(
-                                                      fontSize: 12,
-                                                      fontWeight:
-                                                          FontWeight.w700,
-                                                      color: Colors.black,
-                                                    ),
-                                              ),
+                                               Text(
+                                                 "Dump",
+                                                 style: AppTheme.bodySmall
+                                                     .copyWith(
+                                                       fontSize: 12,
+                                                       fontWeight:
+                                                           FontWeight.w700,
+                                                       color: Colors.black,
+                                                     ),
+                                               ),
                                             ],
                                           ),
                                         ),
@@ -268,16 +270,16 @@ class _EmptyActiveSystemViewState extends State<EmptyActiveSystemView> {
                                                     : null,
                                               ),
                                               const SizedBox(width: 8),
-                                              Text(
-                                                "Transfer to Storage",
-                                                style: AppTheme.bodySmall
-                                                    .copyWith(
-                                                      fontSize: 12,
-                                                      fontWeight:
-                                                          FontWeight.w700,
-                                                      color: Colors.black,
-                                                    ),
-                                              ),
+                                               Text(
+                                                 "Transfer to Storage",
+                                                 style: AppTheme.bodySmall
+                                                     .copyWith(
+                                                       fontSize: 12,
+                                                       fontWeight:
+                                                           FontWeight.w700,
+                                                       color: Colors.black,
+                                                     ),
+                                               ),
                                             ],
                                           ),
                                         ),
@@ -312,9 +314,13 @@ class _EmptyActiveSystemViewState extends State<EmptyActiveSystemView> {
 
                                 // Table
                                 Obx(() {
-                                  final isEnabled = controller.isTableEnabled;
+                                  final tableEnabled = controller.isTableEnabled;
+                                  final isLocked = Get.find<DashboardController>()
+                                      .isLocked
+                                      .value;
+                                  final isEnabled = tableEnabled && !isLocked;
                                   return Opacity(
-                                    opacity: isEnabled ? 1.0 : 0.4,
+                                    opacity: tableEnabled ? 1.0 : 0.4,
                                     child: Column(
                                       children: [
                                         // Table Header
@@ -324,7 +330,7 @@ class _EmptyActiveSystemViewState extends State<EmptyActiveSystemView> {
                                             horizontal: 8,
                                           ),
                                           decoration: BoxDecoration(
-                                            color: AppTheme.primaryColor,
+                                            color: AppTheme.tableHeaderBlue,
                                             border: Border(
                                               bottom: BorderSide(
                                                 color: AppTheme.tableGridBlue,
@@ -336,24 +342,22 @@ class _EmptyActiveSystemViewState extends State<EmptyActiveSystemView> {
                                               // Pit Header
                                               Expanded(
                                                 flex: 3,
-                                                child: Text(
-                                                  "Pit",
-                                                  style: AppTheme.bodySmall
-                                                      .copyWith(
-                                                        fontSize: 12,
-                                                        fontWeight:
-                                                            FontWeight.w700,
-                                                        color: Colors.black,
-                                                      ),
-                                                ),
+                                                 child: Text(
+                                                   "Pit",
+                                                   style: AppTheme.bodySmall
+                                                       .copyWith(
+                                                          fontSize: 11,
+                                                         fontWeight:
+                                                             FontWeight.w700,
+                                                          color: Colors.black,
+                                                       ),
+                                                 ),
                                               ),
                                               // Vertical Divider
                                               Container(
                                                 width: 1,
                                                 height: 20,
-                                                color: Colors.white.withOpacity(
-                                                  0.3,
-                                                ),
+                                                 color: AppTheme.tableGridBlue,
                                               ),
                                               // Volume Header
                                               Expanded(
@@ -363,18 +367,18 @@ class _EmptyActiveSystemViewState extends State<EmptyActiveSystemView> {
                                                       const EdgeInsets.only(
                                                         left: 8,
                                                       ),
-                                                  child: Text(
-                                                    AppUnits.label(
-                                                      "Vol. (bbl)",
-                                                    ),
-                                                    style: AppTheme.bodySmall
-                                                        .copyWith(
-                                                          fontSize: 12,
-                                                          fontWeight:
-                                                              FontWeight.w700,
-                                                          color: Colors.black,
-                                                        ),
-                                                  ),
+                                                   child: Text(
+                                                     AppUnits.label(
+                                                       "Vol. (bbl)",
+                                                     ),
+                                                     style: AppTheme.bodySmall
+                                                         .copyWith(
+                                                            fontSize: 11,
+                                                           fontWeight:
+                                                               FontWeight.w700,
+                                                            color: Colors.black,
+                                                         ),
+                                                   ),
                                                 ),
                                               ),
                                             ],
@@ -419,7 +423,10 @@ class _EmptyActiveSystemViewState extends State<EmptyActiveSystemView> {
                                                         // Pit Dropdown Column
                                                         Expanded(
                                                           flex: 3,
-                                                          child: Padding(
+                                                          child: Container(
+                                                            color: isLocked
+                                                                ? operationLockedEditableColor
+                                                                : Colors.transparent,
                                                             padding:
                                                                 const EdgeInsets.symmetric(
                                                                   horizontal: 8,
@@ -455,7 +462,7 @@ class _EmptyActiveSystemViewState extends State<EmptyActiveSystemView> {
                                                                                   ? ""
                                                                                   : controller.pitValues[index],
                                                                               style: AppTheme.bodySmall.copyWith(
-                                                                                fontSize: 12,
+                                                                                 fontSize: 11,
                                                                                 fontWeight: FontWeight.w700,
                                                                                 color: Colors.black,
                                                                               ),
@@ -505,7 +512,7 @@ class _EmptyActiveSystemViewState extends State<EmptyActiveSystemView> {
                                                                               child: Text(
                                                                                 pit.pitName,
                                                                                 style: AppTheme.bodySmall.copyWith(
-                                                                                  fontSize: 12,
+                                                                                   fontSize: 11,
                                                                                   fontWeight: FontWeight.w700,
                                                                                   color: Colors.black,
                                                                                 ),
@@ -525,8 +532,8 @@ class _EmptyActiveSystemViewState extends State<EmptyActiveSystemView> {
                                                                           ? ""
                                                                           : controller.pitValues[index],
                                                                       style: AppTheme.bodySmall.copyWith(
-                                                                        fontSize:
-                                                                            12,
+                                                                         fontSize:
+                                                                             11,
                                                                         fontWeight:
                                                                             FontWeight.w700,
                                                                         color: Colors
@@ -549,7 +556,10 @@ class _EmptyActiveSystemViewState extends State<EmptyActiveSystemView> {
                                                         // Volume Column
                                                         Expanded(
                                                           flex: 2,
-                                                          child: Padding(
+                                                          child: Container(
+                                                            color: isLocked
+                                                                ? operationLockedEditableColor
+                                                                : Colors.transparent,
                                                             padding:
                                                                 const EdgeInsets.symmetric(
                                                                   horizontal: 8,
@@ -575,8 +585,8 @@ class _EmptyActiveSystemViewState extends State<EmptyActiveSystemView> {
                                                                           ),
                                                                     ),
                                                                     style: AppTheme.bodySmall.copyWith(
-                                                                      fontSize:
-                                                                          12,
+                                                                       fontSize:
+                                                                           11,
                                                                       fontWeight:
                                                                           FontWeight
                                                                               .w700,
@@ -602,8 +612,8 @@ class _EmptyActiveSystemViewState extends State<EmptyActiveSystemView> {
                                                                       controller
                                                                           .volValues[index],
                                                                       style: AppTheme.bodySmall.copyWith(
-                                                                        fontSize:
-                                                                            12,
+                                                                         fontSize:
+                                                                             11,
                                                                         fontWeight:
                                                                             FontWeight.w700,
                                                                         color: Colors
@@ -688,7 +698,7 @@ class _EmptyActiveSystemViewState extends State<EmptyActiveSystemView> {
                               child: Text(
                                 "Execute Empty",
                                 style: AppTheme.bodySmall.copyWith(
-                                  color: Colors.black,
+                                  color: Colors.white,
                                   fontSize: 12,
                                   fontWeight: FontWeight.w700,
                                 ),

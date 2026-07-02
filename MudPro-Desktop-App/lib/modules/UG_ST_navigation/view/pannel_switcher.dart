@@ -7,6 +7,7 @@ import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/p
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/section_bar.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/survey/survey_view.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/well_view.dart';
+import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/well_setup_ui_pattern.dart';
 
 
 class RightPanel extends StatelessWidget {
@@ -16,28 +17,34 @@ class RightPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        RightTopTabs(),
-        Expanded(
-          child: Obx(() {
-            switch (c.selectedWellTab.value) {
-              case 0:
-                return WellView(key: WellView.mountKey);
-              case 1:
-                return CasingView();
-              case 2:
-                return IntervalView();
-              case 3:
-                return PlanPageView();
-              case 4:
-                return SurveyView();
-              default:
-                return WellView(key: WellView.mountKey);
-            }
-          }),
+    return DefaultTextStyle.merge(
+      style: wellSetupDataText,
+      child: ColoredBox(
+        color: wellSetupPageBackground,
+        child: Column(
+          children: [
+            RightTopTabs(),
+            Expanded(
+              child: Obx(() {
+                switch (c.selectedWellTab.value) {
+                  case 0:
+                    return WellView(key: WellView.mountKey);
+                  case 1:
+                    return CasingView();
+                  case 2:
+                    return IntervalView();
+                  case 3:
+                    return PlanPageView();
+                  case 4:
+                    return SurveyView();
+                  default:
+                    return WellView(key: WellView.mountKey);
+                }
+              }),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }

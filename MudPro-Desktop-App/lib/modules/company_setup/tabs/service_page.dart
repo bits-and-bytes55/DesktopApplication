@@ -8,9 +8,14 @@ import 'package:mudpro_desktop_app/theme/app_theme.dart';
 class ServicesPage extends StatelessWidget {
   const ServicesPage({super.key});
 
+  ServicesGetxController get _controller =>
+      Get.isRegistered<ServicesGetxController>()
+      ? Get.find<ServicesGetxController>()
+      : Get.put(ServicesGetxController());
+
   @override
   Widget build(BuildContext context) {
-    final controller = Get.put(ServicesGetxController());
+    final controller = _controller;
     final setupController = Get.find<CompanySetupController>();
 
     return Scaffold(
@@ -46,6 +51,7 @@ class ServicesPage extends StatelessWidget {
                                     onStartEdit: (item) => controller.startEditingPackage(item),
                                     onCancelEdit: () => controller.cancelEditingPackage(),
                                     onSaveEdit: () => controller.savePackageEdit(),
+                                    controller: controller,
                                     setupController: setupController,
                                     isSaving: controller.isPackagesSaving.value,
                                   ),
@@ -62,6 +68,7 @@ class ServicesPage extends StatelessWidget {
                                     onStartEdit: (item) => controller.startEditingService(item),
                                     onCancelEdit: () => controller.cancelEditingService(),
                                     onSaveEdit: () => controller.saveServiceEdit(),
+                                    controller: controller,
                                     setupController: setupController,
                                     isSaving: controller.isServicesSaving.value,
                                   ),
@@ -78,6 +85,7 @@ class ServicesPage extends StatelessWidget {
                                     onStartEdit: (item) => controller.startEditingEngineering(item),
                                     onCancelEdit: () => controller.cancelEditingEngineering(),
                                     onSaveEdit: () => controller.saveEngineeringEdit(),
+                                    controller: controller,
                                     setupController: setupController,
                                     isSaving: controller.isEngineeringSaving.value,
                                   ),
@@ -116,6 +124,7 @@ class ServicesPage extends StatelessWidget {
     required Function(dynamic) onStartEdit,
     required VoidCallback onCancelEdit,
     required Future<void> Function() onSaveEdit,
+    required ServicesGetxController controller,
     required CompanySetupController setupController,
     required bool isSaving,
   }) {
@@ -143,13 +152,27 @@ class ServicesPage extends StatelessWidget {
                 itemBuilder: (context, index) {
                   final isExisting = index < existingData.length;
                   if (isExisting) {
-                    final item = existingData[index];
-                    final isEditing = editingId == item.id;
-                    return _buildExistingRow(item, isEditing, index, onStartEdit, onCancelEdit, onSaveEdit, onDelete, setupController);
+                    return _buildExistingRow(
+                      existingData[index],
+                      index,
+                      onStartEdit,
+                      onCancelEdit,
+                      onSaveEdit,
+                      onDelete,
+                      controller,
+                      setupController,
+                    );
                   } else {
                     final rowIndex = index - existingData.length;
                     final row = newRows[rowIndex];
-                    return _buildNewRow(row, index, setupController);
+                    return _buildNewRow(
+                      row,
+                      rowIndex,
+                      index,
+                      newRows,
+                      controller,
+                      setupController,
+                    );
                   }
                 },
               ),
@@ -166,7 +189,7 @@ class ServicesPage extends StatelessWidget {
       height: 36,
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
-        gradient: gradient,
+        gradient: AppTheme.primaryGradient,
         borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(8),
           topRight: Radius.circular(8),
@@ -174,11 +197,11 @@ class ServicesPage extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(icon, size: 14, color: Colors.white),
+          Icon(icon, size: 14, color: AppTheme.companySetupHeaderTextColor),
           const SizedBox(width: 8),
           Text(
             title,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white),
+            style: AppTheme.companySetupHeaderDark.copyWith(fontSize: 12),
           ),
         ],
       ),
@@ -196,7 +219,6 @@ class ServicesPage extends StatelessWidget {
           _headerCell(text: 'Code', flex: 2),
           _headerCell(text: 'Unit', flex: 1),
           _headerCell(text: 'Price', flex: 2),
-          _headerCell(width: 80, text: 'Actions'),
         ],
       ),
     );
@@ -206,50 +228,92 @@ class ServicesPage extends StatelessWidget {
     Widget cell = Container(
       width: width,
       alignment: Alignment.center,
-      child: Text(text, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+      child: Text(text, style: AppTheme.companySetupBodyBold),
     );
     return flex != null ? Expanded(flex: flex, child: cell) : cell;
   }
 
-  Widget _buildExistingRow(dynamic item, bool isEditing, int index, 
+  Widget _buildExistingRow(dynamic item, int index, 
       Function(dynamic) onStartEdit, VoidCallback onCancelEdit, Future<void> Function() onSaveEdit, 
-      Function(String) onDelete, CompanySetupController setupController) {
-    bool globallyLocked = setupController.isLocked.value;
-    
-    return Container(
-      height: 32,
-      decoration: BoxDecoration(
-        color: isEditing ? Colors.blue.withOpacity(0.05) : (index % 2 == 0 ? Colors.white : AppTheme.cardColor),
-        border: Border(bottom: BorderSide(color: AppTheme.tableBorderBlue, width: 0.5)),
-      ),
-      child: Row(
-        children: [
-          _cell(width: 40, child: Text('${index + 1}', style: const TextStyle(fontSize: 11))),
-          _cell(flex: 3, child: isEditing ? _editField(item.nameController) : _textCell(item.name)),
-          _cell(flex: 2, child: isEditing ? _editField(item.codeController) : _textCell(item.code)),
-          _cell(flex: 1, child: isEditing ? _editField(item.unitController) : _textCell(item.unit)),
-          _cell(flex: 2, child: isEditing ? _editField(item.priceController, isNumeric: true) : _textCell(item.price.toString())),
-          _cell(width: 80, child: isEditing 
-                  ? Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        IconButton(onPressed: onSaveEdit, icon: const Icon(Icons.check, size: 14, color: Colors.green), padding: EdgeInsets.zero, constraints: const BoxConstraints()),
-                        IconButton(onPressed: onCancelEdit, icon: const Icon(Icons.close, size: 14, color: Colors.red), padding: EdgeInsets.zero, constraints: const BoxConstraints()),
-                      ],
-                    )
-                  : Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        IconButton(onPressed: () => onStartEdit(item), icon: const Icon(Icons.edit, size: 14, color: Colors.orange), padding: EdgeInsets.zero, constraints: const BoxConstraints()),
-                        IconButton(onPressed: () => onDelete(item.id), icon: const Icon(Icons.delete, size: 14, color: Colors.red), padding: EdgeInsets.zero, constraints: const BoxConstraints()),
-                      ],
-                    )),
-        ],
-      ),
-    );
+      Function(String) onDelete, ServicesGetxController controller, CompanySetupController setupController) {
+    return Obx(() {
+      final isEditing = _editingIdForItem(controller, item) == item.id;
+      return Builder(
+        builder: (context) => GestureDetector(
+          key: ValueKey('${item.id}-${isEditing ? 'edit' : 'view'}'),
+          behavior: HitTestBehavior.opaque,
+          onSecondaryTapDown: (details) => _showRowMenu(
+            context: context,
+            position: details.globalPosition,
+            item: item,
+            isEditing: isEditing,
+            onStartEdit: onStartEdit,
+            onCancelEdit: onCancelEdit,
+            onSaveEdit: onSaveEdit,
+            onDelete: onDelete,
+          ),
+          child: Container(
+            height: 32,
+            decoration: BoxDecoration(
+              color: isEditing
+                  ? Colors.blue.withOpacity(0.05)
+                  : (index % 2 == 0 ? Colors.white : AppTheme.cardColor),
+              border: Border(
+                bottom: BorderSide(
+                  color: AppTheme.tableBorderBlue,
+                  width: 0.5,
+                ),
+              ),
+            ),
+            child: Row(
+              children: [
+                _cell(
+                  width: 40,
+                  child: Text(
+                    '${index + 1}',
+                    style: AppTheme.companySetupBodyText,
+                  ),
+                ),
+                _cell(
+                  flex: 3,
+                  child: isEditing
+                      ? _editField(controller.inlineName, autofocus: true)
+                      : _textCell(item.name),
+                ),
+                _cell(
+                  flex: 2,
+                  child: isEditing
+                      ? _editField(controller.inlineCode)
+                      : _textCell(item.code),
+                ),
+                _cell(
+                  flex: 1,
+                  child: isEditing
+                      ? _editField(controller.inlineUnit)
+                      : _textCell(item.unit),
+                ),
+                _cell(
+                  flex: 2,
+                  child: isEditing
+                      ? _editField(controller.inlinePrice, isNumeric: true)
+                      : _textCell(item.price.toString()),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    });
   }
 
-  Widget _buildNewRow(dynamic row, int index, CompanySetupController setupController) {
+  Widget _buildNewRow(
+    dynamic row,
+    int rowIndex,
+    int index,
+    dynamic rows,
+    ServicesGetxController controller,
+    CompanySetupController setupController,
+  ) {
     bool globallyLocked = setupController.isLocked.value;
     return Container(
       height: 32,
@@ -259,15 +323,103 @@ class ServicesPage extends StatelessWidget {
       ),
       child: Row(
         children: [
-          _cell(width: 40, child: Text('${index + 1}', style: const TextStyle(fontSize: 11))),
-          _cell(flex: 3, child: _editField(row[0], enabled: !globallyLocked)),
-          _cell(flex: 2, child: _editField(row[1], enabled: !globallyLocked)),
-          _cell(flex: 1, child: _editField(row[2], enabled: !globallyLocked)),
-          _cell(flex: 2, child: _editField(row[3], isNumeric: true, enabled: !globallyLocked)),
-          _cell(width: 80, child: const Text('-', style: TextStyle(fontSize: 11))),
+          _cell(width: 40, child: Text('${index + 1}', style: AppTheme.companySetupBodyText)),
+          _cell(
+            flex: 3,
+            child: _editField(
+              row[0],
+              enabled: !globallyLocked,
+              onChanged: (_) => controller.updateNewRows(rows, rowIndex),
+            ),
+          ),
+          _cell(
+            flex: 2,
+            child: _editField(
+              row[1],
+              enabled: !globallyLocked,
+              onChanged: (_) => controller.updateNewRows(rows, rowIndex),
+            ),
+          ),
+          _cell(
+            flex: 1,
+            child: _editField(
+              row[2],
+              enabled: !globallyLocked,
+              onChanged: (_) => controller.updateNewRows(rows, rowIndex),
+            ),
+          ),
+          _cell(
+            flex: 2,
+            child: _editField(
+              row[3],
+              isNumeric: true,
+              enabled: !globallyLocked,
+              onChanged: (_) => controller.updateNewRows(rows, rowIndex),
+            ),
+          ),
         ],
       ),
     );
+  }
+
+  Future<void> _showRowMenu({
+    required BuildContext context,
+    required Offset position,
+    required dynamic item,
+    required bool isEditing,
+    required Function(dynamic) onStartEdit,
+    required VoidCallback onCancelEdit,
+    required Future<void> Function() onSaveEdit,
+    required Function(String) onDelete,
+  }) async {
+    final rowId = item.id?.toString().trim() ?? '';
+    if (rowId.isEmpty) return;
+
+    final action = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        position.dx,
+        position.dy,
+        position.dx,
+        position.dy,
+      ),
+      items: [
+        if (!isEditing)
+          const PopupMenuItem<String>(
+            value: 'edit',
+            child: Text('Edit', style: AppTheme.companySetupBodyText),
+          ),
+        if (isEditing)
+          const PopupMenuItem<String>(
+            value: 'save',
+            child: Text('Save', style: AppTheme.companySetupBodyText),
+          ),
+        if (isEditing)
+          const PopupMenuItem<String>(
+            value: 'cancel',
+            child: Text('Cancel', style: AppTheme.companySetupBodyText),
+          ),
+        const PopupMenuItem<String>(
+          value: 'delete',
+          child: Text('Delete', style: AppTheme.companySetupBodyText),
+        ),
+      ],
+    );
+
+    switch (action) {
+      case 'edit':
+        onStartEdit(item);
+        break;
+      case 'save':
+        await onSaveEdit();
+        break;
+      case 'cancel':
+        onCancelEdit();
+        break;
+      case 'delete':
+        onDelete(rowId);
+        break;
+    }
   }
 
   Widget _cell({double? width, int? flex, required Widget child}) {
@@ -281,13 +433,21 @@ class ServicesPage extends StatelessWidget {
     return flex != null ? Expanded(flex: flex, child: c) : c;
   }
 
-  Widget _textCell(String text) => Text(text, style: const TextStyle(fontSize: 11), overflow: TextOverflow.ellipsis);
+  Widget _textCell(String text) => Text(text, style: AppTheme.companySetupBodyText, overflow: TextOverflow.ellipsis);
 
-  Widget _editField(TextEditingController ctrl, {bool isNumeric = false, bool enabled = true}) {
+  Widget _editField(
+    TextEditingController ctrl, {
+    bool isNumeric = false,
+    bool enabled = true,
+    bool autofocus = false,
+    ValueChanged<String>? onChanged,
+  }) {
     return TextField(
       controller: ctrl,
       enabled: enabled,
-      style: const TextStyle(fontSize: 11),
+      autofocus: autofocus,
+      onChanged: onChanged,
+      style: AppTheme.companySetupBodyText,
       keyboardType: isNumeric ? TextInputType.number : TextInputType.text,
       decoration: const InputDecoration(border: InputBorder.none, isDense: true, contentPadding: EdgeInsets.symmetric(vertical: 8)),
       textAlign: TextAlign.center,
@@ -305,7 +465,7 @@ class ServicesPage extends StatelessWidget {
           style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor),
           child: isSaving 
               ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-              : Text('Save $title', style: const TextStyle(fontSize: 11, color: Colors.white)),
+              : Text('Save $title', style: AppTheme.companySetupHeaderWhite),
         ),
       ),
     );
@@ -341,5 +501,12 @@ class ServicesPage extends StatelessWidget {
         ],
       ),
     );
+    }
   }
-}
+
+  String? _editingIdForItem(ServicesGetxController controller, dynamic item) {
+    if (item is PackageItem) return controller.editingPackageId.value;
+    if (item is ServiceItem) return controller.editingServiceId.value;
+    if (item is EngineeringItem) return controller.editingEngineeringId.value;
+    return null;
+  }

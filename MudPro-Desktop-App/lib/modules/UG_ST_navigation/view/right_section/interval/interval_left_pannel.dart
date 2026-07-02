@@ -6,7 +6,7 @@ import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/i
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 
 const Color _ivlBorder = Color(0xFFC9CED6);
-const Color _ivlHeader = Color(0xFFF3F3F3);
+const Color _ivlHeader = Color(0xFF6F9DD0);
 bool _intervalContextMenuOpen = false;
 int _intervalChildMenuStartedAt = 0;
 
@@ -51,7 +51,7 @@ class IntervalLeftPanel extends StatelessWidget {
                             child: Text(
                               'No intervals',
                               style: TextStyle(
-                                fontSize: 10,
+fontSize: 11,
                                 color: Color(0xFF7A7A7A),
                               ),
                             ),
@@ -96,7 +96,7 @@ class IntervalLeftPanel extends StatelessWidget {
           const Icon(
             Icons.account_tree_outlined,
             size: 13,
-            color: Color(0xFF5B6470),
+            color: Colors.white,
           ),
           const SizedBox(width: 6),
           Expanded(
@@ -106,9 +106,9 @@ class IntervalLeftPanel extends StatelessWidget {
                     ? 'Well'
                     : padWellContext.selectedWellName,
                 style: const TextStyle(
-                  fontSize: 10,
+fontSize: 11,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFF2F2F2F),
+                  color: Colors.white,
                 ),
                 overflow: TextOverflow.ellipsis,
               ),
@@ -220,7 +220,7 @@ class IntervalLeftPanel extends StatelessWidget {
                           visualDensity: VisualDensity.compact,
                           title: Text(
                             iv.name,
-                            style: const TextStyle(fontSize: 10),
+                            style: const TextStyle(fontSize: 11),
                           ),
                           value: selected.contains(iv.id),
                           onChanged: (checked) {
@@ -447,7 +447,7 @@ class _IntervalTileState extends State<_IntervalTile> {
                         controller: _nameCtrl,
                         focusNode: _renameFocusNode,
                         autofocus: true,
-                        style: const TextStyle(fontSize: 10),
+                        style: const TextStyle(fontSize: 11),
                         decoration: const InputDecoration(
                           isDense: true,
                           border: InputBorder.none,
@@ -460,7 +460,7 @@ class _IntervalTileState extends State<_IntervalTile> {
                     : Text(
                         iv.name,
                         style: TextStyle(
-                          fontSize: 10,
+fontSize: 11,
                           color: isSelected
                               ? const Color(0xFF1D4F91)
                               : const Color(0xFF2F2F2F),
@@ -577,7 +577,7 @@ class _GroupTile extends StatelessWidget {
               child: Text(
                 group.name,
                 style: const TextStyle(
-                  fontSize: 10,
+fontSize: 11,
                   fontWeight: FontWeight.w600,
                   color: Color(0xFF2F2F2F),
                 ),

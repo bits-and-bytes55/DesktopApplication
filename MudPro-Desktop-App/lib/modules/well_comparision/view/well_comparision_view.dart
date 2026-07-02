@@ -5,6 +5,13 @@ import 'package:mudpro_desktop_app/modules/well_comparision/controller/well_comp
 import 'package:mudpro_desktop_app/modules/well_comparision/model/well_comparision_model.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
+const Color _comparisonPage = Color(0xFFF4F6FA);
+const Color _comparisonSection = Color(0xFF6C9BCF);
+const Color _comparisonColumn = Color(0xFFEAF3FC);
+const Color _comparisonStatic = Color(0xFFF2F2F2);
+const Color _comparisonGrid = Color(0xFFCFE0F2);
+const Color _comparisonBorder = Color(0xFFB8D0EA);
+
 class WellComparisonPage extends StatelessWidget {
   WellComparisonPage({super.key});
 
@@ -15,42 +22,54 @@ class WellComparisonPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            _header(),
-            const SizedBox(height: 12),
-            Expanded(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(
-                    width: 420,
-                    child: Container(
-                      decoration: AppTheme.cardDecoration.copyWith(
-                        border: Border.all(color: Colors.grey.shade200),
+    return DefaultTextStyle.merge(
+      style: const TextStyle(
+        fontFamily: 'Segoe UI',
+        fontSize: 11,
+        fontWeight: FontWeight.w700,
+        color: Colors.black,
+      ),
+      child: Scaffold(
+        backgroundColor: _comparisonPage,
+        body: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            children: [
+              _header(),
+              const SizedBox(height: 10),
+              Expanded(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      width: 420,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          border: Border.all(color: _comparisonBorder),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: _leftSection(),
                       ),
-                      child: _leftSection(),
                     ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Container(
-                      decoration: AppTheme.cardDecoration.copyWith(
-                        border: Border.all(color: Colors.grey.shade200),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          border: Border.all(color: _comparisonBorder),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: _rightSection(),
                       ),
-                      child: _rightSection(),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            _bottomButtons(),
-          ],
+              const SizedBox(height: 10),
+              _bottomButtons(),
+            ],
+          ),
         ),
       ),
     );
@@ -58,34 +77,40 @@ class WellComparisonPage extends StatelessWidget {
 
   Widget _header() {
     return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: AppTheme.elevatedCardDecoration.copyWith(color: Colors.white),
+      height: 36,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: _comparisonSection,
+        borderRadius: BorderRadius.circular(4),
+      ),
       child: Row(
         children: [
-          Icon(Icons.compare, size: 22, color: AppTheme.primaryColor),
-          const SizedBox(width: 12),
+          const Icon(Icons.compare, size: 16, color: Colors.white),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
               'Well Comparison',
-              style: AppTheme.bodyLarge.copyWith(
-                fontWeight: FontWeight.w600,
-                color: AppTheme.primaryColor,
+              style: const TextStyle(
+                fontFamily: 'Segoe UI',
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
               ),
             ),
           ),
           Obx(
             () => _headerBadge(
               label: '${controller.selectedReportCount} selected',
-              backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.08),
-              textColor: AppTheme.primaryColor,
+              backgroundColor: Colors.white.withValues(alpha: 0.16),
+              textColor: Colors.white,
             ),
           ),
           const SizedBox(width: 8),
           Obx(
             () => _headerBadge(
               label: '${controller.comparedReports.length} compared',
-              backgroundColor: AppTheme.successColor.withValues(alpha: 0.12),
-              textColor: AppTheme.successColor,
+              backgroundColor: Colors.white.withValues(alpha: 0.16),
+              textColor: Colors.white,
             ),
           ),
         ],
@@ -102,12 +127,15 @@ class WellComparisonPage extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: backgroundColor,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: Colors.white54),
       ),
       child: Text(
         label,
-        style: AppTheme.caption.copyWith(
-          fontWeight: FontWeight.w600,
+        style: TextStyle(
+          fontFamily: 'Segoe UI',
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
           color: textColor,
         ),
       ),
@@ -179,11 +207,11 @@ class WellComparisonPage extends StatelessWidget {
     );
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
+      margin: const EdgeInsets.only(bottom: 6),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade200),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: _comparisonGrid),
       ),
       child: ExpansionTile(
         tilePadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
@@ -191,9 +219,11 @@ class WellComparisonPage extends StatelessWidget {
         leading: Icon(Icons.folder, size: 18, color: AppTheme.primaryColor),
         title: Text(
           pad.padName,
-          style: AppTheme.bodySmall.copyWith(
-            fontWeight: FontWeight.w600,
-            color: AppTheme.textPrimary,
+          style: const TextStyle(
+            fontFamily: 'Segoe UI',
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: Colors.black,
           ),
         ),
         subtitle: Text(
@@ -221,9 +251,9 @@ class WellComparisonPage extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade200),
+        color: _comparisonStatic,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: _comparisonGrid),
       ),
       child: ExpansionTile(
         tilePadding: const EdgeInsets.symmetric(horizontal: 12),
@@ -231,9 +261,11 @@ class WellComparisonPage extends StatelessWidget {
         leading: Icon(Icons.water, size: 18, color: AppTheme.primaryColor),
         title: Text(
           well.wellName,
-          style: AppTheme.caption.copyWith(
-            fontWeight: FontWeight.w600,
-            color: AppTheme.textPrimary,
+          style: const TextStyle(
+            fontFamily: 'Segoe UI',
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: Colors.black,
           ),
         ),
         subtitle: Text(
@@ -274,7 +306,7 @@ class WellComparisonPage extends StatelessWidget {
           border: Border.all(
             color: isSelected
                 ? AppTheme.primaryColor.withValues(alpha: 0.25)
-                : Colors.grey.shade200,
+                : _comparisonGrid,
           ),
         ),
         child: CheckboxListTile(
@@ -286,9 +318,11 @@ class WellComparisonPage extends StatelessWidget {
           contentPadding: const EdgeInsets.symmetric(horizontal: 8),
           title: Text(
             'Report ${report.reportLabel} • ${report.dateLabel}',
-            style: AppTheme.caption.copyWith(
-              color: AppTheme.textPrimary,
-              fontWeight: FontWeight.w600,
+            style: const TextStyle(
+              fontFamily: 'Segoe UI',
+              fontSize: 11,
+              color: Colors.black,
+              fontWeight: FontWeight.w700,
             ),
           ),
           subtitle: Text(
@@ -327,14 +361,15 @@ class WellComparisonPage extends StatelessWidget {
             () => Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
-                color: AppTheme.primaryColor.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(8),
+                color: Colors.white.withValues(alpha: 0.16),
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: Colors.white54),
               ),
               child: Text(
                 '${controller.comparedReports.length} reports',
                 style: AppTheme.caption.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.primaryColor,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
                 ),
               ),
             ),
@@ -375,18 +410,20 @@ class WellComparisonPage extends StatelessWidget {
             return Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.grey.shade300),
+                color: _comparisonStatic,
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: _comparisonGrid),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     '${report.wellName} • ${report.reportLabel}',
-                    style: AppTheme.caption.copyWith(
-                      color: AppTheme.textPrimary,
-                      fontWeight: FontWeight.w600,
+                    style: const TextStyle(
+                      fontFamily: 'Segoe UI',
+                      fontSize: 11,
+                      color: Colors.black,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -420,7 +457,7 @@ class WellComparisonPage extends StatelessWidget {
           dataRowMinHeight: 48,
           dataRowMaxHeight: 72,
           dividerThickness: 0.6,
-          headingRowColor: WidgetStateProperty.all(AppTheme.tableHeadColor),
+          headingRowColor: WidgetStateProperty.all(_comparisonColumn),
           columns: [
             const DataColumn(label: _TableHeaderCell('Metric')),
             ...reports.map(
@@ -447,11 +484,11 @@ class WellComparisonPage extends StatelessWidget {
                         _valueOrDash(value),
                         maxLines: 3,
                         overflow: TextOverflow.ellipsis,
-                        style: AppTheme.caption.copyWith(
-                          color: AppTheme.textPrimary,
-                          fontWeight: row.hasDifference
-                              ? FontWeight.w600
-                              : FontWeight.w400,
+                        style: const TextStyle(
+                          fontFamily: 'Segoe UI',
+                          fontSize: 11,
+                          color: Colors.black,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),
@@ -569,26 +606,28 @@ class WellComparisonPage extends StatelessWidget {
     Widget? trailing,
   }) {
     return Container(
-      height: 48,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(8),
-          topRight: Radius.circular(8),
+      height: 36,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: const BoxDecoration(
+        color: _comparisonSection,
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(4),
+          topRight: Radius.circular(4),
         ),
-        border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+        border: Border(bottom: BorderSide(color: _comparisonGrid)),
       ),
       child: Row(
         children: [
-          Icon(icon, size: 18, color: AppTheme.primaryColor),
+          Icon(icon, size: 16, color: Colors.white),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               title,
-              style: AppTheme.bodySmall.copyWith(
-                fontWeight: FontWeight.w600,
-                color: AppTheme.textPrimary,
+              style: const TextStyle(
+                fontFamily: 'Segoe UI',
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
               ),
             ),
           ),
@@ -643,11 +682,11 @@ class WellComparisonPage extends StatelessWidget {
 
   Widget _bottomButtons() {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade200),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: _comparisonBorder),
       ),
       child: Obx(
         () => Row(
@@ -666,7 +705,7 @@ class WellComparisonPage extends StatelessWidget {
                   vertical: 10,
                 ),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(4),
                 ),
               ),
             ),
@@ -677,7 +716,17 @@ class WellComparisonPage extends StatelessWidget {
                   : controller.compareSelectedReports,
               icon: const Icon(Icons.compare_arrows, size: 16),
               label: const Text('Compare Wells'),
-              style: AppTheme.primaryButtonStyle,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _comparisonSection,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 10,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
             ),
           ],
         ),
@@ -697,9 +746,11 @@ class _TableHeaderCell extends StatelessWidget {
       width: 170,
       child: Text(
         text,
-        style: AppTheme.caption.copyWith(
-          fontWeight: FontWeight.w600,
-          color: Colors.white,
+        style: const TextStyle(
+          fontFamily: 'Segoe UI',
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: Colors.black,
         ),
         overflow: TextOverflow.ellipsis,
       ),
@@ -724,9 +775,11 @@ class _ComparisonReportHeader extends StatelessWidget {
             report.wellName,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: AppTheme.caption.copyWith(
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
+            style: const TextStyle(
+              fontFamily: 'Segoe UI',
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: Colors.black,
             ),
           ),
           const SizedBox(height: 2),
@@ -734,8 +787,11 @@ class _ComparisonReportHeader extends StatelessWidget {
             'Report ${report.reportLabel} • ${report.dateLabel}',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: AppTheme.caption.copyWith(
-              color: Colors.white.withValues(alpha: 0.92),
+            style: const TextStyle(
+              fontFamily: 'Segoe UI',
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: Colors.black,
             ),
           ),
         ],
@@ -770,9 +826,11 @@ class _MetricCell extends StatelessWidget {
             row.label,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: AppTheme.caption.copyWith(
-              color: AppTheme.textPrimary,
-              fontWeight: FontWeight.w600,
+            style: const TextStyle(
+              fontFamily: 'Segoe UI',
+              fontSize: 11,
+              color: Colors.black,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ],

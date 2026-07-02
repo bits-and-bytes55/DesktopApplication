@@ -5,13 +5,13 @@ import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/modules/report/recap_tabs/drilling_data/controller/drilling_data_controller.dart';
 
-const Color _drillingOuterBorder = Color(0xFF2F92E8);
-const Color _drillingCanvas = Color(0xFFF4F4F4);
-const Color _drillingPanelBorder = Color(0xFFC8C8C8);
-const Color _drillingHeaderFill = Color(0xFFF7F7F7);
+const Color _drillingOuterBorder = Color(0xFFB8D0EA);
+const Color _drillingCanvas = Color(0xFFF4F6FA);
+const Color _drillingPanelBorder = Color(0xFFB8D0EA);
+const Color _drillingHeaderFill = Color(0xFFEAF3FC);
 const Color _drillingText = Color(0xFF1C1C1C);
-const Color _drillingGrid = Color(0xFFD6D6D6);
-const Color _drillingTabFill = Color(0xFFEAEAEA);
+const Color _drillingGrid = Color(0xFFCFE0F2);
+const Color _drillingTabFill = Color(0xFFEAF3FC);
 const Color _drillingMudStrip = Color(0xFFB5B2E5);
 const Color _drillingLine = Color(0xFF94B7E8);
 

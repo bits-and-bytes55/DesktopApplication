@@ -244,7 +244,7 @@ export const updateProduct = async (req, res) => {
     const product = await Product.findByIdAndUpdate(
       id,
       productPayload(req.body),
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     );
 
     if (!product) {
@@ -283,7 +283,7 @@ export const deleteProduct = async (req, res) => {
     const product = await Product.findByIdAndUpdate(
       id,
       { isDeleted: true },
-      { new: true }
+      { returnDocument: "after" }
     );
 
     if (!product) {
@@ -321,7 +321,7 @@ export const restoreProduct = async (req, res) => {
     const product = await Product.findByIdAndUpdate(
       id,
       { isDeleted: false },
-      { new: true }
+      { returnDocument: "after" }
     );
 
     if (!product) {

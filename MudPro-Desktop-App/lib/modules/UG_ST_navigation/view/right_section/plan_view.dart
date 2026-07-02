@@ -5,18 +5,20 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/controller/UG_ST_controller.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
+import 'package:mudpro_desktop_app/theme/app_theme.dart';
+import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/well_setup_ui_pattern.dart';
 
 const int _planVisibleRows = 18;
 
 const double _planIndexWidth = 44.0;
 const double _planSummaryHeight = 32.0;
 const double _planRowHeight = 31.0;
-const double _planHeaderTopHeight = 28.0;
+const double _planHeaderTopHeight = 34.0;
 const double _planHeaderBottomHeight = 24.0;
 
-const Color _planBorder = Color(0xFFC9CED6);
-const Color _planHeader = Color(0xFFF3F3F3);
-const Color _planLockedCell = Color(0xFFFFF3BE);
+const Color _planBorder = wellSetupBorder;
+const Color _planHeader = wellSetupColumnHeader;
+const Color _planLockedCell = wellSetupLockedEditable;
 const Color _planEditableCell = Colors.white;
 const Color _planSelectedCell = Color(0xFFEAF2FF);
 
@@ -293,7 +295,7 @@ class _PlanPageViewState extends State<PlanPageView> {
           : Alignment.center,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: wellSetupReadOnlyFill,
         border: Border(
           right: const BorderSide(color: _planBorder),
           bottom: hasBottomBorder
@@ -304,7 +306,7 @@ class _PlanPageViewState extends State<PlanPageView> {
       child: Text(
         text,
         textAlign: textAlign,
-        style: const TextStyle(fontSize: 10, color: Color(0xFF2F2F2F)),
+        style: AppTheme.wellLikeBodyText.copyWith(fontSize: 11),
       ),
     );
   }
@@ -340,11 +342,7 @@ class _PlanPageViewState extends State<PlanPageView> {
           isDense: true,
           contentPadding: EdgeInsets.zero,
         ),
-        style: const TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.w600,
-          color: Color(0xFF2F2F2F),
-        ),
+        style: AppTheme.wellLikeBodyText.copyWith(fontSize: 11),
       ),
     );
   }
@@ -399,12 +397,32 @@ class _PlanPageViewState extends State<PlanPageView> {
         ),
         Row(
           children: [
-            _headerCell('', _planIndexWidth, _planHeaderBottomHeight),
+            _headerCell(
+              '',
+              _planIndexWidth,
+              _planHeaderBottomHeight,
+              highlighted: false,
+            ),
             for (final column in _planFixedColumns)
-              _headerCell('', column.width, _planHeaderBottomHeight),
+              _headerCell(
+                '',
+                column.width,
+                _planHeaderBottomHeight,
+                highlighted: false,
+              ),
             for (final group in _planGroupedColumns) ...[
-              _headerCell('L', group.width, _planHeaderBottomHeight),
-              _headerCell('H', group.width, _planHeaderBottomHeight),
+              _headerCell(
+                'L',
+                group.width,
+                _planHeaderBottomHeight,
+                highlighted: false,
+              ),
+              _headerCell(
+                'H',
+                group.width,
+                _planHeaderBottomHeight,
+                highlighted: false,
+              ),
             ],
           ],
         ),
@@ -412,26 +430,31 @@ class _PlanPageViewState extends State<PlanPageView> {
     );
   }
 
-  Widget _headerCell(String text, double width, double height) {
+  Widget _headerCell(
+    String text,
+    double width,
+    double height, {
+    bool highlighted = true,
+  }) {
     return Container(
       width: width,
       height: height,
       alignment: Alignment.center,
       padding: const EdgeInsets.symmetric(horizontal: 4),
-      decoration: const BoxDecoration(
-        color: _planHeader,
+      decoration: BoxDecoration(
         border: Border(
-          right: BorderSide(color: _planBorder),
-          bottom: BorderSide(color: _planBorder),
+          right: const BorderSide(color: _planBorder),
+          bottom: const BorderSide(color: _planBorder),
         ),
+        color: _planHeader,
       ),
       child: Text(
         text,
         textAlign: TextAlign.center,
-        style: const TextStyle(
-          fontSize: 10,
-          color: Color(0xFF2F2F2F),
-          fontWeight: FontWeight.w500,
+        style: TextStyle(
+          fontSize: 11,
+          color: Colors.black,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );
@@ -476,9 +499,9 @@ class _PlanPageViewState extends State<PlanPageView> {
         color: Colors.white,
         border: Border(top: BorderSide(color: _planBorder)),
       ),
-      child: const Text(
+      child: Text(
         'L: Low; H: High',
-        style: TextStyle(fontSize: 10, color: Color(0xFF2F2F2F)),
+        style: AppTheme.wellLikeBodyText.copyWith(fontSize: 11),
       ),
     );
   }
@@ -659,7 +682,7 @@ class _PlanDataRowState extends State<_PlanDataRow> {
           const Spacer(),
           Text(
             '${widget.rowIndex + 1}',
-            style: const TextStyle(fontSize: 10, color: Color(0xFF2F2F2F)),
+            style: AppTheme.wellLikeBodyText.copyWith(fontSize: 11),
           ),
           const Spacer(),
         ],
@@ -729,7 +752,7 @@ class _PlanDataRowState extends State<_PlanDataRow> {
                   vertical: 6,
                 ),
               ),
-              style: const TextStyle(fontSize: 10, color: Color(0xFF2F2F2F)),
+              style: AppTheme.wellLikeBodyText.copyWith(fontSize: 11),
             ),
           ),
         ),
@@ -787,8 +810,9 @@ class _PlanDataRowState extends State<_PlanDataRow> {
       child: Text(
         label,
         style: TextStyle(
-          fontSize: 10,
-          color: enabled ? const Color(0xFF2F2F2F) : const Color(0xFF9EA4AD),
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: enabled ? Colors.black : const Color(0xFF9EA4AD),
         ),
       ),
     );

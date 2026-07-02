@@ -4,11 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/daily_report/widgets/wellbore_controller.dart';
 
-const Color _summaryPageBackground = Color(0xFFF2F2F2);
-const Color _summaryPanelBorder = Color(0xFFC8C8C8);
-const Color _summaryHeaderFill = Color(0xFFF5F5F5);
-const Color _summaryTextColor = Color(0xFF1D1D1D);
-const Color _summaryGridColor = Color(0xFFD0D0D0);
+const Color _summaryPageBackground = Color(0xFFF4F6FA);
+const Color _summaryPanelBorder = Color(0xFFB8D0EA);
+const Color _summaryHeaderFill = Color(0xFF6C9BCF);
+const Color _summaryTextColor = Colors.black;
+const Color _summaryGridColor = Color(0xFFCFE0F2);
 const Color _summaryLineColor = Color(0xFF9FD8EC);
 const Color _summaryDepthColor = Color(0xFFC9CA4E);
 const Color _summaryCostColor = Color(0xFFFF160C);
@@ -295,18 +295,26 @@ class RecapSummaryPage extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border.all(color: _summaryPanelBorder),
+        borderRadius: BorderRadius.circular(4),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(6, 4, 6, 4),
+          Container(
+            height: 34,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            alignment: Alignment.centerLeft,
+            decoration: const BoxDecoration(
+              color: _summaryHeaderFill,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(4)),
+            ),
             child: Text(
               title,
               style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w400,
-                color: _summaryTextColor,
+                fontFamily: 'Segoe UI',
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
               ),
             ),
           ),
@@ -321,20 +329,23 @@ class RecapSummaryPage extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border.all(color: _summaryPanelBorder),
+        borderRadius: BorderRadius.circular(4),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Container(
+            height: 30,
+            alignment: Alignment.center,
             color: _summaryHeaderFill,
-            padding: const EdgeInsets.symmetric(vertical: 6),
             child: Text(
               title,
               textAlign: TextAlign.center,
               style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w400,
-                color: _summaryTextColor,
+                fontFamily: 'Segoe UI',
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
               ),
             ),
           ),

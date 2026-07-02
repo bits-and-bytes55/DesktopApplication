@@ -13,7 +13,9 @@ import 'package:mudpro_desktop_app/modules/UG/controller/UG_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/formation_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/formation_row_model.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
+import 'package:mudpro_desktop_app/theme/app_theme.dart';
 import 'package:win32/win32.dart';
+import 'package:mudpro_desktop_app/modules/UG/right_pannel/ug_ui_pattern.dart';
 
 const Color _formationPoreColor = Color(0xFF22A33B);
 const Color _formationFracColor = Color(0xFFFF2A2A);
@@ -29,9 +31,9 @@ class _FormationViewState extends State<FormationView> {
   static const double _rowHeight = 27;
   static const double _headerTopHeight = 34;
   static const double _headerBottomHeight = 24;
-  static const Color _borderColor = Color(0xFFC9CED6);
-  static const Color _headerColor = Color(0xFFF3F3F3);
-  static const Color _highlightColor = Color(0xFFFFF6C7);
+  static const Color _borderColor = ugBorder;
+  static const Color _headerColor = ugColumnHeader;
+  static const Color _highlightColor = ugLockedEditable;
 
   final UgController ugController = Get.find<UgController>();
   final FormationController controller = Get.isRegistered<FormationController>()
@@ -110,9 +112,15 @@ class _FormationViewState extends State<FormationView> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: TextStyle(fontSize: 11, color: color)),
+          Text(
+            label,
+            style: AppTheme.wellLikeBodyText.copyWith(color: color),
+          ),
           const SizedBox(width: 20),
-          Text(shortcut, style: TextStyle(fontSize: 11, color: color)),
+          Text(
+            shortcut,
+            style: AppTheme.wellLikeBodyText.copyWith(color: color),
+          ),
         ],
       ),
     );
@@ -191,7 +199,7 @@ class _FormationViewState extends State<FormationView> {
       alignment: Alignment.center,
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
       decoration: const BoxDecoration(
-        color: _headerColor,
+        color: ugColumnHeader,
         border: Border(
           right: BorderSide(color: _borderColor),
           bottom: BorderSide(color: _borderColor),
@@ -202,9 +210,9 @@ class _FormationViewState extends State<FormationView> {
         textAlign: textAlign,
         maxLines: 2,
         style: const TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.w500,
-          color: Color(0xFF2F2F2F),
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: Colors.black,
         ),
       ),
     );
@@ -236,7 +244,7 @@ class _FormationViewState extends State<FormationView> {
           Expanded(
             child: Text(
               '${index + 1}',
-              style: const TextStyle(fontSize: 10, color: Color(0xFF404040)),
+              style: AppTheme.wellLikeBodyText,
             ),
           ),
         ],
@@ -276,7 +284,7 @@ class _FormationViewState extends State<FormationView> {
               onChanged: onChanged,
               textAlign: textAlign,
               inputFormatters: inputFormatters,
-              style: const TextStyle(fontSize: 10, color: Color(0xFF2F2F2F)),
+              style: AppTheme.wellLikeBodyText,
               decoration: const InputDecoration(
                 isDense: true,
                 border: InputBorder.none,
@@ -291,7 +299,8 @@ class _FormationViewState extends State<FormationView> {
                 value,
                 textAlign: textAlign,
                 style: TextStyle(
-                  fontSize: 10,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
                   color: value.isEmpty
                       ? const Color(0xFFB2B7BF)
                       : const Color(0xFF2F2F2F),
@@ -759,6 +768,7 @@ class _FormationViewState extends State<FormationView> {
       () => Container(
         height: 28,
         padding: const EdgeInsets.symmetric(horizontal: 2),
+        color: AppTheme.primaryColor,
         child: Row(
           children: [
             Checkbox(
@@ -778,7 +788,7 @@ class _FormationViewState extends State<FormationView> {
                 style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.w500,
-                  color: Color(0xFF2F2F2F),
+                  color: Colors.white,
                 ),
               ),
             ),
@@ -961,11 +971,7 @@ class _FormationViewState extends State<FormationView> {
           children: [
             const Text(
               'Formation P.',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: Color(0xFF2F2F2F),
-              ),
+              style: AppTheme.wellLikeBodyText,
             ),
             const SizedBox(height: 6),
             Expanded(
@@ -999,7 +1005,7 @@ class _FormationViewState extends State<FormationView> {
                 ),
                 const Text(
                   'Pore',
-                  style: TextStyle(fontSize: 10, color: Color(0xFF2F2F2F)),
+                  style: AppTheme.wellLikeBodyText,
                 ),
                 const SizedBox(width: 10),
                 Checkbox(
@@ -1015,7 +1021,7 @@ class _FormationViewState extends State<FormationView> {
                 ),
                 const Text(
                   'Frac',
-                  style: TextStyle(fontSize: 10, color: Color(0xFF2F2F2F)),
+                  style: AppTheme.wellLikeBodyText,
                 ),
               ],
             ),
@@ -1028,7 +1034,7 @@ class _FormationViewState extends State<FormationView> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: Colors.white,
+      color: ugPageBackground,
       padding: const EdgeInsets.fromLTRB(4, 4, 4, 4),
       child: LayoutBuilder(
         builder: (context, constraints) => Obx(() {

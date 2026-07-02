@@ -8,6 +8,7 @@ import 'package:mudpro_desktop_app/modules/dashboard/controller/add_water_save_b
 import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 import '../../controller/dashboard_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_ui_pattern.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class AddWaterView extends StatefulWidget {
@@ -364,12 +365,20 @@ class _AddWaterViewState extends State<AddWaterView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            "Add Water",
-            style: AppTheme.titleMedium.copyWith(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: AppTheme.textPrimary,
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryColor,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: const Text(
+              "Add Water",
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+              ),
             ),
           ),
           const SizedBox(height: 12),
@@ -413,7 +422,7 @@ class _AddWaterViewState extends State<AddWaterView> {
                                 horizontal: 8,
                               ),
                               decoration: BoxDecoration(
-                                color: AppTheme.primaryColor,
+                                color: AppTheme.tableHeaderBlue,
                                 borderRadius: const BorderRadius.only(
                                   topLeft: Radius.circular(8),
                                 ),
@@ -440,7 +449,7 @@ class _AddWaterViewState extends State<AddWaterView> {
                                     style: AppTheme.bodySmall.copyWith(
                                       fontSize: 11,
                                       fontWeight: FontWeight.w700,
-                                      color: Colors.black,
+                                      color: Colors.white,
                                     ),
                                   ),
                                 ],
@@ -464,7 +473,9 @@ class _AddWaterViewState extends State<AddWaterView> {
                                       horizontal: 8,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: Colors.white,
+                                      color: dashboardController.isLocked.value
+                                          ? operationLockedEditableColor
+                                          : Colors.white,
                                       borderRadius: BorderRadius.circular(4),
                                       border: Border.all(
                                         color: AppTheme.tableGridBlue,
@@ -561,7 +572,7 @@ class _AddWaterViewState extends State<AddWaterView> {
                                 horizontal: 8,
                               ),
                               decoration: BoxDecoration(
-                                color: AppTheme.primaryColor,
+                                color: AppTheme.tableHeaderBlue,
                                 border: Border(
                                   right: BorderSide(
                                     color: AppTheme.tableGridBlue,
@@ -585,7 +596,7 @@ class _AddWaterViewState extends State<AddWaterView> {
                                     style: AppTheme.bodySmall.copyWith(
                                       fontSize: 11,
                                       fontWeight: FontWeight.w700,
-                                      color: Colors.black,
+                                      color: Colors.white,
                                     ),
                                   ),
                                 ],
@@ -596,6 +607,9 @@ class _AddWaterViewState extends State<AddWaterView> {
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 8,
                                 ),
+                                color: dashboardController.isLocked.value
+                                    ? operationLockedEditableColor
+                                    : Colors.white,
                                 child: TextField(
                                   enabled: !dashboardController.isLocked.value,
                                   textAlign: TextAlign.center,
@@ -665,7 +679,10 @@ class _AddWaterViewState extends State<AddWaterView> {
                                 ),
                               ),
                               Expanded(
-                                child: Padding(
+                                child: Container(
+                                  color: dashboardController.isLocked.value
+                                      ? operationLockedEditableColor
+                                      : Colors.white,
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 8,
                                   ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/utility/subtabs/eng_bit_hydra_view.dart';
 import 'package:mudpro_desktop_app/modules/utility/subtabs/eng_hydraulics_annularvelocity.dart';
+import 'package:mudpro_desktop_app/modules/utility/engineering_tools_ui_pattern.dart';
 import '../controller/engineering_tools_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
@@ -25,38 +26,31 @@ class HydraulicsPage extends StatelessWidget {
       children: [
         // ================= HYDRAULICS HEADER =================
         Container(
-          height: 44,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(
-            color: Colors.grey.shade50,
-            border: Border(
-              bottom: BorderSide(color: Colors.grey.shade300),
-            ),
+          height: 36,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: const BoxDecoration(
+            color: engineeringSection,
+            border: Border(bottom: BorderSide(color: engineeringGrid)),
           ),
           child: Row(
             children: [
-              Icon(Icons.speed, size: 18, color: AppTheme.primaryColor),
+              const Icon(Icons.speed, size: 16, color: Colors.white),
               const SizedBox(width: 8),
               Text(
                 "Hydraulics Tools",
-                style: AppTheme.bodySmall.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.textPrimary,
-                ),
+                style: engineeringSectionText,
               ),
               const Spacer(),
               Obx(() => Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryColor.withOpacity(0.1),
+                      color: Colors.white.withOpacity(0.16),
                       borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: Colors.white54),
                     ),
                     child: Text(
                       subTabs[c.activeHydraulicsTab.value],
-                      style: AppTheme.caption.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.primaryColor,
-                      ),
+                      style: engineeringDataText.copyWith(color: Colors.white),
                     ),
                   )),
             ],
@@ -66,11 +60,9 @@ class HydraulicsPage extends StatelessWidget {
         // ================= HYDRAULICS SUB TABS =================
         Container(
           height: 36,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            border: Border(
-              bottom: BorderSide(color: Colors.grey.shade300),
-            ),
+          decoration: const BoxDecoration(
+            color: engineeringColumn,
+            border: Border(bottom: BorderSide(color: engineeringGrid)),
           ),
           child: Obx(() => Row(
                 children: List.generate(subTabs.length, (index) {
@@ -82,20 +74,23 @@ class HydraulicsPage extends StatelessWidget {
                         onTap: () => c.activeHydraulicsTab.value = index,
                         child: Container(
                           decoration: BoxDecoration(
-                            color: isActive ? AppTheme.primaryColor.withOpacity(0.1) : Colors.transparent,
+                            color: isActive
+                                ? engineeringSection
+                                : engineeringColumn,
                             border: Border(
                               bottom: BorderSide(
-                                color: isActive ? AppTheme.primaryColor : Colors.transparent,
-                                width: 2,
+                                color: isActive
+                                    ? engineeringSection
+                                    : engineeringGrid,
+                                width: 1,
                               ),
                             ),
                           ),
                           child: Center(
                             child: Text(
                               subTabs[index],
-                              style: AppTheme.caption.copyWith(
-                                fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-                                color: isActive ? AppTheme.primaryColor : AppTheme.textSecondary,
+                              style: engineeringDataText.copyWith(
+                                color: isActive ? Colors.white : Colors.black,
                               ),
                             ),
                           ),

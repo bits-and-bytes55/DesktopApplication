@@ -4,13 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/report/recap_tabs/remarks/controller/recap_remarks_controller.dart';
 
-const Color _remarksOuterBorder = Color(0xFF2F92E8);
-const Color _remarksCanvas = Color(0xFFF4F4F4);
-const Color _remarksPanelBorder = Color(0xFFC8C8C8);
-const Color _remarksHeaderFill = Color(0xFFF7F7F7);
+const Color _remarksOuterBorder = Color(0xFFB8D0EA);
+const Color _remarksCanvas = Color(0xFFF4F6FA);
+const Color _remarksPanelBorder = Color(0xFFB8D0EA);
+const Color _remarksHeaderFill = Color(0xFFEAF3FC);
 const Color _remarksText = Color(0xFF1C1C1C);
-const Color _remarksGrid = Color(0xFFD6D6D6);
-const Color _remarksTabFill = Color(0xFFEAEAEA);
+const Color _remarksGrid = Color(0xFFCFE0F2);
+const Color _remarksTabFill = Color(0xFFEAF3FC);
 const Color _remarksBar = Color(0xFFD3D3D3);
 const Color _remarksSelectedRow = Color(0xFFEAF4FF);
 

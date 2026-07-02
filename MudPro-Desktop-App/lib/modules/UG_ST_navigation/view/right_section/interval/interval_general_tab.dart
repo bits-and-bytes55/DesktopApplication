@@ -3,10 +3,12 @@ import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/controller/UG_ST_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/interval/controller/interval_controller.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
+import 'package:mudpro_desktop_app/theme/app_theme.dart';
+import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/well_setup_ui_pattern.dart';
 
-const Color _igBorder = Color(0xFFC9CED6);
-const Color _igHeader = Color(0xFFF3F3F3);
-const Color _igCell = Color(0xFFFFF6C7);
+const Color _igBorder = wellSetupBorder;
+const Color _igHeader = wellSetupReadOnlyFill;
+const Color _igCell = wellSetupLockedEditable;
 const List<String> _mudTypeOptions = <String>[
   'Water-based',
   'Oil-based',
@@ -86,11 +88,15 @@ class IntervalGeneralTab extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.only(bottom: 4),
+        Container(
+          width: double.infinity,
+          height: 34,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          alignment: Alignment.centerLeft,
+          color: wellSetupSectionHeader,
           child: Text(
             heading,
-            style: const TextStyle(fontSize: 10, color: Color(0xFF2F2F2F)),
+            style: wellSetupSectionText,
           ),
         ),
         Container(
@@ -186,7 +192,7 @@ class IntervalGeneralTab extends StatelessWidget {
       color: _igHeader,
       child: Text(
         text,
-        style: const TextStyle(fontSize: 10, color: Color(0xFF2F2F2F)),
+        style: AppTheme.wellLikeBodyText.copyWith(fontSize: 11),
       ),
     );
   }
@@ -195,11 +201,11 @@ class IntervalGeneralTab extends StatelessWidget {
     return Container(
       height: 28,
       padding: const EdgeInsets.symmetric(horizontal: 6),
-      color: _igCell,
+      color: locked ? _igCell : Colors.white,
       child: TextField(
         controller: controller,
         readOnly: locked,
-        style: const TextStyle(fontSize: 10, color: Color(0xFF2F2F2F)),
+        style: AppTheme.wellLikeBodyText.copyWith(fontSize: 11),
         decoration: const InputDecoration(
           isDense: true,
           border: InputBorder.none,
@@ -216,18 +222,18 @@ class IntervalGeneralTab extends StatelessWidget {
     return Container(
       height: 28,
       padding: const EdgeInsets.symmetric(horizontal: 6),
-      color: _igCell,
+      color: locked ? _igCell : Colors.white,
       alignment: Alignment.centerLeft,
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: currentValue,
           isExpanded: true,
           iconSize: 18,
-          style: const TextStyle(fontSize: 10, color: Color(0xFF2F2F2F)),
+          style: AppTheme.wellLikeBodyText.copyWith(fontSize: 11),
           dropdownColor: Colors.white,
-          hint: const Text(
+          hint: Text(
             '',
-            style: TextStyle(fontSize: 10, color: Color(0xFF2F2F2F)),
+            style: AppTheme.wellLikeBodyText.copyWith(fontSize: 11),
           ),
           items: _mudTypeOptions
               .map(
@@ -235,10 +241,7 @@ class IntervalGeneralTab extends StatelessWidget {
                   value: item,
                   child: Text(
                     item,
-                    style: const TextStyle(
-                      fontSize: 10,
-                      color: Color(0xFF2F2F2F),
-                    ),
+                    style: AppTheme.wellLikeBodyText.copyWith(fontSize: 11),
                   ),
                 ),
               )
@@ -264,7 +267,7 @@ class IntervalGeneralTab extends StatelessWidget {
       color: _igHeader,
       child: Text(
         text,
-        style: const TextStyle(fontSize: 10, color: Color(0xFF2F2F2F)),
+        style: AppTheme.wellLikeUnitText.copyWith(fontSize: 11),
       ),
     );
   }
@@ -278,11 +281,15 @@ class IntervalGeneralTab extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.only(bottom: 4),
+          Container(
+            width: double.infinity,
+            height: 34,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            alignment: Alignment.centerLeft,
+            color: wellSetupSectionHeader,
             child: Text(
               title,
-              style: const TextStyle(fontSize: 10, color: Color(0xFF2F2F2F)),
+              style: wellSetupSectionText,
             ),
           ),
           Expanded(
@@ -291,7 +298,7 @@ class IntervalGeneralTab extends StatelessWidget {
               readOnly: locked,
               expands: true,
               maxLines: null,
-              style: const TextStyle(fontSize: 10, color: Color(0xFF2F2F2F)),
+              style: AppTheme.wellLikeBodyText.copyWith(fontSize: 11),
               decoration: InputDecoration(
                 filled: true,
                 fillColor: locked ? _igCell : Colors.white,

@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/pit_model.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_ui_pattern.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 import '../../controller/dashboard_controller.dart';
 
@@ -89,14 +90,16 @@ class _SwitchPitViewState extends State<SwitchPitView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.only(left: 2, bottom: 4),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            color: AppTheme.primaryColor,
             child: Text(
               title,
               style: AppTheme.bodySmall.copyWith(
-                fontSize: 12,
+                fontSize: 13,
                 fontWeight: FontWeight.w700,
-                color: Colors.black,
+                color: Colors.white,
               ),
             ),
           ),
@@ -166,7 +169,7 @@ class _SwitchPitViewState extends State<SwitchPitView> {
     return Column(
       children: [
         Container(
-          color: AppTheme.primaryColor,
+          color: AppTheme.tableHeaderBlue,
           child: Table(
             border: _tableBorder,
             columnWidths: _activeColumnWidths,
@@ -271,7 +274,7 @@ class _SwitchPitViewState extends State<SwitchPitView> {
     return Column(
       children: [
         Container(
-          color: AppTheme.primaryColor,
+          color: AppTheme.tableHeaderBlue,
           child: Table(
             border: _tableBorder,
             columnWidths: _storageColumnWidths,
@@ -460,6 +463,9 @@ class _SwitchPitViewState extends State<SwitchPitView> {
       height: _rowHeight,
       alignment: Alignment.centerRight,
       padding: const EdgeInsets.symmetric(horizontal: 4),
+      color: dashboardController.isLocked.value
+          ? operationLockedEditableColor
+          : Colors.white,
       child: TextField(
         controller: controller,
         enabled: !dashboardController.isLocked.value,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/other_vol_addition_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_ui_pattern.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class OtherVolAdditionActiveSystemView extends StatelessWidget {
@@ -19,7 +20,7 @@ class OtherVolAdditionActiveSystemView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: AppTheme.tableHeaderBlue,
+      color: operationPageBackground,
       padding: const EdgeInsets.fromLTRB(6, 8, 12, 12),
       child: _OtherVolScrollArea(
         child: SizedBox(
@@ -27,12 +28,23 @@ class OtherVolAdditionActiveSystemView extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Other Vol. Addition - Active System',
-                style: AppTheme.bodySmall.copyWith(
-                  fontSize: 12,
-                  color: Colors.black,
-                  fontWeight: FontWeight.w700,
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Text(
+                  'Other Vol. Addition - Active System',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
               const SizedBox(height: 8),
@@ -105,7 +117,7 @@ class OtherVolAdditionActiveSystemView extends StatelessWidget {
 
   TableRow _headerRow() {
     return TableRow(
-      decoration: BoxDecoration(color: AppTheme.primaryColor),
+      decoration: const BoxDecoration(color: AppTheme.tableHeaderBlue),
       children: [_headerCell('Addition'), _headerCell('Vol.\n(bbl)')],
     );
   }
@@ -121,7 +133,7 @@ class OtherVolAdditionActiveSystemView extends StatelessWidget {
           child: Text(
             label,
             style: AppTheme.bodySmall.copyWith(
-              fontSize: 12,
+              fontSize: 11,
               color: Colors.black,
               fontWeight: FontWeight.w700,
             ),
@@ -138,7 +150,7 @@ class OtherVolAdditionActiveSystemView extends StatelessWidget {
                 decimal: true,
               ),
               style: AppTheme.bodySmall.copyWith(
-                fontSize: 12,
+                fontSize: 11,
                 color: Colors.black,
                 fontWeight: FontWeight.w700,
               ),
@@ -151,7 +163,7 @@ class OtherVolAdditionActiveSystemView extends StatelessWidget {
                 ),
                 filled: true,
                 fillColor: dashboardController.isLocked.value
-                    ? AppTheme.tableHeaderBlue
+                    ? operationLockedEditableColor
                     : Colors.white,
               ),
             ),
@@ -168,8 +180,12 @@ class OtherVolAdditionActiveSystemView extends StatelessWidget {
         SizedBox(
           height: 32,
           child: Obx(
-            () => DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
+            () => ColoredBox(
+              color: dashboardController.isLocked.value
+                  ? operationLockedEditableColor
+                  : Colors.white,
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
                 value: controller.selectedDropdownAddition.value.isEmpty
                     ? null
                     : controller.selectedDropdownAddition.value,
@@ -225,6 +241,7 @@ class OtherVolAdditionActiveSystemView extends StatelessWidget {
                           controller.selectedDropdownAddition.value = value;
                         }
                       },
+                ),
               ),
             ),
           ),
@@ -259,7 +276,7 @@ class OtherVolAdditionActiveSystemView extends StatelessWidget {
                 ),
                 filled: true,
                 fillColor: dashboardController.isLocked.value
-                    ? AppTheme.tableHeaderBlue
+                    ? operationLockedEditableColor
                     : Colors.white,
               ),
             ),
@@ -287,7 +304,7 @@ class OtherVolAdditionActiveSystemView extends StatelessWidget {
         text,
         textAlign: TextAlign.center,
         style: AppTheme.bodySmall.copyWith(
-          fontSize: 12,
+          fontSize: 11,
           fontWeight: FontWeight.w700,
           color: Colors.black,
         ),

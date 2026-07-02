@@ -42,6 +42,11 @@ class ProductsController extends GetxController {
       
       if (result['success'] == true) {
         final List<ProductModel> fetchedProducts = result['products'] ?? [];
+        fetchedProducts.sort((a, b) {
+          final left = a.product.trim().toLowerCase();
+          final right = b.product.trim().toLowerCase();
+          return left.compareTo(right);
+        });
         
         existingProductIds.clear();
         for (var product in fetchedProducts) {

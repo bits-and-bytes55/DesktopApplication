@@ -8,6 +8,8 @@ import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/s
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/survey/survey_import_dialog.dart';
 import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/survey/survey_point_calculation_dialog.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
+import 'package:mudpro_desktop_app/theme/app_theme.dart';
+import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/well_setup_ui_pattern.dart';
 
 class SurveyDataTab extends StatefulWidget {
   const SurveyDataTab({super.key});
@@ -21,10 +23,9 @@ class _SurveyDataTabState extends State<SurveyDataTab> {
   final ScrollController _stationScrollController = ScrollController();
   final ScrollController _annotationScrollController = ScrollController();
 
-  static const _headerBg = Color(0xFFF4F4F4);
-  static const _gridBorder = Color(0xFFC8CED6);
-  static const _readOnlyBg = Color(0xFFFFF8C9);
-  static const _lockedBg = Color(0xFFFFF1A6);
+  static const _gridBorder = wellSetupBorder;
+  static const _readOnlyBg = wellSetupReadOnlyFill;
+  static const _lockedBg = wellSetupLockedEditable;
 
   @override
   void dispose() {
@@ -356,7 +357,10 @@ class _SurveyDataTabState extends State<SurveyDataTab> {
                     visualDensity: VisualDensity.compact,
                     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
-                  const Text('Annotation', style: TextStyle(fontSize: 12)),
+                  Text(
+                    'Annotation',
+                    style: AppTheme.wellLikeBodyText.copyWith(fontSize: 11),
+                  ),
                 ],
               ),
             ),
@@ -472,7 +476,10 @@ class _SurveyDataTabState extends State<SurveyDataTab> {
               materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
             const SizedBox(width: 2),
-            const Text('Project Azi', style: TextStyle(fontSize: 12)),
+            Text(
+              'Project Azi',
+              style: AppTheme.wellLikeBodyText.copyWith(fontSize: 11),
+            ),
             const SizedBox(width: 10),
             Container(
               width: 108,
@@ -485,7 +492,7 @@ class _SurveyDataTabState extends State<SurveyDataTab> {
                 controller: controller.projectAziController,
                 enabled: enabled,
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 12),
+                style: AppTheme.wellLikeBodyText.copyWith(fontSize: 11),
                 decoration: const InputDecoration(
                   border: InputBorder.none,
                   isDense: true,
@@ -498,7 +505,10 @@ class _SurveyDataTabState extends State<SurveyDataTab> {
               ),
             ),
             const SizedBox(width: 6),
-            const Text('(deg)', style: TextStyle(fontSize: 12)),
+            Text(
+              '(deg)',
+              style: AppTheme.wellLikeUnitText.copyWith(fontSize: 11),
+            ),
           ],
         );
       }),
@@ -514,7 +524,7 @@ class _SurveyDataTabState extends State<SurveyDataTab> {
     return Container(
       height: header ? 42 : 34,
       color: header
-          ? _headerBg
+          ? wellSetupColumnHeader
           : (selected ? const Color(0xFFEAF1FF) : Colors.white),
       child: Row(
         children: List.generate(widths.length, (index) {
@@ -533,11 +543,13 @@ class _SurveyDataTabState extends State<SurveyDataTab> {
                 : Text(
                     cells[index].toString(),
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: header ? 11.5 : 12,
-                      fontWeight: header ? FontWeight.w600 : FontWeight.normal,
-                      color: const Color(0xFF2F2F2F),
-                    ),
+                    style: header
+                        ? const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.black,
+                          )
+                        : AppTheme.wellLikeBodyText.copyWith(fontSize: 11),
                   ),
           );
         }),
@@ -554,7 +566,7 @@ class _SurveyDataTabState extends State<SurveyDataTab> {
         if (selected) const SizedBox(width: 2),
         Text(
           '${index + 1}',
-          style: const TextStyle(fontSize: 12, color: Color(0xFF2F2F2F)),
+          style: AppTheme.wellLikeBodyText.copyWith(fontSize: 11),
         ),
       ],
     );
@@ -599,7 +611,7 @@ class _SurveyDataTabState extends State<SurveyDataTab> {
               controller: controllerField,
               enabled: enabled,
               textAlign: textAlign,
-              style: const TextStyle(fontSize: 12, color: Color(0xFF2F2F2F)),
+              style: AppTheme.wellLikeBodyText.copyWith(fontSize: 11),
               decoration: const InputDecoration(
                 isDense: true,
                 border: InputBorder.none,
@@ -656,7 +668,7 @@ class _SurveyDataTabState extends State<SurveyDataTab> {
       alignment: Alignment.center,
       child: Text(
         value,
-        style: const TextStyle(fontSize: 12, color: Color(0xFF2F2F2F)),
+        style: AppTheme.wellLikeBodyText.copyWith(fontSize: 11),
       ),
     );
   }

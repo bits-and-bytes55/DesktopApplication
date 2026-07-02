@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
+import 'package:mudpro_desktop_app/modules/utility/engineering_tools_ui_pattern.dart';
 import '../controller/engineering_tools_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
@@ -18,7 +19,8 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
           final isSmallScreen = constraints.maxWidth < 800;
 
           return Container(
-            padding: const EdgeInsets.all(20),
+            color: engineeringPage,
+            padding: const EdgeInsets.all(12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -30,7 +32,7 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                   ),
                   decoration: BoxDecoration(
                     color: AppTheme.infoColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(4),
                     border: Border.all(
                       color: AppTheme.infoColor.withOpacity(0.2),
                     ),
@@ -70,9 +72,9 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.grey.shade200),
+                    color: engineeringReadOnly,
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: engineeringGrid),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -80,7 +82,7 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                       Text(
                         "Formula Used:",
                         style: AppTheme.caption.copyWith(
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w700,
                           color: AppTheme.textPrimary,
                         ),
                       ),
@@ -122,8 +124,8 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey.shade200),
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: engineeringGrid),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.05),
@@ -138,7 +140,7 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                 Text(
                   "Input Parameters",
                   style: AppTheme.bodySmall.copyWith(
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
                     color: AppTheme.primaryColor,
                   ),
                 ),
@@ -210,8 +212,8 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey.shade200),
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: engineeringGrid),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withOpacity(0.05),
@@ -230,7 +232,7 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                     Text(
                       "Calculation Result",
                       style: AppTheme.bodySmall.copyWith(
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w700,
                         color: AppTheme.primaryColor,
                       ),
                     ),
@@ -246,7 +248,7 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                             Icon(
                               Icons.calculate_outlined,
                               size: 48,
-                              color: Colors.grey.shade300,
+                              color: engineeringBorder,
                             ),
                             const SizedBox(height: 12),
                             Text(
@@ -265,7 +267,7 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                             padding: const EdgeInsets.all(20),
                             decoration: BoxDecoration(
                               color: AppTheme.successColor.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(4),
                               border: Border.all(
                                 color: AppTheme.successColor.withOpacity(0.2),
                               ),
@@ -276,7 +278,7 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                                 Text(
                                   "Annular Velocity",
                                   style: AppTheme.caption.copyWith(
-                                    fontWeight: FontWeight.w600,
+                                    fontWeight: FontWeight.w700,
                                     color: AppTheme.textSecondary,
                                   ),
                                 ),
@@ -294,9 +296,9 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                                   padding: const EdgeInsets.all(8),
                                   decoration: BoxDecoration(
                                     color: Colors.white,
-                                    borderRadius: BorderRadius.circular(6),
+                                    borderRadius: BorderRadius.circular(4),
                                     border: Border.all(
-                                      color: Colors.grey.shade200,
+                                      color: engineeringGrid,
                                     ),
                                   ),
                                   child: Row(
@@ -325,9 +327,9 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                           Container(
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
-                              color: Colors.grey.shade50,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.grey.shade200),
+                              color: engineeringReadOnly,
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: engineeringGrid),
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -335,7 +337,7 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                                 Text(
                                   "Input Summary",
                                   style: AppTheme.caption.copyWith(
-                                    fontWeight: FontWeight.w600,
+                                    fontWeight: FontWeight.w700,
                                     color: AppTheme.textPrimary,
                                   ),
                                 ),
@@ -379,8 +381,8 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey.shade200),
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: engineeringGrid),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.05),
@@ -395,7 +397,7 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                 Text(
                   "Input Parameters",
                   style: AppTheme.bodySmall.copyWith(
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
                     color: AppTheme.primaryColor,
                   ),
                 ),
@@ -464,8 +466,8 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey.shade200),
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: engineeringGrid),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.05),
@@ -484,7 +486,7 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                   Text(
                     "Calculation Result",
                     style: AppTheme.bodySmall.copyWith(
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
                       color: AppTheme.primaryColor,
                     ),
                   ),
@@ -500,7 +502,7 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                           Icon(
                             Icons.calculate_outlined,
                             size: 48,
-                            color: Colors.grey.shade300,
+                            color: engineeringBorder,
                           ),
                           const SizedBox(height: 12),
                           Text(
@@ -519,7 +521,7 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                           padding: const EdgeInsets.all(20),
                           decoration: BoxDecoration(
                             color: AppTheme.successColor.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(4),
                             border: Border.all(
                               color: AppTheme.successColor.withOpacity(0.2),
                             ),
@@ -529,7 +531,7 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                               Text(
                                 "Annular Velocity",
                                 style: AppTheme.caption.copyWith(
-                                  fontWeight: FontWeight.w600,
+                                  fontWeight: FontWeight.w700,
                                   color: AppTheme.textSecondary,
                                 ),
                               ),
@@ -549,9 +551,9 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: Colors.grey.shade50,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.grey.shade200),
+                            color: engineeringReadOnly,
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(color: engineeringGrid),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -559,7 +561,7 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                               Text(
                                 "Input Summary",
                                 style: AppTheme.caption.copyWith(
-                                  fontWeight: FontWeight.w600,
+                                  fontWeight: FontWeight.w700,
                                   color: AppTheme.textPrimary,
                                 ),
                               ),
@@ -600,9 +602,9 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
   ) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade200),
+        color: engineeringReadOnly,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: engineeringGrid),
       ),
       padding: const EdgeInsets.all(12),
       child: Column(
@@ -615,7 +617,7 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
               Text(
                 label,
                 style: AppTheme.caption.copyWith(
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
                   color: AppTheme.textPrimary,
                 ),
               ),
@@ -623,7 +625,7 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                 unit,
                 style: AppTheme.caption.copyWith(
                   color: AppTheme.primaryColor,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ],
@@ -635,8 +637,8 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
             height: 40,
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: Colors.grey.shade300),
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: engineeringBorder),
             ),
             child: Row(
               children: [
@@ -666,9 +668,9 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                   width: 80,
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
+                    color: engineeringColumn,
                     border: Border(
-                      left: BorderSide(color: Colors.grey.shade300),
+                      left: BorderSide(color: engineeringBorder),
                     ),
                   ),
                   child: Text(
@@ -692,7 +694,7 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 6),
       decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+        border: Border(bottom: BorderSide(color: engineeringGrid)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -704,7 +706,7 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
           Text(
             value,
             style: AppTheme.caption.copyWith(
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w700,
               color: AppTheme.textPrimary,
             ),
           ),
@@ -733,7 +735,7 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
     Get.dialog(
       AlertDialog(
         backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
         contentPadding: const EdgeInsets.all(16),
         content: Container(
           width: 280, // Small width
@@ -760,7 +762,7 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
               Text(
                 "Required Fields",
                 style: AppTheme.bodySmall.copyWith(
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
                   color: AppTheme.textPrimary,
                   fontSize: 14,
                 ),
@@ -791,7 +793,7 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.orange.shade600,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(6),
+                      borderRadius: BorderRadius.circular(4),
                     ),
                     padding: const EdgeInsets.symmetric(vertical: 8),
                   ),
@@ -799,7 +801,7 @@ class HydraulicsAnnularVelocity extends StatelessWidget {
                     "OK",
                     style: AppTheme.caption.copyWith(
                       color: Colors.white,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),

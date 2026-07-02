@@ -838,14 +838,8 @@ const findScopedDrillStrings = async ({ wellId, reportId, strictScope = false })
 };
 
 const findScopedPits = async ({ wellId, reportId }) => {
-  if (reportId) {
-    return Pit.find({ wellId, reportId }).sort({
-      createdAt: 1,
-      _id: 1,
-    });
-  }
-
-  return Pit.find({ wellId }).sort({ createdAt: 1, _id: 1 });
+  const filter = reportId ? { wellId, reportId } : legacyScopeFilter(wellId);
+  return Pit.find(filter).sort({ createdAt: 1, _id: 1 });
 };
 
 const buildActivePitVolumeByName = (pits = []) => {
@@ -2146,7 +2140,7 @@ export const createConsumeProduct = async (req, res) => {
         distributions,
       },
       {
-        new: true,
+        returnDocument: "after",
         upsert: true,
         setDefaultsOnInsert: true,
       }

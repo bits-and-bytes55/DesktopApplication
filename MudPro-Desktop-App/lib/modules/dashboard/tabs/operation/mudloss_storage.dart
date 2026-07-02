@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/mud_loss_storage_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_ui_pattern.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class MudLossStorageView extends StatefulWidget {
@@ -51,17 +52,25 @@ class _MudLossStorageViewState extends State<MudLossStorageView> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: AppTheme.tableHeaderBlue,
+      color: operationPageBackground,
       padding: const EdgeInsets.fromLTRB(8, 8, 12, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Mud Loss - Storage',
-            style: AppTheme.bodySmall.copyWith(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: Colors.black87,
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryColor,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: const Text(
+              'Mud Loss - Storage',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+              ),
             ),
           ),
           const SizedBox(height: 10),
@@ -155,7 +164,7 @@ class _MudLossStorageViewState extends State<MudLossStorageView> {
 
   TableRow _headerRow() {
     return TableRow(
-      decoration: const BoxDecoration(color: AppTheme.primaryColor),
+      decoration: const BoxDecoration(color: AppTheme.tableHeaderBlue),
       children: [
         _headerCell(''),
         _headerCell(''),
@@ -189,9 +198,9 @@ class _MudLossStorageViewState extends State<MudLossStorageView> {
         text,
         textAlign: TextAlign.center,
         style: AppTheme.bodySmall.copyWith(
-          fontSize: 12,
+          fontSize: 11,
           fontWeight: FontWeight.w700,
-          color: Colors.white,
+          color: Colors.black,
           height: 1.15,
         ),
       ),
@@ -243,8 +252,11 @@ class _MudLossStorageViewState extends State<MudLossStorageView> {
           ? null
           : current;
 
-      return SizedBox(
+      return Container(
         height: 32,
+        color: dashboardController.isLocked.value
+            ? operationLockedEditableColor
+            : Colors.white,
         child: DropdownButtonHideUnderline(
           child: DropdownButton<String>(
             value: selectedValue,
@@ -321,7 +333,7 @@ class _MudLossStorageViewState extends State<MudLossStorageView> {
           ),
           filled: true,
           fillColor: dashboardController.isLocked.value
-              ? AppTheme.tableHeaderBlue
+              ? operationLockedEditableColor
               : Colors.white,
         ),
         onTap: () {

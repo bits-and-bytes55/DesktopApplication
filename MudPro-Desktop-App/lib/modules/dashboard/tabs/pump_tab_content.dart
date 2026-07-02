@@ -12,6 +12,8 @@ import 'package:mudpro_desktop_app/modules/report_context/report_context_control
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
+const Color _kPumpLockedEditableColor = Color(0xFFFFF7CC);
+
 // ─── Local row model for Pump page ────────────────────────────────────────────
 class _PumpRow {
   String? id;
@@ -1253,65 +1255,68 @@ class _PumpPageState extends State<PumpPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Obx(() {
-      AppUnits.signature;
-      return Scaffold(
-        backgroundColor: const Color(0xffF4F6FA),
-        body: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            children: [
-              Flexible(
-                flex: 3,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Pump table — fixed max width, narrower
-                    Expanded(child: _pumpTable()),
-                    const SizedBox(width: 12),
-                    // Summary box — wider fixed width
-                    SizedBox(width: 310, child: _summaryBox()),
-                  ],
+    return DefaultTextStyle.merge(
+      style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w700),
+      child: Obx(() {
+        AppUnits.signature;
+        return Scaffold(
+          backgroundColor: const Color(0xffF4F6FA),
+          body: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              children: [
+                Flexible(
+                  flex: 3,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Pump table — fixed max width, narrower
+                      Expanded(child: _pumpTable()),
+                      const SizedBox(width: 12),
+                      // Summary box — wider fixed width
+                      SizedBox(width: 310, child: _summaryBox()),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: SizedBox(
-                  width: double.infinity,
+                const SizedBox(height: 12),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: _screenAutoFillBar(),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Flexible(
+                  flex: 3,
                   child: Align(
-                    alignment: Alignment.centerRight,
-                    child: _screenAutoFillBar(),
+                    alignment: Alignment.centerLeft,
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: _shakerTable(),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 4),
-              Flexible(
-                flex: 3,
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: _shakerTable(),
+                const SizedBox(height: 12),
+                Flexible(
+                  flex: 3,
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: _otherSCETable(),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              Flexible(
-                flex: 3,
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: _otherSCETable(),
-                  ),
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      );
-    });
+        );
+      }),
+    );
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -1343,11 +1348,11 @@ class _PumpPageState extends State<PumpPage> {
                       children: [
                         Container(
                           padding: const EdgeInsets.symmetric(vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade100,
+                          decoration: const BoxDecoration(
+                            color: AppTheme.tableHeaderBlue,
                             border: Border(
                               bottom: BorderSide(
-                                color: Colors.grey.shade400,
+                                color: AppTheme.tableBorderBlue,
                                 width: 1,
                               ),
                             ),
@@ -1408,6 +1413,9 @@ class _PumpPageState extends State<PumpPage> {
                                         children: [
                                           _dataCell(
                                             width: w(100),
+                                            backgroundColor: isLocked
+                                                ? _kPumpLockedEditableColor
+                                                : null,
                                             child: _pumpModelDropdown(
                                               row: row,
                                               models: models,
@@ -1473,6 +1481,9 @@ class _PumpPageState extends State<PumpPage> {
                                           _verticalDivider(),
                                           _dataCell(
                                             width: w(80),
+                                            backgroundColor: isLocked
+                                                ? _kPumpLockedEditableColor
+                                                : null,
                                             child: _spmField(
                                               row: row,
                                               isLocked: isLocked,
@@ -1540,15 +1551,15 @@ class _PumpPageState extends State<PumpPage> {
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 11,
-            color: isLocked ? Colors.grey.shade600 : Colors.black,
-            fontWeight: FontWeight.w500,
+            color: Colors.black,
+            fontWeight: FontWeight.w700,
           ),
           decoration: InputDecoration(
             border: InputBorder.none,
             contentPadding: EdgeInsets.zero,
             isDense: true,
             filled: isLocked,
-            fillColor: isLocked ? Colors.grey.shade50 : null,
+            fillColor: isLocked ? _kPumpLockedEditableColor : null,
           ),
         ),
       );
@@ -1570,7 +1581,11 @@ class _PumpPageState extends State<PumpPage> {
           value: safeVal,
           isExpanded: true,
           isDense: true,
-          style: const TextStyle(fontSize: 11, color: Colors.black),
+          style: const TextStyle(
+            fontSize: 11,
+            color: Colors.black,
+            fontWeight: FontWeight.w700,
+          ),
           onChanged: isLocked
               ? null
               : (selected) {
@@ -1602,12 +1617,26 @@ class _PumpPageState extends State<PumpPage> {
           items: [
             const DropdownMenuItem<String?>(
               value: null,
-              child: Text('', style: TextStyle(fontSize: 11)),
+              child: Text(
+                '',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.black,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
             ...models.map(
               (m) => DropdownMenuItem<String?>(
                 value: m,
-                child: Text(m, style: const TextStyle(fontSize: 11)),
+                child: Text(
+                  m,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Colors.black,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
             ),
           ],
@@ -1645,11 +1674,11 @@ class _PumpPageState extends State<PumpPage> {
                       children: [
                         Container(
                           padding: const EdgeInsets.symmetric(vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade100,
+                          decoration: const BoxDecoration(
+                            color: AppTheme.tableHeaderBlue,
                             border: Border(
                               bottom: BorderSide(
-                                color: Colors.grey.shade400,
+                                color: AppTheme.tableBorderBlue,
                                 width: 1,
                               ),
                             ),
@@ -1716,6 +1745,9 @@ class _PumpPageState extends State<PumpPage> {
                                           children: [
                                             _dataCell(
                                               width: w(100),
+                                              backgroundColor: isLocked
+                                                  ? _kPumpLockedEditableColor
+                                                  : null,
                                               child: _shakerTypeDropdown(
                                                 row: row,
                                                 types: shakerTypes,
@@ -1726,6 +1758,9 @@ class _PumpPageState extends State<PumpPage> {
                                             _verticalDivider(),
                                             _dataCell(
                                               width: w(120),
+                                              backgroundColor: isLocked
+                                                  ? _kPumpLockedEditableColor
+                                                  : null,
                                               child: _shakerModelDropdown(
                                                 row: row,
                                                 models: shakerModels,
@@ -1742,6 +1777,9 @@ class _PumpPageState extends State<PumpPage> {
                                             _verticalDivider(),
                                             _dataCell(
                                               width: w(70),
+                                              backgroundColor: isLocked
+                                                  ? _kPumpLockedEditableColor
+                                                  : null,
                                               child: _rxTextField(
                                                 row.time,
                                                 isLocked,
@@ -1752,6 +1790,9 @@ class _PumpPageState extends State<PumpPage> {
                                             _verticalDivider(),
                                             _dataCell(
                                               width: w(75),
+                                              backgroundColor: isLocked
+                                                  ? _kPumpLockedEditableColor
+                                                  : null,
                                               child: _rxTextField(
                                                 row.oocWt,
                                                 isLocked,
@@ -1797,7 +1838,11 @@ class _PumpPageState extends State<PumpPage> {
           value: safe,
           isExpanded: true,
           isDense: true,
-          style: const TextStyle(fontSize: 11, color: Colors.black),
+          style: const TextStyle(
+            fontSize: 11,
+            color: Colors.black,
+            fontWeight: FontWeight.w700,
+          ),
           onChanged: isLocked
               ? null
               : (sel) async {
@@ -1816,12 +1861,26 @@ class _PumpPageState extends State<PumpPage> {
           items: [
             const DropdownMenuItem<String?>(
               value: null,
-              child: Text('', style: TextStyle(fontSize: 11)),
+              child: Text(
+                '',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.black,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
             ...types.map(
               (t) => DropdownMenuItem<String?>(
                 value: t,
-                child: Text(t, style: const TextStyle(fontSize: 11)),
+                child: Text(
+                  t,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Colors.black,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
             ),
           ],
@@ -1844,7 +1903,11 @@ class _PumpPageState extends State<PumpPage> {
           value: safe,
           isExpanded: true,
           isDense: true,
-          style: const TextStyle(fontSize: 11, color: Colors.black),
+          style: const TextStyle(
+            fontSize: 11,
+            color: Colors.black,
+            fontWeight: FontWeight.w700,
+          ),
           onChanged: isLocked
               ? null
               : (sel) async {
@@ -1888,12 +1951,26 @@ class _PumpPageState extends State<PumpPage> {
           items: [
             const DropdownMenuItem<String?>(
               value: null,
-              child: Text('', style: TextStyle(fontSize: 11)),
+              child: Text(
+                '',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.black,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
             ...models.map(
               (m) => DropdownMenuItem<String?>(
                 value: m,
-                child: Text(m, style: const TextStyle(fontSize: 11)),
+                child: Text(
+                  m,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Colors.black,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
             ),
           ],
@@ -1922,10 +1999,12 @@ class _PumpPageState extends State<PumpPage> {
       final idx = i;
       cols.add(
         Obx(() {
-          final isEnabled = !isLocked && idx < row.enabledScreens.value;
+          final isConfigured = idx < row.enabledScreens.value;
+          final isEnabled = !isLocked && isConfigured;
           return _screenDataCell(
             width: w(48),
             disabled: !isEnabled,
+            lockedEditable: isLocked && isConfigured,
             child: TextField(
               enabled: isEnabled,
               onTap: () {
@@ -1943,7 +2022,10 @@ class _PumpPageState extends State<PumpPage> {
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 11,
-                color: isEnabled ? Colors.black : Colors.grey.shade700,
+                color: isEnabled || (isLocked && isConfigured)
+                    ? Colors.black
+                    : Colors.grey.shade700,
+                fontWeight: FontWeight.w700,
               ),
               decoration: const InputDecoration(
                 border: InputBorder.none,
@@ -2090,7 +2172,9 @@ class _PumpPageState extends State<PumpPage> {
                 child: DropdownButtonHideUnderline(
                   child: Container(
                     decoration: BoxDecoration(
-                      color: isLocked ? Colors.grey.shade50 : Colors.white,
+                      color: isLocked
+                          ? _kPumpLockedEditableColor
+                          : Colors.white,
                       border: Border.all(
                         color: Colors.grey.shade300,
                         width: 0.5,
@@ -2114,6 +2198,7 @@ class _PumpPageState extends State<PumpPage> {
                       style: const TextStyle(
                         fontSize: 11,
                         color: Colors.black,
+                        fontWeight: FontWeight.w700,
                       ),
                       menuMaxHeight: 200,
                       onChanged: isLocked
@@ -2161,7 +2246,7 @@ class _PumpPageState extends State<PumpPage> {
                   ),
                   child: const Text(
                     'Fill',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
                   ),
                 ),
               ),
@@ -2228,11 +2313,11 @@ class _PumpPageState extends State<PumpPage> {
                   _tableHeader("Other SCE", Icons.build),
                   Container(
                     padding: const EdgeInsets.symmetric(vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
+                    decoration: const BoxDecoration(
+                      color: AppTheme.tableHeaderBlue,
                       border: Border(
                         bottom: BorderSide(
-                          color: Colors.grey.shade400,
+                          color: AppTheme.tableBorderBlue,
                           width: 1,
                         ),
                       ),
@@ -2293,6 +2378,9 @@ class _PumpPageState extends State<PumpPage> {
                                     children: [
                                       _dataCell(
                                         width: w(90),
+                                        backgroundColor: isLocked
+                                            ? _kPumpLockedEditableColor
+                                            : null,
                                         child: _sceTypeDropdown(
                                           row: row,
                                           types: sceTypes,
@@ -2303,6 +2391,9 @@ class _PumpPageState extends State<PumpPage> {
                                       _verticalDivider(),
                                       _dataCell(
                                         width: w(110),
+                                        backgroundColor: isLocked
+                                            ? _kPumpLockedEditableColor
+                                            : null,
                                         child: _sceModelDropdown(
                                           row: row,
                                           models: sceModels,
@@ -2313,6 +2404,9 @@ class _PumpPageState extends State<PumpPage> {
                                       _verticalDivider(),
                                       _dataCell(
                                         width: w(70),
+                                        backgroundColor: isLocked
+                                            ? _kPumpLockedEditableColor
+                                            : null,
                                         child: _rxTextField(
                                           row.uf,
                                           isLocked,
@@ -2323,6 +2417,9 @@ class _PumpPageState extends State<PumpPage> {
                                       _verticalDivider(),
                                       _dataCell(
                                         width: w(70),
+                                        backgroundColor: isLocked
+                                            ? _kPumpLockedEditableColor
+                                            : null,
                                         child: _rxTextField(
                                           row.of_,
                                           isLocked,
@@ -2333,6 +2430,9 @@ class _PumpPageState extends State<PumpPage> {
                                       _verticalDivider(),
                                       _dataCell(
                                         width: w(70),
+                                        backgroundColor: isLocked
+                                            ? _kPumpLockedEditableColor
+                                            : null,
                                         child: _rxTextField(
                                           row.time,
                                           isLocked,
@@ -2343,6 +2443,9 @@ class _PumpPageState extends State<PumpPage> {
                                       _verticalDivider(),
                                       _dataCell(
                                         width: w(75),
+                                        backgroundColor: isLocked
+                                            ? _kPumpLockedEditableColor
+                                            : null,
                                         child: _rxTextField(
                                           row.oocWt,
                                           isLocked,
@@ -2383,7 +2486,11 @@ class _PumpPageState extends State<PumpPage> {
           value: safe,
           isExpanded: true,
           isDense: true,
-          style: const TextStyle(fontSize: 11, color: Colors.black),
+          style: const TextStyle(
+            fontSize: 11,
+            color: Colors.black,
+            fontWeight: FontWeight.w700,
+          ),
           onChanged: isLocked
               ? null
               : (sel) async {
@@ -2402,12 +2509,26 @@ class _PumpPageState extends State<PumpPage> {
           items: [
             const DropdownMenuItem<String?>(
               value: null,
-              child: Text('', style: TextStyle(fontSize: 11)),
+              child: Text(
+                '',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.black,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
             ...types.map(
               (t) => DropdownMenuItem<String?>(
                 value: t,
-                child: Text(t, style: const TextStyle(fontSize: 11)),
+                child: Text(
+                  t,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Colors.black,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
             ),
           ],
@@ -2430,7 +2551,11 @@ class _PumpPageState extends State<PumpPage> {
           value: safe,
           isExpanded: true,
           isDense: true,
-          style: const TextStyle(fontSize: 11, color: Colors.black),
+          style: const TextStyle(
+            fontSize: 11,
+            color: Colors.black,
+            fontWeight: FontWeight.w700,
+          ),
           onChanged: isLocked
               ? null
               : (sel) async {
@@ -2457,7 +2582,14 @@ class _PumpPageState extends State<PumpPage> {
             ...models.map(
               (m) => DropdownMenuItem<String?>(
                 value: m,
-                child: Text(m, style: const TextStyle(fontSize: 11)),
+                child: Text(
+                  m,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Colors.black,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
             ),
           ],
@@ -2520,7 +2652,11 @@ class _PumpPageState extends State<PumpPage> {
           Expanded(
             child: Text(
               AppUnits.label(label),
-              style: const TextStyle(fontSize: 11, color: Colors.black),
+              style: const TextStyle(
+                fontSize: 11,
+                color: Colors.black,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
           SizedBox(
@@ -2541,7 +2677,11 @@ class _PumpPageState extends State<PumpPage> {
                   _scheduleSavePumpSummary();
                 },
                 textAlign: TextAlign.right,
-                style: const TextStyle(fontSize: 11, color: Colors.black),
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: Colors.black,
+                  fontWeight: FontWeight.w700,
+                ),
                 decoration: InputDecoration(
                   hintText: "0.0",
                   hintStyle: TextStyle(
@@ -2557,7 +2697,9 @@ class _PumpPageState extends State<PumpPage> {
                     vertical: 4,
                   ),
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor: dashboard.isLocked.value
+                      ? _kPumpLockedEditableColor
+                      : Colors.white,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(3),
                     borderSide: BorderSide(
@@ -2617,7 +2759,7 @@ class _PumpPageState extends State<PumpPage> {
             title,
             style: const TextStyle(
               fontSize: 13,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w700,
               color: Colors.white,
             ),
           ),
@@ -2655,7 +2797,7 @@ class _PumpPageState extends State<PumpPage> {
           AppUnits.label(text),
           style: const TextStyle(
             fontSize: 11,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w700,
             color: Colors.black,
           ),
           textAlign: TextAlign.center,
@@ -2673,7 +2815,7 @@ class _PumpPageState extends State<PumpPage> {
             mainText,
             style: const TextStyle(
               fontSize: 11,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w700,
               color: Colors.black,
             ),
           ),
@@ -2688,13 +2830,18 @@ class _PumpPageState extends State<PumpPage> {
       width: width,
       child: Text(
         text,
-        style: const TextStyle(fontSize: 10, color: Colors.black),
+        style: const TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          color: Colors.black,
+        ),
         textAlign: TextAlign.center,
       ),
     );
   }
 
-  Widget _verticalDivider() => Container(width: 1, color: AppTheme.tableGridBlue);
+  Widget _verticalDivider() =>
+      Container(width: 1, color: AppTheme.tableGridBlue);
 
   Widget _dataCell({
     required Widget child,
@@ -2720,11 +2867,16 @@ class _PumpPageState extends State<PumpPage> {
     required Widget child,
     required double width,
     required bool disabled,
+    required bool lockedEditable,
   }) {
     return Container(
       width: width,
       height: double.infinity,
-      color: disabled ? const Color(0xFFD9D9D9) : Colors.transparent,
+      color: lockedEditable
+          ? _kPumpLockedEditableColor
+          : disabled
+          ? const Color(0xFFD9D9D9)
+          : Colors.transparent,
       child: Container(
         decoration: BoxDecoration(
           border: Border(
@@ -2742,11 +2894,10 @@ class _PumpPageState extends State<PumpPage> {
   Widget _readOnlyCell(String text) {
     return Text(
       text.isEmpty ? '-' : text,
-      style: TextStyle(
+      style: const TextStyle(
         fontSize: 11,
-        color: text.isEmpty || text == '-'
-            ? AppTheme.textSecondary
-            : Colors.black,
+        color: Colors.black,
+        fontWeight: FontWeight.w700,
       ),
       textAlign: TextAlign.center,
       overflow: TextOverflow.ellipsis,
@@ -2770,7 +2921,11 @@ class _PumpPageState extends State<PumpPage> {
           onChanged?.call();
         },
         textAlign: TextAlign.center,
-        style: const TextStyle(fontSize: 11, color: Colors.black),
+        style: const TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: Colors.black,
+        ),
         decoration: const InputDecoration(
           border: InputBorder.none,
           contentPadding: EdgeInsets.zero,

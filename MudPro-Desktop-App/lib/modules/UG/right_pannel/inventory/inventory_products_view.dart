@@ -13,6 +13,7 @@ import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/controller/
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/inventory_pickup/inventory_pickup_tabs.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/inventory_store/inventory_store.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/model/ug_inventory_product_model.dart';
+import 'package:mudpro_desktop_app/modules/UG/right_pannel/ug_ui_pattern.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/model/products_model.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/mud_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
@@ -550,17 +551,18 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
   }
 
   Widget _inventorySectionTitle(String text) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(6, 4, 6, 4),
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: Text(
-          text,
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF2F2F2F),
-          ),
+    return Container(
+      width: double.infinity,
+      height: 30,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      alignment: Alignment.centerLeft,
+      color: AppTheme.primaryColor,
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: Colors.white,
         ),
       ),
     );
@@ -577,11 +579,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
         controller: controller,
         readOnly: c.isLocked.value,
         onChanged: onChanged,
-        style: const TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w500,
-          color: Colors.black87,
-        ),
+        style: AppTheme.wellLikeBodyText,
         decoration: InputDecoration(
           hintText: hint,
           hintStyle: TextStyle(fontSize: 10, color: Colors.grey.shade400),
@@ -726,7 +724,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                               // Header Row
                               TableRow(
                                 decoration: const BoxDecoration(
-                                  color: Color(0xFFF3F3F3),
+                                  color: ugColumnHeader,
                                 ),
                                 children: [
                                   _tableHeaderCell('No'),
@@ -912,11 +910,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       child: Text(
         label,
-        style: TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.w500,
-          color: AppTheme.textPrimary,
-        ),
+        style: AppTheme.wellLikeBodyText,
       ),
     );
   }
@@ -1353,7 +1347,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
                             children: [
                               TableRow(
                                 decoration: const BoxDecoration(
-                                  color: Color(0xFFF3F3F3),
+                                  color: ugColumnHeader,
                                 ),
                                 children: [
                                   _tableHeaderCell('#'),
@@ -1581,7 +1575,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
 	                            children: [
 	                              TableRow(
 	                                decoration: const BoxDecoration(
-	                                  color: Color(0xFFF3F3F3),
+	                                  color: ugColumnHeader,
 	                                ),
 	                                children: [
 	                                  _tableHeaderCell('#'),
@@ -2045,9 +2039,9 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
   Widget _headerText(String text, {double? size}) => Text(
     text,
     style: TextStyle(
-      fontSize: size ?? 10,
+      fontSize: size ?? 11,
       fontWeight: FontWeight.w700,
-      color: AppTheme.textPrimary,
+      color: Colors.black,
     ),
   );
 
@@ -2057,10 +2051,11 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
       text,
       textAlign: TextAlign.center,
       maxLines: 2,
-      style: TextStyle(
-        fontSize: 10,
+      style: const TextStyle(
+        fontFamily: 'Segoe UI',
+        fontSize: 11,
         fontWeight: FontWeight.w700,
-        color: AppTheme.textPrimary,
+        color: Colors.black,
       ),
     ),
   );
@@ -2091,10 +2086,11 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
               textAlign: TextAlign.center,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 9.5,
+              style: const TextStyle(
+                fontFamily: 'Segoe UI',
+                fontSize: 11,
                 fontWeight: FontWeight.w700,
-                color: AppTheme.textPrimary,
+                color: Colors.black,
               ),
             ),
           ),
@@ -2107,11 +2103,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
     child: Text(
       value,
-      style: TextStyle(
-        fontSize: 10,
-        fontWeight: FontWeight.w500,
-        color: AppTheme.textPrimary,
-      ),
+      style: AppTheme.wellLikeBodyText,
     ),
   );
 
@@ -2123,11 +2115,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
     child: Text(
       value,
       overflow: TextOverflow.ellipsis,
-      style: TextStyle(
-        fontSize: 10,
-        fontWeight: FontWeight.w500,
-        color: AppTheme.textPrimary,
-      ),
+      style: AppTheme.wellLikeBodyText,
     ),
   );
 
@@ -2161,9 +2149,9 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
           hint: const SizedBox.shrink(),
           iconSize: 16,
           style: TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.w500,
-            color: AppTheme.textPrimary,
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: Colors.black,
           ),
           items: options
               .map(
@@ -2228,11 +2216,7 @@ class _InventoryProductsViewState extends State<InventoryProductsView> {
     child: c.isLocked.value
         ? Text(
             value,
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w500,
-              color: AppTheme.textPrimary,
-            ),
+            style: AppTheme.wellLikeBodyText,
           )
         : _InventoryEditableTextCell(
             key: key,
@@ -2295,7 +2279,10 @@ class _InventoryMenuItem extends StatelessWidget {
       children: [
         Icon(icon, size: 16, color: itemColor),
         const SizedBox(width: 8),
-        Text(label, style: TextStyle(fontSize: 11, color: itemColor)),
+        Text(
+          label,
+          style: AppTheme.wellLikeBodyText.copyWith(color: itemColor),
+        ),
       ],
     );
   }
@@ -2355,11 +2342,7 @@ class _InventoryEditableTextCellState
       focusNode: _focusNode,
       onTap: widget.onTap,
       onChanged: widget.onChanged,
-      style: TextStyle(
-        fontSize: 10,
-        fontWeight: FontWeight.w500,
-        color: AppTheme.textPrimary,
-      ),
+      style: AppTheme.wellLikeBodyText,
       decoration: const InputDecoration(
         isDense: true,
         contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 1),

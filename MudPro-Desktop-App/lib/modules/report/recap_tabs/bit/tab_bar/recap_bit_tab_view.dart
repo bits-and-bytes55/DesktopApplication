@@ -4,15 +4,15 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/report/recap_tabs/bit/controller/recap_bit_controller.dart';
 
-const Color _bitOuterBorder = Color(0xFF2F92E8);
-const Color _bitCanvas = Color(0xFFF4F4F4);
-const Color _bitPanelBorder = Color(0xFFC8C8C8);
-const Color _bitHeaderFill = Color(0xFFF7F7F7);
+const Color _bitOuterBorder = Color(0xFFB8D0EA);
+const Color _bitCanvas = Color(0xFFF4F6FA);
+const Color _bitPanelBorder = Color(0xFFB8D0EA);
+const Color _bitHeaderFill = Color(0xFFEAF3FC);
 const Color _bitText = Color(0xFF1C1C1C);
-const Color _bitGrid = Color(0xFFD6D6D6);
+const Color _bitGrid = Color(0xFFCFE0F2);
 const Color _bitLine = Color(0xFF84D0F4);
 const Color _bitAccent = Color(0xFFF04BDF);
-const Color _bitTabFill = Color(0xFFEAEAEA);
+const Color _bitTabFill = Color(0xFFEAF3FC);
 
 class RecapBitTabView extends StatefulWidget {
   const RecapBitTabView({super.key});

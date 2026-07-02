@@ -8,6 +8,7 @@ import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_contro
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_models.dart';
+import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/well_setup_ui_pattern.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class WellView extends StatefulWidget {
@@ -421,12 +422,12 @@ class _WellViewState extends State<WellView> {
         width: 604,
         decoration: BoxDecoration(
           color: Colors.white,
-          border: Border.all(color: const Color(0xFFBFC4CC)),
+          border: Border.all(color: wellSetupBorder),
         ),
         child: Table(
           border: const TableBorder(
-            horizontalInside: BorderSide(color: Color(0xFFD4D8DE)),
-            verticalInside: BorderSide(color: Color(0xFFD4D8DE)),
+            horizontalInside: BorderSide(color: wellSetupGrid),
+            verticalInside: BorderSide(color: wellSetupGrid),
           ),
           columnWidths: const {
             0: FixedColumnWidth(360),
@@ -470,11 +471,8 @@ class _WellViewState extends State<WellView> {
       height: 31,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       alignment: Alignment.centerLeft,
-      color: Colors.white,
-      child: Text(
-        text,
-        style: const TextStyle(fontSize: 10, color: Color(0xFF2F2F2F)),
-      ),
+      color: wellSetupReadOnlyFill,
+      child: Text(text, style: AppTheme.wellLikeBodyText),
     );
   }
 
@@ -485,18 +483,23 @@ class _WellViewState extends State<WellView> {
   }) {
     return Container(
       height: 31,
-      color: const Color(0xFFFFF6C7),
+      color: readOnly ? wellSetupLockedEditable : Colors.white,
       padding: const EdgeInsets.symmetric(horizontal: 6),
       alignment: Alignment.centerLeft,
-      child: TextField(
-        controller: controller,
-        readOnly: readOnly,
-        onChanged: (_) => _scheduleAutosave(),
-        style: const TextStyle(fontSize: 10, color: Color(0xFF2F2F2F)),
-        decoration: const InputDecoration(
-          isDense: true,
-          border: InputBorder.none,
-          contentPadding: EdgeInsets.symmetric(vertical: 8),
+      child: IgnorePointer(
+        ignoring: readOnly,
+        child: TextField(
+          controller: controller,
+          readOnly: readOnly,
+          enableInteractiveSelection: !readOnly,
+          showCursor: !readOnly,
+          onChanged: (_) => _scheduleAutosave(),
+          style: AppTheme.wellLikeBodyText,
+          decoration: const InputDecoration(
+            isDense: true,
+            border: InputBorder.none,
+            contentPadding: EdgeInsets.symmetric(vertical: 8),
+          ),
         ),
       ),
     );
@@ -507,11 +510,8 @@ class _WellViewState extends State<WellView> {
       height: 31,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       alignment: Alignment.centerLeft,
-      color: Colors.white,
-      child: Text(
-        unit,
-        style: const TextStyle(fontSize: 10, color: Color(0xFF4A4F57)),
-      ),
+      color: wellSetupReadOnlyFill,
+      child: Text(unit, style: AppTheme.wellLikeUnitText),
     );
   }
 
@@ -521,18 +521,15 @@ class _WellViewState extends State<WellView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
+          Padding(
             padding: EdgeInsets.only(left: 2, bottom: 6),
-            child: Text(
-              'Memo',
-              style: TextStyle(fontSize: 10, color: Color(0xFF2F2F2F)),
-            ),
+            child: Text('Memo', style: AppTheme.wellLikeBodyText),
           ),
           Container(
             height: 208,
             decoration: BoxDecoration(
               color: Colors.white,
-              border: Border.all(color: const Color(0xFFBFC4CC)),
+              border: Border.all(color: wellSetupBorder),
             ),
             child: Scrollbar(
               controller: _tableScrollCtrl,
@@ -542,13 +539,7 @@ class _WellViewState extends State<WellView> {
                 padding: const EdgeInsets.all(8),
                 child: SizedBox(
                   width: double.infinity,
-                  child: Text(
-                    memoText,
-                    style: const TextStyle(
-                      fontSize: 10,
-                      color: Color(0xFF2F2F2F),
-                    ),
-                  ),
+                  child: Text(memoText, style: AppTheme.wellLikeBodyText),
                 ),
               ),
             ),
@@ -592,9 +583,15 @@ class _WellMenuRow extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: TextStyle(fontSize: 11, color: color)),
+        Text(
+          label,
+          style: AppTheme.wellLikeBodyText.copyWith(fontSize: 11, color: color),
+        ),
         const SizedBox(width: 20),
-        Text(shortcut, style: TextStyle(fontSize: 11, color: color)),
+        Text(
+          shortcut,
+          style: AppTheme.wellLikeBodyText.copyWith(fontSize: 11, color: color),
+        ),
       ],
     );
   }

@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/report/recap_tabs/sce/controller/recap_sce_controller.dart';
 
-const Color _sceOuterBorder = Color(0xFF2F92E8);
-const Color _sceCanvas = Color(0xFFF4F4F4);
-const Color _scePanelBorder = Color(0xFFC8C8C8);
-const Color _sceHeaderFill = Color(0xFFF7F7F7);
+const Color _sceOuterBorder = Color(0xFFB8D0EA);
+const Color _sceCanvas = Color(0xFFF4F6FA);
+const Color _scePanelBorder = Color(0xFFB8D0EA);
+const Color _sceHeaderFill = Color(0xFFEAF3FC);
 const Color _sceText = Color(0xFF1C1C1C);
-const Color _sceTabFill = Color(0xFFEAEAEA);
+const Color _sceTabFill = Color(0xFFEAF3FC);
 const Color _sceShakerChip = Color(0xFFDFEDF9);
 const Color _sceOtherChip = Color(0xFFE8F0DD);
 

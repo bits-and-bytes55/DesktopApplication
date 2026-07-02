@@ -423,7 +423,7 @@ export const updateRow = async (req, res) => {
     const data = await TubularDatabase.findOneAndUpdate(
       { _id: req.params.id, kind: "row" },
       rowPayload(req.body),
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     );
 
     if (!data) {

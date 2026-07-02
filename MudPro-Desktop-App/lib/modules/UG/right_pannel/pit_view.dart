@@ -4,6 +4,8 @@ import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/UG_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/pit_model.dart';
+import 'package:mudpro_desktop_app/theme/app_theme.dart';
+import 'package:mudpro_desktop_app/modules/UG/right_pannel/ug_ui_pattern.dart';
 
 class PitView extends StatefulWidget {
   const PitView({super.key});
@@ -18,9 +20,9 @@ class _PitViewState extends State<PitView> {
   static const double _capacityWidth = 150;
   static const double _activeWidth = 150;
   static const double _rowHeight = 29;
-  static const Color _gridBorder = Color(0xFFC9CED6);
-  static const Color _headerColor = Color(0xFFF3F3F3);
-  static const Color _inputColor = Color(0xFFFFF6C7);
+  static const Color _gridBorder = ugGrid;
+  static const Color _headerColor = ugColumnHeader;
+  static const Color _inputColor = ugLockedEditable;
 
   final PitController controller = Get.isRegistered<PitController>()
       ? Get.find<PitController>()
@@ -144,9 +146,9 @@ class _PitViewState extends State<PitView> {
         text,
         textAlign: textAlign,
         style: const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w500,
-          color: Color(0xFF2C2C2C),
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: Colors.black,
         ),
       ),
     );
@@ -190,10 +192,7 @@ class _PitViewState extends State<PitView> {
           ),
           const SizedBox(width: 4),
           Expanded(
-            child: Text(
-              '${index + 1}',
-              style: const TextStyle(fontSize: 11, color: Color(0xFF404040)),
-            ),
+            child: Text('${index + 1}', style: AppTheme.wellLikeBodyText),
           ),
         ],
       ),
@@ -204,12 +203,12 @@ class _PitViewState extends State<PitView> {
     final isLocked = ugController.isLocked.value || pit.isLocked;
     return _frameCell(
       width: _pitWidth,
-      color: isLocked ? Colors.white : _inputColor,
+      color: isLocked ? _inputColor : Colors.white,
       child: TextFormField(
         key: ValueKey('pit-name-${pit.id ?? 'draft-$index'}'),
         initialValue: pit.pitName,
         readOnly: isLocked,
-        style: const TextStyle(fontSize: 11, color: Color(0xFF2F2F2F)),
+        style: AppTheme.wellLikeBodyText,
         decoration: const InputDecoration(
           isDense: true,
           border: InputBorder.none,
@@ -224,7 +223,7 @@ class _PitViewState extends State<PitView> {
     final isLocked = ugController.isLocked.value || pit.isLocked;
     return _frameCell(
       width: _capacityWidth,
-      color: isLocked ? Colors.white : _inputColor,
+      color: isLocked ? _inputColor : Colors.white,
       alignment: Alignment.centerRight,
       child: TextFormField(
         key: ValueKey('pit-capacity-${pit.id ?? 'draft-$index'}'),
@@ -235,7 +234,7 @@ class _PitViewState extends State<PitView> {
           FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}$')),
         ],
         textAlign: TextAlign.right,
-        style: const TextStyle(fontSize: 11, color: Color(0xFF2F2F2F)),
+        style: AppTheme.wellLikeBodyText,
         decoration: const InputDecoration(
           isDense: true,
           border: InputBorder.none,
@@ -319,7 +318,7 @@ class _PitViewState extends State<PitView> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: Colors.white,
+      color: ugPageBackground,
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,

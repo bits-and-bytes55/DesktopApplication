@@ -168,7 +168,7 @@ export const saveWellPlan = async (req, res) => {
 
     const saved = existing?._id
       ? await WellPlan.findByIdAndUpdate(existing._id, payload, {
-          new: true,
+          returnDocument: "after",
           runValidators: true,
         })
       : await WellPlan.create(payload);

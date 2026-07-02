@@ -34,7 +34,7 @@ export const saveSelectedMudProperties = async (req, res) => {
     const record = await SelectedMudProperties.findOneAndUpdate(
       { userId },
       { waterBased, oilBased, synthetic },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: "after" }
     );
 
     res.status(200).json({

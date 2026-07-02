@@ -75,7 +75,7 @@ export const saveMudReportState = async (req, res) => {
     const record = await MudReportState.findOneAndUpdate(
       { wellId, reportId: payload.reportId },
       { $set: payload },
-      { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true }
+      { upsert: true, returnDocument: "after", runValidators: true, setDefaultsOnInsert: true }
     );
 
     return res.status(200).json({

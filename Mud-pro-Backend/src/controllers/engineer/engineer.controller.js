@@ -39,7 +39,7 @@ export async function updateEngineer(req, res) {
     const engineer = await Engineer.findByIdAndUpdate(
       id,
       req.body,
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     );
     
     if (!engineer) {

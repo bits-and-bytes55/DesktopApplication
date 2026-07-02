@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/switch_mudtype_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_ui_pattern.dart';
 import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
@@ -15,6 +17,8 @@ class SwitchMudTypeView extends StatefulWidget {
 
 class _SwitchMudTypeViewState extends State<SwitchMudTypeView> {
   late final SwitchMudTypeController controller;
+  final DashboardController dashboardController =
+      Get.find<DashboardController>();
   final ScrollController _verticalScrollController = ScrollController();
   final ScrollController _horizontalScrollController = ScrollController();
 
@@ -43,7 +47,7 @@ class _SwitchMudTypeViewState extends State<SwitchMudTypeView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
+      backgroundColor: operationPageBackground,
       body: Scrollbar(
         controller: _verticalScrollController,
         thumbVisibility: true,
@@ -221,7 +225,7 @@ class _SwitchMudTypeViewState extends State<SwitchMudTypeView> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           InkWell(
-            onTap: onTap,
+            onTap: dashboardController.isLocked.value ? null : onTap,
             child: Container(
               height: 38,
               padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -278,7 +282,7 @@ class _SwitchMudTypeViewState extends State<SwitchMudTypeView> {
   Widget _tableHeader(double width) {
     return Container(
       height: 42,
-      color: AppTheme.primaryColor,
+      color: AppTheme.tableHeaderBlue,
       child: Row(
         children: [
           _cell(
@@ -306,16 +310,19 @@ class _SwitchMudTypeViewState extends State<SwitchMudTypeView> {
   }) {
     final selectedValue =
         controller.pitList.contains(list[index]) ? list[index] : null;
+    final isLocked = dashboardController.isLocked.value;
+    final canEdit = enabled && !isLocked;
     return Container(
       height: 48,
-      decoration: const BoxDecoration(
-        border: Border(top: BorderSide(color: _gridColor)),
+      decoration: BoxDecoration(
+        color: isLocked ? operationLockedEditableColor : Colors.white,
+        border: const Border(top: BorderSide(color: _gridColor)),
       ),
       child: Row(
         children: [
           _cell(
             width: width - 120,
-            child: enabled
+            child: canEdit
                 ? DropdownButtonHideUnderline(
                     child: DropdownButton<String>(
                       value: selectedValue,
@@ -343,7 +350,7 @@ class _SwitchMudTypeViewState extends State<SwitchMudTypeView> {
           ),
           _cell(
             width: 120,
-            child: enabled
+            child: canEdit
                 ? TextFormField(
                     key: ValueKey(
                       'switch-mud-volume-${widget.instanceKey}-$index',
@@ -385,12 +392,12 @@ class _SwitchMudTypeViewState extends State<SwitchMudTypeView> {
 
 const TextStyle _headerTextStyle = TextStyle(
   color: Colors.black,
-  fontSize: 13,
+  fontSize: 11,
   fontWeight: FontWeight.w700,
 );
 
 const TextStyle _inputTextStyle = TextStyle(
   color: Colors.black,
-  fontSize: 13,
+  fontSize: 11,
   fontWeight: FontWeight.w700,
 );

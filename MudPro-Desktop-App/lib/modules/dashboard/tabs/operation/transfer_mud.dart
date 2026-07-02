@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/UG/controller/ug_pit_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/dashboard_controller.dart';
+import 'package:mudpro_desktop_app/modules/dashboard/tabs/operation/operation_ui_pattern.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class TransferMudView extends StatefulWidget {
@@ -110,8 +111,12 @@ class _TransferMudViewState extends State<TransferMudView> {
               final transferPitOptions =
                   pitController.transferDestinationOptions;
 
-              return DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
+              return ColoredBox(
+                color: dashboardController.isLocked.value
+                    ? operationLockedEditableColor
+                    : Colors.white,
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
                   value: pitController.selectedFromPit.value.isEmpty
                       ? kEmpty
                       : pitController.selectedFromPit.value,
@@ -183,6 +188,7 @@ class _TransferMudViewState extends State<TransferMudView> {
                             pitController.normalizeTransferRowsForSource();
                           }
                         },
+                  ),
                 ),
               );
             }),
@@ -286,7 +292,7 @@ class _TransferMudViewState extends State<TransferMudView> {
                       children: [
                         Container(
                           decoration: BoxDecoration(
-                            color: AppTheme.primaryColor,
+                            color: AppTheme.tableHeaderBlue,
                             border: Border(
                               bottom: BorderSide(color: AppTheme.tableGridBlue),
                             ),
@@ -369,7 +375,7 @@ class _TransferMudViewState extends State<TransferMudView> {
       width: width,
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
-        color: AppTheme.primaryColor,
+        color: AppTheme.tableHeaderBlue,
         border: Border(
           right: BorderSide(color: AppTheme.tableGridBlue, width: 0.5),
         ),
@@ -401,6 +407,9 @@ class _TransferMudViewState extends State<TransferMudView> {
       height: 32,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
+        color: dashboardController.isLocked.value
+            ? operationLockedEditableColor
+            : Colors.transparent,
         border: Border(
           right: BorderSide(color: AppTheme.tableGridBlue, width: 0.5),
         ),
@@ -427,7 +436,7 @@ class _TransferMudViewState extends State<TransferMudView> {
                 isDense: true,
                 icon: const SizedBox.shrink(),
                 style: AppTheme.bodySmall.copyWith(
-                  fontSize: 10,
+                  fontSize: 11,
                   color: Colors.black,
                   fontWeight: FontWeight.w700,
                 ),
@@ -478,6 +487,9 @@ class _TransferMudViewState extends State<TransferMudView> {
       height: 32,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
+        color: dashboardController.isLocked.value
+            ? operationLockedEditableColor
+            : Colors.transparent,
         border: Border(
           right: BorderSide(color: AppTheme.tableGridBlue, width: 0.5),
         ),
@@ -486,7 +498,7 @@ class _TransferMudViewState extends State<TransferMudView> {
         controller: row.volumeController,
         enabled: !dashboardController.isLocked.value,
         style: AppTheme.bodySmall.copyWith(
-          fontSize: 10,
+          fontSize: 11,
           fontWeight: FontWeight.w700,
           color: Colors.black,
         ),

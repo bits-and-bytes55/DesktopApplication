@@ -44,7 +44,7 @@ export const getActivities = async (req, res) => {
 
 export const updateActivity = async (req, res) => {
   try {
-    const data = await Activity.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const data = await Activity.findByIdAndUpdate(req.params.id, req.body, { returnDocument: "after" });
     res.json({ success: true, data });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -103,7 +103,7 @@ export const getAdditions = async (req, res) => {
 
 export const updateAddition = async (req, res) => {
   try {
-    const data = await Addition.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const data = await Addition.findByIdAndUpdate(req.params.id, req.body, { returnDocument: "after" });
     res.json({ success: true, data });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -162,7 +162,7 @@ export const getLosses = async (req, res) => {
 
 export const updateLoss = async (req, res) => {
   try {
-    const data = await Loss.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const data = await Loss.findByIdAndUpdate(req.params.id, req.body, { returnDocument: "after" });
     res.json({ success: true, data });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -221,7 +221,7 @@ export const getWaterBased = async (req, res) => {
 
 export const updateWaterBased = async (req, res) => {
   try {
-    const data = await WaterBased.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const data = await WaterBased.findByIdAndUpdate(req.params.id, req.body, { returnDocument: "after" });
     res.json({ success: true, data });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -280,7 +280,7 @@ export const getOilBased = async (req, res) => {
 
 export const updateOilBased = async (req, res) => {
   try {
-    const data = await OilBased.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const data = await OilBased.findByIdAndUpdate(req.params.id, req.body, { returnDocument: "after" });
     res.json({ success: true, data });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -339,7 +339,7 @@ export const getSynthetic = async (req, res) => {
 
 export const updateSynthetic = async (req, res) => {
   try {
-    const data = await Synthetic.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const data = await Synthetic.findByIdAndUpdate(req.params.id, req.body, { returnDocument: "after" });
     res.json({ success: true, data });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

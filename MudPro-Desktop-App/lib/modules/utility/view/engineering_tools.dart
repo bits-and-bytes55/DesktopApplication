@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/utility/controller/engineering_tools_controller.dart';
+import 'package:mudpro_desktop_app/modules/utility/engineering_tools_ui_pattern.dart';
 import 'package:mudpro_desktop_app/modules/utility/widgets/eng_hydraulics.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
@@ -23,22 +24,24 @@ class EngineeringToolsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      color: AppTheme.backgroundColor,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+    return DefaultTextStyle.merge(
+      style: engineeringDataText,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        color: engineeringPage,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
           // ================= HEADER =================
        
 
           // ================= MAIN TABS =================
           Container(
-            height: 42,
+            height: 36,
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey.shade200),
+              color: engineeringColumn,
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: engineeringBorder),
             ),
             child: Obx(() => Row(
                   children: List.generate(mainTabs.length, (index) {
@@ -52,20 +55,25 @@ class EngineeringToolsPage extends StatelessWidget {
                             duration: const Duration(milliseconds: 200),
                             curve: Curves.easeInOut,
                             decoration: BoxDecoration(
-                              color: isActive ? AppTheme.primaryColor : Colors.transparent,
+                              color: isActive
+                                  ? engineeringSection
+                                  : engineeringColumn,
                               border: Border(
                                 bottom: BorderSide(
-                                  color: isActive ? AppTheme.primaryColor : Colors.transparent,
-                                  width: 3,
+                                  color: isActive
+                                      ? engineeringSection
+                                      : engineeringGrid,
+                                  width: 1,
                                 ),
                               ),
                             ),
                             child: Center(
                               child: Text(
                                 mainTabs[index],
-                                style: AppTheme.caption.copyWith(
-                                  fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-                                  color: isActive ? Colors.white : AppTheme.textSecondary,
+                                style: engineeringDataText.copyWith(
+                                  color: isActive
+                                      ? Colors.white
+                                      : Colors.black,
                                 ),
                               ),
                             ),
@@ -77,14 +85,15 @@ class EngineeringToolsPage extends StatelessWidget {
                 )),
           ),
 
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
 
           // ================= CONTENT =================
           Expanded(
             child: Container(
-              decoration: AppTheme.cardDecoration.copyWith(
+              decoration: BoxDecoration(
                 color: Colors.white,
-                border: Border.all(color: Colors.grey.shade200),
+                border: Border.all(color: engineeringBorder),
+                borderRadius: BorderRadius.circular(4),
               ),
               child: Obx(() {
                 if (controller.activeMainTab.value == 0) {
@@ -120,6 +129,7 @@ class EngineeringToolsPage extends StatelessWidget {
             ),
           ),
         ],
+        ),
       ),
     );
   }

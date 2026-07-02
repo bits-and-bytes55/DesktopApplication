@@ -4,14 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/report/recap_tabs/survey/controller/recap_survey_controller.dart';
 
-const Color _surveyOuterBorder = Color(0xFF2F92E8);
-const Color _surveyCanvas = Color(0xFFF4F4F4);
-const Color _surveyPanelBorder = Color(0xFFC8C8C8);
+const Color _surveyOuterBorder = Color(0xFFB8D0EA);
+const Color _surveyCanvas = Color(0xFFF4F6FA);
+const Color _surveyPanelBorder = Color(0xFFB8D0EA);
 const Color _surveyText = Color(0xFF1C1C1C);
 const Color _surveyGrid = Color(0xFF2B2B2B);
-const Color _surveyTabFill = Color(0xFFEAEAEA);
+const Color _surveyTabFill = Color(0xFFEAF3FC);
 const Color _surveyAxisRed = Color(0xFFFF2B2B);
-const Color _surveyPlotFill = Color(0xFFF4F4F4);
+const Color _surveyPlotFill = Color(0xFFF4F6FA);
 const Color _surveyLine = Color(0xFFFF2B2B);
 
 class RecapSurveyTabView extends StatefulWidget {

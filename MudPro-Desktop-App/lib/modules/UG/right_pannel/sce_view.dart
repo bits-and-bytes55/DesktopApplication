@@ -6,6 +6,8 @@ import 'package:mudpro_desktop_app/modules/UG/controller/sce_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/model/sce_model.dart';
 import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/modules/well_context/pad_well_controller.dart';
+import 'package:mudpro_desktop_app/theme/app_theme.dart';
+import 'package:mudpro_desktop_app/modules/UG/right_pannel/ug_ui_pattern.dart';
 
 class SceView extends StatefulWidget {
   const SceView({super.key});
@@ -18,10 +20,10 @@ class _SceViewState extends State<SceView> {
   static const double _rowHeight = 31;
   static const double _titleHeight = 28;
   static const double _headerHeight = 30;
-  static const Color _borderColor = Color(0xFFC9CED6);
-  static const Color _headerColor = Color(0xFFF3F3F3);
-  static const Color _labelColor = Color(0xFFF7F7F7);
-  static const Color _editColor = Color(0xFFFFF6C7);
+  static const Color _borderColor = ugBorder;
+  static const Color _headerColor = ugColumnHeader;
+  static const Color _labelColor = ugReadOnlyFill;
+  static const Color _editColor = ugLockedEditable;
 
   late final UgController ugController;
   late final SceController sceController;
@@ -91,9 +93,15 @@ class _SceViewState extends State<SceView> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: TextStyle(fontSize: 11, color: color)),
+          Text(
+            label,
+            style: AppTheme.wellLikeBodyText.copyWith(color: color),
+          ),
           const SizedBox(width: 20),
-          Text(shortcut, style: TextStyle(fontSize: 11, color: color)),
+          Text(
+            shortcut,
+            style: AppTheme.wellLikeBodyText.copyWith(color: color),
+          ),
         ],
       ),
     );
@@ -278,15 +286,16 @@ class _SceViewState extends State<SceView> {
     return Container(
       height: _titleHeight,
       padding: const EdgeInsets.symmetric(horizontal: 4),
+      color: ugSectionHeader,
       alignment: Alignment.centerLeft,
       child: Row(
         children: [
           Text(
             title,
             style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: Color(0xFF2C2C2C),
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
             ),
           ),
           const Spacer(),
@@ -314,7 +323,7 @@ class _SceViewState extends State<SceView> {
         alignment: Alignment.center,
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
         decoration: const BoxDecoration(
-          color: _headerColor,
+          color: ugColumnHeader,
           border: Border(
             right: BorderSide(color: _borderColor),
             bottom: BorderSide(color: _borderColor),
@@ -325,8 +334,8 @@ class _SceViewState extends State<SceView> {
           textAlign: textAlign,
           style: const TextStyle(
             fontSize: 11,
-            fontWeight: FontWeight.w500,
-            color: Color(0xFF2F2F2F),
+            fontWeight: FontWeight.w700,
+            color: Colors.black,
           ),
         ),
       ),
@@ -349,11 +358,7 @@ class _SceViewState extends State<SceView> {
         ),
         child: Text(
           text,
-          style: const TextStyle(
-            fontSize: 11,
-            color: Color(0xFF2F2F2F),
-            fontWeight: FontWeight.w500,
-          ),
+          style: AppTheme.wellLikeBodyText,
           overflow: TextOverflow.ellipsis,
         ),
       ),
@@ -374,7 +379,7 @@ class _SceViewState extends State<SceView> {
         alignment: Alignment.center,
         padding: const EdgeInsets.symmetric(horizontal: 6),
         decoration: BoxDecoration(
-          color: _isLocked ? Colors.white : _editColor,
+          color: _isLocked ? _editColor : Colors.white,
           border: const Border(
             right: BorderSide(color: _borderColor),
             bottom: BorderSide(color: _borderColor),
@@ -386,6 +391,7 @@ class _SceViewState extends State<SceView> {
                 textAlign: textAlign,
                 style: TextStyle(
                   fontSize: 11,
+                  fontWeight: FontWeight.w700,
                   color: value.isEmpty
                       ? const Color(0xFFB1B5BC)
                       : const Color(0xFF2F2F2F),
@@ -399,7 +405,7 @@ class _SceViewState extends State<SceView> {
                 onChanged: onChanged,
                 textAlign: textAlign,
                 inputFormatters: inputFormatters,
-                style: const TextStyle(fontSize: 11, color: Color(0xFF2F2F2F)),
+                style: AppTheme.wellLikeBodyText,
                 decoration: const InputDecoration(
                   isDense: true,
                   border: InputBorder.none,
@@ -419,7 +425,7 @@ class _SceViewState extends State<SceView> {
         alignment: Alignment.center,
         padding: const EdgeInsets.symmetric(horizontal: 6),
         decoration: BoxDecoration(
-          color: _isLocked ? Colors.white : _editColor,
+          color: _isLocked ? _editColor : Colors.white,
           border: const Border(
             right: BorderSide(color: _borderColor),
             bottom: BorderSide(color: _borderColor),
@@ -430,6 +436,7 @@ class _SceViewState extends State<SceView> {
                 current,
                 style: TextStyle(
                   fontSize: 11,
+                  fontWeight: FontWeight.w700,
                   color: current.isEmpty
                       ? const Color(0xFFB1B5BC)
                       : const Color(0xFF2F2F2F),
@@ -446,7 +453,7 @@ class _SceViewState extends State<SceView> {
                           child: Text(
                             value,
                             textAlign: TextAlign.center,
-                            style: const TextStyle(fontSize: 11),
+                            style: AppTheme.wellLikeBodyText,
                           ),
                         ),
                       )

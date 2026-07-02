@@ -4,13 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/report/recap_tabs/time_distribution/controller/recap_time_distribution_controller.dart';
 
-const Color _timeOuterBorder = Color(0xFF2F92E8);
-const Color _timeCanvas = Color(0xFFF4F4F4);
-const Color _timePanelBorder = Color(0xFFC8C8C8);
-const Color _timeHeaderFill = Color(0xFFF7F7F7);
+const Color _timeOuterBorder = Color(0xFFB8D0EA);
+const Color _timeCanvas = Color(0xFFF4F6FA);
+const Color _timePanelBorder = Color(0xFFB8D0EA);
+const Color _timeHeaderFill = Color(0xFFEAF3FC);
 const Color _timeText = Color(0xFF1C1C1C);
-const Color _timeGrid = Color(0xFFD6D6D6);
-const Color _timeTabFill = Color(0xFFEAEAEA);
+const Color _timeGrid = Color(0xFFCFE0F2);
+const Color _timeTabFill = Color(0xFFEAF3FC);
 
 class RecapTimeDistributionTabView extends StatefulWidget {
   const RecapTimeDistributionTabView({super.key});

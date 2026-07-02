@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controller/UG_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
+import 'package:mudpro_desktop_app/modules/UG/right_pannel/ug_ui_pattern.dart';
 
 class ReportView extends StatelessWidget {
   ReportView({super.key});
@@ -21,7 +22,7 @@ class ReportView extends StatelessWidget {
             flex: 3,
             child: Container(
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(4),
                 color: Colors.white,
                 boxShadow: [
                   BoxShadow(
@@ -30,7 +31,7 @@ class ReportView extends StatelessWidget {
                     offset: Offset(0, 2),
                   ),
                 ],
-                border: Border.all(color: Colors.grey.shade200, width: 1),
+                border: Border.all(color: ugBorder, width: 1),
               ),
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -39,35 +40,43 @@ class ReportView extends StatelessWidget {
                   children: [
 
                     // HEADER
-                    Row(
-                      children: [
-                        Icon(Icons.calculate, size: 16, color: AppTheme.primaryColor),
-                        SizedBox(width: 8),
-                        Text(
-                          'Hydraulics Calculation Factors',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: AppTheme.textPrimary,
-                          ),
-                        ),
-                        Spacer(),
-                        Container(
-                          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: AppTheme.primaryColor.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            '${_getSelectedCount()} selected',
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryColor,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.calculate, size: 16, color: Colors.white),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'Hydraulics Calculation Factors',
                             style: TextStyle(
-                              fontSize: 10,
+                              fontSize: 13,
                               fontWeight: FontWeight.w600,
-                              color: AppTheme.primaryColor,
+                              color: Colors.white,
                             ),
                           ),
-                        ),
-                      ],
+                          const Spacer(),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.18),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              '${_getSelectedCount()} selected',
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
 
                     Divider(height: 20, color: Colors.grey.shade200),
@@ -149,19 +158,27 @@ class ReportView extends StatelessWidget {
                   children: [
 
                     // HEADER
-                    Row(
-                      children: [
-                        Icon(Icons.science, size: 16, color: AppTheme.secondaryColor),
-                        SizedBox(width: 8),
-                        Text(
-                          'Rheology Settings',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: AppTheme.textPrimary,
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryColor,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.science, size: 16, color: Colors.white),
+                          SizedBox(width: 8),
+                          Text(
+                            'Rheology Settings',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
 
                     Divider(height: 20, color: Colors.grey.shade200),

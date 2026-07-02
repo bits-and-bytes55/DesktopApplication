@@ -50,7 +50,7 @@ export const updateService = async (req, res) => {
     const data = await Service.findByIdAndUpdate(
       req.params.id,
       req.body,
-      { new: true }
+      { returnDocument: "after" }
     );
     res.json({ success: true, data });
   } catch (err) {

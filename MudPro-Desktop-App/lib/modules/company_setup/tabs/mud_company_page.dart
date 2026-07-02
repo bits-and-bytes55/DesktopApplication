@@ -180,7 +180,7 @@ class _MudCompanyPageState extends State<MudCompanyPage> {
                   ),
                   child: const Icon(
                     Icons.business,
-                    color: Colors.white,
+                    color: AppTheme.companySetupHeaderTextColor,
                     size: 18,
                   ),
                 ),
@@ -188,10 +188,9 @@ class _MudCompanyPageState extends State<MudCompanyPage> {
                 const Text(
                   'Mud Company Settings',
                   style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                    letterSpacing: 0.3,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.companySetupHeaderTextColor,
                   ),
                 ),
               ],
@@ -317,11 +316,7 @@ class _MudCompanyPageState extends State<MudCompanyPage> {
         const SizedBox(width: 8),
         Text(
           title,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: AppTheme.textPrimary,
-          ),
+          style: AppTheme.companySetupBodyBold,
         ),
       ],
     );
@@ -364,11 +359,7 @@ class _MudCompanyPageState extends State<MudCompanyPage> {
                 Expanded(
                   child: Text(
                     label,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: AppTheme.textPrimary,
-                    ),
+                    style: AppTheme.companySetupBodyMedium,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -382,14 +373,13 @@ class _MudCompanyPageState extends State<MudCompanyPage> {
                 () => TextField(
                   controller: controller,
                   readOnly: companySetupController.isLocked.value,
-                  style: TextStyle(fontSize: 12, color: AppTheme.textPrimary),
+                  style: AppTheme.companySetupBodyText,
                   decoration: InputDecoration(
                     border: InputBorder.none,
                     isDense: true,
                     hintText: 'Enter $label...',
-                    hintStyle: TextStyle(
-                      fontSize: 12,
-                      color: AppTheme.textSecondary.withOpacity(0.5),
+                    hintStyle: AppTheme.companySetupMutedBody.copyWith(
+                      color: AppTheme.companySetupMutedText.withOpacity(0.5),
                     ),
                   ),
                 ),
@@ -434,7 +424,7 @@ class _MudCompanyPageState extends State<MudCompanyPage> {
                           const SizedBox(height: 6),
                           const Text(
                             'No Logo Selected',
-                            style: TextStyle(fontSize: 11),
+                            style: AppTheme.companySetupBodyText,
                           ),
                         ],
                       )
@@ -474,10 +464,10 @@ class _MudCompanyPageState extends State<MudCompanyPage> {
                                             .withOpacity(0.4),
                                       ),
                                       const SizedBox(height: 6),
-                                      const Text(
-                                        'Failed to load',
-                                        style: TextStyle(fontSize: 11),
-                                      ),
+                                       const Text(
+                                         'Failed to load',
+                                         style: AppTheme.companySetupBodyText,
+                                       ),
                                     ],
                                   );
                                 },
@@ -500,7 +490,7 @@ class _MudCompanyPageState extends State<MudCompanyPage> {
                   Expanded(
                     child: Text(
                       hasLogo ? 'Logo uploaded' : 'No file selected',
-                      style: const TextStyle(fontSize: 11),
+                      style: AppTheme.companySetupBodyText,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
@@ -512,7 +502,7 @@ class _MudCompanyPageState extends State<MudCompanyPage> {
                       icon: const Icon(Icons.upload_file, size: 12),
                       label: const Text(
                         'Browse',
-                        style: TextStyle(fontSize: 11),
+                        style: AppTheme.companySetupBodyText,
                       ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: companySetupController.isLocked.value
@@ -546,7 +536,7 @@ class _MudCompanyPageState extends State<MudCompanyPage> {
             .map(
               (e) => DropdownMenuItem(
                 value: e,
-                child: Text(e, style: const TextStyle(fontSize: 12)),
+                child: Text(e, style: AppTheme.companySetupBodyText),
               ),
             )
             .toList();
@@ -585,11 +575,7 @@ class _MudCompanyPageState extends State<MudCompanyPage> {
                 const SizedBox(width: 6),
                 Text(
                   'Symbol',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: AppTheme.textPrimary,
-                  ),
+                  style: AppTheme.companySetupBodyMedium,
                 ),
               ],
             ),
@@ -614,7 +600,7 @@ class _MudCompanyPageState extends State<MudCompanyPage> {
                       size: 18,
                       color: AppTheme.primaryColor,
                     ),
-                    style: TextStyle(fontSize: 12, color: AppTheme.textPrimary),
+                    style: AppTheme.companySetupBodyText,
                     onChanged: companySetupController.isLocked.value
                         ? null
                         : (v) => companyController.currencySymbol.value = v!,
@@ -665,11 +651,7 @@ class _MudCompanyPageState extends State<MudCompanyPage> {
                 const SizedBox(width: 6),
                 Text(
                   'Format',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: AppTheme.textPrimary,
-                  ),
+                  style: AppTheme.companySetupBodyMedium,
                 ),
               ],
             ),
@@ -694,7 +676,7 @@ class _MudCompanyPageState extends State<MudCompanyPage> {
                       size: 18,
                       color: AppTheme.primaryColor,
                     ),
-                    style: TextStyle(fontSize: 12, color: AppTheme.textPrimary),
+                    style: AppTheme.companySetupBodyText,
                     onChanged: companySetupController.isLocked.value
                         ? null
                         : (v) => companyController.currencyFormat.value = v!,
@@ -704,7 +686,7 @@ class _MudCompanyPageState extends State<MudCompanyPage> {
                             value: e,
                             child: Text(
                               e,
-                              style: const TextStyle(fontSize: 12),
+                              style: AppTheme.companySetupBodyText,
                             ),
                           ),
                         )
@@ -751,7 +733,7 @@ class _MudCompanyPageState extends State<MudCompanyPage> {
                       Container(
                         height: 48,
                         decoration: BoxDecoration(
-                          gradient: AppTheme.headerGradient,
+                          gradient: AppTheme.primaryGradient,
                           borderRadius: const BorderRadius.only(
                             topLeft: Radius.circular(12),
                             topRight: Radius.circular(12),
@@ -1098,14 +1080,8 @@ class _MudCompanyPageState extends State<MudCompanyPage> {
             ),
           Text(
             number.toString(),
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: isEditing
-                  ? Colors.blue
-                  : isSaved
-                  ? AppTheme.primaryColor
-                  : AppTheme.textPrimary,
+            style: AppTheme.companySetupBodyBold.copyWith(
+              color: isEditing ? Colors.blue : AppTheme.companySetupText,
             ),
           ),
         ],
@@ -1136,8 +1112,9 @@ class _MudCompanyPageState extends State<MudCompanyPage> {
           }
         },
         style: TextStyle(
-          fontSize: 12,
-          color: isCellLocked ? AppTheme.textSecondary : AppTheme.textPrimary,
+          fontSize: AppTheme.companySetupBodyText.fontSize,
+          fontWeight: AppTheme.companySetupBodyText.fontWeight,
+          color: AppTheme.companySetupText,
         ),
         decoration: InputDecoration(
           border: InputBorder.none,
@@ -1145,8 +1122,8 @@ class _MudCompanyPageState extends State<MudCompanyPage> {
           contentPadding: EdgeInsets.zero,
           hintText: isCellLocked ? '' : hint,
           hintStyle: TextStyle(
-            fontSize: 11,
-            color: AppTheme.textSecondary.withOpacity(0.4),
+            fontSize: 10,
+            color: AppTheme.companySetupMutedText.withOpacity(0.4),
           ),
         ),
       ),
@@ -1166,13 +1143,10 @@ class _MudCompanyPageState extends State<MudCompanyPage> {
       return Container(
         width: width,
         alignment: Alignment.center,
-        child: Text(
-          '-',
-          style: TextStyle(
-            fontSize: 12,
-            color: AppTheme.textSecondary.withOpacity(0.3),
+          child: Text(
+            '-',
+            style: AppTheme.companySetupBodyText,
           ),
-        ),
       );
     }
 
@@ -1274,17 +1248,12 @@ class _HeaderCell extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Row(
         children: [
-          Icon(icon, size: 14, color: Colors.white),
+          Icon(icon, size: 14, color: AppTheme.companySetupHeaderTextColor),
           const SizedBox(width: 6),
           Expanded(
             child: Text(
               text,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-                letterSpacing: 0.3,
-              ),
+              style: AppTheme.companySetupHeaderDark,
               overflow: TextOverflow.ellipsis,
             ),
           ),

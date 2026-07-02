@@ -9,6 +9,7 @@ import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/inventory_s
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/model/ug_inventory_product_model.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/controller/ug_inventory_product_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
+import 'package:mudpro_desktop_app/modules/UG/right_pannel/ug_ui_pattern.dart';
 
 class InventoryView extends StatefulWidget {
   const InventoryView({super.key});
@@ -78,9 +79,9 @@ class _InventoryViewState extends State<InventoryView> {
         Container(
           height: 36,
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: ugPageBackground,
             border: Border(
-              bottom: BorderSide(color: AppTheme.tableGridBlue, width: 1),
+              bottom: BorderSide(color: ugBorder, width: 1),
             ),
           ),
           child: Row(
@@ -116,11 +117,10 @@ class _InventoryViewState extends State<InventoryView> {
           child: Container(
             margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
             decoration: BoxDecoration(
-              gradient: active ? AppTheme.primaryGradient : null,
-              color: active ? null : Colors.transparent,
-              borderRadius: BorderRadius.circular(6),
+              color: active ? ugSectionHeader : ugColumnHeader,
+              borderRadius: BorderRadius.circular(4),
               border: Border.all(
-                color: active ? Colors.transparent : AppTheme.tableGridBlue,
+                color: ugBorder,
               ),
             ),
             child: Column(
@@ -129,9 +129,9 @@ class _InventoryViewState extends State<InventoryView> {
                 Text(
                   title,
                   style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: active ? Colors.white : AppTheme.textPrimary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: active ? Colors.white : Colors.black,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -157,8 +157,8 @@ class _InventoryViewState extends State<InventoryView> {
       height: 180,
       padding: const EdgeInsets.fromLTRB(10, 10, 16, 10),
       decoration: BoxDecoration(
-        color: AppTheme.tableHeaderBlue,
-        border: Border(top: BorderSide(color: AppTheme.tableGridBlue, width: 1)),
+        color: ugColumnHeader,
+        border: Border(top: BorderSide(color: ugBorder, width: 1)),
       ),
       child: LayoutBuilder(
         builder: (ctx, constraints) {
@@ -248,7 +248,7 @@ class _InventoryViewState extends State<InventoryView> {
                         padding: const EdgeInsets.symmetric(horizontal: 8),
                         decoration: BoxDecoration(
                           color: c.isLocked.value
-                              ? AppTheme.tableHeaderBlue
+                              ? ugLockedEditable
                               : Colors.white,
                           border: Border.all(color: Colors.grey.shade400),
                         ),
@@ -258,10 +258,11 @@ class _InventoryViewState extends State<InventoryView> {
                               child: Text(
                                 c.fromDate.value,
                                 style: TextStyle(
-                                  fontSize: 10,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
                                   color: c.fromDate.value.trim().isEmpty
                                       ? Colors.grey.shade500
-                                      : AppTheme.textPrimary,
+                                      : Colors.black,
                                 ),
                               ),
                             ),
@@ -310,8 +311,8 @@ class _InventoryViewState extends State<InventoryView> {
               'Inventory Pickup',
               style: TextStyle(
                 fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: AppTheme.textPrimary,
+                fontWeight: FontWeight.w700,
+                color: Colors.black,
               ),
             ),
           ),
@@ -520,7 +521,7 @@ class _InventoryViewState extends State<InventoryView> {
         Expanded(
           child: Text(
             label,
-            style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
+            style: AppTheme.wellLikeBodyText.copyWith(fontSize: 13),
           ),
         ),
         SizedBox(
@@ -563,7 +564,7 @@ class _InventoryViewState extends State<InventoryView> {
                   vertical: 4,
                 ),
               ),
-              style: const TextStyle(fontSize: 13),
+              style: AppTheme.wellLikeBodyText.copyWith(fontSize: 13),
             ),
           ),
         ),
@@ -600,7 +601,7 @@ class _InventoryViewState extends State<InventoryView> {
             activeColor: AppTheme.primaryColor,
           ),
         ),
-        Text(text, style: const TextStyle(fontSize: 13)),
+        Text(text, style: AppTheme.wellLikeBodyText.copyWith(fontSize: 13)),
       ],
     );
   }

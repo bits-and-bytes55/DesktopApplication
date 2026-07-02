@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/controller/tabular_database_editor_controller.dart';
 import 'package:mudpro_desktop_app/modules/dashboard/widgets/tabular_database_editor.dart';
-import 'package:mudpro_desktop_app/theme/app_theme.dart';
+import 'package:mudpro_desktop_app/modules/UG_ST_navigation/view/right_section/well_setup_ui_pattern.dart';
 
 class CompactTabularDatabaseDialog extends StatefulWidget {
   const CompactTabularDatabaseDialog({super.key});
@@ -56,7 +56,9 @@ class _CompactTabularDatabaseDialogState
     return Dialog(
       insetPadding: const EdgeInsets.all(4),
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-      child: SizedBox(
+      child: ColoredBox(
+        color: wellSetupPageBackground,
+        child: SizedBox(
         width: dialogWidth,
         height: dialogHeight,
         child: Column(
@@ -160,6 +162,7 @@ class _CompactTabularDatabaseDialogState
           ],
         ),
       ),
+      ),
     );
   }
 
@@ -191,14 +194,14 @@ class _CompactTabularDatabaseDialogState
       height: 30,
       padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
-        color: AppTheme.tableHeaderBlue,
-        border: Border(bottom: BorderSide(color: AppTheme.tableBorderBlue)),
+        color: wellSetupSectionHeader,
+        border: const Border(bottom: BorderSide(color: wellSetupBorder)),
       ),
       child: Row(
         children: [
           const Text(
             'Tubular Database',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+            style: wellSetupSectionText,
           ),
           const Spacer(),
           IconButton(
@@ -206,7 +209,7 @@ class _CompactTabularDatabaseDialogState
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints.tightFor(width: 28, height: 28),
             onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(Icons.close, size: 16),
+            icon: const Icon(Icons.close, size: 16, color: Colors.white),
           ),
         ],
       ),
@@ -284,18 +287,22 @@ class _CompactTabularDatabaseDialogState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SizedBox(
+          Container(
             height: 18,
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(title, style: const TextStyle(fontSize: 10)),
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            alignment: Alignment.centerLeft,
+            color: wellSetupColumnHeader,
+            child: Text(
+              title,
+              style: wellSetupDataText,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
           Expanded(
             child: Container(
               decoration: BoxDecoration(
                 color: Colors.white,
-                border: Border.all(color: AppTheme.tableBorderBlue),
+                border: Border.all(color: wellSetupBorder),
               ),
               child: child,
             ),
@@ -316,11 +323,12 @@ class _CompactTabularDatabaseDialogState
         height: 20,
         padding: const EdgeInsets.symmetric(horizontal: 4),
         alignment: Alignment.centerLeft,
-        color: isSelected ? const Color(0xFF1D6FCC) : Colors.white,
+        color: isSelected ? wellSetupSectionHeader : Colors.white,
         child: Text(
           label,
           style: TextStyle(
-            fontSize: 10.5,
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
             color: isSelected ? Colors.white : Colors.black87,
           ),
           overflow: TextOverflow.ellipsis,
@@ -366,15 +374,15 @@ class _CompactTabularDatabaseDialogState
               padding: const EdgeInsets.symmetric(horizontal: 8),
               alignment: Alignment.centerLeft,
               decoration: BoxDecoration(
-                border: Border.all(color: AppTheme.tableBorderBlue),
-                color: AppTheme.tableHeaderBlue,
+                border: Border.all(color: wellSetupBorder),
+                color: wellSetupSectionHeader,
               ),
               child: Text(
                 '${c.selectedTypeName} - ${c.selectedCatalogName} : $od ${c.diameterUnitLabel}, $weight ${c.lineDensityUnitLabel}, $grade',
                 style: const TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
-                  color: Color(0xFF0D74C7),
+                  color: Colors.white,
                 ),
                 overflow: TextOverflow.ellipsis,
               ),
@@ -382,7 +390,7 @@ class _CompactTabularDatabaseDialogState
             Expanded(
 	              child: Container(
 	                decoration: BoxDecoration(
-	                  border: Border.all(color: AppTheme.tableBorderBlue),
+                  border: Border.all(color: wellSetupBorder),
 	                ),
                 child: Column(
                   children: [
@@ -456,8 +464,8 @@ class _CompactTabularDatabaseDialogState
             Container(
               height: 22,
 	              decoration: BoxDecoration(
-	                color: AppTheme.tableHeaderBlue,
-	                border: Border(bottom: BorderSide(color: AppTheme.tableBorderBlue)),
+                color: wellSetupColumnHeader,
+                border: Border(bottom: BorderSide(color: wellSetupBorder)),
 	              ),
               child: Row(
                 children: [
@@ -475,8 +483,8 @@ class _CompactTabularDatabaseDialogState
             Container(
               height: 38,
 	              decoration: BoxDecoration(
-	                color: AppTheme.tableHeaderBlue,
-	                border: Border(bottom: BorderSide(color: AppTheme.tableBorderBlue)),
+                color: wellSetupColumnHeader,
+                border: Border(bottom: BorderSide(color: wellSetupBorder)),
 	              ),
               child: Row(
                 children: [
@@ -505,12 +513,12 @@ class _CompactTabularDatabaseDialogState
       height: height,
       alignment: Alignment.center,
 	      decoration: BoxDecoration(
-	        border: Border(right: BorderSide(color: AppTheme.tableBorderBlue)),
+        border: Border(right: BorderSide(color: wellSetupBorder)),
 	      ),
       child: Text(
         value,
         textAlign: TextAlign.center,
-        style: const TextStyle(fontSize: 11),
+        style: wellSetupDataText,
         overflow: TextOverflow.ellipsis,
       ),
     );
@@ -522,13 +530,13 @@ class _CompactTabularDatabaseDialogState
       height: 38,
       alignment: Alignment.center,
 	      decoration: BoxDecoration(
-	        border: Border(right: BorderSide(color: AppTheme.tableBorderBlue)),
+        border: Border(right: BorderSide(color: wellSetupBorder)),
 	      ),
       child: Text(
         value,
         textAlign: TextAlign.center,
         maxLines: 2,
-        style: const TextStyle(fontSize: 9, height: 1.05),
+        style: wellSetupDataText.copyWith(height: 1.05),
         overflow: TextOverflow.ellipsis,
       ),
     );
@@ -550,7 +558,7 @@ class _CompactTabularDatabaseDialogState
       onTap: () => c.selectRow(index),
       child: Container(
         height: 22,
-        color: isSelected ? const Color(0xFF1D6FCC) : Colors.white,
+        color: isSelected ? wellSetupSectionHeader : Colors.white,
         child: Row(
           children: [
             _cell('${index + 1}', rowNoW, isSelected, align: TextAlign.center),
@@ -579,16 +587,16 @@ class _CompactTabularDatabaseDialogState
       padding: const EdgeInsets.symmetric(horizontal: 4),
 	      decoration: BoxDecoration(
 	        border: Border(
-	          right: BorderSide(color: AppTheme.tableGridBlue),
-	          bottom: BorderSide(color: AppTheme.tableGridBlue),
+            right: BorderSide(color: wellSetupGrid),
+            bottom: BorderSide(color: wellSetupGrid),
 	        ),
 	      ),
       child: Text(
         value,
         textAlign: align,
         style: TextStyle(
-          fontSize: 10.5,
-          fontWeight: selected ? FontWeight.w500 : FontWeight.w400,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
           color: selected ? Colors.white : Colors.black87,
         ),
         overflow: TextOverflow.ellipsis,

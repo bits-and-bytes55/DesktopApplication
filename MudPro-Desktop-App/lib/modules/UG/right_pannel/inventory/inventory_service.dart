@@ -9,6 +9,7 @@ import 'package:mudpro_desktop_app/modules/UG/controller/UG_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/model/ug_inventory_product_model.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/controller/ug_inventory_product_controller.dart';
 import 'package:mudpro_desktop_app/modules/UG/right_pannel/inventory/inventory_store/inventory_store.dart';
+import 'package:mudpro_desktop_app/modules/UG/right_pannel/ug_ui_pattern.dart';
 import 'package:mudpro_desktop_app/modules/company_setup/model/service_model.dart';
 import 'package:mudpro_desktop_app/modules/report_context/report_context_controller.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
@@ -344,6 +345,7 @@ class _InventoryServicesViewState extends State<InventoryServicesView> {
     return Container(
       height: 28,
       padding: const EdgeInsets.symmetric(horizontal: 6),
+      color: AppTheme.primaryColor,
       alignment: Alignment.centerLeft,
       child: Row(
         children: [
@@ -353,7 +355,7 @@ class _InventoryServicesViewState extends State<InventoryServicesView> {
               style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF2F2F2F),
+                color: Colors.white,
               ),
             ),
           ),
@@ -539,16 +541,7 @@ class _InventoryServicesViewState extends State<InventoryServicesView> {
 
   TableRow _headerRow(List<String> headers) {
     return TableRow(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppTheme.primaryColor.withOpacity(0.1),
-            AppTheme.primaryColor.withOpacity(0.05),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
+      decoration: const BoxDecoration(color: ugColumnHeader),
       children: headers
           .map(
             (header) => Container(
@@ -557,10 +550,11 @@ class _InventoryServicesViewState extends State<InventoryServicesView> {
               padding: const EdgeInsets.symmetric(horizontal: 6),
               child: Text(
                 header,
-                style: TextStyle(
-                  fontSize: 10,
+                style: const TextStyle(
+                  fontFamily: 'Segoe UI',
+                  fontSize: 11,
                   fontWeight: FontWeight.w700,
-                  color: AppTheme.textPrimary,
+                  color: Colors.black,
                 ),
               ),
             ),
@@ -580,21 +574,13 @@ class _InventoryServicesViewState extends State<InventoryServicesView> {
         () => isLocked.value
             ? Text(
                 value,
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w500,
-                  color: AppTheme.textPrimary,
-                ),
+                style: AppTheme.wellLikeBodyText,
               )
             : TextFormField(
                 key: ValueKey(cellKey ?? value),
                 initialValue: value,
                 onChanged: onChanged,
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w500,
-                  color: AppTheme.textPrimary,
-                ),
+                style: AppTheme.wellLikeBodyText,
                 decoration: const InputDecoration(
                   isDense: true,
                   contentPadding: EdgeInsets.symmetric(

@@ -18,6 +18,7 @@ import 'package:mudpro_desktop_app/modules/options/app_units.dart';
 import '../../controller/operation_controller.dart';
 import '../../controller/dashboard_controller.dart';
 import 'operation_desktop_ui.dart';
+import 'operation_ui_pattern.dart';
 import 'package:mudpro_desktop_app/theme/app_theme.dart';
 
 class ConsumeProductView extends StatefulWidget {
@@ -1743,15 +1744,15 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: AppTheme.primaryColor,
               border: Border(bottom: BorderSide(color: AppTheme.tableGridBlue)),
             ),
             child: Text(
               "Consume Product",
               style: AppTheme.bodySmall.copyWith(
                 fontWeight: FontWeight.w700,
-                fontSize: 12,
-                color: Colors.black,
+                fontSize: 13,
+                color: Colors.white,
               ),
             ),
           ),
@@ -1783,7 +1784,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                         horizontalMargin: 0,
                         dividerThickness: 0,
                         headingRowColor: MaterialStateProperty.all(
-                          AppTheme.primaryColor,
+                          AppTheme.tableHeaderBlue,
                         ),
                         border: TableBorder(
                           verticalInside: BorderSide(
@@ -1796,10 +1797,10 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                         headingTextStyle: AppTheme.bodySmall.copyWith(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
-                          color: Colors.white,
+                          color: Colors.black,
                         ),
                         dataTextStyle: AppTheme.bodySmall.copyWith(
-                          fontSize: 10,
+                          fontSize: 11,
                           fontWeight: FontWeight.w700,
                           color: Colors.black,
                         ),
@@ -1881,6 +1882,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
         Container(
           width: 160,
           padding: const EdgeInsets.symmetric(horizontal: 6),
+          color: locked ? operationLockedEditableColor : Colors.transparent,
           child: Obx(() {
             final storeProducts = _inventoryStore.selectedProducts;
             final currentVal = row.selectedProduct.value;
@@ -1892,7 +1894,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                   hint: Text(
                     row.productName,
                     style: AppTheme.bodySmall.copyWith(
-                      fontSize: 10,
+                      fontSize: 11,
                       color: Colors.black,
                       fontWeight: FontWeight.w700,
                     ),
@@ -1910,7 +1912,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                           child: Text(
                             p.product,
                             style: AppTheme.bodySmall.copyWith(
-                              fontSize: 10,
+                              fontSize: 11,
                               color: Colors.black,
                               fontWeight: FontWeight.w700,
                             ),
@@ -1957,7 +1959,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                         child: Text(
                           p.product,
                           style: AppTheme.bodySmall.copyWith(
-                            fontSize: 10,
+                            fontSize: 11,
                             color: Colors.black,
                             fontWeight: FontWeight.w700,
                           ),
@@ -2056,7 +2058,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
               row.productName.isNotEmpty ? fv.toStringAsFixed(2) : '',
               textAlign: TextAlign.right,
               style: AppTheme.bodySmall.copyWith(
-                fontSize: 10,
+                fontSize: 11,
                 fontWeight: FontWeight.w600,
                 color: fv < 0 ? Colors.red : Colors.black,
               ),
@@ -2079,7 +2081,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
               cv > 0 ? cv.toStringAsFixed(2) : '',
               textAlign: TextAlign.right,
               style: AppTheme.bodySmall.copyWith(
-                fontSize: 10,
+                fontSize: 11,
                 fontWeight: FontWeight.w700,
                 color: Colors.black,
               ),
@@ -2102,7 +2104,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
               vv > 0 ? vv.toStringAsFixed(3) : '',
               textAlign: TextAlign.right,
               style: AppTheme.bodySmall.copyWith(
-                fontSize: 10,
+                fontSize: 11,
                 fontWeight: FontWeight.w700,
                 color: Colors.black,
               ),
@@ -2122,7 +2124,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
         textAlign: right ? TextAlign.right : TextAlign.left,
         overflow: TextOverflow.ellipsis,
         style: AppTheme.bodySmall.copyWith(
-          fontSize: 10,
+          fontSize: 11,
           fontWeight: FontWeight.w700,
           color: Colors.black,
         ),
@@ -2142,12 +2144,16 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       key: key,
       width: width,
       padding: const EdgeInsets.symmetric(horizontal: 6),
-      color: highlighted ? const Color(0xFFE8F4FD) : null,
+      color: locked
+          ? operationLockedEditableColor
+          : highlighted
+          ? const Color(0xFFE8F4FD)
+          : null,
       child: TextFormField(
         initialValue: value,
         enabled: !locked,
         style: AppTheme.bodySmall.copyWith(
-          fontSize: 10,
+          fontSize: 11,
           fontWeight: FontWeight.w700,
           color: Colors.black,
         ),
@@ -2216,8 +2222,8 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                   "Distribute to",
                   style: AppTheme.bodySmall.copyWith(
                     fontWeight: FontWeight.w700,
-                    fontSize: 12,
-                    color: Colors.black,
+                    fontSize: 13,
+                    color: Colors.white,
                   ),
                 ),
                 const Spacer(),
@@ -2255,7 +2261,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
           // ── Table header ──
           Container(
             decoration: BoxDecoration(
-              color: AppTheme.primaryColor,
+              color: AppTheme.tableHeaderBlue,
               border: Border(bottom: BorderSide(color: AppTheme.tableGridBlue)),
             ),
             child: Row(
@@ -2309,9 +2315,12 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                         child: Row(
                           children: [
                             // Pit dropdown cell
-                            SizedBox(
+                            Container(
                               width: 180,
                               height: 32,
+                              color: dashboardController.isLocked.value
+                                  ? operationLockedEditableColor
+                                  : Colors.transparent,
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 6,
@@ -2330,9 +2339,12 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                               color: Colors.grey.shade200,
                             ),
                             // Volume input cell
-                            SizedBox(
+                            Container(
                               width: 110,
                               height: 32,
+                              color: dashboardController.isLocked.value
+                                  ? operationLockedEditableColor
+                                  : Colors.transparent,
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 6,
@@ -2341,7 +2353,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                                   controller: dr.volumeController,
                                   enabled: !dashboardController.isLocked.value,
                                   style: AppTheme.bodySmall.copyWith(
-                                    fontSize: 10,
+                                    fontSize: 11,
                                     fontWeight: FontWeight.w700,
                                     color: Colors.black,
                                   ),
@@ -2532,8 +2544,8 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
           AppUnits.label(text),
           textAlign: right ? TextAlign.right : TextAlign.left,
           style: AppTheme.bodySmall.copyWith(
-            fontSize: 10,
-            fontWeight: FontWeight.w600,
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
             color: Colors.black,
           ),
         ),
@@ -2547,7 +2559,9 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       height: 240,
       padding: EdgeInsets.zero,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: dashboardController.isLocked.value
+            ? operationLockedEditableColor
+            : Colors.white,
         borderRadius: BorderRadius.circular(4),
         border: Border.all(color: AppTheme.tableGridBlue),
       ),
@@ -2564,9 +2578,9 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
             child: Text(
               'Add Water',
               style: AppTheme.bodySmall.copyWith(
-                fontSize: 12,
+                fontSize: 13,
                 fontWeight: FontWeight.w700,
-                color: Colors.black,
+                color: Colors.white,
               ),
             ),
           ),
@@ -2773,7 +2787,9 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     return Container(
       height: 32,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: dashboardController.isLocked.value
+            ? operationLockedEditableColor
+            : Colors.white,
         borderRadius: BorderRadius.circular(3),
         border: Border.all(color: AppTheme.tableGridBlue),
       ),
@@ -2784,7 +2800,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
               controller: waterVolumeController,
               enabled: !dashboardController.isLocked.value,
               style: AppTheme.bodySmall.copyWith(
-                fontSize: 10,
+                fontSize: 11,
                 fontWeight: FontWeight.w700,
                 color: Colors.black,
               ),

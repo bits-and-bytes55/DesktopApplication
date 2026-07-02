@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:mudpro_desktop_app/modules/report/tabs/recap_tab_registry.dart';
 
-const Color _recapHeaderBlue = Color(0xFF3F5F8E);
-const Color _recapSidebarBackground = Color(0xFFF3F3F3);
-const Color _recapSidebarSelected = Color(0xFFC6D7F4);
-const Color _recapSidebarBorder = Color(0xFFD8D8D8);
-const Color _recapSidebarText = Color(0xFF0F2745);
+const Color _recapHeaderBlue = Color(0xFF6C9BCF);
+const Color _recapSidebarBackground = Color(0xFFF4F6FA);
+const Color _recapSidebarSelected = Color(0xFF6C9BCF);
+const Color _recapSidebarBorder = Color(0xFFB8D0EA);
+const Color _recapSidebarText = Colors.black;
 
 class RecapLeftSidebar extends StatefulWidget {
   final int selectedTab;
@@ -44,7 +44,7 @@ class _RecapLeftSidebarState extends State<RecapLeftSidebar> {
         child: Column(
           children: [
             Container(
-              height: 78,
+              height: 36,
               color: _recapHeaderBlue,
               padding: const EdgeInsets.symmetric(horizontal: 14),
               alignment: Alignment.centerLeft,
@@ -53,14 +53,14 @@ class _RecapLeftSidebarState extends State<RecapLeftSidebar> {
                 visualDensity: VisualDensity.compact,
                 splashRadius: 20,
                 onPressed: widget.onToggleSidebar,
-                icon: const Icon(Icons.menu, color: Colors.white, size: 28),
+                icon: const Icon(Icons.menu, color: Colors.white, size: 18),
               ),
             ),
             Expanded(
               child: ListView.separated(
-                padding: const EdgeInsets.fromLTRB(10, 8, 10, 12),
+                padding: const EdgeInsets.fromLTRB(6, 6, 6, 10),
                 itemCount: recapTabItems.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 6),
+                separatorBuilder: (_, _) => const SizedBox(height: 4),
                 itemBuilder: (context, index) {
                   final item = recapTabItems[index];
                   return _SideItem(
@@ -101,12 +101,14 @@ class _SideItem extends StatelessWidget {
         splashColor: _recapSidebarSelected.withValues(alpha: 0.35),
         highlightColor: _recapSidebarSelected.withValues(alpha: 0.18),
         child: Container(
-          height: 42,
+          height: 34,
           decoration: BoxDecoration(
-            color: selected ? _recapSidebarSelected : Colors.white,
+            color: selected
+                ? _recapSidebarSelected
+                : const Color(0xFFEAF3FC),
             border: selected
                 ? const Border(
-                    left: BorderSide(color: Colors.black, width: 4),
+                    left: BorderSide(color: _recapSidebarSelected, width: 1),
                     top: BorderSide(color: _recapSidebarBorder, width: 1),
                     right: BorderSide(color: _recapSidebarBorder, width: 1),
                     bottom: BorderSide(color: _recapSidebarBorder, width: 1),
@@ -117,17 +119,22 @@ class _SideItem extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: Row(
               children: [
-                Icon(icon, size: 22, color: _recapSidebarText),
-                const SizedBox(width: 12),
+                Icon(
+                  icon,
+                  size: 16,
+                  color: selected ? Colors.white : _recapSidebarText,
+                ),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: _recapSidebarText,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
+                    style: TextStyle(
+                      fontFamily: 'Segoe UI',
+                      color: selected ? Colors.white : _recapSidebarText,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),

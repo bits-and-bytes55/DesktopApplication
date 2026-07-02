@@ -41,12 +41,10 @@ class ServicesGetxController extends GetxController {
     _clearList(newPackageRows);
     _clearList(newServiceRows);
     _clearList(newEngineeringRows);
-    
-    for (int i = 0; i < 5; i++) {
-      newPackageRows.add(_genRow(4));
-      newServiceRows.add(_genRow(4));
-      newEngineeringRows.add(_genRow(4));
-    }
+
+    newPackageRows.add(_genRow(4));
+    newServiceRows.add(_genRow(4));
+    newEngineeringRows.add(_genRow(4));
   }
 
   List<TextEditingController> _genRow(int count) {
@@ -72,16 +70,45 @@ class ServicesGetxController extends GetxController {
     _emptyText(newPackageRows, 4);
     _emptyText(newServiceRows, 4);
     _emptyText(newEngineeringRows, 4);
-    
-    while (newPackageRows.length < 5) newPackageRows.add(_genRow(4));
-    while (newServiceRows.length < 5) newServiceRows.add(_genRow(4));
-    while (newEngineeringRows.length < 5) newEngineeringRows.add(_genRow(4));
+
+    if (newPackageRows.isEmpty) newPackageRows.add(_genRow(4));
+    if (newServiceRows.isEmpty) newServiceRows.add(_genRow(4));
+    if (newEngineeringRows.isEmpty) newEngineeringRows.add(_genRow(4));
   }
 
   void _emptyText(RxList<List<TextEditingController>> list, int cols) {
     for (var row in list) {
       for (var ctrl in row) ctrl.text = '';
     }
+  }
+
+  void updateNewRows(
+    RxList<List<TextEditingController>> rows,
+    int rowIndex,
+  ) {
+    if (rowIndex < 0 || rowIndex >= rows.length) return;
+
+    final isLastRow = rowIndex == rows.length - 1;
+    final hasAnyValue = rows[rowIndex].any((ctrl) => ctrl.text.trim().isNotEmpty);
+
+    if (isLastRow && hasAnyValue) {
+      rows.add(_genRow(4));
+      rows.refresh();
+      return;
+    }
+
+    // Keep only one trailing empty row.
+    for (int i = rows.length - 2; i >= 0; i--) {
+      final isEmpty = rows[i].every((ctrl) => ctrl.text.trim().isEmpty);
+      final nextIsEmpty = rows[i + 1].every((ctrl) => ctrl.text.trim().isEmpty);
+      if (isEmpty && nextIsEmpty) {
+        final removed = rows.removeAt(i + 1);
+        for (final ctrl in removed) {
+          ctrl.dispose();
+        }
+      }
+    }
+    rows.refresh();
   }
 
   Future<void> loadAllData() async {
@@ -92,12 +119,42 @@ class ServicesGetxController extends GetxController {
         _apiController.getServices(),
         _apiController.getEngineering(),
       ]);
-      packages.assignAll(results[0] as List<PackageItem>);
-      services.assignAll(results[1] as List<ServiceItem>);
-      engineering.assignAll(results[2] as List<EngineeringItem>);
+      final packageItems = List<PackageItem>.from(results[0] as List<PackageItem>)
+        ..sort((a, b) => _naturalCompare(a.name, b.name));
+      final serviceItems = List<ServiceItem>.from(results[1] as List<ServiceItem>)
+        ..sort((a, b) => _naturalCompare(a.name, b.name));
+      final engineeringItems =
+          List<EngineeringItem>.from(results[2] as List<EngineeringItem>)
+            ..sort((a, b) => _naturalCompare(a.name, b.name));
+
+      packages.assignAll(packageItems);
+      services.assignAll(serviceItems);
+      engineering.assignAll(engineeringItems);
     } finally {
       isLoading.value = false;
     }
+  }
+
+  int _naturalCompare(String a, String b) {
+    final left = a.trim();
+    final right = b.trim();
+
+    final leftMatch = RegExp(r'^(.*?)(\d+)$').firstMatch(left);
+    final rightMatch = RegExp(r'^(.*?)(\d+)$').firstMatch(right);
+
+    if (leftMatch != null && rightMatch != null) {
+      final leftPrefix = leftMatch.group(1)!.trim().toLowerCase();
+      final rightPrefix = rightMatch.group(1)!.trim().toLowerCase();
+      final prefixCompare = leftPrefix.compareTo(rightPrefix);
+      if (prefixCompare != 0) return prefixCompare;
+
+      final leftNumber = int.tryParse(leftMatch.group(2)!) ?? 0;
+      final rightNumber = int.tryParse(rightMatch.group(2)!) ?? 0;
+      final numberCompare = leftNumber.compareTo(rightNumber);
+      if (numberCompare != 0) return numberCompare;
+    }
+
+    return left.toLowerCase().compareTo(right.toLowerCase());
   }
 
   // ─── Actions ──────────────────────────────────────────────────────────────
@@ -105,6 +162,7 @@ class ServicesGetxController extends GetxController {
   Future<void> savePackages() async {
     isPackagesSaving.value = true;
     try {
+      final didSaveEdit = await _persistPackageEditIfNeeded();
       final List<PackageItem> items = [];
       for (var row in newPackageRows) {
         if (row[0].text.isNotEmpty) {
@@ -116,7 +174,13 @@ class ServicesGetxController extends GetxController {
           ));
         }
       }
-      if (items.isEmpty) return;
+      if (items.isEmpty) {
+        if (didSaveEdit) {
+          await loadAllData();
+          Get.snackbar('Success', 'Package updated successfully');
+        }
+        return;
+      }
       await _apiController.addPackages(items);
       _resetNewRows(); // or just clear the filled ones
       await loadAllData();
@@ -129,6 +193,7 @@ class ServicesGetxController extends GetxController {
   Future<void> saveServices() async {
     isServicesSaving.value = true;
     try {
+      final didSaveEdit = await _persistServiceEditIfNeeded();
       final List<ServiceItem> items = [];
       for (var row in newServiceRows) {
         if (row[0].text.isNotEmpty) {
@@ -140,7 +205,13 @@ class ServicesGetxController extends GetxController {
           ));
         }
       }
-      if (items.isEmpty) return;
+      if (items.isEmpty) {
+        if (didSaveEdit) {
+          await loadAllData();
+          Get.snackbar('Success', 'Service updated successfully');
+        }
+        return;
+      }
       await _apiController.addServices(items);
       _resetNewRows();
       await loadAllData();
@@ -153,6 +224,7 @@ class ServicesGetxController extends GetxController {
   Future<void> saveEngineering() async {
     isEngineeringSaving.value = true;
     try {
+      final didSaveEdit = await _persistEngineeringEditIfNeeded();
       final List<EngineeringItem> items = [];
       for (var row in newEngineeringRows) {
         if (row[0].text.isNotEmpty) {
@@ -164,7 +236,13 @@ class ServicesGetxController extends GetxController {
           ));
         }
       }
-      if (items.isEmpty) return;
+      if (items.isEmpty) {
+        if (didSaveEdit) {
+          await loadAllData();
+          Get.snackbar('Success', 'Engineering item updated successfully');
+        }
+        return;
+      }
       await _apiController.addEngineering(items);
       _resetNewRows();
       await loadAllData();
@@ -195,6 +273,54 @@ class ServicesGetxController extends GetxController {
     }
   }
 
+  Future<bool> _persistPackageEditIfNeeded() async {
+    final id = editingPackageId.value?.trim();
+    if (id == null || id.isEmpty) return false;
+    final updated = PackageItem(
+      id: id,
+      name: inlineName.text,
+      code: inlineCode.text,
+      unit: inlineUnit.text,
+      price: double.tryParse(inlinePrice.text) ?? 0.0,
+    );
+    await _apiController.updatePackage(id, updated);
+    editingPackageId.value = null;
+    packages.refresh();
+    return true;
+  }
+
+  Future<bool> _persistServiceEditIfNeeded() async {
+    final id = editingServiceId.value?.trim();
+    if (id == null || id.isEmpty) return false;
+    final updated = ServiceItem(
+      id: id,
+      name: inlineName.text,
+      code: inlineCode.text,
+      unit: inlineUnit.text,
+      price: double.tryParse(inlinePrice.text) ?? 0.0,
+    );
+    await _apiController.updateService(id, updated);
+    editingServiceId.value = null;
+    services.refresh();
+    return true;
+  }
+
+  Future<bool> _persistEngineeringEditIfNeeded() async {
+    final id = editingEngineeringId.value?.trim();
+    if (id == null || id.isEmpty) return false;
+    final updated = EngineeringItem(
+      id: id,
+      name: inlineName.text,
+      code: inlineCode.text,
+      unit: inlineUnit.text,
+      price: double.tryParse(inlinePrice.text) ?? 0.0,
+    );
+    await _apiController.updateEngineering(id, updated);
+    editingEngineeringId.value = null;
+    engineering.refresh();
+    return true;
+  }
+
   Future<bool> _confirmDelete(String type) async {
     return await Get.dialog<bool>(
       AlertDialog(
@@ -214,13 +340,21 @@ class ServicesGetxController extends GetxController {
 
   // Edit logic — uses shared inline controllers
   void startEditingPackage(PackageItem item) {
+    editingServiceId.value = null;
+    editingEngineeringId.value = null;
     editingPackageId.value = item.id;
     inlineName.text = item.name;
     inlineCode.text = item.code;
     inlineUnit.text = item.unit;
     inlinePrice.text = item.price.toString();
+    packages.refresh();
+    services.refresh();
+    engineering.refresh();
   }
-  void cancelEditingPackage() => editingPackageId.value = null;
+  void cancelEditingPackage() {
+    editingPackageId.value = null;
+    packages.refresh();
+  }
   Future<void> savePackageEdit() async {
     final id = editingPackageId.value;
     if (id == null) return;
@@ -234,16 +368,25 @@ class ServicesGetxController extends GetxController {
     await _apiController.updatePackage(id, updated);
     editingPackageId.value = null;
     await loadAllData();
+    packages.refresh();
   }
 
   void startEditingService(ServiceItem item) {
+    editingPackageId.value = null;
+    editingEngineeringId.value = null;
     editingServiceId.value = item.id;
     inlineName.text = item.name;
     inlineCode.text = item.code;
     inlineUnit.text = item.unit;
     inlinePrice.text = item.price.toString();
+    packages.refresh();
+    services.refresh();
+    engineering.refresh();
   }
-  void cancelEditingService() => editingServiceId.value = null;
+  void cancelEditingService() {
+    editingServiceId.value = null;
+    services.refresh();
+  }
   Future<void> saveServiceEdit() async {
     final id = editingServiceId.value;
     if (id == null) return;
@@ -257,16 +400,25 @@ class ServicesGetxController extends GetxController {
     await _apiController.updateService(id, updated);
     editingServiceId.value = null;
     await loadAllData();
+    services.refresh();
   }
 
   void startEditingEngineering(EngineeringItem item) {
+    editingPackageId.value = null;
+    editingServiceId.value = null;
     editingEngineeringId.value = item.id;
     inlineName.text = item.name;
     inlineCode.text = item.code;
     inlineUnit.text = item.unit;
     inlinePrice.text = item.price.toString();
+    packages.refresh();
+    services.refresh();
+    engineering.refresh();
   }
-  void cancelEditingEngineering() => editingEngineeringId.value = null;
+  void cancelEditingEngineering() {
+    editingEngineeringId.value = null;
+    engineering.refresh();
+  }
   Future<void> saveEngineeringEdit() async {
     final id = editingEngineeringId.value;
     if (id == null) return;
@@ -280,6 +432,7 @@ class ServicesGetxController extends GetxController {
     await _apiController.updateEngineering(id, updated);
     editingEngineeringId.value = null;
     await loadAllData();
+    engineering.refresh();
   }
 
   // ─── Export/Import ────────────────────────────────────────────────────────
