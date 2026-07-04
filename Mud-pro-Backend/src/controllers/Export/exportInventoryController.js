@@ -1752,16 +1752,24 @@ const loadMudHydraulicValues = ({ mudReportState, activePits = [] }) => {
   };
 };
 const nozzleTotalArea = (nozzleData = {}) => {
-  const saved = toNumber(nozzleData?.tfa);
-  if (saved > 0) return saved;
-
   const nozzles = Array.isArray(nozzleData?.nozzles) ? nozzleData.nozzles : [];
-  return sumBy(nozzles, (nozzle) => {
+  const computed = sumBy(nozzles, (nozzle) => {
     const count = toNumber(nozzle.count);
     const size32 = firstHydraulicNumber(nozzle.size32, nozzle.size, nozzle.diameterInch);
     const diameterIn = toNumber(nozzle.diameterInch) > 0 ? toNumber(nozzle.diameterInch) : size32 / 32;
     return count > 0 && diameterIn > 0 ? count * 0.785 * diameterIn * diameterIn : 0;
   });
+
+  const hasRowData = nozzles.some((nozzle) => {
+    const count = toNumber(nozzle.count);
+    const size32 = firstHydraulicNumber(nozzle.size32, nozzle.size, nozzle.diameterInch);
+    return count > 0 && size32 > 0;
+  });
+
+  if (hasRowData) return computed;
+
+  const saved = toNumber(nozzleData?.tfa);
+  return saved > 0 ? saved : computed;
 };
 const pressurePercentText = (loss, total) => {
   const cleanLoss = Math.max(0, toNumber(loss));
