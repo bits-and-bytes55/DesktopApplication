@@ -70,8 +70,6 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
   final RxString selectedPreviousReportId = ''.obs;
   final RxBool isLoadingPreviousProducts = false.obs;
   final RxBool isSavingAll = false.obs;
-  final ScrollController _productHorizontalScrollController =
-      ScrollController();
   final ScrollController _productVerticalScrollController = ScrollController();
   final Map<String, double> _receiveProductTotals = {};
   final Map<String, double> _returnProductTotals = {};
@@ -283,7 +281,6 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     _totalVolumeWorker?.dispose();
     waterVolumeController.removeListener(_recalculateTotalVolume);
     waterVolumeController.dispose();
-    _productHorizontalScrollController.dispose();
     _productVerticalScrollController.dispose();
     _saveBridge.unregister();
 
@@ -419,6 +416,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     try {
       final data = await consumeProductController.getAllConsumeProducts(
         reportIdOverride: previousReportId,
+        scopeToOperationInstance: false,
       );
       _previousFinalByProductKey.clear();
       for (final item in data) {
@@ -1757,27 +1755,25 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
             ),
           ),
           SizedBox(
-            height: 232,
-            child: Scrollbar(
-              controller: _productVerticalScrollController,
-              thumbVisibility: true,
-              trackVisibility: true,
-              notificationPredicate: (notification) =>
-                  notification.metrics.axis == Axis.vertical,
-              child: Scrollbar(
-                controller: _productHorizontalScrollController,
-                thumbVisibility: true,
-                trackVisibility: true,
-                notificationPredicate: (notification) =>
-                    notification.metrics.axis == Axis.horizontal,
-                child: SingleChildScrollView(
-                  controller: _productHorizontalScrollController,
-                  scrollDirection: Axis.horizontal,
-                  child: SingleChildScrollView(
-                    controller: _productVerticalScrollController,
-                    scrollDirection: Axis.vertical,
-                    child: Obx(
-                      () => DataTable(
+            height: 230,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                const baseTableWidth = 935.0;
+                final scale = ((constraints.maxWidth - 12) / baseTableWidth)
+                    .clamp(0.45, 1.5);
+                return Scrollbar(
+                  controller: _productVerticalScrollController,
+                  thumbVisibility: true,
+                  trackVisibility: true,
+                  notificationPredicate: (notification) =>
+                      notification.metrics.axis == Axis.vertical,
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 12),
+                    child: SingleChildScrollView(
+                      controller: _productVerticalScrollController,
+                      scrollDirection: Axis.vertical,
+                      child: Obx(
+                        () => DataTable(
                         headingRowHeight: 34,
                         dataRowHeight: 34,
                         columnSpacing: 0,
@@ -1808,7 +1804,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                             .map(
                               (h) => DataColumn(
                                 label: Container(
-                                  width: _colWidth(h),
+                                  width: _colWidth(h) * scale,
                                   alignment: _isRightCol(h)
                                       ? Alignment.centerRight
                                       : Alignment.centerLeft,
@@ -1827,16 +1823,17 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
                               i % 2 == 0 ? Colors.white : Colors.grey.shade50,
                             ),
                             cells: _withProductRowMenu(
-                              _buildRowCells(productRows[i], i),
+                              _buildRowCells(productRows[i], i, scale),
                               i,
                             ),
                           ),
                         ),
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ),
+                );
+              },
             ),
           ),
         ],
@@ -1871,8 +1868,9 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     }
   }
 
-  List<DataCell> _buildRowCells(ProductRowData row, int i) {
+  List<DataCell> _buildRowCells(ProductRowData row, int i, double scale) {
     final locked = dashboardController.isLocked.value;
+    double w(double width) => width * scale;
 
     return [
       // ══════════════════════════════════════════
@@ -1880,7 +1878,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       // ══════════════════════════════════════════
       DataCell(
         Container(
-          width: 160,
+          width: w(160),
           padding: const EdgeInsets.symmetric(horizontal: 6),
           color: locked ? operationLockedEditableColor : Colors.transparent,
           child: Obx(() {
@@ -1987,13 +1985,13 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       ),
 
       // 2–5. Static read-only cells
-      DataCell(_staticField(row.code, 80)),
-      DataCell(_staticField(row.sg, 70)),
-      DataCell(_staticField(row.unit, 70)),
+      DataCell(_staticField(row.code, w(80))),
+      DataCell(_staticField(row.sg, w(70))),
+      DataCell(_staticField(row.unit, w(70))),
       DataCell(
         _staticField(
           row.price > 0 ? row.price.toStringAsFixed(2) : '',
-          90,
+          w(90),
           right: true,
         ),
       ),
@@ -2001,9 +1999,12 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       // 6. Initial
       DataCell(
         _editField(
-          key: ValueKey('init_${identityHashCode(row)}'),
+          key: ValueKey(
+            'init_${identityHashCode(row)}_'
+            '${row.selectedProduct.value?.id ?? row.productName}',
+          ),
           value: row.initial,
-          width: 75,
+          width: w(75),
           locked: locked,
           onChange: (v) {
             row.initial = v;
@@ -2018,7 +2019,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
         _editField(
           key: ValueKey('adj_${identityHashCode(row)}'),
           value: row.adjust,
-          width: 75,
+          width: w(75),
           locked: locked,
           onChange: (v) {
             row.adjust = v;
@@ -2035,7 +2036,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
           return _editField(
             key: ValueKey('used_${identityHashCode(row)}_$isUsedMode'),
             value: row.used,
-            width: 75,
+            width: w(75),
             locked: locked,
             highlighted: isUsedMode,
             onChange: (v) {
@@ -2052,7 +2053,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
         Obx(() {
           final fv = row.calculatedFinal.value;
           return Container(
-            width: 75,
+            width: w(75),
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Text(
               row.productName.isNotEmpty ? fv.toStringAsFixed(2) : '',
@@ -2070,7 +2071,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       // 10. Cost
       DataCell(
         Container(
-          width: 90,
+          width: w(90),
           padding: const EdgeInsets.symmetric(horizontal: 8),
           decoration: BoxDecoration(
             color: AppTheme.primaryColor.withOpacity(0.05),
@@ -2093,7 +2094,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
       // 11. Vol
       DataCell(
         Container(
-          width: 75,
+          width: w(75),
           padding: const EdgeInsets.symmetric(horizontal: 8),
           decoration: BoxDecoration(
             color: AppTheme.primaryColor.withOpacity(0.03),
@@ -2194,7 +2195,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(width: 310, child: _buildDistributeTable()),
+        SizedBox(width: 300, child: _buildDistributeTable()),
         const SizedBox(width: 12),
         Expanded(child: _buildRightControls()),
       ],
@@ -2266,15 +2267,15 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
             ),
             child: Row(
               children: [
-                _distHeaderCell('Pit', 180),
-                _distHeaderCell('Vol (bbl)', 110, right: true),
+                _distHeaderCell('Pit', 170),
+                _distHeaderCell('Vol (bbl)', 100, right: true),
               ],
             ),
           ),
 
           // ── Rows ──
           SizedBox(
-            height: 185,
+            height: 125,
             child: SingleChildScrollView(
               child: Obx(() {
                 // Build the dropdown items list: empty + Active System + unselected pits
@@ -2556,7 +2557,7 @@ class _ConsumeProductViewState extends State<ConsumeProductView> {
   // ── Right Controls ────────────────────────────────────────────────────────
   Widget _buildRightControls() {
     return Container(
-      height: 240,
+      height: 185,
       padding: EdgeInsets.zero,
       decoration: BoxDecoration(
         color: dashboardController.isLocked.value

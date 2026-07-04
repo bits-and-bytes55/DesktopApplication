@@ -447,7 +447,11 @@ class _IntervalTileState extends State<_IntervalTile> {
                         controller: _nameCtrl,
                         focusNode: _renameFocusNode,
                         autofocus: true,
-                        style: const TextStyle(fontSize: 11),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.black,
+                        ),
                         decoration: const InputDecoration(
                           isDense: true,
                           border: InputBorder.none,
@@ -459,14 +463,10 @@ class _IntervalTileState extends State<_IntervalTile> {
                       )
                     : Text(
                         iv.name,
-                        style: TextStyle(
-fontSize: 11,
-                          color: isSelected
-                              ? const Color(0xFF1D4F91)
-                              : const Color(0xFF2F2F2F),
-                          fontWeight: isSelected
-                              ? FontWeight.w600
-                              : FontWeight.w400,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Colors.black,
+                          fontWeight: FontWeight.w700,
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),

@@ -66,10 +66,10 @@ class SectionNavBar extends StatelessWidget {
                         tabs[i],
                         style: TextStyle(
                           fontSize: 11,
-                          fontWeight: FontWeight.w500,
+                          fontWeight: FontWeight.w700,
                           color: !isEnabled
                               ? Colors.grey.shade400
-                              : Colors.black87,
+                              : Colors.black,
                         ),
                       ),
                     ),

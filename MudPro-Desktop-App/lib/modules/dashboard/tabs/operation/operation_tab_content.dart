@@ -32,6 +32,7 @@ class OperationPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return DefaultTextStyle.merge(
       style: operationDataTextStyle,
+      textAlign: TextAlign.left,
       child: Scaffold(
         backgroundColor: operationPageBackground,
         body: Padding(
@@ -90,7 +91,7 @@ class OperationPage extends StatelessWidget {
 
   Widget _buildLeftPanel(BuildContext context) {
     return Container(
-      width: 322,
+      width: 220,
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border.all(color: AppTheme.tableGridBlue, width: 1),
@@ -211,7 +212,7 @@ class OperationPage extends StatelessWidget {
                                 width: 24,
                                 child: Text(
                                   "${index + 1}",
-                                  textAlign: TextAlign.center,
+                                  textAlign: TextAlign.left,
                                   style: AppTheme.bodySmall.copyWith(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w500,
@@ -578,7 +579,7 @@ class OperationPage extends StatelessWidget {
 
   Widget _buildPlaceholderView() {
     return Container(
-      color: Colors.white,
+      color: operationPageBackground,
       padding: const EdgeInsets.all(20),
       child: Center(
         child: Column(

@@ -73,11 +73,7 @@ class _ReturnProductViewState extends State<ReturnProductView> {
 
   // ✅ BOL No. field — same as ReceiveProductView
   final TextEditingController bolController = TextEditingController();
-  final ScrollController _productHorizontalScrollController =
-      ScrollController();
   final ScrollController _productVerticalScrollController = ScrollController();
-  final ScrollController _packageHorizontalScrollController =
-      ScrollController();
   final ScrollController _packageVerticalScrollController = ScrollController();
 
   final RxString alertMessage = ''.obs;
@@ -759,6 +755,7 @@ class _ReturnProductViewState extends State<ReturnProductView> {
             children: [
               // ── Top bar ──────────────────────────────────────
               Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16),
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
                   vertical: 10,
@@ -908,8 +905,6 @@ class _ReturnProductViewState extends State<ReturnProductView> {
                           headers: ["No", "Product", "Code", "Unit", "Amount"],
                           color: AppTheme.primaryColor,
                           itemNameGetter: (item) => item.product,
-                          horizontalController:
-                              _productHorizontalScrollController,
                           verticalController: _productVerticalScrollController,
                         ),
                         const SizedBox(height: 16),
@@ -933,8 +928,6 @@ class _ReturnProductViewState extends State<ReturnProductView> {
                           headers: ["No", "Package", "Code", "Unit", "Amount"],
                           color: AppTheme.successColor,
                           itemNameGetter: (item) => item.name,
-                          horizontalController:
-                              _packageHorizontalScrollController,
                           verticalController: _packageVerticalScrollController,
                         ),
                       ],
@@ -961,7 +954,6 @@ class _ReturnProductViewState extends State<ReturnProductView> {
     required List<String> headers,
     required Color color,
     required String Function(I) itemNameGetter,
-    required ScrollController horizontalController,
     required ScrollController verticalController,
     Widget? trailing,
   }) {
@@ -1001,20 +993,17 @@ class _ReturnProductViewState extends State<ReturnProductView> {
               trackVisibility: true,
               notificationPredicate: (notification) =>
                   notification.metrics.axis == Axis.vertical,
-              child: Scrollbar(
-                controller: horizontalController,
-                thumbVisibility: true,
-                trackVisibility: true,
-                notificationPredicate: (notification) =>
-                    notification.metrics.axis == Axis.horizontal,
-                child: SingleChildScrollView(
-                  controller: horizontalController,
-                  scrollDirection: Axis.horizontal,
-                  child: SizedBox(
-                    width: _getTableWidth(headers),
-                    child: Column(
+              child: Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    const baseTableWidth = 850.0;
+                    final scale = (constraints.maxWidth / baseTableWidth)
+                        .clamp(0.45, 1.5);
+                    double w(double width) => width * scale;
+                    return Column(
                       children: [
-                        _buildColumnHeaders(headers, color),
+                        _buildColumnHeaders(headers, color, scale),
                         Expanded(
                           child: Obx(
                             () => SingleChildScrollView(
@@ -1073,7 +1062,7 @@ class _ReturnProductViewState extends State<ReturnProductView> {
                                       child: Row(
                                         children: [
                                           _cell(
-                                            50,
+                                            w(50),
                                             Text(
                                               '${index + 1}',
                                               style: AppTheme.bodySmall
@@ -1090,7 +1079,7 @@ class _ReturnProductViewState extends State<ReturnProductView> {
                                             onTap: () =>
                                                 selectedRowIndex.value = index,
                                             child: Container(
-                                              width: 350,
+                                              width: w(350),
                                               height: 32,
                                               padding:
                                                   const EdgeInsets.symmetric(
@@ -1232,7 +1221,7 @@ class _ReturnProductViewState extends State<ReturnProductView> {
                                           ),
 
                                           _cell(
-                                            150,
+                                            w(150),
                                             Text(
                                               code,
                                               style: AppTheme.bodySmall
@@ -1246,7 +1235,7 @@ class _ReturnProductViewState extends State<ReturnProductView> {
                                           ),
 
                                           _cell(
-                                            150,
+                                            w(150),
                                             Text(
                                               unit,
                                               style: AppTheme.bodySmall
@@ -1260,7 +1249,7 @@ class _ReturnProductViewState extends State<ReturnProductView> {
                                           ),
 
                                           _cell(
-                                            150,
+                                            w(150),
                                             TextField(
                                               controller: amtCtrl,
                                               enabled: !dashboardController
@@ -1329,8 +1318,8 @@ class _ReturnProductViewState extends State<ReturnProductView> {
                           ),
                         ),
                       ],
-                    ),
-                  ),
+                    );
+                  },
                 ),
               ),
             ),
@@ -1340,7 +1329,11 @@ class _ReturnProductViewState extends State<ReturnProductView> {
     );
   }
 
-  Widget _buildColumnHeaders(List<String> headers, Color color) {
+  Widget _buildColumnHeaders(
+    List<String> headers,
+    Color color,
+    double scale,
+  ) {
     return Container(
       decoration: BoxDecoration(
         color: AppTheme.tableHeaderBlue,
@@ -1350,7 +1343,7 @@ class _ReturnProductViewState extends State<ReturnProductView> {
         children: headers
             .map(
               (h) => Container(
-                width: _getColumnWidth(h),
+                width: _getColumnWidth(h) * scale,
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                 decoration: BoxDecoration(
                   border: Border(
@@ -1401,9 +1394,6 @@ class _ReturnProductViewState extends State<ReturnProductView> {
       child: child,
     );
   }
-
-  double _getTableWidth(List<String> headers) =>
-      headers.fold(0.0, (sum, h) => sum + _getColumnWidth(h));
 
   double _getColumnWidth(String h) {
     switch (h) {
@@ -1473,9 +1463,7 @@ class _ReturnProductViewState extends State<ReturnProductView> {
     _cancelAutoSaves();
     _inventorySnapshotRefreshTimer?.cancel();
     bolController.dispose(); // ✅ BOL controller dispose
-    _productHorizontalScrollController.dispose();
     _productVerticalScrollController.dispose();
-    _packageHorizontalScrollController.dispose();
     _packageVerticalScrollController.dispose();
     for (final r in productRows) r.dispose();
     for (final r in packageRows) r.dispose();
