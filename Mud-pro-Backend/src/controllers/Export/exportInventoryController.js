@@ -2538,7 +2538,7 @@ const fillDmrBitInformation = (ws, { casings = [], intervals = [], wellGeneral, 
   });
 
   fillRowRange(ws, 21, "BE", "BK", "TFA (in2)");
-  fillRowRange(ws, 21, "BL", "BS", roundOrBlank(nozzleData?.tfa, 3));
+  fillRowRange(ws, 21, "BL", "BS", roundOrBlank(nozzleTotalArea(nozzleData), 3));
 };
 
 const fillDmrTopSections = (ws, { drillStrings, casings, summary, activePits, fluidName, wellGeneral, consumeProducts, mudReportState, solidsAnalysisRows, intervals, reportFormat, nozzleData }) => {
